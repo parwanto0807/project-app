@@ -1,0 +1,176 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model AccountEmail {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Authentication Models
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String?  // optional for Google login
+  name      String?
+  avatar    String?  // avatar from Google
+  googleId  String?  @unique
+  provider  String   // 'google' or 'credentials'
+  role      String   // 'super', 'admin', 'pic', 'warga'
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  sessions       UserSession[]
+  salesOrders    SalesOrder[]   @relation("UserSalesOrders")
+}
+
+model UserSession {
+  id            String   @id @default(uuid())
+  userId        String   @map("user_id")
+  sessionToken  String   @unique               // UUID token yang disimpan di cookie
+  refreshToken  String?                        // (Opsional) bisa enkripsi
+  ipAddress     String?
+  userAgent     String?
+  isRevoked     Boolean  @default(false)       // Bisa revoke sesi
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  expiresAt     DateTime                       // Masa berlaku token
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("user_sessions")
+  @@index([userId]) // untuk query cepat by user
+}
+
+model Customer {
+  id            String   @id @default(uuid())
+  code          String   @unique                // kode unik customer, misal: CUST-001
+  name          String                          // nama customer
+  email         String?  @unique                // kontak email utama
+  phone         String?                         // nomor telepon utama
+  address       String?                         // alamat lengkap
+  branch        String?                         // cabang jika ada
+  city          String?                         // kota
+  province      String?                         // provinsi
+  postalCode    String?                         // kode pos
+  taxNumber     String?                         // NPWP / Tax ID
+  companyType   String?                         // tipe perusahaan: PT, CV, dll
+  contactPerson String?                         // nama PIC utama
+  picPhone      String?                         // kontak PIC
+  picEmail      String?                         // email PIC
+  notes         String?                         // catatan tambahan
+
+  isActive      Boolean  @default(true)         // aktif/nonaktif
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  projects       Project[]
+  salesOrders    SalesOrder[]
+}
+
+
+model Project {
+  id          String   @id @default(uuid())
+  customerId  String
+  name        String
+  location    String?
+  createdAt   DateTime @default(now())
+
+  customer    Customer @relation(fields: [customerId], references: [id])
+  salesOrders SalesOrder[]
+}
+
+model Product {
+  id                 String   @id @default(uuid())
+  code               String   @unique            // Kode produk/SKU
+  name               String                      // Nama produk
+  description        String?                     // Deskripsi produk
+  type               String?                     // Material, Jasa, Alat, dll
+
+  purchaseUnit       String                      // Satuan pembelian (misal: roll)
+  storageUnit        String                      // Satuan penyimpanan (misal: roll)
+  usageUnit          String                      // Satuan penggunaan (misal: meter)
+
+  conversionToStorage Decimal                    // Dari pembelian → penyimpanan (contoh: 1 karton = 10 roll → 10)
+  conversionToUsage   Decimal                    // Dari penyimpanan → penggunaan (contoh: 1 roll = 100 meter → 100)
+
+  isConsumable        Boolean   @default(true)   // True jika habis pakai
+  isActive            Boolean   @default(true)
+  image               String?                    // URL gambar produk
+  barcode             String?                    // Optional barcode / QR
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // Optional kategori
+  categoryId          String?
+  category            ProductCategory? @relation(fields: [categoryId], references: [id])
+
+  // Relasi
+  salesOrderItems     SalesOrderItem[]
+}
+
+model ProductCategory {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  products  Product[]
+}
+
+model SalesOrder {
+  id           String   @id @default(uuid())
+  soNumber     String   @unique
+  soDate       DateTime
+  customerId   String
+  projectId    String?
+  userId       String // relasi ke User
+  poNumber     String?
+  type         String   // "REGULAR" | "SUPPORT"
+  createdAt    DateTime @default(now())
+
+  customer     Customer @relation(fields: [customerId], references: [id])
+  project      Project? @relation(fields: [projectId], references: [id])
+  user         User     @relation("UserSalesOrders", fields: [userId], references: [id])
+
+  items        SalesOrderItem[]
+  document     SalesOrderDocument?
+}
+
+model SalesOrderItem {
+  id            String   @id @default(uuid())
+  salesOrderId  String
+  productId     String?
+  description   String
+  qty           Decimal
+  unitPrice     Decimal
+
+  salesOrder    SalesOrder @relation(fields: [salesOrderId], references: [id])
+  product       Product?   @relation(fields: [productId], references: [id])
+}
+
+model SalesOrderDocument {
+  id              String   @id @default(uuid())
+  salesOrderId    String   @unique
+  isOffer         Boolean  @default(false)
+  isPo            Boolean  @default(false)
+  isBap           Boolean  @default(false)
+  isInvoice       Boolean  @default(false)
+  isPaymentStatus Boolean  @default(false)
+
+  salesOrder      SalesOrder @relation(fields: [salesOrderId], references: [id])
+}
