@@ -190,7 +190,7 @@ export function CustomersTable({
                     <Link href={`/customers/${customer.id}`}>View Details</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href={`/customers/${customer.id}/edit`}>Edit</Link>
+                    <Link href={`/super-admin-area/master/customers/update/${customer.id}`}>Edit</Link>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

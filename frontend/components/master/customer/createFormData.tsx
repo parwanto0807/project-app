@@ -92,7 +92,7 @@ export default function CreateCustomerForm() {
             }
 
             toast.success("Customer created successfully");
-            router.push("/customers");
+            router.push("/super-admin-area/master/customers");
         } catch (error) {
             toast.error(
                 error instanceof Error ? error.message : "Failed to create customer"

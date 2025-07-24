@@ -69,7 +69,7 @@ export default function UpdateCustomerForm({
       }
 
       toast.success("Customer berhasil diperbarui");
-      router.push("/super-admin-area/master/customer");
+      router.push("/super-admin-area/master/customers");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Gagal memperbarui customer");
     } finally {
