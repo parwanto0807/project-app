@@ -15,6 +15,7 @@ import {
 // import { TrashIcon } from "@heroicons/react/24/outline";
 import { toast } from "sonner";
 import { useState } from "react";
+import { Trash2 } from "lucide-react";
 
 type DeleteCustomerAlertProps = {
     id: string;
@@ -63,7 +64,10 @@ export default function DeleteCustomerAlert({ id, onDelete }: DeleteCustomerAler
                     <span className="sr-only">Delete Customer</span>
                     <TrashIcon className="w-8" />
                 </Button> */}
-                <h3 className="pl-2 py-1 hover:bg-red-200 rounded">Delete</h3>
+                <h3 className="flex items-center gap-2 pl-4 py-1 hover:bg-red-200 rounded cursor-pointer dark:hover:text-gray-800">
+                    <Trash2 className="w-4 h-4 text-red-400" />
+                    Delete
+                </h3>
             </AlertDialogTrigger>
             <AlertDialogContent>
                 <AlertDialogHeader>
