@@ -323,9 +323,9 @@ export function getMenuList(pathname: string, role: string) {
               active: isActive("/super-admin-area/master/customers", pathname),
             },
             {
-              href: "/master/products",
+              href: "/super-admin-area/master/products",
               label: "Data Products",
-              active: isActive("/master/products", pathname),
+              active: isActive("/super-admin-area/master/products", pathname),
             },
           ],
         },

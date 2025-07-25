@@ -8,7 +8,7 @@ import './config/passport.js';
 import { SESSION_SECRET, CLIENT_URL, NODE_ENV } from './config/env.js'; // Import dari env
 import customerRoutes from './routes/master/customer/customerRoutes.js'; // Import customer routes
 import productRoutes from './routes/master/product/productRoutes.js'; // Import product routes
-import kategoryRoutes from './routes/master/customer/kategoryProductRoutes.js'; // Import category routes
+import kategoryRoutes from './routes/master/product/kategoryProductRoutes.js'; // Import category routes
 import salesOrderRoutes from './routes/salesOrder/salesOrderRoutes.js'; // Import sales order routes
 
 

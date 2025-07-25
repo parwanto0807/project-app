@@ -64,3 +64,39 @@ export const customerUpdateSchema = customerSchema.extend({
 });
 
 export type LoginSchemaType = z.infer<typeof LoginSchema>;
+
+
+//Product Model
+export const ProductRegisterSchema = z.object({
+  code: z.string().min(1, { message: "Kode produk wajib diisi" }),
+  name: z.string().min(1, { message: "Nama produk wajib diisi" }),
+  description: z.string().optional(),
+  type: z.enum(["Material", "Jasa", "Alat"]).optional(),
+
+  purchaseUnit: z.string().min(1, { message: "Satuan pembelian wajib diisi" }),
+  storageUnit: z.string().min(1, { message: "Satuan penyimpanan wajib diisi" }),
+  usageUnit: z.string().min(1, { message: "Satuan penggunaan wajib diisi" }),
+
+  conversionToStorage: z.coerce.number().positive({ message: "Harus lebih dari 0" }),
+  conversionToUsage: z.coerce.number().positive({ message: "Harus lebih dari 0" }),
+
+  isConsumable: z.boolean().default(true),
+  isActive: z.boolean().default(true),
+  image: z.string().url({ message: "Harus berupa URL gambar" }).optional(),
+  barcode: z.string().optional(),
+
+  categoryId: z.string().uuid().optional(),
+});
+
+export const ProductUpdateSchema = ProductRegisterSchema.partial().extend({
+  id: z.string().uuid({ message: "ID produk tidak valid" }),
+});
+
+
+//Product Category Model
+export const ProductCategoryRegisterSchema = z.object({
+  name: z.string().min(1, { message: "Nama kategori wajib diisi" }),
+});
+export const ProductCategoryUpdateSchema = ProductCategoryRegisterSchema.extend({
+  id: z.string().uuid({ message: "ID kategori tidak valid" }),
+});

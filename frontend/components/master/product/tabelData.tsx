@@ -1,0 +1,416 @@
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import {
+    ChevronDown,
+    ChevronRight,
+    Edit,
+    Trash,
+    Box,
+    Package,
+    Hammer,
+    ShoppingCart,
+    Barcode,
+    Image as ImageIcon,
+    Search,
+    Plus,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
+import { Input } from "@/components/ui/input";
+
+interface ProductCategory {
+    id: string;
+    name: string;
+    products?: Product[];
+}
+
+interface Product {
+    id: string;
+    code: string;
+    name: string;
+    description: string | null;
+    type: string | null;
+    purchaseUnit: string;
+    storageUnit: string;
+    usageUnit: string;
+    conversionToStorage: number | string; // Decimal can be represented as number or string
+    conversionToUsage: number | string;
+    isConsumable: boolean;
+    isActive: boolean;
+    image: string | null;
+    barcode: string | null;
+    createdAt: Date | string;
+    updatedAt: Date | string;
+    categoryId: string | null;
+    category?: ProductCategory | null;
+    salesOrderItems?: string[]; // You can define a more specific type if needed
+}
+
+interface ProductListProps {
+    products: Product[];
+    isLoading: boolean;
+    onSearch?: (searchTerm: string) => void;
+    onCreate?: () => void;
+    currentPage?: number;
+    totalPages?: number;
+    onPageChange?: (page: number) => void;
+}
+const ProductList = ({
+    products,
+    isLoading,
+    onSearch,
+    onCreate,
+    currentPage = 1,
+    totalPages = 1,
+    onPageChange,
+}: ProductListProps) => {
+    const [expandedProducts, setExpandedProducts] = useState<Set<string>>(
+        new Set()
+    );
+    const [searchTerm, setSearchTerm] = useState("");
+
+    const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        setSearchTerm(value);
+        if (onSearch) onSearch(value);
+    };
+    const toggleExpand = (productId: string) => {
+        setExpandedProducts((prev) => {
+            const newSet = new Set(prev);
+            if (newSet.has(productId)) {
+                newSet.delete(productId);
+            } else {
+                newSet.add(productId);
+            }
+            return newSet;
+        });
+    };
+
+    const getProductIcon = (type: string | null) => {
+        switch (type?.toLowerCase()) {
+            case "material":
+                return <Package className="h-5 w-5 text-blue-500" />;
+            case "jasa":
+                return <Hammer className="h-5 w-5 text-green-500" />;
+            case "alat":
+                return <Hammer className="h-5 w-5 text-purple-500" />;
+            default:
+                return <Box className="h-5 w-5 text-orange-500" />;
+        }
+    };
+
+    return (
+        <div className="space-y-4">
+            {/* Search and Create Header */}
+            <div className="flex flex-col sm:flex-row justify-between gap-4">
+                <div className="relative w-full sm:w-64">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Search products..."
+                        className="pl-9"
+                        value={searchTerm}
+                        onChange={handleSearch}
+                    />
+                </div>
+                <Button onClick={onCreate} className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Create Product
+                </Button>
+            </div>
+
+            <div className="rounded-md border">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead className="w-[50px]"></TableHead>
+                            <TableHead>Code</TableHead>
+                            <TableHead>Name</TableHead>
+                            <TableHead className="hidden md:table-cell">Type</TableHead>
+                            <TableHead className="hidden lg:table-cell">Units</TableHead>
+                            <TableHead className="hidden sm:table-cell">Status</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {isLoading
+                            ? Array.from({ length: 5 }).map((_, i) => (
+                                <TableRow key={i}>
+                                    <TableCell>
+                                        <Skeleton className="h-4 w-4 rounded-full" />
+                                    </TableCell>
+                                    <TableCell>
+                                        <Skeleton className="h-4 w-20" />
+                                    </TableCell>
+                                    <TableCell>
+                                        <Skeleton className="h-4 w-32" />
+                                    </TableCell>
+                                    <TableCell className="hidden md:table-cell">
+                                        <Skeleton className="h-4 w-24" />
+                                    </TableCell>
+                                    <TableCell className="hidden lg:table-cell">
+                                        <Skeleton className="h-4 w-36" />
+                                    </TableCell>
+                                    <TableCell className="hidden sm:table-cell">
+                                        <Skeleton className="h-4 w-16" />
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <Skeleton className="h-8 w-8 ml-auto" />
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                            : products.map((product) => (
+                                <>
+                                    <TableRow key={product.id} className="hover:bg-muted/50">
+                                        <TableCell>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-6 w-6"
+                                                onClick={() => toggleExpand(product.id)}
+                                            >
+                                                {expandedProducts.has(product.id) ? (
+                                                    <ChevronDown className="h-4 w-4" />
+                                                ) : (
+                                                    <ChevronRight className="h-4 w-4" />
+                                                )}
+                                            </Button>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex items-center gap-2">
+                                                {getProductIcon(product.type)}
+                                                <span className="font-medium">{product.code}</span>
+                                                {product.barcode && (
+                                                    <Barcode
+                                                        className="h-4 w-4 text-muted-foreground hidden sm:inline"
+                                                        strokeWidth={1.5}
+                                                    />
+                                                )}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="font-medium">{product.name}</div>
+                                            <div className="text-sm text-muted-foreground md:hidden">
+                                                {product.type}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="hidden md:table-cell">
+                                            {product.type || "Unknown"}
+                                        </TableCell>
+                                        <TableCell className="hidden lg:table-cell">
+                                            <div className="flex gap-1 text-sm text-muted-foreground">
+                                                <span>
+                                                    {product.purchaseUnit} → {product.storageUnit} (
+                                                    {product.conversionToStorage.toString()})
+                                                </span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="hidden sm:table-cell">
+                                            <Badge
+                                                variant={product.isActive ? "default" : "secondary"}
+                                                className={
+                                                    product.isActive
+                                                        ? "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-400"
+                                                        : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400"
+                                                }
+                                            >
+                                                {product.isActive ? "Active" : "Inactive"}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" className="h-8 w-8 p-0">
+                                                        <span className="sr-only">Open menu</span>
+                                                        <svg
+                                                            xmlns="http://www.w3.org/2000/svg"
+                                                            width="16"
+                                                            height="16"
+                                                            viewBox="0 0 24 24"
+                                                            fill="none"
+                                                            stroke="currentColor"
+                                                            strokeWidth="2"
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            className="lucide lucide-ellipsis-vertical"
+                                                        >
+                                                            <circle cx="12" cy="12" r="1" />
+                                                            <circle cx="12" cy="5" r="1" />
+                                                            <circle cx="12" cy="19" r="1" />
+                                                        </svg>
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem className="gap-2">
+                                                        <Edit className="h-4 w-4" />
+                                                        Edit
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem className="gap-2 text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400">
+                                                        <Trash className="h-4 w-4" />
+                                                        Delete
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </TableCell>
+                                    </TableRow>
+                                    {expandedProducts.has(product.id) && (
+                                        <TableRow className="bg-muted/30">
+                                            <TableCell colSpan={7}>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+                                                    <div className="space-y-2">
+                                                        <h4 className="font-medium text-sm flex items-center gap-2">
+                                                            <ImageIcon className="h-4 w-4" />
+                                                            Product Details
+                                                        </h4>
+                                                        <div className="grid grid-cols-2 gap-2 text-sm">
+                                                            <div className="text-muted-foreground">
+                                                                Description:
+                                                            </div>
+                                                            <div>
+                                                                {product.description || "No description"}
+                                                            </div>
+
+                                                            <div className="text-muted-foreground">
+                                                                Consumable:
+                                                            </div>
+                                                            <div>
+                                                                {product.isConsumable ? "Yes" : "No"}
+                                                            </div>
+
+                                                            <div className="text-muted-foreground">
+                                                                Category:
+                                                            </div>
+                                                            <div>
+                                                                {product.categoryId || "Uncategorized"}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="space-y-2">
+                                                        <h4 className="font-medium text-sm flex items-center gap-2">
+                                                            <ShoppingCart className="h-4 w-4" />
+                                                            Unit Conversions
+                                                        </h4>
+                                                        <div className="grid grid-cols-2 gap-2 text-sm">
+                                                            <div className="text-muted-foreground">
+                                                                Purchase Unit:
+                                                            </div>
+                                                            <div>{product.purchaseUnit}</div>
+
+                                                            <div className="text-muted-foreground">
+                                                                Storage Unit:
+                                                            </div>
+                                                            <div>{product.storageUnit}</div>
+
+                                                            <div className="text-muted-foreground">
+                                                                Usage Unit:
+                                                            </div>
+                                                            <div>{product.usageUnit}</div>
+
+                                                            <div className="text-muted-foreground">
+                                                                Storage Conversion:
+                                                            </div>
+                                                            <div>
+                                                                1 {product.purchaseUnit} ={" "}
+                                                                {product.conversionToStorage.toString()}{" "}
+                                                                {product.storageUnit}
+                                                            </div>
+
+                                                            <div className="text-muted-foreground">
+                                                                Usage Conversion:
+                                                            </div>
+                                                            <div>
+                                                                1 {product.storageUnit} ={" "}
+                                                                {product.conversionToUsage.toString()}{" "}
+                                                                {product.usageUnit}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="space-y-2">
+                                                        <h4 className="font-medium text-sm flex items-center gap-2">
+                                                            <Barcode className="h-4 w-4" />
+                                                            Additional Info
+                                                        </h4>
+                                                        <div className="grid grid-cols-2 gap-2 text-sm">
+                                                            <div className="text-muted-foreground">
+                                                                Created At:
+                                                            </div>
+                                                            <div>
+                                                                {new Date(
+                                                                    product.createdAt
+                                                                ).toLocaleDateString()}
+                                                            </div>
+
+                                                            <div className="text-muted-foreground">
+                                                                Updated At:
+                                                            </div>
+                                                            <div>
+                                                                {new Date(
+                                                                    product.updatedAt
+                                                                ).toLocaleDateString()}
+                                                            </div>
+
+                                                            {product.barcode && (
+                                                                <>
+                                                                    <div className="text-muted-foreground">
+                                                                        Barcode:
+                                                                    </div>
+                                                                    <div>{product.barcode}</div>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </>
+                            ))}
+                    </TableBody>
+                </Table>
+            </div>
+            {/* Pagination */}
+            {totalPages > 1 && (
+                <div className="flex items-center justify-between px-2">
+                    <div className="text-sm text-muted-foreground">
+                        Page {currentPage} of {totalPages}
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onPageChange?.(currentPage - 1)}
+                            disabled={currentPage <= 1}
+                        >
+                            Previous
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onPageChange?.(currentPage + 1)}
+                            disabled={currentPage >= totalPages}
+                        >
+                            Next
+                        </Button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default ProductList;

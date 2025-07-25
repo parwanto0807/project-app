@@ -17,7 +17,7 @@ import {
   BadgeX,
   Edit2,
   // Trash2,
-  Eye,
+  // Eye,
   Calendar,
   FileDigit,
   Contact,
@@ -276,14 +276,14 @@ export function CustomersTable({
                             align="end" 
                             className="w-48 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800"
                           >
-                            <DropdownMenuItem 
+                            {/* <DropdownMenuItem 
                               onClick={() => setDetailId(customer.id)}
                               className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 cursor-pointer"
                             >
                               <Eye className="h-4 w-4 text-blue-500 dark:text-blue-400" />
                               View Details
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator className="border-t border-gray-200 dark:border-gray-600" />
+                            </DropdownMenuItem> */}
+                            {/* <DropdownMenuSeparator className="border-t border-gray-200 dark:border-gray-600" /> */}
                             <DropdownMenuItem asChild>
                               <Link
                                 href={`/super-admin-area/master/customers/update/${customer.id}`}
