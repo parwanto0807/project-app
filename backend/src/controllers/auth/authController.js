@@ -15,13 +15,27 @@ import { randomUUID } from 'crypto';
 const prisma = new PrismaClient();
 
 // 🔐 Helper: Buat token JWT
-function generateAccessToken(user) {
-  return jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, { expiresIn: '15m' });
-}
+const generateAccessToken = (user) => {
+  return jwt.sign(
+    {
+      userId: user.id,
+      role: user.role
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: '15m' }
+  );
+};
 
-function generateRefreshToken(user) {
-  return jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '7d' });
-}
+const generateRefreshToken = (user) => {
+  return jwt.sign(
+    {
+      userId: user.id,
+      tokenVersion: user.tokenVersion || 0
+    },
+    process.env.JWT_REFRESH_SECRET,
+    { expiresIn: '7d' }
+  );
+};
 
 // 🔐 Helper: Set cookie JWT
 function setTokenCookies(res, accessToken, refreshToken) {
@@ -143,36 +157,97 @@ export const googleLogin = async (req, res) => {
   }
 };
 
-
-
 // 🔐 Login Admin
 export const adminLogin = async (req, res) => {
   const { email, password } = req.body;
-  const user = await prisma.user.findUnique({ where: { email } });
 
-  if (!user || user.role !== 'super' || user.provider !== 'credentials') {
-    return res.status(403).json({ error: 'Invalid credentials' });
+  try {
+    // 1. Validasi input dasar
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    // 2. Cari user dengan role 'super'
+    const user = await prisma.user.findUnique({ 
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+        password: true,
+        name: true,
+        role: true,
+        provider: true,
+        mfaEnabled: true,
+        active: true
+      }
+    });
+
+    // 3. Validasi user
+    if (!user) {
+      return res.status(403).json({ error: 'Invalid credentials' });
+    }
+
+    if (user.role !== 'super' || user.provider !== 'credentials') {
+      return res.status(403).json({ error: 'Access restricted to super admins only' });
+    }
+
+    if (!user.active) {
+      return res.status(403).json({ error: 'Account is deactivated' });
+    }
+
+    // 4. Verifikasi password
+    const isValid = await bcrypt.compare(password, user.password);
+    if (!isValid) {
+      // Log percobaan login gagal
+      await prisma.loginAttempt.create({
+        data: {
+          userId: user.id,
+          status: 'FAILED',
+          ipAddress: req.ip,
+          userAgent: req.headers['user-agent'],
+          email: user.email,
+        }
+      });
+      return res.status(403).json({ error: 'Invalid credentials' });
+    }
+
+    // 5. Generate tokens
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
+
+    // 6. Buat session dan set cookies
+    await createUserSession(user, refreshToken, req);
+    setTokenCookies(res, accessToken, refreshToken);
+
+    // 7. Log login sukses
+    await prisma.loginAttempt.create({
+      data: {
+        userId: user.id,
+        status: 'SUCCESS',
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+        email: user.email,
+      }
+    });
+
+    // 8. Response
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        mfaEnabled: user.mfaEnabled
+      },
+      accessToken,
+      // Kirim refreshToken hanya jika diperlukan (biasanya cukup di cookie)
+    });
+
+  } catch (error) {
+    console.error('Admin login error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
-
-  const isValid = await bcrypt.compare(password, user.password);
-
-  if (!isValid) return res.status(403).json({ error: 'Invalid credentials' });
-
-  const accessToken = generateAccessToken(user);
-  const refreshToken = generateRefreshToken(user);
-  await createUserSession(user, refreshToken, req);
-  setTokenCookies(res, accessToken, refreshToken);
-
-  res.json({
-    success: true,
-    user: {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-    },
-    accessToken,
-  });
 };
 
 export const adminLoginRegister = async (req, res) => {
@@ -255,7 +330,6 @@ export const registerEmail = async (req, res) => {
     return res.status(500).json({ error: "Something went wrong." });
   }
 };
-
 
 // 📝 Register Admin
 export const registerAdmin = async (req, res) => {

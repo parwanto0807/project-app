@@ -24,13 +24,16 @@ import {
     Hammer,
     ShoppingCart,
     Barcode,
-    Image as ImageIcon,
     Search,
     Plus,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { useState } from "react";
+import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
+import Link from "next/link";
+import { formatDateToDDMMMYYYY } from "@/lib/utils";
+
+
 
 interface ProductCategory {
     id: string;
@@ -47,7 +50,7 @@ interface Product {
     purchaseUnit: string;
     storageUnit: string;
     usageUnit: string;
-    conversionToStorage: number | string; // Decimal can be represented as number or string
+    conversionToStorage: number | string;
     conversionToUsage: number | string;
     isConsumable: boolean;
     isActive: boolean;
@@ -57,7 +60,7 @@ interface Product {
     updatedAt: Date | string;
     categoryId: string | null;
     category?: ProductCategory | null;
-    salesOrderItems?: string[]; // You can define a more specific type if needed
+    salesOrderItems?: string[];
 }
 
 interface ProductListProps {
@@ -69,11 +72,11 @@ interface ProductListProps {
     totalPages?: number;
     onPageChange?: (page: number) => void;
 }
+
 const ProductList = ({
     products,
     isLoading,
     onSearch,
-    onCreate,
     currentPage = 1,
     totalPages = 1,
     onPageChange,
@@ -86,8 +89,11 @@ const ProductList = ({
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
         setSearchTerm(value);
-        if (onSearch) onSearch(value);
+        if (onSearch) {
+            onSearch(value);
+        }
     };
+
     const toggleExpand = (productId: string) => {
         setExpandedProducts((prev) => {
             const newSet = new Set(prev);
@@ -98,6 +104,19 @@ const ProductList = ({
             }
             return newSet;
         });
+    };
+
+    const handleRowClick = (e: React.MouseEvent, productId: string) => {
+        // Prevent toggle if clicking on dropdown menu or buttons
+        const target = e.target as HTMLElement;
+        if (
+            target.closest('button') ||
+            target.closest('.dropdown-menu') ||
+            target.closest('a')
+        ) {
+            return;
+        }
+        toggleExpand(productId);
     };
 
     const getProductIcon = (type: string | null) => {
@@ -126,9 +145,11 @@ const ProductList = ({
                         onChange={handleSearch}
                     />
                 </div>
-                <Button onClick={onCreate} className="gap-2">
-                    <Plus className="h-4 w-4" />
-                    Create Product
+                <Button asChild className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white rounded-lg shadow-sm">
+                    <Link href="/super-admin-area/master/products/create" className="gap-2">
+                        <Plus className="h-4 w-4" />
+                        New Product
+                    </Link>
                 </Button>
             </div>
 
@@ -136,13 +157,12 @@ const ProductList = ({
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="w-[50px]"></TableHead>
-                            <TableHead>Code</TableHead>
-                            <TableHead>Name</TableHead>
-                            <TableHead className="hidden md:table-cell">Type</TableHead>
-                            <TableHead className="hidden lg:table-cell">Units</TableHead>
-                            <TableHead className="hidden sm:table-cell">Status</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
+                            <TableHead className="uppercase">Code</TableHead>
+                            <TableHead className="uppercase">Name</TableHead>
+                            <TableHead className="hidden md:table-cell uppercase">Type</TableHead>
+                            <TableHead className="hidden lg:table-cell uppercase">Units</TableHead>
+                            <TableHead className="hidden sm:table-cell uppercase">Status</TableHead>
+                            <TableHead className="text-right uppercase">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -173,22 +193,11 @@ const ProductList = ({
                                 </TableRow>
                             ))
                             : products.map((product) => (
-                                <>
-                                    <TableRow key={product.id} className="hover:bg-muted/50">
-                                        <TableCell>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-6 w-6"
-                                                onClick={() => toggleExpand(product.id)}
-                                            >
-                                                {expandedProducts.has(product.id) ? (
-                                                    <ChevronDown className="h-4 w-4" />
-                                                ) : (
-                                                    <ChevronRight className="h-4 w-4" />
-                                                )}
-                                            </Button>
-                                        </TableCell>
+                                <React.Fragment key={product.id}>
+                                    <TableRow
+                                        className="hover:bg-muted/50 cursor-pointer"
+                                        onClick={(e) => handleRowClick(e, product.id)}
+                                    >
                                         <TableCell>
                                             <div className="flex items-center gap-2">
                                                 {getProductIcon(product.type)}
@@ -202,7 +211,7 @@ const ProductList = ({
                                             </div>
                                         </TableCell>
                                         <TableCell>
-                                            <div className="font-medium">{product.name}</div>
+                                            <div className="font-medium text-wrap">{product.name}</div>
                                             <div className="text-sm text-muted-foreground md:hidden">
                                                 {product.type}
                                             </div>
@@ -230,10 +239,30 @@ const ProductList = ({
                                                 {product.isActive ? "Active" : "Inactive"}
                                             </Badge>
                                         </TableCell>
+
                                         <TableCell className="text-right">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-6 w-6"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    toggleExpand(product.id);
+                                                }}
+                                            >
+                                                {expandedProducts.has(product.id) ? (
+                                                    <ChevronDown className="h-4 w-4" />
+                                                ) : (
+                                                    <ChevronRight className="h-4 w-4" />
+                                                )}
+                                            </Button>
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" className="h-8 w-8 p-0">
+                                                    <Button
+                                                        variant="ghost"
+                                                        className="h-8 w-8 p-0"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    >
                                                         <span className="sr-only">Open menu</span>
                                                         <svg
                                                             xmlns="http://www.w3.org/2000/svg"
@@ -253,10 +282,12 @@ const ProductList = ({
                                                         </svg>
                                                     </Button>
                                                 </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem className="gap-2">
-                                                        <Edit className="h-4 w-4" />
-                                                        Edit
+                                                <DropdownMenuContent align="end" className="dropdown-menu">
+                                                    <DropdownMenuItem asChild className="gap-2">
+                                                        <Link href={`/super-admin-area/master/products/update/${product.id}`}>
+                                                            <Edit className="h-4 w-4" />
+                                                            Edit
+                                                        </Link>
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem className="gap-2 text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400">
                                                         <Trash className="h-4 w-4" />
@@ -267,40 +298,39 @@ const ProductList = ({
                                         </TableCell>
                                     </TableRow>
                                     {expandedProducts.has(product.id) && (
-                                        <TableRow className="bg-muted/30">
-                                            <TableCell colSpan={7}>
-                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+                                        <TableRow className="bg-blue-50 dark:bg-gray-700">
+                                            <TableCell colSpan={6} className="px-6 py-4">
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
                                                     <div className="space-y-2">
-                                                        <h4 className="font-medium text-sm flex items-center gap-2">
-                                                            <ImageIcon className="h-4 w-4" />
+                                                        <h4 className="font-medium flex items-center gap-2 text-blue-600 dark:text-blue-400">
                                                             Product Details
                                                         </h4>
-                                                        <div className="grid grid-cols-2 gap-2 text-sm">
+                                                        <div className="grid grid-cols-1 gap-1 text-sm">
                                                             <div className="text-muted-foreground">
-                                                                Description:
+                                                                Description :
                                                             </div>
-                                                            <div>
+                                                            <div className="text-wrap pl-2">
                                                                 {product.description || "No description"}
                                                             </div>
 
                                                             <div className="text-muted-foreground">
-                                                                Consumable:
+                                                                Consumable :
                                                             </div>
-                                                            <div>
+                                                            <div className="pl-2">
                                                                 {product.isConsumable ? "Yes" : "No"}
                                                             </div>
 
                                                             <div className="text-muted-foreground">
-                                                                Category:
+                                                                Category :
                                                             </div>
-                                                            <div>
-                                                                {product.categoryId || "Uncategorized"}
+                                                            <div className="pl-2">
+                                                                {product.category?.name || product.categoryId || "Uncategorized"}
                                                             </div>
                                                         </div>
                                                     </div>
 
                                                     <div className="space-y-2">
-                                                        <h4 className="font-medium text-sm flex items-center gap-2">
+                                                        <h4 className="font-medium flex items-center gap-2 text-blue-600 dark:text-blue-400">
                                                             <ShoppingCart className="h-4 w-4" />
                                                             Unit Conversions
                                                         </h4>
@@ -341,7 +371,7 @@ const ProductList = ({
                                                     </div>
 
                                                     <div className="space-y-2">
-                                                        <h4 className="font-medium text-sm flex items-center gap-2">
+                                                        <h4 className="font-medium flex items-center gap-2 text-blue-600 dark:text-blue-400">
                                                             <Barcode className="h-4 w-4" />
                                                             Additional Info
                                                         </h4>
@@ -349,20 +379,12 @@ const ProductList = ({
                                                             <div className="text-muted-foreground">
                                                                 Created At:
                                                             </div>
-                                                            <div>
-                                                                {new Date(
-                                                                    product.createdAt
-                                                                ).toLocaleDateString()}
-                                                            </div>
+                                                            <div>{formatDateToDDMMMYYYY(product.createdAt)}</div>
 
                                                             <div className="text-muted-foreground">
                                                                 Updated At:
                                                             </div>
-                                                            <div>
-                                                                {new Date(
-                                                                    product.updatedAt
-                                                                ).toLocaleDateString()}
-                                                            </div>
+                                                            <div>{formatDateToDDMMMYYYY(product.updatedAt)}</div>
 
                                                             {product.barcode && (
                                                                 <>
@@ -378,7 +400,7 @@ const ProductList = ({
                                             </TableCell>
                                         </TableRow>
                                     )}
-                                </>
+                                </React.Fragment>
                             ))}
                     </TableBody>
                 </Table>

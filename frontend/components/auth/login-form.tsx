@@ -51,36 +51,67 @@ const LoginForm = () => {
     startTransition(async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-        console.log("API URL:", apiUrl);
+        const deviceId = generateDeviceId(); // Implement device fingerprinting
 
+        // 1. Lakukan login dengan deviceId
         const res = await fetch(`${apiUrl}/api/auth/admin/login`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "x-device-id": deviceId
+          },
           credentials: "include",
-          body: JSON.stringify({
-            email: values.email,
-            password: values.password,
-          }),
+          body: JSON.stringify(values),
         });
 
-        const data = await res.json();
-        console.log("Response data:", data);
-
         if (!res.ok) {
-          form.reset();
-          setError(data.error || "Login failed");
-          return;
+          const data = await res.json();
+          throw new Error(data.error || "Login failed");
         }
 
-        form.reset();
-        setSuccess(data.message || "Login successful");
-        router.push("/super-admin-area"); // Redirect to Super Admin area after successful login
+        // 2. Beri jeda untuk memastikan cookie tersimpan
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        // 2. Cek MFA status
+        const statusRes = await fetch(`${apiUrl}/api/auth/mfa/status`, {
+          credentials: "include",
+          headers: { "x-device-id": deviceId, "Cache-Control": "no-cache" }
+        });
+        
+        console.log('[MFA STATUS RESPONSE]', statusRes);
+
+        if (!statusRes.ok) {
+          throw new Error("Failed to check MFA status");
+        }
+
+        const statusData = await statusRes.json();
+
+        // 3. Handle response
+        if (statusData.mfaRequired) {
+          router.push("/auth/mfa");
+        } else {
+          router.push("/super-admin-area");
+        }
+
       } catch (err) {
-        console.error(err);
-        setError("Something went wrong");
+        if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError("Something went wrong");
+        }
       }
     });
   };
+
+  // Helper untuk generate device fingerprint
+  // Fungsi pembantu untuk generate device ID
+  function generateDeviceId() {
+    const userAgent = navigator.userAgent;
+    const screenResolution = `${window.screen.width}x${window.screen.height}`;
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return btoa(`${userAgent}|${screenResolution}|${timezone}`);
+  }
+
 
   const handleGoogleLogin = () => {
     const googleAuthUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google`; // Pastikan untuk mengambil API URL dari environment variable
@@ -193,7 +224,7 @@ const LoginForm = () => {
             </Button>
           </form>
 
-          {/* <div className="mt-3 sm:mt-4 text-center text-xs">
+          <div className="mt-3 sm:mt-4 text-center text-xs">
             Don&apos;t have an account?{" "}
             <Link
               href="/auth/register"
@@ -201,7 +232,7 @@ const LoginForm = () => {
             >
               Sign up
             </Link>
-          </div> */}
+          </div>
         </Form>
       </CardWrapper>
     </div>

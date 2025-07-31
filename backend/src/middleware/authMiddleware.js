@@ -1,59 +1,141 @@
-import jwt from 'jsonwebtoken';
-import { JWT_SECRET } from '../config/env.js';
-import cookie from 'cookie';
+import jwt from "jsonwebtoken";
+import { JWT_SECRET } from "../config/env.js";
+import cookie from "cookie";
+import checkIfNewDevice from '../utils/cekNewDevices.js';
+import { PrismaClient } from '../../prisma/generated/prisma/index.js';
+const prisma = new PrismaClient();
 
-function authenticateToken(req, res, next) {
+// Middleware: Autentikasi berdasarkan session_token (trusted device session)
+async function verifySessionToken(req, res, next) {
   try {
-    let token = null;
+    const cookies = cookie.parse(req.headers.cookie || "");
+    const sessionToken = cookies.session_token;
 
-    // 1. Coba ambil dari Authorization header
-    if (req.headers.authorization?.startsWith("Bearer ")) {
-      token = req.headers.authorization.split(" ")[1];
+    if (!sessionToken) {
+      return res.status(401).json({ message: "Unauthorized - Session token missing" });
     }
 
-    // 2. Jika tidak ada, ambil dari cookie
-    if (!token && req.headers.cookie) {
-      const cookies = cookie.parse(req.headers.cookie);
-      token = cookies.accessToken; // ✅ sesuai dengan nama cookie yang kamu set
-    }
-
-    // 3. Jika tetap tidak ada, tolak akses
-    if (!token) {
-      console.warn("❌ Token tidak ditemukan");
-      return res.status(401).json({ message: "Unauthorized - Token missing" });
-    }
-
-    // 4. Verifikasi token
-    jwt.verify(token, JWT_SECRET, (err, decoded) => {
-      if (err) {
-        console.warn("❌ Token tidak valid:", err.message);
-        return res.status(403).json({ message: "Forbidden - Invalid token" });
-      }
-
-      req.user = decoded;
-      next();
+    const session = await prisma.trustedDeviceSession.findUnique({
+      where: { sessionToken },
     });
 
+    if (!session || session.isRevoked) {
+      return res.status(401).json({ message: "Unauthorized - Session invalid or revoked" });
+    }
+
+    if (new Date() > session.expiresAt) {
+      return res.status(401).json({ message: "Session expired" });
+    }
+
+    // Inject user ID ke request (untuk ambil data user nanti)
+    req.user = { id: session.userId };
+    next();
   } catch (err) {
-    console.error("❌ Error autentikasi token:", err);
-    return res.status(500).json({ message: "Internal Server Error" });
+    console.error("[verifySessionToken ERROR]", err);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 }
 
-// middleware/authorizeAdmin.js
+// Middleware khusus untuk MFA
+// async function checkMFAStatus(req, res, next) {
+//   if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+//   console.log('Checking MFA status for user:', req.user.userId);
+//   try {
+//     // Implementasi pengecekan device
+//     const deviceId = req.headers['x-device-id'] || req.ip;
+//     const isNewDevice = await checkIfNewDevice(req.user.userId, deviceId);
+    
+//     req.mfaStatus = {
+//       required: isNewDevice && req.user.mfaEnabled,
+//       enabled: req.user.mfaEnabled
+//     };
+//     console.log('[MFA STATUS]', req.mfaStatus);
+    
+//     next();
+//   } catch (err) {
+//     console.error('MFA check error:', err);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// };
+async function checkMFAStatus(req, res, next) {
+  if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+  const deviceId = req.headers['x-device-id'] || req.ip;
+  const isNewDevice = await checkIfNewDevice(req.user.userId, deviceId);
+
+  // Ambil mfaEnabled dari DB!
+  const userDb = await prisma.user.findUnique({
+    where: { id: req.user.userId },
+    select: { mfaEnabled: true }
+  });
+
+  req.mfaStatus = {
+    required: isNewDevice && userDb?.mfaEnabled,
+    enabled: userDb?.mfaEnabled
+  };
+  console.log('[MFA STATUS]', req.mfaStatus);
+
+  next();
+}
+
+// Middleware utama JWT Auth (bisa dipakai untuk semua route yang perlu auth)
+function authenticateToken(req, res, next) {
+  // 1. Check multiple token sources
+  const token =
+    req.headers.authorization?.split(' ')[1] ||
+    req.cookies?.accessToken ||
+    req.body?.token;
+
+  console.log("[AUTH] Headers.authorization:", req.headers.authorization);
+  console.log("[AUTH] req.cookies:", req.cookies);
+  console.log("[AUTH] Token untuk verify:", token);
+
+  if (!token) {
+    console.warn('No authentication token found');
+    return res.status(401).json({ error: 'Unauthorized', message: 'Authentication token required' });
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err) {
+      console.warn('Invalid token:', err.message);
+      return res.status(403).json({ error: 'Forbidden', message: 'Invalid or expired token' });
+    }
+    req.user = decoded;
+    console.log("[AUTH] JWT decoded:", decoded);
+    next();
+  });
+}
+
+
+// =============== ROLE MIDDLEWARE ===============
 function authorizeAdmin(req, res, next) {
-  if (req.user?.role !== 'admin') {
-    return res.status(403).json({ message: 'Forbidden - Admin only' });
+  if (req.user?.role !== "admin") {
+    return res.status(403).json({ message: "Forbidden - Admin only" });
   }
   next();
 }
 
-// middleware/authorizeAdmin.js
 function authorizeSuperAdmin(req, res, next) {
-  if (req.user?.role !== 'super') {
-    return res.status(403).json({ message: 'Forbidden - Super Admin only' });
+  if (req.user?.role !== "super") {
+    return res.status(403).json({ message: "Forbidden - Super Admin only" });
   }
   next();
 }
 
-export { authenticateToken, authorizeAdmin, authorizeSuperAdmin };
+function authorizeAdminOrSuper(req, res, next) {
+  console.log("User at authorize:", req.user);
+  if (req.user?.role === "admin" || req.user?.role === "super") {
+    return next();
+  }
+  return res
+    .status(403)
+    .json({ message: "Forbidden - Admin or Super Admin only" });
+}
+
+export {
+  authenticateToken,
+  checkMFAStatus,
+  verifySessionToken,
+  authorizeAdmin,
+  authorizeSuperAdmin,
+  authorizeAdminOrSuper,
+};

@@ -46,21 +46,63 @@ export const getProductById = async (req, res) => {
 // [POST] /products - Tambah produk baru
 export const createProduct = async (req, res) => {
   try {
-    const data = req.body;
+    // Semua field selain image diakses via req.body (otomatis String)
+    const {
+      code,
+      name,
+      description,
+      type,
+      purchaseUnit,
+      storageUnit,
+      usageUnit,
+      conversionToStorage,
+      conversionToUsage,
+      barcode,
+      isConsumable,
+      isActive,
+      categoryId,
+    } = req.body;
 
+    // Path gambar dari Multer (jika ada file di-upload)
+    let image = null;
+    if (req.file) {
+      image = `/images/${req.file.filename}`; // path statis dari root public
+    }
+
+    // Pastikan konversi tipe data sesuai schema Prisma
+    const productData = {
+      code,
+      name,
+      description,
+      type,
+      purchaseUnit,
+      storageUnit,
+      usageUnit,
+      conversionToStorage: conversionToStorage ? Number(conversionToStorage) : undefined,
+      conversionToUsage: conversionToUsage ? Number(conversionToUsage) : undefined,
+      barcode,
+      isConsumable: isConsumable === "true" || isConsumable === true,
+      isActive: isActive === "true" || isActive === true,
+      image,
+      categoryId: categoryId || null,
+    };
+
+    // Buat produk baru di database
     const created = await prisma.product.create({
-      data,
+      data: productData,
     });
 
     res.status(201).json(created);
   } catch (error) {
     console.error(error);
+    // Prisma unique constraint error (duplicate)
     if (error.code === 'P2002') {
       return res.status(400).json({ message: 'Kode produk atau barcode sudah digunakan' });
     }
     res.status(500).json({ message: 'Gagal menambahkan produk' });
   }
 };
+
 
 // [PUT] /products/:id - Update produk
 export const updateProduct = async (req, res) => {

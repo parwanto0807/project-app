@@ -6,6 +6,12 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "lh3.googleusercontent.com",
+        // pathname: "/**", // opsional, biarkan semua path
+      },
+      {
+        protocol: "https",
+        hostname: "www.google.com",
+        // pathname: "/images/**", // opsional, biarkan semua path di folder tertentu
       },
     ],
   },
