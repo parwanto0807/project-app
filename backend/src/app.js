@@ -15,8 +15,8 @@ import cookieParser from 'cookie-parser';
 const app = express();
 
 // Security Middleware
-app.use(helmet());
 app.use(cookieParser());
+app.use(helmet());
 
 // CORS Configuration
 app.use(
@@ -32,8 +32,6 @@ app.use(
     ],
   })
 );
-
-
 
 // Body Parser
 app.use(express.json());
@@ -57,6 +55,16 @@ app.use(
 // Initialize Passport
 app.use(passport.initialize());
 app.use(passport.session());
+
+app.use((req, res, next) => {
+  console.log('[DEBUG COOKIES]', req.cookies);
+  console.log('[DEBUG SESSION]', req.session);
+  next();
+});
+app.use((req, res, next) => {
+  console.log('[DEBUG] WAKTU:', new Date().toISOString(), req.method, req.url, req.cookies);
+  next();
+});
 
 // Routes
 app.use("/api/auth", authRoutes);

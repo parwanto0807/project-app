@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FormError } from "../form-error";
 import { FormSuccess } from "../form-success";
+import { MfaRegistrationDialog } from "./mfa-registration-dialog"; // Changed to component version
 
 const LoginForm = () => {
   const router = useRouter();
@@ -35,6 +36,7 @@ const LoginForm = () => {
   const [error, setError] = useState<string | undefined>("");
   const [success, setSuccess] = useState<string | undefined>("");
   const [isPending, startTransition] = useTransition();
+  const [showMfaDialog, setShowMfaDialog] = useState(false);
 
   const form = useForm<z.infer<typeof LoginSchema>>({
     resolver: zodResolver(LoginSchema),
@@ -51,9 +53,9 @@ const LoginForm = () => {
     startTransition(async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-        const deviceId = generateDeviceId(); // Implement device fingerprinting
+        const deviceId = generateDeviceId();
 
-        // 1. Lakukan login dengan deviceId
+        // 1. Login with deviceId
         const res = await fetch(`${apiUrl}/api/auth/admin/login`, {
           method: "POST",
           headers: {
@@ -64,34 +66,44 @@ const LoginForm = () => {
           body: JSON.stringify(values),
         });
 
+        // Ambil response dari login
+        const loginData = await res.json();
+        if (loginData.tempToken) {
+          sessionStorage.setItem("mfa_temp_token", loginData.tempToken);
+        }
+        console.log("tempToken dari loginData:", loginData.tempToken);
+
         if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || "Login failed");
+          throw new Error(loginData.error || "Login failed");
         }
 
-        // 2. Beri jeda untuk memastikan cookie tersimpan
-        await new Promise(resolve => setTimeout(resolve, 300));
+        // 2. Wait for cookies to be set
+        await new Promise(resolve => setTimeout(resolve, 500));
 
-        // 2. Cek MFA status
+        // 3. Check MFA status
         const statusRes = await fetch(`${apiUrl}/api/auth/mfa/status`, {
           credentials: "include",
           headers: { "x-device-id": deviceId, "Cache-Control": "no-cache" }
         });
-        
-        console.log('[MFA STATUS RESPONSE]', statusRes);
 
         if (!statusRes.ok) {
-          throw new Error("Failed to check MFA status");
+          const errorData = await statusRes.json().catch(() => ({}));
+          throw new Error(errorData.error || "Failed to check MFA status");
         }
 
         const statusData = await statusRes.json();
 
-        // 3. Handle response
+        // 4. Handle response
         if (statusData.mfaRequired) {
+          console.log("tempToken dari loginData:", loginData.tempToken);
+          if (loginData.tempToken) {
+            sessionStorage.setItem("mfa_temp_token", loginData.tempToken);
+          }
           router.push("/auth/mfa");
         } else {
-          router.push("/super-admin-area");
+          setShowMfaDialog(true);
         }
+
 
       } catch (err) {
         if (err instanceof Error) {
@@ -103,21 +115,31 @@ const LoginForm = () => {
     });
   };
 
-  // Helper untuk generate device fingerprint
-  // Fungsi pembantu untuk generate device ID
-  function generateDeviceId() {
-    const userAgent = navigator.userAgent;
-    const screenResolution = `${window.screen.width}x${window.screen.height}`;
-    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    return btoa(`${userAgent}|${screenResolution}|${timezone}`);
-  }
 
-
-  const handleGoogleLogin = () => {
-    const googleAuthUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google`; // Pastikan untuk mengambil API URL dari environment variable
-    window.location.href = googleAuthUrl;
+  const handleMfaDialogSuccess = () => {
+    setShowMfaDialog(false);
+    router.push("/auth/inputOtp");
   };
 
+  const handleMfaDialogCancel = () => {
+    setShowMfaDialog(false);
+    // router.push("/super-admin-area");
+  };
+
+  function generateDeviceId() {
+    if (typeof window !== "undefined") {
+      const userAgent = navigator.userAgent;
+      const screenResolution = `${window.screen.width}x${window.screen.height}`;
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      return btoa(`${userAgent}|${screenResolution}|${timezone}`);
+    }
+    return "";
+  }
+
+  const handleGoogleLogin = () => {
+    const googleAuthUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google`;
+    window.location.href = googleAuthUrl;
+  };
 
   return (
     <div className="relative w-full max-w-[95vw] sm:max-w-md mx-auto px-2 sm:px-4">
@@ -129,10 +151,7 @@ const LoginForm = () => {
         Back to home
       </Link>
 
-      <CardWrapper
-        headerLabel="Welcome back"
-      // showSocial
-      >
+      <CardWrapper headerLabel="Welcome back">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3 sm:space-y-4">
             <div className="space-y-2 sm:space-y-3">
@@ -170,14 +189,6 @@ const LoginForm = () => {
                         className="bg-background/50 hover:bg-background/70 transition-colors text-xs sm:text-sm h-9 sm:h-10 px-3"
                       />
                     </FormControl>
-                    <div className="flex justify-end">
-                      {/* <Link
-                        href="/auth/reset"
-                        className="text-xs text-muted-foreground hover:text-primary transition-colors"
-                      >
-                        Forgot password?
-                      </Link> */}
-                    </div>
                     <FormMessage className="text-xs" />
                   </FormItem>
                 )}
@@ -235,6 +246,14 @@ const LoginForm = () => {
           </div>
         </Form>
       </CardWrapper>
+
+      {/* MFA Registration Dialog */}
+      <MfaRegistrationDialog
+        open={showMfaDialog}
+        onOpenChange={setShowMfaDialog}
+        onSuccess={handleMfaDialogSuccess}
+        onCancelRedirect={handleMfaDialogCancel}
+      />
     </div>
   );
 };

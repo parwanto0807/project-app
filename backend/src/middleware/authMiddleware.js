@@ -1,8 +1,7 @@
 import jwt from "jsonwebtoken";
-import { JWT_SECRET } from "../config/env.js";
 import cookie from "cookie";
-import checkIfNewDevice from '../utils/cekNewDevices.js';
-import { PrismaClient } from '../../prisma/generated/prisma/index.js';
+import checkIfNewDevice from "../utils/cekNewDevices.js";
+import { PrismaClient } from "../../prisma/generated/prisma/index.js";
 const prisma = new PrismaClient();
 
 // Middleware: Autentikasi berdasarkan session_token (trusted device session)
@@ -12,7 +11,9 @@ async function verifySessionToken(req, res, next) {
     const sessionToken = cookies.session_token;
 
     if (!sessionToken) {
-      return res.status(401).json({ message: "Unauthorized - Session token missing" });
+      return res
+        .status(401)
+        .json({ message: "Unauthorized - Session token missing" });
     }
 
     const session = await prisma.trustedDeviceSession.findUnique({
@@ -20,7 +21,9 @@ async function verifySessionToken(req, res, next) {
     });
 
     if (!session || session.isRevoked) {
-      return res.status(401).json({ message: "Unauthorized - Session invalid or revoked" });
+      return res
+        .status(401)
+        .json({ message: "Unauthorized - Session invalid or revoked" });
     }
 
     if (new Date() > session.expiresAt) {
@@ -37,42 +40,33 @@ async function verifySessionToken(req, res, next) {
 }
 
 // Middleware khusus untuk MFA
-// async function checkMFAStatus(req, res, next) {
-//   if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
-//   console.log('Checking MFA status for user:', req.user.userId);
-//   try {
-//     // Implementasi pengecekan device
-//     const deviceId = req.headers['x-device-id'] || req.ip;
-//     const isNewDevice = await checkIfNewDevice(req.user.userId, deviceId);
-    
-//     req.mfaStatus = {
-//       required: isNewDevice && req.user.mfaEnabled,
-//       enabled: req.user.mfaEnabled
-//     };
-//     console.log('[MFA STATUS]', req.mfaStatus);
-    
-//     next();
-//   } catch (err) {
-//     console.error('MFA check error:', err);
-//     res.status(500).json({ error: 'Internal server error' });
-//   }
-// };
 async function checkMFAStatus(req, res, next) {
-  if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
-  const deviceId = req.headers['x-device-id'] || req.ip;
-  const isNewDevice = await checkIfNewDevice(req.user.userId, deviceId);
+  console.log("[MFA STATUS MIDDLEWARE 1]", req.user);
+
+  // Handle both JWT token (userId) and session token (id)
+  const userId = req.user?.userId || req.user?.id;
+  
+  if (!userId) {
+    return res.status(401).json({ error: "User not authenticated" });
+  }
+
+  const deviceId = req.headers["x-device-id"] || req.ip;
+  const isNewDevice = await checkIfNewDevice(userId, deviceId);
+
+  console.log("[DeviceId]", deviceId);
+  console.log("[IsNewDevice]", isNewDevice);
 
   // Ambil mfaEnabled dari DB!
   const userDb = await prisma.user.findUnique({
-    where: { id: req.user.userId },
-    select: { mfaEnabled: true }
+    where: { id: userId },
+    select: { mfaEnabled: true },
   });
 
   req.mfaStatus = {
     required: isNewDevice && userDb?.mfaEnabled,
-    enabled: userDb?.mfaEnabled
+    enabled: userDb?.mfaEnabled,
   };
-  console.log('[MFA STATUS]', req.mfaStatus);
+  console.log("[MFA STATUS MIDDLEWARE 2]", req.mfaStatus);
 
   next();
 }
@@ -81,8 +75,8 @@ async function checkMFAStatus(req, res, next) {
 function authenticateToken(req, res, next) {
   // 1. Check multiple token sources
   const token =
-    req.headers.authorization?.split(' ')[1] ||
     req.cookies?.accessToken ||
+    req.headers.authorization?.split(" ")[1] ||
     req.body?.token;
 
   console.log("[AUTH] Headers.authorization:", req.headers.authorization);
@@ -90,21 +84,27 @@ function authenticateToken(req, res, next) {
   console.log("[AUTH] Token untuk verify:", token);
 
   if (!token) {
-    console.warn('No authentication token found');
-    return res.status(401).json({ error: 'Unauthorized', message: 'Authentication token required' });
+    console.warn("No authentication token found");
+    return res
+      .status(401)
+      .json({
+        error: "Unauthorized",
+        message: "Authentication token required",
+      });
   }
 
   jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
     if (err) {
-      console.warn('Invalid token:', err.message);
-      return res.status(403).json({ error: 'Forbidden', message: 'Invalid or expired token' });
+      console.warn("Invalid token:", err.message);
+      return res
+        .status(403)
+        .json({ error: "Forbidden", message: "Invalid or expired token" });
     }
     req.user = decoded;
     console.log("[AUTH] JWT decoded:", decoded);
     next();
   });
 }
-
 
 // =============== ROLE MIDDLEWARE ===============
 function authorizeAdmin(req, res, next) {

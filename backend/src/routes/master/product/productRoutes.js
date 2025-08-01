@@ -33,7 +33,7 @@ router.get('/getProductById/:id', getProductById);
 // 3. CREATE (POST) – upload image & authorization dulu baru createProduct
 router.post(
   '/createProduct',
- authorizeAdminOrSuper,
+  authorizeSuperAdmin,
   upload.single('image'),
   createProduct
 );

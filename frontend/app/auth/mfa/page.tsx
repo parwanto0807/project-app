@@ -69,7 +69,7 @@ export default function OTPVerificationForm() {
     }
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4">
+        <div className="flex items-center justify-center rounded-lg bg-gradient-to-br from-blue-50 to-purple-50 p-4">
             <Card className="w-full max-w-md shadow-lg">
                 <CardHeader className="space-y-1">
                     <CardTitle className="text-2xl font-bold text-center">
@@ -85,11 +85,14 @@ export default function OTPVerificationForm() {
                             <FormField
                                 control={form.control}
                                 name="otp"
-                                render={() => (
+                                render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Kode OTP</FormLabel>
                                         <FormControl>
-                                            <OTPInput name="otp" disabled={isLoading} />
+                                            <OTPInput 
+                                                name={field.name}
+                                                disabled={isLoading}
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>

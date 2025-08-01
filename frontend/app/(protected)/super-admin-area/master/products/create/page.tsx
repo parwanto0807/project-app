@@ -18,7 +18,7 @@ import { CreateProductForm } from "@/components/master/product/createFormData";
 export default function CreateProductPage() {
   const { user, loading } = useCurrentUser();
   const router = useRouter();
-  const [role, setRole] = useState<"super" | "admin">("super");
+  const [role, setRole] = useState<"super">("super");
   const [authorized, setAuthorized] = useState(false);
 
   useEffect(() => {
@@ -28,7 +28,7 @@ export default function CreateProductPage() {
       } else {
         const userRole = user.role as typeof role;
 
-        if (userRole !== "super" && userRole !== "admin") {
+        if (userRole !== "super") {
           router.push("/not-authorized");
         } else {
           setRole(userRole);
