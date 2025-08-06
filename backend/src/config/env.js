@@ -12,3 +12,4 @@ export const GOOGLE_CALLBACK_URL = process.env.GOOGLE_CALLBACK_URL || 'http://lo
 export const SESSION_SECRET = process.env.SESSION_SECRET;
 export const CLIENT_URL = process.env.CLIENT_URL;
 export const NODE_ENV = process.env.NODE_ENV || 'development';
+export const MFA_TEMP_SECRET = process.env.MFA_TEMP_SECRET;

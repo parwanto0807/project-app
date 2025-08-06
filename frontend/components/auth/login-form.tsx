@@ -55,66 +55,70 @@ const LoginForm = () => {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL;
         const deviceId = generateDeviceId();
 
-        // 1. Login with deviceId
-        const res = await fetch(`${apiUrl}/api/auth/admin/login`, {
+        // 1. Login request
+        const loginRes = await fetch(`${apiUrl}/api/auth/admin/login`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "x-device-id": deviceId
+            "x-device-id": deviceId,
           },
           credentials: "include",
           body: JSON.stringify(values),
         });
 
-        // Ambil response dari login
-        const loginData = await res.json();
-        if (loginData.tempToken) {
-          sessionStorage.setItem("mfa_temp_token", loginData.tempToken);
-        }
-        console.log("tempToken dari loginData:", loginData.tempToken);
+        const loginData = await loginRes.json();
+        console.log("Login response:", loginData);
 
-        if (!res.ok) {
+        if (!loginRes.ok) {
           throw new Error(loginData.error || "Login failed");
         }
 
-        // 2. Wait for cookies to be set
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        // 3. Check MFA status
+        // 2. Check MFA status (after successful login)
         const statusRes = await fetch(`${apiUrl}/api/auth/mfa/status`, {
           credentials: "include",
-          headers: { "x-device-id": deviceId, "Cache-Control": "no-cache" }
+          headers: {
+            "x-device-id": deviceId,
+            "Cache-Control": "no-cache",
+          },
         });
 
         if (!statusRes.ok) {
-          const errorData = await statusRes.json().catch(() => ({}));
-          throw new Error(errorData.error || "Failed to check MFA status");
+          throw new Error("Failed to check MFA status");
         }
 
         const statusData = await statusRes.json();
+        console.log("MFA Status response:", statusData);
 
-        // 4. Handle response
+        // 3. Handle MFA flow
         if (statusData.mfaRequired) {
-          console.log("tempToken dari loginData:", loginData.tempToken);
-          if (loginData.tempToken) {
-            sessionStorage.setItem("mfa_temp_token", loginData.tempToken);
+          // Use token from login response or status response
+          const mfaToken = loginData.tempToken || statusData.tempToken;
+
+          if (!mfaToken) {
+            throw new Error("MFA required but no token received");
           }
+
+          sessionStorage.setItem("mfa_temp_token", mfaToken);
+          console.log("MFA token stored:", mfaToken);
           router.push("/auth/mfa");
-        } else {
-          setShowMfaDialog(true);
+          return;
         }
 
+        // 4. Handle MFA setup for new users
+        if (!statusData.mfaEnabled) {
+          setShowMfaDialog(true);
+          return;
+        }
+
+        // 5. No MFA required - proceed to dashboard
+        router.push("/super-admin-area");
 
       } catch (err) {
-        if (err instanceof Error) {
-          setError(err.message);
-        } else {
-          setError("Something went wrong");
-        }
+        console.error("Login error:", err);
+        setError(err instanceof Error ? err.message : "Something went wrong");
       }
     });
   };
-
 
   const handleMfaDialogSuccess = () => {
     setShowMfaDialog(false);

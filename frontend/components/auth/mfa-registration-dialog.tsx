@@ -1,4 +1,5 @@
-// components/dialogs/mfa-registration-dialog.tsx
+"use client";
+
 import {
   Dialog,
   DialogContent,
@@ -12,14 +13,14 @@ import { ShieldCheck, AlertCircle, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
-import { useMfaSetup } from "@/hooks/use-mfa-setup"; // Import hook yang baru dibuat
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 type MfaDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
-  onCancelRedirect?: () => void; // Make this optional
+  onCancelRedirect?: () => void;
   title?: string;
   description?: string;
   confirmText?: string;
@@ -35,35 +36,120 @@ export function MfaRegistrationDialog({
   confirmText = "Aktifkan 2FA",
   cancelText = "Lewati",
 }: MfaDialogProps) {
-  const {
-    step,
-    isLoading,
-    error,
-    qrCode,
-    secret,
-    generateQrCode,
-    reset,
-  } = useMfaSetup();
+  const [isLoading, setIsLoading] = useState(false);
+  const [qrCode, setQrCode] = useState<string | null>(null);
+  const [secret, setSecret] = useState<string | null>(null);
+  const [step, setStep] = useState<"setup" | "show-qr">("setup");
+  const [error, setError] = useState<string | null>(null);
 
   const router = useRouter();
+
+  // Handler klik "Aktifkan 2FA"
+  const handleActivate2FA = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/mfa/activate-setup`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Gagal mengaktifkan MFA");
+
+      console.log("MFA Setup Data:", data);
+
+      setQrCode(data.qrCode);
+      setSecret(data.secret);
+      setStep("show-qr");
+    } catch (err: unknown) {
+      if (err instanceof Error) setError(err.message);
+      else if (typeof err === "string") setError(err);
+      else setError("Terjadi kesalahan");
+    }
+    setIsLoading(false);
+  };
+
+  // Handler untuk menyelesaikan setup MFA
+  const completeMfaSetup = async () => {
+  setIsLoading(true);
+  setError(null);
+   
+  function generateDeviceId() {
+    if (typeof window !== "undefined") {
+      const userAgent = navigator.userAgent;
+      const screenResolution = `${window.screen.width}x${window.screen.height}`;
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      return btoa(`${userAgent}|${screenResolution}|${timezone}`);
+    }
+    return "";
+  }
+  try {
+    const deviceId = generateDeviceId(); // You'll need to implement this
+    
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/mfa/complete-setup`, {
+      method: "POST",
+      credentials: "include", // This sends cookies
+      headers: { 
+        "Content-Type": "application/json",
+        "x-device-id": deviceId // Add device ID if your backend expects it
+      },
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.error || "Failed to complete MFA setup");
+    }
+
+    const data = await res.json();
+    
+    if (!data.tempToken) {
+      throw new Error("No temporary token received");
+    }
+
+    sessionStorage.setItem("mfa_temp_token", data.tempToken);
+    console.log("MFA tempToken stored:", data.tempToken);
+    onSuccess();
+    
+    return data;
+    
+  } catch (err) {
+    console.error("MFA setup failed:", err);
+    setError(err instanceof Error ? err.message : "Setup failed");
+    throw err;
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+  // Handler close dialog
   const handleClose = () => {
     onOpenChange(false);
     setTimeout(() => {
-    reset();
-    router.push("/super-admin-area");
-  }, 300);
-    setTimeout(reset, 300); 
+      setQrCode(null);
+      setSecret(null);
+      setStep("setup");
+      router.push("/super-admin-area");
+    }, 300);
   };
-  
-  const handleContinue = () => {
-    onSuccess();
-    // handleClose();
+
+  // Handler jika step selesai (lanjutkan proses selanjutnya, misal: input OTP)
+  const handleContinue = async () => {
+    try {
+      const response = await completeMfaSetup();
+      if (response?.tempToken) {
+        sessionStorage.setItem('mfa_temp_token', response.tempToken);
+        console.log('MFA tempToken stored:', response.tempToken);
+      }
+      onSuccess(); // This triggers the redirect
+    } catch (error) {
+      console.error('MFA setup failed:', error);
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="w-[calc(100vw-2rem)] sm:w-full max-w-md p-0 overflow-hidden rounded-lg">
-        {/* Konten dialog tidak berubah banyak, hanya penyesuaian padding dan event handler */}
         <div className="space-y-6 p-4 sm:p-6">
           <DialogHeader className="space-y-4">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-50">
@@ -71,10 +157,12 @@ export function MfaRegistrationDialog({
             </div>
             <div className="space-y-1 text-center">
               <DialogTitle className="text-xl font-semibold text-gray-900">
-                {step === "setup" ? title : "Set Up Authenticator App"}
+                {step === "setup" ? title : "Scan Authenticator QR Code"}
               </DialogTitle>
               <DialogDescription className="text-gray-600">
-                {step === "setup" ? description : "Scan the QR code with your authenticator app"}
+                {step === "setup"
+                  ? description
+                  : "Scan QR code berikut dengan aplikasi Google Authenticator Anda."}
               </DialogDescription>
             </div>
           </DialogHeader>
@@ -97,12 +185,11 @@ export function MfaRegistrationDialog({
                   <Skeleton className="h-[180px] w-full rounded-lg" />
                 )}
               </Card>
-
               <Card className="w-full p-4">
                 <div className="space-y-3">
                   <div className="text-center text-sm text-gray-600">
-                    <p>Cant scan the QR code?</p>
-                    <p className="mt-2 font-medium text-gray-900">Enter this code manually:</p>
+                    <p>Tidak bisa scan QR code?</p>
+                    <p className="mt-2 font-medium text-gray-900">Input kode ini manual:</p>
                     {secret ? (
                       <Card className="mt-2 p-3 bg-gray-50">
                         <div className="font-mono tracking-widest text-sm text-center break-all">
@@ -114,7 +201,7 @@ export function MfaRegistrationDialog({
                     )}
                   </div>
                   <div className="text-xs text-gray-500 text-center px-2">
-                    After scanning, enter the 6-digit code from your authenticator app in the next step.
+                    Setelah scan, masukkan 6 digit kode dari aplikasi authenticator Anda di step berikutnya.
                   </div>
                 </div>
               </Card>
@@ -140,14 +227,14 @@ export function MfaRegistrationDialog({
             {step === "setup" ? (
               <>
                 <Button
-                  onClick={generateQrCode}
+                  onClick={handleActivate2FA}
                   disabled={isLoading}
                   className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700"
                 >
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Processing...
+                      Memproses...
                     </>
                   ) : (
                     confirmText

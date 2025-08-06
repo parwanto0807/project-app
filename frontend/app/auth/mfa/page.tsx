@@ -17,6 +17,7 @@ import { Loader2 } from "lucide-react"
 import { OTPInput } from "@/components/auth/otp-input"
 import { toast } from "sonner"
 import React from "react"
+import { useRouter } from "next/navigation"
 
 const FormSchema = z.object({
     otp: z.string().min(6, {
@@ -27,6 +28,8 @@ const FormSchema = z.object({
 export default function OTPVerificationForm() {
     const [isLoading, setIsLoading] = React.useState(false)
     const [countdown, setCountdown] = React.useState(30)
+     const router = useRouter()
+
 
     const form = useForm<z.infer<typeof FormSchema>>({
         resolver: zodResolver(FormSchema),
@@ -45,19 +48,54 @@ export default function OTPVerificationForm() {
     async function onSubmit(data: z.infer<typeof FormSchema>) {
         setIsLoading(true)
 
-        // Simulasi proses verifikasi
-        await new Promise(resolve => setTimeout(resolve, 1500))
+        try {
+            // Ambil token sementara dari sessionStorage/localStorage
+            const tempToken = sessionStorage.getItem("mfa_temp_token")
 
-        setIsLoading(false)
-        toast.success("Verifikasi Berhasil", {
-            description: `Kode OTP ${data.otp} telah diverifikasi.`,
-            position: "top-center",
-            duration: 5000,
-            action: {
-                label: "Tutup",
-                onClick: () => console.log("Toast ditutup"),
-            },
-        })
+            if (!tempToken) {
+                toast.error("Token verifikasi tidak ditemukan. Silakan login ulang.")
+                setIsLoading(false)
+                return
+            }
+
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/mfa/verify`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${tempToken}`
+                },
+                credentials: "include",
+                body: JSON.stringify({
+                    otp: data.otp,
+                    rememberDevice: true,
+                }),
+            })
+
+            const result = await res.json()
+
+            if (!res.ok) {
+                throw new Error(result?.error || "Verifikasi OTP gagal.")
+            }
+
+            sessionStorage.removeItem("mfa_temp_token")
+
+            toast.success("Verifikasi Berhasil", {
+                description: "OTP berhasil diverifikasi.",
+                position: "top-center",
+            })
+
+            // Redirect ke halaman utama setelah verifikasi
+            router.push("/dashboard") // ganti sesuai route tujuanmu
+
+        } catch (err) {
+            console.error("OTP verification error:", err)
+            toast.error("Gagal Verifikasi", {
+                description: err instanceof Error ? err.message : "Terjadi kesalahan.",
+                position: "top-center",
+            })
+        } finally {
+            setIsLoading(false)
+        }
     }
 
     function handleResendOTP() {
@@ -89,7 +127,7 @@ export default function OTPVerificationForm() {
                                     <FormItem>
                                         <FormLabel>Kode OTP</FormLabel>
                                         <FormControl>
-                                            <OTPInput 
+                                            <OTPInput
                                                 name={field.name}
                                                 disabled={isLoading}
                                             />

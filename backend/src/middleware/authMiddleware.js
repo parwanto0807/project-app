@@ -41,7 +41,7 @@ async function verifySessionToken(req, res, next) {
 
 // Middleware khusus untuk MFA
 async function checkMFAStatus(req, res, next) {
-  console.log("[MFA STATUS MIDDLEWARE 1]", req.user);
+   console.log("[MFA STATUS MIDDLEWARE 1]", req.user);
 
   // Handle both JWT token (userId) and session token (id)
   const userId = req.user?.userId || req.user?.id;
@@ -53,8 +53,8 @@ async function checkMFAStatus(req, res, next) {
   const deviceId = req.headers["x-device-id"] || req.ip;
   const isNewDevice = await checkIfNewDevice(userId, deviceId);
 
-  console.log("[DeviceId]", deviceId);
-  console.log("[IsNewDevice]", isNewDevice);
+   console.log("[DeviceId]", deviceId);
+   console.log("[IsNewDevice]", isNewDevice);
 
   // Ambil mfaEnabled dari DB!
   const userDb = await prisma.user.findUnique({
@@ -66,8 +66,7 @@ async function checkMFAStatus(req, res, next) {
     required: isNewDevice && userDb?.mfaEnabled,
     enabled: userDb?.mfaEnabled,
   };
-  console.log("[MFA STATUS MIDDLEWARE 2]", req.mfaStatus);
-
+   console.log("[MFA STATUS MIDDLEWARE 2]", req.mfaStatus);
   next();
 }
 

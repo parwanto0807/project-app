@@ -12,7 +12,10 @@ import {
   getMFAStatus,
   setupMFA,
   verifyMFA,
+  newVerifyMFA,
   getSessions,
+  activateMfaSetup,
+  completeMfaSetup
 } from "../../controllers/auth/authController.js";
 
 import {
@@ -28,8 +31,11 @@ const router = Router();
 // 🔐 GET /mfa/status → untuk tahu apakah user perlu MFA
 router.get("/mfa/status",authenticateToken,checkMFAStatus,getMFAStatus);
 router.get("/sessions", verifySessionToken, getSessions);
+router.post('/mfa/activate-setup',authenticateToken, activateMfaSetup);
+router.post("/mfa/complete-setup",authenticateToken, completeMfaSetup);
 router.get("/mfa/setup", authenticateToken, setupMFA);
 router.post("/mfa/verify", verifyMFA);
+router.post("/mfa/newVerify", newVerifyMFA);
 
 // 🔐 Google OAuth Redirect
 router.get("/google", (req, res) => {
