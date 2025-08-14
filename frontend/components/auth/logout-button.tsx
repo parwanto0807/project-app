@@ -23,7 +23,7 @@ export const LogoutButton = ({ children }: LogoutButtonProps) => {
       }
       
 
-      console.log("✅ Logout berhasil, mengarahkan ke login...");
+      // console.log("✅ Logout berhasil, mengarahkan ke login...");
       setUser(null); 
       router.push("/auth/login"); // Redirect ke halaman login
     } catch (err) {

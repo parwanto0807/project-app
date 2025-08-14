@@ -57,7 +57,7 @@ export function MfaRegistrationDialog({
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Gagal mengaktifkan MFA");
 
-      console.log("MFA Setup Data:", data);
+      // console.log("MFA Setup Data:", data);
 
       setQrCode(data.qrCode);
       setSecret(data.secret);
@@ -108,7 +108,7 @@ export function MfaRegistrationDialog({
     }
 
     sessionStorage.setItem("mfa_temp_token", data.tempToken);
-    console.log("MFA tempToken stored:", data.tempToken);
+    // console.log("MFA tempToken stored:", data.tempToken);
     onSuccess();
     
     return data;
@@ -139,7 +139,7 @@ export function MfaRegistrationDialog({
       const response = await completeMfaSetup();
       if (response?.tempToken) {
         sessionStorage.setItem('mfa_temp_token', response.tempToken);
-        console.log('MFA tempToken stored:', response.tempToken);
+        // console.log('MFA tempToken stored:', response.tempToken);
       }
       onSuccess(); // This triggers the redirect
     } catch (error) {

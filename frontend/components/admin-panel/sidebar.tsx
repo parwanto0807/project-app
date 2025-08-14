@@ -18,7 +18,7 @@ export function Sidebar({ role }: SidebarProps) {
   const { theme } = useTheme();
 
   useEffect(() => {
-    console.log("Current theme:", theme);
+    // console.log("Current theme:", theme);
   }, [theme]);
 
   if (!sidebar) return null;

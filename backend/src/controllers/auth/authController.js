@@ -65,20 +65,20 @@ function setTokenCookies(res, accessToken, refreshToken) {
   const now = new Date();
   const accessTokenExpiresAt = new Date(now.getTime() + maxAgeAccessToken);
 
-  console.log(
-    "🔁 Refresh berhasil pada:",
-    now.toLocaleString("id-ID", {
-      dateStyle: "full",
-      timeStyle: "long",
-    })
-  );
-  console.log(
-    "🔐 accessToken berlaku sampai:",
-    accessTokenExpiresAt.toLocaleString("id-ID", {
-      dateStyle: "full",
-      timeStyle: "long",
-    })
-  );
+  // console.log(
+  //   "🔁 Refresh berhasil pada:",
+  //   now.toLocaleString("id-ID", {
+  //     dateStyle: "full",
+  //     timeStyle: "long",
+  //   })
+  // );
+  // console.log(
+  //   "🔐 accessToken berlaku sampai:",
+  //   accessTokenExpiresAt.toLocaleString("id-ID", {
+  //     dateStyle: "full",
+  //     timeStyle: "long",
+  //   })
+  // );
 }
 
 async function createUserSession(user, refreshToken, req) {
@@ -133,10 +133,12 @@ export const getSessions = async (req, res) => {
 export const googleLogin = async (req, res) => {
   const { code } = req.query;
 
-  if (!code)
+  if (!code) {
     return res.status(400).json({ error: "Authorization code is required" });
+  }
 
   try {
+    // Langkah 1: Tukarkan 'code' dengan 'access_token' (Tidak ada perubahan di sini)
     const tokenRes = await axios.post(
       "https://oauth2.googleapis.com/token",
       new URLSearchParams({
@@ -145,49 +147,62 @@ export const googleLogin = async (req, res) => {
         client_secret: GOOGLE_CLIENT_SECRET,
         redirect_uri: GOOGLE_CALLBACK_URL,
         grant_type: "authorization_code",
-      }),
-      {
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      }
+      })
     );
-
     const { access_token } = tokenRes.data;
 
+    // Langkah 2: Ambil profil pengguna dari Google (Tidak ada perubahan di sini)
     const profileRes = await axios.get(
       "https://www.googleapis.com/oauth2/v1/userinfo",
       {
         headers: { Authorization: `Bearer ${access_token}` },
       }
     );
-
     const { id: googleId, email, name, picture: avatar } = profileRes.data;
 
-    if (!email) throw new Error("Email not provided by Google");
+    if (!email) {
+      throw new Error("Email not provided by Google");
+    }
 
-    const user = await prisma.user.findUnique({
-      where: { email },
-    });
+    // Langkah 3: Verifikasi apakah email terdaftar sebagai admin
     const userEmail = await prisma.accountEmail.findUnique({
       where: { email },
     });
 
     if (!userEmail) {
-      // Jika email belum terdaftar, redirect ke halaman pendaftaran admin
+      // Jika email tidak ada di whitelist, kembalikan ke halaman login
       return res.redirect("http://localhost:3000/auth/loginAdmin");
     }
 
-    // Optional: update user info
-    await prisma.user.update({
-      where: { email },
-      data: { name, avatar, provider: "google", googleId },
+    // Langkah 4: Gunakan 'upsert' untuk membuat atau memperbarui pengguna
+    const user = await prisma.user.upsert({
+      where: { email }, // Kriteria pencarian
+      update: {
+        // Data yang diperbarui jika pengguna sudah ada
+        name,
+        avatar,
+        googleId,
+        provider: "google",
+      },
+      create: {
+        // Data yang dibuat jika pengguna baru
+        email,
+        name,
+        avatar,
+        googleId,
+        provider: "google",
+        role: "admin", // <-- PERBAIKAN: Tetapkan role default untuk pengguna baru
+        // Pastikan Anda menggunakan nama role yang sesuai (misal: "ADMIN", "SUPER_ADMIN")
+      },
     });
 
+    // Langkah 5: Buat sesi dan cookies (Tidak ada perubahan di sini)
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
     await createUserSession(user, refreshToken, req);
     setTokenCookies(res, accessToken, refreshToken);
 
-    res.redirect("http://localhost:3000/admin-area"); // Redirect ke area admin setelah login sukses
+    res.redirect("http://localhost:3000/admin-area");
   } catch (err) {
     console.error("Google login error:", err.response?.data || err.message);
     const errorMessage =
@@ -292,7 +307,7 @@ export const adminLogin = async (req, res) => {
 };
 
 export const activateMfaSetup = async (req, res) => {
-  console.log("UserId for MFA Setup:", req.user);
+  // console.log("UserId for MFA Setup:", req.user);
 
   try {
     const userId = req.user.userId;
@@ -330,7 +345,7 @@ export const getMFAStatus = async (req, res) => {
     if (!userId) {
       return res.status(401).json({ error: "User not authenticated" });
     }
-    console.log("userId:", userId);
+    // console.log("userId:", userId);
 
     // 2. Ambil user dan trustedDevices
     const user = await prisma.user.findUnique({
@@ -341,7 +356,7 @@ export const getMFAStatus = async (req, res) => {
       },
     });
 
-    console.log("User data:", user);
+    // console.log("User data:", user);
 
     if (!user) {
       return res.status(404).json({ error: "User not found" });
@@ -350,13 +365,18 @@ export const getMFAStatus = async (req, res) => {
     // 3. Ambil deviceId dari header atau IP
     const deviceId = req.headers["x-device-id"] || req.ip;
 
-    // 4. Cek apakah device termasuk trusted
-    const isKnownDevice = user.trustedDevices.some(
+    // 1. Ambil trustedDevices (hindari null)
+    const trustedDevices = user.trustedDevices || [];
+
+    // 2. Cek apakah device sekarang cocok
+    const isKnownDevice = trustedDevices.some(
       (device) => device.deviceId === deviceId
     );
 
-    // 5. Tentukan apakah MFA dibutuhkan
-    const mfaRequired = user.mfaEnabled && !isKnownDevice;
+    // 3. Terapkan logika sesuai tabel kamu
+    const mfaRequired =
+      trustedDevices.length === 0 || // tidak ada trusted device
+      (trustedDevices.length > 0 && !isKnownDevice); // ada trusted tapi device tidak cocok
     let tempToken = null;
 
     // 6. Jika MFA dibutuhkan, generate token
@@ -366,8 +386,8 @@ export const getMFAStatus = async (req, res) => {
         MFA_TEMP_SECRET,
         { expiresIn: "5m" }
       );
-      console.log("Generated tempToken:", tempToken);
-      console.log("TempToken will expire at:", expiresAt);
+      // console.log("Generated tempToken:", tempToken);
+      // console.log("TempToken will expire at:", expiresAt);
     }
 
     // 7. Kirimkan respons
@@ -400,9 +420,6 @@ export const setupMFA = async (req, res) => {
   }
 };
 
-// In your authController.js
-// In authController.js
-// In your completeMfaSetup controller
 export const completeMfaSetup = async (req, res) => {
   try {
     // Verify user is authenticated
@@ -413,10 +430,10 @@ export const completeMfaSetup = async (req, res) => {
     // Generate proper token with all required fields
     const tempToken = jwt.sign(
       {
-        userId: req.user.userId,          // REQUIRED
-        purpose: "MFA_VERIFICATION",  // REQUIRED
+        userId: req.user.userId, // REQUIRED
+        purpose: "MFA_VERIFICATION", // REQUIRED
         deviceId: req.headers["x-device-id"] || req.ip,
-        iat: Math.floor(Date.now() / 1000)
+        iat: Math.floor(Date.now() / 1000),
       },
       process.env.MFA_TEMP_SECRET,
       { expiresIn: "5m" } // 5 minute expiration
@@ -425,9 +442,8 @@ export const completeMfaSetup = async (req, res) => {
     return res.json({
       success: true,
       tempToken,
-      message: "Proceed with OTP verification"
+      message: "Proceed with OTP verification",
     });
-
   } catch (error) {
     console.error("[MFA_COMPLETE_SETUP_ERROR]", error);
     return res.status(500).json({ error: "Internal server error" });
@@ -443,14 +459,14 @@ export const newVerifyMFA = async (req, res) => {
   if (!tempToken || tempToken === "null") {
     return res.status(400).json({
       error: "Missing verification token",
-      solution: "Restart the MFA setup process"
+      solution: "Restart the MFA setup process",
     });
   }
 
   try {
     // Verify token and validate structure
     const payload = jwt.verify(tempToken, process.env.MFA_TEMP_SECRET);
-    
+
     // Validate required payload fields
     if (!payload.userId || payload.purpose !== "MFA_VERIFICATION") {
       throw new Error("Invalid token payload structure");
@@ -463,14 +479,14 @@ export const newVerifyMFA = async (req, res) => {
         id: true,
         mfaSecret: true,
         email: true,
-        role: true
-      }
+        role: true,
+      },
     });
 
     if (!user?.mfaSecret) {
       return res.status(400).json({
         error: "MFA not configured for this user",
-        code: "MFA_NOT_CONFIGURED"
+        code: "MFA_NOT_CONFIGURED",
       });
     }
 
@@ -479,13 +495,13 @@ export const newVerifyMFA = async (req, res) => {
       secret: user.mfaSecret,
       encoding: "base32",
       token: otp,
-      window: 1
+      window: 1,
     });
 
     if (!isValid) {
       return res.status(401).json({
         error: "Invalid or expired OTP code",
-        code: "INVALID_OTP"
+        code: "INVALID_OTP",
       });
     }
 
@@ -495,14 +511,14 @@ export const newVerifyMFA = async (req, res) => {
         where: {
           userId_deviceId: {
             userId: user.id,
-            deviceId: payload.deviceId
-          }
+            deviceId: payload.deviceId,
+          },
         },
         create: {
           userId: user.id,
-          deviceId: payload.deviceId
+          deviceId: payload.deviceId,
         },
-        update: {}
+        update: {},
       });
     }
 
@@ -511,7 +527,7 @@ export const newVerifyMFA = async (req, res) => {
       {
         id: user.id,
         email: user.email,
-        role: user.role
+        role: user.role,
       },
       process.env.JWT_SECRET,
       { expiresIn: "1d" }
@@ -519,29 +535,28 @@ export const newVerifyMFA = async (req, res) => {
 
     return res.json({
       success: true,
-      accessToken
+      accessToken,
     });
-
   } catch (err) {
     console.error("MFA verification error:", err);
-    
+
     if (err.name === "TokenExpiredError") {
       return res.status(401).json({
         error: "Verification session expired",
-        code: "TOKEN_EXPIRED"
+        code: "TOKEN_EXPIRED",
       });
     }
-    
+
     if (err.name === "JsonWebTokenError") {
       return res.status(401).json({
         error: "Invalid verification token",
-        code: "INVALID_TOKEN"
+        code: "INVALID_TOKEN",
       });
     }
 
     return res.status(500).json({
       error: "Internal server error",
-      code: "SERVER_ERROR"
+      code: "SERVER_ERROR",
     });
   }
 };
@@ -550,7 +565,7 @@ export const verifyMFA = async (req, res) => {
   try {
     const { tempToken, code, rememberDevice } = req.body;
 
-    console.log("[MFA VERIFY BODY]", req.body);
+    // console.log("[MFA VERIFY BODY]", req.body);
 
     if (!tempToken || !code) {
       return res.status(400).json({ error: "Data tidak lengkap" });

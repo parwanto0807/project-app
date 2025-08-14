@@ -67,7 +67,7 @@ const LoginForm = () => {
         });
 
         const loginData = await loginRes.json();
-        console.log("Login response:", loginData);
+        // console.log("Login response:", loginData);
 
         if (!loginRes.ok) {
           throw new Error(loginData.error || "Login failed");
@@ -87,7 +87,7 @@ const LoginForm = () => {
         }
 
         const statusData = await statusRes.json();
-        console.log("MFA Status response:", statusData);
+        // console.log("MFA Status response:", statusData);
 
         // 3. Handle MFA flow
         if (statusData.mfaRequired) {
@@ -99,8 +99,9 @@ const LoginForm = () => {
           }
 
           sessionStorage.setItem("mfa_temp_token", mfaToken);
-          console.log("MFA token stored:", mfaToken);
-          router.push("/auth/mfa");
+          // console.log("MFA token stored:", mfaToken);
+          // router.push("/auth/mfa");
+          setShowMfaDialog(true);
           return;
         }
 

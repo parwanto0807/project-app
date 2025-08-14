@@ -17,7 +17,7 @@ type SheetMenuProps = {
 };
 
 export function SheetMenu({ role }: SheetMenuProps) {
-  console.log("SheetMenu role:", role);
+  // console.log("SheetMenu role:", role);
   return (
     <Sheet>
       <SheetTrigger className="lg:hidden" asChild>

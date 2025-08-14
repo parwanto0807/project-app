@@ -36,7 +36,7 @@ export const getCustomerById = async (req, res) => {
 export const createCustomer = async (req, res) => {
   try {
     const data = req.body;
-    console.log("Received:", req.body);
+    // console.log("Received:", req.body);
     const newCustomer = await prisma.customer.create({ data });
     res.status(201).json(newCustomer);
   } catch (error) {

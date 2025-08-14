@@ -41,7 +41,7 @@ async function verifySessionToken(req, res, next) {
 
 // Middleware khusus untuk MFA
 async function checkMFAStatus(req, res, next) {
-   console.log("[MFA STATUS MIDDLEWARE 1]", req.user);
+  //  console.log("[MFA STATUS MIDDLEWARE 1]", req.user);
 
   // Handle both JWT token (userId) and session token (id)
   const userId = req.user?.userId || req.user?.id;
@@ -53,8 +53,8 @@ async function checkMFAStatus(req, res, next) {
   const deviceId = req.headers["x-device-id"] || req.ip;
   const isNewDevice = await checkIfNewDevice(userId, deviceId);
 
-   console.log("[DeviceId]", deviceId);
-   console.log("[IsNewDevice]", isNewDevice);
+  //  console.log("[DeviceId]", deviceId);
+  //  console.log("[IsNewDevice]", isNewDevice);
 
   // Ambil mfaEnabled dari DB!
   const userDb = await prisma.user.findUnique({
@@ -66,7 +66,7 @@ async function checkMFAStatus(req, res, next) {
     required: isNewDevice && userDb?.mfaEnabled,
     enabled: userDb?.mfaEnabled,
   };
-   console.log("[MFA STATUS MIDDLEWARE 2]", req.mfaStatus);
+  //  console.log("[MFA STATUS MIDDLEWARE 2]", req.mfaStatus);
   next();
 }
 
@@ -78,9 +78,9 @@ function authenticateToken(req, res, next) {
     req.headers.authorization?.split(" ")[1] ||
     req.body?.token;
 
-  console.log("[AUTH] Headers.authorization:", req.headers.authorization);
-  console.log("[AUTH] req.cookies:", req.cookies);
-  console.log("[AUTH] Token untuk verify:", token);
+  // console.log("[AUTH] Headers.authorization:", req.headers.authorization);
+  // console.log("[AUTH] req.cookies:", req.cookies);
+  // console.log("[AUTH] Token untuk verify:", token);
 
   if (!token) {
     console.warn("No authentication token found");
@@ -100,7 +100,7 @@ function authenticateToken(req, res, next) {
         .json({ error: "Forbidden", message: "Invalid or expired token" });
     }
     req.user = decoded;
-    console.log("[AUTH] JWT decoded:", decoded);
+    // console.log("[AUTH] JWT decoded:", decoded);
     next();
   });
 }
@@ -121,7 +121,7 @@ function authorizeSuperAdmin(req, res, next) {
 }
 
 function authorizeAdminOrSuper(req, res, next) {
-  console.log("User at authorize:", req.user);
+  // console.log("User at authorize:", req.user);
   if (req.user?.role === "admin" || req.user?.role === "super") {
     return next();
   }

@@ -57,12 +57,12 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 app.use((req, res, next) => {
-  console.log('[DEBUG COOKIES]', req.cookies);
-  console.log('[DEBUG SESSION]', req.session);
+  // console.log('[DEBUG COOKIES]', req.cookies);
+  // console.log('[DEBUG SESSION]', req.session);
   next();
 });
 app.use((req, res, next) => {
-  console.log('[DEBUG] WAKTU:', new Date().toISOString(), req.method, req.url, req.cookies);
+  // console.log('[DEBUG] WAKTU:', new Date().toISOString(), req.method, req.url, req.cookies);
   next();
 });
 
