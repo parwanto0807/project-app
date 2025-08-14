@@ -32,8 +32,8 @@ import React, { useState } from "react";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { formatDateToDDMMMYYYY } from "@/lib/utils";
-
-
+import Image from "next/image";
+import { makeImageSrc } from "@/utils/makeImageSrc";
 
 interface ProductCategory {
     id: string;
@@ -300,99 +300,97 @@ const ProductList = ({
                                     {expandedProducts.has(product.id) && (
                                         <TableRow className="bg-blue-50 dark:bg-gray-700">
                                             <TableCell colSpan={6} className="px-6 py-4">
-                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
-                                                    <div className="space-y-2">
-                                                        <h4 className="font-medium flex items-center gap-2 text-blue-600 dark:text-blue-400">
-                                                            Product Details
+                                                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 p-6 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg">
+
+                                                    {/* Product Details */}
+                                                    <div className="space-y-3">
+                                                        <h4 className="font-semibold text-blue-600 dark:text-blue-400 text-base flex items-center gap-2">
+                                                            <Box className="h-4 w-4" /> Product Details
                                                         </h4>
-                                                        <div className="grid grid-cols-1 gap-1 text-sm">
-                                                            <div className="text-muted-foreground">
-                                                                Description :
+                                                        <div className="text-sm space-y-1">
+                                                            <div>
+                                                                <span className="text-muted-foreground">Description:</span>
+                                                                <div className="pl-2">{product.description || "No description"}</div>
                                                             </div>
-                                                            <div className="text-wrap pl-2">
-                                                                {product.description || "No description"}
+                                                            <div>
+                                                                <span className="text-muted-foreground">Consumable:</span>
+                                                                <div className="pl-2">{product.isConsumable ? "Yes" : "No"}</div>
                                                             </div>
-
-                                                            <div className="text-muted-foreground">
-                                                                Consumable :
-                                                            </div>
-                                                            <div className="pl-2">
-                                                                {product.isConsumable ? "Yes" : "No"}
-                                                            </div>
-
-                                                            <div className="text-muted-foreground">
-                                                                Category :
-                                                            </div>
-                                                            <div className="pl-2">
-                                                                {product.category?.name || product.categoryId || "Uncategorized"}
+                                                            <div>
+                                                                <span className="text-muted-foreground">Category:</span>
+                                                                <div className="pl-2">{product.category?.name || product.categoryId || "Uncategorized"}</div>
                                                             </div>
                                                         </div>
                                                     </div>
 
-                                                    <div className="space-y-2">
-                                                        <h4 className="font-medium flex items-center gap-2 text-blue-600 dark:text-blue-400">
-                                                            <ShoppingCart className="h-4 w-4" />
-                                                            Unit Conversions
+                                                    {/* Unit Conversions */}
+                                                    <div className="space-y-3">
+                                                        <h4 className="font-semibold text-blue-600 dark:text-blue-400 text-base flex items-center gap-2">
+                                                            <ShoppingCart className="h-4 w-4" /> Unit Conversions
                                                         </h4>
-                                                        <div className="grid grid-cols-2 gap-2 text-sm">
-                                                            <div className="text-muted-foreground">
-                                                                Purchase Unit:
+                                                        <div className="text-sm space-y-1">
+                                                            <div className="flex justify-between">
+                                                                <span className="text-muted-foreground">Purchase Unit:</span>
+                                                                <span>{product.purchaseUnit}</span>
                                                             </div>
-                                                            <div>{product.purchaseUnit}</div>
-
-                                                            <div className="text-muted-foreground">
-                                                                Storage Unit:
+                                                            <div className="flex justify-between">
+                                                                <span className="text-muted-foreground">Storage Unit:</span>
+                                                                <span>{product.storageUnit}</span>
                                                             </div>
-                                                            <div>{product.storageUnit}</div>
-
-                                                            <div className="text-muted-foreground">
-                                                                Usage Unit:
+                                                            <div className="flex justify-between">
+                                                                <span className="text-muted-foreground">Usage Unit:</span>
+                                                                <span>{product.usageUnit}</span>
                                                             </div>
-                                                            <div>{product.usageUnit}</div>
-
-                                                            <div className="text-muted-foreground">
-                                                                Storage Conversion:
+                                                            <div className="flex justify-between">
+                                                                <span className="text-muted-foreground">Storage Conversion:</span>
+                                                                <span>1 {product.purchaseUnit} = {product.conversionToStorage} {product.storageUnit}</span>
                                                             </div>
-                                                            <div>
-                                                                1 {product.purchaseUnit} ={" "}
-                                                                {product.conversionToStorage.toString()}{" "}
-                                                                {product.storageUnit}
-                                                            </div>
-
-                                                            <div className="text-muted-foreground">
-                                                                Usage Conversion:
-                                                            </div>
-                                                            <div>
-                                                                1 {product.storageUnit} ={" "}
-                                                                {product.conversionToUsage.toString()}{" "}
-                                                                {product.usageUnit}
+                                                            <div className="flex justify-between">
+                                                                <span className="text-muted-foreground">Usage Conversion:</span>
+                                                                <span>1 {product.storageUnit} = {product.conversionToUsage} {product.usageUnit}</span>
                                                             </div>
                                                         </div>
                                                     </div>
 
-                                                    <div className="space-y-2">
-                                                        <h4 className="font-medium flex items-center gap-2 text-blue-600 dark:text-blue-400">
-                                                            <Barcode className="h-4 w-4" />
-                                                            Additional Info
+                                                    {/* Additional Info */}
+                                                    <div className="space-y-3">
+                                                        <h4 className="font-semibold text-blue-600 dark:text-blue-400 text-base flex items-center gap-2">
+                                                            <Barcode className="h-4 w-4" /> Additional Info
                                                         </h4>
-                                                        <div className="grid grid-cols-2 gap-2 text-sm">
-                                                            <div className="text-muted-foreground">
-                                                                Created At:
+                                                        <div className="text-sm space-y-1">
+                                                            <div className="flex justify-between">
+                                                                <span className="text-muted-foreground">Created At:</span>
+                                                                <span>{formatDateToDDMMMYYYY(product.createdAt)}</span>
                                                             </div>
-                                                            <div>{formatDateToDDMMMYYYY(product.createdAt)}</div>
-
-                                                            <div className="text-muted-foreground">
-                                                                Updated At:
+                                                            <div className="flex justify-between">
+                                                                <span className="text-muted-foreground">Updated At:</span>
+                                                                <span>{formatDateToDDMMMYYYY(product.updatedAt)}</span>
                                                             </div>
-                                                            <div>{formatDateToDDMMMYYYY(product.updatedAt)}</div>
-
                                                             {product.barcode && (
-                                                                <>
-                                                                    <div className="text-muted-foreground">
-                                                                        Barcode:
-                                                                    </div>
-                                                                    <div>{product.barcode}</div>
-                                                                </>
+                                                                <div className="flex justify-between">
+                                                                    <span className="text-muted-foreground">Barcode:</span>
+                                                                    <span>{product.barcode}</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Product Image */}
+                                                    <div className="space-y-3">
+                                                        <h4 className="font-semibold text-blue-600 dark:text-blue-400 text-base">
+                                                            Product Image
+                                                        </h4>
+                                                        <div className="w-full aspect-square max-w-[180px] mx-auto border rounded-lg overflow-hidden bg-muted shadow-md flex items-center justify-center">
+                                                            {product.image ? (
+                                                                <Image
+                                                                    src={makeImageSrc(product.image)}
+                                                                    alt="Product Image"
+                                                                    width={180}
+                                                                    height={180}
+                                                                    className="object-cover w-full h-full"
+                                                                />
+                                                            ) : (
+                                                                <span className="text-sm text-muted-foreground">No image</span>
                                                             )}
                                                         </div>
                                                     </div>
@@ -400,6 +398,7 @@ const ProductList = ({
                                             </TableCell>
                                         </TableRow>
                                     )}
+
                                 </React.Fragment>
                             ))}
                     </TableBody>

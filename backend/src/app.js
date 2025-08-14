@@ -11,12 +11,14 @@ import productRoutes from "./routes/master/product/productRoutes.js"; // Import 
 import kategoryRoutes from "./routes/master/product/kategoryProductRoutes.js"; // Import category routes
 import salesOrderRoutes from "./routes/salesOrder/salesOrderRoutes.js"; // Import sales order routes
 import cookieParser from 'cookie-parser';
+import path from 'path';
 
 const app = express();
 
 // Security Middleware
 app.use(cookieParser());
 app.use(helmet());
+app.use('/images', express.static(path.join(process.cwd(), 'public', 'images')));
 
 // CORS Configuration
 app.use(

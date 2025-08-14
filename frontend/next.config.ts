@@ -13,6 +13,12 @@ const nextConfig: NextConfig = {
         hostname: "www.google.com",
         // pathname: "/images/**", // opsional, biarkan semua path di folder tertentu
       },
+      {
+        protocol: "http",
+        hostname: "localhost",
+        port: "5000",
+        pathname: "/images/**",
+      },
     ],
   },
 };

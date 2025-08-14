@@ -115,6 +115,7 @@ function authorizeAdmin(req, res, next) {
 
 function authorizeSuperAdmin(req, res, next) {
   if (req.user?.role !== "super") {
+    console.log("User at authorizeSuperAdmin:", req.user);
     return res.status(403).json({ message: "Forbidden - Super Admin only" });
   }
   next();

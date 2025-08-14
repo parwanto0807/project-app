@@ -33,6 +33,7 @@ router.get('/getProductById/:id', getProductById);
 // 3. CREATE (POST) – upload image & authorization dulu baru createProduct
 router.post(
   '/createProduct',
+  authenticateToken,
   authorizeSuperAdmin,
   upload.single('image'),
   createProduct
@@ -41,7 +42,7 @@ router.post(
 // 4. UPDATE (PUT) – jika ingin support update gambar, bisa pakai upload.single('image') juga
 router.put(
   '/updateProduct/:id',
-  authorizeAdmin,
+  authenticateToken,
   authorizeSuperAdmin,
   upload.single('image'),
   updateProduct
@@ -50,7 +51,7 @@ router.put(
 // 5. DELETE
 router.delete(
   '/deleteProduct/:id',
-  authorizeAdmin,
+  authenticateToken,
   authorizeSuperAdmin,
   deleteProduct
 );

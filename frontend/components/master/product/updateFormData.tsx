@@ -54,6 +54,7 @@ import * as z from "zod";
 import { ProductRegisterSchema } from "@/schemas";
 import { fetchProductById } from "@/lib/action/master/product";
 import Image from "next/image";
+import { makeImageSrc } from "@/utils/makeImageSrc";
 
 type ProductSchema = z.infer<typeof ProductRegisterSchema>;
 
@@ -110,17 +111,39 @@ export function UpdateProductForm({ productId }: UpdateProductFormProps) {
     async function onSubmit(values: z.infer<typeof ProductRegisterSchema>) {
         setIsSubmitting(true);
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/master/product/updateProduct/${productId}`, {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    ...values,
-                    conversionToStorage: Number(values.conversionToStorage),
-                    conversionToUsage: Number(values.conversionToUsage),
-                }),
-            });
+            const formData = new FormData();
+
+            // Tambahkan semua field form kecuali image
+            formData.append("code", values.code);
+            formData.append("name", values.name);
+            formData.append("description", values.description || "");
+            formData.append("type", values.type ?? "");
+            formData.append("purchaseUnit", values.purchaseUnit);
+            formData.append("storageUnit", values.storageUnit);
+            formData.append("usageUnit", values.usageUnit);
+            formData.append("conversionToStorage", String(values.conversionToStorage));
+            formData.append("conversionToUsage", String(values.conversionToUsage));
+            formData.append("isConsumable", String(values.isConsumable));
+            formData.append("isActive", String(values.isActive));
+            formData.append("barcode", values.barcode || "");
+            formData.append("categoryId", values.categoryId ?? "");
+
+            // Tambahkan image jika ada
+            if (values.image instanceof File) {
+                formData.append("image", values.image); // ⬅️ image baru dari input file
+            } else if (typeof values.image === "string") {
+                formData.append("image", values.image); // ⬅️ image lama (string path dari database)
+            }
+
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL}/api/master/product/updateProduct/${productId}`,
+                {
+                    method: "PUT",
+                    body: formData,
+                    credentials: "include", // agar cookie/token ikut terkirim
+                    // ❌ JANGAN set headers Content-Type → browser akan otomatis handle multipart/form-data
+                }
+            );
 
             const data = await response.json();
 
@@ -136,17 +159,20 @@ export function UpdateProductForm({ productId }: UpdateProductFormProps) {
                 },
             });
 
-            // Redirect to products list after successful update
             router.push("/super-admin-area/master/products");
             router.refresh();
         } catch (error) {
             toast.error("Failed to update product", {
-                description: error instanceof Error ? error.message : "An unknown error occurred",
+                description:
+                    error instanceof Error
+                        ? error.message
+                        : "An unknown error occurred",
             });
         } finally {
             setIsSubmitting(false);
         }
     }
+
 
     if (isLoading) {
         return (
@@ -477,47 +503,69 @@ export function UpdateProductForm({ productId }: UpdateProductFormProps) {
                                 <FormField
                                     control={form.control}
                                     name="image"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Product Image</FormLabel>
-                                            <div className="space-y-4">
-                                                {/* Input untuk URL gambar */}
-                                                <FormControl>
-                                                    <Input
-                                                        placeholder="https://example.com/image.jpg"
-                                                        {...field}
-                                                        onChange={(e) => {
-                                                            field.onChange(e);
-                                                            // Trigger preview update when URL changes
-                                                        }}
-                                                    />
-                                                </FormControl>
+                                    render={({ field }) => {
+                                        const value = field.value;
 
-                                                {/* Preview gambar */}
-                                                {field.value && (
-                                                    <div className="mt-2">
-                                                        <p className="text-sm text-muted-foreground mb-2">Image Preview:</p>
-                                                        <div className="relative w-full max-w-xs aspect-square border rounded-md overflow-hidden">
-                                                            <Image
-                                                                src={field.value}
-                                                                alt="Preview Gambar Produk"
-                                                                width={300}
-                                                                height={200}
-                                                                className="rounded-lg object-cover" // (Opsional styling)
-                                                                priority // (Opsional, jika gambar utama hero/cover)
-                                                                quality={80} // (Opsional, default 75)
-                                                                sizes="(max-width: 600px) 100vw, 600px" // (Opsional responsive)
-                                                                unoptimized={false} // (default, hanya set true untuk gambar yang tidak perlu dioptimize)
-                                                            // fill // untuk parent position:relative & layout responsive
-                                                            />
+                                        const previewUrl =
+                                            value instanceof File
+                                                ? URL.createObjectURL(value)
+                                                : value
+                                                    ? makeImageSrc(value)
+                                                    : null;
+
+                                        return (
+                                            <FormItem>
+                                                <FormLabel>Product Image</FormLabel>
+                                                <div className="space-y-3">
+                                                    {/* Input File */}
+                                                    <FormControl>
+                                                        <input
+                                                            type="file"
+                                                            accept="image/*"
+                                                            className="block w-full text-sm text-muted-foreground
+                         file:mr-4 file:py-2 file:px-4
+                         file:rounded-md file:border-0
+                         file:text-sm file:font-semibold
+                         file:bg-primary file:text-primary-foreground
+                         hover:file:bg-primary/90"
+                                                            onChange={(e) => {
+                                                                const file = e.target.files?.[0];
+                                                                form.setValue('image', file ?? null);
+                                                            }}
+                                                        />
+                                                    </FormControl>
+
+                                                    {/* Nama File */}
+                                                    {value instanceof File && (
+                                                        <p className="text-sm text-muted-foreground">File selected: {value.name}</p>
+                                                    )}
+
+                                                    {/* Preview Gambar */}
+                                                    {previewUrl && (
+                                                        <div className="mt-2">
+                                                            <p className="text-sm text-muted-foreground mb-2">Image Preview:</p>
+                                                            <div className="w-full max-w-xs aspect-square border rounded-md overflow-hidden bg-muted flex items-center justify-center">
+                                                                <Image
+                                                                    src={previewUrl}
+                                                                    alt="Preview Gambar Produk"
+                                                                    width={300}
+                                                                    height={300}
+                                                                    className="object-contain w-full h-full"
+                                                                    priority
+                                                                    quality={80}
+                                                                    sizes="(max-width: 600px) 100vw, 600px"
+                                                                />
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
+                                                    )}
+                                                </div>
+                                                <FormMessage />
+                                            </FormItem>
+                                        );
+                                    }}
                                 />
+
+
                                 <FormField
                                     control={form.control}
                                     name="barcode"

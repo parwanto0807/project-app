@@ -108,25 +108,70 @@ export const createProduct = async (req, res) => {
 export const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const data = req.body;
 
+    const {
+      code,
+      name,
+      description,
+      type,
+      purchaseUnit,
+      storageUnit,
+      usageUnit,
+      conversionToStorage,
+      conversionToUsage,
+      isConsumable,
+      isActive,
+      barcode,
+      categoryId,
+    } = req.body;
+
+    // Cari produk lama
     const existing = await prisma.product.findUnique({ where: { id } });
     if (!existing) {
-      return res.status(404).json({ message: 'Produk tidak ditemukan' });
+      return res.status(404).json({ message: "Produk tidak ditemukan" });
+    }
+
+    // Tentukan imagePath
+    let imagePath = null;
+
+    // Jika ada upload file baru
+    if (req.file) {
+      imagePath = `/images/${req.file.filename}`;
+    }
+    // Jika dari frontend tetap kirim image lama
+    else if (req.body.image && typeof req.body.image === "string") {
+      imagePath = req.body.image;
     }
 
     const updated = await prisma.product.update({
       where: { id },
-      data,
+      data: {
+        code,
+        name,
+        description,
+        type,
+        purchaseUnit,
+        storageUnit,
+        usageUnit,
+        conversionToStorage: Number(conversionToStorage),
+        conversionToUsage: Number(conversionToUsage),
+        isConsumable: isConsumable === "true" || isConsumable === true,
+        isActive: isActive === "true" || isActive === true,
+        barcode,
+        categoryId,
+        image: imagePath,
+      },
     });
 
     res.json(updated);
   } catch (error) {
-    console.error(error);
-    if (error.code === 'P2002') {
-      return res.status(400).json({ message: 'Kode produk atau barcode sudah digunakan' });
+    console.error("[updateProduct ERROR]", error);
+    if (error.code === "P2002") {
+      return res
+        .status(400)
+        .json({ message: "Kode produk atau barcode sudah digunakan" });
     }
-    res.status(500).json({ message: 'Gagal memperbarui produk' });
+    res.status(500).json({ message: "Gagal memperbarui produk" });
   }
 };
 
