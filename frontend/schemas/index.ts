@@ -118,3 +118,27 @@ export const ProductCategoryUpdateSchema = ProductCategoryRegisterSchema.extend(
     id: z.string().uuid({ message: "ID kategori tidak valid" }),
   }
 );
+
+export const salesOrderItemSchema = z.object({
+  description: z.string().min(1, "Deskripsi item tidak boleh kosong."),
+  qty: z.coerce.number().min(0.01, "Kuantitas harus lebih dari 0."),
+  unitPrice: z.coerce.number().min(0, "Harga tidak boleh negatif."),
+})
+
+export const createSalesOrderSchema = z.object({
+  soNumber: z.string().min(1, "Nomor SO wajib diisi."),
+  soDate: z.date({
+    required_error: "Tanggal SO wajib diisi.",
+  }),
+  customerId: z.string().min(1, "Customer wajib dipilih."),
+  projectId: z.string().optional(),
+  poNumber: z.string().optional(),
+  type: z.enum(["REGULAR", "SUPPORT"], {
+    required_error: "Tipe SO wajib dipilih.",
+  }),
+  items: z
+    .array(salesOrderItemSchema)
+    .min(1, "Minimal harus ada satu item dalam Sales Order."),
+})
+
+export type CreateSalesOrderPayload = z.infer<typeof createSalesOrderSchema>

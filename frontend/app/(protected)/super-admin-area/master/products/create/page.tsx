@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { SuperLayout } from "@/components/admin-panel/super-layout";
 import {
   Breadcrumb,
@@ -14,36 +14,39 @@ import {
 } from "@/components/ui/breadcrumb";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { CreateProductForm } from "@/components/master/product/createFormData";
+import { Loader2 } from "lucide-react";
 
 export default function CreateProductPage() {
   const { user, loading } = useCurrentUser();
   const router = useRouter();
-  const [role, setRole] = useState<"super">("super");
-  const [authorized, setAuthorized] = useState(false);
 
   useEffect(() => {
-    if (!loading) {
-      if (!user) {
-        router.push("/auth/login");
-      } else {
-        const userRole = user.role as typeof role;
+    if (loading) return;
 
-        if (userRole !== "super") {
-          router.push("/not-authorized");
-        } else {
-          setRole(userRole);
-          setAuthorized(true);
-        }
-      }
+    if (!user) {
+      router.replace("/auth/login");
+      return;
     }
-  }, [user, loading, router]);
 
-  if (loading || !authorized) {
-    return <p className="text-center">🔄 Loading...</p>;
+    if (user.role !== "super") {
+      router.replace("/not-authorized");
+      return;
+    }
+  }, [loading, user, router]);
+
+  if (loading || !user || user.role !== "super") {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="flex items-center gap-3 text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" aria-label="Loading" />
+          <span>Memeriksa akses...</span>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <SuperLayout title="Create Customer" role={role}>
+    <SuperLayout title="Create Customer" role="super">
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -54,7 +57,7 @@ export default function CreateProductPage() {
           <BreadcrumbSeparator />
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
-              <Link href="/super-admin-area/master/customers">Product List</Link>
+              <Link href="/super-admin-area/master/products">Product List</Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
@@ -63,7 +66,6 @@ export default function CreateProductPage() {
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
-
       <CreateProductForm />
     </SuperLayout>
   );

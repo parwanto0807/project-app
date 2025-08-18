@@ -908,3 +908,49 @@ export const refreshTokenHandler = async (req, res) => {
     return res.status(401).json({ error: "Invalid refresh token" });
   }
 };
+
+export const refreshTokenHandlerJson = async (req, res) => {
+  const cookies = req.headers.cookie ? cookie.parse(req.headers.cookie) : {};
+  const token = cookies.refreshToken;
+  if (!token) return res.status(401).json({ error: "Refresh token missing" });
+
+  try {
+    // ✅ pakai secret khusus refresh
+    const payload = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+
+    // (opsional) kalau simpan di DB, simpan HASH dari token
+    const session = await prisma.userSession.findFirst({
+      where: {
+        userId: payload.userId,
+        refreshToken: token,          // idealnya: refreshTokenHash
+        isRevoked: false,
+        expiresAt: { gt: new Date() },
+      },
+    });
+    if (!session) return res.status(401).json({ error: "Invalid or expired session" });
+
+    const user = await prisma.user.findUnique({ where: { id: payload.userId } });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    // 🔁 ROTASI refresh token
+    const newAccessToken = generateAccessToken(user);              // exp pendek (10–15m)
+    const newRefreshToken = generateRefreshToken(user);            // exp panjang (15–30d)
+
+    // revoke sesi lama + buat sesi baru
+    await prisma.$transaction([
+      prisma.userSession.update({ where: { id: session.id }, data: { isRevoked: true } }),
+      prisma.userSession.create({
+        data: {
+          userId: user.id,
+          refreshToken: newRefreshToken, // idealnya: hash
+          expiresAt: new Date(Date.now() + 30*24*60*60*1000),
+        },
+      }),
+    ]);
+
+    setTokenCookies(res, newAccessToken, newRefreshToken); // HttpOnly, Secure(prod), SameSite:lax
+    return res.status(200).json({ success: true }); // ⬅️ tidak redirect
+  } catch (err) {
+    return res.status(401).json({ error: "Invalid refresh token" });
+  }
+};

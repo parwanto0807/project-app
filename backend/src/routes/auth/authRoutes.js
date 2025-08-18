@@ -8,7 +8,7 @@ import {
   refreshToken,
   adminLoginRegister,
   registerEmail,
-  refreshTokenHandler,
+  refreshTokenHandlerJson,
   getMFAStatus,
   setupMFA,
   verifyMFA,
@@ -61,7 +61,7 @@ router.get("/failed", (req, res) => {
 // ✍️ USER & ADMIN AUTH ROUTES
 //
 router.post("/refreshToken", refreshToken);
-router.get("/refresh-token", refreshTokenHandler);
+router.post("/refresh", refreshTokenHandlerJson);
 router.get("/user-login/profile", authenticateToken, getProfile);
 router.post("/admin/login", adminLogin);
 router.post("/admin/loginAdmin", adminLoginRegister);

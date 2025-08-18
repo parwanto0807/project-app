@@ -1,9 +1,13 @@
-import express from 'express';
+import express from "express";
 
 // Import controller
-import * as salesOrder from '../../controllers/salesOrder/salesOrderController.js';
-import * as item from '../../controllers/salesOrder/salesOrderItemController.js';
-import * as doc from '../../controllers/salesOrder/salesOrderDocumentController.js';
+import * as salesOrder from "../../controllers/salesOrder/salesOrderController.js";
+import * as item from "../../controllers/salesOrder/salesOrderItemController.js";
+import * as doc from "../../controllers/salesOrder/salesOrderDocumentController.js";
+import {
+  authenticateToken,
+  authorizeSuperAdmin,
+} from "../../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -12,41 +16,48 @@ const router = express.Router();
 //
 
 // [GET] Semua sales order
-router.get('/getAllSalesOrders', salesOrder.getAll);
+router.get("/getAllSalesOrders", salesOrder.getAll);
 
 // [GET] Detail SO by ID
-router.get('/getByIdSalesOrders/:id', salesOrder.getById);
+router.get("/getByIdSalesOrders/:id", salesOrder.getById);
+
+router.get("/last-order", salesOrder.getLastSalesOrder);
 
 // [POST] Tambah SO (beserta items dan document kosong)
-router.post('/createSalesOrders', salesOrder.create);
+router.post(
+  "/createSalesOrders",
+  authenticateToken,
+  authorizeSuperAdmin,
+  salesOrder.create
+);
 
 // [PUT] Update SO
-router.put('/updateSalesOrders/:id', salesOrder.update);
+router.put("/updateSalesOrders/:id", salesOrder.update);
 
 // [DELETE] Hapus SO
-router.delete('/removeSalesOrders/:id', salesOrder.remove);
+router.delete("/removeSalesOrders/:id", salesOrder.remove);
 
 //
 // ROUTES UNTUK ITEM
 //
 
 // [POST] Tambah item ke SO
-router.post('/addItemSalesOrders/:id/items', item.addItem);
+router.post("/addItemSalesOrders/:id/items", item.addItem);
 
 // [PUT] Update item
-router.put('/updateItemSalesOrders/items/:itemId', item.updateItem);
+router.put("/updateItemSalesOrders/items/:itemId", item.updateItem);
 
 // [DELETE] Hapus item dari SO
-router.delete('/removeItemSalesOrders/items/:itemId', item.removeItem);
+router.delete("/removeItemSalesOrders/items/:itemId", item.removeItem);
 
 //
 // ROUTES UNTUK DOKUMEN
 //
 
 // [GET] Ambil dokumen berdasarkan salesOrderId
-router.get('/getBySOIdSalesOrders/:id/document', doc.getBySOId);
+router.get("/getBySOIdSalesOrders/:id/document", doc.getBySOId);
 
 // [PUT] Update flag dokumen
-router.put('/updateFlagsSalesOrders/:id/document', doc.updateFlags);
+router.put("/updateFlagsSalesOrders/:id/document", doc.updateFlags);
 
 export default router;

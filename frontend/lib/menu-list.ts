@@ -109,9 +109,9 @@ export function getMenuList(pathname: string, role: string) {
           active: isActive("/sales", pathname),
           submenus: [
             {
-              href: "/sales/sales-order",
+              href: "/super-admin-area/sales/salesOrder",
               label: "Sales Order",
-              active: isActive("/sales/sales-order", pathname),
+              active: isActive("/super-admin-area/sales/salesOrder", pathname),
               disabled: role === "user" || role === "pic"
             },
             // {

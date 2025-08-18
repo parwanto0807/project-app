@@ -103,21 +103,11 @@ export function CustomersTable({
     }
   };
 
-  // const formatDate = (date: Date | string | null) => {
-  //   if (!date) return "-";
-  //   const d = typeof date === "string" ? new Date(date) : date;
-  //   return d.toLocaleDateString("en-US", {
-  //     year: "numeric",
-  //     month: "short",
-  //     day: "numeric",
-  //   });
-  // };
-
   return (
-    <div className="rounded-xl border bg-white dark:bg-gray-800 shadow-sm dark:border-gray-700">
+    <div className="rounded-t-2xl border bg-white dark:bg-gray-800 shadow-sm dark:border-gray-700">
       <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 md:p-6 border-b dark:border-gray-700">
         <div className="relative w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground dark:text-gray-400" />
+          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground"/>
           <Input
             placeholder="Search customers..."
             className="pl-10 w-full rounded-lg border-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-900 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"

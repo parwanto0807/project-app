@@ -11,6 +11,7 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,6 @@ import {
     ChevronDown,
     ChevronRight,
     Edit,
-    Trash,
     Box,
     Package,
     Hammer,
@@ -28,12 +28,13 @@ import {
     Plus,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { formatDateToDDMMMYYYY } from "@/lib/utils";
 import Image from "next/image";
 import { makeImageSrc } from "@/utils/makeImageSrc";
+import DeleteProductAlert from "./alert-delete";
 
 interface ProductCategory {
     id: string;
@@ -76,7 +77,7 @@ interface ProductListProps {
 const ProductList = ({
     products,
     isLoading,
-    onSearch,
+    // onSearch,
     currentPage = 1,
     totalPages = 1,
     onPageChange,
@@ -85,14 +86,24 @@ const ProductList = ({
         new Set()
     );
     const [searchTerm, setSearchTerm] = useState("");
+    const [product, setProduct] = useState<Product[]>(products);
 
-    const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value;
-        setSearchTerm(value);
-        if (onSearch) {
-            onSearch(value);
-        }
-    };
+    useEffect(() => {
+        setProduct(products);
+    }, [products]);
+
+    // const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    //     const value = e.target.value;
+    //     setSearchTerm(value);
+    //     if (onSearch) {
+    //         onSearch(value);
+    //     }
+    // };
+    const filteredProduct = product.filter((product) =>
+        `${product.code} ${product.name} ${product.category} ${product.storageUnit}`
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase())
+    );
 
     const toggleExpand = (productId: string) => {
         setExpandedProducts((prev) => {
@@ -133,16 +144,17 @@ const ProductList = ({
     };
 
     return (
-        <div className="space-y-4">
+        <div className="rounded-t-2xl border bg-white dark:bg-gray-800 shadow-sm dark:border-gray-700">
             {/* Search and Create Header */}
-            <div className="flex flex-col sm:flex-row justify-between gap-4">
-                <div className="relative w-full sm:w-64">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 md:p-6 border-b dark:border-gray-700">
+                <div className="relative w-full">
                     <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
                         placeholder="Search products..."
-                        className="pl-9"
+                        className="pl-10 w-full rounded-lg border-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-900 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                         value={searchTerm}
-                        onChange={handleSearch}
+                        // onChange={handleSearch}
+                        onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
                 <Button asChild className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white rounded-lg shadow-sm">
@@ -154,8 +166,8 @@ const ProductList = ({
             </div>
 
             <div className="rounded-md border">
-                <Table>
-                    <TableHeader>
+                <Table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <TableHeader className="bg-gray-50 dark:bg-gray-700">
                         <TableRow>
                             <TableHead className="uppercase">Code</TableHead>
                             <TableHead className="uppercase">Name</TableHead>
@@ -165,9 +177,10 @@ const ProductList = ({
                             <TableHead className="text-right uppercase">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
-                    <TableBody>
-                        {isLoading
-                            ? Array.from({ length: 5 }).map((_, i) => (
+                    <TableBody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        {isLoading ? (
+                            // ✅ State loading → skeleton
+                            Array.from({ length: 5 }).map((_, i) => (
                                 <TableRow key={i}>
                                     <TableCell>
                                         <Skeleton className="h-4 w-4 rounded-full" />
@@ -192,10 +205,23 @@ const ProductList = ({
                                     </TableCell>
                                 </TableRow>
                             ))
-                            : products.map((product) => (
+                        ) : filteredProduct.length === 0 ? (
+                            // ✅ State kosong → tampilkan pesan
+                            <TableRow>
+                                <TableCell colSpan={7} className="px-4 py-8 text-center">
+                                    <div className="flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
+                                        <Search className="h-10 w-10 text-gray-400 dark:text-gray-500 mb-4" />
+                                        <p className="text-lg font-medium">No products found</p>
+                                        <p className="text-sm">Try adjusting your search query</p>
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        ) : (
+                            // ✅ State ada data → render daftar produk
+                            filteredProduct.map((product) => (
                                 <React.Fragment key={product.id}>
                                     <TableRow
-                                        className="hover:bg-muted/50 cursor-pointer"
+                                        className="cursor-pointer transition-colors hover:bg-muted/50 dark:hover:bg-gray-700"
                                         onClick={(e) => handleRowClick(e, product.id)}
                                     >
                                         <TableCell>
@@ -285,13 +311,19 @@ const ProductList = ({
                                                 <DropdownMenuContent align="end" className="dropdown-menu">
                                                     <DropdownMenuItem asChild className="gap-2">
                                                         <Link href={`/super-admin-area/master/products/update/${product.id}`}>
-                                                            <Edit className="h-4 w-4" />
+                                                            <Edit className="h-4 w-4 text-green-500 dark:text-green-400" />
                                                             Edit
                                                         </Link>
                                                     </DropdownMenuItem>
-                                                    <DropdownMenuItem className="gap-2 text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400">
-                                                        <Trash className="h-4 w-4" />
-                                                        Delete
+                                                    <DropdownMenuSeparator className="border-t border-gray-200 dark:border-gray-600" />
+                                                    <DropdownMenuItem
+                                                        className="gap-2 focus:text-red-600  dark:focus:text-red-400 p-0"
+                                                        onSelect={(e) => e.preventDefault()} // Tambahkan ini
+                                                    >
+                                                        <DeleteProductAlert
+                                                            id={product.id}
+                                                            onDelete={() => setProduct((prev) => prev.filter((c) => c.id !== product.id))}
+                                                        />
                                                     </DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
@@ -310,7 +342,7 @@ const ProductList = ({
                                                         <div className="text-sm space-y-1">
                                                             <div>
                                                                 <span className="text-muted-foreground">Description:</span>
-                                                                <div className="pl-2">{product.description || "No description"}</div>
+                                                                <div className="pl-2 text-wrap">{product.description || "No description"}</div>
                                                             </div>
                                                             <div>
                                                                 <span className="text-muted-foreground">Consumable:</span>
@@ -398,9 +430,9 @@ const ProductList = ({
                                             </TableCell>
                                         </TableRow>
                                     )}
-
                                 </React.Fragment>
-                            ))}
+                            ))
+                        )}
                     </TableBody>
                 </Table>
             </div>

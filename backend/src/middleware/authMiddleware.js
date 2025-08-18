@@ -2,9 +2,9 @@ import jwt from "jsonwebtoken";
 import cookie from "cookie";
 import checkIfNewDevice from "../utils/cekNewDevices.js";
 import { PrismaClient } from "../../prisma/generated/prisma/index.js";
+
 const prisma = new PrismaClient();
 
-// Middleware: Autentikasi berdasarkan session_token (trusted device session)
 async function verifySessionToken(req, res, next) {
   try {
     const cookies = cookie.parse(req.headers.cookie || "");
@@ -39,13 +39,12 @@ async function verifySessionToken(req, res, next) {
   }
 }
 
-// Middleware khusus untuk MFA
 async function checkMFAStatus(req, res, next) {
   //  console.log("[MFA STATUS MIDDLEWARE 1]", req.user);
 
   // Handle both JWT token (userId) and session token (id)
   const userId = req.user?.userId || req.user?.id;
-  
+
   if (!userId) {
     return res.status(401).json({ error: "User not authenticated" });
   }
@@ -70,7 +69,6 @@ async function checkMFAStatus(req, res, next) {
   next();
 }
 
-// Middleware utama JWT Auth (bisa dipakai untuk semua route yang perlu auth)
 function authenticateToken(req, res, next) {
   // 1. Check multiple token sources
   const token =
@@ -79,17 +77,15 @@ function authenticateToken(req, res, next) {
     req.body?.token;
 
   // console.log("[AUTH] Headers.authorization:", req.headers.authorization);
-  // console.log("[AUTH] req.cookies:", req.cookies);
+  console.log("[AUTH] req.cookies:", req.cookies);
   // console.log("[AUTH] Token untuk verify:", token);
 
   if (!token) {
     console.warn("No authentication token found");
-    return res
-      .status(401)
-      .json({
-        error: "Unauthorized",
-        message: "Authentication token required",
-      });
+    return res.status(401).json({
+      error: "Unauthorized",
+      message: "Authentication token required",
+    });
   }
 
   jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
@@ -100,12 +96,11 @@ function authenticateToken(req, res, next) {
         .json({ error: "Forbidden", message: "Invalid or expired token" });
     }
     req.user = decoded;
-    // console.log("[AUTH] JWT decoded:", decoded);
+    console.log("[AUTH] JWT decoded:", decoded);
     next();
   });
 }
 
-// =============== ROLE MIDDLEWARE ===============
 function authorizeAdmin(req, res, next) {
   if (req.user?.role !== "admin") {
     return res.status(403).json({ message: "Forbidden - Admin only" });
