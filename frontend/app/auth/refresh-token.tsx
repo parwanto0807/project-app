@@ -7,7 +7,7 @@ export default function RefreshTokenPage() {
   useEffect(() => {
     const refreshToken = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/refresh-token`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/refresh`, {
           credentials: 'include' // Untuk mengirim cookies
         });
 

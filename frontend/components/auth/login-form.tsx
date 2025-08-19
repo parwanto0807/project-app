@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { FormError } from "../form-error";
 import { FormSuccess } from "../form-success";
 import { MfaRegistrationDialog } from "./mfa-registration-dialog"; // Changed to component version
+import { initializeTokensOnLogin } from "@/lib/http";
 
 const LoginForm = () => {
   const router = useRouter();
@@ -68,6 +69,11 @@ const LoginForm = () => {
 
         const loginData = await loginRes.json();
         // console.log("Login response:", loginData);
+
+        if (loginData.accessToken) {
+          initializeTokensOnLogin(loginData.accessToken); // ⬅️ taruh di sini
+          // document.cookie = `accessToken=${loginData.accessToken}; Path=/; Max-Age=${ttlDetik}; SameSite=Lax`;
+        }
 
         if (!loginRes.ok) {
           throw new Error(loginData.error || "Login failed");

@@ -11,6 +11,7 @@ import {
     CheckCircleIcon,
     ClockIcon,
     DollarSignIcon,
+    ChevronDownIcon, // NEW: Icon for expander
 } from "lucide-react"
 import Decimal from "decimal.js"
 import {
@@ -18,6 +19,8 @@ import {
     flexRender,
     getCoreRowModel,
     useReactTable,
+    getExpandedRowModel, // NEW: Import for expandable rows
+    type ExpandedState, // NEW: Type for expanded state
 } from "@tanstack/react-table"
 import { DotsHorizontalIcon } from "@radix-ui/react-icons"
 
@@ -56,9 +59,96 @@ interface SalesOrderTableProps {
     isLoading: boolean
 }
 
-// Keep your column definitions outside the component
-// to prevent re-creation on every render.
+// Helper component to render the expanded details of an order
+// (You can place this inside or outside the SalesOrderTable component, or in its own file)
+function SalesOrderDetail({ order }: { order: SalesOrder }) {
+    const total = order.items.reduce((sum, item) => {
+        const itemQty = new Decimal(item.qty.toString())
+        const itemPrice = new Decimal(item.unitPrice.toString())
+        return sum.plus(itemQty.times(itemPrice))
+    }, new Decimal(0))
+
+    return (
+        <div className="bg-muted/50 p-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3 mb-4">
+                <div>
+                    <h4 className="font-semibold text-sm mb-1">Customer Details</h4>
+                    <p className="text-sm text-muted-foreground">{order.customer.name}</p>
+                    <p className="text-sm text-muted-foreground">{order.customer.address ?? "No address provided"}</p>
+                </div>
+                <div>
+                    <h4 className="font-semibold text-sm mb-1">Order Info</h4>
+                    <p className="text-sm text-muted-foreground">
+                        PO Number: <span className="font-medium">{order.poNumber ?? "N/A"}</span>
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                        Order Type: <span className="font-medium">{order.type}</span>
+                    </p>
+                </div>
+                <div>
+                    <h4 className="font-semibold text-sm mb-1">Financials</h4>
+                    <p className="text-sm text-muted-foreground">
+                        Total Amount: <span className="font-medium text-green-600">${total.toDecimalPlaces(2).toString()}</span>
+                    </p>
+                </div>
+            </div>
+
+            <h4 className="font-semibold text-sm mb-2">Order Items</h4>
+            <div className="rounded-md border">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Product</TableHead>
+                            <TableHead className="text-right">Quantity</TableHead>
+                            <TableHead className="text-right">Unit Price</TableHead>
+                            <TableHead className="text-right">Subtotal</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {order.items.map((item) => {
+                            const itemQty = new Decimal(item.qty.toString())
+                            const itemPrice = new Decimal(item.unitPrice.toString())
+                            const subtotal = itemQty.times(itemPrice)
+
+                            return (
+                                <TableRow key={item.id}>
+                                    <TableCell>{item.description}</TableCell>
+                                    <TableCell className="text-right">{item.qty}</TableCell>
+                                    <TableCell className="text-right">${itemPrice.toDecimalPlaces(2).toString()}</TableCell>
+                                    <TableCell className="text-right font-medium">${subtotal.toDecimalPlaces(2).toString()}</TableCell>
+                                </TableRow>
+                            )
+                        })}
+                    </TableBody>
+                </Table>
+            </div>
+        </div>
+    )
+}
+
+
 const columns: ColumnDef<SalesOrder>[] = [
+    // NEW: Expander column
+    {
+        id: "expander",
+        header: () => null,
+        cell: ({ row }) => {
+            return (
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={row.getToggleExpandedHandler()}
+                    className="h-8 w-8 p-0"
+                >
+                    <ChevronDownIcon
+                        className={`h-4 w-4 transition-transform duration-200 ${row.getIsExpanded() ? "" : "-rotate-90"
+                            }`}
+                    />
+                    <span className="sr-only">Toggle details</span>
+                </Button>
+            )
+        },
+    },
     {
         accessorKey: "soNumber",
         header: ({ column }) => (
@@ -80,7 +170,7 @@ const columns: ColumnDef<SalesOrder>[] = [
         },
     },
     {
-        accessorKey: "customer.name", // Use dot notation for nested accessors
+        accessorKey: "customer.name",
         header: ({ column }) => (
             <DataTableColumnHeader column={column} title="Customer" />
         ),
@@ -110,7 +200,7 @@ const columns: ColumnDef<SalesOrder>[] = [
         },
     },
     {
-        id: "total", // Use an ID for a custom column that doesn't map to a single accessorKey
+        id: "total",
         header: ({ column }) => (
             <DataTableColumnHeader column={column} title="Total" />
         ),
@@ -138,6 +228,7 @@ const columns: ColumnDef<SalesOrder>[] = [
             <DataTableColumnHeader column={column} title="Status" />
         ),
         cell: ({ row }) => {
+            // ... (your existing status logic remains unchanged)
             const order = row.original
             const document = order.document
 
@@ -194,10 +285,6 @@ const columns: ColumnDef<SalesOrder>[] = [
         cell: ({ row }) => {
             const order = row.original
 
-            // Define handlers here or pass them in as props
-            function handleViewDetails(orderId: string) {
-                console.log("View details for order:", orderId)
-            }
             function handleEditOrder(order: SalesOrder) {
                 console.log("Edit order:", order)
             }
@@ -218,10 +305,11 @@ const columns: ColumnDef<SalesOrder>[] = [
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-40">
+                        {/* MODIFIED: Use the expander button instead of a menu item */}
                         <DropdownMenuItem
-                            onClick={() => handleViewDetails(order.id)}
+                            onClick={() => row.toggleExpanded(!row.getIsExpanded())}
                         >
-                            View Details
+                            {row.getIsExpanded() ? "Hide Details" : "View Details"}
                         </DropdownMenuItem>
                         <DropdownMenuItem
                             onClick={() => handleEditOrder(order)}
@@ -246,8 +334,8 @@ export function SalesOrderTable({ salesOrders, isLoading }: SalesOrderTableProps
     const [searchTerm, setSearchTerm] = React.useState("")
     const [currentPage, setCurrentPage] = React.useState(1)
     const itemsPerPage = 10
+    const [expanded, setExpanded] = React.useState<ExpandedState>({}) // NEW: State for expanded rows
 
-    // Your existing filtering logic is great
     const filteredSalesOrders = React.useMemo(() => {
         return salesOrders.filter((order) => {
             return (
@@ -259,7 +347,6 @@ export function SalesOrderTable({ salesOrders, isLoading }: SalesOrderTableProps
         })
     }, [salesOrders, searchTerm])
 
-    // Your existing pagination logic is also fine
     const paginatedOrders = React.useMemo(() => {
         const startIndex = (currentPage - 1) * itemsPerPage
         return filteredSalesOrders.slice(startIndex, startIndex + itemsPerPage)
@@ -268,9 +355,15 @@ export function SalesOrderTable({ salesOrders, isLoading }: SalesOrderTableProps
     const totalPages = Math.ceil(filteredSalesOrders.length / itemsPerPage)
 
     const table = useReactTable({
-        data: paginatedOrders, // Use your paginated data
+        data: paginatedOrders,
         columns,
+        state: { // NEW: Pass expanded state to the table
+            expanded,
+        },
+        onExpandedChange: setExpanded, // NEW: Handle state changes
         getCoreRowModel: getCoreRowModel(),
+        getExpandedRowModel: getExpandedRowModel(), // NEW: Enable the expanded row model
+        getRowId: (row) => row.id, // NEW: Important for stable expansion
     })
 
     return (
@@ -304,16 +397,18 @@ export function SalesOrderTable({ salesOrders, isLoading }: SalesOrderTableProps
             <CardContent>
                 {isLoading ? (
                     <div className="space-y-4 px-4 py-6">
-                        {[...Array(5)].map((_, i) => (
-                            <div key={i} className="flex items-center space-x-4">
-                                <div className="space-y-2 flex-grow">
-                                    <Skeleton className="h-4 w-3/4" />
-                                    <Skeleton className="h-4 w-1/2" />
+                        <div className="space-y-4 px-4 py-6">
+                            {[...Array(5)].map((_, i) => (
+                                <div key={i} className="flex items-center space-x-4">
+                                    <div className="space-y-2 flex-grow">
+                                        <Skeleton className="h-4 w-3/4" />
+                                        <Skeleton className="h-4 w-1/2" />
+                                    </div>
+                                    <Skeleton className="h-8 w-24" />
+                                    <Skeleton className="h-8 w-8" />
                                 </div>
-                                <Skeleton className="h-8 w-24" />
-                                <Skeleton className="h-8 w-8" />
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
                 ) : (
                     <>
@@ -340,16 +435,23 @@ export function SalesOrderTable({ salesOrders, isLoading }: SalesOrderTableProps
                                 <TableBody>
                                     {table.getRowModel().rows?.length ? (
                                         table.getRowModel().rows.map((row) => (
-                                            <TableRow
-                                                key={row.id}
-                                                data-state={row.getIsSelected() && "selected"}
-                                            >
-                                                {row.getVisibleCells().map((cell) => (
-                                                    <TableCell key={cell.id}>
-                                                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                                    </TableCell>
-                                                ))}
-                                            </TableRow>
+                                            <React.Fragment key={row.id}>
+                                                <TableRow data-state={row.getIsSelected() && "selected"}>
+                                                    {row.getVisibleCells().map((cell) => (
+                                                        <TableCell key={cell.id}>
+                                                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                                        </TableCell>
+                                                    ))}
+                                                </TableRow>
+                                                {/* NEW: Render expanded content */}
+                                                {row.getIsExpanded() && (
+                                                    <TableRow>
+                                                        <TableCell colSpan={columns.length} className="p-0">
+                                                            <SalesOrderDetail order={row.original} />
+                                                        </TableCell>
+                                                    </TableRow>
+                                                )}
+                                            </React.Fragment>
                                         ))
                                     ) : (
                                         <TableRow>
@@ -367,39 +469,43 @@ export function SalesOrderTable({ salesOrders, isLoading }: SalesOrderTableProps
 
                         {totalPages > 1 && (
                             <div className="mt-4 flex justify-center">
-                                <Pagination>
-                                    <PaginationContent>
-                                        <PaginationItem>
-                                            <PaginationPrevious
-                                                onClick={(e) => {
-                                                    e.preventDefault()
-                                                    setCurrentPage(prev => Math.max(prev - 1, 1))
-                                                }}
-                                                className={
-                                                    currentPage === 1 ? "pointer-events-none opacity-50" : undefined
-                                                }
-                                            />
-                                        </PaginationItem>
-                                        <PaginationItem>
-                                            <span className="px-4 text-sm">
-                                                Page {currentPage} of {totalPages}
-                                            </span>
-                                        </PaginationItem>
-                                        <PaginationItem>
-                                            <PaginationNext
-                                                onClick={(e) => {
-                                                    e.preventDefault()
-                                                    setCurrentPage(prev => Math.min(prev + 1, totalPages))
-                                                }}
-                                                className={
-                                                    currentPage === totalPages
-                                                        ? "pointer-events-none opacity-50"
-                                                        : undefined
-                                                }
-                                            />
-                                        </PaginationItem>
-                                    </PaginationContent>
-                                </Pagination>
+                                {totalPages > 1 && (
+                                    <div className="mt-4 flex justify-center">
+                                        <Pagination>
+                                            <PaginationContent>
+                                                <PaginationItem>
+                                                    <PaginationPrevious
+                                                        onClick={(e) => {
+                                                            e.preventDefault()
+                                                            setCurrentPage(prev => Math.max(prev - 1, 1))
+                                                        }}
+                                                        className={
+                                                            currentPage === 1 ? "pointer-events-none opacity-50" : undefined
+                                                        }
+                                                    />
+                                                </PaginationItem>
+                                                <PaginationItem>
+                                                    <span className="px-4 text-sm">
+                                                        Page {currentPage} of {totalPages}
+                                                    </span>
+                                                </PaginationItem>
+                                                <PaginationItem>
+                                                    <PaginationNext
+                                                        onClick={(e) => {
+                                                            e.preventDefault()
+                                                            setCurrentPage(prev => Math.min(prev + 1, totalPages))
+                                                        }}
+                                                        className={
+                                                            currentPage === totalPages
+                                                                ? "pointer-events-none opacity-50"
+                                                                : undefined
+                                                        }
+                                                    />
+                                                </PaginationItem>
+                                            </PaginationContent>
+                                        </Pagination>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </>

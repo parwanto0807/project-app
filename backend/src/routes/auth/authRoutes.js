@@ -5,10 +5,10 @@ import {
   adminLogin,
   registerAdmin,
   logoutUser,
-  refreshToken,
+  // refreshToken,
   adminLoginRegister,
   registerEmail,
-  refreshTokenHandlerJson,
+  refreshHandler,
   getMFAStatus,
   setupMFA,
   verifyMFA,
@@ -60,8 +60,8 @@ router.get("/failed", (req, res) => {
 //
 // ✍️ USER & ADMIN AUTH ROUTES
 //
-router.post("/refreshToken", refreshToken);
-router.post("/refresh", refreshTokenHandlerJson);
+// router.post("/refreshToken", refreshToken);
+router.post("/refresh", refreshHandler);
 router.get("/user-login/profile", authenticateToken, getProfile);
 router.post("/admin/login", adminLogin);
 router.post("/admin/loginAdmin", adminLoginRegister);

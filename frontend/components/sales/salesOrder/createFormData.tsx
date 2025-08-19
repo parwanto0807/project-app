@@ -65,6 +65,7 @@ import { cn } from "@/lib/utils"
 interface Customer {
   id: string
   name: string
+  address?: string 
 }
 
 interface Project {

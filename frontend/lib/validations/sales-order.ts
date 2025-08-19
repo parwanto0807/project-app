@@ -5,6 +5,7 @@ export interface SalesOrder {
   customer: {
     id: string
     name: string
+    address?: string
   }
   project?: {
     id: string

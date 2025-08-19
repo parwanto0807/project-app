@@ -22,6 +22,7 @@ import { fetchAllCustomers } from "@/lib/action/master/customer";
 interface CustomerForForm {
   id: string;
   name: string;
+  address?: string; // Tambahkan properti address jika diperlukan
 }
 
 // Tipe data untuk Project, bisa didefinisikan di sini jika belum ada global
@@ -76,6 +77,7 @@ export default function CreateSalesOrderPage() {
           const formattedCustomers = response.customers.map((customer: RawCustomer) => ({
             ...customer,
             id: customer.id,
+            name: customer.name,
           }));
           setCustomers(formattedCustomers);
         }

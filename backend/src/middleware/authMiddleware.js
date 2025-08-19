@@ -70,15 +70,12 @@ async function checkMFAStatus(req, res, next) {
 }
 
 function authenticateToken(req, res, next) {
-  // 1. Check multiple token sources
   const token =
     req.cookies?.accessToken ||
     req.headers.authorization?.split(" ")[1] ||
     req.body?.token;
 
-  // console.log("[AUTH] Headers.authorization:", req.headers.authorization);
   console.log("[AUTH] req.cookies:", req.cookies);
-  // console.log("[AUTH] Token untuk verify:", token);
 
   if (!token) {
     console.warn("No authentication token found");
@@ -92,8 +89,8 @@ function authenticateToken(req, res, next) {
     if (err) {
       console.warn("Invalid token:", err.message);
       return res
-        .status(403)
-        .json({ error: "Forbidden", message: "Invalid or expired token" });
+        .status(401) 
+        .json({ error: "Unauthorized", message: "Invalid or expired token" });
     }
     req.user = decoded;
     console.log("[AUTH] JWT decoded:", decoded);

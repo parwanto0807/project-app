@@ -3,101 +3,68 @@ import axios from "axios";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import cookie from "cookie";
+import * as crypto from "crypto";
+import speakeasy from "speakeasy";
+import QRCode from "qrcode";
+
+// Asumsi file env.js mengekspor variabel-variabel ini
 import {
   JWT_SECRET,
+  JWT_REFRESH_SECRET,
   GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET,
   GOOGLE_CALLBACK_URL,
   MFA_TEMP_SECRET,
 } from "../../config/env.js";
-import { randomUUID } from "crypto";
-import speakeasy from "speakeasy";
-import QRCode from "qrcode";
-import { generateDeviceToken } from "../../utils/tokenGenerator.js";
 
 const prisma = new PrismaClient();
 
-// 🔐 Helper: Buat token JWT
 const generateAccessToken = (user) => {
-  return jwt.sign(
-    {
-      userId: user.id,
-      role: user.role,
-    },
-    process.env.JWT_SECRET,
-    { expiresIn: "15m" }
-  );
+  return jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, {
+    expiresIn: "2m",
+  });
 };
 
 const generateRefreshToken = (user) => {
   return jwt.sign(
+    { userId: user.id, tokenVersion: user.tokenVersion || 0 },
+    JWT_REFRESH_SECRET,
     {
-      userId: user.id,
-      tokenVersion: user.tokenVersion || 0,
-    },
-    process.env.JWT_REFRESH_SECRET,
-    { expiresIn: "7d" }
+      expiresIn: "7d",
+    }
   );
 };
 
-function setTokenCookies(res, accessToken, refreshToken) {
-  const maxAgeAccessToken = 60 * 15 * 1000; // 15 menit dalam ms
-  const maxAgeRefreshToken = 60 * 60 * 24 * 7 * 1000; // 7 hari dalam ms
+function setAuthCookies(res, refreshToken, sessionToken) {
+  const sevenDays = 7 * 24 * 60 * 60 * 1000;
+  const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: sevenDays,
+  };
 
-  res.setHeader("Set-Cookie", [
-    cookie.serialize("accessToken", accessToken, {
-      httpOnly: true,
-      maxAge: maxAgeAccessToken / 1000, // detik
-      path: "/",
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-    }),
-    cookie.serialize("refreshToken", refreshToken, {
-      httpOnly: true,
-      maxAge: maxAgeRefreshToken / 1000, // detik
-      path: "/",
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-    }),
-  ]);
-
-  // Hitung waktu sekarang dan waktu kedaluwarsa berdasarkan maxAge
-  const now = new Date();
-  const accessTokenExpiresAt = new Date(now.getTime() + maxAgeAccessToken);
-
-  // console.log(
-  //   "🔁 Refresh berhasil pada:",
-  //   now.toLocaleString("id-ID", {
-  //     dateStyle: "full",
-  //     timeStyle: "long",
-  //   })
-  // );
-  // console.log(
-  //   "🔐 accessToken berlaku sampai:",
-  //   accessTokenExpiresAt.toLocaleString("id-ID", {
-  //     dateStyle: "full",
-  //     timeStyle: "long",
-  //   })
-  // );
+  res.cookie("refreshToken", refreshToken, cookieOptions);
+  res.cookie("session_token", sessionToken, cookieOptions);
 }
 
 async function createUserSession(user, refreshToken, req) {
-  const sessionToken = randomUUID(); // UUID token untuk session (bisa juga disimpan di cookie kalau mau)
-  const ipAddress = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
-  const userAgent = req.headers["user-agent"];
+    const sessionToken = crypto.randomBytes(32).toString('hex');
+    const ipAddress = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+    const userAgent = req.headers["user-agent"];
 
-  await prisma.userSession.create({
-    data: {
-      userId: user.id,
-      sessionToken,
-      refreshToken, // bisa disimpan langsung atau versi hash
-      ipAddress: ipAddress?.toString(),
-      userAgent,
-      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7), // 7 hari
-    },
-  });
-
-  return sessionToken;
+    await prisma.userSession.create({
+        data: {
+            userId: user.id,
+            sessionToken,
+            refreshToken,
+            ipAddress: ipAddress?.toString(),
+            userAgent,
+            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 hari
+        },
+    });
+    return sessionToken;
 }
 
 export const getSessions = async (req, res) => {
@@ -215,90 +182,39 @@ export const googleLogin = async (req, res) => {
 
 export const adminLogin = async (req, res) => {
   const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: "Email and password are required" });
+  }
 
   try {
-    // 1. Validasi input dasar
-    if (!email || !password) {
-      return res.status(400).json({ error: "Email and password are required" });
-    }
+    const user = await prisma.user.findUnique({ where: { email } });
 
-    // 2. Cari user dengan role 'super'
-    const user = await prisma.user.findUnique({
-      where: { email },
-      select: {
-        id: true,
-        email: true,
-        password: true,
-        name: true,
-        role: true,
-        provider: true,
-        mfaEnabled: true,
-        active: true,
-      },
-    });
-
-    // 3. Validasi user
-    if (!user) {
+    if (!user || user.provider !== "credentials") {
       return res.status(403).json({ error: "Invalid credentials" });
     }
 
-    if (user.role !== "super" || user.provider !== "credentials") {
-      return res
-        .status(403)
-        .json({ error: "Access restricted to super admins only" });
-    }
-
-    if (!user.active) {
-      return res.status(403).json({ error: "Account is deactivated" });
-    }
-
-    // 4. Verifikasi password
     const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) {
-      // Log percobaan login gagal
-      await prisma.loginAttempt.create({
-        data: {
-          userId: user.id,
-          status: "FAILED",
-          ipAddress: req.ip,
-          userAgent: req.headers["user-agent"],
-          email: user.email,
-        },
-      });
       return res.status(403).json({ error: "Invalid credentials" });
     }
 
-    // 5. Generate tokens
+    // Generate tokens
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
 
-    // 6. Buat session dan set cookies
-    await createUserSession(user, refreshToken, req);
-    setTokenCookies(res, accessToken, refreshToken);
+    // Create session and set cookies
+    const sessionToken = await createUserSession(user, refreshToken, req);
+    setAuthCookies(res, refreshToken, sessionToken);
 
-    // 7. Log login sukses
-    await prisma.loginAttempt.create({
-      data: {
-        userId: user.id,
-        status: "SUCCESS",
-        ipAddress: req.ip,
-        userAgent: req.headers["user-agent"],
-        email: user.email,
-      },
-    });
-
-    // 8. Response
     res.json({
       success: true,
+      accessToken,
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
         role: user.role,
-        mfaEnabled: user.mfaEnabled,
       },
-      accessToken,
-      // Kirim refreshToken hanya jika diperlukan (biasanya cukup di cookie)
     });
   } catch (error) {
     console.error("Admin login error:", error);
@@ -750,22 +666,13 @@ export const registerAdmin = async (req, res) => {
   }
 };
 
-// 👤 Get Profile
 export const getProfile = async (req, res) => {
   try {
-    const cookies = cookie.parse(req.headers.cookie || "");
-    const token = cookies.accessToken;
-
-    if (!token) {
-      return res
-        .status(401)
-        .json({ success: false, error: "Unauthorized - Token missing" });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET);
+    // req.user is attached by the authenticateToken middleware
+    const userId = req.user.userId;
 
     const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
+      where: { id: userId },
       select: {
         id: true,
         name: true,
@@ -779,82 +686,43 @@ export const getProfile = async (req, res) => {
     if (!user) {
       return res.status(404).json({ success: false, error: "User not found" });
     }
-
     return res.status(200).json({ success: true, user });
   } catch (err) {
     console.error("getProfile error:", err.message);
     return res
-      .status(401)
-      .json({ success: false, error: "Invalid or expired token" });
+      .status(500)
+      .json({ success: false, error: "Internal Server Error" });
   }
 };
 
-// 🔁 Refresh Token
-export const refreshToken = async (req, res) => {
-  try {
-    const cookies = cookie.parse(req.headers.cookie || "");
-    const token = cookies.refreshToken;
-
-    if (!token) {
-      return res
-        .status(401)
-        .json({ success: false, error: "Refresh token missing" });
-    }
-
-    const decoded = jwt.verify(token, JWT_SECRET);
-
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
+export const logoutUser = async (req, res) => {
+  const token = req.cookies.refreshToken;
+  if (token) {
+    // Revoke the session in the database
+    await prisma.userSession.updateMany({
+      where: { refreshToken: token },
+      data: { isRevoked: true },
     });
-
-    if (!user) {
-      return res.status(404).json({ success: false, error: "User not found" });
-    }
-
-    const newAccessToken = generateAccessToken(user);
-    const newRefreshToken = generateRefreshToken(user);
-    setTokenCookies(res, newAccessToken, newRefreshToken);
-
-    return res.status(200).json({ success: true, message: "Token refreshed" });
-  } catch (err) {
-    console.error("refreshToken error:", err.message);
-    return res
-      .status(401)
-      .json({ success: false, error: "Invalid or expired token" });
   }
-};
 
-// 🔓 Logout
-export const logoutUser = (req, res) => {
-  res.setHeader("Set-Cookie", [
-    cookie.serialize("accessToken", "", {
-      httpOnly: true,
-      secure: false,
-      sameSite: "lax",
-      maxAge: 0,
-      path: "/",
-    }),
-    cookie.serialize("refreshToken", "", {
-      httpOnly: true,
-      secure: false,
-      sameSite: "lax",
-      maxAge: 0,
-      path: "/",
-    }),
-  ]);
+  // Clear all auth-related cookies
+  res.clearCookie("refreshToken", { path: "/" });
+  res.clearCookie("session_token", { path: "/" });
+  // Also clear the frontend cookie if it exists
+  res.clearCookie("accessToken", { path: "/" });
 
   res.json({ success: true, message: "Logged out successfully" });
 };
+export const refreshHandler = async (req, res) => {
+  const token = req.cookies.refreshToken;
+  console.log("[REFRESH HANDLER] Token:", token);
 
-export const refreshTokenHandler = async (req, res) => {
-  const cookies = req.headers.cookie ? cookie.parse(req.headers.cookie) : {};
-  const token = cookies.refreshToken;
-  const referer = req.headers.referer;
-
-  if (!token) return res.status(401).json({ error: "Refresh token missing" });
+  if (!token) {
+    return res.status(401).json({ error: "Refresh token missing" });
+  }
 
   try {
-    const payload = jwt.verify(token, JWT_SECRET);
+    const payload = jwt.verify(token, JWT_REFRESH_SECRET);
 
     const session = await prisma.userSession.findFirst({
       where: {
@@ -865,92 +733,91 @@ export const refreshTokenHandler = async (req, res) => {
       },
     });
 
-    if (!session)
+    if (!session) {
       return res.status(401).json({ error: "Invalid or expired session" });
-
-    const user = await prisma.user.findUnique({
-      where: { id: payload.userId },
-    });
-    if (!user) return res.status(404).json({ error: "User not found" });
-
-    const newAccessToken = generateAccessToken(user);
-    setTokenCookies(res, newAccessToken, token); // gunakan refreshToken lama
-    const defaultFrontendUrl =
-      process.env.FRONTEND_URL || "http://localhost:3000";
-    let redirectUrl = `${defaultFrontendUrl}/dashboard`; // Default fallback
-
-    if (req.query.redirect) {
-      try {
-        const decodedUrl = decodeURIComponent(req.query.redirect);
-        const parsedUrl = new URL(decodedUrl);
-
-        // Validasi hanya mengizinkan redirect ke domain frontend
-        if (parsedUrl.origin === defaultFrontendUrl) {
-          redirectUrl = decodedUrl;
-        }
-      } catch (e) {
-        console.warn("Invalid redirect URL:", req.query.redirect);
-      }
     }
 
-    // Set cookies
-    res.cookie("accessToken", newAccessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 900000, // 5 menit
-      path: "/",
-    });
-
-    // Lakukan redirect
-    return res.redirect(redirectUrl);
-  } catch (err) {
-    console.error("Refresh error:", err);
-    return res.status(401).json({ error: "Invalid refresh token" });
-  }
-};
-
-export const refreshTokenHandlerJson = async (req, res) => {
-  const cookies = req.headers.cookie ? cookie.parse(req.headers.cookie) : {};
-  const token = cookies.refreshToken;
-  if (!token) return res.status(401).json({ error: "Refresh token missing" });
-
-  try {
-    // ✅ pakai secret khusus refresh
-    const payload = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
-
-    // (opsional) kalau simpan di DB, simpan HASH dari token
-    const session = await prisma.userSession.findFirst({
-      where: {
-        userId: payload.userId,
-        refreshToken: token,          // idealnya: refreshTokenHash
-        isRevoked: false,
-        expiresAt: { gt: new Date() },
-      },
-    });
-    if (!session) return res.status(401).json({ error: "Invalid or expired session" });
-
     const user = await prisma.user.findUnique({ where: { id: payload.userId } });
-    if (!user) return res.status(404).json({ error: "User not found" });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
 
-    // 🔁 ROTASI refresh token
-    const newAccessToken = generateAccessToken(user);              // exp pendek (10–15m)
-    const newRefreshToken = generateRefreshToken(user);            // exp panjang (15–30d)
+    // HANYA buat accessToken baru. refreshToken dan session tetap sama.
+    const newAccessToken = generateAccessToken(user);
+    
+    console.log("[REFRESH HANDLER] Berhasil refresh accessToken:", newAccessToken);
 
-    // revoke sesi lama + buat sesi baru
-    await prisma.$transaction([
-      prisma.userSession.update({ where: { id: session.id }, data: { isRevoked: true } }),
-      prisma.userSession.create({
-        data: {
-          userId: user.id,
-          refreshToken: newRefreshToken, // idealnya: hash
-          expiresAt: new Date(Date.now() + 30*24*60*60*1000),
-        },
-      }),
-    ]);
+    return res.status(200).json({ success: true, accessToken: newAccessToken });
+    
 
-    setTokenCookies(res, newAccessToken, newRefreshToken); // HttpOnly, Secure(prod), SameSite:lax
-    return res.status(200).json({ success: true }); // ⬅️ tidak redirect
   } catch (err) {
-    return res.status(401).json({ error: "Invalid refresh token" });
+    console.error("[REFRESH HANDLER] GAGAL TOTAL:", err);
+    return res.status(401).json({ error: "Invalid refresh token." });
   }
 };
+
+// export const refreshHandler = async (req, res) => {
+//   const token = req.cookies.refreshToken;
+
+//   if (!token) {
+//     return res.status(401).json({ error: "Refresh token missing" });
+//   }
+
+//   try {
+//     const payload = jwt.verify(token, JWT_REFRESH_SECRET);
+
+//     const session = await prisma.userSession.findFirst({
+//       where: {
+//         userId: payload.userId,
+//         refreshToken: token,
+//         isRevoked: false,
+//         expiresAt: { gt: new Date() },
+//       },
+//     });
+
+//     if (!session) {
+//       return res.status(401).json({ error: "Invalid or expired session" });
+//     }
+
+//     const user = await prisma.user.findUnique({ where: { id: payload.userId } });
+//     if (!user) {
+//       return res.status(404).json({ error: "User not found" });
+//     }
+
+//     // Token Rotation
+//     const newAccessToken = generateAccessToken(user);
+//     const newRefreshToken = generateRefreshToken(user);
+//     const newSessionToken = crypto.randomBytes(32).toString('hex');
+
+//     await prisma.$transaction([
+//       prisma.userSession.update({
+//         where: { id: session.id },
+//         data: { 
+//           isRevoked: true,
+//           sessionToken: session.sessionToken,
+//           // PERBAIKAN: Sertakan ipAddress yang ada untuk memenuhi persyaratan skema
+//           ipAddress: session.ipAddress,
+//         },
+//       }),
+//       prisma.userSession.create({
+//         data: {
+//           userId: user.id,
+//           refreshToken: newRefreshToken,
+//           sessionToken: newSessionToken,
+//           // Ambil IP address baru dari request saat ini untuk sesi baru
+//           ipAddress: req.headers["x-forwarded-for"] || req.socket.remoteAddress,
+//           userAgent: req.headers["user-agent"],
+//           expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+//         },
+//       }),
+//     ]);
+    
+//     setAuthCookies(res, newRefreshToken, newSessionToken);
+
+//     return res.status(200).json({ success: true, accessToken: newAccessToken });
+
+//   } catch (err) {
+//     console.error("[REFRESH HANDLER] GAGAL TOTAL:", err);
+//     return res.status(401).json({ error: "Invalid refresh token or failed to process session." });
+//   }
+// };
