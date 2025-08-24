@@ -1,11 +1,11 @@
 "use server";
 
 import { z } from "zod";
-import { createSalesOrderSchema } from "@/schemas";
+import { salesOrderUpdateSchema } from "@/schemas";
 import { cookies } from "next/headers";
 
 // form schema utk create/update header+items (tanpa soNumber karena digenerate)
-const formSchema = createSalesOrderSchema.omit({ soNumber: true });
+const formSchema = salesOrderUpdateSchema.omit({ soNumber: true });
 type UpdateSalesOrderPayload = z.infer<typeof formSchema>;
 
 // ===============================================================
@@ -106,7 +106,7 @@ export async function updateSalesOrderAPI(id: string, payload: UpdateSalesOrderP
   try {
     const cookieHeader = await getCookieHeader();
 
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sales-orders/${id}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/salesOrder/sales-orders/update/${id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -160,7 +160,7 @@ export async function fetchAllSalesOrder() {
 
 export async function fetchSalesOrderById(id: string) {
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/salesOrder/getByIdSalesOrders/${id}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/salesOrder/sales-orders/getById/${id}`, {
       method: "GET",
       cache: "no-store",
     });

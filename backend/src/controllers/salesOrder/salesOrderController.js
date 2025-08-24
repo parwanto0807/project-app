@@ -315,72 +315,135 @@ export const updateWithItems = async (req, res) => {
       soNumber,
       soDate,
       customerId,
-      projectId,
+      projectId, // kolom wajib di model; hanya update kalau ada nilai baru
       type,
       status,
       notes,
       items,
-    } = req.body;
+    } = req.body || {};
 
+    // --- guard ---
+    if (!id) return res.status(400).json({ message: "Missing SalesOrder id." });
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ message: "Minimal 1 item diperlukan." });
     }
 
-    // Siapkan items
-    const preparedItems = [];
-    for (const it of items) {
-      // if (!it.productId) return res.status(400).json({ message: "productId wajib di setiap item." });
+    // helper angka
+    const toNum = (v) => (v === null || v === undefined || v === "" ? NaN : Number(v));
+    const bad = (v) => Number.isNaN(v) || v === null || v === undefined;
 
-      // ambil snapshot jika name/uom kosong
-      let name = it.name,
-        uom = it.uom;
-      if (!name || !uom) {
-        const prod = await prisma.product.findUnique({
-          where: { id: it.productId },
-          select: { name: true },
-        });
-        if (!prod)
-          return res
-            .status(400)
-            .json({ message: `Product tidak ditemukan: ${it.productId}` });
-        name = name || prod.name || null;
+    // --- normalisasi items (tanpa Decimal dulu) + rough line untuk sorting awal ---
+    const normalized = [];
+    for (let idx = 0; idx < items.length; idx++) {
+      const it = items[idx] || {};
+      const rawType = typeof it.itemType === "string" ? it.itemType.toUpperCase() : "PRODUCT";
+      const itemType = rawType === "SERVICE" || rawType === "CUSTOM" ? rawType : "PRODUCT";
+
+      // PRODUCT ⇒ productId wajib
+      if (itemType === "PRODUCT" && !it.productId) {
+        return res.status(400).json({ message: "productId wajib untuk item PRODUCT." });
       }
 
+      // snapshot name/uom hanya untuk PRODUCT bila kosong
+      let name = it.name;
+      let uom = it.uom ?? null;
+      if (itemType === "PRODUCT" && (!name || !uom)) {
+        const prod = await prisma.product.findUnique({
+          where: { id: it.productId },
+          select: { name: true, uom: true },
+        });
+        if (!prod) {
+          return res.status(400).json({ message: `Product tidak ditemukan: ${it.productId}` });
+        }
+        name = name || prod.name;
+        uom = uom || prod.uom || null;
+      }
+
+      // Validasi name wajib untuk semua item
+      if (!name || String(name).trim() === "") {
+        return res.status(400).json({ message: "Nama item (name) tidak boleh kosong." });
+      }
+
+      // angka
       const qty = toNum(it.qty);
       const unitPrice = toNum(it.unitPrice);
-      const discount = toNum(it.discount || 0);
-      const taxRate = toNum(it.taxRate || 0);
+      const discount = toNum(it.discount ?? 0);
+      const taxRate = toNum(it.taxRate ?? 0);
 
-      preparedItems.push({
-        salesOrderId: id,
-        itemType: it.itemType || "PRODUCT",
-        productId: it.productId,
+      if (bad(qty) || qty <= 0)        return res.status(400).json({ message: "qty harus angka > 0." });
+      if (bad(unitPrice) || unitPrice < 0) return res.status(400).json({ message: "unitPrice harus angka ≥ 0." });
+      if (bad(discount) || discount < 0)   return res.status(400).json({ message: "discount harus angka ≥ 0." });
+      if (bad(taxRate) || taxRate < 0 || taxRate > 100)
+        return res.status(400).json({ message: "taxRate harus angka 0–100." });
+
+      const bruto = qty * unitPrice;
+      if (discount > bruto) {
+        return res.status(400).json({ message: "Discount tidak boleh melebihi (qty × unitPrice)." });
+      }
+
+      // roughLine: pakai item.lineNo kalau ada & valid, else idx+1
+      const roughLine = Number.isInteger(it.lineNo) && it.lineNo > 0 ? it.lineNo : (idx + 1);
+
+      // line total (tax exclusive → total = (bruto - discount) + tax)
+      const neto = Math.max(bruto - discount, 0);
+      const lineTotal = Math.max(neto + (taxRate / 100) * neto, 0);
+
+      normalized.push({
+        _roughLine: roughLine,
+        itemType,
+        productId: itemType === "PRODUCT" ? it.productId : null,
         name,
         uom,
-        description: it.description || null,
-        qty: new Prisma.Decimal(qty),
-        unitPrice: new Prisma.Decimal(unitPrice),
-        discount: new Prisma.Decimal(discount),
-        taxRate: new Prisma.Decimal(taxRate),
-        lineTotal: new Prisma.Decimal(
-          Math.max(
-            qty * unitPrice -
-              discount +
-              (taxRate / 100) * Math.max(qty * unitPrice - discount, 0),
-            0
-          )
-        ),
+        description: it.description ?? null,
+        qty,
+        unitPrice,
+        discount,
+        taxRate,
+        lineTotal,
       });
     }
 
-    const result = await prisma.$transaction(async (tx) => {
-      // optional header update
+    // urutkan pakai roughLine, lalu tetapkan lineNo final 1..N
+    const preparedForCreate = normalized
+      .sort((a, b) => a._roughLine - b._roughLine)
+      .map((it, i) => ({
+        salesOrderId: id,
+        lineNo: i + 1, // <-- WAJIB
+        itemType: it.itemType,
+        productId: it.productId,
+        name: it.name,
+        uom: it.uom ?? null,
+        description: it.description,
+        qty: new Prisma.Decimal(it.qty),
+        unitPrice: new Prisma.Decimal(it.unitPrice),
+        discount: new Prisma.Decimal(it.discount),
+        taxRate: new Prisma.Decimal(it.taxRate),
+        lineTotal: new Prisma.Decimal(it.lineTotal),
+      }));
+
+    // header totals dari normalized (pakai angka murni biar cepat)
+    const totals = normalized.reduce(
+      (acc, it) => {
+        const bruto = it.qty * it.unitPrice;
+        const neto = Math.max(bruto - it.discount, 0);
+        const tax = (it.taxRate / 100) * neto;
+        acc.subtotal += bruto;
+        acc.discountTotal += it.discount;
+        acc.taxTotal += tax;
+        acc.grandTotal += neto + tax;
+        return acc;
+      },
+      { subtotal: 0, discountTotal: 0, taxTotal: 0, grandTotal: 0 }
+    );
+
+    const updated = await prisma.$transaction(async (tx) => {
+      // 1) Update header bila ada field yang dikirim
       const headerData = {};
       if (soNumber) headerData.soNumber = soNumber;
       if (soDate) headerData.soDate = new Date(soDate);
-      if (customerId) headerData.customer = { connect: { id: customerId } };
-      if (projectId === null) headerData.project = { disconnect: true };
-      else if (projectId) headerData.project = { connect: { id: projectId } };
+      if (customerId) headerData.customerId = customerId;
+      // projectId kolom wajib di model, jadi TIDAK boleh disconnect. Update hanya jika ada nilai.
+      if (projectId) headerData.projectId = projectId;
       if (type) headerData.type = type;
       if (status) headerData.status = status;
       if (typeof notes !== "undefined") headerData.notes = notes;
@@ -389,23 +452,11 @@ export const updateWithItems = async (req, res) => {
         await tx.salesOrder.update({ where: { id }, data: headerData });
       }
 
+      // 2) Ganti semua items → deleteMany + createMany (dengan lineNo)
       await tx.salesOrderItem.deleteMany({ where: { salesOrderId: id } });
-      await tx.salesOrderItem.createMany({ data: preparedItems });
+      await tx.salesOrderItem.createMany({ data: preparedForCreate });
 
-      // recalc header dari DB
-      // (gunakan recalcHeaderTotals jika dipindahkan ke utils)
-      const dbItems = await tx.salesOrderItem.findMany({
-        where: { salesOrderId: id },
-        select: { qty: true, unitPrice: true, discount: true, taxRate: true },
-      });
-      const totals = rollup(
-        dbItems.map((x) => ({
-          qty: Number(x.qty),
-          unitPrice: Number(x.unitPrice),
-          discount: Number(x.discount),
-          taxRate: Number(x.taxRate),
-        }))
-      );
+      // 3) Update totals header
       await tx.salesOrder.update({
         where: { id },
         data: {
@@ -416,29 +467,29 @@ export const updateWithItems = async (req, res) => {
         },
       });
 
+      // 4) Return SO lengkap; pastikan items diurutkan lineNo
       return tx.salesOrder.findUnique({
         where: { id },
         include: {
           customer: true,
           project: true,
           user: true,
-          items: { include: { product: true } },
+          items: { include: { product: true }, orderBy: { lineNo: "asc" } },
           documents: true,
         },
       });
     });
 
-    res.status(200).json(result);
+    return res.status(200).json(updated);
   } catch (error) {
     console.error("updateWithItems error:", error);
     if (error?.code === "P2002" && error?.meta?.target?.includes("soNumber")) {
       return res.status(409).json({ message: "Nomor SO sudah digunakan." });
     }
-    res
-      .status(500)
-      .json({ message: "Gagal memperbarui Sales Order beserta items." });
+    return res.status(500).json({ message: "Gagal memperbarui Sales Order beserta items." });
   }
 };
+
 
 export const remove = async (req, res) => {
   try {

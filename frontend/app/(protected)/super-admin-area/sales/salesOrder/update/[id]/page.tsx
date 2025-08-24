@@ -20,16 +20,16 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { fetchAllCustomers } from "@/lib/action/master/customer";
 import { fetchSalesOrderById } from "@/lib/action/sales/salesOrder";
 import { UpdateSalesOrderForm } from "@/components/sales/salesOrder/updateFormData";
-import { createSalesOrderSchema, salesOrderItemSchema } from "@/schemas";
+import { fullSalesOrderSchema } from "@/schemas";
 
 // NOTE: Ganti schema ini dengan schema SalesOrder yang sebenarnya.
-const salesOrderItemWithIdSchema = salesOrderItemSchema.extend({
-  id: z.string(),
-});
-const fullSalesOrderSchema = createSalesOrderSchema.extend({
-  id: z.string(),
-  items: z.array(salesOrderItemWithIdSchema)
-});
+// const salesOrderItemWithIdSchema = salesOrderItemSchema.extend({
+//   id: z.string(),
+// });
+// const fullSalesOrderSchema = salesOrderUpdateSchema.extend({
+//   id: z.string(),
+//   items: z.array(salesOrderItemWithIdSchema)
+// });
 
 type SalesOrder = z.infer<typeof fullSalesOrderSchema>;
 
@@ -145,6 +145,7 @@ export default function UpdateSalesOrderPage() {
   }, []); // FIX: Dependency array dikosongkan agar hanya berjalan sekali
 
   const isLoading = userLoading || loadingData;
+  const userProp: { id: string } | undefined = user ? { id: user.id } : undefined;
 
   return (
     // FIX: Menggunakan user?.role untuk prop role
@@ -203,6 +204,7 @@ export default function UpdateSalesOrderPage() {
           // FIX: Melewatkan data salesOrder ke form
           salesOrder={salesOrder}
           customers={customers}
+          user={userProp}
           projects={projects}
         />
       ) : (

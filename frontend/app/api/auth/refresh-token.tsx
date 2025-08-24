@@ -1,36 +1,33 @@
-// import { useEffect } from 'react';
-// // import { useRouter } from 'next/router';
+import { useEffect } from 'react';
+// import { useRouter } from 'next/router';
 
-// export default function RefreshTokenPage() {
-//     //   const router = useRouter();
+export default function RefreshTokenPage() {
+//   const router = useRouter();
 
-//     useEffect(() => {
-//         const handleRefresh = async () => {
-//             try {
-//                 const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/refresh-token`, {
-//                     credentials: 'include'
-//                 });
+  useEffect(() => {
+    const refreshToken = async () => {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/refresh`, {
+          credentials: 'include' // Untuk mengirim cookies
+        });
 
-//                 // Jika backend redirect langsung
-//                 if (response.redirected) {
-//                     window.location.href = response.url;
-//                     return;
-//                 }
+        const data = await response.json();
 
-//                 const data = await response.json();
+        if (data.success) {
+          // Redirect ke URL tujuan
+          window.location.href = data.redirectUrl || '/dashboard';
+        } else {
+          // Redirect ke login jika gagal
+          window.location.href = '/auth/login';
+        }
+      } catch (error) {
+        console.error('Refresh token failed:', error);
+        window.location.href = '/auth/login';
+      }
+    };
 
-//                 if (data.success) {
-//                     window.location.href = data.redirectUrl;
-//                 } else {
-//                     window.location.href = '/auth/login';
-//                 }
-//             } catch {
-//                 window.location.href = '/auth/login';
-//             }
-//         };
+    refreshToken();
+  }, []);
 
-//         handleRefresh();
-//     }, []);
-
-//     return <div>Memproses refresh token...</div>;
-// }
+  return <div>Memproses refresh token...</div>;
+}

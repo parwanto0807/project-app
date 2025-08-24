@@ -10,7 +10,6 @@ import {
     Building,
     CalendarIcon,
     FileText,
-    FolderKanban,
     Hash,
     Loader2,
     PlusCircle,
@@ -19,17 +18,18 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
-import { createSalesOrderSchema } from "@/schemas/index"; // Pastikan path ini sesuai
-
-// 1. Impor Server Action Anda untuk update
+import { createSalesOrderSchema } from "@/schemas/index";
 import { updateSalesOrderAPI } from "@/lib/action/sales/salesOrder"
+import { fetchAllProjects } from "@/lib/action/master/project";
+import { fetchAllProducts } from "@/lib/action/master/product";
+import { ApiProductSchema } from "@/schemas/index";
 
 import { Button } from "@/components/ui/button"
 import {
     Card,
     CardContent,
     CardDescription,
-    CardFooter,
+    //   CardFooter,
     CardHeader,
     CardTitle,
 } from "@/components/ui/card"
@@ -56,12 +56,17 @@ import {
 } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Separator } from "@/components/ui/separator"
+// import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
+import { salesOrderUpdateSchema } from "@/schemas/index";
 import { type SalesOrder } from "@/schemas";
-// Tipe untuk data props
+import { ensureFreshToken } from "@/lib/http";
+
+type ApiProduct = z.infer<typeof ApiProductSchema>;
+type ProductOption = { id: string; name: string; description?: string | null };
+
 interface Customer {
     id: string
     name: string
@@ -73,100 +78,183 @@ interface Project {
     name: string
 }
 
-// interface SalesOrderItem {
-//     id?: string
-//     description: string
-//     qty: number
-//     unitPrice: number
-// }
-
-// interface SalesOrder {
-//     id: string
-//     soNumber: string
-//     soDate: Date
-//     customerId: string
-//     projectId?: string
-//     poNumber?: string
-//     type: "REGULAR" | "SUPPORT"
-//     items: SalesOrderItem[]
-// }
-
 interface UpdateSalesOrderFormProps {
     customers: Customer[]
     projects: Project[]
     salesOrder: SalesOrder
     isLoading?: boolean
+    user?: { id: string }
 }
 
 // Gunakan schema yang sama dengan create, tapi tanpa soNumber
 const formSchema = createSalesOrderSchema.omit({ soNumber: true });
-type UpdateSalesOrderPayload = z.infer<typeof formSchema>;
+type UpdateSalesOrderPayload = z.input<typeof formSchema>;
 
 export function UpdateSalesOrderForm({
     customers,
     projects,
     salesOrder,
     isLoading,
+    user,
 }: UpdateSalesOrderFormProps) {
     const router = useRouter()
     const [isPending, startTransition] = React.useTransition()
+    const [customerOptions, setCustomerOptions] = React.useState(customers);
+    const [productOptions, setProductOptions] = React.useState<ProductOption[]>([]);
+    const [projectOptions, setProjectOptions] = React.useState<Project[]>(projects);
+    const [loadingProjects, setLoadingProjects] = React.useState(false);
+
+    React.useEffect(() => { setCustomerOptions(customers); }, [customers]);
+    React.useEffect(() => { setProjectOptions(projects); }, [projects]);
 
     const form = useForm<UpdateSalesOrderPayload>({
         resolver: zodResolver(formSchema),
+        mode: "onSubmit",
+        reValidateMode: "onChange",
         defaultValues: {
-            soDate: salesOrder.soDate,
+            soDate: new Date(salesOrder.soDate),
             customerId: salesOrder.customerId,
             projectId: salesOrder.projectId || "",
-            poNumber: salesOrder.poNumber || "",
+            userId: user?.id ?? "",
             type: salesOrder.type,
+            status: salesOrder.status || "DRAFT",
+            currency: salesOrder.currency || "IDR",
+            notes: salesOrder.notes || null,
+            isTaxInclusive: salesOrder.isTaxInclusive || false,
             items: salesOrder.items.map(item => ({
                 id: item.id,
-                description: item.description,
-                qty: item.qty,
-                unitPrice: item.unitPrice
+                itemType: item.itemType || "PRODUCT", // Pastikan itemType tidak undefined
+                productId: item.productId || null,
+                name: item.name || "",
+                description: item.description || null,
+                uom: item.uom || null,
+                qty: item.qty || 1,
+                unitPrice: item.unitPrice || 0,
+                discount: item.discount || 0,
+                taxRate: item.taxRate || 0,
             })),
         },
-    })
+    });
 
+    // Inisialisasi useFieldArray
     const { fields, append, remove } = useFieldArray({
         control: form.control,
         name: "items",
     })
 
-    // 2. Perbarui fungsi onSubmit untuk memanggil Server Action update
+    React.useEffect(() => {
+        (async () => {
+            try {
+                const { products } = await fetchAllProducts();
+                setProductOptions(
+                    products.map((p: ApiProduct): ProductOption => ({
+                        id: p.id,
+                        name: p.name,
+                        description: p.description ?? undefined,
+                    }))
+                );
+            } catch (error) {
+                console.error("Failed to fetch products:", error);
+                toast.error("Gagal memuat data produk");
+            }
+        })();
+    }, []);
+
+    React.useEffect(() => {
+        const onFocus = () => { ensureFreshToken(); };
+        const onVis = () => { if (!document.hidden) ensureFreshToken(); };
+
+        window.addEventListener("focus", onFocus);
+        document.addEventListener("visibilitychange", onVis);
+
+        const id = setInterval(onFocus, 60_000); // tiap 60s cek ringan (opsional)
+
+        return () => {
+            window.removeEventListener("focus", onFocus);
+            document.removeEventListener("visibilitychange", onVis);
+            clearInterval(id);
+        };
+    }, []);
+
+    // Fungsi untuk handle product selection
+    const handleProductSelect = (index: number, productId: string) => {
+        const selectedProduct = productOptions.find(p => p.id === productId);
+        if (selectedProduct) {
+            form.setValue(`items.${index}.productId`, productId);
+            form.setValue(`items.${index}.name`, selectedProduct.name);
+            form.setValue(`items.${index}.description`, selectedProduct.description || "");
+        }
+    };
+    // console.log("Render UpdateSalesOrderForm", form.getValues());
+
+    const customerId = form.watch("customerId");
+
+    React.useEffect(() => {
+        let stop = false;
+
+        async function load() {
+            // kosongkan jika belum pilih customer
+            if (!customerId) {
+                setProjectOptions([]);
+                form.setValue("projectId", ""); // clear selection
+                return;
+            }
+
+            setLoadingProjects(true);
+            try {
+                // ganti dengan action/API mu sendiri
+                const base = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "") ?? "";
+                const res = await fetch(
+                    `${base}/api/master/customer/getCustomerById/${customerId}`,
+                    {
+                        method: "GET",
+                        credentials: "include",
+                        headers: { accept: "application/json" },
+                        cache: "no-store",
+                    }
+                );
+                const data: { id: string; name: string }[] = await res.json();
+                console.log("Fetched projects for customer", customerId, data);
+                if (!stop) {
+                    setProjectOptions(data);
+                    // optional: auto-pilih jika hanya 1 project
+                    // if (data.length === 1) form.setValue("projectId", data[0].id);
+                    // optional (update form): kalau kamu sudah punya projectId existing, pastikan ada di options
+                }
+            } catch (e) {
+                console.error(e);
+                if (!stop) setProjectOptions([]);
+            } finally {
+                if (!stop) setLoadingProjects(false);
+            }
+        }
+
+        load();
+        return () => { stop = true; };
+    }, [customerId, form]);
+
+
     function onSubmit(data: UpdateSalesOrderPayload) {
         startTransition(async () => {
             try {
-                console.log("Mencoba memanggil Server Action update dengan data:", data);
-                const result = await updateSalesOrderAPI(salesOrder.id, data);
-                console.log("Server Action update selesai. Hasil:", result);
+                // Bersihkan data sebelum dikirim
+                const cleanedData = salesOrderUpdateSchema.parse(data);
 
-                // Periksa hasil dari Server Action
+                const result = await updateSalesOrderAPI(salesOrder.id, cleanedData);
+
                 if (result.error) {
-                    toast.error("Terjadi Kesalahan", {
-                        description: result.error,
-                    });
+                    toast.error("Terjadi Kesalahan", { description: result.error });
                 } else if (result.success) {
-                    toast.success("Sukses!", {
-                        description: "Sales Order berhasil diperbarui.",
-                    });
+                    toast.success("Sukses!", { description: "Sales Order berhasil diperbarui." });
                     router.push("/super-admin-area/sales/salesOrder");
                     router.refresh();
                 }
             } catch (error) {
-                // Fallback jika terjadi error yang tidak terduga
-                const errorMessage = error instanceof Error
-                    ? error.message
-                    : "Gagal memperbarui Sales Order. Silakan coba lagi.";
-
-                toast.error("Terjadi Kesalahan", {
-                    description: errorMessage,
-                });
+                const errorMessage = error instanceof Error ? error.message : "Gagal memperbarui Sales Order.";
+                toast.error("Terjadi Kesalahan", { description: errorMessage });
             }
         });
     }
-
-    console.log("Form Validation Errors:", form.formState.errors);
 
     // Tampilan Skeleton saat data fetching
     if (isLoading) {
@@ -174,39 +262,42 @@ export function UpdateSalesOrderForm({
     }
 
     return (
-        <Card className="w-full max-w-4xl mx-auto">
-            <CardHeader>
-                <div className="flex items-center space-x-3">
-                    <div className="flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/50">
-                        <FileText className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div>
-                        <CardTitle>Update Sales Order #{salesOrder.soNumber}</CardTitle>
-                        <CardDescription>
-                            Perbarui detail di bawah ini untuk mengubah SO.
-                        </CardDescription>
-                    </div>
+        <div className="w-full max-w-7xl mx-auto space-y-6">
+            <div className="flex items-center space-x-3">
+                <div className="flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/50">
+                    <FileText className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                 </div>
-            </CardHeader>
+                <div>
+                    <h1 className="text-2xl font-bold">Update Sales Order #{salesOrder.soNumber}</h1>
+                    <p className="text-muted-foreground">
+                        Perbarui detail di bawah ini untuk mengubah Sales Order.
+                    </p>
+                </div>
+            </div>
+
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)}>
-                    <CardContent className="space-y-8">
-                        {/* Bagian Detail Utama */}
-                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                    <Card>
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-lg">Informasi Utama</CardTitle>
+                            <CardDescription>
+                                Informasi dasar mengenai sales order
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <FormItem>
                                 <FormLabel>Nomor Sales Order</FormLabel>
-                                <FormControl>
-                                    <div className="relative">
-                                        <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                        <Input
-                                            value={salesOrder.soNumber}
-                                            className="pl-9"
-                                            disabled
-                                        />
-                                    </div>
-                                </FormControl>
+                                <div className="relative">
+                                    <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        value={salesOrder.soNumber}
+                                        className="pl-9"
+                                        disabled
+                                    />
+                                </div>
                                 <FormMessage />
                             </FormItem>
+
                             <FormField
                                 control={form.control}
                                 name="soDate"
@@ -224,7 +315,7 @@ export function UpdateSalesOrderForm({
                                                         )}
                                                     >
                                                         {field.value ? (
-                                                            format(field.value, "PPP")
+                                                            format(field.value, "dd MMM yyyy")
                                                         ) : (
                                                             <span>Pilih tanggal</span>
                                                         )}
@@ -248,87 +339,113 @@ export function UpdateSalesOrderForm({
                                     </FormItem>
                                 )}
                             />
+
+                            {/* Customer Field */}
                             <FormField
                                 control={form.control}
                                 name="customerId"
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Customer</FormLabel>
-                                        <Select
-                                            onValueChange={field.onChange}
-                                            defaultValue={field.value}
-                                        >
+                                        <div className="flex gap-2">
                                             <FormControl>
-                                                <div className="relative">
+                                                <div className="relative w-full">
                                                     <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                                    <SelectTrigger className="pl-9">
-                                                        <SelectValue placeholder="Pilih customer..." />
-                                                    </SelectTrigger>
+                                                    <Select
+                                                        value={field.value}
+                                                        onValueChange={async (id) => {
+                                                            field.onChange(id);
+                                                            form.setValue("projectId", "");
+                                                            setLoadingProjects(true);
+                                                            try {
+                                                                const { projects } = await fetchAllProjects({ customerId: id });
+                                                                setProjectOptions(projects.map((p) => ({ id: p.id, name: p.name })));
+                                                            } finally {
+                                                                setLoadingProjects(false);
+                                                            }
+                                                        }}
+                                                    >
+                                                        <SelectTrigger className="pl-9">
+                                                            <SelectValue placeholder="Pilih customer..." />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {customerOptions.map((c) => (
+                                                                <SelectItem key={c.id} value={c.id}>
+                                                                    {c.name}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
                                                 </div>
                                             </FormControl>
-                                            <SelectContent>
-                                                {customers.map(customer => (
-                                                    <SelectItem key={customer.id} value={customer.id}>
-                                                        {customer.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                        </div>
                                         <FormMessage />
                                     </FormItem>
                                 )}
                             />
+
+                            {/* Project Field */}
                             <FormField
                                 control={form.control}
                                 name="projectId"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Proyek (Opsional)</FormLabel>
-                                        <Select
-                                            onValueChange={field.onChange}
-                                            defaultValue={field.value}
-                                        >
-                                            <FormControl>
-                                                <div className="relative">
-                                                    <FolderKanban className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                                    <SelectTrigger className="pl-9">
-                                                        <SelectValue placeholder="Pilih proyek terkait..." />
-                                                    </SelectTrigger>
-                                                </div>
-                                            </FormControl>
-                                            <SelectContent>
-                                                {projects.map(project => (
-                                                    <SelectItem key={project.id} value={project.id}>
-                                                        {project.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="poNumber"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Nomor PO (Opsional)</FormLabel>
-                                        <FormControl>
-                                            <div className="relative">
-                                                <FileText className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                                <Input
-                                                    placeholder="Contoh: PO-12345"
-                                                    className="pl-9"
-                                                    {...field}
-                                                    value={field.value ?? ""}
-                                                />
+                                render={({ field }) => {
+                                    const selectedCustomerId = form.watch("customerId");
+                                    const disabled = !selectedCustomerId || loadingProjects;
+
+                                    return (
+                                        <FormItem>
+                                            <FormLabel>Project (Opsional)</FormLabel>
+                                            <div className="flex gap-2">
+                                                <FormControl>
+                                                    <div className="relative w-full">
+                                                        <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                                        <Select
+                                                            value={field.value ?? undefined}
+                                                            onValueChange={(value) => {
+                                                                field.onChange(value === "none" ? undefined : value);
+                                                            }}
+                                                            disabled={disabled}
+                                                        >
+                                                            <SelectTrigger className="pl-9">
+                                                                <SelectValue
+                                                                    placeholder={
+                                                                        !selectedCustomerId
+                                                                            ? "Pilih customer dulu"
+                                                                            : loadingProjects
+                                                                                ? "Memuat project…"
+                                                                                : "Pilih project..."
+                                                                    }
+                                                                />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                {!selectedCustomerId ? (
+                                                                    <div className="px-3 py-2 text-sm opacity-60">Customer belum dipilih</div>
+                                                                ) : loadingProjects ? (
+                                                                    <div className="px-3 py-2 text-sm opacity-60">Memuat project…</div>
+                                                                ) : projectOptions.length ? (
+                                                                    <>
+                                                                        {projectOptions.map((p) => (
+                                                                            <SelectItem key={p.id} value={p.id}>
+                                                                                {p.name}
+                                                                            </SelectItem>
+                                                                        ))}
+                                                                    </>
+                                                                ) : (
+                                                                    <div className="px-3 py-2 text-sm opacity-60">
+                                                                        Tidak ada project untuk customer ini
+                                                                    </div>
+                                                                )}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                </FormControl>
                                             </div>
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
+                                            <FormMessage />
+                                        </FormItem>
+                                    );
+                                }}
                             />
+
                             <FormField
                                 control={form.control}
                                 name="type"
@@ -339,7 +456,7 @@ export function UpdateSalesOrderForm({
                                             <RadioGroup
                                                 onValueChange={field.onChange}
                                                 defaultValue={field.value}
-                                                className="flex items-center space-x-4"
+                                                className="flex flex-col space-y-2 md:flex-row md:space-y-0 md:space-x-4"
                                             >
                                                 <FormItem className="flex items-center space-x-2 space-y-0">
                                                     <FormControl>
@@ -363,116 +480,329 @@ export function UpdateSalesOrderForm({
                                     </FormItem>
                                 )}
                             />
-                        </div>
 
-                        <Separator />
+                            <FormField
+                                control={form.control}
+                                name="notes"
+                                render={({ field }) => (
+                                    <FormItem className="md:col-span-2">
+                                        <FormLabel>Catatan (Opsional)</FormLabel>
+                                        <FormControl>
+                                            <Textarea
+                                                placeholder="Tambahkan catatan untuk SO ini..."
+                                                className="resize-none"
+                                                value={field.value || ""}
+                                                onChange={(e) => field.onChange(e.target.value || undefined)}
+                                            />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </CardContent>
+                    </Card>
 
-                        {/* Bagian Item SO */}
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-medium">Items</h3>
-                            {fields.map((field, index) => (
-                                <div
-                                    key={field.id}
-                                    className="grid grid-cols-1 md:grid-cols-[1fr_100px_150px_auto] gap-4 items-start p-4 border rounded-lg"
-                                >
-                                    {/* Deskripsi */}
-                                    <FormField
-                                        control={form.control}
-                                        name={`items.${index}.description`}
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel className={cn(index !== 0 && "sr-only")}>
-                                                    Deskripsi
-                                                </FormLabel>
-                                                <FormControl>
-                                                    <Textarea
-                                                        placeholder="Deskripsi item, jasa, atau produk..."
-                                                        {...field}
-                                                    />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                    {/* Kuantitas */}
-                                    <FormField
-                                        control={form.control}
-                                        name={`items.${index}.qty`}
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel className={cn(index !== 0 && "sr-only")}>
-                                                    Qty
-                                                </FormLabel>
-                                                <FormControl>
-                                                    <Input
-                                                        type="number"
-                                                        placeholder="1"
-                                                        {...field}
-                                                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                                                    />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                    {/* Harga Satuan */}
-                                    <FormField
-                                        control={form.control}
-                                        name={`items.${index}.unitPrice`}
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel className={cn(index !== 0 && "sr-only")}>
-                                                    Harga Satuan
-                                                </FormLabel>
-                                                <FormControl>
-                                                    <Input
-                                                        type="number"
-                                                        placeholder="100000"
-                                                        {...field}
-                                                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                                                    />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                    {/* Tombol Hapus */}
-                                    <div className={cn(index !== 0 && "md:pt-8")}>
-                                        <Button
-                                            type="button"
-                                            variant="destructive"
-                                            size="icon"
-                                            onClick={() => remove(index)}
-                                            disabled={fields.length <= 1}
-                                            className="mt-2 md:mt-0"
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                            <span className="sr-only">Hapus Item</span>
-                                        </Button>
-                                    </div>
+                    {/* Bagian Item SO */}
+                    <Card>
+                        <CardHeader className="pb-3">
+                            <div className="flex justify-between items-center">
+                                <div>
+                                    <CardTitle className="text-lg">Items</CardTitle>
+                                    <CardDescription>
+                                        Daftar produk atau jasa yang dipesan
+                                    </CardDescription>
                                 </div>
-                            ))}
-                            {/* Pesan error global untuk array item */}
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                        append({
+                                            itemType: "PRODUCT",
+                                            productId: null,
+                                            name: "",
+                                            description: "",
+                                            qty: 1,
+                                            unitPrice: 0,
+                                            discount: 0,
+                                            taxRate: 0,
+                                        })
+                                    }
+                                >
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                    Tambah Item
+                                </Button>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            {fields.map((row, index) => {
+                                const itemType = form.watch(`items.${index}.itemType`);
+                                const isProduct = itemType === "PRODUCT";
+
+                                return (
+                                    <div
+                                        key={row.id}
+                                        className="grid grid-cols-1 gap-4 p-4 border rounded-lg bg-muted/30"
+                                    >
+                                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                                            {/* Tipe Item */}
+                                            <div className="md:col-span-2">
+                                                <FormField
+                                                    control={form.control}
+                                                    name={`items.${index}.itemType`}
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>Tipe Item</FormLabel>
+                                                            <Select
+                                                                value={field.value}
+                                                                onValueChange={(next) => {
+                                                                    field.onChange(next);
+                                                                    if (next !== "PRODUCT") {
+                                                                        form.setValue(`items.${index}.productId`, null, {
+                                                                            shouldValidate: true,
+                                                                            shouldDirty: true,
+                                                                        });
+                                                                    }
+                                                                }}
+                                                            >
+                                                                <FormControl>
+                                                                    <SelectTrigger>
+                                                                        <SelectValue placeholder="Pilih tipe" />
+                                                                    </SelectTrigger>
+                                                                </FormControl>
+                                                                <SelectContent>
+                                                                    <SelectItem value="PRODUCT">Product</SelectItem>
+                                                                    <SelectItem value="SERVICE">Service</SelectItem>
+                                                                    <SelectItem value="CUSTOM">Custom</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            </div>
+
+                                            {/* Product Selection (hanya untuk tipe PRODUCT) */}
+                                            {isProduct && (
+                                                <div className="md:col-span-3">
+                                                    <FormField
+                                                        control={form.control}
+                                                        name={`items.${index}.productId`}
+                                                        render={({ field }) => (
+                                                            <FormItem>
+                                                                <FormLabel>Produk</FormLabel>
+                                                                <Select
+                                                                    value={field.value ?? undefined}
+                                                                    onValueChange={(value) => {
+                                                                        field.onChange(value);
+                                                                        handleProductSelect(index, value);
+                                                                    }}
+                                                                >
+                                                                    <FormControl>
+                                                                        <SelectTrigger>
+                                                                            <SelectValue placeholder="Pilih produk" />
+                                                                        </SelectTrigger>
+                                                                    </FormControl>
+                                                                    <SelectContent>
+                                                                        {productOptions.map((product) => (
+                                                                            <SelectItem key={product.id} value={product.id}>
+                                                                                {product.name}
+                                                                            </SelectItem>
+                                                                        ))}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                </div>
+                                            )}
+
+                                            {/* Nama Item */}
+                                            <div className={isProduct ? "md:col-span-7" : "md:col-span-10"}>
+                                                <FormField
+                                                    control={form.control}
+                                                    name={`items.${index}.name`}
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>Nama Item</FormLabel>
+                                                            <FormControl>
+                                                                <Input placeholder="Nama item/jasa..." {...field} />
+                                                            </FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Deskripsi */}
+                                        <FormField
+                                            control={form.control}
+                                            name={`items.${index}.description`}
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Deskripsi (Opsional)</FormLabel>
+                                                    <FormControl>
+                                                        <Textarea
+                                                            placeholder="Deskripsi detail item/jasa..."
+                                                            className="resize-none"
+                                                            value={field.value || ""}
+                                                            onChange={(e) => field.onChange(e.target.value || undefined)}
+                                                        />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+
+                                        {/* Quantity, Harga, Diskon, Pajak */}
+                                        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+                                            <FormField
+                                                control={form.control}
+                                                name={`items.${index}.qty`}
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Quantity</FormLabel>
+                                                        <FormControl>
+                                                            <Input
+                                                                type="number"
+                                                                step="0.0001"
+                                                                min="0"
+                                                                placeholder="1.0000"
+                                                                value={field.value}
+                                                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                                            />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+
+                                            <FormField
+                                                control={form.control}
+                                                name={`items.${index}.uom`}
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>UOM</FormLabel>
+                                                        <FormControl>
+                                                            <Input
+                                                                placeholder="mis. pcs"
+                                                                value={field.value ?? ""}
+                                                                onChange={(e) => field.onChange(e.target.value || null)}
+                                                            />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+
+                                            <FormField
+                                                control={form.control}
+                                                name={`items.${index}.unitPrice`}
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Harga Satuan</FormLabel>
+                                                        <FormControl>
+                                                            <Input
+                                                                type="number"
+                                                                step="0.01"
+                                                                min="0"
+                                                                placeholder="0.00"
+                                                                value={field.value}
+                                                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                                            />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+
+                                            <FormField
+                                                control={form.control}
+                                                name={`items.${index}.discount`}
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Diskon (%)</FormLabel>
+                                                        <FormControl>
+                                                            <Input
+                                                                type="number"
+                                                                step="0.01"
+                                                                min="0"
+                                                                max="100"
+                                                                placeholder="0.00"
+                                                                value={field.value}
+                                                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                                            />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+
+                                            <FormField
+                                                control={form.control}
+                                                name={`items.${index}.taxRate`}
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Pajak (%)</FormLabel>
+                                                        <FormControl>
+                                                            <Input
+                                                                type="number"
+                                                                step="0.01"
+                                                                min="0"
+                                                                placeholder="0.00"
+                                                                value={field.value}
+                                                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                                            />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+
+                                            <div className="flex flex-col justify-end">
+                                                <FormLabel>Subtotal</FormLabel>
+                                                <div className="flex items-center h-10 px-3 rounded-md border bg-background font-medium">
+                                                    <span className="text-sm">
+                                                        Rp {(
+                                                            (form.watch(`items.${index}.qty`) || 0) *
+                                                            (form.watch(`items.${index}.unitPrice`) || 0) *
+                                                            (1 - (form.watch(`items.${index}.discount`) || 0) / 100) *
+                                                            (1 + (form.watch(`items.${index}.taxRate`) || 0) / 100)
+                                                        ).toLocaleString('id-ID')}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Delete Button */}
+                                        <div className="flex items-center justify-end pt-2">
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => remove(index)}
+                                                disabled={fields.length <= 1}
+                                            >
+                                                <Trash2 className="h-4 w-4 mr-2" />
+                                                Hapus
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )
+                            })}
+
                             {form.formState.errors.items?.message && (
                                 <p className="text-sm font-medium text-destructive">
                                     {form.formState.errors.items.message}
                                 </p>
                             )}
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="mt-2"
-                                onClick={() =>
-                                    append({ description: "", qty: 1, unitPrice: 0 })
-                                }
-                            >
-                                <PlusCircle className="mr-2 h-4 w-4" />
-                                Tambah Item
-                            </Button>
-                        </div>
-                    </CardContent>
-                    <CardFooter className="flex justify-end gap-2">
+                        </CardContent>
+                    </Card>
+
+                    {/* Action Buttons */}
+                    <div className="flex justify-end gap-2 sticky bottom-4 bg-background p-4 rounded-lg border shadow-sm">
                         <Button
                             type="button"
                             variant="outline"
@@ -481,7 +811,11 @@ export function UpdateSalesOrderForm({
                         >
                             Batal
                         </Button>
-                        <Button type="submit" disabled={isPending}>
+                        <Button
+                            type="submit"
+                            disabled={isPending}
+                            className="min-w-40"
+                        >
                             {isPending ? (
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                             ) : (
@@ -489,64 +823,79 @@ export function UpdateSalesOrderForm({
                             )}
                             Perbarui Sales Order
                         </Button>
-                    </CardFooter>
+                    </div>
                 </form>
             </Form>
-        </Card>
+        </div>
     )
 }
 
-// Komponen Skeleton untuk update form
+// Komponen Skeleton
 function UpdateSalesOrderFormSkeleton() {
     return (
-        <Card className="w-full max-w-4xl mx-auto">
-            <CardHeader>
-                <div className="flex items-center space-x-3">
-                    <Skeleton className="h-12 w-12 rounded-full" />
-                    <div className="space-y-2">
-                        <Skeleton className="h-6 w-48" />
-                        <Skeleton className="h-4 w-64" />
-                    </div>
+        <div className="w-full max-w-4xl mx-auto space-y-6">
+            <div className="flex items-center space-x-3">
+                <Skeleton className="h-12 w-12 rounded-full" />
+                <div className="space-y-2">
+                    <Skeleton className="h-7 w-48" />
+                    <Skeleton className="h-4 w-64" />
                 </div>
-            </CardHeader>
-            <CardContent className="space-y-8">
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                    <div className="space-y-2">
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-10 w-full" />
+            </div>
+
+            <Card>
+                <CardHeader className="pb-3">
+                    <Skeleton className="h-6 w-40" />
+                    <Skeleton className="h-4 w-64" />
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    {[...Array(6)].map((_, i) => (
+                        <div key={i} className="space-y-2">
+                            <Skeleton className="h-4 w-32" />
+                            <Skeleton className="h-10 w-full" />
+                        </div>
+                    ))}
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader className="pb-3">
+                    <div className="flex justify-between items-center">
+                        <div className="space-y-2">
+                            <Skeleton className="h-6 w-24" />
+                            <Skeleton className="h-4 w-48" />
+                        </div>
+                        <Skeleton className="h-10 w-32" />
                     </div>
-                    <div className="space-y-2">
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-10 w-full" />
-                    </div>
-                    <div className="space-y-2">
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-10 w-full" />
-                    </div>
-                    <div className="space-y-2">
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-10 w-full" />
-                    </div>
-                </div>
-                <Separator />
-                <div className="space-y-4">
-                    <Skeleton className="h-6 w-24" />
-                    <div className="space-y-4">
-                        {[...Array(2)].map((_, i) => (
-                            <div key={i} className="grid grid-cols-1 md:grid-cols-[1fr_100px_150px_auto] gap-4 items-start p-4 border rounded-lg">
-                                <Skeleton className="h-20 w-full" />
-                                <Skeleton className="h-10 w-full" />
-                                <Skeleton className="h-10 w-full" />
-                                <Skeleton className="h-10 w-10" />
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {[...Array(2)].map((_, i) => (
+                        <div key={i} className="grid grid-cols-1 gap-4 p-4 border rounded-lg">
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                                <Skeleton className="h-10 md:col-span-2" />
+                                <Skeleton className="h-10 md:col-span-3" />
+                                <Skeleton className="h-10 md:col-span-7" />
                             </div>
-                        ))}
-                    </div>
-                </div>
-            </CardContent>
-            <CardFooter className="flex justify-end gap-2">
+                            <Skeleton className="h-20 w-full" />
+                            <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+                                {[...Array(6)].map((_, j) => (
+                                    <div key={j} className="space-y-2">
+                                        <Skeleton className="h-4 w-16" />
+                                        <Skeleton className="h-10 w-full" />
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="flex justify-end">
+                                <Skeleton className="h-9 w-20" />
+                            </div>
+                        </div>
+                    ))}
+                </CardContent>
+            </Card>
+
+            <div className="flex justify-end gap-2">
                 <Skeleton className="h-10 w-24" />
                 <Skeleton className="h-10 w-40" />
-            </CardFooter>
-        </Card>
+            </div>
+        </div>
     )
 }

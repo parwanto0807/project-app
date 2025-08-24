@@ -257,7 +257,7 @@ export const salesOrderDocumentSchema = z.object({
 
 /* ===== CREATE SO ===== */
 export const createSalesOrderSchema = z.object({
-  soNumber: z.string().optional(), 
+  soNumber: z.string().optional(),
   soDate: z.coerce.date({ required_error: "Tanggal wajib diisi." }),
   customerId: z.string().min(1, "Customer wajib dipilih."),
   projectId: z.string().min(1, "Project wajib dipilih."),
@@ -282,13 +282,15 @@ export const salesOrderItemUpdateSchema = salesOrderItemBase
   .superRefine(validateItemBusinessRules);
 
 export const salesOrderUpdateSchema = z.object({
+  soNumber: z.string().optional(),
   soDate: z.coerce.date().optional(),
   customerId: z.string().uuid().optional(),
   projectId: z.string().uuid().optional(),
   userId: z.string().uuid().optional(),
-  type: OrderTypeEnum.optional(),
+  type: OrderTypeEnum,
   status: OrderStatusEnum.optional(),
   currency: z.string().optional(),
+  isTaxInclusive: z.boolean().optional(),
   notes: z.string().optional().nullable(),
   items: z
     .array(salesOrderItemUpdateSchema)
@@ -320,26 +322,39 @@ export const fullSalesOrderSchema = z.object({
   id: z.string().uuid(),
   soNumber: z.string(),
   soDate: z.coerce.date(),
+
   customerId: z.string().uuid(),
   projectId: z.string().uuid(),
   userId: z.string().uuid(),
+
   type: OrderTypeEnum,
   status: OrderStatusEnum,
+
+  // ⇨ di Prisma non-nullable, jadi wajib boolean di schema
+  isTaxInclusive: z.boolean(),
+
   currency: z.string(),
-  subtotal: z.coerce.number().default(0),
-  discountTotal: z.coerce.number().default(0),
-  taxTotal: z.coerce.number().default(0),
-  grandTotal: z.coerce.number().default(0),
+
+  // jumlah2 dari Prisma.Decimal → kirim sebagai string/number; coerce ke number
+  subtotal: z.coerce.number(),
+  discountTotal: z.coerce.number(),
+  taxTotal: z.coerce.number(),
+  grandTotal: z.coerce.number(),
+
   notes: z.string().optional().nullable(),
   createdAt: z.coerce.date().optional(),
   updatedAt: z.coerce.date().optional(),
+
   items: z.array(salesOrderItemWithIdSchema),
   documents: z.array(salesOrderDocumentWithIdSchema).optional(),
+
+  // relasi (untuk display)
   customer: z.any().optional(),
   project: z.any().optional(),
   user: z.any().optional(),
 });
 export type SalesOrder = z.infer<typeof fullSalesOrderSchema>;
+
 
 /* ===== Bentuk untuk display di form (opsional) ===== */
 export type SalesOrderWithRelations = SalesOrder & {

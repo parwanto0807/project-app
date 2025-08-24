@@ -1,86 +1,123 @@
-// /lib/autoRefresh.ts
+// frontend/lib/autoRefresh.ts
+// Util untuk menyimpan accessToken di memori, refresh proaktif, dan sinkron antar tab.
 
-import { getAccessToken, initializeTokensOnLogin } from "@/lib/http";
+type TokenListener = (token: string | null) => void;
 
-// Asumsi Anda punya fungsi callRefresh di lib/http.ts
-// Contoh implementasinya:
-export async function callRefresh(): Promise<string> {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/refresh`, {
-    method: "POST",
-    credentials: "include",
-  });
+let accessToken: string | null = null;
+let refreshTimer: number | undefined;
+const listeners = new Set<TokenListener>();
+let bc: BroadcastChannel | null = null;
 
-  if (!res.ok) {
-    throw new Error("Failed to refresh token");
+const PERSIST_TO_LOCALSTORAGE = true;
+const LS_KEY = "access_token";
+
+function startBroadcast() {
+  if (typeof window === "undefined") return;
+  if (!bc) {
+    bc = new BroadcastChannel("auth");
+    bc.onmessage = (e) => {
+      if (e?.data?.type === "token") {
+        setAccessToken(e.data.token, { broadcast: false, schedule: true, persist: PERSIST_TO_LOCALSTORAGE });
+      }
+    };
   }
-
-  const data = await res.json();
-  if (!data.accessToken) {
-    throw new Error("No new access token received");
-  }
-  
-  return data.accessToken;
 }
 
+export function getAccessToken(): string | null {
+  return accessToken;
+}
 
-let timer: ReturnType<typeof setTimeout> | null = null;
+export function onTokenChange(fn: TokenListener) {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
 
-function parseExp(token: string): number | null {
+function notify(token: string | null) {
+  for (const fn of listeners) fn(token);
+}
+
+export function clearRefreshTimer() {
+  if (refreshTimer) {
+    clearTimeout(refreshTimer);
+    refreshTimer = undefined;
+  }
+}
+
+function parseJwtExp(token: string): number | null {
   try {
-    // atob() hanya ada di browser, pastikan kode ini hanya berjalan di client-side
-    const payload = JSON.parse(atob(token.split(".")[1])) as { exp?: number };
-    return typeof payload.exp === "number" ? payload.exp : null;
+    const [, payloadB64] = token.split(".");
+    const json = JSON.parse(atob(payloadB64));
+    return typeof json.exp === "number" ? json.exp : null; // epoch seconds
   } catch {
     return null;
   }
 }
 
-function scheduleOnce() {
-  const token = getAccessToken();
-  if (!token) return;
+/** Akan dipasang dari http.ts untuk mengeksekusi refresh */
+let refreshExecutor: (() => Promise<string | null>) | null = null;
+export function setRefreshExecutor(fn: () => Promise<string | null>) {
+  refreshExecutor = fn;
+}
 
-  const exp = parseExp(token);
-  if (!exp) return;
+/** Jadwalkan refresh ~45 detik sebelum expired */
+export function scheduleProactiveRefresh(token: string, skewMs = 45_000) {
+  if (typeof window === "undefined") return;
+  clearRefreshTimer();
 
-  const now = Math.floor(Date.now() / 1000);
-  // Refresh 45 detik sebelum token kedaluwarsa, atau minimal 1 detik dari sekarang
-  const delayMs = Math.max((exp - now - 60) * 1000, 1000); 
+  const expSec = parseJwtExp(token);
+  if (!expSec) return;
 
-  if (timer) clearTimeout(timer);
+  const delay = Math.max(expSec * 1000 - Date.now() - skewMs, 0);
 
-  console.log(`Silent refresh scheduled in ${Math.round(delayMs / 1000)} seconds.`);
-
-  timer = setTimeout(async () => {
-    try {
-      console.log("Attempting silent refresh...");
-      const newToken = await callRefresh();      // panggil /api/auth/refresh
-      initializeTokensOnLogin(newToken);         // simpan ke memory & cookie
-      console.log("Silent refresh successful.");
-    } catch (error) {
-      console.error("Silent refresh failed:", error);
-      // Biarkan 401 jadi fallback (mis. arahkan ke login di tempat lain)
-      // Hentikan timer jika refresh gagal total
-      stopSilentRefresh();
-    } finally {
-      // Jadwalkan lagi untuk token baru jika berhasil, atau berhenti jika gagal
-      if (getAccessToken()) {
-        scheduleOnce();
-      }
+  refreshTimer = window.setTimeout(async () => {
+    if (!refreshExecutor) return;
+    const newToken = await refreshExecutor();
+    if (!newToken) {
+      // refresh gagal → biarkan flow 401 di interceptor yang handle
+      return;
     }
-  }, delayMs);
+    // token baru akan di-set oleh http.ts lewat setAccessToken
+  }, delay);
 }
 
-export function startSilentRefresh() {
-  // Pastikan hanya berjalan di browser
-  if (typeof window !== "undefined") {
-    scheduleOnce();
+/** Set token ke memori (+ broadcast, + schedule, + optional persist) */
+export function setAccessToken(
+  token: string | null,
+  opts: { broadcast?: boolean; schedule?: boolean; persist?: boolean } = { broadcast: true, schedule: true, persist: PERSIST_TO_LOCALSTORAGE }
+) {
+  accessToken = token ?? null;
+
+  if (opts.persist) {
+    try {
+      if (token) localStorage.setItem(LS_KEY, token);
+      else localStorage.removeItem(LS_KEY);
+    } catch {}
   }
+
+  if (opts.broadcast !== false) {
+    startBroadcast();
+    bc?.postMessage({ type: "token", token: accessToken });
+  }
+
+  if (opts.schedule !== false && token) {
+    scheduleProactiveRefresh(token);
+  } else {
+    clearRefreshTimer();
+  }
+
+  notify(accessToken);
 }
 
-export function stopSilentRefresh() {
-  if (timer) {
-    clearTimeout(timer);
-    timer = null;
-    console.log("Silent refresh stopped.");
-  }
+/** Panggil di _app/layout mount untuk restore token dari storage (opsional) */
+export function initAuthFromStorage() {
+  if (typeof window === "undefined") return;
+  startBroadcast();
+  if (!PERSIST_TO_LOCALSTORAGE) return;
+
+  try {
+    const saved = localStorage.getItem(LS_KEY);
+    if (saved) {
+      setAccessToken(saved, { broadcast: false, schedule: true, persist: true });
+    }
+  } catch {}
 }

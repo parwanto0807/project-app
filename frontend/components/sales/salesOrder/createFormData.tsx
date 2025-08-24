@@ -17,7 +17,7 @@ import {
   Save,
   Trash2,
   Calculator,
-  DollarSign,
+  // DollarSign,
   Percent,
   Package,
 } from "lucide-react"
@@ -71,6 +71,7 @@ import {
   salesOrderDocumentSchema,
   salesOrderItemSchema,
 } from "@/schemas/index";
+import { ensureFreshToken } from "@/lib/http";
 
 type ApiProduct = z.infer<typeof ApiProductSchema>;
 type ProductOption = { id: string; name: string; description?: string | null };
@@ -180,19 +181,35 @@ export function CreateSalesOrderForm({
     })();
   }, []);
 
+  React.useEffect(() => {
+    const onFocus = () => { ensureFreshToken(); };
+    const onVis = () => { if (!document.hidden) ensureFreshToken(); };
+
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVis);
+
+    const id = setInterval(onFocus, 60_000); // tiap 60s cek ringan (opsional)
+
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVis);
+      clearInterval(id);
+    };
+  }, []);
+
   // Fungsi untuk menghitung total per item
   const calculateItemTotal = (index: number) => {
     const qty = form.watch(`items.${index}.qty`) || 0;
     const unitPrice = form.watch(`items.${index}.unitPrice`) || 0;
     const discount = form.watch(`items.${index}.discount`) || 0;
     const taxRate = form.watch(`items.${index}.taxRate`) || 0;
-    
+
     const subtotal = qty * unitPrice;
     const discountAmount = subtotal * (discount / 100);
     const taxableAmount = subtotal - discountAmount;
     const taxAmount = taxableAmount * (taxRate / 100);
     const total = taxableAmount + taxAmount;
-    
+
     return total.toLocaleString('id-ID', {
       style: 'currency',
       currency: 'IDR',
@@ -690,7 +707,7 @@ export function CreateSalesOrderForm({
                             <FormLabel>UOM</FormLabel>
                             <FormControl>
                               <Input
-                                placeholder="mis. pcs"
+                                placeholder="Pcs, Lot, Kg, Ltr, etc."
                                 value={field.value ?? ""}
                                 onChange={(e) => field.onChange(e.target.value || null)}
                               />
@@ -708,13 +725,18 @@ export function CreateSalesOrderForm({
                             <FormLabel>Harga Satuan</FormLabel>
                             <FormControl>
                               <div className="relative">
-                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <span
+                                  className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"
+                                  aria-hidden="true"
+                                >
+                                  Rp
+                                </span>
                                 <Input
                                   type="number"
                                   step="0.01"
                                   min="0"
                                   placeholder="0.00"
-                                  className="pl-9"
+                                  className="pl-10"
                                   value={field.value}
                                   onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                                 />
@@ -724,6 +746,7 @@ export function CreateSalesOrderForm({
                           </FormItem>
                         )}
                       />
+
 
                       <FormField
                         control={form.control}

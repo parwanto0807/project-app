@@ -30,7 +30,7 @@ console.log("[ROUTE CHECK]", {
 router.get("/sales-orders", salesOrder.getAll);
 
 // Detail SO
-router.get("/sales-orders/:id", salesOrder.getById);
+router.get("/sales-orders/getById/:id", salesOrder.getById);
 
 // SO terakhir (berdasarkan soNumber di bulan berjalan)
 router.get("/sales-orders-last", salesOrder.getLastSalesOrder);
@@ -45,7 +45,7 @@ router.post(
 
 // Update header SO (tanpa ganti items/documents)
 router.put(
-  "/sales-orders/:id",
+  "/sales-orders/update/:id",
   authenticateToken,
   authorizeSuperAdmin,
   salesOrder.updateWithItems
