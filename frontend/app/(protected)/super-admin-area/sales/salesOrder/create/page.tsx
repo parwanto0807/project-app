@@ -131,6 +131,7 @@ export default function CreateSalesOrderPage() {
         <CreateSalesOrderForm
           customers={customers}
           projects={projects}
+          user={user}
           isLoading={isDataLoading}
         />
       </div>

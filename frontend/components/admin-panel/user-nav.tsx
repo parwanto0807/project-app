@@ -26,7 +26,6 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 
 export function UserNav() {
   const user = useCurrentUser();
-  console.log("UserNav", user);
   return (
     <DropdownMenu>
       <TooltipProvider disableHoverableContent>

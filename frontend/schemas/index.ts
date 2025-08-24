@@ -7,8 +7,6 @@ export const UserSchema = z.object({
   role: z.enum(["user", "admin"]).optional().default("user"),
 });
 
-// Contoh: Schema untuk login (hanya membutuhkan username dan password)
-// In your schemas file
 export const LoginSchema = z.object({
   email: z.string().email({ message: "Email wajib diisi" }),
   password: z.string().min(1, { message: "Password wajib diisi" }),
@@ -72,6 +70,22 @@ export const customerSchema = z.object({
   isActive: z.boolean(),
 });
 
+export const ApiCustomerSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+});
+
+export const ApiProjectSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+});
+
+export const ApiProductSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().optional(),
+});
+
 // Untuk update: tambah id UUID
 export const customerUpdateSchema = customerSchema.extend({
   id: z.string().uuid({ message: "Invalid customer ID" }),
@@ -119,26 +133,223 @@ export const ProductCategoryUpdateSchema = ProductCategoryRegisterSchema.extend(
   }
 );
 
-export const salesOrderItemSchema = z.object({
-  description: z.string().min(1, "Deskripsi item tidak boleh kosong."),
-  qty: z.coerce.number().min(0.01, "Kuantitas harus lebih dari 0."),
-  unitPrice: z.coerce.number().min(0, "Harga tidak boleh negatif."),
-})
+/* ===== ENUMS ===== */
+export const OrderTypeEnum = z.enum(["REGULAR", "SUPPORT"]);
+export const OrderStatusEnum = z.enum([
+  "DRAFT",
+  "SENT",
+  "CONFIRMED",
+  "IN_PROGRESS",
+  "FULFILLED",
+  "PARTIALLY_INVOICED",
+  "INVOICED",
+  "PARTIALLY_PAID",
+  "PAID",
+  "CANCELLED",
+]);
+export const ItemTypeEnum = z.enum(["PRODUCT", "SERVICE", "CUSTOM"]);
+export const DocTypeEnum = z.enum([
+  "QUOTATION",
+  "PO",
+  "BAP",
+  "INVOICE",
+  "PAYMENT_RECEIPT",
+]);
 
+/* ===== Util presisi ===== */
+const maxDp = (n: number, dp: number) =>
+  Number.isFinite(n) && Math.round(n * 10 ** dp) === n * 10 ** dp;
+
+type SalesOrderItemBase = z.infer<typeof salesOrderItemBase>;
+
+/* ===== Validator kondisional (dipakai berulang) ===== */
+const validateItemBusinessRules = (
+  val: SalesOrderItemBase,
+  ctx: z.RefinementCtx
+) => {
+  if (val.itemType === "PRODUCT" && !val.productId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["productId"],
+      message: "Produk wajib dipilih untuk item PRODUCT.",
+    });
+  }
+  if (
+    (val.itemType === "SERVICE" || val.itemType === "CUSTOM") &&
+    val.productId
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["productId"],
+      message: "Untuk item SERVICE/CUSTOM, kosongkan productId.",
+    });
+  }
+  const maxDiscount = val.qty * val.unitPrice;
+  if (val.discount > maxDiscount) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["discount"],
+      message: "Discount tidak boleh melebihi (qty × unitPrice).",
+    });
+  }
+};
+
+/* ===== Item BASE (pure object, TANPA superRefine) ===== */
+const salesOrderItemBase = z.object({
+  itemType: ItemTypeEnum.default("PRODUCT"),
+  productId: z.string().uuid().optional().nullable(),
+
+  name: z.string().trim().min(1, "Nama item wajib diisi."),
+  description: z.string().trim().optional().nullable(),
+  uom: z
+    .string()
+    .trim()
+    .max(20, "UOM maksimal 20 karakter.")
+    .optional()
+    .nullable(),
+
+  qty: z.coerce
+    .number()
+    .positive("Kuantitas harus > 0.")
+    .refine((v) => Number.isFinite(v), "qty harus angka.")
+    .refine((v) => maxDp(v, 4), "qty maksimal 4 angka desimal."),
+
+  unitPrice: z.coerce
+    .number()
+    .min(0, "Harga tidak boleh negatif.")
+    .refine((v) => Number.isFinite(v), "unitPrice harus angka.")
+    .refine((v) => maxDp(v, 2), "unitPrice maksimal 2 angka desimal."),
+
+  discount: z.coerce
+    .number()
+    .min(0, "Discount tidak boleh negatif.")
+    .default(0)
+    .refine((v) => Number.isFinite(v), "discount harus angka.")
+    .refine((v) => maxDp(v, 2), "discount maksimal 2 angka desimal."),
+
+  taxRate: z.coerce
+    .number()
+    .min(0, "Tax rate tidak boleh negatif.")
+    .max(100, "Tax rate tidak boleh lebih dari 100%.")
+    .default(0)
+    .refine((v) => Number.isFinite(v), "taxRate harus angka.")
+    .refine((v) => maxDp(v, 2), "taxRate maksimal 2 angka desimal."),
+
+  // isTaxInclusive: z.coerce.boolean().default(false),
+
+  // sisip posisi baris (akan geser lineNo)
+  insertAt: z.coerce.number().int().positive().optional(),
+});
+
+/* ===== Item (CREATE) ===== */
+export const salesOrderItemSchema = salesOrderItemBase.superRefine(
+  validateItemBusinessRules
+);
+
+/* ===== Document (opsional pada CREATE/UPDATE) ===== */
+export const salesOrderDocumentSchema = z.object({
+  docType: DocTypeEnum,
+  docNumber: z.string().optional().nullable(),
+  docDate: z.coerce.date().optional().nullable(),
+  fileUrl: z.string().url().optional().nullable(),
+  meta: z.any().optional().nullable(),
+});
+
+/* ===== CREATE SO ===== */
 export const createSalesOrderSchema = z.object({
-  soNumber: z.string().min(1, "Nomor SO wajib diisi."),
-  soDate: z.date({
-    required_error: "Tanggal SO wajib diisi.",
-  }),
+  soNumber: z.string().optional(), 
+  soDate: z.coerce.date({ required_error: "Tanggal wajib diisi." }),
   customerId: z.string().min(1, "Customer wajib dipilih."),
-  projectId: z.string().optional(),
-  poNumber: z.string().optional(),
-  type: z.enum(["REGULAR", "SUPPORT"], {
-    required_error: "Tipe SO wajib dipilih.",
-  }),
-  items: z
-    .array(salesOrderItemSchema)
-    .min(1, "Minimal harus ada satu item dalam Sales Order."),
-})
+  projectId: z.string().min(1, "Project wajib dipilih."),
+  userId: z.string().min(1, "User wajib dipilih."),
+  type: OrderTypeEnum,
+  status: OrderStatusEnum.default("DRAFT"),
+  currency: z.string().default("IDR"),
+  isTaxInclusive: z.boolean().optional().default(false),
+  notes: z.string().optional().nullable(),
+  items: z.array(salesOrderItemSchema).min(1, "Minimal harus ada satu item."),
+  documents: z.array(salesOrderDocumentSchema).optional(),
+});
+export type CreateSalesOrderPayload = z.infer<typeof createSalesOrderSchema>;
 
-export type CreateSalesOrderPayload = z.infer<typeof createSalesOrderSchema>
+/* ===== UPDATE (PATCH) ===== */
+/* extend dari BASE, lalu superRefine lagi */
+export const salesOrderItemUpdateSchema = salesOrderItemBase
+  .extend({
+    id: z.string().uuid().optional().nullable(), // null ⇒ item baru saat PATCH
+    lineNo: z.coerce.number().int().positive().optional(), // pindah posisi baris
+  })
+  .superRefine(validateItemBusinessRules);
+
+export const salesOrderUpdateSchema = z.object({
+  soDate: z.coerce.date().optional(),
+  customerId: z.string().uuid().optional(),
+  projectId: z.string().uuid().optional(),
+  userId: z.string().uuid().optional(),
+  type: OrderTypeEnum.optional(),
+  status: OrderStatusEnum.optional(),
+  currency: z.string().optional(),
+  notes: z.string().optional().nullable(),
+  items: z
+    .array(salesOrderItemUpdateSchema)
+    .min(1, "Jika daftar item disertakan, minimal harus ada satu item.")
+    .optional(),
+  documents: z.array(salesOrderDocumentSchema).optional(),
+});
+export type UpdateSalesOrderPayload = z.infer<typeof salesOrderUpdateSchema>;
+
+/* ===== Bentuk penuh (response dari backend) ===== */
+/* extend dari BASE, lalu superRefine lagi */
+export const salesOrderItemWithIdSchema = salesOrderItemBase
+  .extend({
+    id: z.string().uuid(),
+    salesOrderId: z.string().uuid().optional(),
+    lineNo: z.coerce.number().int().positive(),
+    lineTotal: z.coerce.number().default(0),
+    product: z.any().optional(),
+  })
+  .superRefine(validateItemBusinessRules);
+
+const salesOrderDocumentWithIdSchema = salesOrderDocumentSchema.extend({
+  id: z.string().uuid(),
+  salesOrderId: z.string().uuid().optional(),
+  createdAt: z.coerce.date().optional(),
+});
+
+export const fullSalesOrderSchema = z.object({
+  id: z.string().uuid(),
+  soNumber: z.string(),
+  soDate: z.coerce.date(),
+  customerId: z.string().uuid(),
+  projectId: z.string().uuid(),
+  userId: z.string().uuid(),
+  type: OrderTypeEnum,
+  status: OrderStatusEnum,
+  currency: z.string(),
+  subtotal: z.coerce.number().default(0),
+  discountTotal: z.coerce.number().default(0),
+  taxTotal: z.coerce.number().default(0),
+  grandTotal: z.coerce.number().default(0),
+  notes: z.string().optional().nullable(),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+  items: z.array(salesOrderItemWithIdSchema),
+  documents: z.array(salesOrderDocumentWithIdSchema).optional(),
+  customer: z.any().optional(),
+  project: z.any().optional(),
+  user: z.any().optional(),
+});
+export type SalesOrder = z.infer<typeof fullSalesOrderSchema>;
+
+/* ===== Bentuk untuk display di form (opsional) ===== */
+export type SalesOrderWithRelations = SalesOrder & {
+  customer?: { id: string; name: string };
+  project?: { id: string; name: string };
+  user?: { id: string; name: string };
+};
+
+export type SalesOrderFormValues = CreateSalesOrderPayload & {
+  id?: string;
+  customerName?: string;
+  projectName?: string;
+};

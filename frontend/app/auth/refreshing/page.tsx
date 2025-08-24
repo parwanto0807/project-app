@@ -141,7 +141,7 @@ export default function Refreshing() {
                       transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
                     />
                   </div>
-                  <p className="text-[11px] text-slate-500 flex items-center gap-1">
+                  <p className="text-[11px] text-white/50 flex items-center gap-1">
                     <Timer className="h-3.5 w-3.5" /> Upaya: {attempt}
                   </p>
                 </motion.div>
@@ -156,7 +156,7 @@ export default function Refreshing() {
                   className="flex flex-col items-center text-center gap-4"
                 >
                   <CheckCircle2 className="h-10 w-10 text-emerald-400" />
-                  <p className="text-sm font-medium text-red-600">Sesi berhasil diperbarui</p>
+                  <p className="text-sm font-medium text-yellow-500">Sesi berhasil diperbarui</p>
                   <p className="text-xs text-slate-700">Mengalihkan ke halaman tujuan…</p>
                 </motion.div>
               )}
@@ -206,7 +206,7 @@ export default function Refreshing() {
 
         {/* Footer helper */}
         <div className="text-center mt-4">
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[10px] text-white/50">
             Halaman ini aman untuk ditutup setelah selesai. Token disimpan sementara di memory & cookie FE untuk kompatibel dengan middleware.
           </p>
         </div>

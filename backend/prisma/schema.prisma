@@ -113,6 +113,13 @@ model UserSession {
   @@index([expiresAt])
 }
 
+model Counter {
+  name       String   @id
+  lastNumber Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
 model Customer {
   id            String  @id @default(uuid())
   code          String  @unique // kode unik customer, misal: CUST-001
@@ -193,45 +200,167 @@ model ProductCategory {
   products Product[]
 }
 
+// ================== ENUMS ==================
+enum OrderType {
+  REGULAR
+  SUPPORT
+}
+
+enum OrderStatus {
+  DRAFT
+  SENT
+  CONFIRMED
+  IN_PROGRESS
+  FULFILLED
+  PARTIALLY_INVOICED
+  INVOICED
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
+}
+
+enum ItemType {
+  PRODUCT
+  SERVICE
+  CUSTOM
+}
+
+enum DocType {
+  QUOTATION
+  PO
+  BAP
+  INVOICE
+  PAYMENT_RECEIPT
+}
+
+// ================== MODELS ==================
 model SalesOrder {
-  id         String   @id @default(uuid())
-  soNumber   String   @unique
-  soDate     DateTime
-  customerId String
-  projectId  String?
-  userId     String // relasi ke User
-  poNumber   String?
-  type       String // "REGULAR" | "SUPPORT"
-  createdAt  DateTime @default(now())
+  id             String      @id @default(uuid())
+  soNumber       String      @unique
+  soDate         DateTime
+  customerId     String
+  projectId      String // <-- wajib
+  userId         String
+  type           OrderType
+  status         OrderStatus @default(DRAFT)
+  isTaxInclusive Boolean     @default(false)
 
-  customer Customer @relation(fields: [customerId], references: [id])
-  project  Project? @relation(fields: [projectId], references: [id])
-  user     User     @relation("UserSalesOrders", fields: [userId], references: [id])
+  currency      String  @default("IDR")
+  subtotal      Decimal @default(0) @db.Decimal(18, 2)
+  discountTotal Decimal @default(0) @db.Decimal(18, 2)
+  taxTotal      Decimal @default(0) @db.Decimal(18, 2)
+  grandTotal    Decimal @default(0) @db.Decimal(18, 2)
 
-  items    SalesOrderItem[]
-  document SalesOrderDocument?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  project  Project  @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade) // <-- Restrict karena FK wajib
+  user     User     @relation("UserSalesOrders", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  items     SalesOrderItem[]
+  documents SalesOrderDocument[]
+  invoices  Invoice[]
+
+  @@index([customerId, soDate])
+  @@index([status])
+  @@index([projectId])
 }
 
 model SalesOrderItem {
-  id           String  @id @default(uuid())
+  id           String   @id @default(uuid())
   salesOrderId String
-  productId    String?
-  description  String
-  qty          Decimal
-  unitPrice    Decimal
+  lineNo       Int
+  itemType     ItemType @default(PRODUCT)
 
-  salesOrder SalesOrder @relation(fields: [salesOrderId], references: [id])
-  product    Product?   @relation(fields: [productId], references: [id])
+  productId   String?
+  name        String
+  description String?
+  uom         String?
+  qty       Decimal @db.Decimal(18, 4)
+  unitPrice Decimal @db.Decimal(18, 2)
+  discount  Decimal @default(0) @db.Decimal(18, 2)
+  taxRate   Decimal @default(0) @db.Decimal(5, 2)
+  lineTotal Decimal @default(0) @db.Decimal(18, 2)
+
+  salesOrder SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  product    Product?   @relation(fields: [productId], references: [id], onDelete: SetNull, onUpdate: Cascade) // ← nullable
+
+  @@index([salesOrderId])
+  @@index([productId])
 }
 
 model SalesOrderDocument {
-  id              String  @id @default(uuid())
-  salesOrderId    String  @unique
-  isOffer         Boolean @default(false)
-  isPo            Boolean @default(false)
-  isBap           Boolean @default(false)
-  isInvoice       Boolean @default(false)
-  isPaymentStatus Boolean @default(false)
+  id           String    @id @default(uuid())
+  salesOrderId String
+  docType      DocType
+  docNumber    String?
+  docDate      DateTime?
+  fileUrl      String?
+  meta         Json?
+  createdAt    DateTime  @default(now())
 
-  salesOrder SalesOrder @relation(fields: [salesOrderId], references: [id])
+  salesOrder SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([salesOrderId, docType])
+}
+
+// ================== (Opsional tapi direkomendasikan) ==================
+model Invoice {
+  id            String   @id @default(uuid())
+  invoiceNumber String   @unique
+  invoiceDate   DateTime
+  salesOrderId  String? // link ke SO kalau berasal dari SO
+  currency      String   @default("IDR")
+
+  subtotal      Decimal @default(0) @db.Decimal(18, 2)
+  discountTotal Decimal @default(0) @db.Decimal(18, 2)
+  taxTotal      Decimal @default(0) @db.Decimal(18, 2)
+  grandTotal    Decimal @default(0) @db.Decimal(18, 2)
+
+  status    String   @default("UNPAID") // atau buat enum InvoiceStatus
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  salesOrder SalesOrder?   @relation(fields: [salesOrderId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  items      InvoiceItem[]
+  payments   Payment[]
+
+  @@index([salesOrderId])
+}
+
+model InvoiceItem {
+  id          String  @id @default(uuid())
+  invoiceId   String
+  // Snapshot dari SO item agar invoice “beku”
+  soItemId    String? // refer ke SO item jika perlu telusur asal
+  name        String
+  description String?
+  uom         String?
+  qty         Decimal @db.Decimal(18, 4)
+  unitPrice   Decimal @db.Decimal(18, 2)
+  discount    Decimal @default(0) @db.Decimal(18, 2)
+  taxRate     Decimal @default(0) @db.Decimal(5, 2)
+  lineTotal   Decimal @default(0) @db.Decimal(18, 2)
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([invoiceId])
+}
+
+model Payment {
+  id        String   @id @default(uuid())
+  invoiceId String
+  payDate   DateTime
+  amount    Decimal  @db.Decimal(18, 2)
+  method    String? // transfer, cash, VA Midtrans, dll
+  reference String? // no. bukti, VA number, settlement id
+  notes     String?
+  createdAt DateTime @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([invoiceId, payDate])
 }

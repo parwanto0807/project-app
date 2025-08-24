@@ -1,9 +1,12 @@
 import express from "express";
 
-// Import controller
+// Controllers
 import * as salesOrder from "../../controllers/salesOrder/salesOrderController.js";
 import * as item from "../../controllers/salesOrder/salesOrderItemController.js";
 import * as doc from "../../controllers/salesOrder/salesOrderDocumentController.js";
+import { createProject, getListProjects } from "../../controllers/salesOrder/projectController.js";
+
+// Middleware
 import {
   authenticateToken,
   authorizeSuperAdmin,
@@ -11,53 +14,125 @@ import {
 
 const router = express.Router();
 
-//
-// ROUTES UNTUK SALES ORDER
-//
+// Debug types
+console.log("[ROUTE CHECK]", {
+  authenticateToken: typeof authenticateToken,
+  authorizeSuperAdmin: typeof authorizeSuperAdmin,
+  so_updateWithItems: typeof salesOrder.updateWithItems,
+  so_create: typeof salesOrder.create,
+  so_getAll: typeof salesOrder.getAll,
+});
 
-// [GET] Semua sales order
-router.get("/getAllSalesOrders", salesOrder.getAll);
+/* -------------------------------------------
+ * SALES ORDERS (header-level)
+ * ----------------------------------------- */
+// List semua SO
+router.get("/sales-orders", salesOrder.getAll);
 
-// [GET] Detail SO by ID
-router.get("/getByIdSalesOrders/:id", salesOrder.getById);
+// Detail SO
+router.get("/sales-orders/:id", salesOrder.getById);
 
-router.get("/last-order", salesOrder.getLastSalesOrder);
+// SO terakhir (berdasarkan soNumber di bulan berjalan)
+router.get("/sales-orders-last", salesOrder.getLastSalesOrder);
 
-// [POST] Tambah SO (beserta items dan document kosong)
+// Create SO (header + items + (optional) documents)
 router.post(
-  "/createSalesOrders",
+  "/sales-orders/create",
   authenticateToken,
   authorizeSuperAdmin,
   salesOrder.create
 );
 
-// [PUT] Update SO
-router.put("/updateSalesOrders/:id", salesOrder.update);
+// Update header SO (tanpa ganti items/documents)
+router.put(
+  "/sales-orders/:id",
+  authenticateToken,
+  authorizeSuperAdmin,
+  salesOrder.updateWithItems
+);
 
-// [DELETE] Hapus SO
-router.delete("/removeSalesOrders/:id", salesOrder.remove);
+// Update SO + replace all items (editor tabel)
+router.put(
+  "/sales-orders/:id/with-items",
+  authenticateToken,
+  authorizeSuperAdmin,
+  salesOrder.updateWithItems
+);
 
-//
-// ROUTES UNTUK ITEM
-//
+// Hapus SO (cascade hapus items & documents)
+router.delete(
+  "/sales-orders/:id",
+  authenticateToken,
+  authorizeSuperAdmin,
+  salesOrder.remove
+);
 
-// [POST] Tambah item ke SO
-router.post("/addItemSalesOrders/:id/items", item.addItem);
+/* -------------------------------------------
+ * SALES ORDER ITEMS (item-level)
+ * ----------------------------------------- */
+// Tambah 1 item ke SO
+router.post(
+  "/sales-orders/:soId/items",
+  authenticateToken,
+  authorizeSuperAdmin,
+  item.addItem
+);
 
-// [PUT] Update item
-router.put("/updateItemSalesOrders/items/:itemId", item.updateItem);
+// Update 1 item di SO
+router.patch(
+  "/sales-orders/:soId/items/:itemId",
+  authenticateToken,
+  authorizeSuperAdmin,
+  item.updateItem
+);
 
-// [DELETE] Hapus item dari SO
-router.delete("/removeItemSalesOrders/items/:itemId", item.removeItem);
+// Hapus 1 item dari SO
+router.delete(
+  "/sales-orders/:soId/items/:itemId",
+  authenticateToken,
+  authorizeSuperAdmin,
+  item.removeItem
+);
 
-//
-// ROUTES UNTUK DOKUMEN
-//
+/* -------------------------------------------
+ * SALES ORDER DOCUMENTS (document-level)
+ * ----------------------------------------- */
+// Ambil semua dokumen milik SO
+router.get("/sales-orders/:soId/documents", doc.getBySalesOrderId);
 
-// [GET] Ambil dokumen berdasarkan salesOrderId
-router.get("/getBySOIdSalesOrders/:id/document", doc.getBySOId);
+// Tambah dokumen (docType, nomor, tanggal, fileUrl, meta)
+router.post(
+  "/sales-orders/:soId/documents",
+  authenticateToken,
+  authorizeSuperAdmin,
+  doc.addDocument
+);
 
-// [PUT] Update flag dokumen
-router.put("/updateFlagsSalesOrders/:id/document", doc.updateFlags);
+// Update 1 dokumen (mis. ganti nomor/tanggal/file/meta)
+router.patch(
+  "/sales-orders/:soId/documents/:docId",
+  authenticateToken,
+  authorizeSuperAdmin,
+  doc.updateDocument
+);
+
+// Hapus 1 dokumen
+router.delete(
+  "/sales-orders/:soId/documents/:docId",
+  authenticateToken,
+  authorizeSuperAdmin,
+  doc.removeDocument
+);
+
+/* -------------------------------------------
+ * PROJECTS (opsional)
+ * ----------------------------------------- */
+router.post(
+  "/project/create",
+  authenticateToken,
+  authorizeSuperAdmin,
+  createProject
+);
+router.get("/project/getListProjects", getListProjects);
 
 export default router;

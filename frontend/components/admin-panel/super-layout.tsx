@@ -2,7 +2,7 @@ import { Navbar } from "@/components/admin-panel/navbar";
 
 interface ContentLayoutProps {
   title: string;
-  role: "super";
+  role: "super" | "admin";
   children: React.ReactNode;
 }
 

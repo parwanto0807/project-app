@@ -214,7 +214,7 @@ export function CustomersTable({
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="px-4 py-4 whitespace-nowrap hidden md:table-cell">
+                    <TableCell className="px-4 py-4 text-wrap whitespace-nowrap hidden md:table-cell">
                       {customer.city && (
                         <div className="flex items-center gap-2">
                           <MapPin className="h-4 w-4 text-orange-500 dark:text-orange-400" />
@@ -375,7 +375,7 @@ export function CustomersTable({
                                   <Globe className="h-4 w-4 text-orange-500 dark:text-orange-400 mt-0.5" />
                                   <div>
                                     <p className="text-xs text-gray-500 dark:text-gray-400">Address</p>
-                                    <p className="font-medium text-gray-700 dark:text-gray-300">{customer.address}</p>
+                                    <p className="font-medium text-wrap  text-gray-700 dark:text-gray-300">{customer.address}</p>
                                   </div>
                                 </div>
                               )}

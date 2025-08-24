@@ -42,7 +42,7 @@ export default function SalesOrderPage() {
 
 
   const layoutProps: LayoutProps = {
-    title: "Customer Management",
+    title: "Sales Management",
     role: "super",
     children: (
       <>

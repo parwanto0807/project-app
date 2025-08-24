@@ -1,17 +1,17 @@
 import * as React from "react"
 import { format } from "date-fns"
 import {
-    CalendarIcon,
+    // CalendarIcon,
     FileTextIcon,
     PlusCircleIcon,
     SearchIcon,
     ShoppingCartIcon,
-    BuildingIcon,
-    FileIcon,
-    CheckCircleIcon,
-    ClockIcon,
-    DollarSignIcon,
-    ChevronDownIcon, // NEW: Icon for expander
+    // ChevronDownIcon,
+    UserCheck2Icon,
+    Edit,
+    MoreHorizontal,
+    Eye,
+    // ChevronRight,
 } from "lucide-react"
 import Decimal from "decimal.js"
 import {
@@ -19,10 +19,12 @@ import {
     flexRender,
     getCoreRowModel,
     useReactTable,
-    getExpandedRowModel, // NEW: Import for expandable rows
-    type ExpandedState, // NEW: Type for expanded state
+    getExpandedRowModel,
+    type ExpandedState,
+    getSortedRowModel,
+    SortingState,
 } from "@tanstack/react-table"
-import { DotsHorizontalIcon } from "@radix-ui/react-icons"
+import { useRouter } from "next/navigation"
 
 import { type SalesOrder } from "@/lib/validations/sales-order"
 import { Button } from "@/components/ui/button"
@@ -38,6 +40,7 @@ import {
 } from "@/components/ui/table"
 import {
     DropdownMenu,
+    // dropdownMenuClasses,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
@@ -53,6 +56,10 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header"
 import Link from "next/link"
+import { FaToolbox } from "react-icons/fa"
+import { CheckCircle2, ReceiptText, MinusCircle } from "lucide-react"
+import { useMediaQuery } from "@/hooks/use-media-query"
+import { cn } from "@/lib/utils"
 
 interface SalesOrderTableProps {
     salesOrders: SalesOrder[]
@@ -60,7 +67,6 @@ interface SalesOrderTableProps {
 }
 
 // Helper component to render the expanded details of an order
-// (You can place this inside or outside the SalesOrderTable component, or in its own file)
 function SalesOrderDetail({ order }: { order: SalesOrder }) {
     const total = order.items.reduce((sum, item) => {
         const itemQty = new Decimal(item.qty.toString())
@@ -68,280 +74,579 @@ function SalesOrderDetail({ order }: { order: SalesOrder }) {
         return sum.plus(itemQty.times(itemPrice))
     }, new Decimal(0))
 
+    const formatIDR = (n: number) =>
+        new Intl.NumberFormat("id-ID", {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+        }).format(n)
+
     return (
-        <div className="bg-muted/50 p-4">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3 mb-4">
-                <div>
-                    <h4 className="font-semibold text-sm mb-1">Customer Details</h4>
-                    <p className="text-sm text-muted-foreground">{order.customer.name}</p>
-                    <p className="text-sm text-muted-foreground">{order.customer.address ?? "No address provided"}</p>
+        <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-slate-900 dark:to-slate-800 p-4 md:p-6 rounded-lg">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-6 mb-4 md:mb-6">
+                {/* Customer Details */}
+                <div className="space-y-2">
+                    <h4 className="font-semibold text-sm text-primary flex items-center gap-2">
+                        <UserCheck2Icon className="h-4 w-4" />
+                        <span className="hidden md:inline">Customer Details</span>
+                        <span className="md:hidden">Customer</span>
+                    </h4>
+                    <p className="text-sm font-medium">{order.customer.name}</p>
+                    <p className="text-xs md:text-sm text-muted-foreground text-wrap">
+                        {order.customer.address?.substring(0, 60) ?? "No address provided"}
+                        {order.customer.address && order.customer.address.length > 60 ? "..." : ""}
+                    </p>
                 </div>
-                <div>
-                    <h4 className="font-semibold text-sm mb-1">Order Info</h4>
-                    <p className="text-sm text-muted-foreground">
-                        PO Number: <span className="font-medium">{order.poNumber ?? "N/A"}</span>
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                        Order Type: <span className="font-medium">{order.type}</span>
+
+                {/* Order Info */}
+                <div className="space-y-2">
+                    <h4 className="font-semibold text-sm text-primary">
+                        <span className="hidden md:inline">Order Info</span>
+                        <span className="md:hidden">Info</span>
+                    </h4>
+                    <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="capitalize text-xs">
+                            {order.type.toLowerCase()}
+                        </Badge>
+                        {order.type === "SUPPORT" && (
+                            <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs">
+                                Support
+                            </Badge>
+                        )}
+                    </div>
+                    <p className="text-xs md:text-sm text-muted-foreground">
+                        {format(new Date(order.soDate), "dd MMM yyyy")}
                     </p>
                 </div>
-                <div>
-                    <h4 className="font-semibold text-sm mb-1">Financials</h4>
-                    <p className="text-sm text-muted-foreground">
-                        Total Amount: <span className="font-medium text-green-600">${total.toDecimalPlaces(2).toString()}</span>
-                    </p>
+
+                {/* Document Status */}
+                <div className="space-y-2">
+                    <h4 className="font-semibold text-sm text-primary">
+                        <span className="hidden md:inline">Document Status</span>
+                        <span className="md:hidden">Documents</span>
+                    </h4>
+                    {Array.isArray(order.documents) && order.documents.length > 0 ? (
+                        <ul className="space-y-1 text-xs md:text-sm">
+                            {renderDocumentStatus(order.documents)}
+                        </ul>
+                    ) : (
+                        <p className="text-xs md:text-sm text-muted-foreground">No documents yet</p>
+                    )}
                 </div>
             </div>
 
-            <h4 className="font-semibold text-sm mb-2">Order Items</h4>
-            <div className="rounded-md border">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Product</TableHead>
-                            <TableHead className="text-right">Quantity</TableHead>
-                            <TableHead className="text-right">Unit Price</TableHead>
-                            <TableHead className="text-right">Subtotal</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-4 md:mb-6">
+                {/* Financial Summary */}
+                <div className="bg-white dark:bg-slate-800 p-3 md:p-4 rounded-lg border">
+                    <h4 className="font-semibold text-sm text-primary mb-2 md:mb-3">
+                        <span className="hidden md:inline">Financial Summary</span>
+                        <span className="md:hidden">Financials</span>
+                    </h4>
+                    <div className="space-y-1 md:space-y-2">
+                        <div className="flex justify-between items-center">
+                            <span className="text-xs md:text-sm text-muted-foreground">Subtotal</span>
+                            <span className="text-xs md:text-sm font-medium">
+                                Rp {formatIDR(total.toNumber())}
+                            </span>
+                        </div>
+                        <div className="flex justify-between items-center border-t pt-1 md:pt-2">
+                            <span className="text-xs md:text-sm font-semibold">Total</span>
+                            <span className="text-sm md:text-lg font-bold text-green-600">
+                                Rp {formatIDR(total.toNumber())}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Quick Actions */}
+                <div className="bg-white dark:bg-slate-800 p-3 md:p-4 rounded-lg border">
+                    <h4 className="font-semibold text-sm text-primary mb-2 md:mb-3">
+                        <span className="hidden md:inline">Quick Actions</span>
+                        <span className="md:hidden">Actions</span>
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" size="sm" className="text-xs h-8">
+                            <FileTextIcon className="h-3 w-3 mr-1" />
+                            Docs
+                        </Button>
+                        <Button variant="outline" size="sm" className="text-xs h-8">
+                            <ReceiptText className="h-3 w-3 mr-1" />
+                            Invoice
+                        </Button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Order Items */}
+            <div>
+                <h4 className="font-semibold text-sm text-primary mb-2 md:mb-3 flex items-center gap-2">
+                    <ShoppingCartIcon className="h-4 w-4" />
+                    <span className="hidden md:inline">Order Items</span>
+                    <span className="md:hidden">Items</span>
+                </h4>
+                <div className="rounded-lg border bg-white dark:bg-slate-800 overflow-hidden">
+                    <div className="hidden md:block">
+                        <Table>
+                            <TableHeader className="bg-muted/50">
+                                <TableRow>
+                                    <TableHead className="font-semibold text-xs md:text-sm">Product/Service</TableHead>
+                                    <TableHead className="text-right font-semibold text-xs md:text-sm">Qty</TableHead>
+                                    <TableHead className="text-right font-semibold text-xs md:text-sm">Unit Price</TableHead>
+                                    <TableHead className="text-right font-semibold text-xs md:text-sm">Subtotal</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {order.items.map((item) => {
+                                    const itemQty = new Decimal(item.qty.toString())
+                                    const itemPrice = new Decimal(item.unitPrice.toString())
+                                    const subtotal = itemQty.times(itemPrice)
+
+                                    return (
+                                        <TableRow key={item.id} className="hover:bg-muted/30">
+                                            <TableCell className="py-2 md:py-3">
+                                                <div>
+                                                    <p className="font-medium text-xs md:text-sm">{item.name}</p>
+                                                    {item.description && (
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {item.description.substring(0, 50)}
+                                                            {item.description.length > 50 ? "..." : ""}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-right py-2 md:py-3">
+                                                <div className="flex items-center justify-end gap-1">
+                                                    <span className="text-xs md:text-sm">{item.qty}</span>
+                                                    {item.uom && (
+                                                        <Badge variant="outline" className="text-[10px] md:text-xs">
+                                                            {item.uom}
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-right font-medium text-xs md:text-sm py-2 md:py-3">
+                                                Rp {formatIDR(itemPrice.toNumber())}
+                                            </TableCell>
+                                            <TableCell className="text-right font-medium text-green-600 text-xs md:text-sm py-2 md:py-3">
+                                                Rp {formatIDR(subtotal.toNumber())}
+                                            </TableCell>
+                                        </TableRow>
+                                    )
+                                })}
+                                <TableRow className="bg-muted/30">
+                                    <TableCell colSpan={3} className="text-right font-semibold text-xs md:text-sm py-2 md:py-3">
+                                        Total
+                                    </TableCell>
+                                    <TableCell className="text-right font-bold text-sm md:text-lg text-green-600 py-2 md:py-3">
+                                        Rp {formatIDR(total.toNumber())}
+                                    </TableCell>
+                                </TableRow>
+                            </TableBody>
+                        </Table>
+                    </div>
+
+                    {/* Mobile view for order items */}
+                    <div className="md:hidden p-3 space-y-3">
                         {order.items.map((item) => {
                             const itemQty = new Decimal(item.qty.toString())
                             const itemPrice = new Decimal(item.unitPrice.toString())
                             const subtotal = itemQty.times(itemPrice)
 
                             return (
-                                <TableRow key={item.id}>
-                                    <TableCell>{item.description}</TableCell>
-                                    <TableCell className="text-right">{item.qty}</TableCell>
-                                    <TableCell className="text-right">${itemPrice.toDecimalPlaces(2).toString()}</TableCell>
-                                    <TableCell className="text-right font-medium">${subtotal.toDecimalPlaces(2).toString()}</TableCell>
-                                </TableRow>
+                                <div key={item.id} className="border rounded-lg p-3 bg-white">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div className="flex-1">
+                                            <p className="font-medium text-sm">{item.name}</p>
+                                            {item.description && (
+                                                <p className="text-xs text-muted-foreground mt-1">
+                                                    {item.description.substring(0, 60)}
+                                                    {item.description.length > 60 ? "..." : ""}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2 text-xs">
+                                        <div>
+                                            <span className="text-muted-foreground">Qty: </span>
+                                            <span className="font-medium">{item.qty}</span>
+                                            {item.uom && (
+                                                <Badge variant="outline" className="ml-1 text-[10px]">
+                                                    {item.uom}
+                                                </Badge>
+                                            )}
+                                        </div>
+                                        <div className="text-right">
+                                            <span className="text-muted-foreground">Price: </span>
+                                            <span className="font-medium">Rp {formatIDR(itemPrice.toNumber())}</span>
+                                        </div>
+                                        <div className="col-span-2 text-right border-t pt-1">
+                                            <span className="text-muted-foreground">Subtotal: </span>
+                                            <span className="font-medium text-green-600">Rp {formatIDR(subtotal.toNumber())}</span>
+                                        </div>
+                                    </div>
+                                </div>
                             )
                         })}
-                    </TableBody>
-                </Table>
+                        <div className="border-t pt-3 text-right">
+                            <span className="font-semibold text-sm">Total: </span>
+                            <span className="font-bold text-lg text-green-600">Rp {formatIDR(total.toNumber())}</span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     )
 }
 
+// Helper function to render document status
+function renderDocumentStatus(documents: { docType: "QUOTATION" | "PO" | "BAP" | "INVOICE" | "PAYMENT_RECEIPT" }[]) {
+    const has = (type: "QUOTATION" | "PO" | "BAP" | "INVOICE" | "PAYMENT_RECEIPT") =>
+        Array.isArray(documents) && documents.some((d) => d.docType === type);
 
-const columns: ColumnDef<SalesOrder>[] = [
-    // NEW: Expander column
-    {
-        id: "expander",
-        header: () => null,
-        cell: ({ row }) => {
-            return (
+    const DocumentRow = ({ ok, label }: { ok: boolean; label: string }) => (
+        <li className="flex items-center gap-2 py-1">
+            {ok ? (
+                <CheckCircle2 className="h-3 w-3 md:h-4 md:w-4 text-green-600" />
+            ) : (
+                <MinusCircle className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
+            )}
+            <span className={cn(
+                "text-xs md:text-sm",
+                ok ? "text-green-700 font-medium" : "text-muted-foreground"
+            )}>
+                {label}
+            </span>
+        </li>
+    );
+
+    return (
+        <>
+            <DocumentRow ok={has("QUOTATION")} label="Quotation" />
+            <DocumentRow ok={has("PO")} label="PO Received" />
+            <DocumentRow ok={has("BAP")} label="BAST" />
+            <DocumentRow ok={has("INVOICE")} label="Invoiced" />
+            <DocumentRow ok={has("PAYMENT_RECEIPT")} label="Paid" />
+        </>
+    );
+}
+
+// Komponen ActionsCell terpisah untuk menghindari masalah hook
+function ActionsCell({ order }: { order: SalesOrder }) {
+    const router = useRouter()
+    const isMobile = useMediaQuery("(max-width: 768px)")
+
+    function handleEditOrder() {
+        router.push(`/super-admin-area/sales/salesOrder/update/${order.id}`)
+    }
+
+    function handleViewDetails() {
+        console.log("View order details:", order.id)
+    }
+
+    function handleDeleteOrder() {
+        console.log("Delete order:", order.id)
+    }
+
+    if (isMobile) {
+        return (
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 cursor-pointer hover:bg-muted"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <span className="sr-only">Open menu</span>
+                        <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40">
+                    <DropdownMenuItem
+                        className="cursor-pointer gap-2 text-xs"
+                        onClick={handleViewDetails}
+                    >
+                        <Eye className="h-3 w-3" />
+                        View Details
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                        className="cursor-pointer gap-2 text-xs"
+                        onClick={handleEditOrder}
+                    >
+                        <Edit className="h-3 w-3" />
+                        Edit Order
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                        className="text-red-600 focus:text-red-600 cursor-pointer gap-2 text-xs"
+                        onClick={handleDeleteOrder}
+                    >
+                        <MinusCircle className="h-3 w-3" />
+                        Delete
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        )
+    }
+
+    return (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
                 <Button
                     variant="ghost"
-                    size="icon"
-                    onClick={row.getToggleExpandedHandler()}
-                    className="h-8 w-8 p-0"
+                    className="h-8 w-8 p-0 cursor-pointer hover:bg-muted"
+                    onClick={(e) => e.stopPropagation()}
                 >
-                    <ChevronDownIcon
-                        className={`h-4 w-4 transition-transform duration-200 ${row.getIsExpanded() ? "" : "-rotate-90"
-                            }`}
-                    />
-                    <span className="sr-only">Toggle details</span>
+                    <span className="sr-only">Open menu</span>
+                    <MoreHorizontal className="h-4 w-4" />
                 </Button>
-            )
-        },
-    },
-    {
-        accessorKey: "soNumber",
-        header: ({ column }) => (
-            <DataTableColumnHeader column={column} title="SO Number" />
-        ),
-        cell: ({ row }) => {
-            const order = row.original
-            return (
-                <div className="flex items-center gap-2">
-                    <FileTextIcon className="h-4 w-4 text-blue-500" />
-                    <span className="font-medium">{order.soNumber}</span>
-                    {order.type === "SUPPORT" && (
-                        <Badge variant="outline" className="border-green-500 text-green-600">
-                            Support
-                        </Badge>
-                    )}
-                </div>
-            )
-        },
-    },
-    {
-        accessorKey: "customer.name",
-        header: ({ column }) => (
-            <DataTableColumnHeader column={column} title="Customer" />
-        ),
-        cell: ({ row }) => {
-            const order = row.original
-            return (
-                <div className="flex items-center gap-2">
-                    <BuildingIcon className="h-4 w-4 text-purple-500" />
-                    <span>{order.customer.name}</span>
-                </div>
-            )
-        },
-    },
-    {
-        accessorKey: "soDate",
-        header: ({ column }) => (
-            <DataTableColumnHeader column={column} title="Date" />
-        ),
-        cell: ({ row }) => {
-            const order = row.original
-            return (
-                <div className="flex items-center gap-2">
-                    <CalendarIcon className="h-4 w-4 text-amber-500" />
-                    <span>{format(new Date(order.soDate), "dd MMM yyyy")}</span>
-                </div>
-            )
-        },
-    },
-    {
-        id: "total",
-        header: ({ column }) => (
-            <DataTableColumnHeader column={column} title="Total" />
-        ),
-        cell: ({ row }) => {
-            const order = row.original
-            const total = order.items.reduce((sum, item) => {
-                const itemQty = new Decimal(item.qty.toString())
-                const itemPrice = new Decimal(item.unitPrice.toString())
-                return sum.plus(itemQty.times(itemPrice))
-            }, new Decimal(0))
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem
+                    className="cursor-pointer gap-2"
+                    onClick={handleViewDetails}
+                >
+                    <Eye className="h-4 w-4" />
+                    View Details
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                    className="cursor-pointer gap-2"
+                    onClick={handleEditOrder}
+                >
+                    <Edit className="h-4 w-4" />
+                    Edit Order
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                    className="text-red-600 focus:text-red-600 cursor-pointer gap-2"
+                    onClick={handleDeleteOrder}
+                >
+                    <MinusCircle className="h-4 w-4" />
+                    Delete
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
+    )
+}
 
-            return (
-                <div className="flex items-center gap-2 font-medium">
-                    <DollarSignIcon className="h-4 w-4 text-green-500" />
-                    <span>
-                        {total.toDecimalPlaces(2).toString()}
-                    </span>
-                </div>
-            )
-        },
-    },
-    {
-        accessorKey: "status",
-        header: ({ column }) => (
-            <DataTableColumnHeader column={column} title="Status" />
-        ),
-        cell: ({ row }) => {
-            // ... (your existing status logic remains unchanged)
-            const order = row.original
-            const document = order.document
+// Mobile Card View
+function MobileSalesOrderCard({ order, onExpand }: { order: SalesOrder; onExpand: () => void }) {
+    const total = order.items.reduce((sum, item) => {
+        const itemQty = new Decimal(item.qty ?? 0)
+        const itemPrice = new Decimal(item.unitPrice ?? 0)
+        return sum.plus(itemQty.times(itemPrice))
+    }, new Decimal(0))
 
-            if (!document) {
-                return (
-                    <Badge variant="outline" className="bg-gray-100 text-gray-600">
-                        <ClockIcon className="mr-1 h-3 w-3" />
-                        Draft
-                    </Badge>
-                )
-            }
-            if (document.isInvoice && document.isPaymentStatus) {
-                return (
-                    <Badge variant="outline" className="bg-green-100 text-green-600">
-                        <CheckCircleIcon className="mr-1 h-3 w-3" />
-                        Paid
-                    </Badge>
-                )
-            }
-            if (document.isInvoice) {
-                return (
-                    <Badge variant="outline" className="bg-blue-100 text-blue-600">
-                        <FileIcon className="mr-1 h-3 w-3" />
-                        Invoiced
-                    </Badge>
-                )
-            }
-            if (document.isPo) {
-                return (
-                    <Badge variant="outline" className="bg-purple-100 text-purple-600">
-                        <FileTextIcon className="mr-1 h-3 w-3" />
-                        PO Received
-                    </Badge>
-                )
-            }
-            if (document.isOffer) {
-                return (
-                    <Badge variant="outline" className="bg-amber-100 text-amber-600">
-                        <FileTextIcon className="mr-1 h-3 w-3" />
-                        Quotation
-                    </Badge>
-                )
-            }
-            return (
-                <Badge variant="outline" className="bg-gray-100 text-gray-600">
-                    <ClockIcon className="mr-1 h-3 w-3" />
-                    Draft
+    const formattedTotal = new Intl.NumberFormat("id-ID", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    }).format(total.toNumber())
+
+    const docs = Array.isArray(order?.documents) ? order.documents : [];
+    const hasPaid = docs.some((d) => d.docType === "PAYMENT_RECEIPT");
+    const hasInvoice = docs.some((d) => d.docType === "INVOICE");
+
+    return (
+        <div className="border rounded-lg p-4 bg-white dark:bg-slate-800 shadow-sm">
+            <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/50">
+                        <FileTextIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div>
+                        <p className="font-semibold text-base">{order.soNumber}</p>
+                        <p className="text-xs text-muted-foreground">
+                            {format(new Date(order.soDate), "dd MMM yyyy")}
+                        </p>
+                    </div>
+                </div>
+                <Badge className={cn(
+                    "text-xs",
+                    hasPaid ? "bg-green-100 text-green-700" :
+                    hasInvoice ? "bg-blue-100 text-blue-700" :
+                    "bg-gray-100 text-gray-700"
+                )}>
+                    {hasPaid ? "Paid" : hasInvoice ? "Invoiced" : "Draft"}
                 </Badge>
-            )
-        },
-    },
-    {
-        id: "actions",
-        cell: ({ row }) => {
-            const order = row.original
+            </div>
 
-            function handleEditOrder(order: SalesOrder) {
-                console.log("Edit order:", order)
-            }
-            function handleDeleteOrder(orderId: string) {
-                console.log("Delete order:", orderId)
-            }
+            <div className="space-y-2 mb-3">
+                <div className="flex items-center gap-2">
+                    <FaToolbox className="h-4 w-4 text-red-500" />
+                    <span className="text-sm font-medium">{order.project?.name || "No Project"}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <UserCheck2Icon className="h-4 w-4 text-purple-500" />
+                    <span className="text-sm">{order.customer.name}</span>
+                </div>
+            </div>
 
-            return (
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button
-                            variant="ghost"
-                            className="h-8 w-8 p-0"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <span className="sr-only">Open menu</span>
-                            <DotsHorizontalIcon className="h-4 w-4" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-40">
-                        {/* MODIFIED: Use the expander button instead of a menu item */}
-                        <DropdownMenuItem
-                            onClick={() => row.toggleExpanded(!row.getIsExpanded())}
-                        >
-                            {row.getIsExpanded() ? "Hide Details" : "View Details"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                            onClick={() => handleEditOrder(order)}
-                        >
-                            Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                            className="text-red-600 focus:text-red-600"
-                            onClick={() => handleDeleteOrder(order.id)}
-                        >
-                            Delete
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            )
-        },
-    },
-]
-
+            <div className="flex items-center justify-between border-t pt-3">
+                <div>
+                    <p className="text-xs text-muted-foreground">Total Amount</p>
+                    <p className="font-semibold text-green-600">Rp {formattedTotal}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={onExpand}
+                        className="text-xs h-8"
+                    >
+                        <Eye className="h-3 w-3 mr-1" />
+                        View
+                    </Button>
+                    <ActionsCell order={order} />
+                </div>
+            </div>
+        </div>
+    )
+}
 
 export function SalesOrderTable({ salesOrders, isLoading }: SalesOrderTableProps) {
     const [searchTerm, setSearchTerm] = React.useState("")
     const [currentPage, setCurrentPage] = React.useState(1)
+    const [sorting, setSorting] = React.useState<SortingState>([])
     const itemsPerPage = 10
-    const [expanded, setExpanded] = React.useState<ExpandedState>({}) // NEW: State for expanded rows
+    const [expanded, setExpanded] = React.useState<ExpandedState>({})
+    // const router = useRouter()
+    const isMobile = useMediaQuery("(max-width: 768px)")
+
+    const columns: ColumnDef<SalesOrder>[] = React.useMemo(() => [
+        {
+            accessorKey: "soNumber",
+            header: ({ column }) => (
+                <DataTableColumnHeader column={column} title="SO Number" />
+            ),
+            cell: ({ row }) => {
+                const order = row.original
+                return (
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-center h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/50">
+                            <FileTextIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div>
+                            <p className="font-medium text-base">{order.soNumber}</p>
+                            <p className="text-sm text-muted-foreground">
+                                {format(new Date(order.soDate), "dd MMM yyyy")}
+                            </p>
+                        </div>
+                    </div>
+                )
+            },
+        },
+        {
+            accessorKey: "project.name",
+            header: ({ column }) => (
+                <DataTableColumnHeader column={column} title="Project" />
+            ),
+            cell: ({ row }) => {
+                const order = row.original
+                return (
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-center h-10 w-10 rounded-full bg-red-100 dark:bg-red-900/50">
+                            <FaToolbox className="h-5 w-5 text-red-600 dark:text-red-400" />
+                        </div>
+                        <div>
+                            <p className="font-medium">{order.project?.name || "No Project"}</p>
+                            <p className="text-sm text-muted-foreground">
+                                {order.customer.name}
+                            </p>
+                        </div>
+                    </div>
+                )
+            },
+        },
+        {
+            accessorKey: "status",
+            header: ({ column }) => (
+                <DataTableColumnHeader column={column} title="Status" />
+            ),
+            cell: ({ row }) => {
+                const order = row.original
+                const docs = Array.isArray(order?.documents) ? order.documents : [];
+                const has = (t: "QUOTATION" | "PO" | "BAP" | "INVOICE" | "PAYMENT_RECEIPT") =>
+                    docs.some((d) => d.docType === t);
+
+                if (has("PAYMENT_RECEIPT")) {
+                    return (
+                        <Badge className="bg-green-100 text-green-700 hover:bg-green-200 border-green-200">
+                            <CheckCircle2 className="mr-1 h-3 w-3" />
+                            Paid
+                        </Badge>
+                    );
+                }
+
+                if (has("INVOICE")) {
+                    return (
+                        <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200">
+                            <ReceiptText className="mr-1 h-3 w-3" />
+                            Invoiced
+                        </Badge>
+                    );
+                }
+
+                const label = (order?.status ?? "DRAFT").replaceAll("_", " ");
+                return (
+                    <Badge variant="outline" className="capitalize">
+                        {label.toLowerCase()}
+                    </Badge>
+                );
+            },
+        },
+        {
+            id: "total",
+            header: ({ column }) => (
+                <DataTableColumnHeader column={column} title="Total Amount" />
+            ),
+            cell: ({ row }) => {
+                const order = row.original
+                const total = order.items.reduce((sum, item) => {
+                    const itemQty = new Decimal(item.qty ?? 0)
+                    const itemPrice = new Decimal(item.unitPrice ?? 0)
+                    return sum.plus(itemQty.times(itemPrice))
+                }, new Decimal(0))
+
+                const formatted = new Intl.NumberFormat("id-ID", {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0,
+                }).format(total.toNumber())
+
+                return (
+                    <div className="text-right">
+                        <p className="font-semibold text-green-600">Rp {formatted}</p>
+                        <p className="text-xs text-muted-foreground">
+                            {order.items.length} item{order.items.length !== 1 ? 's' : ''}
+                        </p>
+                    </div>
+                )
+            },
+        },
+        {
+            id: "actions",
+            header: () => <span className="sr-only">Actions</span>,
+            cell: ({ row }) => {
+                return (
+                    <div className="flex justify-end gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => row.toggleExpanded(!row.getIsExpanded())}
+                            className="flex items-center gap-2 cursor-pointer"
+                        >
+                            <Eye className="h-4 w-4" />
+                            {row.getIsExpanded() ? "Hide" : "View"}
+                        </Button>
+                        <ActionsCell order={row.original} />
+                    </div>
+                )
+            },
+        },
+    ], [])
 
     const filteredSalesOrders = React.useMemo(() => {
         return salesOrders.filter((order) => {
             return (
                 order.soNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                order.project?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 order.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (order.poNumber && order.poNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
                 order.type.toLowerCase().includes(searchTerm.toLowerCase())
             )
         })
@@ -357,96 +662,234 @@ export function SalesOrderTable({ salesOrders, isLoading }: SalesOrderTableProps
     const table = useReactTable({
         data: paginatedOrders,
         columns,
-        state: { // NEW: Pass expanded state to the table
+        state: {
             expanded,
+            sorting,
         },
-        onExpandedChange: setExpanded, // NEW: Handle state changes
+        onExpandedChange: setExpanded,
+        onSortingChange: setSorting,
         getCoreRowModel: getCoreRowModel(),
-        getExpandedRowModel: getExpandedRowModel(), // NEW: Enable the expanded row model
-        getRowId: (row) => row.id, // NEW: Important for stable expansion
+        getExpandedRowModel: getExpandedRowModel(),
+        getSortedRowModel: getSortedRowModel(),
+        getRowId: (row) => row.id,
     })
 
-    return (
-        <Card className="border-none shadow-sm">
-            <CardHeader className="flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0">
-                <div className="flex items-center space-x-2">
-                    <ShoppingCartIcon className="h-6 w-6 text-primary" />
-                    <CardTitle>Sales Orders</CardTitle>
-                </div>
-                <div className="flex w-full flex-col space-y-2 sm:flex-row sm:space-x-2 sm:space-y-0 md:w-auto">
-                    <div className="relative w-full sm:w-64">
-                        <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
-                        <Input
-                            placeholder="Search orders..."
-                            className="w-full pl-9"
-                            value={searchTerm}
-                            onChange={(e) => {
-                                setSearchTerm(e.target.value)
-                                setCurrentPage(1)
-                            }}
-                        />
+    if (isMobile) {
+        return (
+            <Card className="border-none shadow-lg">
+                <CardHeader className="bg-gradient-to-r from-primary/5 to-blue-100 dark:from-slate-800 dark:to-slate-900">
+                    <div className="flex flex-col space-y-4">
+                        <div className="flex items-center space-x-3">
+                            <div className="flex items-center justify-center h-12 w-12 rounded-full bg-primary">
+                                <ShoppingCartIcon className="h-6 w-6 text-primary-foreground" />
+                            </div>
+                            <div>
+                                <CardTitle className="text-xl">Sales Orders</CardTitle>
+                                <p className="text-sm text-muted-foreground">
+                                    Manage sales orders
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex flex-col space-y-2">
+                            <div className="relative">
+                                <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
+                                <Input
+                                    placeholder="Search orders..."
+                                    className="w-full pl-9"
+                                    value={searchTerm}
+                                    onChange={(e) => {
+                                        setSearchTerm(e.target.value)
+                                        setCurrentPage(1)
+                                    }}
+                                />
+                            </div>
+                            <Link href="/super-admin-area/sales/salesOrder/create" passHref>
+                                <Button className="bg-primary hover:bg-primary/90 w-full">
+                                    <PlusCircleIcon className="mr-2 h-4 w-4" />
+                                    New Order
+                                </Button>
+                            </Link>
+                        </div>
                     </div>
-                    <Link href="/super-admin-area/sales/salesOrder/create" passHref>
-                        <Button className="shrink-0">
-                            <PlusCircleIcon className="mr-2 h-4 w-4" />
-                            Add Sales Order
-                        </Button>
-                    </Link>
-                </div>
-            </CardHeader>
-            <CardContent>
-                {isLoading ? (
-                    <div className="space-y-4 px-4 py-6">
-                        <div className="space-y-4 px-4 py-6">
+                </CardHeader>
+                <CardContent className="p-4">
+                    {isLoading ? (
+                        <div className="space-y-4">
                             {[...Array(5)].map((_, i) => (
-                                <div key={i} className="flex items-center space-x-4">
-                                    <div className="space-y-2 flex-grow">
-                                        <Skeleton className="h-4 w-3/4" />
-                                        <Skeleton className="h-4 w-1/2" />
+                                <div key={i} className="border rounded-lg p-4 bg-white">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-3">
+                                            <Skeleton className="h-10 w-10 rounded-full" />
+                                            <div className="space-y-2">
+                                                <Skeleton className="h-4 w-32" />
+                                                <Skeleton className="h-3 w-24" />
+                                            </div>
+                                        </div>
+                                        <Skeleton className="h-6 w-16" />
                                     </div>
-                                    <Skeleton className="h-8 w-24" />
-                                    <Skeleton className="h-8 w-8" />
+                                    <Skeleton className="h-4 w-full mb-2" />
+                                    <Skeleton className="h-4 w-3/4 mb-3" />
+                                    <div className="flex justify-between items-center border-t pt-3">
+                                        <Skeleton className="h-4 w-20" />
+                                        <div className="flex gap-2">
+                                            <Skeleton className="h-8 w-16" />
+                                            <Skeleton className="h-8 w-8" />
+                                        </div>
+                                    </div>
                                 </div>
                             ))}
                         </div>
+                    ) : (
+                        <>
+                            <div className="space-y-4">
+                                {paginatedOrders.map((order) => (
+                                    <MobileSalesOrderCard
+                                        key={order.id}
+                                        order={order}
+                                        onExpand={() => {
+                                            const row = table.getRow(order.id)
+                                            if (row) {
+                                                row.toggleExpanded(!row.getIsExpanded())
+                                            }
+                                        }}
+                                    />
+                                ))}
+                            </div>
+
+                            {totalPages > 1 && (
+                                <div className="flex items-center justify-between pt-4 border-t mt-4">
+                                    <p className="text-xs text-muted-foreground">
+                                        Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredSalesOrders.length)} of {filteredSalesOrders.length} orders
+                                    </p>
+                                    <Pagination>
+                                        <PaginationContent>
+                                            <PaginationItem>
+                                                <PaginationPrevious
+                                                    onClick={(e) => {
+                                                        e.preventDefault()
+                                                        setCurrentPage((prev) => Math.max(prev - 1, 1))
+                                                    }}
+                                                    className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                                                />
+                                            </PaginationItem>
+                                            <PaginationItem>
+                                                <span className="px-2 text-xs">
+                                                    {currentPage}/{totalPages}
+                                                </span>
+                                            </PaginationItem>
+                                            <PaginationItem>
+                                                <PaginationNext
+                                                    onClick={(e) => {
+                                                        e.preventDefault()
+                                                        setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                                                    }}
+                                                    className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                                                />
+                                            </PaginationItem>
+                                        </PaginationContent>
+                                    </Pagination>
+                                </div>
+                            )}
+                        </>
+                    )}
+                </CardContent>
+            </Card>
+        )
+    }
+
+    return (
+        <Card className="border-none shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-primary/5 to-blue-100 dark:from-slate-800 dark:to-slate-900">
+                <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
+                    <div className="flex items-center space-x-3">
+                        <div className="flex items-center justify-center h-12 w-12 rounded-full bg-primary">
+                            <ShoppingCartIcon className="h-6 w-6 text-primary-foreground" />
+                        </div>
+                        <div>
+                            <CardTitle className="text-2xl">Sales Orders</CardTitle>
+                            <p className="text-sm text-muted-foreground">
+                                Manage and track all sales orders
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex flex-col space-y-2 sm:flex-row sm:space-x-2 sm:space-y-0">
+                        <div className="relative">
+                            <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
+                            <Input
+                                placeholder="Search orders..."
+                                className="w-full pl-9 sm:w-64"
+                                value={searchTerm}
+                                onChange={(e) => {
+                                    setSearchTerm(e.target.value)
+                                    setCurrentPage(1)
+                                }}
+                            />
+                        </div>
+                        <Link href="/super-admin-area/sales/salesOrder/create" passHref>
+                            <Button className="bg-primary hover:bg-primary/90">
+                                <PlusCircleIcon className="mr-2 h-4 w-4" />
+                                New Order
+                            </Button>
+                        </Link>
+                    </div>
+                </div>
+            </CardHeader>
+            <CardContent className="p-0">
+                {isLoading ? (
+                    <div className="space-y-4 p-6">
+                        {[...Array(5)].map((_, i) => (
+                            <div key={i} className="flex items-center space-x-4 p-4 border rounded-lg">
+                                <Skeleton className="h-12 w-12 rounded-full" />
+                                <div className="space-y-2 flex-grow">
+                                    <Skeleton className="h-4 w-48" />
+                                    <Skeleton className="h-3 w-32" />
+                                </div>
+                                <Skeleton className="h-6 w-20" />
+                                <Skeleton className="h-8 w-24" />
+                                <Skeleton className="h-8 w-8" />
+                            </div>
+                        ))}
                     </div>
                 ) : (
                     <>
-                        <div className="rounded-md border">
+                        <div className="rounded-b-lg">
                             <Table>
-                                <TableHeader>
+                                <TableHeader className="bg-muted/50">
                                     {table.getHeaderGroups().map((headerGroup) => (
                                         <TableRow key={headerGroup.id}>
-                                            {headerGroup.headers.map((header) => {
-                                                return (
-                                                    <TableHead key={header.id}>
-                                                        {header.isPlaceholder
-                                                            ? null
-                                                            : flexRender(
-                                                                header.column.columnDef.header,
-                                                                header.getContext()
-                                                            )}
-                                                    </TableHead>
-                                                )
-                                            })}
+                                            {headerGroup.headers.map((header) => (
+                                                <TableHead key={header.id} className="py-4 font-semibold">
+                                                    {header.isPlaceholder
+                                                        ? null
+                                                        : flexRender(header.column.columnDef.header, header.getContext())}
+                                                </TableHead>
+                                            ))}
                                         </TableRow>
                                     ))}
                                 </TableHeader>
+
                                 <TableBody>
-                                    {table.getRowModel().rows?.length ? (
+                                    {table.getRowModel().rows.length ? (
                                         table.getRowModel().rows.map((row) => (
                                             <React.Fragment key={row.id}>
-                                                <TableRow data-state={row.getIsSelected() && "selected"}>
+                                                <TableRow 
+                                                    data-state={row.getIsSelected() && "selected"}
+                                                    className="cursor-pointer hover:bg-muted/30"
+                                                    onClick={() => row.toggleExpanded(!row.getIsExpanded())}
+                                                >
                                                     {row.getVisibleCells().map((cell) => (
-                                                        <TableCell key={cell.id}>
+                                                        <TableCell key={cell.id} className="py-4">
                                                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
                                                         </TableCell>
                                                     ))}
                                                 </TableRow>
-                                                {/* NEW: Render expanded content */}
+
                                                 {row.getIsExpanded() && (
-                                                    <TableRow>
-                                                        <TableCell colSpan={columns.length} className="p-0">
+                                                    <TableRow key={`${row.id}-expanded`}>
+                                                        <TableCell
+                                                            colSpan={table.getVisibleLeafColumns().length}
+                                                            className="p-0 border-b-2 border-primary/20"
+                                                        >
                                                             <SalesOrderDetail order={row.original} />
                                                         </TableCell>
                                                     </TableRow>
@@ -456,10 +899,24 @@ export function SalesOrderTable({ salesOrders, isLoading }: SalesOrderTableProps
                                     ) : (
                                         <TableRow>
                                             <TableCell
-                                                colSpan={columns.length}
-                                                className="h-24 text-center"
+                                                colSpan={table.getVisibleLeafColumns().length}
+                                                className="h-24 text-center text-muted-foreground p-6"
                                             >
-                                                No results found.
+                                                <div className="flex flex-col items-center justify-center py-8">
+                                                    <ShoppingCartIcon className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                                                    <p className="text-lg font-medium">No orders found</p>
+                                                    <p className="text-sm text-muted-foreground mb-4">
+                                                        {searchTerm ? "Try adjusting your search query" : "Get started by creating a new sales order"}
+                                                    </p>
+                                                    {!searchTerm && (
+                                                        <Link href="/super-admin-area/sales/salesOrder/create" passHref>
+                                                            <Button>
+                                                                <PlusCircleIcon className="mr-2 h-4 w-4" />
+                                                                Create Order
+                                                            </Button>
+                                                        </Link>
+                                                    )}
+                                                </div>
                                             </TableCell>
                                         </TableRow>
                                     )}
@@ -468,44 +925,37 @@ export function SalesOrderTable({ salesOrders, isLoading }: SalesOrderTableProps
                         </div>
 
                         {totalPages > 1 && (
-                            <div className="mt-4 flex justify-center">
-                                {totalPages > 1 && (
-                                    <div className="mt-4 flex justify-center">
-                                        <Pagination>
-                                            <PaginationContent>
-                                                <PaginationItem>
-                                                    <PaginationPrevious
-                                                        onClick={(e) => {
-                                                            e.preventDefault()
-                                                            setCurrentPage(prev => Math.max(prev - 1, 1))
-                                                        }}
-                                                        className={
-                                                            currentPage === 1 ? "pointer-events-none opacity-50" : undefined
-                                                        }
-                                                    />
-                                                </PaginationItem>
-                                                <PaginationItem>
-                                                    <span className="px-4 text-sm">
-                                                        Page {currentPage} of {totalPages}
-                                                    </span>
-                                                </PaginationItem>
-                                                <PaginationItem>
-                                                    <PaginationNext
-                                                        onClick={(e) => {
-                                                            e.preventDefault()
-                                                            setCurrentPage(prev => Math.min(prev + 1, totalPages))
-                                                        }}
-                                                        className={
-                                                            currentPage === totalPages
-                                                                ? "pointer-events-none opacity-50"
-                                                                : undefined
-                                                        }
-                                                    />
-                                                </PaginationItem>
-                                            </PaginationContent>
-                                        </Pagination>
-                                    </div>
-                                )}
+                            <div className="flex items-center justify-between p-4 border-t">
+                                <p className="text-sm text-muted-foreground">
+                                    Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredSalesOrders.length)} of {filteredSalesOrders.length} orders
+                                </p>
+                                <Pagination>
+                                    <PaginationContent>
+                                        <PaginationItem>
+                                            <PaginationPrevious
+                                                onClick={(e) => {
+                                                    e.preventDefault()
+                                                    setCurrentPage((prev) => Math.max(prev - 1, 1))
+                                                }}
+                                                className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                                            />
+                                        </PaginationItem>
+                                        <PaginationItem>
+                                            <span className="px-4 text-sm">
+                                                Page {currentPage} of {totalPages}
+                                            </span>
+                                        </PaginationItem>
+                                        <PaginationItem>
+                                            <PaginationNext
+                                                onClick={(e) => {
+                                                    e.preventDefault()
+                                                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                                                }}
+                                                className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                                            />
+                                        </PaginationItem>
+                                    </PaginationContent>
+                                </Pagination>
                             </div>
                         )}
                     </>
