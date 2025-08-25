@@ -47,7 +47,7 @@ export default function DashboardPage() {
           <BreadcrumbList>
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link href="#" className="flex items-center gap-1.5 sm:gap-2">
+                <Link href="#" className="flex items-center gap-1.5 sm:gap-2 pl-2">
                   <Home className="h-4 w-4 text-gray-500 sm:h-4 sm:w-4" />
                   <span className="text-sm sm:text-base">Home</span>
                 </Link>
@@ -66,15 +66,18 @@ export default function DashboardPage() {
         <div className="flex items-start sm:items-center justify-between">
           <div>
             {/* 👇 judul lebih kecil di mobile, naik di breakpoint */}
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight leading-tight">
+            <h1 className="pl-2 text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight leading-tight">
               Dashboard Super Admin
             </h1>
 
             {/* 👇 teks sambutan responsif + ikon mengecil di mobile */}
-            <p className="text-xs sm:text-sm md:text-base text-muted-foreground mt-1 flex items-center gap-1.5 sm:gap-2">
+            <p className="pl-2 text-xs sm:text-sm md:text-base text-muted-foreground mt-1 flex items-center gap-1.5 sm:gap-2">
               <UserCircle className="h-4 w-4 text-green-500 sm:h-5 sm:w-5" />
               Selamat datang kembali,&nbsp;
-              <span className="font-bold bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+              {/* <span className="font-bold bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+                {user?.name}!
+              </span> */}
+              <span className="shine-text font-bold">
                 {user?.name}!
               </span>
               <span className="hidden xs:inline">(Role: {user?.role})</span>
