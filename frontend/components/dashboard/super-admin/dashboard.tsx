@@ -205,25 +205,25 @@ export default function DashboardAwalSalesOrder() {
     };
 
     return (
-        <div className="min-h-screen bg-muted/20 p-4 md:p-6 lg:p-8">
+        <div className="min-h-screen bg-muted/20 p-3 md:p-6 lg:p-8">
             {/* Header */}
             <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                    <h1 className="text-2xl md:text-3xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                         Dashboard Sales
                     </h1>
-                    <p className="text-muted-foreground mt-2">
+                    <p className="text-muted-foreground mt-2 text-sm md:text-base">
                         Ringkasan performa penjualan dan aktivitas terkini
                     </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                    <Button asChild className="gap-2 bg-blue-600 hover:bg-blue-700">
+                    <Button asChild className="gap-2 bg-blue-600 hover:bg-blue-700 text-xs md:text-sm">
                         <Link href="/super-admin-area/sales/salesOrder/create">
                             <FilePlus2 className="h-4 w-4" />
                             Buat Sales Order
                         </Link>
                     </Button>
-                    <Button variant="outline" asChild className="gap-2">
+                    <Button variant="outline" asChild className="gap-2 text-xs md:text-sm">
                         <Link href="/super-admin-area/sales/salesOrder">
                             <Eye className="h-4 w-4" />
                             Lihat Semua
@@ -277,15 +277,15 @@ export default function DashboardAwalSalesOrder() {
                     <CardHeader className="pb-3 bg-muted/30 rounded-t-lg">
                         <div className="flex items-center justify-between">
                             <div>
-                                <CardTitle className="text-lg flex items-center gap-2">
+                                <CardTitle className="text-base md:text-lg flex items-center gap-2">
                                     <Calendar className="h-5 w-5 text-blue-600" />
                                     Sales Order Terbaru
                                 </CardTitle>
-                                <CardDescription>
+                                <CardDescription className="text-xs md:text-sm">
                                     5 sales order terbaru yang dibuat
                                 </CardDescription>
                             </div>
-                            <Button variant="ghost" size="sm" asChild>
+                            <Button variant="ghost" size="sm" asChild className="text-xs md:text-sm">
                                 <Link href="/super-admin-area/sales/salesOrder" className="text-blue-600 hover:text-blue-800">
                                     Lihat semua
                                 </Link>
@@ -304,22 +304,22 @@ export default function DashboardAwalSalesOrder() {
                                 Belum ada data sales order.
                             </div>
                         ) : (
-                            <div className="rounded-b-lg">
-                                <Table>
+                            <div className="rounded-b-lg overflow-x-auto">
+                                <Table className="min-w-[600px]">
                                     <TableHeader className="bg-muted/10">
                                         <TableRow>
-                                            <TableHead className="w-[140px]">Nomor SO</TableHead>
-                                            <TableHead className="w-[100px]">Tanggal</TableHead>
-                                            <TableHead>Customer</TableHead>
-                                            <TableHead className="text-right">Total</TableHead>
-                                            <TableHead className="w-[120px]">Status</TableHead>
-                                            <TableHead className="w-[60px]"></TableHead>
+                                            <TableHead className="w-[140px] text-xs md:text-sm">Nomor SO</TableHead>
+                                            <TableHead className="w-[100px] text-xs md:text-sm">Tanggal</TableHead>
+                                            <TableHead className="text-xs md:text-sm">Customer</TableHead>
+                                            <TableHead className="text-right text-xs md:text-sm">Total</TableHead>
+                                            <TableHead className="w-[120px] text-xs md:text-sm">Status</TableHead>
+                                            <TableHead className="w-[60px] text-xs md:text-sm"></TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {recentOrders.map((o) => (
                                             <TableRow key={o.id} className="hover:bg-muted/20 border-b-0">
-                                                <TableCell className="font-medium">
+                                                <TableCell className="font-medium text-xs md:text-sm">
                                                     <Link
                                                         href={`/super-admin-area/sales/salesOrder/${o.id}`}
                                                         className="underline-offset-4 hover:underline text-blue-600 hover:text-blue-800"
@@ -327,16 +327,16 @@ export default function DashboardAwalSalesOrder() {
                                                         {o.soNumber}
                                                     </Link>
                                                 </TableCell>
-                                                <TableCell>{formatDate(o.soDate)}</TableCell>
-                                                <TableCell>{o.customer?.name ?? "-"}</TableCell>
-                                                <TableCell className="text-right font-medium">{formatIDR(o.grandTotal)}</TableCell>
+                                                <TableCell className="text-xs md:text-sm">{formatDate(o.soDate)}</TableCell>
+                                                <TableCell className="text-xs md:text-sm">{o.customer?.name ?? "-"}</TableCell>
+                                                <TableCell className="text-right font-medium text-xs md:text-sm">{formatIDR(o.grandTotal)}</TableCell>
                                                 <TableCell>
                                                     <StatusBadge status={o.status} />
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Button variant="ghost" size="icon" asChild>
+                                                    <Button variant="ghost" size="icon" asChild className="h-8 w-8">
                                                         <Link href={`/super-admin-area/sales/salesOrder/${o.id}`}>
-                                                            <ArrowUpRight className="h-4 w-4" />
+                                                            <ArrowUpRight className="h-3 w-3 md:h-4 md:w-4" />
                                                         </Link>
                                                     </Button>
                                                 </TableCell>
@@ -354,25 +354,25 @@ export default function DashboardAwalSalesOrder() {
                     {/* Quick Actions */}
                     <Card className="shadow-md border-0 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30">
                         <CardHeader>
-                            <CardTitle className="text-lg flex items-center gap-2">
+                            <CardTitle className="text-base md:text-lg flex items-center gap-2">
                                 <FilePlus2 className="h-5 w-5 text-blue-600" />
                                 Aksi Cepat
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3">
-                            <Button className="w-full justify-start gap-2 h-11" asChild>
+                            <Button className="w-full justify-start gap-2 h-11 text-xs md:text-sm" asChild>
                                 <Link href="/super-admin-area/sales/salesOrder/create">
                                     <FilePlus2 className="h-4 w-4" />
                                     Buat Sales Order Baru
                                 </Link>
                             </Button>
-                            <Button variant="outline" className="w-full justify-start gap-2 h-11" asChild>
+                            <Button variant="outline" className="w-full justify-start gap-2 h-11 text-xs md:text-sm" asChild>
                                 <Link href="/super-admin-area/master/customer/create">
                                     <Users2 className="h-4 w-4" />
                                     Tambah Pelanggan Baru
                                 </Link>
                             </Button>
-                            <Button variant="outline" className="w-full justify-start gap-2 h-11" asChild>
+                            <Button variant="outline" className="w-full justify-start gap-2 h-11 text-xs md:text-sm" asChild>
                                 <Link href="/super-admin-area/master/product/create">
                                     <Package className="h-4 w-4" />
                                     Tambah Produk Baru
@@ -384,7 +384,7 @@ export default function DashboardAwalSalesOrder() {
                     {/* Sales Stats */}
                     <Card className="shadow-md border-0">
                         <CardHeader>
-                            <CardTitle className="text-lg flex items-center gap-2">
+                            <CardTitle className="text-base md:text-lg flex items-center gap-2">
                                 <TrendingUp className="h-5 w-5 text-green-600" />
                                 Performa Penjualan
                             </CardTitle>
@@ -399,20 +399,20 @@ export default function DashboardAwalSalesOrder() {
                             ) : salesStats ? (
                                 <>
                                     <div className="flex justify-between items-center">
-                                        <span className="text-sm text-muted-foreground">Pending Orders</span>
-                                        <span className="font-semibold">{salesStats.pendingOrders}</span>
+                                        <span className="text-xs md:text-sm text-muted-foreground">Pending Orders</span>
+                                        <span className="font-semibold text-xs md:text-sm">{salesStats.pendingOrders}</span>
                                     </div>
                                     <div className="flex justify-between items-center">
-                                        <span className="text-sm text-muted-foreground">Conversion Rate</span>
-                                        <span className="font-semibold">{salesStats.conversionRate}%</span>
+                                        <span className="text-xs md:text-sm text-muted-foreground">Conversion Rate</span>
+                                        <span className="font-semibold text-xs md:text-sm">{salesStats.conversionRate}%</span>
                                     </div>
                                     <div className="flex justify-between items-center">
-                                        <span className="text-sm text-muted-foreground">Bulan Lalu</span>
-                                        <span className="font-semibold">{formatIDR(salesStats.totalLastMonth)}</span>
+                                        <span className="text-xs md:text-sm text-muted-foreground">Bulan Lalu</span>
+                                        <span className="font-semibold text-xs md:text-sm">{formatIDR(salesStats.totalLastMonth)}</span>
                                     </div>
                                 </>
                             ) : (
-                                <div className="text-sm text-muted-foreground">Data tidak tersedia</div>
+                                <div className="text-xs md:text-sm text-muted-foreground">Data tidak tersedia</div>
                             )}
                         </CardContent>
                     </Card>
@@ -447,16 +447,16 @@ function StatCard({
     return (
         <Card className="overflow-hidden border-0 shadow-md transition-all hover:shadow-lg">
             <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-                <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+                <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">{title}</CardTitle>
                 <div className="h-8 w-8 rounded-full bg-muted/50 flex items-center justify-center">
                     {icon}
                 </div>
             </CardHeader>
             <CardContent>
                 {loading ? (
-                    <Skeleton className="h-8 w-24 mt-1" />
+                    <Skeleton className="h-6 md:h-8 w-20 md:w-24 mt-1" />
                 ) : (
-                    <div className="text-2xl font-bold">
+                    <div className="text-xl md:text-2xl font-bold">
                         {formatted && value !== null ? formatIDR(value) : value ?? "-"}
                     </div>
                 )}
@@ -471,7 +471,7 @@ function StatCard({
                     </div>
                 )}
                 {href && (
-                    <Button variant="link" className="px-0 mt-3 text-blue-600 hover:text-blue-800" asChild>
+                    <Button variant="link" className="px-0 mt-3 text-blue-600 hover:text-blue-800 text-xs md:text-sm" asChild>
                         <Link href={href}>Lihat detail</Link>
                     </Button>
                 )}

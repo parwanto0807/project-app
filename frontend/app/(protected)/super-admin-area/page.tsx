@@ -42,44 +42,46 @@ export default function DashboardPage() {
   return (
     <SuperLayout title="Dashboard Super Admin" role={user.role}>
       {/* SECTION: Page Header yang lebih elegan */}
-      <div className="space-y-4 mb-8">
+      <div className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link href="#" className="flex items-center gap-2">
-                  <Home className="h-4 w-4 text-gray-500" />
-                  Home
+                <Link href="#" className="flex items-center gap-1.5 sm:gap-2">
+                  <Home className="h-4 w-4 text-gray-500 sm:h-4 sm:w-4" />
+                  <span className="text-sm sm:text-base">Home</span>
                 </Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbPage className="flex items-center gap-2 font-semibold">
-                <LayoutDashboard className="h-4 w-4 text-blue-600" />
-                Dashboard
+              <BreadcrumbPage className="flex items-center gap-1.5 sm:gap-2 font-semibold">
+                <LayoutDashboard className="h-4 w-4 text-blue-600 sm:h-5 sm:w-5" />
+                <span className="text-sm sm:text-base">Dashboard</span>
               </BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
-        
-        <div className="flex items-center justify-between">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">
-                    Dashboard Super Admin
-                </h1>
-                <p className="text-muted-foreground mt-1 flex items-center gap-2">
-                    <UserCircle className="h-5 w-5 text-green-500" />
-                    Selamat datang kembali,{' '}
-                    <span className="font-bold bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-                      {user?.name}!
-                    </span>
-                    (Role: {user?.role})
-                </p>
-            </div>
+
+        <div className="flex items-start sm:items-center justify-between">
+          <div>
+            {/* 👇 judul lebih kecil di mobile, naik di breakpoint */}
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight leading-tight">
+              Dashboard Super Admin
+            </h1>
+
+            {/* 👇 teks sambutan responsif + ikon mengecil di mobile */}
+            <p className="text-xs sm:text-sm md:text-base text-muted-foreground mt-1 flex items-center gap-1.5 sm:gap-2">
+              <UserCircle className="h-4 w-4 text-green-500 sm:h-5 sm:w-5" />
+              Selamat datang kembali,&nbsp;
+              <span className="font-bold bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+                {user?.name}!
+              </span>
+              <span className="hidden xs:inline">(Role: {user?.role})</span>
+            </p>
+          </div>
         </div>
       </div>
-      {/* END SECTION */}
 
       {/* ✅ Konten utama dashboard */}
       <DashboardAwalSalesOrder />
