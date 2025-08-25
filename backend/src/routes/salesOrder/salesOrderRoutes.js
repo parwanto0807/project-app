@@ -135,4 +135,9 @@ router.post(
 );
 router.get("/project/getListProjects", getListProjects);
 
+router.get("/getRecentSalesOrders", salesOrder.getRecentSalesOrders);
+router.get("/getSalesOrderSummary", salesOrder.getSalesOrderSummary);
+router.get("/getSalesStats", salesOrder.getSalesStats);
+router.get("/getSalesOrderCount", salesOrder.getSalesOrderCount);
+
 export default router;

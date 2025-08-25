@@ -133,3 +133,13 @@ export const deleteCustomer = async (req, res) => {
     res.status(500).json({ message: "Gagal menghapus customer" });
   }
 };
+
+export async function getCustomerCount(req, res) {
+  try {
+    const count = await prisma.customer.count();
+    res.json({ count });
+  } catch (err) {
+    console.error("[getCustomerCount] error:", err);
+    res.status(500).json({ message: "Gagal mengambil jumlah customer" });
+  }
+}

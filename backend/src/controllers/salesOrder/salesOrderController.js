@@ -544,3 +544,339 @@ export async function remove(req, res) {
     });
   }
 }
+
+function parseParams(q) {
+  const period = (q.period || "month").toLowerCase(); // day|week|month|quarter|year
+  const tz = q.tz || "UTC";
+
+  const today = new Date();
+  const defaultEnd = today;
+  const defaultStart = new Date();
+  defaultStart.setMonth(defaultStart.getMonth() - 6); // default 6 bulan mundur
+
+  const start = q.start ? new Date(q.start) : defaultStart;
+  // end pakai 23:59:59 agar inklusif
+  const end = q.end ? new Date(q.end + "T23:59:59.999Z") : defaultEnd;
+
+  const status = typeof q.status === "string" && q.status.trim()
+    ? q.status.split(",").map(s => s.trim()).filter(Boolean)
+    : null;
+
+  const customerId = q.customerId || null;
+  const projectId = q.projectId || null;
+
+  return { period, tz, start, end, status, customerId, projectId };
+}
+
+// Map period → date_trunc key
+function periodToDateTrunc(period) {
+  switch (period) {
+    case "day": return "day";
+    case "week": return "week";
+    case "quarter": return "quarter";
+    case "year": return "year";
+    case "month":
+    default: return "month";
+  }
+}
+
+/**
+ * GET /api/salesOrder/summary
+ * Query:
+ *  - period=day|week|month|quarter|year (default: month)
+ *  - start=YYYY-MM-DD (default: 6 bulan lalu)
+ *  - end=YYYY-MM-DD (default: hari ini)
+ *  - tz=Asia/Jakarta (default: UTC)
+ *  - status=CONFIRMED,INVOICED (opsional)
+ *  - customerId / projectId (opsional)
+ *
+ * Response:
+ * [
+ *   { period: "2025-03", start: "2025-03-01T00:00:00.000Z", end: "2025-03-31T23:59:59.999Z", total: 12000000.00 },
+ *   ...
+ * ]
+ */
+export async function getSalesOrderSummary(req, res) {
+  const { period, tz, start, end, status, customerId, projectId } = parseParams(req.query);
+  const trunc = periodToDateTrunc(period);
+
+  try {
+    // Prefer raw SQL Postgres agar efisien (date_trunc + timezone)
+    // Catatan: Prisma membuat nama tabel sesuai model "SalesOrder" (quoted). Jika kamu pakai @@map, sesuaikan nama tabelnya.
+    const bindings = [];
+    let whereSql = `WHERE "soDate" >= $1 AND "soDate" <= $2`;
+    bindings.push(start);
+    bindings.push(end);
+
+    if (status && status.length) {
+      const placeholders = status.map((_, i) => `$${bindings.length + i + 1}`).join(", ");
+      whereSql += ` AND "status" IN (${placeholders})`;
+      bindings.push(...status);
+    }
+    if (customerId) {
+      whereSql += ` AND "customerId" = $${bindings.length + 1}`;
+      bindings.push(customerId);
+    }
+    if (projectId) {
+      whereSql += ` AND "projectId" = $${bindings.length + 1}`;
+      bindings.push(projectId);
+    }
+
+    // NOTE: soDate AT TIME ZONE 'tz' → date_trunc dilakukan pada zona waktu yang diinginkan
+    // Kita juga kirim kembali batas start/end masing-masing bucket sebagai UTC (start_ts/end_ts)
+    const raw = await prisma.$queryRawUnsafe(
+      `
+      SELECT
+        date_trunc($${bindings.length + 1}, "soDate" AT TIME ZONE $${bindings.length + 2}) AS bucket_local,
+        SUM("grandTotal")::numeric(18,2) AS total
+      FROM "SalesOrder"
+      ${whereSql}
+      GROUP BY 1
+      ORDER BY 1 ASC
+      `,
+      ...bindings,
+      trunc,
+      tz
+    );
+
+    // Bentuk respons rapi
+    // bucket_local adalah timestamp tanpa timezone di zona lokal; untuk aman, kita treat sebagai local dan buat label period.
+    const data = raw.map(row => {
+      const bucket = new Date(row.bucket_local); // interpretasi oleh node bisa sebagai UTC; untuk label cukup aman
+      const total = Number(row.total);
+
+      // label period sederhana
+      let periodLabel = "";
+      let bucketStart = new Date(bucket);
+      let bucketEnd = new Date(bucket);
+
+      switch (trunc) {
+        case "day": {
+          periodLabel = bucket.toISOString().slice(0, 10); // YYYY-MM-DD
+          // start = hari tsb, end = hari tsb 23:59:59.999
+          bucketEnd = new Date(bucketStart);
+          bucketEnd.setUTCHours(23, 59, 59, 999);
+          break;
+        }
+        case "week": {
+          // label: ISO week, tetapi sederhana: YYYY-Wxx (perkiraan)
+          const year = bucket.getUTCFullYear();
+          const month = bucket.getUTCMonth();
+          const date = bucket.getUTCDate();
+          periodLabel = `${year}-W?`; // jika butuh ISO week akurat, bisa dihitung khusus
+          // gunakan 7 hari window:
+          bucketEnd = new Date(bucketStart);
+          bucketEnd.setUTCDate(date + 6);
+          bucketEnd.setUTCHours(23, 59, 59, 999);
+          break;
+        }
+        case "quarter": {
+          const y = bucket.getUTCFullYear();
+          const q = Math.floor(bucket.getUTCMonth() / 3) + 1;
+          periodLabel = `${y}-Q${q}`;
+          // start = first day of quarter
+          const qStartMonth = (q - 1) * 3;
+          bucketStart = new Date(Date.UTC(y, qStartMonth, 1, 0, 0, 0, 0));
+          // end = last day of quarter
+          bucketEnd = new Date(Date.UTC(y, qStartMonth + 3, 0, 23, 59, 59, 999));
+          break;
+        }
+        case "year": {
+          const y = bucket.getUTCFullYear();
+          periodLabel = `${y}`;
+          bucketStart = new Date(Date.UTC(y, 0, 1, 0, 0, 0, 0));
+          bucketEnd = new Date(Date.UTC(y, 11, 31, 23, 59, 59, 999));
+          break;
+        }
+        case "month":
+        default: {
+          const y = bucket.getUTCFullYear();
+          const m = bucket.getUTCMonth() + 1;
+          periodLabel = `${y}-${String(m).padStart(2, "0")}`; // YYYY-MM
+          bucketStart = new Date(Date.UTC(y, m - 1, 1, 0, 0, 0, 0));
+          bucketEnd = new Date(Date.UTC(y, m, 0, 23, 59, 59, 999));
+          break;
+        }
+      }
+
+      return {
+        period: periodLabel,
+        start: bucketStart.toISOString(),
+        end: bucketEnd.toISOString(),
+        total,
+      };
+    });
+
+    res.json(data);
+  } catch (err) {
+    console.error("[getSalesOrderSummary] error:", err);
+
+    // Fallback: jika DB tidak support query raw (harusnya Postgres ok),
+    // lakukan agregasi di JS supaya tetap ada hasil.
+    try {
+      const where = {
+        soDate: { gte: start, lte: end },
+        ...(customerId ? { customerId } : {}),
+        ...(projectId ? { projectId } : {}),
+        ...(Array.isArray(status) && status.length ? { status: { in: status } } : {}),
+      };
+      const rows = await prisma.salesOrder.findMany({
+        where,
+        select: { soDate: true, grandTotal: true },
+        orderBy: { soDate: "asc" },
+      });
+
+      const groupKey = (d) => {
+        const dt = new Date(d);
+        const y = dt.getUTCFullYear();
+        const m = dt.getUTCMonth() + 1;
+        const day = dt.getUTCDate();
+
+        switch (trunc) {
+          case "day": return `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+          case "week": {
+            // approximate week key by Monday-based blocks
+            const tmp = new Date(Date.UTC(y, m - 1, day));
+            const dow = (tmp.getUTCDay() + 6) % 7; // Mon=0..Sun=6
+            tmp.setUTCDate(tmp.getUTCDate() - dow);
+            const wy = tmp.getUTCFullYear();
+            const wm = tmp.getUTCMonth() + 1;
+            const wd = tmp.getUTCDate();
+            return `${wy}-W${String(wm).padStart(2, "0")}-${String(wd).padStart(2, "0")}`;
+          }
+          case "quarter": return `${y}-Q${Math.floor((m - 1) / 3) + 1}`;
+          case "year": return `${y}`;
+          case "month":
+          default: return `${y}-${String(m).padStart(2, "0")}`;
+        }
+      };
+
+      const map = new Map();
+      for (const r of rows) {
+        const k = groupKey(r.soDate);
+        const prev = map.get(k) || 0;
+        map.set(k, prev + Number(r.grandTotal));
+      }
+
+      const fallback = Array.from(map.entries())
+        .map(([k, total]) => ({ period: k, total }))
+        .sort((a, b) => a.period.localeCompare(b.period));
+
+      res.json(fallback);
+    } catch (inner) {
+      console.error("[getSalesOrderSummary fallback] error:", inner);
+      res.status(500).json({ message: "Gagal mengambil summary sales order" });
+    }
+  }
+}
+
+export async function getRecentSalesOrders(req, res) {
+  try {
+    const take = Math.min(
+      50,
+      Math.max(1, parseInt(String(req.query.take ?? "5"), 10) || 5)
+    );
+    const order = String(req.query.order ?? "desc").toLowerCase() === "asc" ? "asc" : "desc";
+
+    const data = await prisma.salesOrder.findMany({
+      take,
+      orderBy: { soDate: order },
+      select: {
+        id: true,
+        soNumber: true,
+        soDate: true,
+        status: true,
+        grandTotal: true,
+        customer: { select: { id: true, name: true } },
+        project: { select: { id: true, name: true } },
+      },
+    });
+
+    // Opsional: agar Decimal aman dikirim ke FE sebagai number
+    const json = data.map(o => ({
+      ...o,
+      grandTotal: Number(o.grandTotal), // FE sudah handle string/number, ini agar konsisten
+    }));
+
+    res.json({ data: json });
+  } catch (err) {
+    console.error("[getRecentSalesOrders] error:", err);
+    res.status(500).json({ message: "Gagal mengambil daftar sales order" });
+  }
+}
+
+function startOfDayLocal(d = new Date(), tzOffsetMinutes = 0) {
+  // Jika kamu butuh Asia/Jakarta (UTC+7), set tzOffsetMinutes = 420
+  const dt = new Date(d);
+  // Normalisasi ke “awal hari” versi lokal (tanpa lib tambahan)
+  dt.setMinutes(dt.getMinutes() + tzOffsetMinutes);
+  dt.setHours(0, 0, 0, 0);
+  dt.setMinutes(dt.getMinutes() - tzOffsetMinutes);
+  return dt;
+}
+function startOfMonthLocal(d = new Date(), tzOffsetMinutes = 0) {
+  const dt = new Date(d);
+  dt.setMinutes(dt.getMinutes() + tzOffsetMinutes);
+  dt.setDate(1);
+  dt.setHours(0, 0, 0, 0);
+  dt.setMinutes(dt.getMinutes() - tzOffsetMinutes);
+  return dt;
+}
+function startOfYearLocal(d = new Date(), tzOffsetMinutes = 0) {
+  const dt = new Date(d);
+  dt.setMinutes(dt.getMinutes() + tzOffsetMinutes);
+  dt.setMonth(0, 1);
+  dt.setHours(0, 0, 0, 0);
+  dt.setMinutes(dt.getMinutes() - tzOffsetMinutes);
+  return dt;
+}
+
+// Safely convert Prisma Decimal | number | null | undefined → number
+const num = (x) => (x == null ? 0 : Number(x));
+
+export async function getSalesStats(req, res) {
+  try {
+    // Gunakan zona Asia/Jakarta (UTC+7) bila kamu ingin per hari versi WIB
+    const jakartaOffset = 7 * 60;
+    const now = new Date();
+
+    const startToday  = startOfDayLocal(now, jakartaOffset);
+    const startMonth  = startOfMonthLocal(now, jakartaOffset);
+    const startYear   = startOfYearLocal(now, jakartaOffset);
+
+    const [todayAgg, mtdAgg, ytdAgg] = await Promise.all([
+      prisma.salesOrder.aggregate({
+        _sum: { grandTotal: true },
+        where: { soDate: { gte: startToday, lte: now } },
+      }),
+      prisma.salesOrder.aggregate({
+        _sum: { grandTotal: true },
+        where: { soDate: { gte: startMonth, lte: now } },
+      }),
+      prisma.salesOrder.aggregate({
+        _sum: { grandTotal: true },
+        where: { soDate: { gte: startYear, lte: now } },
+      }),
+    ]);
+
+    const today = num(todayAgg._sum.grandTotal);
+    const mtd   = num(mtdAgg._sum.grandTotal);
+    const ytd   = num(ytdAgg._sum.grandTotal);
+
+    // Pastikan yang dikirim angka (JSON akan aman)
+    res.json({ today, mtd, ytd });
+  } catch (err) {
+    console.error("[getSalesStats] error:", err);
+    res.status(500).json({ message: "Gagal mengambil statistik penjualan" });
+  }
+}
+
+export async function getSalesOrderCount(req, res) {
+  try {
+    const count = await prisma.salesOrder.count();
+    res.json({ count });
+  } catch (err) {
+    console.error("[getSalesOrderCount] error:", err);
+    res.status(500).json({ message: "Gagal mengambil jumlah sales order" });
+  }
+}

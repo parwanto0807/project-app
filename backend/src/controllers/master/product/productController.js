@@ -196,3 +196,13 @@ export const deleteProduct = async (req, res) => {
     res.status(500).json({ message: 'Gagal menghapus produk' });
   }
 };
+
+export async function getProductCount(req, res) {
+  try {
+    const count = await prisma.product.count();
+    res.json({ count });
+  } catch (err) {
+    console.error("[getProductCount] error:", err);
+    res.status(500).json({ message: "Gagal mengambil jumlah product" });
+  }
+}

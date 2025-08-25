@@ -7,6 +7,7 @@ import {
   createProduct,
   updateProduct,
   deleteProduct,
+  getProductCount,
 } from '../../../controllers/master/product/productController.js';
 import { authorizeAdmin, authorizeSuperAdmin, authorizeAdminOrSuper, authenticateToken } from '../../../middleware/authMiddleware.js';
 
@@ -29,6 +30,7 @@ const router = express.Router();
 
 router.get('/getAllProducts',authenticateToken, authorizeAdminOrSuper, getAllProducts);
 router.get('/getProductById/:id', getProductById);
+router.get('/getProductCount', getProductCount);
 
 // 3. CREATE (POST) – upload image & authorization dulu baru createProduct
 router.post(
