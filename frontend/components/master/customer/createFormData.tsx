@@ -237,7 +237,7 @@ export default function CreateCustomerForm() {
                             name="branch"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel className="flex items-center gap-2"><Landmark className="w-4 h-4" /> Branch</FormLabel>
+                                    <FormLabel className="flex items-center gap-2"><Landmark className="w-4 h-4" /> Branch / Cabang</FormLabel>
                                     <FormControl><Input placeholder="Main Office" {...field} /></FormControl>
                                     <FormMessage />
                                 </FormItem>

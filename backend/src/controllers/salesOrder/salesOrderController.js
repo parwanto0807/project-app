@@ -491,13 +491,56 @@ export const updateWithItems = async (req, res) => {
 };
 
 
-export const remove = async (req, res) => {
-  try {
-    const { id } = req.params;
-    await prisma.salesOrder.delete({ where: { id } });
-    res.json({ message: "Sales Order berhasil dihapus" });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Gagal menghapus Sales Order" });
+export async function remove(req, res) {
+  const { id } = req.params;
+
+  // --- 1) Validasi sederhana UUID v4 (opsional, boleh dihapus kalau tak perlu)
+  if (!/^[0-9a-fA-F-]{36}$/.test(id)) {
+    return res.status(400).json({ message: "Param id tidak valid." });
   }
-};
+
+  try {
+    // --- 2) Pastikan SO ada
+    const so = await prisma.salesOrder.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!so) {
+      return res.status(404).json({ message: "Sales Order tidak ditemukan." });
+    }
+
+    // --- 3) Cek invoice terkait (blokir jika ada)
+    const invoiceCount = await prisma.invoice.count({
+      where: { salesOrderId: id },
+    });
+
+    if (invoiceCount > 0) {
+      return res.status(409).json({
+        message:
+          "Sales Order sudah memiliki Invoice. Batalkan/hapus invoice terkait terlebih dahulu.",
+      });
+    }
+
+    // --- 4) Eksekusi delete dalam transaksi
+    // Notes: items & documents sudah CASCADE di schema, jadi cukup delete SalesOrder
+    const deleted = await prisma.$transaction(async (tx) => {
+      const resDelete = await tx.salesOrder.delete({
+        where: { id },
+      });
+      return resDelete;
+    });
+
+    return res.status(200).json({
+      message: "Sales Order berhasil dihapus.",
+      data: { id: deleted.id, soNumber: deleted.soNumber },
+    });
+  } catch (err) {
+    console.error("[deleteSalesOrder] error:", err);
+    // Prisma foreign key error safety-net (kalau ada relasi lain yang mengunci)
+    return res.status(500).json({
+      message: "Gagal menghapus Sales Order.",
+      error: err?.message ?? String(err),
+    });
+  }
+}

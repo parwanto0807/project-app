@@ -311,7 +311,7 @@ export default function UpdateCustomerForm({
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel className="flex items-center gap-2">
-                                                <Landmark className="w-4 h-4" /> Branch
+                                                <Landmark className="w-4 h-4" /> Branch / Cabang
                                             </FormLabel>
                                             <FormControl>
                                                 <Input placeholder="Main Office" {...field} />

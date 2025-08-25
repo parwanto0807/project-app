@@ -11,6 +11,7 @@ import {
     Edit,
     MoreHorizontal,
     Eye,
+    Trash2,
     // ChevronRight,
 } from "lucide-react"
 import Decimal from "decimal.js"
@@ -52,6 +53,16 @@ import {
     PaginationNext,
     PaginationPrevious,
 } from "@/components/ui/pagination"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header"
@@ -61,9 +72,11 @@ import { CheckCircle2, ReceiptText, MinusCircle } from "lucide-react"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { cn } from "@/lib/utils"
 
+
 interface SalesOrderTableProps {
     salesOrders: SalesOrder[]
     isLoading: boolean
+    onDeleteOrder: (orderId: string) => void
 }
 
 // Helper component to render the expanded details of an order
@@ -330,104 +343,226 @@ function renderDocumentStatus(documents: { docType: "QUOTATION" | "PO" | "BAP" |
 }
 
 // Komponen ActionsCell terpisah untuk menghindari masalah hook
-function ActionsCell({ order }: { order: SalesOrder }) {
+function ActionsCell({ order, onDeleteSuccess }: { order: SalesOrder; onDeleteSuccess: (orderId: string) => void }) {
     const router = useRouter()
     const isMobile = useMediaQuery("(max-width: 768px)")
+    const [showDeleteDialog, setShowDeleteDialog] = React.useState(false)
+    const [isDeleting, setIsDeleting] = React.useState(false)
 
-    function handleEditOrder() {
+    // Lock body scroll ketika dialog terbuka
+    useBodyScrollLock(showDeleteDialog);
+
+    const handleDeleteOrder = async () => {
+        setIsDeleting(true)
+        try {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/salesOrder/sales-orders/remove/${order.id}`, {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+            })
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`)
+            }
+
+            setShowDeleteDialog(false)
+
+            // Panggil callback untuk update state lokal
+            onDeleteSuccess(order.id)
+
+            // Optional: refresh data dari server setelah 500ms
+            setTimeout(() => {
+                router.refresh()
+            }, 500)
+
+        } catch (error) {
+            console.error("Error deleting order:", error)
+            setShowDeleteDialog(false)
+        } finally {
+            setIsDeleting(false)
+        }
+    }
+
+    function handleEditOrder(e: React.MouseEvent) {
+        e.stopPropagation()
         router.push(`/super-admin-area/sales/salesOrder/update/${order.id}`)
     }
 
-    function handleViewDetails() {
+    function handleViewDetails(e: React.MouseEvent) {
+        e.stopPropagation()
         console.log("View order details:", order.id)
     }
 
-    function handleDeleteOrder() {
-        console.log("Delete order:", order.id)
+    function handleDeleteClick(e: React.MouseEvent) {
+        e.stopPropagation()
+        e.preventDefault()
+        setShowDeleteDialog(true)
+    }
+
+    function cancelDelete(e: React.MouseEvent) {
+        e.stopPropagation()
+        setShowDeleteDialog(false)
     }
 
     if (isMobile) {
         return (
+            <>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 cursor-pointer hover:bg-muted"
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                e.preventDefault()
+                            }}
+                        >
+                            <span className="sr-only">Open menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-40" onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenuItem
+                            className="cursor-pointer gap-2 text-xs"
+                            onClick={handleViewDetails}
+                        >
+                            <Eye className="h-3 w-3" />
+                            View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                            className="cursor-pointer gap-2 text-xs"
+                            onClick={handleEditOrder}
+                        >
+                            <Edit className="h-3 w-3" />
+                            Edit Order
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                            className="text-red-600 focus:text-red-600 cursor-pointer gap-2 text-xs"
+                            onClick={handleDeleteClick}
+                        >
+                            <Trash2 className="h-3 w-3" />
+                            Delete
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+
+                {showDeleteDialog && (
+                    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center">
+                        <div className="bg-white dark:bg-slate-900 rounded-lg border p-6 w-11/12 max-w-md">
+                            <div className="space-y-4">
+                                <h3 className="text-lg font-semibold">Delete Sales Order</h3>
+                                <p className="text-muted-foreground text-wrap">
+                                    Are you sure you want to delete sales order{" "}
+                                    <span className="font-semibold">{order.soNumber}</span>?
+                                    This action cannot be undone.
+                                </p>
+                                <div className="flex justify-end space-x-3">
+                                    <Button
+                                        variant="outline"
+                                        onClick={cancelDelete}
+                                        disabled={isDeleting}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        variant="destructive"
+                                        onClick={handleDeleteOrder}
+                                        disabled={isDeleting}
+                                    >
+                                        {isDeleting ? "Deleting..." : "Delete"}
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </>
+        )
+    }
+
+    return (
+        <>
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                     <Button
                         variant="ghost"
-                        size="sm"
                         className="h-8 w-8 p-0 cursor-pointer hover:bg-muted"
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            e.preventDefault()
+                        }}
                     >
                         <span className="sr-only">Open menu</span>
                         <MoreHorizontal className="h-4 w-4" />
                     </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-40">
+                <DropdownMenuContent align="end" className="w-48" onClick={(e) => e.stopPropagation()}>
                     <DropdownMenuItem
-                        className="cursor-pointer gap-2 text-xs"
+                        className="cursor-pointer gap-2"
                         onClick={handleViewDetails}
                     >
-                        <Eye className="h-3 w-3" />
+                        <Eye className="h-4 w-4" />
                         View Details
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                        className="cursor-pointer gap-2 text-xs"
+                        className="cursor-pointer gap-2"
                         onClick={handleEditOrder}
                     >
-                        <Edit className="h-3 w-3" />
+                        <Edit className="h-4 w-4" />
                         Edit Order
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                        className="text-red-600 focus:text-red-600 cursor-pointer gap-2 text-xs"
-                        onClick={handleDeleteOrder}
+                        className="text-red-600 focus:text-red-600 cursor-pointer gap-2"
+                        onClick={handleDeleteClick}
                     >
-                        <MinusCircle className="h-3 w-3" />
+                        <Trash2 className="h-4 w-4" />
                         Delete
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
-        )
-    }
 
-    return (
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <Button
-                    variant="ghost"
-                    className="h-8 w-8 p-0 cursor-pointer hover:bg-muted"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    <span className="sr-only">Open menu</span>
-                    <MoreHorizontal className="h-4 w-4" />
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem
-                    className="cursor-pointer gap-2"
-                    onClick={handleViewDetails}
-                >
-                    <Eye className="h-4 w-4" />
-                    View Details
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                    className="cursor-pointer gap-2"
-                    onClick={handleEditOrder}
-                >
-                    <Edit className="h-4 w-4" />
-                    Edit Order
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                    className="text-red-600 focus:text-red-600 cursor-pointer gap-2"
-                    onClick={handleDeleteOrder}
-                >
-                    <MinusCircle className="h-4 w-4" />
-                    Delete
-                </DropdownMenuItem>
-            </DropdownMenuContent>
-        </DropdownMenu>
+            {showDeleteDialog && (
+                <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center">
+                    <div className="bg-white dark:bg-slate-900 rounded-lg border p-6 w-11/12 max-w-md">
+                        <div className="space-y-4">
+                            <h3 className="text-lg font-semibold">Delete Sales Order</h3>
+                            <p className="text-muted-foreground text-wrap">
+                                Are you sure you want to delete sales order{" "}
+                                <span className="font-semibold">{order.soNumber}</span>?
+                                This action cannot be undone.
+                            </p>
+                            <div className="flex justify-end space-x-3">
+                                <Button
+                                    variant="outline"
+                                    onClick={cancelDelete}
+                                    disabled={isDeleting}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    variant="destructive"
+                                    onClick={handleDeleteOrder}
+                                    disabled={isDeleting}
+                                >
+                                    {isDeleting ? "Deleting..." : "Delete"}
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
     )
 }
 
 // Mobile Card View
-function MobileSalesOrderCard({ order, onExpand }: { order: SalesOrder; onExpand: () => void }) {
+// Mobile Card View
+function MobileSalesOrderCard({ order, onExpand, onDeleteSuccess }: { order: SalesOrder; onExpand: () => void; onDeleteSuccess: (orderId: string) => void }) {
+    const [showDeleteDialog, setShowDeleteDialog] = React.useState(false)
+    const [isDeleting, setIsDeleting] = React.useState(false)
+    const router = useRouter()
+
     const total = order.items.reduce((sum, item) => {
         const itemQty = new Decimal(item.qty ?? 0)
         const itemPrice = new Decimal(item.unitPrice ?? 0)
@@ -443,71 +578,204 @@ function MobileSalesOrderCard({ order, onExpand }: { order: SalesOrder; onExpand
     const hasPaid = docs.some((d) => d.docType === "PAYMENT_RECEIPT");
     const hasInvoice = docs.some((d) => d.docType === "INVOICE");
 
+    useBodyScrollLock(showDeleteDialog);
+
+    const handleDeleteOrder = async () => {
+        setIsDeleting(true)
+        try {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/salesOrder/sales-orders/remove/${order.id}`, {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+            })
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`)
+            }
+
+            setShowDeleteDialog(false)
+
+            // Panggil callback untuk update state lokal
+            onDeleteSuccess(order.id)
+
+            // Optional: refresh data dari server setelah 500ms
+            setTimeout(() => {
+                router.refresh()
+            }, 500)
+
+        } catch (error) {
+            console.error("Error deleting order:", error)
+            setShowDeleteDialog(false)
+        } finally {
+            setIsDeleting(false)
+        }
+    }
+
+    function handleDeleteClick(e: React.MouseEvent) {
+        e.stopPropagation()
+        e.preventDefault()
+        setShowDeleteDialog(true)
+    }
+
+    function cancelDelete(e: React.MouseEvent) {
+        e.stopPropagation()
+        setShowDeleteDialog(false)
+    }
+
     return (
-        <div className="border rounded-lg p-4 bg-white dark:bg-slate-800 shadow-sm">
-            <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-3">
-                    <div className="flex items-center justify-center h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/50">
-                        <FileTextIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+        <>
+            <div className="border rounded-lg p-4 bg-white dark:bg-slate-800 shadow-sm">
+                <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-center h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/50">
+                            <FileTextIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div>
+                            <p className="font-semibold text-base">{order.soNumber}</p>
+                            <p className="text-xs text-muted-foreground">
+                                {format(new Date(order.soDate), "dd MMM yyyy")}
+                            </p>
+                        </div>
                     </div>
+                    <Badge className={cn(
+                        "text-xs",
+                        hasPaid ? "bg-green-100 text-green-700" :
+                            hasInvoice ? "bg-blue-100 text-blue-700" :
+                                "bg-gray-100 text-gray-700"
+                    )}>
+                        {hasPaid ? "Paid" : hasInvoice ? "Invoiced" : "Draft"}
+                    </Badge>
+                </div>
+
+                <div className="space-y-2 mb-3">
+                    <div className="flex items-center gap-2">
+                        <FaToolbox className="h-4 w-4 text-red-500" />
+                        <span className="text-sm font-medium">{order.project?.name || "No Project"}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <UserCheck2Icon className="h-4 w-4 text-purple-500" />
+                        <span className="text-sm">{order.customer.name} </span>
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-between border-t pt-3">
                     <div>
-                        <p className="font-semibold text-base">{order.soNumber}</p>
-                        <p className="text-xs text-muted-foreground">
-                            {format(new Date(order.soDate), "dd MMM yyyy")}
-                        </p>
+                        <p className="text-xs text-muted-foreground">Total Amount</p>
+                        <p className="font-semibold text-green-600">Rp {formattedTotal}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                onExpand()
+                            }}
+                            className="text-xs h-8"
+                        >
+                            <Eye className="h-3 w-3 mr-1" />
+                            View
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs h-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={handleDeleteClick}
+                        >
+                            <Trash2 className="h-3 w-3" />
+                        </Button>
                     </div>
                 </div>
-                <Badge className={cn(
-                    "text-xs",
-                    hasPaid ? "bg-green-100 text-green-700" :
-                    hasInvoice ? "bg-blue-100 text-blue-700" :
-                    "bg-gray-100 text-gray-700"
-                )}>
-                    {hasPaid ? "Paid" : hasInvoice ? "Invoiced" : "Draft"}
-                </Badge>
             </div>
 
-            <div className="space-y-2 mb-3">
-                <div className="flex items-center gap-2">
-                    <FaToolbox className="h-4 w-4 text-red-500" />
-                    <span className="text-sm font-medium">{order.project?.name || "No Project"}</span>
+            {showDeleteDialog && (
+                <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center">
+                    <div className="bg-white dark:bg-slate-900 rounded-lg border p-6 w-11/12 max-w-md">
+                        <div className="space-y-4">
+                            <h3 className="text-lg font-semibold">Delete Sales Order</h3>
+                            <p className="text-muted-foreground text-wrap">
+                                Are you sure you want to delete sales order{" "}
+                                <span className="font-semibold">{order.soNumber}</span>?
+                                This action cannot be undone.
+                            </p>
+                            <div className="flex justify-end space-x-3">
+                                <Button
+                                    variant="outline"
+                                    onClick={cancelDelete}
+                                    disabled={isDeleting}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    variant="destructive"
+                                    onClick={handleDeleteOrder}
+                                    disabled={isDeleting}
+                                >
+                                    {isDeleting ? "Deleting..." : "Delete"}
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <UserCheck2Icon className="h-4 w-4 text-purple-500" />
-                    <span className="text-sm">{order.customer.name} </span>
-                </div>
-            </div>
-
-            <div className="flex items-center justify-between border-t pt-3">
-                <div>
-                    <p className="text-xs text-muted-foreground">Total Amount</p>
-                    <p className="font-semibold text-green-600">Rp {formattedTotal}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={onExpand}
-                        className="text-xs h-8"
-                    >
-                        <Eye className="h-3 w-3 mr-1" />
-                        View
-                    </Button>
-                    <ActionsCell order={order} />
-                </div>
-            </div>
-        </div>
+            )}
+        </>
     )
 }
 
-export function SalesOrderTable({ salesOrders, isLoading }: SalesOrderTableProps) {
+// Tambahkan di atas komponen SalesOrderTable
+const useBodyScrollLock = (isLocked: boolean) => {
+    React.useEffect(() => {
+        if (isLocked) {
+            const originalStyle = window.getComputedStyle(document.body).overflow;
+            document.body.style.overflow = 'hidden';
+            return () => {
+                document.body.style.overflow = originalStyle;
+            };
+        }
+    }, [isLocked]);
+};
+
+export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, onDeleteOrder }: SalesOrderTableProps) {
     const [searchTerm, setSearchTerm] = React.useState("")
     const [currentPage, setCurrentPage] = React.useState(1)
     const [sorting, setSorting] = React.useState<SortingState>([])
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false)
+    const [orderToDelete, setOrderToDelete] = React.useState<string | null>(null)
     const itemsPerPage = 10
     const [expanded, setExpanded] = React.useState<ExpandedState>({})
-    // const router = useRouter()
     const isMobile = useMediaQuery("(max-width: 768px)")
+    const [salesOrders, setSalesOrders] = React.useState<SalesOrder[]>(initialSalesOrders)
+
+    // Update local state when prop changes
+    React.useEffect(() => {
+        setSalesOrders(initialSalesOrders)
+    }, [initialSalesOrders])
+
+    const handleDeleteSuccess = React.useCallback((deletedOrderId: string) => {
+        // Hapus order dari state lokal
+        setSalesOrders(prevOrders => {
+            const newOrders = prevOrders.filter(order => order.id !== deletedOrderId)
+            return newOrders
+        })
+
+        // Panggil parent callback
+        if (onDeleteOrder) {
+            onDeleteOrder(deletedOrderId)
+        }
+    }, [onDeleteOrder]) 
+
+    const confirmDelete = () => {
+        if (orderToDelete) {
+            onDeleteOrder(orderToDelete)
+        }
+        setDeleteConfirmOpen(false)
+        setOrderToDelete(null)
+    }
+
+    const cancelDelete = () => {
+        setDeleteConfirmOpen(false)
+        setOrderToDelete(null)
+    }
 
     const columns: ColumnDef<SalesOrder>[] = React.useMemo(() => [
         {
@@ -634,12 +902,12 @@ export function SalesOrderTable({ salesOrders, isLoading }: SalesOrderTableProps
                             <Eye className="h-4 w-4" />
                             {row.getIsExpanded() ? "Hide" : "View"}
                         </Button>
-                        <ActionsCell order={row.original} />
+                        <ActionsCell order={row.original} onDeleteSuccess={handleDeleteSuccess} />
                     </div>
                 )
             },
         },
-    ], [])
+    ], [handleDeleteSuccess])
 
     const filteredSalesOrders = React.useMemo(() => {
         return salesOrders.filter((order) => {
@@ -676,124 +944,151 @@ export function SalesOrderTable({ salesOrders, isLoading }: SalesOrderTableProps
 
     if (isMobile) {
         return (
-            <Card className="border-none shadow-lg">
-                <CardHeader className="bg-gradient-to-r from-primary/5 to-blue-100 dark:from-slate-800 dark:to-slate-900">
-                    <div className="flex flex-col space-y-4">
-                        <div className="flex items-center space-x-3">
-                            <div className="flex items-center justify-center h-12 w-12 rounded-full bg-primary">
-                                <ShoppingCartIcon className="h-6 w-6 text-primary-foreground" />
-                            </div>
-                            <div>
-                                <CardTitle className="text-xl">Sales Orders</CardTitle>
-                                <p className="text-sm text-muted-foreground">
-                                    Manage sales orders
-                                </p>
-                            </div>
-                        </div>
-                        <div className="flex flex-col space-y-2">
-                            <div className="relative">
-                                <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
-                                <Input
-                                    placeholder="Search orders..."
-                                    className="w-full pl-9"
-                                    value={searchTerm}
-                                    onChange={(e) => {
-                                        setSearchTerm(e.target.value)
-                                        setCurrentPage(1)
-                                    }}
-                                />
-                            </div>
-                            <Link href="/super-admin-area/sales/salesOrder/create" passHref>
-                                <Button className="bg-primary hover:bg-primary/90 w-full">
-                                    <PlusCircleIcon className="mr-2 h-4 w-4" />
-                                    New Order
-                                </Button>
-                            </Link>
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent className="p-4">
-                    {isLoading ? (
-                        <div className="space-y-4">
-                            {[...Array(5)].map((_, i) => (
-                                <div key={i} className="border rounded-lg p-4 bg-white">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <div className="flex items-center gap-3">
-                                            <Skeleton className="h-10 w-10 rounded-full" />
-                                            <div className="space-y-2">
-                                                <Skeleton className="h-4 w-32" />
-                                                <Skeleton className="h-3 w-24" />
-                                            </div>
-                                        </div>
-                                        <Skeleton className="h-6 w-16" />
-                                    </div>
-                                    <Skeleton className="h-4 w-full mb-2" />
-                                    <Skeleton className="h-4 w-3/4 mb-3" />
-                                    <div className="flex justify-between items-center border-t pt-3">
-                                        <Skeleton className="h-4 w-20" />
-                                        <div className="flex gap-2">
-                                            <Skeleton className="h-8 w-16" />
-                                            <Skeleton className="h-8 w-8" />
-                                        </div>
-                                    </div>
+            <>
+                <Card className="border-none shadow-lg">
+                    <CardHeader className="bg-gradient-to-r from-primary/5 to-blue-100 dark:from-slate-800 dark:to-slate-900">
+                        <div className="flex flex-col space-y-4">
+                            <div className="flex items-center space-x-3">
+                                <div className="flex items-center justify-center h-12 w-12 rounded-full bg-primary">
+                                    <ShoppingCartIcon className="h-6 w-6 text-primary-foreground" />
                                 </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <>
-                            <div className="space-y-4">
-                                {paginatedOrders.map((order) => (
-                                    <MobileSalesOrderCard
-                                        key={order.id}
-                                        order={order}
-                                        onExpand={() => {
-                                            const row = table.getRow(order.id)
-                                            if (row) {
-                                                row.toggleExpanded(!row.getIsExpanded())
-                                            }
+                                <div>
+                                    <CardTitle className="text-xl">Sales Orders</CardTitle>
+                                    <p className="text-sm text-muted-foreground">
+                                        Manage sales orders
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex flex-col space-y-2">
+                                <div className="relative">
+                                    <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
+                                    <Input
+                                        placeholder="Search orders..."
+                                        className="w-full pl-9"
+                                        value={searchTerm}
+                                        onChange={(e) => {
+                                            setSearchTerm(e.target.value)
+                                            setCurrentPage(1)
                                         }}
                                     />
+                                </div>
+                                <Link href="/super-admin-area/sales/salesOrder/create" passHref>
+                                    <Button className="bg-primary hover:bg-primary/90 w-full">
+                                        <PlusCircleIcon className="mr-2 h-4 w-4" />
+                                        New Order
+                                    </Button>
+                                </Link>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="p-4">
+                        {isLoading ? (
+                            <div className="space-y-4">
+                                {[...Array(5)].map((_, i) => (
+                                    <div key={i} className="border rounded-lg p-4 bg-white">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <div className="flex items-center gap-3">
+                                                <Skeleton className="h-10 w-10 rounded-full" />
+                                                <div className="space-y-2">
+                                                    <Skeleton className="h-4 w-32" />
+                                                    <Skeleton className="h-3 w-24" />
+                                                </div>
+                                            </div>
+                                            <Skeleton className="h-6 w-16" />
+                                        </div>
+                                        <Skeleton className="h-4 w-full mb-2" />
+                                        <Skeleton className="h-4 w-3/4 mb-3" />
+                                        <div className="flex justify-between items-center border-t pt-3">
+                                            <Skeleton className="h-4 w-20" />
+                                            <div className="flex gap-2">
+                                                <Skeleton className="h-8 w-16" />
+                                                <Skeleton className="h-8 w-8" />
+                                            </div>
+                                        </div>
+                                    </div>
                                 ))}
                             </div>
-
-                            {totalPages > 1 && (
-                                <div className="flex items-center justify-between pt-4 border-t mt-4">
-                                    <p className="text-xs text-muted-foreground">
-                                        Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredSalesOrders.length)} of {filteredSalesOrders.length} orders
-                                    </p>
-                                    <Pagination>
-                                        <PaginationContent>
-                                            <PaginationItem>
-                                                <PaginationPrevious
-                                                    onClick={(e) => {
-                                                        e.preventDefault()
-                                                        setCurrentPage((prev) => Math.max(prev - 1, 1))
-                                                    }}
-                                                    className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                                                />
-                                            </PaginationItem>
-                                            <PaginationItem>
-                                                <span className="px-2 text-xs">
-                                                    {currentPage}/{totalPages}
-                                                </span>
-                                            </PaginationItem>
-                                            <PaginationItem>
-                                                <PaginationNext
-                                                    onClick={(e) => {
-                                                        e.preventDefault()
-                                                        setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                                                    }}
-                                                    className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                                                />
-                                            </PaginationItem>
-                                        </PaginationContent>
-                                    </Pagination>
+                        ) : (
+                            <>
+                                <div className="space-y-4">
+                                    {paginatedOrders.map((order) => (
+                                        <MobileSalesOrderCard
+                                            key={order.id}
+                                            order={order}
+                                            onExpand={() => {
+                                                const row = table.getRow(order.id)
+                                                if (row) {
+                                                    row.toggleExpanded(!row.getIsExpanded())
+                                                }
+                                            }}
+                                            onDeleteSuccess={handleDeleteSuccess}
+                                        />
+                                    ))}
                                 </div>
-                            )}
-                        </>
-                    )}
-                </CardContent>
-            </Card>
+
+                                {totalPages > 1 && (
+                                    <div className="flex items-center justify-between pt-4 border-t mt-4">
+                                        <p className="text-xs text-muted-foreground">
+                                            Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredSalesOrders.length)} of {filteredSalesOrders.length} orders
+                                        </p>
+                                        <Pagination>
+                                            <PaginationContent>
+                                                <PaginationItem>
+                                                    <PaginationPrevious
+                                                        onClick={(e) => {
+                                                            e.preventDefault()
+                                                            setCurrentPage((prev) => Math.max(prev - 1, 1))
+                                                        }}
+                                                        className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                                                    />
+                                                </PaginationItem>
+                                                <PaginationItem>
+                                                    <span className="px-2 text-xs">
+                                                        {currentPage}/{totalPages}
+                                                    </span>
+                                                </PaginationItem>
+                                                <PaginationItem>
+                                                    <PaginationNext
+                                                        onClick={(e) => {
+                                                            e.preventDefault()
+                                                            setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                                                        }}
+                                                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                                                    />
+                                                </PaginationItem>
+                                            </PaginationContent>
+                                        </Pagination>
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </CardContent>
+                </Card>
+                <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete the sales order
+                                {orderToDelete && (
+                                    <span className="font-semibold"> {
+                                        salesOrders.find(order => order.id === orderToDelete)?.soNumber
+                                    }</span>
+                                )}.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel onClick={cancelDelete}>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                                onClick={confirmDelete}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                                Delete
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            </>
         )
     }
 
@@ -872,10 +1167,15 @@ export function SalesOrderTable({ salesOrders, isLoading }: SalesOrderTableProps
                                     {table.getRowModel().rows.length ? (
                                         table.getRowModel().rows.map((row) => (
                                             <React.Fragment key={row.id}>
-                                                <TableRow 
+                                                <TableRow
                                                     data-state={row.getIsSelected() && "selected"}
                                                     className="cursor-pointer hover:bg-muted/30"
-                                                    onClick={() => row.toggleExpanded(!row.getIsExpanded())}
+                                                    onClick={(e) => {
+                                                        // Hanya toggle expanded jika klik tidak pada button/action
+                                                        if (!e.defaultPrevented) {
+                                                            row.toggleExpanded(!row.getIsExpanded())
+                                                        }
+                                                    }}
                                                 >
                                                     {row.getVisibleCells().map((cell) => (
                                                         <TableCell key={cell.id} className="py-4">

@@ -61,7 +61,7 @@ router.put(
 
 // Hapus SO (cascade hapus items & documents)
 router.delete(
-  "/sales-orders/:id",
+  "/sales-orders/remove/:id",
   authenticateToken,
   authorizeSuperAdmin,
   salesOrder.remove
