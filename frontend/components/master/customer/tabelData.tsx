@@ -107,7 +107,7 @@ export function CustomersTable({
     <div className="rounded-t-2xl border bg-white dark:bg-gray-800 shadow-sm dark:border-gray-700">
       <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 md:p-6 border-b dark:border-gray-700">
         <div className="relative w-full">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground"/>
+          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search customers..."
             className="pl-10 w-full rounded-lg border-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-900 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
@@ -173,6 +173,10 @@ export function CustomersTable({
                         <Building2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                         <div>
                           <p className="font-medium text-gray-900 dark:text-gray-100">{customer.name}</p>
+                          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                            <Building2 className="h-4 w-4" aria-hidden="true" />
+                            <span className="truncate">Cabang : {customer.branch ?? "-"}</span>
+                          </div>
                           <div className="flex items-center gap-2 mt-1 sm:hidden">
                             <FileDigit className="h-3 w-3 text-blue-500 dark:text-blue-400" />
                             <span className="text-xs text-gray-500 dark:text-gray-400">{customer.code}</span>
@@ -228,8 +232,8 @@ export function CustomersTable({
                       <Badge
                         variant={customer.isActive ? "default" : "secondary"}
                         className={`flex items-center gap-1 ${customer.isActive
-                            ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
-                            : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
+                          ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
+                          : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
                           }`}
                       >
                         {customer.isActive ? (

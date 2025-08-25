@@ -68,7 +68,7 @@ export interface SalesOrder {
   updatedAt: string;            // ISO string
 
   // Relasi untuk display
-  customer: { id: string; name: string; address?: string | null };
+  customer: { id: string; name: string; address?: string; branch?: string | null };
   project:  { id: string; name: string };
   user?:    { id: string; name?: string } | null;
 

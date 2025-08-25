@@ -80,7 +80,6 @@ interface Project {
 
 interface UpdateSalesOrderFormProps {
     customers: Customer[]
-    projects: Project[]
     salesOrder: SalesOrder
     isLoading?: boolean
     user?: { id: string }
@@ -92,7 +91,6 @@ type UpdateSalesOrderPayload = z.input<typeof formSchema>;
 
 export function UpdateSalesOrderForm({
     customers,
-    projects,
     salesOrder,
     isLoading,
     user,
@@ -101,11 +99,10 @@ export function UpdateSalesOrderForm({
     const [isPending, startTransition] = React.useTransition()
     const [customerOptions, setCustomerOptions] = React.useState(customers);
     const [productOptions, setProductOptions] = React.useState<ProductOption[]>([]);
-    const [projectOptions, setProjectOptions] = React.useState<Project[]>(projects);
+    const [projectOptions, setProjectOptions] = React.useState<Project[]>([]);
     const [loadingProjects, setLoadingProjects] = React.useState(false);
 
     React.useEffect(() => { setCustomerOptions(customers); }, [customers]);
-    React.useEffect(() => { setProjectOptions(projects); }, [projects]);
 
     const form = useForm<UpdateSalesOrderPayload>({
         resolver: zodResolver(formSchema),
@@ -160,6 +157,27 @@ export function UpdateSalesOrderForm({
         })();
     }, []);
 
+    // Fetch projects
+    React.useEffect(() => {
+        (async () => {
+            setLoadingProjects(true);
+            try {
+                const { projects } = await fetchAllProjects({ customerId: salesOrder.customerId });
+                setProjectOptions(
+                    projects.map((p: Project) => ({
+                        id: p.id,
+                        name: p.name,
+                    }))
+                );
+            } catch (error) {
+                console.error("Failed to fetch projects:", error);
+                toast.error("Gagal memuat data proyek");
+            } finally {
+                setLoadingProjects(false);
+            }
+        })();
+    }, [salesOrder.customerId]);
+
     React.useEffect(() => {
         const onFocus = () => { ensureFreshToken(); };
         const onVis = () => { if (!document.hidden) ensureFreshToken(); };
@@ -185,54 +203,7 @@ export function UpdateSalesOrderForm({
             form.setValue(`items.${index}.description`, selectedProduct.description || "");
         }
     };
-    // console.log("Render UpdateSalesOrderForm", form.getValues());
-
-    const customerId = form.watch("customerId");
-
-    React.useEffect(() => {
-        let stop = false;
-
-        async function load() {
-            // kosongkan jika belum pilih customer
-            if (!customerId) {
-                setProjectOptions([]);
-                form.setValue("projectId", ""); // clear selection
-                return;
-            }
-
-            setLoadingProjects(true);
-            try {
-                // ganti dengan action/API mu sendiri
-                const base = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "") ?? "";
-                const res = await fetch(
-                    `${base}/api/master/customer/getCustomerById/${customerId}`,
-                    {
-                        method: "GET",
-                        credentials: "include",
-                        headers: { accept: "application/json" },
-                        cache: "no-store",
-                    }
-                );
-                const data: { id: string; name: string }[] = await res.json();
-                console.log("Fetched projects for customer", customerId, data);
-                if (!stop) {
-                    setProjectOptions(data);
-                    // optional: auto-pilih jika hanya 1 project
-                    // if (data.length === 1) form.setValue("projectId", data[0].id);
-                    // optional (update form): kalau kamu sudah punya projectId existing, pastikan ada di options
-                }
-            } catch (e) {
-                console.error(e);
-                if (!stop) setProjectOptions([]);
-            } finally {
-                if (!stop) setLoadingProjects(false);
-            }
-        }
-
-        load();
-        return () => { stop = true; };
-    }, [customerId, form]);
-
+    
 
     function onSubmit(data: UpdateSalesOrderPayload) {
         startTransition(async () => {
@@ -262,7 +233,7 @@ export function UpdateSalesOrderForm({
     }
 
     return (
-        <div className="w-full max-w-7xl mx-auto space-y-6">
+        <div className="w-full max-w-5xl mx-auto space-y-6">
             <div className="flex items-center space-x-3">
                 <div className="flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/50">
                     <FileText className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -276,7 +247,7 @@ export function UpdateSalesOrderForm({
             </div>
 
             <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                     <Card>
                         <CardHeader className="pb-3">
                             <CardTitle className="text-lg">Informasi Utama</CardTitle>
@@ -802,7 +773,7 @@ export function UpdateSalesOrderForm({
                     </Card>
 
                     {/* Action Buttons */}
-                    <div className="flex justify-end gap-2 sticky bottom-4 bg-background p-4 rounded-lg border shadow-sm">
+                    <div className="flex justify-end gap-2 sticky bottom-4 bg-cyan-100 dark:bg-cyan-950 p-4 rounded-lg border shadow-sm">
                         <Button
                             type="button"
                             variant="outline"

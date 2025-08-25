@@ -252,7 +252,7 @@ export function CreateSalesOrderForm({
   }
 
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-6">
+    <div className="w-full max-w-5xl mx-auto space-y-6">
       <div className="flex items-center space-x-3">
         <div className="flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/50">
           <FileText className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -834,7 +834,7 @@ export function CreateSalesOrderForm({
           </Card>
 
           {/* Action Buttons */}
-          <div className="flex justify-end gap-2 sticky bottom-4 bg-background p-4 rounded-lg border shadow-sm">
+          <div className="flex justify-end gap-2 sticky bottom-4 bg-cyan-100 dark:bg-cyan-950 p-4 rounded-lg border shadow-sm">
             <Button
               type="button"
               variant="outline"

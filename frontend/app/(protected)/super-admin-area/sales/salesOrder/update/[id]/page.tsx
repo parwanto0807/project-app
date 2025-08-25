@@ -39,23 +39,12 @@ interface CustomerForForm {
   address?: string;
 }
 
-// NOTE: Definisikan tipe untuk Project
-interface Project {
-  id: string;
-  name: string;
-}
 interface RawCustomer {
   code: string;
   name: string;
   // Index signature untuk properti lain yang mungkin ada
   [key: string]: unknown;
 }
-
-// Data dummy untuk projects
-const DUMMY_PROJECTS: Project[] = [
-  { id: "99818779-1f51-4306-83a4-e3b7e438fc82", name: "Proyek IT Gedung Sentral" },
-  { id: "a8ee3240-b12d-4130-9e14-104ae2129a4e", name: "Instalasi Jaringan Cabang Bekasi" },
-];
 
 export default function UpdateSalesOrderPage() {
   const params = useParams();
@@ -65,7 +54,6 @@ export default function UpdateSalesOrderPage() {
 
   const [salesOrder, setSalesOrder] = useState<SalesOrder | null>(null);
   const [customers, setCustomers] = useState<CustomerForForm[]>([]);
-  const projects = DUMMY_PROJECTS; // Projects data is ready
 
   const [loadingData, setLoadingData] = useState(true); // Set initial loading to true
   const [error, setError] = useState("");
@@ -205,7 +193,6 @@ export default function UpdateSalesOrderPage() {
           salesOrder={salesOrder}
           customers={customers}
           user={userProp}
-          projects={projects}
         />
       ) : (
         /* --- Not Found State --- */

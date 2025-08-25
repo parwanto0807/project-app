@@ -474,7 +474,7 @@ function MobileSalesOrderCard({ order, onExpand }: { order: SalesOrder; onExpand
                 </div>
                 <div className="flex items-center gap-2">
                     <UserCheck2Icon className="h-4 w-4 text-purple-500" />
-                    <span className="text-sm">{order.customer.name}</span>
+                    <span className="text-sm">{order.customer.name} </span>
                 </div>
             </div>
 
@@ -547,7 +547,7 @@ export function SalesOrderTable({ salesOrders, isLoading }: SalesOrderTableProps
                         <div>
                             <p className="font-medium">{order.project?.name || "No Project"}</p>
                             <p className="text-sm text-muted-foreground">
-                                {order.customer.name}
+                                {order.customer.name} - Cabang : {order.customer.branch ?? "-"}
                             </p>
                         </div>
                     </div>
