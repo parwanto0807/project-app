@@ -1,7 +1,9 @@
-// lib/auth.ts (khusus Server Component)
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 
+import type { NextAuthOptions } from "next-auth";
+import GoogleProvider from "next-auth/providers/google";
+import GitHubProvider from "next-auth/providers/github";
 interface DecodedToken {
   userId: string;
   email: string;
@@ -33,3 +35,38 @@ export async function getUserFromToken(): Promise<DecodedToken | null> {
     return null;
   }
 }
+
+export const authOptions: NextAuthOptions = {
+  providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!, // (opsional) validasi env terpisah
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }),
+    GitHubProvider({
+      clientId: process.env.GITHUB_ID!,
+      clientSecret: process.env.GITHUB_SECRET!,
+    }),
+  ],
+  session: { strategy: "jwt" },
+  callbacks: {
+    async jwt({ token, user }) {
+      // 'user' terisi saat sign-in pertama
+      if (
+        user &&
+        "id" in user &&
+        typeof (user as { id?: unknown }).id === "string"
+      ) {
+        token.userId = (user as { id: string }).id;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      // Berkat augmentasi di types/next-auth.d.ts
+      if (session.user) {
+        session.user.id = token.userId ?? token.sub ?? "";
+      }
+      return session;
+    },
+  },
+  // pages: { signIn: "/login" }, // opsional
+};

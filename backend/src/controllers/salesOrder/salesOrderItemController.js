@@ -5,10 +5,12 @@ import { toNum, calcLineTotal, recalcHeaderTotals } from "../../lib/soUtils.js";
 const ALLOWED_ITEM_TYPES = new Set(["PRODUCT", "SERVICE", "CUSTOM"]);
 
 export const addItem = async (req, res) => {
+  console.log("addItem body:", req.body);
+  
   try {
     const { soId } = req.params;
     const it = req.body ?? {};
-
+  
     // Pastikan SO ada
     const so = await Prisma.salesOrder.findUnique({
       where: { id: soId },
@@ -24,28 +26,28 @@ export const addItem = async (req, res) => {
       return res.status(400).json({ message: "itemType tidak valid. Gunakan: PRODUCT | SERVICE | CUSTOM." });
     }
 
-    // PRODUCT ⇒ productId wajib
-    if (itemType === "PRODUCT" && !it.productId) {
-      return res.status(400).json({ message: "productId wajib untuk item PRODUCT." });
+    // PERUBAHAN: PRODUCT & SERVICE ⇒ productId wajib
+    if ((itemType === "PRODUCT" || itemType === "SERVICE") && !it.productId) {
+      return res.status(400).json({ message: "productId wajib untuk itemType PRODUCT atau SERVICE." });
     }
 
-    // Snapshot name/uom (untuk PRODUCT)
+    // Snapshot name/uom (untuk PRODUCT & SERVICE)
     let { name, uom } = it;
-    if (itemType === "PRODUCT") {
+    if (itemType === "PRODUCT" || itemType === "SERVICE") {
       const needSnapshot = !name || !uom;
       const prod = await Prisma.product.findUnique({
         where: { id: it.productId },
         select: { id: true, name: true, uom: true },
       });
       if (!prod) {
-        return res.status(400).json({ message: `Product tidak ditemukan: ${it.productId}` });
+        return res.status(400).json({ message: `Product/Service tidak ditemukan: ${it.productId}` });
       }
       if (needSnapshot) {
         name = name || prod.name;
         uom = uom ?? prod.uom ?? null;
       }
-    } else {
-      // SERVICE/CUSTOM: abaikan productId jika ada
+    } else { // itemType === "CUSTOM"
+      // Untuk CUSTOM, abaikan productId. Akan di-set null.
       uom = uom ?? null;
     }
 
@@ -83,7 +85,8 @@ export const addItem = async (req, res) => {
           salesOrderId: soId,
           lineNo: nextLineNo,
           itemType,
-          productId: itemType === "PRODUCT" ? it.productId : null,
+          // PERUBAHAN: productId null hanya untuk CUSTOM
+          productId: itemType === "CUSTOM" ? null : it.productId,
           name,
           uom: uom ?? null,
           description: it.description ?? null,
@@ -130,41 +133,52 @@ export const updateItem = async (req, res) => {
     const { soId, itemId } = req.params;
     const body = req.body || {};
 
-    const belong = await Prisma.salesOrderItem.findUnique({
-      where: { id: itemId }, select: { salesOrderId: true },
+    const existingItem = await Prisma.salesOrderItem.findUnique({
+      where: { id: itemId },
     });
-    if (!belong || belong.salesOrderId !== soId) {
+    if (!existingItem || existingItem.salesOrderId !== soId) {
       return res.status(404).json({ message: "Item tidak ditemukan pada SO tersebut." });
     }
 
     const data = {};
+    
+    // Tentukan itemType final
+    const finalItemType = body.itemType ?? existingItem.itemType;
+    if (body.itemType) data.itemType = body.itemType;
 
-    if (body.productId) {
-      data.productId = body.productId;
-      if (!body.name || !body.uom) {
+    // PERUBAHAN: Logika productId disesuaikan dengan itemType
+    if (finalItemType === "CUSTOM") {
+      data.productId = null;
+    } else if (finalItemType === "PRODUCT" || finalItemType === "SERVICE") {
+      const finalProductId = body.productId ?? existingItem.productId;
+      if (!finalProductId) {
+        return res.status(400).json({ message: `productId wajib untuk item ${finalItemType}.` });
+      }
+      data.productId = finalProductId;
+
+      // Snapshot name/uom jika productId berubah atau jika name/uom tidak dikirim
+      const needsSnapshot = (body.productId && body.productId !== existingItem.productId) || !body.name;
+      if (needsSnapshot) {
         const prod = await Prisma.product.findUnique({
-          where: { id: body.productId },
-          select: { name: true  },
+          where: { id: finalProductId },
+          select: { name: true, uom: true },
         });
-        if (!prod) return res.status(400).json({ message: `Product tidak ditemukan: ${body.productId}` });
-        if (!body.name) data.name = prod.name || null;
+        if (!prod) return res.status(400).json({ message: `Product/Service tidak ditemukan: ${finalProductId}` });
+        if (!body.name) data.name = prod.name;
+        if (typeof body.uom === 'undefined') data.uom = prod.uom ?? null;
       }
     }
 
-    if (typeof body.itemType !== "undefined") data.itemType = body.itemType;
+    // Update field lainnya jika ada di body
     if (typeof body.name !== "undefined") data.name = body.name;
     if (typeof body.description !== "undefined") data.description = body.description ?? null;
     if (typeof body.uom !== "undefined") data.uom = body.uom ?? null;
 
-    const existing = await Prisma.salesOrderItem.findUnique({
-      where: { id: itemId },
-      select: { qty: true, unitPrice: true, discount: true, taxRate: true },
-    });
-
-    const qty = typeof body.qty !== "undefined" ? toNum(body.qty) : Number(existing.qty);
-    const unitPrice = typeof body.unitPrice !== "undefined" ? toNum(body.unitPrice) : Number(existing.unitPrice);
-    const discount = typeof body.discount !== "undefined" ? toNum(body.discount) : Number(existing.discount);
-    const taxRate = typeof body.taxRate !== "undefined" ? toNum(body.taxRate) : Number(existing.taxRate);
+    // Kalkulasi ulang numerik
+    const qty = typeof body.qty !== "undefined" ? toNum(body.qty) : Number(existingItem.qty);
+    const unitPrice = typeof body.unitPrice !== "undefined" ? toNum(body.unitPrice) : Number(existingItem.unitPrice);
+    const discount = typeof body.discount !== "undefined" ? toNum(body.discount) : Number(existingItem.discount);
+    const taxRate = typeof body.taxRate !== "undefined" ? toNum(body.taxRate) : Number(existingItem.taxRate);
 
     data.qty = new Prisma.Decimal(qty);
     data.unitPrice = new Prisma.Decimal(unitPrice);

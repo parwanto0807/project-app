@@ -156,57 +156,29 @@ export const DocTypeEnum = z.enum([
   "PAYMENT_RECEIPT",
 ]);
 
-/* ===== Util presisi ===== */
-const maxDp = (n: number, dp: number) =>
-  Number.isFinite(n) && Math.round(n * 10 ** dp) === n * 10 ** dp;
-
-type SalesOrderItemBase = z.infer<typeof salesOrderItemBase>;
-
-/* ===== Validator kondisional (dipakai berulang) ===== */
-const validateItemBusinessRules = (
-  val: SalesOrderItemBase,
-  ctx: z.RefinementCtx
-) => {
-  if (val.itemType === "PRODUCT" && !val.productId) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["productId"],
-      message: "Produk wajib dipilih untuk item PRODUCT.",
-    });
-  }
-  if (
-    (val.itemType === "SERVICE" || val.itemType === "CUSTOM") &&
-    val.productId
-  ) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["productId"],
-      message: "Untuk item SERVICE/CUSTOM, kosongkan productId.",
-    });
-  }
-  const maxDiscount = val.qty * val.unitPrice;
-  if (val.discount > maxDiscount) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["discount"],
-      message: "Discount tidak boleh melebihi (qty × unitPrice).",
-    });
-  }
+/* ===== Util presisi (pakai epsilon) ===== */
+const EPS = 1e-9;
+const maxDp = (n: number, dp: number) => {
+  if (!Number.isFinite(n)) return false;
+  const scaled = n * 10 ** dp;
+  return Math.abs(Math.round(scaled) - scaled) < EPS;
 };
 
-/* ===== Item BASE (pure object, TANPA superRefine) ===== */
-const salesOrderItemBase = z.object({
+/* ====================================================================== */
+/* ======================  ITEM  (BASE + RULES)  ======================== */
+/* ====================================================================== */
+
+/* BASE: pure object tanpa rules lintas-field */
+export const salesOrderItemBase = z.object({
   itemType: ItemTypeEnum.default("PRODUCT"),
+
+  // productId: optional di base; aturan wajib/null di superRefine
   productId: z.string().uuid().optional().nullable(),
 
   name: z.string().trim().min(1, "Nama item wajib diisi."),
   description: z.string().trim().optional().nullable(),
-  uom: z
-    .string()
-    .trim()
-    .max(20, "UOM maksimal 20 karakter.")
-    .optional()
-    .nullable(),
+
+  uom: z.string().trim().max(20, "UOM maksimal 20 karakter.").optional().nullable(),
 
   qty: z.coerce
     .number()
@@ -220,9 +192,11 @@ const salesOrderItemBase = z.object({
     .refine((v) => Number.isFinite(v), "unitPrice harus angka.")
     .refine((v) => maxDp(v, 2), "unitPrice maksimal 2 angka desimal."),
 
+  // Diskon & pajak dalam persen (0..100)
   discount: z.coerce
     .number()
     .min(0, "Discount tidak boleh negatif.")
+    .max(100, "Discount tidak boleh lebih dari 100%.")
     .default(0)
     .refine((v) => Number.isFinite(v), "discount harus angka.")
     .refine((v) => maxDp(v, 2), "discount maksimal 2 angka desimal."),
@@ -235,73 +209,61 @@ const salesOrderItemBase = z.object({
     .refine((v) => Number.isFinite(v), "taxRate harus angka.")
     .refine((v) => maxDp(v, 2), "taxRate maksimal 2 angka desimal."),
 
-  // isTaxInclusive: z.coerce.boolean().default(false),
-
-  // sisip posisi baris (akan geser lineNo)
+  // Posisi sisip baris opsional
   insertAt: z.coerce.number().int().positive().optional(),
 });
 
-/* ===== Item (CREATE) ===== */
-export const salesOrderItemSchema = salesOrderItemBase.superRefine(
-  validateItemBusinessRules
-);
+export type SalesOrderItemBase = z.infer<typeof salesOrderItemBase>;
 
-/* ===== Document (opsional pada CREATE/UPDATE) ===== */
-export const salesOrderDocumentSchema = z.object({
-  docType: DocTypeEnum,
-  docNumber: z.string().optional().nullable(),
-  docDate: z.coerce.date().optional().nullable(),
-  fileUrl: z.string().url().optional().nullable(),
-  meta: z.any().optional().nullable(),
-});
+/* Lintas-field rules */
+const validateItemBusinessRules = (val: SalesOrderItemBase, ctx: z.RefinementCtx) => {
+  // PRODUCT & SERVICE: productId wajib
+  if ((val.itemType === "PRODUCT" || val.itemType === "SERVICE") && !val.productId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["productId"],
+      message: "Pilih product/jasa dari katalog untuk item PRODUCT/SERVICE.",
+    });
+  }
 
-/* ===== CREATE SO ===== */
-export const createSalesOrderSchema = z.object({
-  soNumber: z.string().optional(),
-  soDate: z.coerce.date({ required_error: "Tanggal wajib diisi." }),
-  customerId: z.string().min(1, "Customer wajib dipilih."),
-  projectId: z.string().min(1, "Project wajib dipilih."),
-  userId: z.string().min(1, "User wajib dipilih."),
-  type: OrderTypeEnum,
-  status: OrderStatusEnum.default("DRAFT"),
-  currency: z.string().default("IDR"),
-  isTaxInclusive: z.boolean().optional().default(false),
-  notes: z.string().optional().nullable(),
-  items: z.array(salesOrderItemSchema).min(1, "Minimal harus ada satu item."),
-  documents: z.array(salesOrderDocumentSchema).optional(),
-});
-export type CreateSalesOrderPayload = z.infer<typeof createSalesOrderSchema>;
+  // CUSTOM: productId harus kosong
+  if (val.itemType === "CUSTOM" && val.productId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["productId"],
+      message: "Untuk item CUSTOM, kosongkan productId.",
+    });
+  }
 
-/* ===== UPDATE (PATCH) ===== */
-/* extend dari BASE, lalu superRefine lagi */
+  // Guard tambahan untuk persen (schema sudah membatasi)
+  if (val.discount < 0 || val.discount > 100) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["discount"],
+      message: "Diskon (%) harus 0–100.",
+    });
+  }
+  if (val.taxRate < 0 || val.taxRate > 100) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["taxRate"],
+      message: "Pajak (%) harus 0–100.",
+    });
+  }
+};
+
+/* CREATE item */
+export const salesOrderItemSchema = salesOrderItemBase.superRefine(validateItemBusinessRules);
+
+/* UPDATE item (PATCH) */
 export const salesOrderItemUpdateSchema = salesOrderItemBase
   .extend({
-    id: z.string().uuid().optional().nullable(), // null ⇒ item baru saat PATCH
+    id: z.string().uuid().optional().nullable(),     // null ⇒ item baru saat PATCH
     lineNo: z.coerce.number().int().positive().optional(), // pindah posisi baris
   })
   .superRefine(validateItemBusinessRules);
 
-export const salesOrderUpdateSchema = z.object({
-  soNumber: z.string().optional(),
-  soDate: z.coerce.date().optional(),
-  customerId: z.string().uuid().optional(),
-  projectId: z.string().uuid().optional(),
-  userId: z.string().uuid().optional(),
-  type: OrderTypeEnum,
-  status: OrderStatusEnum.optional(),
-  currency: z.string().optional(),
-  isTaxInclusive: z.boolean().optional(),
-  notes: z.string().optional().nullable(),
-  items: z
-    .array(salesOrderItemUpdateSchema)
-    .min(1, "Jika daftar item disertakan, minimal harus ada satu item.")
-    .optional(),
-  documents: z.array(salesOrderDocumentSchema).optional(),
-});
-export type UpdateSalesOrderPayload = z.infer<typeof salesOrderUpdateSchema>;
-
-/* ===== Bentuk penuh (response dari backend) ===== */
-/* extend dari BASE, lalu superRefine lagi */
+/* RESPONSE item (dari backend) */
 export const salesOrderItemWithIdSchema = salesOrderItemBase
   .extend({
     id: z.string().uuid(),
@@ -312,11 +274,83 @@ export const salesOrderItemWithIdSchema = salesOrderItemBase
   })
   .superRefine(validateItemBusinessRules);
 
+/* ====================================================================== */
+/* =======================  DOCUMENT (opsional)  ======================== */
+/* ====================================================================== */
+
+export const salesOrderDocumentSchema = z.object({
+  docType: DocTypeEnum,
+  docNumber: z.string().optional().nullable(),
+  docDate: z.coerce.date().optional().nullable(),
+  fileUrl: z.string().url().optional().nullable(),
+  meta: z.any().optional().nullable(),
+});
+
 const salesOrderDocumentWithIdSchema = salesOrderDocumentSchema.extend({
   id: z.string().uuid(),
   salesOrderId: z.string().uuid().optional(),
   createdAt: z.coerce.date().optional(),
 });
+
+/* ====================================================================== */
+/* ===========================  CREATE SO  ============================== */
+/* ====================================================================== */
+
+export const createSalesOrderSchema = z.object({
+  soNumber: z.string().optional(),
+  soDate: z.coerce.date({ required_error: "Tanggal wajib diisi." }),
+
+  customerId: z.string().uuid({ message: "Customer wajib dipilih." }),
+  // Project opsional & nullable (boleh tidak ada)
+  projectId: z.string().uuid().optional().nullable(),
+  userId: z.string().uuid({ message: "User wajib dipilih." }),
+
+  type: OrderTypeEnum,
+  status: OrderStatusEnum.default("DRAFT"),
+
+  currency: z.string().default("IDR"),
+  isTaxInclusive: z.boolean().optional().default(false),
+
+  notes: z.string().optional().nullable(),
+
+  items: z.array(salesOrderItemSchema).min(1, "Minimal harus ada satu item."),
+  documents: z.array(salesOrderDocumentSchema).optional(),
+});
+export type CreateSalesOrderPayload = z.infer<typeof createSalesOrderSchema>;
+
+/* ====================================================================== */
+/* ============================  UPDATE SO  ============================= */
+/* ====================================================================== */
+
+export const salesOrderUpdateSchema = z.object({
+  soNumber: z.string().optional(),
+  soDate: z.coerce.date().optional(),
+
+  customerId: z.string().uuid().optional(),
+  // Izinkan null untuk menghapus project saat update
+  projectId: z.string().uuid().optional().nullable(),
+  userId: z.string().uuid().optional(),
+
+  type: OrderTypeEnum.optional(),          // PATCH ⇒ opsional
+  status: OrderStatusEnum.optional(),
+
+  currency: z.string().optional(),
+  isTaxInclusive: z.boolean().optional(),
+
+  notes: z.string().optional().nullable(),
+
+  items: z
+    .array(salesOrderItemUpdateSchema)
+    .min(1, "Jika daftar item disertakan, minimal harus ada satu item.")
+    .optional(),
+
+  documents: z.array(salesOrderDocumentSchema).optional(),
+});
+export type UpdateSalesOrderPayload = z.infer<typeof salesOrderUpdateSchema>;
+
+/* ====================================================================== */
+/* ============================  FULL SO  =============================== */
+/* ====================================================================== */
 
 export const fullSalesOrderSchema = z.object({
   id: z.string().uuid(),
@@ -324,18 +358,18 @@ export const fullSalesOrderSchema = z.object({
   soDate: z.coerce.date(),
 
   customerId: z.string().uuid(),
-  projectId: z.string().uuid(),
+  // Project tidak selalu ada ⇒ opsional + nullable
+  projectId: z.string().uuid().optional().nullable(),
   userId: z.string().uuid(),
 
   type: OrderTypeEnum,
   status: OrderStatusEnum,
 
-  // ⇨ di Prisma non-nullable, jadi wajib boolean di schema
   isTaxInclusive: z.boolean(),
 
   currency: z.string(),
 
-  // jumlah2 dari Prisma.Decimal → kirim sebagai string/number; coerce ke number
+  // Angka dari Prisma.Decimal ⇒ coerce ke number
   subtotal: z.coerce.number(),
   discountTotal: z.coerce.number(),
   taxTotal: z.coerce.number(),
@@ -345,16 +379,15 @@ export const fullSalesOrderSchema = z.object({
   createdAt: z.coerce.date().optional(),
   updatedAt: z.coerce.date().optional(),
 
-  items: z.array(salesOrderItemWithIdSchema),
+  items: z.array(salesOrderItemWithIdSchema).min(1),
   documents: z.array(salesOrderDocumentWithIdSchema).optional(),
 
-  // relasi (untuk display)
+  // relasi (display)
   customer: z.any().optional(),
   project: z.any().optional(),
   user: z.any().optional(),
 });
 export type SalesOrder = z.infer<typeof fullSalesOrderSchema>;
-
 
 /* ===== Bentuk untuk display di form (opsional) ===== */
 export type SalesOrderWithRelations = SalesOrder & {

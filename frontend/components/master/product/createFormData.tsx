@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -51,6 +51,7 @@ import { useCategories } from "@/hooks/use-categories";
 import * as z from "zod";
 import { ProductRegisterSchema } from "@/schemas";
 import Image from "next/image";
+import { ensureFreshToken } from "@/lib/http";
 
 type ProductSchema = z.infer<typeof ProductRegisterSchema>;
 
@@ -96,7 +97,7 @@ export function CreateProductForm() {
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/master/product/createProduct`, {
                 method: "POST",
                 body: formData,
-                credentials: "include", 
+                credentials: "include",
             });
 
             const data = await response.json();
@@ -115,6 +116,7 @@ export function CreateProductForm() {
 
             form.reset();
             router.refresh();
+            router.push("/super-admin-area/master/products");
         } catch (error) {
             toast.error("Failed to create product", {
                 description: error instanceof Error ? error.message : "An unknown error occurred",
@@ -123,6 +125,22 @@ export function CreateProductForm() {
             setIsSubmitting(false);
         }
     }
+
+    React.useEffect(() => {
+        const onFocus = () => { ensureFreshToken(); };
+        const onVis = () => { if (!document.hidden) ensureFreshToken(); };
+
+        window.addEventListener("focus", onFocus);
+        document.addEventListener("visibilitychange", onVis);
+
+        const id = setInterval(onFocus, 60_000); // tiap 60s cek ringan (opsional)
+
+        return () => {
+            window.removeEventListener("focus", onFocus);
+            document.removeEventListener("visibilitychange", onVis);
+            clearInterval(id);
+        };
+    }, []);
 
 
     return (

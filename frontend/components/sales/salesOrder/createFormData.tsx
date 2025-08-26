@@ -226,6 +226,7 @@ export function CreateSalesOrderForm({
       form.setValue(`items.${index}.description`, selectedProduct.description || "");
     }
   };
+  console.log("Render CreateSalesOrderForm", form.formState.defaultValues);
 
   function onSubmit(data: CreateSalesOrderPayload) {
     startTransition(async () => {
@@ -528,38 +529,46 @@ export function CreateSalesOrderForm({
                     Daftar produk atau jasa yang dipesan
                   </CardDescription>
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    append({
-                      itemType: "PRODUCT",
-                      productId: null,
-                      name: "",
-                      description: "",
-                      qty: 1,
-                      unitPrice: 0,
-                      discount: 0,
-                      taxRate: 0,
-                    })
-                  }
-                >
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Tambah Item
-                </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
               {fields.map((row, index) => {
                 const itemType = form.watch(`items.${index}.itemType`);
                 const isProduct = itemType === "PRODUCT";
+                const isCatalogItem = ["PRODUCT", "SERVICE"].includes(itemType ?? "");
+                const itemNo = String(index + 1).padStart(2, "0"); // ← nomor rapi 2 digit
+                const optionsForType =
+                  itemType === "SERVICE" ? productOptions /* sementara */ : productOptions;
+
+                const typeColors: Record<string, string> = {
+                  PRODUCT: "bg-green-600 text-white shadow-sm",
+                  SERVICE: "bg-blue-600 text-white shadow-sm",
+                  CUSTOM: "bg-pink-600 text-white shadow-sm",
+                };
+
+                const badgeColor = typeColors[itemType ?? "CUSTOM"];
 
                 return (
                   <div
                     key={row.id}
                     className="grid grid-cols-1 gap-4 p-4 border rounded-lg bg-muted/30"
+                    aria-label={`Item ${index + 1}`}
                   >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {/* 🔢 Item Number Badge */}
+                        <span
+                          className={`inline-flex h-7 items-center rounded px-3 text-sm font-semibold ${badgeColor}`}
+                        >
+                          Item {itemNo}
+                        </span>
+
+                        {/* Label tipe item */}
+                        <span className="text-xs text-muted-foreground">
+                          {isProduct ? "Product" : itemType === "SERVICE" ? "Service" : "Custom"}
+                        </span>
+                      </div>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                       {/* Tipe Item */}
                       <div className="md:col-span-2">
@@ -573,7 +582,8 @@ export function CreateSalesOrderForm({
                                 value={field.value ?? "PRODUCT"}
                                 onValueChange={(next) => {
                                   field.onChange(next);
-                                  if (next !== "PRODUCT") {
+                                  // ✅ reset productId HANYA jika bukan PRODUCT & bukan SERVICE (contoh: CUSTOM)
+                                  if (!["PRODUCT", "SERVICE"].includes(next)) {
                                     form.setValue(`items.${index}.productId`, null, {
                                       shouldValidate: true,
                                       shouldDirty: true,
@@ -598,31 +608,32 @@ export function CreateSalesOrderForm({
                         />
                       </div>
 
-                      {/* Product Selection (hanya untuk tipe PRODUCT) */}
-                      {isProduct && (
+                      {/* Pemilihan dari katalog (tampil untuk PRODUCT & SERVICE) */}
+                      {isCatalogItem && (
                         <div className="md:col-span-3">
                           <FormField
                             control={form.control}
                             name={`items.${index}.productId`}
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel>Produk</FormLabel>
+                                <FormLabel>{itemType === "PRODUCT" ? "Produk" : "Jasa"}</FormLabel>
                                 <Select
                                   value={field.value ?? undefined}
                                   onValueChange={(value) => {
                                     field.onChange(value);
-                                    handleProductSelect(index, value);
+                                    handleProductSelect(index, value); // pastikan fungsi ini bisa menangani SERVICE juga
                                   }}
                                 >
                                   <FormControl>
                                     <SelectTrigger>
-                                      <SelectValue placeholder="Pilih produk" />
+                                      <SelectValue placeholder={`Pilih ${itemType === "PRODUCT" ? "produk" : "jasa"}`} />
                                     </SelectTrigger>
                                   </FormControl>
                                   <SelectContent>
-                                    {productOptions.map((product) => (
-                                      <SelectItem key={product.id} value={product.id}>
-                                        {product.name}
+                                    {/* Jika Anda punya daftar terpisah, ganti ke serviceOptions saat SERVICE */}
+                                    {optionsForType.map((opt) => (
+                                      <SelectItem key={opt.id} value={opt.id}>
+                                        {opt.name}
                                       </SelectItem>
                                     ))}
                                   </SelectContent>
@@ -634,8 +645,8 @@ export function CreateSalesOrderForm({
                         </div>
                       )}
 
-                      {/* Nama Item */}
-                      <div className={isProduct ? "md:col-span-7" : "md:col-span-10"}>
+                      {/* Nama Item: span menyesuaikan */}
+                      <div className={isCatalogItem ? "md:col-span-7" : "md:col-span-10"}>
                         <FormField
                           control={form.control}
                           name={`items.${index}.name`}
@@ -814,10 +825,11 @@ export function CreateSalesOrderForm({
                         type="button"
                         variant="ghost"
                         size="sm"
+                        className="text-white-600 hover:text-red-400 shadow-sm transition-colors"
                         onClick={() => remove(index)}
                         disabled={fields.length <= 1}
                       >
-                        <Trash2 className="h-4 w-4 mr-2" />
+                        <Trash2 className="h-4 w-4 mr-2 text-red-400" />
                         Hapus
                       </Button>
                     </div>
@@ -831,6 +843,29 @@ export function CreateSalesOrderForm({
                 </p>
               )}
             </CardContent>
+            <div className="flex items-center justify-end pt-1 pr-6">
+              <Button
+                type="button"
+                size="sm"
+                className="bg-cyan-600 hover:bg-cyan-700 text-white shadow-sm transition-colors"
+                onClick={() =>
+                  append({
+                    itemType: "PRODUCT",
+                    productId: null,
+                    name: "",
+                    description: "",
+                    qty: 1,
+                    unitPrice: 0,
+                    discount: 0,
+                    taxRate: 0,
+                  })
+                }
+              >
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Tambah Item
+              </Button>
+            </div>
+
           </Card>
 
           {/* Action Buttons */}

@@ -20,7 +20,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { fetchAllCustomers } from "@/lib/action/master/customer";
 import { fetchSalesOrderById } from "@/lib/action/sales/salesOrder";
 import { UpdateSalesOrderForm } from "@/components/sales/salesOrder/updateFormData";
-import { fullSalesOrderSchema } from "@/schemas";
+import { fullSalesOrderSchema } from "@/schemas/index";
 
 // NOTE: Ganti schema ini dengan schema SalesOrder yang sebenarnya.
 // const salesOrderItemWithIdSchema = salesOrderItemSchema.extend({

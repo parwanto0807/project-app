@@ -203,7 +203,7 @@ export function UpdateSalesOrderForm({
             form.setValue(`items.${index}.description`, selectedProduct.description || "");
         }
     };
-    
+
 
     function onSubmit(data: UpdateSalesOrderPayload) {
         startTransition(async () => {
@@ -507,14 +507,45 @@ export function UpdateSalesOrderForm({
                         </CardHeader>
                         <CardContent className="space-y-4">
                             {fields.map((row, index) => {
+                                type Option = { id: string; name: string };
                                 const itemType = form.watch(`items.${index}.itemType`);
-                                const isProduct = itemType === "PRODUCT";
+                                const isCatalogItem = itemType === "PRODUCT" || itemType === "SERVICE"; // ✅ PRODUCT & SERVICE
+                                const itemNo = String(index + 1).padStart(2, "0");
+                                const serviceOptions: Option[] = (productOptions as Option[]) ?? [];
+                                const getOptionsForType = (t?: "PRODUCT" | "SERVICE" | "CUSTOM"): Option[] =>
+                                    t === "SERVICE" ? serviceOptions : (productOptions as Option[]) ?? [];
+
+                                // Watch nilai yang dibutuhkan untuk subtotal (lebih efisien daripada form.watch berkali-kali di JSX)
+                                const qty = form.watch(`items.${index}.qty`) ?? 0;
+                                const unitPrice = form.watch(`items.${index}.unitPrice`) ?? 0;
+                                const discount = form.watch(`items.${index}.discount`) ?? 0; // %
+                                const taxRate = form.watch(`items.${index}.taxRate`) ?? 0;   // %
+
+                                const gross = qty * unitPrice;
+                                const net = gross * (1 - discount / 100);
+                                const total = net * (1 + taxRate / 100);
+
 
                                 return (
-                                    <div
-                                        key={row.id}
-                                        className="grid grid-cols-1 gap-4 p-4 border rounded-lg bg-muted/30"
-                                    >
+                                    <div key={row.id} className="grid grid-cols-1 gap-4 p-4 border rounded-lg bg-muted/30">
+                                        {/* Header kecil di tiap item: nomor + tipe */}
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                {/* Badge nomor item dengan warna per tipe */}
+                                                <span
+                                                    className={`inline-flex h-7 items-center rounded-full px-3 text-sm font-semibold shadow-sm
+              ${itemType === "PRODUCT" ? "bg-green-600 text-white"
+                                                            : itemType === "SERVICE" ? "bg-blue-600 text-white"
+                                                                : "bg-purple-600 text-white"}`}
+                                                >
+                                                    Item {itemNo}
+                                                </span>
+                                                <span className="text-xs text-muted-foreground">
+                                                    {itemType === "PRODUCT" ? "Product" : itemType === "SERVICE" ? "Service" : "Custom"}
+                                                </span>
+                                            </div>
+                                        </div>
+
                                         <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                                             {/* Tipe Item */}
                                             <div className="md:col-span-2">
@@ -528,7 +559,8 @@ export function UpdateSalesOrderForm({
                                                                 value={field.value}
                                                                 onValueChange={(next) => {
                                                                     field.onChange(next);
-                                                                    if (next !== "PRODUCT") {
+                                                                    // ✅ reset productId HANYA jika CUSTOM
+                                                                    if (next === "CUSTOM") {
                                                                         form.setValue(`items.${index}.productId`, null, {
                                                                             shouldValidate: true,
                                                                             shouldDirty: true,
@@ -553,31 +585,31 @@ export function UpdateSalesOrderForm({
                                                 />
                                             </div>
 
-                                            {/* Product Selection (hanya untuk tipe PRODUCT) */}
-                                            {isProduct && (
+                                            {/* Pemilihan dari katalog (tampil untuk PRODUCT & SERVICE) */}
+                                            {isCatalogItem && (
                                                 <div className="md:col-span-3">
                                                     <FormField
                                                         control={form.control}
                                                         name={`items.${index}.productId`}
                                                         render={({ field }) => (
                                                             <FormItem>
-                                                                <FormLabel>Produk</FormLabel>
+                                                                <FormLabel>{itemType === "PRODUCT" ? "Produk" : "Jasa"}</FormLabel>
                                                                 <Select
                                                                     value={field.value ?? undefined}
                                                                     onValueChange={(value) => {
                                                                         field.onChange(value);
-                                                                        handleProductSelect(index, value);
+                                                                        handleProductSelect(index, value); // pastikan mendukung SERVICE juga
                                                                     }}
                                                                 >
                                                                     <FormControl>
                                                                         <SelectTrigger>
-                                                                            <SelectValue placeholder="Pilih produk" />
+                                                                            <SelectValue placeholder={`Pilih ${itemType === "PRODUCT" ? "produk" : "jasa"}`} />
                                                                         </SelectTrigger>
                                                                     </FormControl>
                                                                     <SelectContent>
-                                                                        {productOptions.map((product) => (
-                                                                            <SelectItem key={product.id} value={product.id}>
-                                                                                {product.name}
+                                                                        {getOptionsForType(itemType).map((opt) => (
+                                                                            <SelectItem key={opt.id} value={opt.id}>
+                                                                                {opt.name}
                                                                             </SelectItem>
                                                                         ))}
                                                                     </SelectContent>
@@ -590,7 +622,7 @@ export function UpdateSalesOrderForm({
                                             )}
 
                                             {/* Nama Item */}
-                                            <div className={isProduct ? "md:col-span-7" : "md:col-span-10"}>
+                                            <div className={isCatalogItem ? "md:col-span-7" : "md:col-span-10"}>
                                                 <FormField
                                                     control={form.control}
                                                     name={`items.${index}.name`}
@@ -736,12 +768,7 @@ export function UpdateSalesOrderForm({
                                                 <FormLabel>Subtotal</FormLabel>
                                                 <div className="flex items-center h-10 px-3 rounded-md border bg-background font-medium">
                                                     <span className="text-sm">
-                                                        Rp {(
-                                                            (form.watch(`items.${index}.qty`) || 0) *
-                                                            (form.watch(`items.${index}.unitPrice`) || 0) *
-                                                            (1 - (form.watch(`items.${index}.discount`) || 0) / 100) *
-                                                            (1 + (form.watch(`items.${index}.taxRate`) || 0) / 100)
-                                                        ).toLocaleString('id-ID')}
+                                                        Rp {Number.isFinite(total) ? total.toLocaleString("id-ID") : "0"}
                                                     </span>
                                                 </div>
                                             </div>

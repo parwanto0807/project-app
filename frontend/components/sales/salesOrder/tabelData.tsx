@@ -76,7 +76,7 @@ import { cn } from "@/lib/utils"
 interface SalesOrderTableProps {
     salesOrders: SalesOrder[]
     isLoading: boolean
-    onDeleteOrder: (orderId: string) => void
+    onDeleteOrder?: (id: string) => Promise<void> | void;
 }
 
 // Helper component to render the expanded details of an order
@@ -745,6 +745,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
     const [expanded, setExpanded] = React.useState<ExpandedState>({})
     const isMobile = useMediaQuery("(max-width: 768px)")
     const [salesOrders, setSalesOrders] = React.useState<SalesOrder[]>(initialSalesOrders)
+    const handleDelete = onDeleteOrder ?? (() => { });
 
     // Update local state when prop changes
     React.useEffect(() => {
@@ -762,11 +763,11 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
         if (onDeleteOrder) {
             onDeleteOrder(deletedOrderId)
         }
-    }, [onDeleteOrder]) 
+    }, [onDeleteOrder])
 
     const confirmDelete = () => {
         if (orderToDelete) {
-            onDeleteOrder(orderToDelete)
+            handleDelete(orderToDelete)
         }
         setDeleteConfirmOpen(false)
         setOrderToDelete(null)

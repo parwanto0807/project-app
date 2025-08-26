@@ -105,11 +105,6 @@ export const create = async (req, res) => {
     }
     const userId = req.user.userId;
 
-    // Body:
-    // { soNumber?, soDate, customerId, projectId, type, status?, currency?, notes?,
-    //   items: [{ itemType?, productId?, name?, description?, uom?, qty, unitPrice, discount?, taxRate? }, ...],
-    //   documents?: [{ docType, docNumber?, docDate?, fileUrl?, meta? }, ...] }
-
     const {
       soNumber,
       soDate,
@@ -139,10 +134,10 @@ export const create = async (req, res) => {
 
     // Siapkan items + hitung totals header
     const preparedItems = [];
-    let subtotal = 0; // SUM(net) = setelah diskon, sebelum pajak
-    let discountTotal = 0; // SUM(discount rupiah)
-    let taxTotal = 0; // SUM(tax)
-    let grandTotal = 0; // SUM(total)
+    let subtotal = 0;
+    let discountTotal = 0;
+    let taxTotal = 0;
+    let grandTotal = 0;
 
     for (let i = 0; i < items.length; i++) {
       const it = items[i] ?? {};
@@ -157,33 +152,34 @@ export const create = async (req, res) => {
         });
       }
 
-      // PRODUCT ⇒ productId wajib
-      if (itemType === "PRODUCT" && !it.productId) {
+      // PRODUCT & SERVICE ⇒ productId wajib
+      if ((itemType === "PRODUCT" || itemType === "SERVICE") && !it.productId) {
         return res.status(400).json({
-          message: `productId wajib untuk item PRODUCT (baris ${idx}).`,
+          message: `productId wajib untuk item ${itemType} (baris ${idx}).`,
         });
       }
 
-      // Snapshot name/uom (kalau kosong dan ada productId)
+      // Snapshot name/uom (untuk PRODUCT & SERVICE)
       let name = it.name;
       let uom = it.uom ?? null;
-      if ((!name || !uom) && it.productId) {
-        const prod = await prisma.product.findUnique({
-          where: { id: it.productId },
-          select: { name: true, uom: true },
-        });
-        if (!prod) {
-          return res
-            .status(400)
-            .json({ message: `Product tidak ditemukan: ${it.productId}` });
+      if (itemType === "PRODUCT" || itemType === "SERVICE") {
+        const needSnapshot = !name || !uom;
+        if (needSnapshot) {
+          // PERBAIKAN: Gunakan instance `prisma` (lowercase)
+          const prod = await prisma.product.findUnique({
+            where: { id: it.productId },
+            select: { name: true, uom: true },
+          });
+          if (!prod) {
+            return res
+              .status(400)
+              .json({ message: `Product/Service tidak ditemukan: ${it.productId}` });
+          }
+          if (!name) name = prod.name || undefined;
+          if (!uom) uom = prod.uom ?? null;
         }
-        if (!name) name = prod.name || undefined;
-        if (!uom) uom = prod.uom ?? null;
-      } else {
-        // SERVICE/CUSTOM: abaikan productId, uom boleh null
-        if (itemType !== "PRODUCT") {
-          uom = uom ?? null;
-        }
+      } else { // itemType === "CUSTOM"
+        uom = uom ?? null;
       }
 
       // Validasi name wajib untuk semua item
@@ -218,18 +214,19 @@ export const create = async (req, res) => {
           .json({ message: `taxRate harus angka 0–100 (baris ${idx}).` });
       }
 
-      // Hitung (exclusive)
+      // Hitung (exclusive) - diasumsikan fungsi ini ada dan benar
       const amt = calcLineExclusive(qty, unitPrice, discount, taxRate);
 
       subtotal += amt.net;
-      discountTotal += discount;
+      discountTotal += (qty * unitPrice) - amt.net; // Menghitung diskon nominal
       taxTotal += amt.tax;
       grandTotal += amt.total;
 
       preparedItems.push({
         lineNo: idx, // 1..n
         itemType,
-        productId: itemType === "PRODUCT" ? it.productId : null,
+        // productId null hanya untuk CUSTOM
+        productId: itemType === "CUSTOM" ? null : it.productId,
         name,
         uom,
         description: it.description ?? null,
@@ -237,32 +234,29 @@ export const create = async (req, res) => {
         unitPrice: new Prisma.Decimal(unitPrice),
         discount: new Prisma.Decimal(discount),
         taxRate: new Prisma.Decimal(taxRate),
-        lineTotal: new Prisma.Decimal(amt.total),
+        lineTotal: new Prisma.Decimal(amt.net), // lineTotal konsisten (sebelum pajak)
       });
     }
 
     // Transaksi: create header + items + documents
+    // PERBAIKAN: Gunakan instance `prisma` (lowercase)
     const created = await prisma.$transaction(async (tx) => {
       const so = await tx.salesOrder.create({
         data: {
-          // soNumber opsional: kirim bila ada, atau biarkan BE/generator yang isi
           ...(soNumber ? { soNumber } : {}),
           soDate: new Date(soDate),
           customer: { connect: { id: customerId } },
-          project: { connect: { id: projectId } }, // FK wajib
+          project: { connect: { id: projectId } },
           user: { connect: { id: userId } },
-          type, // REGULAR | SUPPORT
-          ...(status ? { status } : {}), // default DRAFT di DB
+          type,
+          ...(status ? { status } : {}),
           currency: currency || "IDR",
           notes: notes ?? null,
-
           subtotal: new Prisma.Decimal(r2(subtotal)),
           discountTotal: new Prisma.Decimal(r2(discountTotal)),
           taxTotal: new Prisma.Decimal(r2(taxTotal)),
           grandTotal: new Prisma.Decimal(r2(grandTotal)),
-
           items: { create: preparedItems },
-
           ...(Array.isArray(documents) && documents.length > 0
             ? {
                 documents: {
@@ -285,15 +279,12 @@ export const create = async (req, res) => {
           documents: true,
         },
       });
-
       return so;
     });
 
     return res.status(201).json(created);
   } catch (error) {
     console.error("Error creating sales order in backend:", error);
-
-    // Unique soNumber
     if (
       error &&
       error.code === "P2002" &&
