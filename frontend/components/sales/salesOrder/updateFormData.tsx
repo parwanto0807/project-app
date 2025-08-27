@@ -587,12 +587,12 @@ export function UpdateSalesOrderForm({
 
                                             {/* Pemilihan dari katalog (tampil untuk PRODUCT & SERVICE) */}
                                             {isCatalogItem && (
-                                                <div className="md:col-span-3">
+                                                <div className="md:col-span-10">
                                                     <FormField
                                                         control={form.control}
                                                         name={`items.${index}.productId`}
                                                         render={({ field }) => (
-                                                            <FormItem>
+                                                            <FormItem className="w-full">
                                                                 <FormLabel>{itemType === "PRODUCT" ? "Produk" : "Jasa"}</FormLabel>
                                                                 <Select
                                                                     value={field.value ?? undefined}
@@ -602,7 +602,7 @@ export function UpdateSalesOrderForm({
                                                                     }}
                                                                 >
                                                                     <FormControl>
-                                                                        <SelectTrigger>
+                                                                        <SelectTrigger className="w-full">
                                                                             <SelectValue placeholder={`Pilih ${itemType === "PRODUCT" ? "produk" : "jasa"}`} />
                                                                         </SelectTrigger>
                                                                     </FormControl>
@@ -620,26 +620,22 @@ export function UpdateSalesOrderForm({
                                                     />
                                                 </div>
                                             )}
-
-                                            {/* Nama Item */}
-                                            <div className={isCatalogItem ? "md:col-span-7" : "md:col-span-10"}>
-                                                <FormField
-                                                    control={form.control}
-                                                    name={`items.${index}.name`}
-                                                    render={({ field }) => (
-                                                        <FormItem>
-                                                            <FormLabel>Nama Item</FormLabel>
-                                                            <FormControl>
-                                                                <Input placeholder="Nama item/jasa..." {...field} />
-                                                            </FormControl>
-                                                            <FormMessage />
-                                                        </FormItem>
-                                                    )}
-                                                />
-                                            </div>
                                         </div>
 
                                         {/* Deskripsi */}
+                                        <FormField
+                                            control={form.control}
+                                            name={`items.${index}.name`}
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Nama Item</FormLabel>
+                                                    <FormControl>
+                                                        <Input placeholder="Nama item/jasa..." {...field} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
                                         <FormField
                                             control={form.control}
                                             name={`items.${index}.description`}
@@ -647,7 +643,7 @@ export function UpdateSalesOrderForm({
                                                 <FormItem>
                                                     <FormLabel>Deskripsi (Opsional)</FormLabel>
                                                     <FormControl>
-                                                        <Textarea
+                                                        <Input
                                                             placeholder="Deskripsi detail item/jasa..."
                                                             className="resize-none"
                                                             value={field.value || ""}

@@ -84,6 +84,7 @@ export const ApiProductSchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string().optional(),
+  usageUnit: z.string().optional().nullable(),
 });
 
 // Untuk update: tambah id UUID

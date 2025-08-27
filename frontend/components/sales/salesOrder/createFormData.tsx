@@ -72,14 +72,16 @@ import {
   salesOrderItemSchema,
 } from "@/schemas/index";
 import { ensureFreshToken } from "@/lib/http";
+import { ProductCreateDialog } from "./productDialog";
 
 type ApiProduct = z.infer<typeof ApiProductSchema>;
-type ProductOption = { id: string; name: string; description?: string | null };
+type ProductOption = { id: string; name: string; description?: string; usageUnit?: string | null; };
 
 interface Customer {
   id: string
   name: string
   address?: string
+  branch?: string
 }
 
 interface Project {
@@ -122,6 +124,7 @@ export function CreateSalesOrderForm({
   const [productOptions, setProductOptions] = React.useState<ProductOption[]>([]);
   const [projectOptions, setProjectOptions] = React.useState<Project[]>(projects);
   const [loadingProjects, setLoadingProjects] = React.useState(false);
+
 
   React.useEffect(() => { setCustomerOptions(customers); }, [customers]);
   React.useEffect(() => { setProjectOptions(projects); }, [projects]);
@@ -171,7 +174,8 @@ export function CreateSalesOrderForm({
           products.map((p: ApiProduct): ProductOption => ({
             id: p.id,
             name: p.name,
-            description: p.description ?? undefined,
+            description: p.description,
+            usageUnit: p.usageUnit ?? null,
           }))
         );
       } catch (error) {
@@ -220,13 +224,19 @@ export function CreateSalesOrderForm({
   // TAMBAHKAN fungsi untuk handle product selection
   const handleProductSelect = (index: number, productId: string) => {
     const selectedProduct = productOptions.find(p => p.id === productId);
-    if (selectedProduct) {
-      form.setValue(`items.${index}.productId`, productId);
-      form.setValue(`items.${index}.name`, selectedProduct.name);
-      form.setValue(`items.${index}.description`, selectedProduct.description || "");
-    }
+    if (!selectedProduct) return;
+
+    const uomValue =
+      selectedProduct.usageUnit ?? // ✅ fallback ke nama field di DB
+      "";
+
+    form.setValue(`items.${index}.productId`, productId, { shouldDirty: true, shouldTouch: true });
+    form.setValue(`items.${index}.name`, selectedProduct.name ?? "", { shouldDirty: true, shouldTouch: true });
+    form.setValue(`items.${index}.description`, selectedProduct.description ?? "", { shouldDirty: true, shouldTouch: true });
+    form.setValue(`items.${index}.uom`, uomValue, { shouldDirty: true, shouldTouch: true });
   };
-  console.log("Render CreateSalesOrderForm", form.formState.defaultValues);
+
+
 
   function onSubmit(data: CreateSalesOrderPayload) {
     startTransition(async () => {
@@ -363,7 +373,7 @@ export function CreateSalesOrderForm({
                             <SelectContent>
                               {customerOptions.map((c) => (
                                 <SelectItem key={c.id} value={c.id}>
-                                  {c.name}
+                                  {c.name} {c.branch ? `(${c.branch})` : ""}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -610,34 +620,53 @@ export function CreateSalesOrderForm({
 
                       {/* Pemilihan dari katalog (tampil untuk PRODUCT & SERVICE) */}
                       {isCatalogItem && (
-                        <div className="md:col-span-3">
+                        <div className="md:col-span-10">
                           <FormField
                             control={form.control}
                             name={`items.${index}.productId`}
                             render={({ field }) => (
-                              <FormItem>
+                              <FormItem className="w-full">
                                 <FormLabel>{itemType === "PRODUCT" ? "Produk" : "Jasa"}</FormLabel>
-                                <Select
-                                  value={field.value ?? undefined}
-                                  onValueChange={(value) => {
-                                    field.onChange(value);
-                                    handleProductSelect(index, value); // pastikan fungsi ini bisa menangani SERVICE juga
-                                  }}
-                                >
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder={`Pilih ${itemType === "PRODUCT" ? "produk" : "jasa"}`} />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    {/* Jika Anda punya daftar terpisah, ganti ke serviceOptions saat SERVICE */}
-                                    {optionsForType.map((opt) => (
-                                      <SelectItem key={opt.id} value={opt.id}>
-                                        {opt.name}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                <div className="flex items-center gap-4">
+                                  <Select
+                                    value={field.value ?? ""}
+                                    onValueChange={(value) => {
+                                      field.onChange(value)
+                                      handleProductSelect(index, value) // pastikan handleProductSelect bisa SERVICE juga
+                                    }}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger className="w-full">   {/* ✅ penting */}
+                                        <SelectValue
+                                          placeholder={`Pilih ${itemType === "PRODUCT" ? "produk" : "service / jasa"
+                                            }`}
+                                        />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {optionsForType.map((opt) => (
+                                        <SelectItem key={opt.id} value={opt.id}>
+                                          {opt.name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                  {itemType === "PRODUCT" && (
+                                    <ProductCreateDialog
+                                      createEndpoint={`${process.env.NEXT_PUBLIC_API_URL}/api/master/product/createProduct`}
+                                      onCreated={(created) => {
+                                        setProductOptions((prev) => [
+                                          ...prev,
+                                          {
+                                            id: created.id,
+                                            name: created.name,
+                                          },
+                                        ]);
+                                        handleProductSelect(index, created.id);
+                                      }}
+                                    />
+                                  )}
+                                </div>
                                 <FormMessage />
                               </FormItem>
                             )}
@@ -646,24 +675,24 @@ export function CreateSalesOrderForm({
                       )}
 
                       {/* Nama Item: span menyesuaikan */}
-                      <div className={isCatalogItem ? "md:col-span-7" : "md:col-span-10"}>
-                        <FormField
-                          control={form.control}
-                          name={`items.${index}.name`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Nama Item</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Nama item/jasa..." {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
                     </div>
 
                     {/* Deskripsi */}
+
+                    <FormField
+                      control={form.control}
+                      name={`items.${index}.name`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nama Item</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Nama item/jasa..." {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
                     <FormField
                       control={form.control}
                       name={`items.${index}.description`}
@@ -671,7 +700,7 @@ export function CreateSalesOrderForm({
                         <FormItem>
                           <FormLabel>Deskripsi (Opsional)</FormLabel>
                           <FormControl>
-                            <Textarea
+                            <Input
                               placeholder="Deskripsi detail item/jasa..."
                               className="resize-none"
                               value={field.value || ""}
@@ -718,6 +747,7 @@ export function CreateSalesOrderForm({
                             <FormLabel>UOM</FormLabel>
                             <FormControl>
                               <Input
+                                {...field}
                                 placeholder="Pcs, Lot, Kg, Ltr, etc."
                                 value={field.value ?? ""}
                                 onChange={(e) => field.onChange(e.target.value || null)}
