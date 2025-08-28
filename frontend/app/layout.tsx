@@ -4,8 +4,8 @@ import ClientSessionProvider from "@/components/clientSessionProvider";
 import { cookies } from "next/headers"; // Untuk mengambil cookie dari request server
 
 export const metadata: Metadata = {
-  title: "IPL Cluster",
-  description: "Manage IPL payments with ease and security.",
+  title: "ProyekID",
+  description: "A Trusted Platform for Construction Project Orders.",
   manifest: "/manifest.json",
 };
 

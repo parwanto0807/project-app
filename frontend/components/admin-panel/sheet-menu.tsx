@@ -36,7 +36,7 @@ export function SheetMenu({ role }: SheetMenuProps) {
             <Link href="/dashboard" className="flex items-center gap-2">
               <Image
                 src="/LogoMd.png"
-                alt="IPL Cluster"
+                alt="ProyekID"
                 width={200}
                 height={100}
                 className="w-auto h-auto"
@@ -45,7 +45,7 @@ export function SheetMenu({ role }: SheetMenuProps) {
           </Button>
 
           <SheetTitle className="text-orange-600">
-            {/* IPL Cluster Taman Marunda */}
+
           </SheetTitle>
           <SheetDescription>
             A Trusted Platform for Construction Project Orders.

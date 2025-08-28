@@ -1,24 +1,24 @@
-import { PrismaClient } from '../../../../prisma/generated/prisma/index.js';
+import { PrismaClient } from "../../../../prisma/generated/prisma/index.js";
 const prisma = new PrismaClient();
 
 // [GET] /products - Ambil semua produk (opsional: hanya aktif)
 export const getAllProducts = async (req, res) => {
   try {
-    const { activeOnly = 'true' } = req.query;
-    const filter = activeOnly === 'false' ? {} : { isActive: true };
+    const { activeOnly = "true" } = req.query;
+    const filter = activeOnly === "false" ? {} : { isActive: true };
 
     const products = await prisma.product.findMany({
       where: filter,
       include: {
         category: true,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
 
     res.json(products);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Gagal mengambil data produk' });
+    res.status(500).json({ message: "Gagal mengambil data produk" });
   }
 };
 
@@ -33,13 +33,13 @@ export const getProductById = async (req, res) => {
     });
 
     if (!product) {
-      return res.status(404).json({ message: 'Produk tidak ditemukan' });
+      return res.status(404).json({ message: "Produk tidak ditemukan" });
     }
 
     res.json(product);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Gagal mengambil data produk' });
+    res.status(500).json({ message: "Gagal mengambil data produk" });
   }
 };
 
@@ -78,8 +78,12 @@ export const createProduct = async (req, res) => {
       purchaseUnit,
       storageUnit,
       usageUnit,
-      conversionToStorage: conversionToStorage ? Number(conversionToStorage) : undefined,
-      conversionToUsage: conversionToUsage ? Number(conversionToUsage) : undefined,
+      conversionToStorage: conversionToStorage
+        ? Number(conversionToStorage)
+        : undefined,
+      conversionToUsage: conversionToUsage
+        ? Number(conversionToUsage)
+        : undefined,
       barcode,
       isConsumable: isConsumable === "true" || isConsumable === true,
       isActive: isActive === "true" || isActive === true,
@@ -96,13 +100,14 @@ export const createProduct = async (req, res) => {
   } catch (error) {
     console.error(error);
     // Prisma unique constraint error (duplicate)
-    if (error.code === 'P2002') {
-      return res.status(400).json({ message: 'Kode produk atau barcode sudah digunakan' });
+    if (error.code === "P2002") {
+      return res
+        .status(400)
+        .json({ message: "Kode produk atau barcode sudah digunakan" });
     }
-    res.status(500).json({ message: 'Gagal menambahkan produk' });
+    res.status(500).json({ message: "Gagal menambahkan produk" });
   }
 };
-
 
 // [PUT] /products/:id - Update produk
 export const updateProduct = async (req, res) => {
@@ -182,7 +187,7 @@ export const deleteProduct = async (req, res) => {
 
     const existing = await prisma.product.findUnique({ where: { id } });
     if (!existing) {
-      return res.status(404).json({ message: 'Produk tidak ditemukan' });
+      return res.status(404).json({ message: "Produk tidak ditemukan" });
     }
 
     const deleted = await prisma.product.update({
@@ -190,16 +195,21 @@ export const deleteProduct = async (req, res) => {
       data: { isActive: false },
     });
 
-    res.json({ message: 'Produk dinonaktifkan', product: deleted });
+    res.json({ message: "Produk dinonaktifkan", product: deleted });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Gagal menghapus produk' });
+    res.status(500).json({ message: "Gagal menghapus produk" });
   }
 };
 
 export async function getProductCount(req, res) {
   try {
-    const count = await prisma.product.count();
+    const { activeOnly = "true" } = req.query;
+    const filter = activeOnly === "false" ? {} : { isActive: true };
+
+    const count = await prisma.product.count({
+      where: filter
+    });
     res.json({ count });
   } catch (err) {
     console.error("[getProductCount] error:", err);

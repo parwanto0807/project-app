@@ -66,6 +66,7 @@ const productSchema = z.object({
 
   // FIX: And here, to ensure the type is always 'boolean'
   isConsumable: z.boolean().default(true), // 👈 FIX IS HERE
+  isActive: z.boolean().default(true),
 });
 
 // ======================================================
@@ -86,6 +87,7 @@ export function ProductCreateDialog({ onCreated, createEndpoint }: BaseProps) {
             usageUnit: "",
             conversionToStorage: 1,
             conversionToUsage: 1,
+            isActive: true,
             isConsumable: true,   // HARUS boolean, TIDAK undefined
         },
     });

@@ -125,6 +125,11 @@ export function CreateSalesOrderForm({
   const [projectOptions, setProjectOptions] = React.useState<Project[]>(projects);
   const [loadingProjects, setLoadingProjects] = React.useState(false);
 
+  const itemsEndRef = React.useRef<HTMLDivElement | null>(null);
+  const scrollToBottom = () => {
+    itemsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
 
   React.useEffect(() => { setCustomerOptions(customers); }, [customers]);
   React.useEffect(() => { setProjectOptions(projects); }, [projects]);
@@ -549,7 +554,6 @@ export function CreateSalesOrderForm({
                 const itemNo = String(index + 1).padStart(2, "0"); // ← nomor rapi 2 digit
                 const optionsForType =
                   itemType === "SERVICE" ? productOptions /* sementara */ : productOptions;
-
                 const typeColors: Record<string, string> = {
                   PRODUCT: "bg-green-600 text-white shadow-sm",
                   SERVICE: "bg-blue-600 text-white shadow-sm",
@@ -866,19 +870,18 @@ export function CreateSalesOrderForm({
                   </div>
                 )
               })}
-
               {form.formState.errors.items?.message && (
                 <p className="text-sm font-medium text-destructive">
                   {form.formState.errors.items.message}
                 </p>
               )}
             </CardContent>
+            <div ref={itemsEndRef} />
             <div className="flex items-center justify-end pt-1 pr-6">
               <Button
                 type="button"
                 size="sm"
-                className="bg-cyan-600 hover:bg-cyan-700 text-white shadow-sm transition-colors"
-                onClick={() =>
+                onClick={() => {
                   append({
                     itemType: "PRODUCT",
                     productId: null,
@@ -889,7 +892,10 @@ export function CreateSalesOrderForm({
                     discount: 0,
                     taxRate: 0,
                   })
-                }
+                  if (window.innerWidth >= 768) {
+                    setTimeout(scrollToBottom, 100)
+                  }
+                }}
               >
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Tambah Item

@@ -21,7 +21,6 @@ export default function ProductPage() {
   const [product, setProduct] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-
   // Ubah ini sesuai dengan sistem auth kamu
   const userRole = "super"; // bisa ganti dari context / user state
 

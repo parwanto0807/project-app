@@ -1,7 +1,7 @@
 
 {
-  "name": "IPL Cluster Taman Marunda",
-  "short_name": "IPL Cluster",
+  "name": "ProyekID",
+  "short_name": "ProyekID",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
