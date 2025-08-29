@@ -738,9 +738,15 @@ const useBodyScrollLock = (isLocked: boolean) => {
 };
 
 function mapToFormData(order: SalesOrder): SalesOrderFormData {
+    console.log("Mapping order to form data:", order);
     return {
+        soNumber: order.soNumber,
         soDate: order.soDate ? new Date(order.soDate) : null,
         customerId: order.customerId,
+        customerName: order.customer.name,
+        branch: order.customer.branch ?? undefined,
+        location: order.customer.address ?? undefined,
+        customerPIC: order.customer?.contactPerson ?? undefined,
         projectId: order.projectId,
         userId: order.userId,
         type: order.type,
@@ -759,8 +765,10 @@ function mapToFormData(order: SalesOrder): SalesOrderFormData {
             discount: item.discount ?? 0,
             taxRate: item.taxRate ?? 0,
         })),
-        customer: order.customer,
-        project: order.project
+        project: order.project,
+        customer: order.customer
+            ? { ...order.customer, branch: order.customer.branch ?? undefined }
+            : undefined,
     };
 }
 

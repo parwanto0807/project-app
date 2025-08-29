@@ -1,19 +1,22 @@
 "use client";
 
-import { PDFViewer, pdf} from "@react-pdf/renderer";
+import { PDFViewer, pdf } from "@react-pdf/renderer";
 import { SalesOrderPDF, SalesOrderPDFProps } from "./SalesOrderPDF";
 import { Button } from "@/components/ui/button";
 
 type Customer = {
     id: string
     name: string
+    address?: string
+    branch?: string
+    location?: string
+    customerPIC?: string
 }
 
 type Project = {
     id: string
     name: string
 }
-
 
 export interface SalesOrderFormItem {
     itemType: "PRODUCT" | "SERVICE" | "CUSTOM";
@@ -28,22 +31,14 @@ export interface SalesOrderFormItem {
 }
 
 export interface SalesOrderFormData {
+    soNumber: string;
     soDate: Date | null;
     customerId: string;
+    customerName: string;
     projectId: string;
     userId: string;
     type: "REGULAR" | "SUPPORT";
-    status:
-    | "DRAFT"
-    | "SENT"
-    | "CONFIRMED"
-    | "IN_PROGRESS"
-    | "FULFILLED"
-    | "PARTIALLY_INVOICED"
-    | "INVOICED"
-    | "PARTIALLY_PAID"
-    | "PAID"
-    | "CANCELLED";
+    status: string;
     currency: string;
     notes?: string | null;
     isTaxInclusive: boolean;
@@ -51,11 +46,15 @@ export interface SalesOrderFormData {
     documents?: { name: string; url: string }[];
     customer?: Customer;
     project?: Project;
+    branch?: string;
+    location?: string;
+    customerPIC?: string;
+    createdBy?: string;
 }
-
 
 export default function SalesOrderPdfPreview({ formData }: { formData: SalesOrderFormData }) {
     const pdfData: SalesOrderPDFProps["data"] = mapFormToPdfData(formData);
+    console.log("Mapped PDF Data:", pdfData);
 
     const handlePrint = async () => {
         const blob = await pdf(<SalesOrderPDF data={pdfData} />).toBlob();
@@ -70,44 +69,54 @@ export default function SalesOrderPdfPreview({ formData }: { formData: SalesOrde
 
         const a = document.createElement("a");
         a.href = url;
-        a.download = "SalesOrder.pdf";
+        a.download = `SalesOrder_${formData.soNumber || new Date().toISOString().slice(0, 10)}.pdf`;
         a.click();
     };
 
     return (
-        <div className="flex flex-col gap-4">
-            <PDFViewer width="100%" height="600">
+        <div className="flex flex-col gap-4 p-4">
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">Pratinjau Sales Order</h2>
+                <div className="flex gap-2">
+                    <Button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-700">
+                        <i className="fas fa-print mr-2"></i> Cetak
+                    </Button>
+                    <Button onClick={handleDownload} variant="secondary" className="bg-green-600 hover:bg-green-700 text-white">
+                        <i className="fas fa-download mr-2"></i> Unduh PDF
+                    </Button>
+                </div>
+            </div>
+
+            <PDFViewer width="100%" height="600" className="border border-gray-300 rounded-md">
                 <SalesOrderPDF data={pdfData} />
             </PDFViewer>
-
-            <div className="flex gap-2">
-                <Button onClick={handlePrint}>Print</Button>
-                <Button onClick={handleDownload} variant="secondary">
-                    Download
-                </Button>
-            </div>
         </div>
     );
 }
 
-// mapper function dipindah ke bawah file
+// Mapper function untuk mengubah data form menjadi data PDF
 function mapFormToPdfData(formData: SalesOrderFormData): SalesOrderPDFProps["data"] {
     return {
-        soDate: formData.soDate ?? null,
-        customerName: formData.customer?.name ?? formData.customerId ?? "N/A",
-        projectName: formData.project?.name ?? formData.projectId ?? "N/A",
-        notes: formData.notes ?? null,
+        soNumber: formData.soNumber || "",
+        soDate: formData.soDate,
+        customerName: formData.customerName || "N/A",   // pakai field langsung
+        branch: formData.branch || "",                  // pakai field langsung
+        location: formData.location || "",
+        projectName: formData.project?.name || formData.projectId || "N/A",
+        customerPIC: formData.customerPIC || "",
+        notes: formData.notes || null,
+        type: formData.type || "REGULAR",
+        createdBy: formData.userId || "",
         items: formData.items?.map((item) => ({
             itemType: item.itemType,
-            productId: item.productId ?? null, // ✅ undefined jadi null
-            name: item.name ?? "N/A",
-            description: item.description ?? null,
-            uom: item.uom ?? null,
-            qty: item.qty ?? 0,
-            unitPrice: item.unitPrice ?? 0,
-            discount: item.discount ?? 0,
-            taxRate: item.taxRate ?? 0,
-        })) ?? []
+            productId: item.productId || null,
+            name: item.name || "N/A",
+            description: item.description || null,
+            uom: item.uom || null,
+            qty: item.qty || 0,
+            unitPrice: item.unitPrice || 0,
+            discount: item.discount || 0,
+            taxRate: item.taxRate || 0,
+        })) || []
     };
 }
-

@@ -87,6 +87,7 @@ export interface SalesOrder {
     name: string;
     address?: string;
     branch?: string | null;
+    contactPerson?: string | null; 
   };
   project: { id: string; name: string };
   user?: { id: string; name?: string } | null;
