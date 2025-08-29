@@ -1,18 +1,17 @@
 import * as React from "react"
 import { format } from "date-fns"
 import {
-    // CalendarIcon,
     FileTextIcon,
     PlusCircleIcon,
     SearchIcon,
     ShoppingCartIcon,
-    // ChevronDownIcon,
     UserCheck2Icon,
     Edit,
     MoreHorizontal,
     Eye,
     Trash2,
-    // ChevronRight,
+    EyeIcon,
+    DownloadIcon,
 } from "lucide-react"
 import Decimal from "decimal.js"
 import {
@@ -41,7 +40,6 @@ import {
 } from "@/components/ui/table"
 import {
     DropdownMenu,
-    // dropdownMenuClasses,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
@@ -71,6 +69,11 @@ import { FaToolbox } from "react-icons/fa"
 import { CheckCircle2, ReceiptText, MinusCircle } from "lucide-react"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { cn } from "@/lib/utils"
+import SalesOrderPdfPreview, { SalesOrderFormData } from "./SalesOrderPdfPreview"
+import { mapFormToPdfData } from "./SalesOrderPDF";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { pdf } from "@react-pdf/renderer"
+import { SalesOrderPDF } from "./SalesOrderPDF"
 
 
 interface SalesOrderTableProps {
@@ -557,7 +560,6 @@ function ActionsCell({ order, onDeleteSuccess }: { order: SalesOrder; onDeleteSu
 }
 
 // Mobile Card View
-// Mobile Card View
 function MobileSalesOrderCard({ order, onExpand, onDeleteSuccess }: { order: SalesOrder; onExpand: () => void; onDeleteSuccess: (orderId: string) => void }) {
     const [showDeleteDialog, setShowDeleteDialog] = React.useState(false)
     const [isDeleting, setIsDeleting] = React.useState(false)
@@ -735,6 +737,71 @@ const useBodyScrollLock = (isLocked: boolean) => {
     }, [isLocked]);
 };
 
+function mapToFormData(order: SalesOrder): SalesOrderFormData {
+    return {
+        soDate: order.soDate ? new Date(order.soDate) : null,
+        customerId: order.customerId,
+        projectId: order.projectId,
+        userId: order.userId,
+        type: order.type,
+        status: order.status,
+        currency: order.currency,
+        notes: order.notes,
+        isTaxInclusive: order.isTaxInclusive,
+        items: order.items.map(item => ({
+            itemType: item.itemType,
+            productId: item.productId ?? null,
+            name: item.name ?? "N/A",
+            description: item.description ?? null,
+            uom: item.uom ?? null,
+            qty: item.qty ?? 0,
+            unitPrice: item.unitPrice ?? 0,
+            discount: item.discount ?? 0,
+            taxRate: item.taxRate ?? 0,
+        })),
+        customer: order.customer,
+        project: order.project
+    };
+}
+
+// Custom hook for PDF actions
+function usePdfActions() {
+    const [pdfDialogOpen, setPdfDialogOpen] = React.useState(false);
+    const [selectedOrder, setSelectedOrder] = React.useState<SalesOrderFormData | null>(null);
+
+    const handleDownloadPdf = React.useCallback(async (order: SalesOrder) => {
+        try {
+            const formData = mapToFormData(order);
+            const pdfData = mapFormToPdfData(formData);
+
+            const blob = await pdf(<SalesOrderPDF data={pdfData} />).toBlob();
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `SalesOrder-${order.id}.pdf`;
+            a.click();
+
+            setTimeout(() => URL.revokeObjectURL(url), 100);
+        } catch (error) {
+            console.error("Error generating PDF:", error);
+        }
+    }, []);
+
+    const handlePreview = React.useCallback((order: SalesOrder) => {
+        setSelectedOrder(mapToFormData(order));
+        setPdfDialogOpen(true);
+    }, []);
+
+    return {
+        pdfDialogOpen,
+        setPdfDialogOpen,
+        selectedOrder,
+        handleDownloadPdf,
+        handlePreview
+    };
+}
+
 export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, onDeleteOrder }: SalesOrderTableProps) {
     const [searchTerm, setSearchTerm] = React.useState("")
     const [currentPage, setCurrentPage] = React.useState(1)
@@ -746,6 +813,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
     const isMobile = useMediaQuery("(max-width: 768px)")
     const [salesOrders, setSalesOrders] = React.useState<SalesOrder[]>(initialSalesOrders)
     const handleDelete = onDeleteOrder ?? (() => { });
+    const pdfActions = usePdfActions();
 
     // Update local state when prop changes
     React.useEffect(() => {
@@ -892,6 +960,8 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
             id: "actions",
             header: () => <span className="sr-only">Actions</span>,
             cell: ({ row }) => {
+                const order = row.original;
+
                 return (
                     <div className="flex justify-end gap-2">
                         <Button
@@ -904,11 +974,40 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                             {row.getIsExpanded() ? "Hide" : "View"}
                         </Button>
                         <ActionsCell order={row.original} onDeleteSuccess={handleDeleteSuccess} />
+
+                        <Dialog open={pdfActions.pdfDialogOpen} onOpenChange={pdfActions.setPdfDialogOpen}>
+                            <DialogTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => pdfActions.handlePreview(order)}
+                                >
+                                    <EyeIcon className="h-4 w-4 mr-1" />
+                                    Preview
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-4xl max-h-[90vh]">
+                                <DialogHeader>
+                                    <DialogTitle>Preview Sales Order - {order.id}</DialogTitle>
+                                </DialogHeader>
+                                {pdfActions.selectedOrder && (
+                                    <SalesOrderPdfPreview formData={pdfActions.selectedOrder} />
+                                )}
+                            </DialogContent>
+                        </Dialog>
+
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => pdfActions.handleDownloadPdf(order)}
+                        >
+                            <DownloadIcon className="h-4 w-4" />
+                        </Button>
                     </div>
                 )
             },
         },
-    ], [handleDeleteSuccess])
+    ], [handleDeleteSuccess, pdfActions])
 
     const filteredSalesOrders = React.useMemo(() => {
         return salesOrders.filter((order) => {
