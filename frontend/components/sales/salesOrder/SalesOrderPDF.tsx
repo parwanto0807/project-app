@@ -370,7 +370,12 @@ export const SalesOrderPDF: React.FC<SalesOrderPDFProps> = ({ data }) => {
   };
   const formatDate = (date: Date | null) => {
     if (!date) return '';
-    return new Intl.DateTimeFormat('id-ID').format(date);
+
+    const day = date.getDate();
+    const month = date.toLocaleString('id-ID', { month: 'long' });
+    const year = date.getFullYear();
+
+    return `${day} ${month} ${year}`;
   };
 
   // Fungsi untuk membuat checkbox
