@@ -915,9 +915,9 @@ export default function TabelDataSpk({
                                                                                     {detail.karyawan?.namaLengkap || "Karyawan tidak ditentukan"}
                                                                                 </p>
                                                                             </div>
-                                                                            {detail.lokasiUnit && (
+                                                                            {detail.karyawan && (
                                                                                 <p className="text-sm text-muted-foreground pl-6">
-                                                                                    {detail.lokasiUnit}
+                                                                                    {detail.karyawan?.jabatan} - {detail.karyawan?.departemen}
                                                                                 </p>
                                                                             )}
                                                                         </div>

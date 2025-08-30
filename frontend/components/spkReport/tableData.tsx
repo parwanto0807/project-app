@@ -1,5 +1,5 @@
 "use client";
-
+import { Fragment } from 'react';
 import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,9 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Camera, Upload, CheckCircle, Clock, X, Archive, Sparkles, TrendingUp, FileText, Eye, Loader2, Download, ZoomIn, ChevronRight, ChevronLeft, User, Calendar, Users2Icon } from 'lucide-react';
+import { Camera, Upload, CheckCircle, Clock, X, Archive, Sparkles, TrendingUp, FileText, Eye, Loader2, Download, ZoomIn, ChevronRight, ChevronLeft, User, Calendar, Users2Icon, ChevronsRight, PackageOpenIcon, MoveRight, Wrench, PenTool, FileSignature, ShieldCheck, Trash2 } from 'lucide-react';
 import Image from 'next/image';
-import { createReportFormData, createSpkFieldReport, fetchSPKReports } from '@/lib/action/master/spk/spkReport';
+import { createReportFormData, createSpkFieldReport, deleteReport, fetchSPKReports } from '@/lib/action/master/spk/spkReport';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Badge } from '../ui/badge';
 // import { fetchAllKaryawan } from '@/lib/action/master/karyawan';
@@ -215,6 +215,8 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
   const [spkItemProgress, setSpkItemProgress] = useState<SPKItemProgressMap>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
 
   // console.log("Data SPK", dataSpk);
   // console.log("Data SO Item", selectedSpk);
@@ -225,6 +227,20 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
   const totalPages = Math.ceil(reports.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentReports = reports.slice(startIndex, startIndex + itemsPerPage);
+
+  // Kelompokkan laporan berdasarkan spkNumber
+  const groupedReports = currentReports.reduce<Record<string, typeof currentReports>>(
+    (acc, report) => {
+      const key = report.spkNumber;
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(report);
+      return acc;
+    },
+    {}
+  );
+
+  // Dapatkan array key untuk iterasi
+  const spkGroups = Object.keys(groupedReports);
 
   // Handler ganti halaman
   const goToPage = (page: number) => {
@@ -301,6 +317,15 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
     });
   };
 
+  useEffect(() => {
+    if (formData.items) {
+      setFormData((prev) => ({
+        ...prev,
+        type: 'PROGRESS',
+      }));
+    }
+  }, [formData.items]);
+
   // ✅ Hitung spkItemProgress hanya saat reports berubah
   useEffect(() => {
     const newSpkItemProgress: SPKItemProgressMap = {};
@@ -347,8 +372,27 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
   const fetchReports = useCallback(async () => {
     setLoadingReports(true);
     try {
-      const reports = await fetchSPKReports(filters);
-      setReports(reports);
+      let reports = await fetchSPKReports(filters);
+
+      // ✅ SORT: Pertama berdasarkan spkNumber, lalu itemName (keduanya string)
+      reports = [...reports].sort((a, b) => {
+        // Bandingkan spkNumber dulu
+        const spkCompare = a.spkNumber.localeCompare(b.spkNumber, undefined, {
+          numeric: true,
+          sensitivity: 'base',
+        });
+
+        // Jika spkNumber sama, bandingkan itemName
+        if (spkCompare === 0) {
+          return a.itemName.localeCompare(b.itemName, undefined, {
+            sensitivity: 'base', // case-insensitive
+          });
+        }
+
+        return spkCompare;
+      });
+
+      setReports(reports); // Simpan yang sudah terurut
     } catch (error) {
       console.error('Error fetching reports:', error);
       toast.error('Gagal memuat riwayat laporan');
@@ -356,7 +400,6 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
       setLoadingReports(false);
     }
   }, [filters]);
-
 
 
   // 👇 FETCH DAFTAR KARYAWAN UNTUK FILTER ADMIN
@@ -499,13 +542,9 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
 
   const handleRejectReport = async (reportId: string) => {
     try {
-      const res = await fetch(`/api/reports/${reportId}/reject`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rejectedBy: userId }),
-      });
+      const res = await deleteReport(reportId);
 
-      if (!res.ok) throw new Error('Gagal menolak laporan');
+      if (!res.success) throw new Error(res.message || 'Gagal menolak laporan');
 
       toast.success("Laporan ditolak");
       fetchReports();
@@ -842,11 +881,22 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                         <Select
                           value={formData.type}
                           onValueChange={(value: 'PROGRESS' | 'FINAL') =>
-                            setFormData(prev => ({
-                              ...prev,
-                              type: value,
-                              progress: value === 'FINAL' ? 100 : prev.progress, // ✅ kalau pilih FINAL → progress 100
-                            }))
+                            setFormData((prev) => {
+                              // Ambil nama item berdasarkan formData.items
+                              const selectedItem = selectedSpk?.items.find((i) => i.id === prev.items);
+                              const itemName = selectedItem?.name ?? "-";
+
+                              // Jika pilih FINAL, isi catatan otomatis
+                              const note =
+                                value === "FINAL" ? `${itemName} - Selesai` : prev.note;
+
+                              return {
+                                ...prev,
+                                type: value,
+                                progress: value === "FINAL" ? 100 : prev.progress,
+                                note, // ✅ Tambahkan ini!
+                              };
+                            })
                           }
                         >
                           <SelectTrigger className="text-xs h-10 border-border/60 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-colors">
@@ -1111,13 +1161,12 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                         <Table>
                           {/* Table Header — tetap sticky */}
                           <TableHeader className="bg-gradient-to-r from-purple-50 to-white dark:from-purple-900/30 dark:to-gray-800 sticky top-0 z-10">
-                            <TableRow className="[&>th]:py-2 [&>th]:px-2 [&>th]:text-xs [&>th]:font-semibold">
-                              <TableHead className="min-w-[140px]">Klien & Proyek</TableHead>
-                              <TableHead className="min-w-[140px]">SPK & Item</TableHead>
-                              <TableHead className="w-[120px] sticky left-0 bg-gradient-to-r from-purple-50 to-white dark:from-purple-900/30 dark:to-gray-800 z-10">Status</TableHead>
-                              <TableHead className="min-w-[120px]">Catatan</TableHead>
+                            <TableRow className="[&>th]:py-0 [&>th]:px-2 [&>th]:text-xs [&>th]:font-semibold">
+                              <TableHead className="w-[40px]">SPK Number, Pelanggan, Project Name </TableHead>
+                              <TableHead></TableHead>
+                              <TableHead className="w-[180px]">Progress</TableHead>
+                              <TableHead className="w-[50px]">Approve Admin</TableHead>
                               <TableHead className="w-[80px]">Foto</TableHead>
-                              <TableHead className="w-[100px]">Tanggal</TableHead>
                               {role === 'admin' && (
                                 <TableHead className="w-[110px] sticky right-0 bg-gradient-to-r from-purple-50 to-white dark:from-purple-900/30 dark:to-gray-800 z-10">
                                   Aksi
@@ -1127,168 +1176,218 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                           </TableHeader>
 
                           {/* Scrollable Table Body */}
-                          <TableBody
-                            className="divide-y divide-border/40 overflow-y-auto"
-                            style={{ maxHeight: 'calc(50vh - 200px)' }} // Sesuaikan tinggi sesuai kebutuhan
-                          >
-                            {currentReports.map((report) => (
-                              <TableRow
-                                key={report.id}
-                                className="hover:bg-muted/30 transition-colors cursor-pointer [&>td]:py-2 [&>td]:px-2"
-                                onClick={() => setSelectedReport(report)}
-                              >
-                                {/* Klien & Proyek */}
-                                <TableCell>
-                                  <div className="space-y-0.5">
-                                    <div className="text-xs font-medium text-foreground line-clamp-1">
-                                      {userSpk.find((i) => i.spkNumber === report.spkNumber)?.clientName ?? "-"}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground line-clamp-1">
-                                      {userSpk.find((i) => i.spkNumber === report.spkNumber)?.projectName ?? "-"}
-                                    </div>
-                                  </div>
-                                </TableCell>
+                          <TableBody className="divide-y divide-border/40">
+                            {spkGroups.map((spkNumber) => {
+                              const reportsInGroup = groupedReports[spkNumber];
+                              const spk = userSpk.find((i) => i.spkNumber === spkNumber);
 
-                                {/* SPK & Item */}
-                                <TableCell>
-                                  <div className="space-y-0.5">
-                                    <div className="font-medium text-foreground text-xs">{report.spkNumber}</div>
-                                    <div className="text-xs text-muted-foreground line-clamp-1">{report.itemName}</div>
-                                  </div>
-                                </TableCell>
-
-                                {/* Status */}
-                                <TableCell className="sticky left-0 bg-card z-10">
-                                  <div className="flex flex-col gap-1">
-                                    {report.type === 'PROGRESS' ? (
-                                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></div>
-                                        <span className="text-xs">Progress - {report.progress}%</span>
-                                      </div>
-                                    ) : report.type === 'FINAL' ? (
-                                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                                        <CheckCircle className="w-3 h-3" />
-                                        <span className="text-xs">Selesai - {report.progress}% </span>
-                                      </div>
-                                    ) : (
-                                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
-                                        <Clock className="w-3 h-3" />
-                                        <span className="text-xs">Menunggu</span>
-                                      </div>
-                                    )}
-
-                                    {report.status === 'PENDING' ? (
-                                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></div>
-                                        <span className="text-xs">Menunggu ⏳</span>
-                                      </div>
-                                    ) : report.status === 'APPROVED' ? (
-                                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                                        <CheckCircle className="w-3 h-3" />
-                                        <span className="text-xs">Disetujui ✅</span>
-                                      </div>
-                                    ) : (
-                                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
-                                        <X className="w-3 h-3" />
-                                        <span className="text-xs">Ditolak ❌</span>
-                                      </div>
-                                    )}
-                                  </div>
-                                </TableCell>
-
-                                {/* Catatan */}
-                                <TableCell className="max-w-[120px]">
-                                  {report.note ? (
-                                    <div className="flex items-start gap-1">
-                                      <FileText className="w-3 h-3 mt-0.5 text-muted-foreground flex-shrink-0" />
-                                      <span className="text-xs text-muted-foreground line-clamp-2">{report.note}</span>
-                                    </div>
-                                  ) : (
-                                    <span className="text-xs text-muted-foreground/70">-</span>
-                                  )}
-                                </TableCell>
-
-                                {/* Foto */}
-                                <TableCell>
-                                  {report.photos.length > 0 ? (
-                                    <div className="flex items-center gap-1">
-                                      <div className="relative">
-                                        <Camera className="w-3.5 h-3.5 text-blue-500" />
-                                        {report.photos.length > 1 && (
-                                          <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-[8px] rounded-full w-3 h-3 flex items-center justify-center">
-                                            {report.photos.length}
-                                          </span>
+                              return (
+                                <Fragment key={spkNumber}>
+                                  {/* Header Grup SPK */}
+                                  <TableRow className="bg-purple-50 dark:bg-purple-900/20 [&>td]:py-4 [&>td]:px-2 [&>td]:text-sm [&>td]:font-bold">
+                                    <TableCell colSpan={role === 'admin' ? 7 : 6} className="sticky left-0 z-10 bg-purple-50 dark:bg-purple-900/20">
+                                      <div className="flex items-center gap-2 py-2">
+                                        <Archive className="h-4 w-4 text-purple-600" />
+                                        <span>SPK: {spkNumber}</span>
+                                        {spk && (
+                                          <>
+                                            <span className="text-muted-foreground">—</span>
+                                            <span className="text-muted-foreground">{spk.clientName}</span>
+                                          </>
                                         )}
                                       </div>
-                                      <span className="text-xs text-muted-foreground">{report.photos.length}</span>
-                                    </div>
-                                  ) : (
-                                    <span className="text-xs text-muted-foreground/70">-</span>
-                                  )}
-                                </TableCell>
+                                      <div className="flex text-muted-foreground line-clamp-1 ml-6 gap-2">
+                                        <PackageOpenIcon className="h-4 w-4 text-purple-600 mt-0.5" />
+                                        {userSpk.find((i) => i.spkNumber === spk?.spkNumber)?.projectName ?? "-"}
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
 
-                                {/* Tanggal */}
-                                <TableCell>
-                                  <div className="text-xs text-muted-foreground">
-                                    {new Date(report.reportedAt).toLocaleDateString('id-ID', {
-                                      day: 'numeric',
-                                      month: 'short',
-                                      year: 'numeric',
-                                    })}
-                                  </div>
-                                  <div className="text-[10px] text-muted-foreground/70">
-                                    {new Date(report.reportedAt).toLocaleTimeString('id-ID', {
-                                      hour: '2-digit',
-                                      minute: '2-digit',
-                                    })}
-                                  </div>
-                                </TableCell>
+                                  {/* ✅ Kelompokkan laporan dalam grup ini berdasarkan itemName */}
+                                  {(() => {
+                                    // Group by itemName
+                                    const itemGroups = reportsInGroup.reduce<Record<string, typeof reportsInGroup>>(
+                                      (acc, report) => {
+                                        const key = report.itemName;
+                                        if (!acc[key]) acc[key] = [];
+                                        acc[key].push(report);
+                                        return acc;
+                                      },
+                                      {}
+                                    );
 
-                                {/* Aksi (Admin Only) */}
-                                {role === 'admin' && (
-                                  <TableCell className="sticky right-0 bg-card z-10">
-                                    <div className="flex items-center gap-1">
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-7 w-7 p-0 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setSelectedReport(report);
-                                          setModalType('view');
-                                        }}
-                                      >
-                                        <Eye className="h-3.5 w-3.5" />
-                                      </Button>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-7 w-7 p-0 text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setSelectedReport(report);
-                                          setModalType('approve');
-                                        }}
-                                      >
-                                        <CheckCircle className="h-3.5 w-3.5" />
-                                      </Button>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-7 w-7 p-0 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setSelectedReport(report);
-                                          setModalType('reject');
-                                        }}
-                                      >
-                                        <X className="h-3.5 w-3.5" />
-                                      </Button>
-                                    </div>
-                                  </TableCell>
-                                )}
-                              </TableRow>
-                            ))}
+                                    const itemNames = Object.keys(itemGroups);
+
+                                    return itemNames.map((itemName) => (
+                                      <Fragment key={itemName}>
+                                        {/* ➡️ Header Subgrup Item */}
+                                        <TableRow className="bg-blue-50/50 dark:bg-blue-900/10 [&>td]:py-2 [&>td]:px-0 [&>td]:text-xs [&>td]:font-medium">
+                                          <TableCell colSpan={role === 'admin' ? 7 : 6} className="pl-8 border-l-4 border-blue-500 bg-blue-50/50 dark:bg-blue-900/10">
+                                            <div className="flex items-center gap-0">
+                                              {/* ✅ Render ChevronsRight 10x */}
+                                              {Array(5)
+                                                .fill(null)
+                                                .map((_, index) => (
+                                                  <ChevronsRight key={index} className="h-4.5 w-4.5 text-purple-600" />
+                                                ))}
+
+                                              <span className="text-sm font-semibold mx-2">{itemName}</span>
+                                              <span className="text-muted-foreground/70">
+                                                ({itemGroups[itemName].length} laporan)
+                                              </span>
+                                            </div>
+                                          </TableCell>
+                                        </TableRow>
+
+                                        {/* ➡️ Daftar Laporan dalam Subgrup Item */}
+                                        {itemGroups[itemName].map((report) => (
+                                          <TableRow
+                                            key={report.id}
+                                            className="hover:bg-muted/30 transition-colors cursor-pointer [&>td]:py-2 [&>td]:px-2"
+                                            onClick={() => setSelectedReport(report)}
+                                          >
+                                            {/* Tanggal */}
+                                            <TableCell>
+                                              <div className="flex text-xs text-muted-foreground ml-24 pr-4">
+                                                <MoveRight className="h-4.5 w-4.5 text-purple-600 mr-2" />
+                                                {new Date(report.reportedAt).toLocaleDateString('id-ID', {
+                                                  day: 'numeric',
+                                                  month: 'short',
+                                                  year: 'numeric',
+                                                })}
+                                                {' '} {/* 👈 Tambahkan ini: spasi literal */}
+                                                {new Date(report.reportedAt).toLocaleTimeString('id-ID', {
+                                                  hour: '2-digit',
+                                                  minute: '2-digit',
+                                                })}
+                                              </div>
+                                            </TableCell>
+
+                                            {/* Catatan */}
+                                            <TableCell className="max-w-[120px]">
+                                              {report.note ? (
+                                                <div className="flex items-start gap-1">
+                                                  <FileText className="w-3 h-3 mt-0.5 text-muted-foreground flex-shrink-0" />
+                                                  <span className="text-xs text-muted-foreground line-clamp-2">{report.note}</span>
+                                                </div>
+                                              ) : (
+                                                <span className="text-xs text-muted-foreground/70">-</span>
+                                              )}
+                                            </TableCell>
+
+                                            {/* Status */}
+                                            <TableCell className="sticky left-0 bg-card z-10">
+                                              <div className="flex flex-col gap-1">
+                                                {report.type === 'PROGRESS' ? (
+                                                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></div>
+                                                    <span className="text-xs">Progress - {report.progress}%</span>
+                                                  </div>
+                                                ) : report.type === 'FINAL' ? (
+                                                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                                                    <CheckCircle className="w-3 h-3" />
+                                                    <span className="text-xs">Selesai - {report.progress}% </span>
+                                                  </div>
+                                                ) : (
+                                                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                                                    <Clock className="w-3 h-3" />
+                                                    <span className="text-xs">Menunggu</span>
+                                                  </div>
+                                                )}
+
+                                              </div>
+                                            </TableCell>
+                                            <TableCell className="sticky left-0 bg-card z-10">
+                                              <div className="flex flex-col gap-1">
+
+                                                {report.status === 'PENDING' ? (
+                                                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></div>
+                                                    <span className="text-xs">Menunggu ⏳</span>
+                                                  </div>
+                                                ) : report.status === 'APPROVED' ? (
+                                                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                                                    <CheckCircle className="w-3 h-3" />
+                                                    <span className="text-xs">Disetujui ✅</span>
+                                                  </div>
+                                                ) : (
+                                                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
+                                                    <X className="w-3 h-3" />
+                                                    <span className="text-xs">Ditolak ❌</span>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            </TableCell>
+                                            {/* Foto */}
+                                            <TableCell>
+                                              {report.photos.length > 0 ? (
+                                                <div className="flex items-center gap-1">
+                                                  <div className="relative">
+                                                    <Camera className="w-3.5 h-3.5 text-blue-500" />
+                                                    {report.photos.length > 1 && (
+                                                      <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-[8px] rounded-full w-3 h-3 flex items-center justify-center">
+                                                        {report.photos.length}
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                  <span className="text-xs text-muted-foreground">{report.photos.length}</span>
+                                                </div>
+                                              ) : (
+                                                <span className="text-xs text-muted-foreground/70">-</span>
+                                              )}
+                                            </TableCell>
+
+                                            {/* Aksi (Admin Only) */}
+                                            {role === 'admin' && (
+                                              <TableCell className="sticky right-0 bg-card z-10">
+                                                <div className="flex items-center gap-1">
+                                                  <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-7 w-7 p-0 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      setSelectedReport(report);
+                                                      setModalType('view');
+                                                    }}
+                                                  >
+                                                    <Eye className="h-3.5 w-3.5" />
+                                                  </Button>
+                                                  <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-7 w-7 p-0 text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300"
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      setSelectedReport(report);
+                                                      setModalType('approve');
+                                                    }}
+                                                  >
+                                                    <CheckCircle className="h-3.5 w-3.5" />
+                                                  </Button>
+                                                  <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-7 w-7 p-0 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      setSelectedReport(report);
+                                                      setModalType('reject');
+                                                    }}
+                                                  >
+                                                    <X className="h-3.5 w-3.5" />
+                                                  </Button>
+                                                </div>
+                                              </TableCell>
+                                            )}
+                                          </TableRow>
+                                        ))}
+                                      </Fragment>
+                                    ));
+                                  })()}
+                                </Fragment>
+                              );
+                            })}
                           </TableBody>
                         </Table>
                         {/* ✅ Pagination Controls */}
@@ -1378,187 +1477,295 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
 
       {/* Modal Detail Laporan */}
       {selectedReport && modalType && (
-        <Dialog open={true} onOpenChange={() => {
-          setSelectedReport(null);
-          setModalType(null);
-        }}>
-          <DialogContent className="max-w-3xl max-h-screen overflow-y-auto bg-background text-foreground border-border p-6 rounded-xl shadow-2xl">
-            <DialogHeader>
+        <Dialog
+          open={true}
+          onOpenChange={() => {
+            setSelectedReport(null);
+            setModalType(null);
+          }}
+        >
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-background text-foreground border border-border/60 p-6 rounded-2xl shadow-2xl backdrop-blur-sm animate-in fade-in-90 slide-in-from-bottom-10">
+            <DialogHeader className="mb-6">
               <div className="flex items-center gap-3">
-                <FileText className="h-6 w-6 text-primary" />
-                <DialogTitle className="text-2xl font-bold">Detail Laporan SPK</DialogTitle>
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <FileText className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
+                    Detail Laporan Lapangan
+                  </DialogTitle>
+                  <DialogDescription className="text-muted-foreground mt-1">
+                    Informasi lengkap dan bukti pelaksanaan pekerjaan
+                  </DialogDescription>
+                </div>
               </div>
-              <DialogDescription className="text-muted-foreground">
-                Informasi lengkap laporan lapangan
-              </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-6 py-4">
-              {/* Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                <Badge variant={selectedReport.type === 'PROGRESS' ? 'secondary' : 'default'}>
-                  {selectedReport.type === 'PROGRESS' ? 'Progress Pekerjaan' : 'Laporan Selesai'}
+            <div className="space-y-2">
+              {/* Status & Timestamp */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-muted/30 rounded-xl border border-border/40">
+                <Badge
+                  variant={selectedReport.type === 'PROGRESS' ? 'secondary' : 'default'}
+                  className="px-4 py-2 text-sm font-medium"
+                >
+                  {selectedReport.type === 'PROGRESS' ? (
+                    <>
+                      <Clock className="h-4 w-4 mr-1.5 inline" />
+                      Progress Pekerjaan
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-1.5 inline text-green-500" />
+                      Laporan Selesai
+                    </>
+                  )}
                 </Badge>
-                <span className="text-sm text-muted-foreground">
-                  {new Date(selectedReport.reportedAt).toLocaleString('id-ID')}
+                <span className="text-sm text-muted-foreground flex items-center gap-1">
+                  <Calendar className="h-4 w-4" />
+                  {new Date(selectedReport.reportedAt).toLocaleString('id-ID', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
                 </span>
               </div>
 
               {/* Info SPK & Item */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* SPK Info */}
-                <div className="space-y-2">
-                  <h5 className="text-sm font-medium text-muted-foreground">SPK</h5>
-                  <div className="flex flex-col">
-                    <p className="text-lg font-semibold">{selectedReport.spkNumber}</p>
-                    <p className="text-sm text-muted-foreground">{selectedReport.clientName}</p>
-                    <p className="text-sm text-muted-foreground">{selectedReport.projectName}</p>
+              {/* Info SPK & Item — Ringkas tanpa Card */}
+              <div className="grid grid-cols-1 lg:grid-cols-1 gap-4">
+
+                {/* Informasi SPK */}
+                <div className="bg-muted/30 border border-border/40 rounded-xl p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <FileSignature className="h-4 w-4 text-muted-foreground" />
+                    <h5 className="text-sm font-medium text-muted-foreground">Informasi SPK</h5>
+                  </div>
+                  <div className="space-y-1.5">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Nomor SPK</p>
+                      <p className="font-semibold text-lg">{selectedReport.spkNumber}</p>
+                    </div>
                   </div>
                 </div>
 
                 {/* Item Pekerjaan */}
-                <div className="space-y-2">
-                  <h5 className="text-sm font-medium text-muted-foreground">Item Pekerjaan</h5>
-                  <div className="flex flex-col">
-                    <p className="text-lg font-semibold">{selectedReport.itemName}</p>
-                    <p className="text-sm text-muted-foreground">
-                      Progress: <span className="font-medium">{selectedReport.progress}%</span>
-                    </p>
+                <div className="bg-muted/30 border border-border/40 rounded-xl p-4 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Wrench className="h-4 w-4 text-muted-foreground" />
+                    <h5 className="text-sm font-medium text-muted-foreground">Item Pekerjaan</h5>
+                  </div>
+                  <div className="space-y-1.5">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Nama Item</p>
+                      <p className="font-semibold text-lg">{selectedReport.itemName}</p>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Progress</span>
+                        <span className="text-sm font-medium">{selectedReport.progress}%</span>
+                      </div>
+                      <div className="w-full bg-border/40 rounded-full h-2 mt-1.5">
+                        <div
+                          className={`h-2 rounded-full transition-all duration-500 ${selectedReport.progress === 100
+                            ? 'bg-gradient-to-r from-green-500 to-emerald-500'
+                            : 'bg-gradient-to-r from-blue-500 to-primary'
+                            }`}
+                          style={{ width: `${selectedReport.progress}%` }}
+                        ></div>
+                      </div>
+                    </div>
                   </div>
                 </div>
+
               </div>
 
               {/* Catatan */}
               {selectedReport.note && (
-                <div className="border-l-4 border-blue-500 pl-4">
-                  <h5 className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-1">
-                    <Eye className="h-4 w-4 text-blue-500" />
-                    Catatan
-                  </h5>
-                  <p className="bg-muted/50 p-4 rounded-lg text-sm leading-relaxed whitespace-pre-wrap">
-                    {selectedReport.note}
-                  </p>
-                </div>
+                <Card className="border-border/40 bg-card/80 backdrop-blur-sm">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                      <PenTool className="h-4 w-4 text-blue-500" />
+                      Catatan Lapangan
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="bg-muted/40 p-4 rounded-lg text-sm leading-relaxed whitespace-pre-wrap border-l-4 border-blue-500/50">
+                      {selectedReport.note}
+                    </p>
+                  </CardContent>
+                </Card>
               )}
 
-              {/* Foto */}
+              {/* Foto Bukti */}
               {selectedReport.photos.length > 0 && (
-                <>
-                  <h5 className="text-sm font-medium text-muted-foreground">Foto Bukti ({selectedReport.photos.length})</h5>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                    {selectedReport.photos.map((photo, idx) => {
-                      // Konversi path relatif ke URL yang dapat diakses
-                      const getPhotoUrl = (path: string) => {
-                        if (path.startsWith('http')) {
-                          return path;
-                        }
+                <Card className="border-border/40 bg-card/80 backdrop-blur-sm">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                      <Camera className="h-4 w-4 text-emerald-500" />
+                      Foto Bukti ({selectedReport.photos.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                      {selectedReport.photos.map((photo, idx) => {
+                        const getPhotoUrl = (path: string) => {
+                          if (path.startsWith('http')) return path;
+                          const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+                          const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+                          return `${baseUrl}${normalizedPath}`;
+                        };
 
-                        // Jika menggunakan path relatif, sesuaikan dengan base URL backend
-                        const baseUrl = process.env.NEXT_PUBLIC_API_URL || '';
+                        const photoUrl = getPhotoUrl(photo);
 
-                        // Pastikan path diawali dengan slash
-                        const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-
-                        return `${baseUrl}${normalizedPath}`;
-                      };
-
-                      const photoUrl = getPhotoUrl(photo);
-
-                      return (
-                        <div key={idx} className="relative group">
-                          <Image
-                            src={photoUrl}
-                            alt={`bukti-${idx}`}
-                            width={120}
-                            height={120}
-                            className="w-full h-24 object-cover rounded-lg border border-gray-200"
-                            onError={(e) => {
-                              // Fallback jika gambar gagal dimuat
-                              e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2VlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkeT0iLjM1ZW0iIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMTgiIGZpbGw9IiM5OTkiPkdhZ2FsIGRpbHVhciBkaW11YXQ8L3RleHQ+PC9zdmc+';
-                            }}
-                          />
-                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-white"
-                              onClick={() => window.open(photoUrl, '_blank')}
-                            >
-                              <ZoomIn className="h-4 w-4" />
-                            </Button>
+                        return (
+                          <div
+                            key={idx}
+                            className="group relative aspect-square rounded-xl overflow-hidden border border-border/40 bg-muted/30 hover:scale-105 transition-all duration-300 cursor-pointer"
+                            onClick={() => window.open(photoUrl, '_blank')}
+                          >
+                            <Image
+                              src={photoUrl}
+                              alt={`bukti-${idx + 1}`}
+                              fill
+                              className="object-cover transition-transform duration-300 group-hover:scale-110"
+                              sizes="(max-width: 768px) 50vw, 25vw"
+                              onError={(e) => {
+                                e.currentTarget.src = '/images/placeholder-image.svg';
+                              }}
+                            />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                              <ZoomIn className="h-6 w-6 text-white drop-shadow" />
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
               )}
 
-              {/* Status Persetujuan (Hanya Admin) */}
+              {/* Aksi Admin */}
               {role === 'admin' && (
-                <div className="border-t pt-6 border-border">
-                  <h5 className="text-sm font-medium text-muted-foreground mb-4 flex items-center gap-1">
-                    <CheckCircle className="h-4 w-4 text-blue-500" />
-                    Status Persetujuan
-                  </h5>
-
-                  <div className="flex gap-3">
-                    <Button
-                      variant="outline"
-                      size="lg"
-                      className="flex-1 flex items-center justify-center gap-2 text-base font-medium"
-                      onClick={() => handleApproveReport(selectedReport.id)}
-                      disabled={selectedReport.status === 'APPROVED'}
-                    >
-                      <CheckCircle className="h-5 w-5 text-green-500" />
-                      Setujui
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="lg"
-                      className="flex-1 flex items-center justify-center gap-2 text-base font-medium"
-                      onClick={() => handleRejectReport(selectedReport.id)}
-                      disabled={selectedReport.status === 'REJECTED'}
-                    >
-                      <X className="h-5 w-5" />
-                      Tolak
-                    </Button>
-                  </div>
-
-                  {selectedReport.status !== 'PENDING' && (
-                    <div className="mt-4 flex items-center gap-2">
-                      <span className="text-sm font-medium text-muted-foreground">Status:</span>
-                      <Badge
-                        variant={selectedReport.status === 'APPROVED' ? 'success' : 'destructive'}
-                        className="px-4 py-2 text-sm font-medium"
+                <Card className="border-border/40 bg-card/80 backdrop-blur-sm">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                      <ShieldCheck className="h-4 w-4 text-blue-500" />
+                      Tindakan Admin
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-col sm:flex-row gap-4">
+                      {/* Tombol Hapus (Kiri) */}
+                      <Button
+                        variant="destructive"
+                        size="lg"
+                        className="flex-1 flex items-center justify-center gap-2 text-base font-medium transition-transform hover:scale-105 active:scale-95"
+                        onClick={async () => {
+                          try {
+                            setIsDeleting(true);
+                            await handleRejectReport(selectedReport.id); // ✅ pastikan ini fungsi HAPUS
+                            toast.success("Laporan berhasil dihapus");
+                            setSelectedReport(null);
+                            setModalType(null);
+                          } catch (error) {
+                            console.error("Error saat hapus laporan:", error); // 👈 gunakan error
+                            toast.error("Gagal menghapus laporan");
+                          } finally {
+                            setIsDeleting(false);
+                          }
+                        }}
+                        disabled={isDeleting}
                       >
-                        {selectedReport.status === 'APPROVED' ? (
+                        {isLoading ? (
                           <>
-                            <CheckCircle className="h-4 w-4 mr-1 inline" />
-                            Disetujui
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                            Menghapus...
                           </>
                         ) : (
                           <>
-                            <X className="h-4 w-4 mr-1 inline" />
-                            Ditolak
+                            <Trash2 className="h-5 w-5" />
+                            Hapus Laporan
                           </>
                         )}
-                      </Badge>
+                      </Button>
+
+                      {/* Tombol Setujui (Kanan) */}
+                      <Button
+                        variant="default"
+                        size="lg"
+                        className="flex-1 flex items-center justify-center gap-2 text-base font-medium bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 transition-all hover:shadow-lg active:scale-95"
+                        onClick={async () => {
+                          try {
+                            setIsApproving(true);
+                            await handleApproveReport(selectedReport.id);
+                            toast.success("Laporan disetujui");
+                            setSelectedReport(null);
+                            setModalType(null);
+                          } catch (error) {
+                            console.error("Gagal menyetujui laporan", error);
+                            toast.error("Gagal menyetujui laporan");
+                          } finally {
+                            setIsApproving(false);
+                          }
+                        }}
+                        disabled={selectedReport.status === 'APPROVED' || isApproving}
+                      >
+                        {isLoading ? (
+                          <>
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                            Menyimpan...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="h-5 w-5" />
+                            Setujui Laporan
+                          </>
+                        )}
+                      </Button>
                     </div>
-                  )}
-                </div>
+
+                    {/* Status Approval */}
+                    {selectedReport.status !== 'PENDING' && (
+                      <div className="mt-6 p-4 bg-muted/30 rounded-xl border border-border/40">
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-medium text-muted-foreground">Status Persetujuan:</span>
+                          <Badge
+                            variant={selectedReport.status === 'APPROVED' ? 'success' : 'destructive'}
+                            className="px-4 py-2 text-sm font-medium"
+                          >
+                            {selectedReport.status === 'APPROVED' ? (
+                              <>
+                                <CheckCircle className="h-4 w-4 mr-1.5 inline" />
+                                Disetujui
+                              </>
+                            ) : (
+                              <>
+                                <X className="h-4 w-4 mr-1.5 inline" />
+                                Ditolak
+                              </>
+                            )}
+                          </Badge>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               )}
             </div>
 
-            <DialogFooter className="pt-6 border-t border-border">
+            <DialogFooter className="pt-6 mt-6 border-t border-border/40">
               <Button
                 variant="outline"
                 onClick={() => {
                   setSelectedReport(null);
                   setModalType(null);
                 }}
-                className="w-full sm:w-auto"
+                className="w-full sm:w-auto transition-transform hover:scale-105 active:scale-95"
               >
+                <X className="h-4 w-4 mr-2" />
                 Tutup
               </Button>
             </DialogFooter>

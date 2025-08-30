@@ -1,7 +1,7 @@
 // /backend/controllers/spkReportController.js
 import { PrismaClient } from "../../../prisma/generated/prisma/index.js";
-// import { uploadMultiple } from "../../utils/upload.js";
-// import path from 'path';
+import fs from "fs";
+import path from "path";
 
 const prisma = new PrismaClient();
 
@@ -104,8 +104,6 @@ export const createSpkFieldReport = async (req, res) => {
       },
     });
 
-    console.log("Total item:", totalItems);
-
     const reportsWithSoDetail = await prisma.sPKFieldReport.findMany({
       where: {
         spkId,
@@ -120,19 +118,12 @@ export const createSpkFieldReport = async (req, res) => {
       },
     });
 
-    console.log(
-      `[DEBUG] Reports with soDetailId found: ${reportsWithSoDetail.length}`
-    );
-
     // Kelompokkan progress terbaru per soDetailId
     const latestProgressMap = new Map();
 
     for (const report of reportsWithSoDetail) {
       if (!latestProgressMap.has(report.soDetailId)) {
         latestProgressMap.set(report.soDetailId, report.progress);
-        console.log(
-          `[DEBUG] Mapped soDetailId ${report.soDetailId} -> progress ${report.progress}`
-        );
       }
     }
 
@@ -142,10 +133,6 @@ export const createSpkFieldReport = async (req, res) => {
 
     for (const [soDetailId, progressValue] of latestProgressMap) {
       totalProgress += progressValue;
-      // count++;
-      console.log(
-        `[DEBUG] SO Detail ${soDetailId}: progress = ${progressValue}`
-      );
     }
 
     console.log(`[DEBUG] Total progress: ${totalProgress}, Count: ${count}`);
@@ -158,17 +145,11 @@ export const createSpkFieldReport = async (req, res) => {
       select: { progress: true },
     });
 
-    console.log(
-      `[DEBUG] Current SPK progress type: ${typeof spkData?.progress}`
-    );
-
     // Update progress SPK
     await prisma.sPK.update({
       where: { id: spkId },
       data: {
         progress: averageProgress,
-        // Jika error karena tipe Decimal, gunakan:
-        // progress: new Prisma.Decimal(averageProgress)
       },
     });
 
@@ -363,23 +344,92 @@ export const updateReportStatus = async (req, res) => {
 };
 
 // 💡 Hapus laporan (soft delete opsional, tapi kami hapus langsung)
+
 export const deleteReport = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Hapus foto-foto terlebih dahulu
-    await prisma.sPKFieldReportPhoto.deleteMany({
+    // 1. Ambil semua foto terkait laporan
+    const photos = await prisma.sPKFieldReportPhoto.findMany({
       where: { reportId: id },
+      select: { imageUrl: true },
     });
 
-    // Hapus laporan
+    for (const photo of photos) {
+      if (!photo.imageUrl || typeof photo.imageUrl !== "string") continue;
+      const filePath = path.join(process.cwd(), "public", photo.imageUrl);
+
+      if (fs.existsSync(filePath)) {
+        try {
+          fs.unlinkSync(filePath);
+          console.log(`✅ File deleted: ${filePath}`);
+        } catch (err) {
+          console.error(`❌ Gagal hapus file: ${filePath}`, err.message);
+        }
+      } else {
+        console.warn(`⚠️ File not found: ${filePath}`);
+      }
+    }
+
+    // 2. Hapus dari database
+    await prisma.sPKFieldReportPhoto.deleteMany({ where: { reportId: id } });
+
     const deleted = await prisma.sPKFieldReport.delete({
       where: { id },
+      select: { spkId: true }, // ambil spkId untuk update progress
     });
 
     if (!deleted) {
       return res.status(404).json({ error: "Laporan tidak ditemukan" });
     }
+
+    const spkId = deleted.spkId;
+
+    const reportsWithSoDetail = await prisma.sPKFieldReport.findMany({
+      where: {
+        spkId,
+        soDetailId: { not: null }, // Hanya ambil yang punya soDetailId
+      },
+      orderBy: { reportedAt: "desc" },
+      select: {
+        id: true,
+        soDetailId: true,
+        progress: true,
+        reportedAt: true,
+      },
+    });
+
+    const totalItems = await prisma.salesOrderItem.count({
+      where: {
+        salesOrderId: (
+          await prisma.sPK.findUnique({
+            where: { id: spkId },
+            select: { salesOrderId: true },
+          })
+        )?.salesOrderId,
+      },
+    });
+
+    const latestProgressMap = new Map();
+
+    for (const report of reportsWithSoDetail) {
+      if (!latestProgressMap.has(report.soDetailId)) {
+        latestProgressMap.set(report.soDetailId, report.progress);
+      }
+    }
+
+    let totalProgress = 0;
+    let count = totalItems;
+    for (const progressValue of latestProgressMap.values()) {
+      totalProgress += progressValue;
+    }
+    const averageProgress = count > 0 ? Math.round(totalProgress / count) : 0;
+
+    // 4. Update progress di SPK
+    await prisma.sPK.update({
+      where: { id: spkId },
+      data: { progress: averageProgress },
+    });
 
     res.json({
       success: true,
