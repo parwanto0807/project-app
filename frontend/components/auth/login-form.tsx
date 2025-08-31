@@ -85,6 +85,7 @@ const LoginForm = () => {
           headers: {
             "x-device-id": deviceId,
             "Cache-Control": "no-cache",
+            "Authorization": `Bearer ${loginData.accessToken}`,
           },
         });
 
