@@ -21,19 +21,32 @@ app.use(helmet());
 app.use('/images', express.static(path.join(process.cwd(), 'public', 'images')));
 
 // CORS Configuration
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://solusiit.id:3000",
+  "http://77.37.44.232:3000"
+];
+
 app.use(
   cors({
-    origin: CLIENT_URL, // Gunakan variabel env untuk URL client
-    credentials: true, // Penting untuk session/auth
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: [
       "Content-Type",
       "Authorization",
       "x-device-id",
-      "cache-control", // <--- Tambahkan ini!
+      "cache-control",
     ],
   })
 );
+
 
 // Body Parser
 app.use(express.json());
