@@ -503,13 +503,6 @@ function ActionsCell({ order, onDeleteSuccess }: { order: SalesOrder; onDeleteSu
                 <DropdownMenuContent align="end" className="w-48" onClick={(e) => e.stopPropagation()}>
                     <DropdownMenuItem
                         className="cursor-pointer gap-2"
-                        onClick={handleViewDetails}
-                    >
-                        <Eye className="h-4 w-4" />
-                        View Details
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                        className="cursor-pointer gap-2"
                         onClick={handleEditOrder}
                     >
                         <Edit className="h-4 w-4" />
@@ -564,6 +557,7 @@ function MobileSalesOrderCard({ order, onExpand, onDeleteSuccess }: { order: Sal
     const [showDeleteDialog, setShowDeleteDialog] = React.useState(false)
     const [isDeleting, setIsDeleting] = React.useState(false)
     const router = useRouter()
+    const pdfActions = usePdfActions();
 
     const total = order.items.reduce((sum, item) => {
         const itemQty = new Decimal(item.qty ?? 0)
@@ -678,6 +672,14 @@ function MobileSalesOrderCard({ order, onExpand, onDeleteSuccess }: { order: Sal
                             <Eye className="h-3 w-3 mr-1" />
                             View
                         </Button>
+
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => pdfActions.handleDownloadPdf(order)}
+                        >
+                            <DownloadIcon className="h-4 w-4" />
+                        </Button>
                         <Button
                             variant="outline"
                             size="sm"
@@ -738,7 +740,6 @@ const useBodyScrollLock = (isLocked: boolean) => {
 };
 
 function mapToFormData(order: SalesOrder): SalesOrderFormData {
-    console.log("Mapping order to form data:", order);
     return {
         soNumber: order.soNumber,
         soDate: order.soDate ? new Date(order.soDate) : null,
@@ -822,6 +823,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
     const [salesOrders, setSalesOrders] = React.useState<SalesOrder[]>(initialSalesOrders)
     const handleDelete = onDeleteOrder ?? (() => { });
     const pdfActions = usePdfActions();
+
 
     // Update local state when prop changes
     React.useEffect(() => {
@@ -996,7 +998,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                             </DialogTrigger>
                             <DialogContent className="max-w-4xl max-h-[90vh]">
                                 <DialogHeader>
-                                    <DialogTitle>Preview Sales Order - {order.id}</DialogTitle>
+                                    <DialogTitle>Preview Sales Order - {order.soNumber}</DialogTitle>
                                 </DialogHeader>
                                 {pdfActions.selectedOrder && (
                                     <SalesOrderPdfPreview formData={pdfActions.selectedOrder} />
@@ -1118,21 +1120,51 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                             </div>
                         ) : (
                             <>
-                                <div className="space-y-4">
-                                    {paginatedOrders.map((order) => (
-                                        <MobileSalesOrderCard
-                                            key={order.id}
-                                            order={order}
-                                            onExpand={() => {
-                                                const row = table.getRow(order.id)
-                                                if (row) {
-                                                    row.toggleExpanded(!row.getIsExpanded())
-                                                }
-                                            }}
-                                            onDeleteSuccess={handleDeleteSuccess}
-                                        />
-                                    ))}
-                                </div>
+                                {paginatedOrders.map((order) => {
+                                    const row = table.getRow(order.id)
+
+                                    return (
+                                        <React.Fragment key={order.id}>
+                                            <MobileSalesOrderCard
+                                                order={order}
+                                                onExpand={() => row?.toggleExpanded(!row.getIsExpanded())}
+                                                onDeleteSuccess={handleDeleteSuccess}
+                                            />
+
+                                            {/* Tambahkan detailnya di sini */}
+                                            {row?.getIsExpanded() && (
+                                                <div className="p-4 mb-4 bg-white dark:bg-slate-800 border rounded-md text-sm shadow">
+                                                    <div className="mt-4 md:hidden">
+                                                        <div className="text-sm font-medium mb-2 text-green-600 ">Detail Items:</div>
+                                                        {order.items.map((item, idx) => (
+                                                            <div key={idx} className="mb-3 pb-3 border-b border-gray-100 dark:border-gray-800 last:border-b-0 last:mb-0 last:pb-0">
+                                                                <div className="font-medium">{item.name}</div>
+                                                                {item.description && (
+                                                                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                                                        {item.description}
+                                                                    </div>
+                                                                )}
+                                                                <div className="flex justify-between mt-2">
+                                                                    <span>{item.qty} x Rp {item.unitPrice.toLocaleString('id-ID')}</span>
+                                                                    <span className="font-medium">
+                                                                        Rp {(item.qty * item.unitPrice).toLocaleString('id-ID')}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                        <div className="flex justify-between mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 font-bold">
+                                                            <span>Total Amount:</span>
+                                                            <span>
+                                                                Rp {order.items.reduce((sum, item) => sum + (item.qty * item.unitPrice), 0).toLocaleString('id-ID')}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </React.Fragment>
+                                    )
+                                })}
+
 
                                 {totalPages > 1 && (
                                     <div className="flex items-center justify-between pt-4 border-t mt-4">
@@ -1172,6 +1204,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                         )}
                     </CardContent>
                 </Card>
+
                 <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
                     <AlertDialogContent>
                         <AlertDialogHeader>

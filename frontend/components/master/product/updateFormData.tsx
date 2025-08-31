@@ -84,7 +84,7 @@ export function UpdateProductForm({ productId }: UpdateProductFormProps) {
             isActive: true,
             image: "",
             barcode: "",
-            categoryId: undefined,
+            categoryId: "",
         }
     });
 
