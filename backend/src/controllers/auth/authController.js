@@ -6,6 +6,7 @@ import cookie from "cookie";
 import * as crypto from "crypto";
 import speakeasy from "speakeasy";
 import QRCode from "qrcode";
+// import { setTokenCookies } from "@/utils/setCookies";
 
 // Asumsi file env.js mengekspor variabel-variabel ini
 import {
@@ -100,12 +101,16 @@ export const getSessions = async (req, res) => {
 export const googleLogin = async (req, res) => {
   const { code } = req.query;
 
+  // URL halaman login di frontend
+  const loginUrl = `${NEXT_PUBLIC_FRONTEND_URL}/auth/loginAdmin`;
+
   if (!code) {
-    return res.status(400).json({ error: "Authorization code is required" });
+    // Redirect kembali ke halaman login jika tidak ada 'code'
+    return res.redirect(`${loginUrl}?error=Authorization+code+is+missing`);
   }
 
   try {
-    // Langkah 1: Tukarkan 'code' dengan 'access_token' (Tidak ada perubahan di sini)
+    // Langkah 1: Tukarkan 'code' dengan 'access_token'
     const tokenRes = await axios.post(
       "https://oauth2.googleapis.com/token",
       new URLSearchParams({
@@ -118,10 +123,9 @@ export const googleLogin = async (req, res) => {
     );
     const { access_token } = tokenRes.data;
 
-    // Langkah 2: Ambil profil pengguna dari Google (Tidak ada perubahan di sini)
+    // Langkah 2: Ambil profil pengguna dari Google
     const profileRes = await axios.get(
-      "https://www.googleapis.com/oauth2/v1/userinfo",
-      {
+      "https://www.googleapis.com/oauth2/v1/userinfo", {
         headers: { Authorization: `Bearer ${access_token}` },
       }
     );
@@ -131,53 +135,58 @@ export const googleLogin = async (req, res) => {
       throw new Error("Email not provided by Google");
     }
 
-    // Langkah 3: Verifikasi apakah email terdaftar sebagai admin
-    const userEmail = await prisma.accountEmail.findUnique({
+    // Langkah 3: Verifikasi apakah email terdaftar sebagai admin (whitelist)
+    const allowedEmail = await prisma.accountEmail.findUnique({
       where: { email },
     });
 
-    if (!userEmail) {
-      return res.redirect(
-        `${process.env.NEXT_PUBLIC_FRONTEND_URL}/auth/loginAdmin`
-      );
+    if (!allowedEmail) {
+      // Jika email tidak ada di daftar, kembalikan ke halaman login dengan pesan
+      return res.redirect(`${loginUrl}?error=You+are+not+authorized+to+log+in`);
     }
 
     // Langkah 4: Gunakan 'upsert' untuk membuat atau memperbarui pengguna
     const user = await prisma.user.upsert({
-      where: { email }, // Kriteria pencarian
+      where: { email },
       update: {
-        // Data yang diperbarui jika pengguna sudah ada
         name,
         avatar,
         googleId,
         provider: "google",
       },
       create: {
-        // Data yang dibuat jika pengguna baru
         email,
         name,
         avatar,
         googleId,
         provider: "google",
-        role: "admin", // <-- PERBAIKAN: Tetapkan role default untuk pengguna baru
-        // Pastikan Anda menggunakan nama role yang sesuai (misal: "ADMIN", "SUPER_ADMIN")
+        role: "admin", // Peran default sudah benar untuk admin baru
       },
     });
 
-    // Langkah 5: Buat sesi dan cookies (Tidak ada perubahan di sini)
+    // Langkah 5: Buat sesi dan cookies
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
     await createUserSession(user, refreshToken, req);
     setTokenCookies(res, accessToken, refreshToken);
 
-    res.redirect(`${process.env.NEXT_PUBLIC_FRONTEND_URL}/admin-area`);
+    // Langkah 6: Redirect ke halaman admin setelah berhasil
+    res.redirect(`${NEXT_PUBLIC_FRONTEND_URL}/admin-area`);
+
   } catch (err) {
+    // --- PERBAIKAN UTAMA ADA DI SINI ---
     console.error("Google login error:", err.response?.data || err.message);
-    const errorMessage =
-      err.response?.data?.error === "invalid_grant"
-        ? "Authorization code is invalid or expired. Please try again."
-        : "Google login failed";
-    res.status(400).json({ success: false, error: errorMessage });
+
+    let errorMessage = "An+unexpected+error+occurred.+Please+try+again."; // Pesan default
+
+    if (err.response?.data?.error === "invalid_grant") {
+      errorMessage = "Authorization+code+is+invalid+or+expired.+Please+try+logging+in+again.";
+    } else if (err.message === "Email not provided by Google") {
+      errorMessage = "Failed+to+retrieve+email+from+Google.";
+    }
+    
+    // Redirect kembali ke halaman login frontend dengan pesan error
+    res.redirect(`${loginUrl}?error=${errorMessage}`);
   }
 };
 

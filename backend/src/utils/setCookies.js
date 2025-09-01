@@ -1,4 +1,4 @@
-// utils/setCookies.ts
+// backend/src/utils/setCookies.js
 export const setTokenCookies = (res, accessToken, refreshToken) => {
   res.cookie('accessToken', accessToken, {
     httpOnly: true,
