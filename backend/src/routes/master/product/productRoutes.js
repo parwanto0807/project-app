@@ -36,7 +36,6 @@ router.get('/getProductCount', getProductCount);
 router.post(
   '/createProduct',
   authenticateToken,
-  authorizeSuperAdmin,
   upload.single('image'),
   createProduct
 );
@@ -45,7 +44,6 @@ router.post(
 router.put(
   '/updateProduct/:id',
   authenticateToken,
-  authorizeSuperAdmin,
   upload.single('image'),
   updateProduct
 );
@@ -54,7 +52,6 @@ router.put(
 router.delete(
   '/deleteProduct/:id',
   authenticateToken,
-  authorizeSuperAdmin,
   deleteProduct
 );
 
