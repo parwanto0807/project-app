@@ -26,10 +26,11 @@ app.use("/images", express.static(path.join(process.cwd(), "public/images")));
 
 // CORS Configuration
 const allowedOrigins = [
-  "http://localhost:3002",
-  "https://rylif-app.com:3002",
-  "http://77.37.44.232:3002",
+  "http://localhost:3000",
+  "https://rylif-app.com",
+  "https://www.rylif-app.com",
 ];
+
 
 app.use(
   cors({
