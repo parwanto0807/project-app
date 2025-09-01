@@ -21,7 +21,7 @@ const prisma = new PrismaClient();
 
 const generateAccessToken = (user) => {
   return jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, {
-    expiresIn: "2m",
+    expiresIn: "60m",
   });
 };
 
