@@ -24,7 +24,7 @@ export function initializeTokens(newAccessToken: string) {
   api.defaults.headers.common["Authorization"] = `Bearer ${newAccessToken}`;
   scheduleProactiveRefresh(newAccessToken);
   if (typeof window !== "undefined") {
-    document.cookie = `accessToken=${newAccessToken}; Path=/; Max-Age=120; SameSite=Lax`;
+    document.cookie = `accessToken=${newAccessToken}; Path=/; Max-Age=3600; SameSite=Lax`;
   }
 }
 
@@ -44,6 +44,7 @@ function clearRefreshTimer() {
     refreshTimer = undefined;
   }
 }
+
 function scheduleProactiveRefresh(token: string, skewMs = 45_000) {
   if (typeof window === "undefined") return;
   clearRefreshTimer();
