@@ -15,13 +15,13 @@ import {
 const router = express.Router();
 
 // Debug types
-console.log("[ROUTE CHECK]", {
-  authenticateToken: typeof authenticateToken,
-  authorizeSuperAdmin: typeof authorizeSuperAdmin,
-  so_updateWithItems: typeof salesOrder.updateWithItems,
-  so_create: typeof salesOrder.create,
-  so_getAll: typeof salesOrder.getAll,
-});
+// console.log("[ROUTE CHECK]", {
+//   authenticateToken: typeof authenticateToken,
+//   authorizeSuperAdmin: typeof authorizeSuperAdmin,
+//   so_updateWithItems: typeof salesOrder.updateWithItems,
+//   so_create: typeof salesOrder.create,
+//   so_getAll: typeof salesOrder.getAll,
+// });
 
 /* -------------------------------------------
  * SALES ORDERS (header-level)
