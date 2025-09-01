@@ -21,7 +21,7 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "http",
-        hostname: "77.37.44.232",
+        hostname: "api.rylif-app.com",
         port: "5000",
         pathname: "/images/**",
       },

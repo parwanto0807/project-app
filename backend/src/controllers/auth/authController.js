@@ -50,21 +50,21 @@ function setAuthCookies(res, refreshToken, sessionToken) {
 }
 
 async function createUserSession(user, refreshToken, req) {
-    const sessionToken = crypto.randomBytes(32).toString('hex');
-    const ipAddress = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
-    const userAgent = req.headers["user-agent"];
+  const sessionToken = crypto.randomBytes(32).toString("hex");
+  const ipAddress = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+  const userAgent = req.headers["user-agent"];
 
-    await prisma.userSession.create({
-        data: {
-            userId: user.id,
-            sessionToken,
-            refreshToken,
-            ipAddress: ipAddress?.toString(),
-            userAgent,
-            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 hari
-        },
-    });
-    return sessionToken;
+  await prisma.userSession.create({
+    data: {
+      userId: user.id,
+      sessionToken,
+      refreshToken,
+      ipAddress: ipAddress?.toString(),
+      userAgent,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 hari
+    },
+  });
+  return sessionToken;
 }
 
 export const getSessions = async (req, res) => {
@@ -137,8 +137,9 @@ export const googleLogin = async (req, res) => {
     });
 
     if (!userEmail) {
-      // Jika email tidak ada di whitelist, kembalikan ke halaman login
-      return res.redirect("http://localhost:3000/auth/loginAdmin");
+      return res.redirect(
+        `${process.env.NEXT_PUBLIC_FRONTEND_URL}/auth/loginAdmin`
+      );
     }
 
     // Langkah 4: Gunakan 'upsert' untuk membuat atau memperbarui pengguna
@@ -169,7 +170,7 @@ export const googleLogin = async (req, res) => {
     await createUserSession(user, refreshToken, req);
     setTokenCookies(res, accessToken, refreshToken);
 
-    res.redirect("http://localhost:3000/admin-area");
+    res.redirect(`${process.env.NEXT_PUBLIC_FRONTEND_URL}/admin-area`);
   } catch (err) {
     console.error("Google login error:", err.response?.data || err.message);
     const errorMessage =
@@ -737,19 +738,22 @@ export const refreshHandler = async (req, res) => {
       return res.status(401).json({ error: "Invalid or expired session" });
     }
 
-    const user = await prisma.user.findUnique({ where: { id: payload.userId } });
+    const user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+    });
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
 
     // HANYA buat accessToken baru. refreshToken dan session tetap sama.
     const newAccessToken = generateAccessToken(user);
-    
-    console.log("[REFRESH HANDLER] Berhasil refresh accessToken:", newAccessToken);
+
+    console.log(
+      "[REFRESH HANDLER] Berhasil refresh accessToken:",
+      newAccessToken
+    );
 
     return res.status(200).json({ success: true, accessToken: newAccessToken });
-    
-
   } catch (err) {
     console.error("[REFRESH HANDLER] GAGAL TOTAL:", err);
     return res.status(401).json({ error: "Invalid refresh token." });
@@ -792,7 +796,7 @@ export const refreshHandler = async (req, res) => {
 //     await prisma.$transaction([
 //       prisma.userSession.update({
 //         where: { id: session.id },
-//         data: { 
+//         data: {
 //           isRevoked: true,
 //           sessionToken: session.sessionToken,
 //           // PERBAIKAN: Sertakan ipAddress yang ada untuk memenuhi persyaratan skema
@@ -811,7 +815,7 @@ export const refreshHandler = async (req, res) => {
 //         },
 //       }),
 //     ]);
-    
+
 //     setAuthCookies(res, newRefreshToken, newSessionToken);
 
 //     return res.status(200).json({ success: true, accessToken: newAccessToken });

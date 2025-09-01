@@ -26,9 +26,9 @@ app.use("/images", express.static(path.join(process.cwd(), "public/images")));
 
 // CORS Configuration
 const allowedOrigins = [
-  "http://localhost:3000",
-  "https://solusiit.id:3000",
-  "http://77.37.44.232:3000",
+  "http://localhost:3002",
+  "https://rylif-app.com:3002",
+  "http://77.37.44.232:3002",
 ];
 
 app.use(
