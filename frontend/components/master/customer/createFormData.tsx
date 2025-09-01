@@ -79,11 +79,12 @@ export default function CreateCustomerForm() {
     const onSubmit = async (data: CustomerFormValues) => {
         setIsSubmitting(true);
         try {
-            const response = await fetch("http://localhost:5000/api/master/customer/createCustomer", {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/master/customer/createCustomer`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(data),
             });
+
 
             if (!response.ok) {
                 const err = await response.json().catch(() => ({ message: "An unexpected error occurred." }));

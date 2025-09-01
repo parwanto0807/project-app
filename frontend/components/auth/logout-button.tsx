@@ -13,18 +13,17 @@ export const LogoutButton = ({ children }: LogoutButtonProps) => {
 
   const onClick = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/auth/logout", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/logout`, {
         method: "POST",
-        credentials: "include", // Wajib agar cookie dikirim
+        credentials: "include",
       });
-
       if (!res.ok) {
         throw new Error("Gagal logout");
       }
-      
+
 
       // console.log("✅ Logout berhasil, mengarahkan ke login...");
-      setUser(null); 
+      setUser(null);
       router.push("/auth/login"); // Redirect ke halaman login
     } catch (err) {
       console.error("❌ Error saat logout:", err);

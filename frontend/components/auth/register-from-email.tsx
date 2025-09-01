@@ -47,10 +47,11 @@ const RegisterForm = () => {
 
   const logoutAndRedirect = useCallback(async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/auth/logout", {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/logout`, {
         method: "POST",
         credentials: "include",
       });
+
 
       if (res.ok) {
         router.push("/auth/login");
@@ -162,9 +163,9 @@ const RegisterForm = () => {
             </p>
           )}
 
-          <Button 
-            disabled={isPending || countdown !== null} 
-            type="submit" 
+          <Button
+            disabled={isPending || countdown !== null}
+            type="submit"
             className="w-full"
           >
             {isPending ? "Creating account..." : "Create an email account"}
