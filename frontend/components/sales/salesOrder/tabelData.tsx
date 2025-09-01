@@ -974,6 +974,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
 
                 return (
                     <div className="flex justify-end gap-2">
+                        <ActionsCell order={row.original} onDeleteSuccess={handleDeleteSuccess} />
                         <Button
                             variant="outline"
                             size="sm"
@@ -983,7 +984,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                             <Eye className="h-4 w-4" />
                             {row.getIsExpanded() ? "Hide" : "View"}
                         </Button>
-                        <ActionsCell order={row.original} onDeleteSuccess={handleDeleteSuccess} />
+
 
                         <Dialog open={pdfActions.pdfDialogOpen} onOpenChange={pdfActions.setPdfDialogOpen}>
                             <DialogTrigger asChild>
