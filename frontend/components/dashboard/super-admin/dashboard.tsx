@@ -336,7 +336,8 @@ export default function DashboardAwalSalesOrder() {
                                                 </TableCell>
                                                 <TableCell>
                                                     <Button variant="ghost" size="icon" asChild className="h-8 w-8">
-                                                        <Link href={`/super-admin-area/sales/salesOrder/${o.id}`}>
+                                                        {/* <Link href={`/super-admin-area/sales/salesOrder/${o.id}`}> */}
+                                                        <Link href="#">
                                                             <ArrowUpRight className="h-3 w-3 md:h-4 md:w-4" />
                                                         </Link>
                                                     </Button>
