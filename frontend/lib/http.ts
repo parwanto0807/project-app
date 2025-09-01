@@ -24,6 +24,7 @@ export function initializeTokens(newAccessToken: string) {
   api.defaults.headers.common["Authorization"] = `Bearer ${newAccessToken}`;
   scheduleProactiveRefresh(newAccessToken);
   if (typeof window !== "undefined") {
+    localStorage.setItem("accessToken", newAccessToken);
     document.cookie = `accessToken=${newAccessToken}; Path=/; Max-Age=3600; SameSite=Lax`;
   }
 }
@@ -158,6 +159,7 @@ api.interceptors.response.use(
 export function initializeTokensOnLogin(initialAccess: string) {
   initializeTokens(initialAccess);
 }
+
 export function clearTokensOnLogout() {
   setAccessToken(null);
   clearRefreshTimer();

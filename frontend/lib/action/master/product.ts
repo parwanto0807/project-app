@@ -1,11 +1,11 @@
 // lib/action/master/product.ts
-export async function fetchAllProducts() {
+export async function fetchAllProducts(accessToken?: string) {
   try {
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/master/product/getAllProducts`,
       {
         method: "GET",
-        // headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
         cache: "no-store",
         credentials: "include"
       }
