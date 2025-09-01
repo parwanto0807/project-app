@@ -15,12 +15,10 @@ import {
   BadgeCheck,
   BadgeX,
   Edit2,
-  // Calendar,
   FileDigit,
   Contact,
   Globe,
   Home,
-  // Notebook,
   Building,
   Banknote,
   User2,
@@ -104,7 +102,7 @@ export function CustomersTable({
   };
 
   return (
-    <div className="rounded-t-2xl border bg-white dark:bg-gray-800 shadow-sm dark:border-gray-700">
+    <div className="rounded-t-2xl border bg-white dark:bg-gray-800 shadow-sm dark:border-gray-700 overflow-hidden">
       <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4 md:p-6 border-b dark:border-gray-700">
         <div className="relative w-full">
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -116,7 +114,7 @@ export function CustomersTable({
           />
         </div>
         <Button asChild className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white rounded-lg shadow-sm">
-          <Link href="/super-admin-area/master/customers/create" className="gap-2">
+          <Link href="/super-admin-area/master/customers/create" className="gap-2 flex items-center justify-center">
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">New Customer</span>
             <span className="sm:hidden">New</span>
@@ -126,18 +124,18 @@ export function CustomersTable({
 
       <div className="overflow-x-auto">
         <Table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-          <TableHeader className="bg-gray-50 dark:bg-gray-700">
+          <TableHeader className="bg-gray-50 dark:bg-gray-700 hidden md:table-header-group">
             <TableRow>
               <TableHead className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Customer
               </TableHead>
-              <TableHead className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden sm:table-cell">
+              <TableHead className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Contact
               </TableHead>
-              <TableHead className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell">
+              <TableHead className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Location
               </TableHead>
-              <TableHead className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden sm:table-cell">
+              <TableHead className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Status
               </TableHead>
               <TableHead className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
@@ -170,39 +168,104 @@ export function CustomersTable({
                   >
                     <TableCell className="px-4 py-4">
                       <div className="flex items-center gap-3">
-                        <Building2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                        <div>
-                          <p className="font-medium text-gray-900 dark:text-gray-100">{customer.name}</p>
-                          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                            <Building2 className="h-4 w-4" aria-hidden="true" />
-                            <span className="truncate">Cabang : {customer.branch ?? "-"}</span>
+                        <Building2 className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-gray-900 dark:text-gray-100 truncate">{customer.name}</p>
+                          <div className="flex items-center gap-1.5 text-sm text-muted-foreground mt-1">
+                            <Building2 className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+                            <span className="truncate">Cabang: {customer.branch ?? "-"}</span>
                           </div>
-                          <div className="flex items-center gap-2 mt-1 sm:hidden">
-                            <FileDigit className="h-3 w-3 text-blue-500 dark:text-blue-400" />
-                            <span className="text-xs text-gray-500 dark:text-gray-400">{customer.code}</span>
+                          <div className="flex items-center gap-2 mt-1 md:hidden">
+                            <FileDigit className="h-3 w-3 text-blue-500 dark:text-blue-400 flex-shrink-0" />
+                            <span className="text-xs text-gray-500 dark:text-gray-400 truncate">{customer.code}</span>
                           </div>
                           {customer.companyType && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-1 sm:hidden">
-                              <Building className="h-3 w-3" />
-                              {customer.companyType}
+                            <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-1 md:hidden">
+                              <Building className="h-3 w-3 flex-shrink-0" />
+                              <span className="truncate">{customer.companyType}</span>
                             </p>
                           )}
                           {customer.email && (
-                            <div className="flex items-center gap-2 mt-1 sm:hidden">
-                              <Mail className="h-3 w-3 text-pink-500 dark:text-pink-400" />
-                              <span className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[120px]">
+                            <div className="flex items-center gap-2 mt-1 md:hidden">
+                              <Mail className="h-3 w-3 text-pink-500 dark:text-pink-400 flex-shrink-0" />
+                              <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
                                 {customer.email}
                               </span>
                             </div>
                           )}
+                          
+                          {/* Mobile-only status and actions row */}
+                          <div className="flex items-center justify-between mt-2 md:hidden">
+                            <Badge
+                              variant={customer.isActive ? "default" : "secondary"}
+                              className={`inline-flex items-center gap-1 ${customer.isActive
+                                ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
+                                : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
+                                }`}
+                            >
+                              {customer.isActive ? (
+                                <>
+                                  <BadgeCheck className="h-3 w-3" />
+                                  Active
+                                </>
+                              ) : (
+                                <>
+                                  <BadgeX className="h-3 w-3" />
+                                  Inactive
+                                </>
+                              )}
+                            </Badge>
+                            
+                            <div className="flex items-center gap-2">
+                              {expandedCustomer === customer.id ? (
+                                <ChevronUp className="h-5 w-5 text-gray-500 dark:text-gray-400 flex-shrink-0" />
+                              ) : (
+                                <ChevronDown className="h-5 w-5 text-gray-500 dark:text-gray-400 flex-shrink-0" />
+                              )}
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full flex-shrink-0"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <MoreVertical className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                                    <span className="sr-only">Actions</span>
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent
+                                  align="end"
+                                  className="w-48 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800"
+                                >
+                                  <DropdownMenuItem asChild>
+                                    <Link
+                                      href={`/super-admin-area/master/customers/update/${customer.id}`}
+                                      className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-gray-700 cursor-pointer"
+                                    >
+                                      <Edit2 className="h-4 w-4 text-green-500 dark:text-green-400" />
+                                      Edit
+                                    </Link>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator className="border-t border-gray-200 dark:border-gray-600" />
+                                  <DropdownMenuItem asChild>
+                                    <DeleteCustomerAlert
+                                      id={customer.id}
+                                      onDelete={() => setCustomers((prev) => prev.filter((c) => c.id !== customer.id))}
+                                    />
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="px-4 py-4 whitespace-nowrap hidden sm:table-cell">
+                    <TableCell className="px-4 py-4 whitespace-nowrap hidden md:table-cell">
                       <div className="space-y-1">
                         {customer.email && (
                           <div className="flex items-center gap-2">
-                            <Mail className="h-4 w-4 text-pink-500 dark:text-pink-400" />
+                            <Mail className="h-4 w-4 text-pink-500 dark:text-pink-400 flex-shrink-0" />
                             <span className="text-sm text-gray-700 dark:text-gray-300 truncate max-w-[160px]">
                               {customer.email}
                             </span>
@@ -210,7 +273,7 @@ export function CustomersTable({
                         )}
                         {customer.phone && (
                           <div className="flex items-center gap-2">
-                            <Phone className="h-4 w-4 text-green-500 dark:text-green-400" />
+                            <Phone className="h-4 w-4 text-green-500 dark:text-green-400 flex-shrink-0" />
                             <span className="text-sm text-gray-700 dark:text-gray-300">
                               {customer.phone}
                             </span>
@@ -221,14 +284,14 @@ export function CustomersTable({
                     <TableCell className="px-4 py-4 text-wrap whitespace-nowrap hidden md:table-cell">
                       {customer.city && (
                         <div className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4 text-orange-500 dark:text-orange-400" />
+                          <MapPin className="h-4 w-4 text-orange-500 dark:text-orange-400 flex-shrink-0" />
                           <span className="text-sm text-gray-700 dark:text-gray-300">
                             {customer.city}, {customer.province}
                           </span>
                         </div>
                       )}
                     </TableCell>
-                    <TableCell className="px-4 py-4 whitespace-nowrap hidden sm:table-cell">
+                    <TableCell className="px-4 py-4 whitespace-nowrap hidden md:table-cell">
                       <Badge
                         variant={customer.isActive ? "default" : "secondary"}
                         className={`flex items-center gap-1 ${customer.isActive
@@ -249,19 +312,19 @@ export function CustomersTable({
                         )}
                       </Badge>
                     </TableCell>
-                    <TableCell className="px-4 py-4 whitespace-nowrap text-right">
+                    <TableCell className="px-4 py-4 whitespace-nowrap text-right hidden md:table-cell">
                       <div className="flex justify-end items-center gap-2">
                         {expandedCustomer === customer.id ? (
-                          <ChevronUp className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                          <ChevronUp className="h-5 w-5 text-gray-500 dark:text-gray-400 flex-shrink-0" />
                         ) : (
-                          <ChevronDown className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                          <ChevronDown className="h-5 w-5 text-gray-500 dark:text-gray-400 flex-shrink-0" />
                         )}
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full"
+                              className="hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full flex-shrink-0"
                               onClick={(e) => e.stopPropagation()}
                             >
                               <MoreVertical className="h-4 w-4 text-gray-600 dark:text-gray-400" />
@@ -300,32 +363,32 @@ export function CustomersTable({
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
                           <div className="space-y-3">
                             <h4 className="font-medium flex items-center gap-2 text-blue-600 dark:text-blue-400 text-sm">
-                              <ClipboardList className="h-4 w-4" />
+                              <ClipboardList className="h-4 w-4 flex-shrink-0" />
                               Company Details
                             </h4>
                             <div className="space-y-2 text-sm">
                               <div className="flex items-start gap-3">
-                                <FileDigit className="h-4 w-4 text-blue-500 dark:text-blue-400 mt-0.5" />
-                                <div>
+                                <FileDigit className="h-4 w-4 text-blue-500 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                                <div className="min-w-0 flex-1">
                                   <p className="text-xs text-gray-500 dark:text-gray-400">Code</p>
-                                  <p className="font-medium text-gray-700 dark:text-gray-300">{customer.code}</p>
+                                  <p className="font-medium text-gray-700 dark:text-gray-300 truncate">{customer.code}</p>
                                 </div>
                               </div>
                               {customer.taxNumber && (
                                 <div className="flex items-start gap-3">
-                                  <Banknote className="h-4 w-4 text-purple-500 dark:text-purple-400 mt-0.5" />
-                                  <div>
+                                  <Banknote className="h-4 w-4 text-purple-500 dark:text-purple-400 mt-0.5 flex-shrink-0" />
+                                  <div className="min-w-0 flex-1">
                                     <p className="text-xs text-gray-500 dark:text-gray-400">Tax ID</p>
-                                    <p className="font-medium text-gray-700 dark:text-gray-300">{customer.taxNumber}</p>
+                                    <p className="font-medium text-gray-700 dark:text-gray-300 truncate">{customer.taxNumber}</p>
                                   </div>
                                 </div>
                               )}
                               {customer.branch && (
                                 <div className="flex items-start gap-3">
-                                  <Home className="h-4 w-4 text-indigo-500 dark:text-indigo-400 mt-0.5" />
-                                  <div>
+                                  <Home className="h-4 w-4 text-indigo-500 dark:text-indigo-400 mt-0.5 flex-shrink-0" />
+                                  <div className="min-w-0 flex-1">
                                     <p className="text-xs text-gray-500 dark:text-gray-400">Branch</p>
-                                    <p className="font-medium text-gray-700 dark:text-gray-300">{customer.branch}</p>
+                                    <p className="font-medium text-gray-700 dark:text-gray-300 truncate">{customer.branch}</p>
                                   </div>
                                 </div>
                               )}
@@ -334,14 +397,14 @@ export function CustomersTable({
 
                           <div className="space-y-3">
                             <h4 className="font-medium flex items-center gap-2 text-blue-600 dark:text-blue-400 text-sm">
-                              <Contact className="h-4 w-4" />
+                              <Contact className="h-4 w-4 flex-shrink-0" />
                               Contact Info
                             </h4>
                             <div className="space-y-2 text-sm">
                               {customer.email && (
                                 <div className="flex items-start gap-3">
-                                  <Mail className="h-4 w-4 text-pink-500 dark:text-pink-400 mt-0.5" />
-                                  <div>
+                                  <Mail className="h-4 w-4 text-pink-500 dark:text-pink-400 mt-0.5 flex-shrink-0" />
+                                  <div className="min-w-0 flex-1">
                                     <p className="text-xs text-gray-500 dark:text-gray-400">Email</p>
                                     <p className="font-medium text-gray-700 dark:text-gray-300 break-all">{customer.email}</p>
                                   </div>
@@ -349,8 +412,8 @@ export function CustomersTable({
                               )}
                               {customer.phone && (
                                 <div className="flex items-start gap-3">
-                                  <Phone className="h-4 w-4 text-green-500 dark:text-green-400 mt-0.5" />
-                                  <div>
+                                  <Phone className="h-4 w-4 text-green-500 dark:text-green-400 mt-0.5 flex-shrink-0" />
+                                  <div className="min-w-0 flex-1">
                                     <p className="text-xs text-gray-500 dark:text-gray-400">Phone</p>
                                     <p className="font-medium text-gray-700 dark:text-gray-300">{customer.phone}</p>
                                   </div>
@@ -358,10 +421,10 @@ export function CustomersTable({
                               )}
                               {customer.contactPerson && (
                                 <div className="flex items-start gap-3">
-                                  <User2 className="h-4 w-4 text-teal-500 dark:text-teal-400 mt-0.5" />
-                                  <div>
+                                  <User2 className="h-4 w-4 text-teal-500 dark:text-teal-400 mt-0.5 flex-shrink-0" />
+                                  <div className="min-w-0 flex-1">
                                     <p className="text-xs text-gray-500 dark:text-gray-400">Contact Person</p>
-                                    <p className="font-medium text-gray-700 dark:text-gray-300">{customer.contactPerson}</p>
+                                    <p className="font-medium text-gray-700 dark:text-gray-300 truncate">{customer.contactPerson}</p>
                                   </div>
                                 </div>
                               )}
@@ -370,23 +433,23 @@ export function CustomersTable({
 
                           <div className="space-y-3">
                             <h4 className="font-medium flex items-center gap-2 text-blue-600 dark:text-blue-400 text-sm">
-                              <MapPin className="h-4 w-4" />
+                              <MapPin className="h-4 w-4 flex-shrink-0" />
                               Location
                             </h4>
                             <div className="space-y-2 text-sm">
                               {customer.address && (
                                 <div className="flex items-start gap-3">
-                                  <Globe className="h-4 w-4 text-orange-500 dark:text-orange-400 mt-0.5" />
-                                  <div>
+                                  <Globe className="h-4 w-4 text-orange-500 dark:text-orange-400 mt-0.5 flex-shrink-0" />
+                                  <div className="min-w-0 flex-1">
                                     <p className="text-xs text-gray-500 dark:text-gray-400">Address</p>
-                                    <p className="font-medium text-wrap  text-gray-700 dark:text-gray-300">{customer.address}</p>
+                                    <p className="font-medium text-wrap text-gray-700 dark:text-gray-300">{customer.address}</p>
                                   </div>
                                 </div>
                               )}
                               {(customer.city || customer.province) && (
                                 <div className="flex items-start gap-3">
-                                  <MapPin className="h-4 w-4 text-orange-500 dark:text-orange-400 mt-0.5" />
-                                  <div>
+                                  <MapPin className="h-4 w-4 text-orange-500 dark:text-orange-400 mt-0.5 flex-shrink-0" />
+                                  <div className="min-w-0 flex-1">
                                     <p className="text-xs text-gray-500 dark:text-gray-400">City/Province</p>
                                     <p className="font-medium text-gray-700 dark:text-gray-300">
                                       {customer.city}{customer.province ? `, ${customer.province}` : ''}
@@ -396,8 +459,8 @@ export function CustomersTable({
                               )}
                               {customer.postalCode && (
                                 <div className="flex items-start gap-3">
-                                  <FileDigit className="h-4 w-4 text-blue-500 dark:text-blue-400 mt-0.5" />
-                                  <div>
+                                  <FileDigit className="h-4 w-4 text-blue-500 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                                  <div className="min-w-0 flex-1">
                                     <p className="text-xs text-gray-500 dark:text-gray-400">Postal Code</p>
                                     <p className="font-medium text-gray-700 dark:text-gray-300">{customer.postalCode}</p>
                                   </div>
@@ -434,14 +497,14 @@ function TableSkeleton() {
         <TableRow key={i}>
           <TableCell className="px-4 py-4">
             <div className="flex items-center space-x-3">
-              <Skeleton className="h-5 w-5 rounded-full dark:bg-gray-700" />
-              <div className="space-y-1">
+              <Skeleton className="h-5 w-5 rounded-full dark:bg-gray-700 flex-shrink-0" />
+              <div className="space-y-1 flex-1">
                 <Skeleton className="h-4 w-[120px] rounded-full dark:bg-gray-700" />
-                <Skeleton className="h-3 w-[80px] rounded-full dark:bg-gray-700 sm:hidden" />
+                <Skeleton className="h-3 w-[80px] rounded-full dark:bg-gray-700 md:hidden" />
               </div>
             </div>
           </TableCell>
-          <TableCell className="px-4 py-4 hidden sm:table-cell">
+          <TableCell className="px-4 py-4 hidden md:table-cell">
             <div className="space-y-2">
               <Skeleton className="h-4 w-[160px] rounded-full dark:bg-gray-700" />
               <Skeleton className="h-4 w-[120px] rounded-full dark:bg-gray-700" />
@@ -450,10 +513,10 @@ function TableSkeleton() {
           <TableCell className="px-4 py-4 hidden md:table-cell">
             <Skeleton className="h-4 w-[100px] rounded-full dark:bg-gray-700" />
           </TableCell>
-          <TableCell className="px-4 py-4 hidden sm:table-cell">
+          <TableCell className="px-4 py-4 hidden md:table-cell">
             <Skeleton className="h-6 w-[70px] rounded-full dark:bg-gray-700" />
           </TableCell>
-          <TableCell className="px-4 py-4 text-right">
+          <TableCell className="px-4 py-4 text-right hidden md:table-cell">
             <div className="flex justify-end space-x-2">
               <Skeleton className="h-8 w-8 rounded-full dark:bg-gray-700" />
               <Skeleton className="h-8 w-8 rounded-full dark:bg-gray-700" />

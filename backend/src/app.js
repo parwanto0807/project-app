@@ -10,21 +10,24 @@ import customerRoutes from "./routes/master/customer/customerRoutes.js"; // Impo
 import productRoutes from "./routes/master/product/productRoutes.js"; // Import product routes
 import kategoryRoutes from "./routes/master/product/kategoryProductRoutes.js"; // Import category routes
 import salesOrderRoutes from "./routes/salesOrder/salesOrderRoutes.js"; // Import sales order routes
-import cookieParser from 'cookie-parser';
-import path from 'path';
-
+import cookieParser from "cookie-parser";
+import path from "path";
+import { fileURLToPath } from "url";
 const app = express();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Security Middleware
 app.use(cookieParser());
 app.use(helmet());
-app.use('/images', express.static(path.join(process.cwd(), 'public', 'images')));
+// app.use('/images', express.static(path.join(process.cwd(), 'public', 'images')));
+app.use("/images", express.static(path.join(__dirname, "public/images")));
 
 // CORS Configuration
 const allowedOrigins = [
   "http://localhost:3000",
   "https://solusiit.id:3000",
-  "http://77.37.44.232:3000"
+  "http://77.37.44.232:3000",
 ];
 
 app.use(
@@ -46,7 +49,6 @@ app.use(
     ],
   })
 );
-
 
 // Body Parser
 app.use(express.json());
