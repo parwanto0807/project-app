@@ -265,7 +265,7 @@ export default function DashboardAwalSalesOrder() {
                     formatted
                     icon={<CreditCard className="h-5 w-5 text-amber-600" />}
                     trend={calculateTrend()}
-                    href="/super-admin-area/sales/reports"
+                    href="#"
                 />
 
             </div>
@@ -321,7 +321,8 @@ export default function DashboardAwalSalesOrder() {
                                             <TableRow key={o.id} className="hover:bg-muted/20 border-b-0">
                                                 <TableCell className="font-medium text-xs md:text-sm">
                                                     <Link
-                                                        href={`/super-admin-area/sales/salesOrder/${o.id}`}
+                                                        // href={`/super-admin-area/sales/salesOrder/${o.id}`}
+                                                        href="#"
                                                         className="underline-offset-4 hover:underline text-blue-600 hover:text-blue-800"
                                                     >
                                                         {o.soNumber}
@@ -367,13 +368,13 @@ export default function DashboardAwalSalesOrder() {
                                 </Link>
                             </Button>
                             <Button variant="outline" className="w-full justify-start gap-2 h-11 text-xs md:text-sm" asChild>
-                                <Link href="/super-admin-area/master/customer/create">
+                                <Link href="/super-admin-area/master/customers/create">
                                     <Users2 className="h-4 w-4" />
                                     Tambah Pelanggan Baru
                                 </Link>
                             </Button>
                             <Button variant="outline" className="w-full justify-start gap-2 h-11 text-xs md:text-sm" asChild>
-                                <Link href="/super-admin-area/master/product/create">
+                                <Link href="/super-admin-area/master/products/create">
                                     <Package className="h-4 w-4" />
                                     Tambah Produk Baru
                                 </Link>

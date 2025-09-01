@@ -372,9 +372,9 @@ export function getMenuList(pathname: string, role: string) {
         },
         {
           label: "Audit Log",
-          href: "/audit-log",
+          href: "#",
           icon: FileSearchIcon,
-          active: isActive("/audit-log", pathname),
+          active: isActive("#", pathname),
           submenus: [],
         },
       ],
