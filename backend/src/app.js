@@ -22,10 +22,7 @@ app.use(cookieParser());
 app.use(helmet());
 // app.use('/images', express.static(path.join(process.cwd(), 'public', 'images')));
 // Expose public folder
-app.use("/images", express.static(path.join(__dirname, "public/images")));
-
-// atau expose full public (lebih fleksibel)
-app.use("/public", express.static(path.join(__dirname, "public")));
+app.use("/images", express.static(path.join(process.cwd(), "public/images")));
 
 // CORS Configuration
 const allowedOrigins = [
