@@ -60,9 +60,10 @@ type ProductSchema = z.infer<typeof ProductRegisterSchema>;
 
 interface UpdateProductFormProps {
     productId: string;
+    accessToken?: string
 }
 
-export function UpdateProductForm({ productId }: UpdateProductFormProps) {
+export function UpdateProductForm({ productId, accessToken }: UpdateProductFormProps) {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -140,6 +141,7 @@ export function UpdateProductForm({ productId }: UpdateProductFormProps) {
                 {
                     method: "PUT",
                     body: formData,
+                    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
                     credentials: "include", // agar cookie/token ikut terkirim
                     // ❌ JANGAN set headers Content-Type → browser akan otomatis handle multipart/form-data
                 }

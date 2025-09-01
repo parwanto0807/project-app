@@ -32,6 +32,7 @@ export default function UpdateProductPage() {
   const [error, setError] = useState("");
   const [role, setRole] = useState<"super">("super");
   const [loadingData, setLoadingData] = useState(false);
+  const [accessToken, setAccessToken] = useState<string | undefined>(undefined);
 
   // Redirect if not logged in
   useEffect(() => {
@@ -43,8 +44,16 @@ export default function UpdateProductPage() {
   }, [loading, user, router]);
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("accessToken") || undefined;
+      setAccessToken(token);
+      console.log("Access Token:", token);
+    }
+  }, []);
+
+  useEffect(() => {
     if (!id) return;
-    
+
     setLoadingData(true);
     const fetchData = async () => {
       try {
@@ -61,7 +70,7 @@ export default function UpdateProductPage() {
         setLoadingData(false);
       }
     };
-    
+
     fetchData();
   }, [id]);
 
@@ -127,7 +136,7 @@ export default function UpdateProductPage() {
           </button>
         </div>
       ) : data ? (
-        <UpdateProductForm productId={data.id} />
+        <UpdateProductForm productId={data.id} accessToken={accessToken} />
       ) : (
         <div className="flex flex-col items-center justify-center py-12 space-y-4">
           <div className="bg-yellow-100 p-4 rounded-full">
