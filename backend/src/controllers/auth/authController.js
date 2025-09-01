@@ -99,13 +99,20 @@ export const getSessions = async (req, res) => {
 };
 
 export const googleLogin = async (req, res) => {
+  // --- PERBAIKAN: Validasi variabel lingkungan ---
+  const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL;
+  if (!frontendUrl) {
+    console.error("FATAL ERROR: NEXT_PUBLIC_FRONTEND_URL environment variable is not set.");
+    // Kirim respons error umum agar tidak membocorkan detail konfigurasi
+    return res.status(500).json({ error: "Internal Server Error: Application is not configured correctly." });
+  }
+
   const { code } = req.query;
 
   // URL halaman login di frontend
-  const loginUrl = `${NEXT_PUBLIC_FRONTEND_URL}/auth/loginAdmin`;
+  const loginUrl = `${frontendUrl}/auth/loginAdmin`;
 
   if (!code) {
-    // Redirect kembali ke halaman login jika tidak ada 'code'
     return res.redirect(`${loginUrl}?error=Authorization+code+is+missing`);
   }
 
@@ -141,7 +148,6 @@ export const googleLogin = async (req, res) => {
     });
 
     if (!allowedEmail) {
-      // Jika email tidak ada di daftar, kembalikan ke halaman login dengan pesan
       return res.redirect(`${loginUrl}?error=You+are+not+authorized+to+log+in`);
     }
 
@@ -160,7 +166,7 @@ export const googleLogin = async (req, res) => {
         avatar,
         googleId,
         provider: "google",
-        role: "admin", // Peran default sudah benar untuk admin baru
+        role: "admin",
       },
     });
 
@@ -171,22 +177,28 @@ export const googleLogin = async (req, res) => {
     setTokenCookies(res, accessToken, refreshToken);
 
     // Langkah 6: Redirect ke halaman admin setelah berhasil
-    res.redirect(`${NEXT_PUBLIC_FRONTEND_URL}/admin-area`);
+    res.redirect(`${frontendUrl}/admin-area`);
 
   } catch (err) {
-    // --- PERBAIKAN UTAMA ADA DI SINI ---
-    console.error("Google login error:", err.response?.data || err.message);
+    // --- PENINGKATAN LOGGING UNTUK DEBUGGING ---
+    console.error("--- GOOGLE LOGIN CRASH REPORT ---");
+    console.error("Timestamp:", new Date().toISOString());
+    console.error("Full Error Object:", err); 
+    console.error("--- END OF REPORT ---");
 
-    let errorMessage = "An+unexpected+error+occurred.+Please+try+again."; // Pesan default
+    let errorMessage = "An+unexpected+error+occurred.+Please+try+again.";
 
     if (err.response?.data?.error === "invalid_grant") {
       errorMessage = "Authorization+code+is+invalid+or+expired.+Please+try+logging+in+again.";
     } else if (err.message === "Email not provided by Google") {
       errorMessage = "Failed+to+retrieve+email+from+Google.";
+    } else if (err.code && typeof err.code === 'string' && err.code.startsWith('P')) {
+      errorMessage = "A+database+error+occurred.+Please+contact+support.";
     }
     
-    // Redirect kembali ke halaman login frontend dengan pesan error
-    res.redirect(`${loginUrl}?error=${errorMessage}`);
+    if (!res.headersSent) {
+      res.redirect(`${loginUrl}?error=${errorMessage}`);
+    }
   }
 };
 
