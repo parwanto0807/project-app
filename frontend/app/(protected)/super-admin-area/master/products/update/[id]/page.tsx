@@ -136,7 +136,7 @@ export default function UpdateProductPage() {
           </button>
         </div>
       ) : data ? (
-        <UpdateProductForm productId={data.id} accessToken={accessToken} />
+        <UpdateProductForm productId={data.id} accessToken={accessToken} role={role} />
       ) : (
         <div className="flex flex-col items-center justify-center py-12 space-y-4">
           <div className="bg-yellow-100 p-4 rounded-full">

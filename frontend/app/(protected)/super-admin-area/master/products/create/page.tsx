@@ -66,7 +66,7 @@ export default function CreateProductPage() {
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
-      <CreateProductForm />
+      <CreateProductForm role={user.role} />
     </SuperLayout>
   );
 }
