@@ -13,7 +13,7 @@ export function Navbar({ title, role }: NavbarProps) {
       <div className="mx-4 sm:mx-8 flex h-20 items-center">
         <div className="flex items-center space-x-4 lg:space-x-0">
           <SheetMenu role={role} />
-          <h1 className="pl-2 uppercase font-semibold">{title}</h1>
+          <h1 className="pl-4 pb-3 uppercase font-semibold">{title}</h1>
         </div>
         <div className="flex flex-1 items-center space-x-2 justify-end">
           <ModeToggle />

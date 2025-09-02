@@ -26,6 +26,13 @@ type Props = {
     open?: boolean
     onOpenChange?: (open: boolean) => void
     onDeleteSuccess?: () => void
+    role: string
+}
+
+function getBasePath(role?: string) {
+    return role === "super"
+        ? "/super-admin-area/sales/salesOrder"
+        : "/admin-area/sales/salesOrder"
 }
 
 export function ActionDeleteSalesOrder({
@@ -33,12 +40,13 @@ export function ActionDeleteSalesOrder({
     open = false,
     onOpenChange,
     onDeleteSuccess,
+    role,
 }: Props) {
     const router = useRouter()
     const [isDeleting, setIsDeleting] = useState(false)
 
     const handleEditOrder = () => {
-        router.push(`/super-admin-area/sales/salesOrder/update/${order.id}`)
+        router.push(`${getBasePath(role)}/update/${order.id}`)
     }
 
     const handleViewDetails = () => {
@@ -62,6 +70,7 @@ export function ActionDeleteSalesOrder({
             const response = await fetch(`/api/salesOrder/sales-orders/remove/${order.id}`, {
                 method: "DELETE",
                 headers: { "Content-Type": "application/json" },
+                credentials:"include"
             })
 
             if (!response.ok) {

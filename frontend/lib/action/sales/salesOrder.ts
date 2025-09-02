@@ -163,6 +163,7 @@ export async function fetchSalesOrderById(id: string) {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/salesOrder/sales-orders/getById/${id}`, {
       method: "GET",
       cache: "no-store",
+      credentials: "include"
     });
     if (!res.ok) throw new Error(`Failed to fetch sales order: ${res.status}`);
     return await res.json();

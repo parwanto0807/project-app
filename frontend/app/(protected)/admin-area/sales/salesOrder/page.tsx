@@ -13,20 +13,20 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
 import { fetchAllSalesOrder } from "@/lib/action/sales/salesOrder";
-import { SuperLayout } from "@/components/admin-panel/super-layout";
+import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { LayoutProps } from "@/types/layout";
 import { SalesOrderTable } from "@/components/sales/salesOrder/tabelData";
 
-export default function SalesOrderPage() {
+export default function SalesOrderPageAdmin() {
   const [salesOrders, setSalesOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
   // Ubah ini sesuai dengan sistem auth kamu
-  const userRole = "super"; // bisa ganti dari context / user state
+  const userRole = "admin"; // bisa ganti dari context / user state
 
   useEffect(() => {
-    if (userRole !== "super") {
+    if (userRole !== "admin") {
       router.push("/unauthorized");
       return;
     }
@@ -43,7 +43,7 @@ export default function SalesOrderPage() {
 
   const layoutProps: LayoutProps = {
     title: "Sales Management",
-    role: "super",
+    role: "admin",
     children: (
       <>
         <Breadcrumb>
@@ -51,7 +51,7 @@ export default function SalesOrderPage() {
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
                 <Badge variant="outline">
-                  <Link href="/super-admin-area">Dashboard</Link>
+                  <Link href="/admin-area">Dashboard</Link>
                 </Badge>
               </BreadcrumbLink>
             </BreadcrumbItem>
@@ -81,5 +81,5 @@ export default function SalesOrderPage() {
     ),
   };
 
-  return <SuperLayout {...layoutProps} />;
+  return <AdminLayout {...layoutProps} />;
 }

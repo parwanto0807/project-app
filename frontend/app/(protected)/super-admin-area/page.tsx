@@ -66,9 +66,9 @@ export default function DashboardPage() {
         <div className="flex items-start sm:items-center justify-between">
           <div>
             {/* 👇 judul lebih kecil di mobile, naik di breakpoint */}
-            <h1 className="pl-2 text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight leading-tight">
+            {/* <h1 className="pl-2 text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight leading-tight">
               Dashboard Super Admin
-            </h1>
+            </h1> */}
 
             {/* 👇 teks sambutan responsif + ikon mengecil di mobile */}
             <p className="pl-2 text-xs sm:text-sm md:text-base text-muted-foreground mt-1 flex items-center gap-1.5 sm:gap-2">

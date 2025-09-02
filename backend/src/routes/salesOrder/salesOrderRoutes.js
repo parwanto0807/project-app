@@ -9,19 +9,9 @@ import { createProject, getListProjects } from "../../controllers/salesOrder/pro
 // Middleware
 import {
   authenticateToken,
-  authorizeSuperAdmin,
 } from "../../middleware/authMiddleware.js";
 
 const router = express.Router();
-
-// Debug types
-// console.log("[ROUTE CHECK]", {
-//   authenticateToken: typeof authenticateToken,
-//   authorizeSuperAdmin: typeof authorizeSuperAdmin,
-//   so_updateWithItems: typeof salesOrder.updateWithItems,
-//   so_create: typeof salesOrder.create,
-//   so_getAll: typeof salesOrder.getAll,
-// });
 
 /* -------------------------------------------
  * SALES ORDERS (header-level)
@@ -39,7 +29,6 @@ router.get("/sales-orders-last", salesOrder.getLastSalesOrder);
 router.post(
   "/sales-orders/create",
   authenticateToken,
-  authorizeSuperAdmin,
   salesOrder.create
 );
 
@@ -47,7 +36,6 @@ router.post(
 router.put(
   "/sales-orders/update/:id",
   authenticateToken,
-  authorizeSuperAdmin,
   salesOrder.updateWithItems
 );
 
@@ -55,7 +43,6 @@ router.put(
 router.put(
   "/sales-orders/:id/with-items",
   authenticateToken,
-  authorizeSuperAdmin,
   salesOrder.updateWithItems
 );
 
@@ -63,7 +50,6 @@ router.put(
 router.delete(
   "/sales-orders/remove/:id",
   authenticateToken,
-  authorizeSuperAdmin,
   salesOrder.remove
 );
 
@@ -74,7 +60,6 @@ router.delete(
 router.post(
   "/sales-orders/:soId/items",
   authenticateToken,
-  authorizeSuperAdmin,
   item.addItem
 );
 
@@ -82,7 +67,6 @@ router.post(
 router.patch(
   "/sales-orders/:soId/items/:itemId",
   authenticateToken,
-  authorizeSuperAdmin,
   item.updateItem
 );
 
@@ -90,7 +74,6 @@ router.patch(
 router.delete(
   "/sales-orders/:soId/items/:itemId",
   authenticateToken,
-  authorizeSuperAdmin,
   item.removeItem
 );
 
@@ -104,7 +87,6 @@ router.get("/sales-orders/:soId/documents", doc.getBySalesOrderId);
 router.post(
   "/sales-orders/:soId/documents",
   authenticateToken,
-  authorizeSuperAdmin,
   doc.addDocument
 );
 
@@ -112,7 +94,6 @@ router.post(
 router.patch(
   "/sales-orders/:soId/documents/:docId",
   authenticateToken,
-  authorizeSuperAdmin,
   doc.updateDocument
 );
 
@@ -120,7 +101,6 @@ router.patch(
 router.delete(
   "/sales-orders/:soId/documents/:docId",
   authenticateToken,
-  authorizeSuperAdmin,
   doc.removeDocument
 );
 
@@ -130,11 +110,9 @@ router.delete(
 router.post(
   "/project/create",
   authenticateToken,
-  authorizeSuperAdmin,
   createProject
 );
 router.get("/project/getListProjects", getListProjects);
-
 router.get("/getRecentSalesOrders", salesOrder.getRecentSalesOrders);
 router.get("/getSalesOrderSummary", salesOrder.getSalesOrderSummary);
 router.get("/getSalesStats", salesOrder.getSalesStats);

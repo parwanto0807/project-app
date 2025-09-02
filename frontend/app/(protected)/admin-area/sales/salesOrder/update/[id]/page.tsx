@@ -7,7 +7,7 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
-import { SuperLayout } from "@/components/admin-panel/super-layout";
+import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -22,14 +22,6 @@ import { fetchSalesOrderById } from "@/lib/action/sales/salesOrder";
 import { UpdateSalesOrderForm } from "@/components/sales/salesOrder/updateFormData";
 import { fullSalesOrderSchema } from "@/schemas/index";
 
-// NOTE: Ganti schema ini dengan schema SalesOrder yang sebenarnya.
-// const salesOrderItemWithIdSchema = salesOrderItemSchema.extend({
-//   id: z.string(),
-// });
-// const fullSalesOrderSchema = salesOrderUpdateSchema.extend({
-//   id: z.string(),
-//   items: z.array(salesOrderItemWithIdSchema)
-// });
 
 type SalesOrder = z.infer<typeof fullSalesOrderSchema>;
 
@@ -46,7 +38,7 @@ interface RawCustomer {
   [key: string]: unknown;
 }
 
-export default function UpdateSalesOrderPage() {
+export default function UpdateSalesOrderPageAdmin() {
   const params = useParams();
   const id = params?.id as string | undefined;
   const router = useRouter();
@@ -65,8 +57,8 @@ export default function UpdateSalesOrderPage() {
       router.replace("/auth/login");
       return;
     }
-    if (user.role !== "super") {
-      router.replace("/not-authorized");
+    if (user.role !== "admin") {
+      router.replace("/unauthorized");
       return;
     }
   }, [userLoading, user, router]);
@@ -133,23 +125,23 @@ export default function UpdateSalesOrderPage() {
   }, []); // FIX: Dependency array dikosongkan agar hanya berjalan sekali
 
   const isLoading = userLoading || loadingData;
-  const userProp: { id: string; role: string } | undefined =
-    user ? { id: user.id, role: user.role } : undefined;
+  const userProp: { id: string } | undefined =
+  user ? { id: user.id} : undefined;
 
   return (
     // FIX: Menggunakan user?.role untuk prop role
-    <SuperLayout title="Update Sales Order" role="super">
+    <AdminLayout title="Update Sales Order" role="admin">
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
             {/* FIX: Link breadcrumb disesuaikan */}
-            <BreadcrumbLink href="/super-admin-area/dashboard">Dashboard</BreadcrumbLink>
+            <BreadcrumbLink href="/admin-area/">Dashboard</BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
               {/* FIX: Link dan teks disesuaikan untuk Sales Order */}
-              <Link href="/super-admin-area/sales/salesOrder">Sales Order List</Link>
+              <Link href="/admin-area/sales/salesOrder">Sales Order List</Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
@@ -194,6 +186,7 @@ export default function UpdateSalesOrderPage() {
           salesOrder={salesOrder}
           customers={customers}
           user={userProp}
+          role={user?.role}
         />
       ) : (
         /* --- Not Found State --- */
@@ -207,11 +200,11 @@ export default function UpdateSalesOrderPage() {
             Data not found. {id ? `(ID: ${id})` : ''}
           </p>
           {/* FIX: Link tombol disesuaikan */}
-          <button onClick={() => router.push("/super-admin-area/sales/sales-orders")} className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors">
+          <button onClick={() => router.push("/admin-area/sales/sales-orders")} className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors">
             Back to Sales Order List
           </button>
         </div>
       )}
-    </SuperLayout>
+    </AdminLayout>
   );
 }

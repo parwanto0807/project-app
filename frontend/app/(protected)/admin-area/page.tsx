@@ -65,9 +65,9 @@ export default function DashboardPage() {
 
         <div className="flex items-start sm:items-center justify-between">
           <div>
-            <h1 className="pl-2 text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight leading-tight">
+            {/* <h1 className="pl-2 text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight leading-tight">
               Dashboard Admin
-            </h1>
+            </h1> */}
             <p className="pl-2 text-xs sm:text-sm md:text-base text-muted-foreground mt-1 flex items-center gap-1.5 sm:gap-2">
               <UserCircle className="h-4 w-4 text-green-500 sm:h-5 sm:w-5" />
               Selamat datang kembali,&nbsp;

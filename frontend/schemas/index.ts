@@ -317,6 +317,7 @@ export const createSalesOrderSchema = z.object({
   items: z.array(salesOrderItemSchema).min(1, "Minimal harus ada satu item."),
   documents: z.array(salesOrderDocumentSchema).optional(),
 });
+
 export type CreateSalesOrderPayload = z.infer<typeof createSalesOrderSchema>;
 
 /* ====================================================================== */

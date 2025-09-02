@@ -75,7 +75,7 @@ function authenticateToken(req, res, next) {
     req.headers.authorization?.split(" ")[1] ||
     req.body?.token;
 
-  console.log("[AUTH] req.cookies:", req.cookies);
+  // console.log("[AUTH] req.cookies:", req.cookies);
 
   if (!token) {
     console.warn("No authentication token found");
@@ -93,7 +93,7 @@ function authenticateToken(req, res, next) {
         .json({ error: "Unauthorized", message: "Invalid or expired token" });
     }
     req.user = decoded;
-    console.log("[AUTH] JWT decoded:", decoded);
+    // console.log("[AUTH] JWT decoded:", decoded);
     next();
   });
 }

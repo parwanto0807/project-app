@@ -65,7 +65,7 @@ import { type SalesOrder } from "@/schemas";
 import { ensureFreshToken } from "@/lib/http";
 
 type ApiProduct = z.infer<typeof ApiProductSchema>;
-type ProductOption = { id: string; name: string; description?: string | null };
+type ProductOption = { id: string; name: string; description?: string; usageUnit?: string | null; };
 
 interface Customer {
     id: string
@@ -83,17 +83,25 @@ interface UpdateSalesOrderFormProps {
     salesOrder: SalesOrder
     isLoading?: boolean
     user?: { id: string }
+    role?: string
 }
 
 // Gunakan schema yang sama dengan create, tapi tanpa soNumber
 const formSchema = createSalesOrderSchema.omit({ soNumber: true });
 type UpdateSalesOrderPayload = z.input<typeof formSchema>;
 
+function getBasePath(role?: string) {
+    return role === "super"
+        ? "/super-admin-area/sales/saleOrder"
+        : "/admin-area/sales/salesOrder"
+}
+
 export function UpdateSalesOrderForm({
     customers,
     salesOrder,
     isLoading,
     user,
+    role,
 }: UpdateSalesOrderFormProps) {
     const router = useRouter()
     const [isPending, startTransition] = React.useTransition()
@@ -148,6 +156,7 @@ export function UpdateSalesOrderForm({
                         id: p.id,
                         name: p.name,
                         description: p.description ?? undefined,
+                        usageUnit: p.usageUnit ?? null,
                     }))
                 );
             } catch (error) {
@@ -195,15 +204,25 @@ export function UpdateSalesOrderForm({
     }, []);
 
     // Fungsi untuk handle product selection
-    const handleProductSelect = (index: number, productId: string) => {
-        const selectedProduct = productOptions.find(p => p.id === productId);
-        if (selectedProduct) {
-            form.setValue(`items.${index}.productId`, productId);
-            form.setValue(`items.${index}.name`, selectedProduct.name);
-            form.setValue(`items.${index}.description`, selectedProduct.description || "");
+    const handleProductSelect = (index: number, productId: string | undefined) => {
+        if (!productId) {
+            // Reset values jika productId undefined
+            form.setValue(`items.${index}.name`, "", { shouldDirty: true, shouldTouch: true });
+            form.setValue(`items.${index}.description`, "", { shouldDirty: true, shouldTouch: true });
+            form.setValue(`items.${index}.uom`, "", { shouldDirty: true, shouldTouch: true });
+            return;
         }
-    };
 
+        const selectedProduct = productOptions.find(p => p.id === productId);
+        if (!selectedProduct) return;
+
+        const uomValue = selectedProduct.usageUnit ?? "";
+
+        form.setValue(`items.${index}.productId`, productId, { shouldDirty: true, shouldTouch: true });
+        form.setValue(`items.${index}.name`, selectedProduct.name ?? "", { shouldDirty: true, shouldTouch: true });
+        form.setValue(`items.${index}.description`, selectedProduct.description ?? "", { shouldDirty: true, shouldTouch: true });
+        form.setValue(`items.${index}.uom`, uomValue, { shouldDirty: true, shouldTouch: true });
+    };
 
     function onSubmit(data: UpdateSalesOrderPayload) {
         startTransition(async () => {
@@ -217,8 +236,8 @@ export function UpdateSalesOrderForm({
                     toast.error("Terjadi Kesalahan", { description: result.error });
                 } else if (result.success) {
                     toast.success("Sukses!", { description: "Sales Order berhasil diperbarui." });
-                    router.push("/super-admin-area/sales/salesOrder");
-                    router.refresh();
+                    const basePath = getBasePath(role)
+                    router.push(basePath)
                 }
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : "Gagal memperbarui Sales Order.";
@@ -490,7 +509,7 @@ export function UpdateSalesOrderForm({
                                     onClick={() =>
                                         append({
                                             itemType: "PRODUCT",
-                                            productId: null,
+                                            productId: null, // Default null, akan diisi jika PRODUCT/SERVICE
                                             name: "",
                                             description: "",
                                             qty: 1,
@@ -509,32 +528,38 @@ export function UpdateSalesOrderForm({
                             {fields.map((row, index) => {
                                 type Option = { id: string; name: string };
                                 const itemType = form.watch(`items.${index}.itemType`);
-                                const isCatalogItem = itemType === "PRODUCT" || itemType === "SERVICE"; // ✅ PRODUCT & SERVICE
+                                const isCatalogItem = itemType === "PRODUCT" || itemType === "SERVICE";
                                 const itemNo = String(index + 1).padStart(2, "0");
                                 const serviceOptions: Option[] = (productOptions as Option[]) ?? [];
                                 const getOptionsForType = (t?: "PRODUCT" | "SERVICE" | "CUSTOM"): Option[] =>
                                     t === "SERVICE" ? serviceOptions : (productOptions as Option[]) ?? [];
 
-                                // Watch nilai yang dibutuhkan untuk subtotal (lebih efisien daripada form.watch berkali-kali di JSX)
+                                // Watch nilai yang dibutuhkan untuk subtotal
                                 const qty = form.watch(`items.${index}.qty`) ?? 0;
                                 const unitPrice = form.watch(`items.${index}.unitPrice`) ?? 0;
-                                const discount = form.watch(`items.${index}.discount`) ?? 0; // %
-                                const taxRate = form.watch(`items.${index}.taxRate`) ?? 0;   // %
+                                const discount = form.watch(`items.${index}.discount`) ?? 0;
+                                const taxRate = form.watch(`items.${index}.taxRate`) ?? 0;
 
                                 const gross = qty * unitPrice;
                                 const net = gross * (1 - discount / 100);
                                 const total = net * (1 + taxRate / 100);
 
+                                // Fungsi untuk validasi productId berdasarkan itemType
+                                const validateProductId = (type: string, productId: string | null | undefined) => {
+                                    if ((type === "PRODUCT" || type === "SERVICE") && !productId) {
+                                        return "Produk/jasa harus dipilih";
+                                    }
+                                    return true;
+                                };
 
                                 return (
                                     <div key={row.id} className="grid grid-cols-1 gap-4 p-4 border rounded-lg bg-muted/30">
                                         {/* Header kecil di tiap item: nomor + tipe */}
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-2">
-                                                {/* Badge nomor item dengan warna per tipe */}
                                                 <span
                                                     className={`inline-flex h-7 items-center rounded-full px-3 text-sm font-semibold shadow-sm
-              ${itemType === "PRODUCT" ? "bg-green-600 text-white"
+                  ${itemType === "PRODUCT" ? "bg-green-600 text-white"
                                                             : itemType === "SERVICE" ? "bg-blue-600 text-white"
                                                                 : "bg-purple-600 text-white"}`}
                                                 >
@@ -559,12 +584,32 @@ export function UpdateSalesOrderForm({
                                                                 value={field.value}
                                                                 onValueChange={(next) => {
                                                                     field.onChange(next);
-                                                                    // ✅ reset productId HANYA jika CUSTOM
+
                                                                     if (next === "CUSTOM") {
                                                                         form.setValue(`items.${index}.productId`, null, {
                                                                             shouldValidate: true,
                                                                             shouldDirty: true,
                                                                         });
+                                                                        // Reset field lainnya jika perlu
+                                                                        form.setValue(`items.${index}.name`, "", { shouldDirty: true });
+                                                                        form.setValue(`items.${index}.description`, "", { shouldDirty: true });
+                                                                        form.setValue(`items.${index}.uom`, "", { shouldDirty: true });
+                                                                    } else if (next === "PRODUCT" || next === "SERVICE") {
+                                                                        const currentProductId = form.getValues(`items.${index}.productId`);
+                                                                        if (!currentProductId) {
+                                                                            const options = getOptionsForType(next);
+                                                                            if (options.length > 0) {
+                                                                                const productIdValue = options[0].id;
+                                                                                form.setValue(`items.${index}.productId`, productIdValue, {
+                                                                                    shouldValidate: true,
+                                                                                    shouldDirty: true,
+                                                                                });
+                                                                                handleProductSelect(index, productIdValue);
+                                                                            }
+                                                                        } else {
+                                                                            // Jika sudah ada productId, pastikan untuk memanggil handleProductSelect
+                                                                            handleProductSelect(index, currentProductId);
+                                                                        }
                                                                     }
                                                                 }}
                                                             >
@@ -591,14 +636,15 @@ export function UpdateSalesOrderForm({
                                                     <FormField
                                                         control={form.control}
                                                         name={`items.${index}.productId`}
+                                                        rules={{ validate: (value) => validateProductId(itemType, value) }}
                                                         render={({ field }) => (
                                                             <FormItem className="w-full">
                                                                 <FormLabel>{itemType === "PRODUCT" ? "Produk" : "Jasa"}</FormLabel>
                                                                 <Select
-                                                                    value={field.value ?? undefined}
+                                                                    value={field.value ?? undefined} // Konversi null menjadi undefined
                                                                     onValueChange={(value) => {
-                                                                        field.onChange(value);
-                                                                        handleProductSelect(index, value); // pastikan mendukung SERVICE juga
+                                                                        field.onChange(value); // value adalah string
+                                                                        handleProductSelect(index, value); // Kirim string langsung
                                                                     }}
                                                                 >
                                                                     <FormControl>

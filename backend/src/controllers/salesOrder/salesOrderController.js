@@ -82,12 +82,7 @@ export const getById = async (req, res) => {
 const ALLOWED_ITEM_TYPES = new Set(["PRODUCT", "SERVICE", "CUSTOM"]);
 
 const r2 = (n) => Math.round(n * 100) / 100;
-// const toNum = (v) => {
-//   const n = Number(v);
-//   return Number.isFinite(n) ? n : NaN;
-// };
 
-// Exclusive tax: total = (qty*unitPrice - discount) + tax
 function calcLineExclusive(qty, unitPrice, discount, taxRate) {
   const gross = qty * unitPrice;
   const net = Math.max(0, gross - discount);
@@ -173,12 +168,15 @@ export const create = async (req, res) => {
           if (!prod) {
             return res
               .status(400)
-              .json({ message: `Product/Service tidak ditemukan: ${it.productId}` });
+              .json({
+                message: `Product/Service tidak ditemukan: ${it.productId}`,
+              });
           }
           if (!name) name = prod.name || undefined;
           if (!uom) uom = prod.uom ?? null;
         }
-      } else { // itemType === "CUSTOM"
+      } else {
+        // itemType === "CUSTOM"
         uom = uom ?? null;
       }
 
@@ -218,7 +216,7 @@ export const create = async (req, res) => {
       const amt = calcLineExclusive(qty, unitPrice, discount, taxRate);
 
       subtotal += amt.net;
-      discountTotal += (qty * unitPrice) - amt.net; // Menghitung diskon nominal
+      discountTotal += qty * unitPrice - amt.net; // Menghitung diskon nominal
       taxTotal += amt.tax;
       grandTotal += amt.total;
 
@@ -306,7 +304,7 @@ export const updateWithItems = async (req, res) => {
       soNumber,
       soDate,
       customerId,
-      projectId, // kolom wajib di model; hanya update kalau ada nilai baru
+      projectId,
       type,
       status,
       notes,
@@ -320,39 +318,53 @@ export const updateWithItems = async (req, res) => {
     }
 
     // helper angka
-    const toNum = (v) => (v === null || v === undefined || v === "" ? NaN : Number(v));
+    const toNum = (v) =>
+      v === null || v === undefined || v === "" ? NaN : Number(v);
     const bad = (v) => Number.isNaN(v) || v === null || v === undefined;
 
-    // --- normalisasi items (tanpa Decimal dulu) + rough line untuk sorting awal ---
+    // --- normalisasi items ---
     const normalized = [];
     for (let idx = 0; idx < items.length; idx++) {
       const it = items[idx] || {};
-      const rawType = typeof it.itemType === "string" ? it.itemType.toUpperCase() : "PRODUCT";
-      const itemType = rawType === "SERVICE" || rawType === "CUSTOM" ? rawType : "PRODUCT";
+      const rawType =
+        typeof it.itemType === "string" ? it.itemType.toUpperCase() : "PRODUCT";
+      const itemType =
+        rawType === "SERVICE" || rawType === "CUSTOM" ? rawType : "PRODUCT";
 
-      // PRODUCT ⇒ productId wajib
-      if (itemType === "PRODUCT" && !it.productId) {
-        return res.status(400).json({ message: "productId wajib untuk item PRODUCT." });
+      // ✅ PERBAIKAN: PRODUCT & SERVICE ⇒ productId wajib
+      if ((itemType === "PRODUCT" || itemType === "SERVICE") && !it.productId) {
+        return res.status(400).json({
+          message: `productId wajib untuk item ${itemType}.`,
+        });
       }
 
-      // snapshot name/uom hanya untuk PRODUCT bila kosong
+      // ✅ PERBAIKAN: Snapshot untuk PRODUCT dan SERVICE
       let name = it.name;
       let uom = it.uom ?? null;
-      if (itemType === "PRODUCT" && (!name || !uom)) {
-        const prod = await prisma.product.findUnique({
+      if (
+        (itemType === "PRODUCT" || itemType === "SERVICE") &&
+        (!name || !uom)
+      ) {
+        const productOrService = await prisma.product.findUnique({
           where: { id: it.productId },
           select: { name: true, uom: true },
         });
-        if (!prod) {
-          return res.status(400).json({ message: `Product tidak ditemukan: ${it.productId}` });
+        if (!productOrService) {
+          return res.status(400).json({
+            message: `${
+              itemType === "PRODUCT" ? "Product" : "Service"
+            } tidak ditemukan: ${it.productId}`,
+          });
         }
-        name = name || prod.name;
-        uom = uom || prod.uom || null;
+        name = name || productOrService.name;
+        uom = uom || productOrService.uom || null;
       }
 
       // Validasi name wajib untuk semua item
       if (!name || String(name).trim() === "") {
-        return res.status(400).json({ message: "Nama item (name) tidak boleh kosong." });
+        return res
+          .status(400)
+          .json({ message: "Nama item (name) tidak boleh kosong." });
       }
 
       // angka
@@ -361,28 +373,40 @@ export const updateWithItems = async (req, res) => {
       const discount = toNum(it.discount ?? 0);
       const taxRate = toNum(it.taxRate ?? 0);
 
-      if (bad(qty) || qty <= 0)        return res.status(400).json({ message: "qty harus angka > 0." });
-      if (bad(unitPrice) || unitPrice < 0) return res.status(400).json({ message: "unitPrice harus angka ≥ 0." });
-      if (bad(discount) || discount < 0)   return res.status(400).json({ message: "discount harus angka ≥ 0." });
+      if (bad(qty) || qty <= 0)
+        return res.status(400).json({ message: "qty harus angka > 0." });
+      if (bad(unitPrice) || unitPrice < 0)
+        return res.status(400).json({ message: "unitPrice harus angka ≥ 0." });
+      if (bad(discount) || discount < 0)
+        return res.status(400).json({ message: "discount harus angka ≥ 0." });
       if (bad(taxRate) || taxRate < 0 || taxRate > 100)
         return res.status(400).json({ message: "taxRate harus angka 0–100." });
 
       const bruto = qty * unitPrice;
       if (discount > bruto) {
-        return res.status(400).json({ message: "Discount tidak boleh melebihi (qty × unitPrice)." });
+        return res
+          .status(400)
+          .json({
+            message: "Discount tidak boleh melebihi (qty × unitPrice).",
+          });
       }
 
       // roughLine: pakai item.lineNo kalau ada & valid, else idx+1
-      const roughLine = Number.isInteger(it.lineNo) && it.lineNo > 0 ? it.lineNo : (idx + 1);
+      const roughLine =
+        Number.isInteger(it.lineNo) && it.lineNo > 0 ? it.lineNo : idx + 1;
 
-      // line total (tax exclusive → total = (bruto - discount) + tax)
+      // line total
       const neto = Math.max(bruto - discount, 0);
       const lineTotal = Math.max(neto + (taxRate / 100) * neto, 0);
 
+      // ✅ PERBAIKAN: productId hanya untuk PRODUCT dan SERVICE
       normalized.push({
         _roughLine: roughLine,
         itemType,
-        productId: itemType === "PRODUCT" ? it.productId : null,
+        productId:
+          itemType === "PRODUCT" || itemType === "SERVICE"
+            ? it.productId
+            : null,
         name,
         uom,
         description: it.description ?? null,
@@ -399,9 +423,9 @@ export const updateWithItems = async (req, res) => {
       .sort((a, b) => a._roughLine - b._roughLine)
       .map((it, i) => ({
         salesOrderId: id,
-        lineNo: i + 1, // <-- WAJIB
+        lineNo: i + 1,
         itemType: it.itemType,
-        productId: it.productId,
+        productId: it.productId, // ✅ Sudah benar: PRODUCT/SERVICE punya productId, CUSTOM null
         name: it.name,
         uom: it.uom ?? null,
         description: it.description,
@@ -477,10 +501,11 @@ export const updateWithItems = async (req, res) => {
     if (error?.code === "P2002" && error?.meta?.target?.includes("soNumber")) {
       return res.status(409).json({ message: "Nomor SO sudah digunakan." });
     }
-    return res.status(500).json({ message: "Gagal memperbarui Sales Order beserta items." });
+    return res
+      .status(500)
+      .json({ message: "Gagal memperbarui Sales Order beserta items." });
   }
 };
-
 
 export async function remove(req, res) {
   const { id } = req.params;
@@ -549,9 +574,13 @@ function parseParams(q) {
   // end pakai 23:59:59 agar inklusif
   const end = q.end ? new Date(q.end + "T23:59:59.999Z") : defaultEnd;
 
-  const status = typeof q.status === "string" && q.status.trim()
-    ? q.status.split(",").map(s => s.trim()).filter(Boolean)
-    : null;
+  const status =
+    typeof q.status === "string" && q.status.trim()
+      ? q.status
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : null;
 
   const customerId = q.customerId || null;
   const projectId = q.projectId || null;
@@ -559,36 +588,26 @@ function parseParams(q) {
   return { period, tz, start, end, status, customerId, projectId };
 }
 
-// Map period → date_trunc key
 function periodToDateTrunc(period) {
   switch (period) {
-    case "day": return "day";
-    case "week": return "week";
-    case "quarter": return "quarter";
-    case "year": return "year";
+    case "day":
+      return "day";
+    case "week":
+      return "week";
+    case "quarter":
+      return "quarter";
+    case "year":
+      return "year";
     case "month":
-    default: return "month";
+    default:
+      return "month";
   }
 }
 
-/**
- * GET /api/salesOrder/summary
- * Query:
- *  - period=day|week|month|quarter|year (default: month)
- *  - start=YYYY-MM-DD (default: 6 bulan lalu)
- *  - end=YYYY-MM-DD (default: hari ini)
- *  - tz=Asia/Jakarta (default: UTC)
- *  - status=CONFIRMED,INVOICED (opsional)
- *  - customerId / projectId (opsional)
- *
- * Response:
- * [
- *   { period: "2025-03", start: "2025-03-01T00:00:00.000Z", end: "2025-03-31T23:59:59.999Z", total: 12000000.00 },
- *   ...
- * ]
- */
 export async function getSalesOrderSummary(req, res) {
-  const { period, tz, start, end, status, customerId, projectId } = parseParams(req.query);
+  const { period, tz, start, end, status, customerId, projectId } = parseParams(
+    req.query
+  );
   const trunc = periodToDateTrunc(period);
 
   try {
@@ -600,7 +619,9 @@ export async function getSalesOrderSummary(req, res) {
     bindings.push(end);
 
     if (status && status.length) {
-      const placeholders = status.map((_, i) => `$${bindings.length + i + 1}`).join(", ");
+      const placeholders = status
+        .map((_, i) => `$${bindings.length + i + 1}`)
+        .join(", ");
       whereSql += ` AND "status" IN (${placeholders})`;
       bindings.push(...status);
     }
@@ -618,7 +639,9 @@ export async function getSalesOrderSummary(req, res) {
     const raw = await prisma.$queryRawUnsafe(
       `
       SELECT
-        date_trunc($${bindings.length + 1}, "soDate" AT TIME ZONE $${bindings.length + 2}) AS bucket_local,
+        date_trunc($${bindings.length + 1}, "soDate" AT TIME ZONE $${
+        bindings.length + 2
+      }) AS bucket_local,
         SUM("grandTotal")::numeric(18,2) AS total
       FROM "SalesOrder"
       ${whereSql}
@@ -632,7 +655,7 @@ export async function getSalesOrderSummary(req, res) {
 
     // Bentuk respons rapi
     // bucket_local adalah timestamp tanpa timezone di zona lokal; untuk aman, kita treat sebagai local dan buat label period.
-    const data = raw.map(row => {
+    const data = raw.map((row) => {
       const bucket = new Date(row.bucket_local); // interpretasi oleh node bisa sebagai UTC; untuk label cukup aman
       const total = Number(row.total);
 
@@ -669,7 +692,9 @@ export async function getSalesOrderSummary(req, res) {
           const qStartMonth = (q - 1) * 3;
           bucketStart = new Date(Date.UTC(y, qStartMonth, 1, 0, 0, 0, 0));
           // end = last day of quarter
-          bucketEnd = new Date(Date.UTC(y, qStartMonth + 3, 0, 23, 59, 59, 999));
+          bucketEnd = new Date(
+            Date.UTC(y, qStartMonth + 3, 0, 23, 59, 59, 999)
+          );
           break;
         }
         case "year": {
@@ -709,7 +734,9 @@ export async function getSalesOrderSummary(req, res) {
         soDate: { gte: start, lte: end },
         ...(customerId ? { customerId } : {}),
         ...(projectId ? { projectId } : {}),
-        ...(Array.isArray(status) && status.length ? { status: { in: status } } : {}),
+        ...(Array.isArray(status) && status.length
+          ? { status: { in: status } }
+          : {}),
       };
       const rows = await prisma.salesOrder.findMany({
         where,
@@ -724,7 +751,11 @@ export async function getSalesOrderSummary(req, res) {
         const day = dt.getUTCDate();
 
         switch (trunc) {
-          case "day": return `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+          case "day":
+            return `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(
+              2,
+              "0"
+            )}`;
           case "week": {
             // approximate week key by Monday-based blocks
             const tmp = new Date(Date.UTC(y, m - 1, day));
@@ -733,12 +764,18 @@ export async function getSalesOrderSummary(req, res) {
             const wy = tmp.getUTCFullYear();
             const wm = tmp.getUTCMonth() + 1;
             const wd = tmp.getUTCDate();
-            return `${wy}-W${String(wm).padStart(2, "0")}-${String(wd).padStart(2, "0")}`;
+            return `${wy}-W${String(wm).padStart(2, "0")}-${String(wd).padStart(
+              2,
+              "0"
+            )}`;
           }
-          case "quarter": return `${y}-Q${Math.floor((m - 1) / 3) + 1}`;
-          case "year": return `${y}`;
+          case "quarter":
+            return `${y}-Q${Math.floor((m - 1) / 3) + 1}`;
+          case "year":
+            return `${y}`;
           case "month":
-          default: return `${y}-${String(m).padStart(2, "0")}`;
+          default:
+            return `${y}-${String(m).padStart(2, "0")}`;
         }
       };
 
@@ -767,7 +804,10 @@ export async function getRecentSalesOrders(req, res) {
       50,
       Math.max(1, parseInt(String(req.query.take ?? "5"), 10) || 5)
     );
-    const order = String(req.query.order ?? "desc").toLowerCase() === "asc" ? "asc" : "desc";
+    const order =
+      String(req.query.order ?? "desc").toLowerCase() === "asc"
+        ? "asc"
+        : "desc";
 
     const data = await prisma.salesOrder.findMany({
       take,
@@ -784,7 +824,7 @@ export async function getRecentSalesOrders(req, res) {
     });
 
     // Opsional: agar Decimal aman dikirim ke FE sebagai number
-    const json = data.map(o => ({
+    const json = data.map((o) => ({
       ...o,
       grandTotal: Number(o.grandTotal), // FE sudah handle string/number, ini agar konsisten
     }));
@@ -821,21 +861,35 @@ function startOfYearLocal(d = new Date(), tzOffsetMinutes = 0) {
   dt.setMinutes(dt.getMinutes() - tzOffsetMinutes);
   return dt;
 }
+function startOfLastMonthLocal(d = new Date(), tzOffsetMinutes = 0) {
+  const dt = new Date(d);
+  dt.setMonth(dt.getMonth() - 1, 1); // tanggal 1 bulan lalu
+  dt.setHours(0, 0, 0, 0);
+  return new Date(dt.getTime() - tzOffsetMinutes * 60000);
+}
+
+function endOfLastMonthLocal(d = new Date(), tzOffsetMinutes = 0) {
+  const dt = new Date(d);
+  dt.setDate(0); // last day of prev month
+  dt.setHours(23, 59, 59, 999);
+  return new Date(dt.getTime() - tzOffsetMinutes * 60000);
+}
 
 // Safely convert Prisma Decimal | number | null | undefined → number
 const num = (x) => (x == null ? 0 : Number(x));
 
 export async function getSalesStats(req, res) {
   try {
-    // Gunakan zona Asia/Jakarta (UTC+7) bila kamu ingin per hari versi WIB
     const jakartaOffset = 7 * 60;
     const now = new Date();
 
-    const startToday  = startOfDayLocal(now, jakartaOffset);
-    const startMonth  = startOfMonthLocal(now, jakartaOffset);
-    const startYear   = startOfYearLocal(now, jakartaOffset);
+    const startToday = startOfDayLocal(now, jakartaOffset);
+    const startMonth = startOfMonthLocal(now, jakartaOffset);
+    const startYear = startOfYearLocal(now, jakartaOffset);
+    const startLastMonth = startOfLastMonthLocal(now, jakartaOffset);
+    const endLastMonth = endOfLastMonthLocal(now, jakartaOffset);
 
-    const [todayAgg, mtdAgg, ytdAgg] = await Promise.all([
+    const [todayAgg, mtdAgg, ytdAgg, lastMonthAgg] = await Promise.all([
       prisma.salesOrder.aggregate({
         _sum: { grandTotal: true },
         where: { soDate: { gte: startToday, lte: now } },
@@ -848,14 +902,18 @@ export async function getSalesStats(req, res) {
         _sum: { grandTotal: true },
         where: { soDate: { gte: startYear, lte: now } },
       }),
+      prisma.salesOrder.aggregate({
+        _sum: { grandTotal: true },
+        where: { soDate: { gte: startLastMonth, lte: endLastMonth } },
+      }),
     ]);
 
     const today = num(todayAgg._sum.grandTotal);
-    const mtd   = num(mtdAgg._sum.grandTotal);
-    const ytd   = num(ytdAgg._sum.grandTotal);
+    const mtd = num(mtdAgg._sum.grandTotal);
+    const ytd = num(ytdAgg._sum.grandTotal);
+    const lastMonth = num(lastMonthAgg._sum.grandTotal);
 
-    // Pastikan yang dikirim angka (JSON akan aman)
-    res.json({ today, mtd, ytd });
+    res.json({ today, mtd, ytd, lastMonth });
   } catch (err) {
     console.error("[getSalesStats] error:", err);
     res.status(500).json({ message: "Gagal mengambil statistik penjualan" });

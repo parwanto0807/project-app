@@ -91,10 +91,12 @@ interface Project {
 
 interface CreateSalesOrderFormProps {
   customers: Customer[]
-  projects: Project[]
   isLoading?: boolean
   user?: { id: string }
+  role: string
+  projects: Project[]
 }
+
 
 const salesOrderFormSchema = z.object({
   soDate: z.coerce.date({ required_error: "Tanggal wajib diisi." }),
@@ -112,8 +114,15 @@ const salesOrderFormSchema = z.object({
 
 type CreateSalesOrderPayload = z.infer<typeof salesOrderFormSchema>;
 
+function getBasePath(role?: string) {
+  return role === "super"
+    ? "/super-admin-area/sales/saleOrder"
+    : "/admin-area/sales/salesOrder"
+}
+
 export function CreateSalesOrderForm({
   customers,
+  role,
   projects,
   isLoading,
   user,
@@ -252,8 +261,8 @@ export function CreateSalesOrderForm({
           toast.error("Terjadi Kesalahan", { description: result.error });
         } else if (result.success) {
           toast.success("Sukses!", { description: "Sales Order baru berhasil dibuat." });
-          router.push("/super-admin-area/sales/salesOrder");
-          router.refresh();
+          const basePath = getBasePath(role)
+          router.push(basePath)
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Gagal membuat Sales Order.";

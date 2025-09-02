@@ -75,11 +75,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { pdf } from "@react-pdf/renderer"
 import { SalesOrderPDF } from "./SalesOrderPDF"
 
-
 interface SalesOrderTableProps {
     salesOrders: SalesOrder[]
     isLoading: boolean
     onDeleteOrder?: (id: string) => Promise<void> | void;
+    role: string
 }
 
 // Helper component to render the expanded details of an order
@@ -346,7 +346,7 @@ function renderDocumentStatus(documents: { docType: "QUOTATION" | "PO" | "BAP" |
 }
 
 // Komponen ActionsCell terpisah untuk menghindari masalah hook
-function ActionsCell({ order, onDeleteSuccess }: { order: SalesOrder; onDeleteSuccess: (orderId: string) => void }) {
+function ActionsCell({ order, onDeleteSuccess, role }: { order: SalesOrder; onDeleteSuccess: (orderId: string) => void; role?: { role: string } }) {
     const router = useRouter()
     const isMobile = useMediaQuery("(max-width: 768px)")
     const [showDeleteDialog, setShowDeleteDialog] = React.useState(false)
@@ -388,12 +388,13 @@ function ActionsCell({ order, onDeleteSuccess }: { order: SalesOrder; onDeleteSu
 
     function handleEditOrder(e: React.MouseEvent) {
         e.stopPropagation()
-        router.push(`/super-admin-area/sales/salesOrder/update/${order.id}`)
+        router.push(`${getBasePath(role?.role)}/update/${order.id}`)
+        // router.push(`/admin-area/sales/salesOrder/update/${order.id}`)
     }
 
     function handleViewDetails(e: React.MouseEvent) {
         e.stopPropagation()
-        console.log("View order details:", order.id)
+        // console.log("View order details:", order.id)
     }
 
     function handleDeleteClick(e: React.MouseEvent) {
@@ -811,7 +812,14 @@ function usePdfActions() {
     };
 }
 
-export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, onDeleteOrder }: SalesOrderTableProps) {
+function getBasePath(role?: string) {
+    return role === "super"
+        ? "/super-admin-area/sales/salesOrder"
+        : "/admin-area/sales/salesOrder"
+}
+
+
+export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, onDeleteOrder, role }: SalesOrderTableProps) {
     const [searchTerm, setSearchTerm] = React.useState("")
     const [currentPage, setCurrentPage] = React.useState(1)
     const [sorting, setSorting] = React.useState<SortingState>([])
@@ -823,7 +831,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
     const [salesOrders, setSalesOrders] = React.useState<SalesOrder[]>(initialSalesOrders)
     const handleDelete = onDeleteOrder ?? (() => { });
     const pdfActions = usePdfActions();
-
+    const basePath = getBasePath(role);
 
     // Update local state when prop changes
     React.useEffect(() => {
@@ -1083,7 +1091,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                                         }}
                                     />
                                 </div>
-                                <Link href="/super-admin-area/sales/salesOrder/create" passHref>
+                                <Link href={`${basePath}/create`} passHref>
                                     <Button className="bg-primary hover:bg-primary/90 w-full">
                                         <PlusCircleIcon className="mr-2 h-4 w-4" />
                                         New Order
@@ -1262,7 +1270,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                                 }}
                             />
                         </div>
-                        <Link href="/super-admin-area/sales/salesOrder/create" passHref>
+                        <Link href={`${basePath}/create`} passHref>
                             <Button className="bg-primary hover:bg-primary/90">
                                 <PlusCircleIcon className="mr-2 h-4 w-4" />
                                 New Order
@@ -1351,7 +1359,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                                                         {searchTerm ? "Try adjusting your search query" : "Get started by creating a new sales order"}
                                                     </p>
                                                     {!searchTerm && (
-                                                        <Link href="/super-admin-area/sales/salesOrder/create" passHref>
+                                                        <Link href={`${basePath}/create`} passHref>
                                                             <Button>
                                                                 <PlusCircleIcon className="mr-2 h-4 w-4" />
                                                                 Create Order

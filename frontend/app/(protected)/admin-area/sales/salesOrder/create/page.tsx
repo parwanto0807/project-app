@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { SuperLayout } from "@/components/admin-panel/super-layout";
+import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -45,7 +45,7 @@ const DUMMY_PROJECTS: Project[] = [
   { id: "a8ee3240-b12d-4130-9e14-104ae2129a4e", name: "Instalasi Jaringan Cabang Bekasi" },
 ];
 
-export default function CreateSalesOrderPage() {
+export default function CreateSalesOrderPageAdmin() {
   const { user, loading: userLoading } = useCurrentUser();
   const router = useRouter();
 
@@ -61,7 +61,7 @@ export default function CreateSalesOrderPage() {
       router.replace("/auth/login");
       return;
     }
-    if (user.role !== "super") {
+    if (user.role !== "admin") {
       router.replace("/not-authorized");
       return;
     }
@@ -92,7 +92,7 @@ export default function CreateSalesOrderPage() {
   }, []);
 
   // ... sisa komponen tidak berubah ...
-  if (userLoading || !user || user.role !== "super") {
+  if (userLoading || !user || user.role !== "admin") {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="flex items-center gap-3 text-muted-foreground">
@@ -104,7 +104,7 @@ export default function CreateSalesOrderPage() {
   }
 
   return (
-    <SuperLayout title="Create Sales Order" role="super">
+    <AdminLayout title="Create Sales Order" role="admin">
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -136,6 +136,6 @@ export default function CreateSalesOrderPage() {
           isLoading={isDataLoading}
         />
       </div>
-    </SuperLayout>
+    </AdminLayout>
   );
 }
