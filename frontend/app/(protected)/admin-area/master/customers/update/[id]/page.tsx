@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { SuperLayout } from "@/components/admin-panel/super-layout";
+import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { toast } from "sonner";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -14,7 +14,7 @@ import Link from "next/link";
 
 type Customer = z.infer<typeof customerUpdateSchema>;
 
-export default function UpdateCustomerPage() {
+export default function UpdateCustomerPageAdmin() {
     const params = useParams();
     const id = params?.id as string | undefined;
     const router = useRouter();
@@ -22,7 +22,7 @@ export default function UpdateCustomerPage() {
 
     const [data, setData] = useState<Customer | null>(null);
     const [error, setError] = useState("");
-    const [role, setRole] = useState<"super">("super");
+    const [role, setRole] = useState<"admin">("admin");
     const [loadingData, setLoadingData] = useState(false);
 
     // Redirect if not logged in
@@ -61,16 +61,16 @@ export default function UpdateCustomerPage() {
     }, [id]);
 
     return (
-        <SuperLayout title="Update Data" role={role}>
+        <AdminLayout title="Update Data" role={role}>
             <Breadcrumb>
                 <BreadcrumbList>
                     <BreadcrumbItem>
-                        <BreadcrumbLink href="/super-admin-area/master/customers">Dashboard</BreadcrumbLink>
+                        <BreadcrumbLink href="/admin-area/master/customers">Dashboard</BreadcrumbLink>
                     </BreadcrumbItem>
                     <BreadcrumbSeparator />
                     <BreadcrumbItem>
                         <BreadcrumbLink asChild>
-                            <Link href="/super-admin-area/master/customers">Customer List</Link>
+                            <Link href="/admin-area/master/customers">Customer List</Link>
                         </BreadcrumbLink>
                     </BreadcrumbItem>
                     <BreadcrumbSeparator />
@@ -89,6 +89,6 @@ export default function UpdateCustomerPage() {
             ) : (
                 <p className="text-center text-red-500">Data tidak ditemukan.</p>
             )}
-        </SuperLayout>
+        </AdminLayout>
     );
 }

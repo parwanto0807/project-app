@@ -47,11 +47,16 @@ const SectionHeader = ({ title }: { title: string }) => (
         <hr className="mt-2 border-gray-200 dark:border-gray-700" />
     </div>
 );
+function getBasePath(role?: string) {
+    return role === "super"
+        ? "/super-admin-area/master/customers"
+        : "/admin-area/master/customers"
+}
 
 const createCustomerSchema = customerSchema.omit({ code: true });
 type CustomerFormValues = z.infer<typeof createCustomerSchema>;
 
-export default function CreateCustomerForm() {
+export default function CreateCustomerForm({ role }: { role: string }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const router = useRouter();
 
@@ -92,7 +97,8 @@ export default function CreateCustomerForm() {
             }
 
             toast.success("Customer created successfully ✨");
-            router.push("/super-admin-area/master/customers");
+            const basePath = getBasePath(role)
+            router.push(basePath)
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Failed to create customer.");
         } finally {

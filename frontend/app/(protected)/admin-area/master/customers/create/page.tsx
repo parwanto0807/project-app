@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { SuperLayout } from "@/components/admin-panel/super-layout";
+import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -15,10 +15,10 @@ import {
 import { useCurrentUser } from "@/hooks/use-current-user";
 import CreateCustomerForm from "@/components/master/customer/createFormData";
 
-export default function CreateCustomerPage() {
+export default function CreateCustomerPageAdmin() {
   const { user, loading } = useCurrentUser();
   const router = useRouter();
-  const [role, setRole] = useState<"super" | "admin">("super");
+  const [role, setRole] = useState<"admin">("admin");
   const [authorized, setAuthorized] = useState(false);
 
   useEffect(() => {
@@ -28,7 +28,7 @@ export default function CreateCustomerPage() {
       } else {
         const userRole = user.role as typeof role;
 
-        if (userRole !== "super" && userRole !== "admin") {
+        if (userRole !== "admin") {
           router.push("/not-authorized");
         } else {
           setRole(userRole);
@@ -43,18 +43,18 @@ export default function CreateCustomerPage() {
   }
 
   return (
-    <SuperLayout title="Create Customer" role={role}>
+    <AdminLayout title="Create Customer" role={role}>
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
-              <Link href="/super-admin-area">Dashboard</Link>
+              <Link href="/admin-area">Dashboard</Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
-              <Link href="/super-admin-area/master/customers">Customer List</Link>
+              <Link href="/admin-area/master/customers">Customer List</Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
@@ -64,7 +64,7 @@ export default function CreateCustomerPage() {
         </BreadcrumbList>
       </Breadcrumb>
 
-      <CreateCustomerForm role={role} />
-    </SuperLayout>
+      <CreateCustomerForm role={role}/>
+    </AdminLayout>
   );
 }

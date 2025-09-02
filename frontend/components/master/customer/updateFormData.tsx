@@ -62,10 +62,18 @@ const FormSection = ({ children, className = "" }: { children: React.ReactNode; 
     </div>
 );
 
+function getBasePath(role?: string) {
+    return role === "super-admin"
+        ? "/super-admin-area/master/customers"
+        : "/admin-area/master/customers"
+}
+
 export default function UpdateCustomerForm({
     customer,
+    role,
 }: {
     customer: CustomerFormValues & { id: string };
+    role: string;
 }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const router = useRouter();
@@ -93,7 +101,8 @@ export default function UpdateCustomerForm({
             }
 
             toast.success("Customer updated successfully ✨");
-            router.push("/super-admin-area/master/customers");
+            const basePath = getBasePath(role)
+            router.push(basePath)
         } catch (error) {
             toast.error(error instanceof Error ? error.message : "Failed to update customer");
         } finally {
@@ -128,8 +137,8 @@ export default function UpdateCustomerForm({
                     >
                         {/* --- Section: Basic Information --- */}
                         <div>
-                            <SectionHeader 
-                                title="Basic Information" 
+                            <SectionHeader
+                                title="Basic Information"
                                 icon={Info}
                                 description="Core details that identify this customer"
                             />
@@ -201,8 +210,8 @@ export default function UpdateCustomerForm({
 
                         {/* --- Section: Address Details --- */}
                         <div>
-                            <SectionHeader 
-                                title="Address Details" 
+                            <SectionHeader
+                                title="Address Details"
                                 icon={MapPin}
                                 description="Physical location information"
                             />
@@ -216,9 +225,9 @@ export default function UpdateCustomerForm({
                                                 <Navigation className="w-4 h-4" /> Street Address
                                             </FormLabel>
                                             <FormControl>
-                                                <Textarea 
-                                                    placeholder="Jl. Sudirman No. 123, Central Business District" 
-                                                    {...field} 
+                                                <Textarea
+                                                    placeholder="Jl. Sudirman No. 123, Central Business District"
+                                                    {...field}
                                                 />
                                             </FormControl>
                                             <FormMessage />
@@ -269,8 +278,8 @@ export default function UpdateCustomerForm({
 
                         {/* --- Section: Company Information --- */}
                         <div>
-                            <SectionHeader 
-                                title="Company Information" 
+                            <SectionHeader
+                                title="Company Information"
                                 icon={Building2}
                                 description="Legal and business details"
                             />
@@ -325,8 +334,8 @@ export default function UpdateCustomerForm({
 
                         {/* --- Section: Person in Charge (PIC) --- */}
                         <div>
-                            <SectionHeader 
-                                title="Contact Person (PIC)" 
+                            <SectionHeader
+                                title="Contact Person (PIC)"
                                 icon={User}
                                 description="Primary contact information"
                             />
@@ -381,8 +390,8 @@ export default function UpdateCustomerForm({
 
                         {/* --- Section: Additional Details --- */}
                         <div>
-                            <SectionHeader 
-                                title="Additional Details" 
+                            <SectionHeader
+                                title="Additional Details"
                                 icon={StickyNote}
                                 description="Additional information and status"
                             />
@@ -396,9 +405,9 @@ export default function UpdateCustomerForm({
                                                 <StickyNote className="w-4 h-4" /> Notes
                                             </FormLabel>
                                             <FormControl>
-                                                <Textarea 
-                                                    placeholder="Additional notes about the customer..." 
-                                                    {...field} 
+                                                <Textarea
+                                                    placeholder="Additional notes about the customer..."
+                                                    {...field}
                                                     className="min-h-[100px]"
                                                 />
                                             </FormControl>

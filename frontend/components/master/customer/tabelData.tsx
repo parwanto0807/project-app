@@ -68,18 +68,26 @@ type Customer = {
   updatedAt: Date;
 };
 
+function getBasePath(role?: string) {
+  return role === "super"
+    ? "/super-admin-area/master/customers"
+    : "/admin-area/master/customers"
+}
+
 export function CustomersTable({
   customers: initialCustomers,
   isLoading,
+  role,
 }: {
   customers: Customer[];
   isLoading: boolean;
+  role: "super" | "admin";
 }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedCustomer, setExpandedCustomer] = useState<string | null>(null);
   const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
   const [detailId, setDetailId] = useState<string | null>(null);
-
+  const basePath = getBasePath(role)
   useEffect(() => {
     setCustomers(initialCustomers);
   }, [initialCustomers]);
@@ -113,8 +121,11 @@ export function CustomersTable({
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <Button asChild className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white rounded-lg shadow-sm">
-          <Link href="/super-admin-area/master/customers/create" className="gap-2 flex items-center justify-center">
+        <Button
+          asChild
+          className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white rounded-lg shadow-sm"
+        >
+          <Link href={`${basePath}/create`} className="gap-2 flex items-center justify-center">
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">New Customer</span>
             <span className="sm:hidden">New</span>
@@ -193,7 +204,7 @@ export function CustomersTable({
                               </span>
                             </div>
                           )}
-                          
+
                           {/* Mobile-only status and actions row */}
                           <div className="flex items-center justify-between mt-2 md:hidden">
                             <Badge
@@ -215,7 +226,7 @@ export function CustomersTable({
                                 </>
                               )}
                             </Badge>
-                            
+
                             <div className="flex items-center gap-2">
                               {expandedCustomer === customer.id ? (
                                 <ChevronUp className="h-5 w-5 text-gray-500 dark:text-gray-400 flex-shrink-0" />
@@ -240,7 +251,7 @@ export function CustomersTable({
                                 >
                                   <DropdownMenuItem asChild>
                                     <Link
-                                      href={`/super-admin-area/master/customers/update/${customer.id}`}
+                                      href={`${basePath}/update/${customer.id}`}
                                       className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-gray-700 cursor-pointer"
                                     >
                                       <Edit2 className="h-4 w-4 text-green-500 dark:text-green-400" />
@@ -337,7 +348,7 @@ export function CustomersTable({
                           >
                             <DropdownMenuItem asChild>
                               <Link
-                                href={`/super-admin-area/master/customers/update/${customer.id}`}
+                                href={`${basePath}/update/${customer.id}`}
                                 className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-gray-700 cursor-pointer"
                               >
                                 <Edit2 className="h-4 w-4 text-green-500 dark:text-green-400" />

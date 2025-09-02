@@ -12,38 +12,42 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
-import { CustomersTable } from "@/components/master/customer/tabelData";
-import { fetchAllCustomers } from "@/lib/action/master/customer";
-import { SuperLayout } from "@/components/admin-panel/super-layout";
+import { fetchAllProducts } from "@/lib/action/master/product";
+import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { LayoutProps } from "@/types/layout";
+import ProductList from "@/components/master/product/tabelData";
 
-export default function CustomerPage() {
-  const [customers, setCustomers] = useState([]);
+export default function ProductPageAdmin() {
+  const [product, setProduct] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const userRole = "admin"; // bisa ganti dari context / user state
 
-  // Ubah ini sesuai dengan sistem auth kamu
-  const userRole = "super"; // bisa ganti dari context / user state
 
   useEffect(() => {
-    if (userRole !== "super") {
+    if (userRole !== "admin") {
       router.push("/unauthorized");
       return;
     }
 
     const fetchData = async () => {
-      const result = await fetchAllCustomers();
-      setCustomers(result.customers);
+      if (typeof window === "undefined") return; // pastikan di client
+      const token = localStorage.getItem("accessToken") || undefined;
+      // console.log("Token", token);
+
+      const result = await fetchAllProducts(token);
+      setProduct(result.products);
       setIsLoading(result.isLoading);
     };
 
     fetchData();
-  }, [router]);
+  }, [router, userRole]);
+
 
 
   const layoutProps: LayoutProps = {
-    title: "Customer Management",
-    role: "super",
+    title: "Product Management",
+    role: "admin",
     children: (
       <>
         <Breadcrumb>
@@ -51,7 +55,7 @@ export default function CustomerPage() {
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
                 <Badge variant="outline">
-                  <Link href="/super-admin-area">Dashboard</Link>
+                  <Link href="/admin-area">Dashboard</Link>
                 </Badge>
               </BreadcrumbLink>
             </BreadcrumbItem>
@@ -66,7 +70,7 @@ export default function CustomerPage() {
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <Badge variant="outline">
-                <BreadcrumbPage>Customer List</BreadcrumbPage>
+                <BreadcrumbPage>Product List</BreadcrumbPage>
               </Badge>
             </BreadcrumbItem>
           </BreadcrumbList>
@@ -74,12 +78,12 @@ export default function CustomerPage() {
 
         <div className="h-full w-full">
           <div className="flex-1 space-y-4 p-4 pt-6 md:p-8">
-            <CustomersTable customers={customers} isLoading={isLoading} role={userRole} />
+            <ProductList products={product} isLoading={isLoading} role={userRole} />
           </div>
         </div>
       </>
     ),
   };
 
-  return <SuperLayout {...layoutProps} />;
+  return <AdminLayout {...layoutProps} />;
 }

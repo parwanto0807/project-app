@@ -58,12 +58,19 @@ import { makeImageSrc } from "@/utils/makeImageSrc";
 
 type ProductSchema = z.infer<typeof ProductRegisterSchema>;
 
-interface UpdateProductFormProps {
-    productId: string;
-    accessToken?: string
+function getBasePath(role?: string) {
+    return role === "super"
+        ? "/super-admin-area/master/products"
+        : "/admin-area/master/products"
 }
 
-export function UpdateProductForm({ productId, accessToken }: UpdateProductFormProps) {
+interface UpdateProductFormProps {
+    productId: string;
+    accessToken?: string;
+    role: string
+}
+
+export function UpdateProductForm({ productId, accessToken, role }: UpdateProductFormProps) {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -161,8 +168,9 @@ export function UpdateProductForm({ productId, accessToken }: UpdateProductFormP
                 },
             });
 
-            router.push("/super-admin-area/master/products");
             router.refresh();
+            const basePath = getBasePath(role)
+            router.push(basePath)
         } catch (error) {
             toast.error("Failed to update product", {
                 description:

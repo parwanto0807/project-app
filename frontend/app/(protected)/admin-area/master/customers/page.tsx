@@ -14,19 +14,19 @@ import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
 import { CustomersTable } from "@/components/master/customer/tabelData";
 import { fetchAllCustomers } from "@/lib/action/master/customer";
-import { SuperLayout } from "@/components/admin-panel/super-layout";
+import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { LayoutProps } from "@/types/layout";
 
-export default function CustomerPage() {
+export default function CustomerPageAdmin() {
   const [customers, setCustomers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
   // Ubah ini sesuai dengan sistem auth kamu
-  const userRole = "super"; // bisa ganti dari context / user state
+  const userRole = "admin"; // bisa ganti dari context / user state
 
   useEffect(() => {
-    if (userRole !== "super") {
+    if (userRole !== "admin") {
       router.push("/unauthorized");
       return;
     }
@@ -43,7 +43,7 @@ export default function CustomerPage() {
 
   const layoutProps: LayoutProps = {
     title: "Customer Management",
-    role: "super",
+    role: "admin",
     children: (
       <>
         <Breadcrumb>
@@ -51,7 +51,7 @@ export default function CustomerPage() {
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
                 <Badge variant="outline">
-                  <Link href="/super-admin-area">Dashboard</Link>
+                  <Link href="/admin-area">Dashboard</Link>
                 </Badge>
               </BreadcrumbLink>
             </BreadcrumbItem>
@@ -81,5 +81,5 @@ export default function CustomerPage() {
     ),
   };
 
-  return <SuperLayout {...layoutProps} />;
+  return <AdminLayout {...layoutProps} />;
 }

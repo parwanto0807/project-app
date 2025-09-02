@@ -54,8 +54,13 @@ import Image from "next/image";
 import { ensureFreshToken } from "@/lib/http";
 
 type ProductSchema = z.infer<typeof ProductRegisterSchema>;
+function getBasePath(role?: string) {
+    return role === "super"
+        ? "/super-admin-area/master/products"
+        : "/admin-area/master/products"
+}
 
-export function CreateProductForm() {
+export function CreateProductForm({ role }: { role: string }) {
     const router = useRouter();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { categories, loading: isLoadingCategories } = useCategories();
@@ -116,7 +121,8 @@ export function CreateProductForm() {
 
             form.reset();
             router.refresh();
-            router.push("/super-admin-area/master/products");
+            const basePath = getBasePath(role)
+            router.push(basePath)
         } catch (error) {
             toast.error("Failed to create product", {
                 description: error instanceof Error ? error.message : "An unknown error occurred",

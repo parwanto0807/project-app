@@ -78,7 +78,7 @@ export default function ProductPage() {
 
         <div className="h-full w-full">
           <div className="flex-1 space-y-4 p-4 pt-6 md:p-8">
-            <ProductList products={product} isLoading={isLoading} />
+            <ProductList products={product} isLoading={isLoading} role={userRole} />
           </div>
         </div>
       </>

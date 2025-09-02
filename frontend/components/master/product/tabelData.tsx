@@ -76,6 +76,13 @@ interface ProductListProps {
     totalPages?: number;
     onPageChange?: (page: number) => void;
     itemsPerPage?: number;
+    role: string
+}
+
+function getBasePath(role?: string) {
+  return role === "super"
+    ? "/super-admin-area/master/products"
+    : "/admin-area/master/products"
 }
 
 const ProductList = ({
@@ -86,6 +93,7 @@ const ProductList = ({
     totalPages = 1,
     onPageChange,
     itemsPerPage = 10,
+    role,
 }: ProductListProps) => {
     const [expandedProducts, setExpandedProducts] = useState<Set<string>>(
         new Set()
@@ -94,6 +102,7 @@ const ProductList = ({
     const [filteredProducts, setFilteredProducts] = useState<Product[]>(products);
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
     const [internalCurrentPage, setInternalCurrentPage] = useState(currentPage);
+    const basePath = getBasePath(role)
 
     // Update internal current page when prop changes
     useEffect(() => {
@@ -220,7 +229,7 @@ const ProductList = ({
                     />
                 </div>
                 <Button asChild className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white rounded-lg shadow-sm">
-                    <Link href="/super-admin-area/master/products/create" className="gap-2">
+                    <Link href={`${basePath}/create`} className="gap-2">
                         <Plus className="h-4 w-4" />
                         New Product
                     </Link>
@@ -373,7 +382,7 @@ const ProductList = ({
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end" className="dropdown-menu">
                                                         <DropdownMenuItem asChild className="gap-2">
-                                                            <Link href={`/super-admin-area/master/products/update/${product.id}`}>
+                                                            <Link href={`${basePath}/update/${product.id}`}>
                                                                 <Edit className="h-4 w-4 text-green-500 dark:text-green-400" />
                                                                 Edit
                                                             </Link>

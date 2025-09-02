@@ -380,6 +380,30 @@ export function getMenuList(pathname: string, role: string) {
       ],
     },
     {
+      groupLabel: "PENGATURAN",
+      allowedRoles: ["admin"],
+      menus: [
+                {
+          label: "Master Data",
+          href: "/admin-area/master",
+          icon: UsersIcon,
+          active: isActive("/admin-area/master", pathname),
+          submenus: [
+            {
+              href: "/admin-area/master/customers",
+              label: "Data Customer",
+              active: isActive("/super-admin-area/master/customers", pathname),
+            },
+            {
+              href: "/admin-area/master/products",
+              label: "Data Products",
+              active: isActive("/admin-area/master/products", pathname),
+            },
+          ],
+        },
+      ],
+    },
+    {
       groupLabel: "BANTUAN",
       allowedRoles: ["super", "admin", "pic", "warga"],
       menus: [
