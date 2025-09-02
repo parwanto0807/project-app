@@ -166,7 +166,7 @@ export function CustomersTable({
                       }`}
                     onClick={() => toggleExpand(customer.id)}
                   >
-                    <TableCell className="px-4 py-4">
+                    <TableCell className="px-2 py-4">
                       <div className="flex items-center gap-3">
                         <Building2 className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
                         <div className="min-w-0 flex-1">

@@ -448,7 +448,7 @@ function StatCard({
 
     return (
         <Card className="overflow-hidden border-0 shadow-md transition-all hover:shadow-lg">
-            <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+            <CardHeader className="pb-1 flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">{title}</CardTitle>
                 <div className="h-8 w-8 rounded-full bg-muted/50 flex items-center justify-center">
                     {icon}
