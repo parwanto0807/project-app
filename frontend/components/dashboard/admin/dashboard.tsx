@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+// import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertCircle,
   Building2,
@@ -141,7 +141,7 @@ function StatusBadge({ status }: { status: OrderStatus }) {
 export default function DashboardAwalSalesOrder() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("overview");
+//   const [activeTab, setActiveTab] = useState("overview");
 
   const [customerCount, setCustomerCount] = useState<number | null>(null);
   const [productCount, setProductCount] = useState<number | null>(null);
@@ -233,7 +233,7 @@ export default function DashboardAwalSalesOrder() {
       </div>
 
       {/* Tabs Navigation */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+      {/* <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
         <TabsList className="grid w-full grid-cols-3 lg:grid-cols-5 max-w-md">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="orders">Orders</TabsTrigger>
@@ -241,7 +241,7 @@ export default function DashboardAwalSalesOrder() {
           <TabsTrigger value="products">Products</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
         </TabsList>
-      </Tabs>
+      </Tabs> */}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
