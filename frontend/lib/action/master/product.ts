@@ -7,7 +7,7 @@ export async function generateProductCode() {
   return `PRD-${shortId}`;
 }
 
-export async function fetchAllProductsOld(accessToken?: string) {
+export async function fetchAllProducts(accessToken?: string) {
   try {
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/master/product/getAllProducts`,
@@ -50,7 +50,7 @@ interface Product {
   // contoh: price: number; description: string; dll.
 }
 
-export async function fetchAllProducts(
+export async function fetchAllProductsByType(
   accessToken?: string,
   type?: "PRODUCT" | "SERVICE" | "CUSTOM"
 ) {

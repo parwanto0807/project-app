@@ -63,7 +63,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { CustomerCreateDialog, ProjectCreateDialog } from "./customerProjectDialogPickers";
 import { fetchAllProjects } from "@/lib/action/master/project";
-import { fetchAllProducts } from "@/lib/action/master/product";
+import { fetchAllProductsByType } from "@/lib/action/master/product";
 import {
   ApiProductSchema,
   OrderStatusEnum,
@@ -200,7 +200,7 @@ export function CreateSalesOrderForm({
     (async () => {
       try {
         const accessToken = localStorage.getItem("accessToken"); // contoh ambil dari localStorage
-        const { products } = await fetchAllProducts(accessToken ?? undefined, selectedApiType); // ✅ kirim token
+        const { products } = await fetchAllProductsByType(accessToken ?? undefined, selectedApiType); // ✅ kirim token
 
         setProductOptions(
           products.map((p: ApiProduct): ProductOption => ({
@@ -933,7 +933,7 @@ export function CreateSalesOrderForm({
 
                   // 1️⃣ Fetch products sesuai itemType baru
                   const accessToken = localStorage.getItem("accessToken");
-                  const { products } = await fetchAllProducts(accessToken ?? undefined, newItemType);
+                  const { products } = await fetchAllProductsByType(accessToken ?? undefined, newItemType);
 
                   setProductOptions(products.map(p => ({
                     id: p.id,
