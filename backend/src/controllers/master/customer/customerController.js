@@ -136,7 +136,11 @@ export const deleteCustomer = async (req, res) => {
 
 export async function getCustomerCount(req, res) {
   try {
-    const count = await prisma.customer.count();
+    const { activeOnly = "true" } = req.query;
+    const filter = activeOnly === "false" ? {} : { isActive: true };
+    const count = await prisma.customer.count({
+      where: filter,
+    });
     res.json({ count });
   } catch (err) {
     console.error("[getCustomerCount] error:", err);

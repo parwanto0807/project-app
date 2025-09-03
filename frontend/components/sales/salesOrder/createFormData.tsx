@@ -183,7 +183,9 @@ export function CreateSalesOrderForm({
   React.useEffect(() => {
     (async () => {
       try {
-        const { products } = await fetchAllProducts();
+        const accessToken = localStorage.getItem("accessToken"); // contoh ambil dari localStorage
+        const { products } = await fetchAllProducts(accessToken ?? undefined); // ✅ kirim token
+
         setProductOptions(
           products.map((p: ApiProduct): ProductOption => ({
             id: p.id,
@@ -198,6 +200,7 @@ export function CreateSalesOrderForm({
       }
     })();
   }, []);
+
 
   React.useEffect(() => {
     const onFocus = () => { ensureFreshToken(); };

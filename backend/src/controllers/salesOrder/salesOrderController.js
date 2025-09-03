@@ -166,11 +166,9 @@ export const create = async (req, res) => {
             select: { name: true, uom: true },
           });
           if (!prod) {
-            return res
-              .status(400)
-              .json({
-                message: `Product/Service tidak ditemukan: ${it.productId}`,
-              });
+            return res.status(400).json({
+              message: `Product/Service tidak ditemukan: ${it.productId}`,
+            });
           }
           if (!name) name = prod.name || undefined;
           if (!uom) uom = prod.uom ?? null;
@@ -384,11 +382,9 @@ export const updateWithItems = async (req, res) => {
 
       const bruto = qty * unitPrice;
       if (discount > bruto) {
-        return res
-          .status(400)
-          .json({
-            message: "Discount tidak boleh melebihi (qty × unitPrice).",
-          });
+        return res.status(400).json({
+          message: "Discount tidak boleh melebihi (qty × unitPrice).",
+        });
       }
 
       // roughLine: pakai item.lineNo kalau ada & valid, else idx+1
@@ -867,7 +863,6 @@ function startOfLastMonthLocal(d = new Date(), tzOffsetMinutes = 0) {
   dt.setHours(0, 0, 0, 0);
   return new Date(dt.getTime() - tzOffsetMinutes * 60000);
 }
-
 function endOfLastMonthLocal(d = new Date(), tzOffsetMinutes = 0) {
   const dt = new Date(d);
   dt.setDate(0); // last day of prev month
@@ -889,31 +884,37 @@ export async function getSalesStats(req, res) {
     const startLastMonth = startOfLastMonthLocal(now, jakartaOffset);
     const endLastMonth = endOfLastMonthLocal(now, jakartaOffset);
 
-    const [todayAgg, mtdAgg, ytdAgg, lastMonthAgg] = await Promise.all([
-      prisma.salesOrder.aggregate({
-        _sum: { grandTotal: true },
-        where: { soDate: { gte: startToday, lte: now } },
-      }),
-      prisma.salesOrder.aggregate({
-        _sum: { grandTotal: true },
-        where: { soDate: { gte: startMonth, lte: now } },
-      }),
-      prisma.salesOrder.aggregate({
-        _sum: { grandTotal: true },
-        where: { soDate: { gte: startYear, lte: now } },
-      }),
-      prisma.salesOrder.aggregate({
-        _sum: { grandTotal: true },
-        where: { soDate: { gte: startLastMonth, lte: endLastMonth } },
-      }),
-    ]);
+    const [todayAgg, mtdAgg, ytdAgg, lastMonthAgg, yearSummaryAgg] =
+      await Promise.all([
+        prisma.salesOrder.aggregate({
+          _sum: { grandTotal: true },
+          where: { soDate: { gte: startToday, lte: now } },
+        }),
+        prisma.salesOrder.aggregate({
+          _sum: { grandTotal: true },
+          where: { soDate: { gte: startMonth, lte: now } },
+        }),
+        prisma.salesOrder.aggregate({
+          _sum: { grandTotal: true },
+          where: { soDate: { gte: startYear, lte: now } },
+        }),
+        prisma.salesOrder.aggregate({
+          _sum: { grandTotal: true },
+          where: { soDate: { gte: startLastMonth, lte: endLastMonth } },
+        }),
+        prisma.salesOrder.aggregate({
+          _sum: { grandTotal: true },
+          where: { soDate: { gte: startYear, lte: now } },
+        }),
+      ]);
 
     const today = num(todayAgg._sum.grandTotal);
     const mtd = num(mtdAgg._sum.grandTotal);
     const ytd = num(ytdAgg._sum.grandTotal);
     const lastMonth = num(lastMonthAgg._sum.grandTotal);
+    const yearSummary = num(yearSummaryAgg._sum.grandTotal);
 
-    res.json({ today, mtd, ytd, lastMonth });
+    res.json({ today, mtd, ytd, lastMonth, yearSummary });
   } catch (err) {
     console.error("[getSalesStats] error:", err);
     res.status(500).json({ message: "Gagal mengambil statistik penjualan" });
@@ -922,10 +923,25 @@ export async function getSalesStats(req, res) {
 
 export async function getSalesOrderCount(req, res) {
   try {
-    const count = await prisma.salesOrder.count();
+    // tanggal awal = 1 Januari tahun ini
+    const startOfYear = new Date(new Date().getFullYear(), 0, 1);
+    // tanggal akhir = 31 Desember tahun ini
+    const endOfYear = new Date(new Date().getFullYear(), 11, 31, 23, 59, 59);
+
+    const count = await prisma.salesOrder.count({
+      where: {
+        createdAt: {
+          gte: startOfYear,
+          lte: endOfYear,
+        },
+      },
+    });
+
     res.json({ count });
   } catch (err) {
     console.error("[getSalesOrderCount] error:", err);
-    res.status(500).json({ message: "Gagal mengambil jumlah sales order" });
+    res
+      .status(500)
+      .json({ message: "Gagal mengambil jumlah sales order tahun ini" });
   }
 }

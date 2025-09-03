@@ -25,8 +25,11 @@ import {
     Download,
     Filter,
     MoreHorizontal,
+    EyeOff,
+    Eye,
     //   Search
 } from "lucide-react";
+
 
 // =============================
 // KONFIGURASI API BACKEND
@@ -73,6 +76,7 @@ interface SalesStats {
     totalLastMonth: number;
     pendingOrders: number;
     conversionRate: number;
+    totalThisYear: number;
 }
 
 const toNumber = (v: unknown) => (typeof v === "number" && isFinite(v) ? v : parseFloat(String(v)) || 0);
@@ -80,7 +84,7 @@ const toNumber = (v: unknown) => (typeof v === "number" && isFinite(v) ? v : par
 async function loadSalesStats(): Promise<SalesStats> {
     const res = await fetch(ENDPOINTS.salesStats, { credentials: "include" });
     if (!res.ok) {
-        return { totalThisMonth: 0, totalLastMonth: 0, pendingOrders: 0, conversionRate: 0 };
+        return { totalThisMonth: 0, totalLastMonth: 0, pendingOrders: 0, conversionRate: 0, totalThisYear: 0 };
     }
     const json = await res.json();
 
@@ -88,8 +92,9 @@ async function loadSalesStats(): Promise<SalesStats> {
     const totalLastMonth = toNumber(json.totalLastMonth ?? json.lastMonth ?? 0);
     const pendingOrders = toNumber(json.pendingOrders ?? json.pending ?? 0);
     const conversionRate = toNumber(json.conversionRate ?? 0);
+    const totalThisYear = toNumber(json.totalThisYear ?? json.yearSummary ?? 0)
 
-    return { totalThisMonth, totalLastMonth, pendingOrders, conversionRate };
+    return { totalThisMonth, totalLastMonth, pendingOrders, conversionRate, totalThisYear };
 }
 
 // =============================
@@ -148,6 +153,32 @@ export default function DashboardAwalSalesOrder() {
     const [salesOrderCount, setSalesOrderCount] = useState<number | null>(null);
     const [recentOrders, setRecentOrders] = useState<SalesOrderMini[]>([]);
     const [salesStats, setSalesStats] = useState<SalesStats | null>(null);
+
+    const now = new Date()
+    const monthName = now.toLocaleString("id-ID", { month: "long" }) // contoh: September
+    const year = now.getFullYear()
+    const [hidden, setHidden] = useState(true);
+    const toggleHidden = () => setHidden(!hidden);
+
+    const bulanIndo = [
+        "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+        "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+    ]
+
+    function formatBulanTahun(date: Date): string {
+        const bulan = bulanIndo[date.getMonth()]
+        const tahun = date.getFullYear()
+        return `${bulan} ${tahun}`
+    }
+
+    const lastMonth = new Date()
+    lastMonth.setMonth(lastMonth.getMonth() - 1)
+    const formattedLastMonth = formatBulanTahun(lastMonth)
+
+    const currentYear = new Date().getFullYear();
+
+    const maskValue = (val: number) =>
+        val ? "XXX.XXX.XXX.XXX" : "XXX.XXX.XXX.XXX";
 
     useEffect(() => {
         let cancelled = false;
@@ -262,7 +293,7 @@ export default function DashboardAwalSalesOrder() {
                     href="/admin-area/master/products"
                 />
                 <StatCard
-                    title="Sales Order"
+                    title={`Sales Order Tahun ${new Date().getFullYear()}`}
                     value={salesOrderCount}
                     loading={loading}
                     icon={<Building2 className="h-5 w-5 text-green-600" />}
@@ -270,7 +301,7 @@ export default function DashboardAwalSalesOrder() {
                     href="/admin-area/sales/salesOrder"
                 />
                 <StatCard
-                    title="Nilai Sales Order Bulan Ini"
+                    title={`Nilai Sales Order ${monthName} ${year}`}
                     value={salesStats ? salesStats.totalThisMonth : null}
                     loading={loading}
                     formatted
@@ -430,9 +461,42 @@ export default function DashboardAwalSalesOrder() {
                                         <span className="text-xs md:text-sm text-muted-foreground">Conversion Rate</span>
                                         <span className="font-semibold text-xs md:text-sm">{salesStats.conversionRate}%</span>
                                     </div>
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-xs md:text-sm text-muted-foreground">Sales Order Bulan Lalu</span>
-                                        <span className="font-semibold text-xs md:text-sm">{formatIDR(salesStats.totalLastMonth)}</span>
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-xs md:text-sm text-muted-foreground">
+                                                Sales Order {formattedLastMonth}
+                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-semibold text-xs md:text-sm">
+                                                    {hidden ? maskValue(salesStats.totalLastMonth) : formatIDR(salesStats.totalLastMonth)}
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    onClick={toggleHidden}
+                                                    className="text-muted-foreground hover:text-foreground"
+                                                >
+                                                    {hidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4  text-green-500" />}
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-xs md:text-sm text-muted-foreground">
+                                                Sales Order Tahun {currentYear}
+                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-semibold text-xs md:text-sm">
+                                                    {hidden ? maskValue(salesStats.totalThisYear) : formatIDR(salesStats.totalThisYear)}
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    onClick={toggleHidden}
+                                                    className="text-muted-foreground hover:text-foreground"
+                                                >
+                                                    {hidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4 text-green-500" />}
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
                                     {/* <div className="pt-2">
                     <div className="flex justify-between items-center mb-1">
@@ -497,38 +561,74 @@ function StatCard({
     href?: string;
     formatted?: boolean;
 }) {
+    const [showValue, setShowValue] = useState(!formatted)
     const isPositive = trend && trend >= 0;
 
     return (
         <Card className="min-h-40 overflow-hidden border shadow-sm transition-all hover:shadow-md">
             <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-                <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">{title}</CardTitle>
+                <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
+                    {title}
+                </CardTitle>
                 <div className="h-8 w-8 rounded-full bg-blue-50 flex items-center justify-center">
                     {icon}
                 </div>
             </CardHeader>
+
             <CardContent>
                 {loading ? (
                     <Skeleton className="h-7 w-20 mt-1" />
                 ) : (
-                    <div className="text-2xl font-bold">
-                        {formatted && value !== null ? formatIDR(value) : value ?? "-"}
+                    <div className="flex items-center gap-2">
+                        <span className="text-2xl font-bold">
+                            {showValue
+                                ? value !== null
+                                    ? formatted
+                                        ? `Rp ${value.toLocaleString("id-ID")}` // ✅ tambah Rp
+                                        : value
+                                    : "-"
+                                : "XXX.XXX.XXX"}
+                        </span>
+
+                        {formatted && (
+                            <button
+                                type="button"
+                                onClick={() => setShowValue((prev) => !prev)}
+                                className="text-gray-500 hover:text-gray-700"
+                            >
+                                {showValue ? (
+                                    <Eye className="h-6 w-6 ml-2 text-green-500" />
+                                ) : (
+                                    <EyeOff className="h-6 w-6 ml-2" />
+                                )}
+                            </button>
+                        )}
                     </div>
                 )}
+
                 {trend !== undefined && !loading && (
-                    <div className={`flex items-center text-xs mt-2 ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                    <div
+                        className={`flex items-center text-xs mt-2 ${isPositive ? "text-green-600" : "text-red-600"
+                            }`}
+                    >
                         {isPositive ? (
                             <ArrowUpRight className="h-3 w-3 mr-1" />
                         ) : (
                             <ArrowDownRight className="h-3 w-3 mr-1" />
                         )}
-                        {Math.abs(trend).toFixed(1)}% {isPositive ? 'peningkatan' : 'penurunan'} dari bulan lalu
+                        {Math.abs(trend).toFixed(1)}%{" "}
+                        {isPositive ? "peningkatan" : "penurunan"} dari bulan lalu
                     </div>
                 )}
             </CardContent>
+
             <CardFooter className="pt-0">
                 {href && (
-                    <Button variant="link" className="px-0 text-blue-600 hover:text-blue-800 text-xs md:text-sm h-8" asChild>
+                    <Button
+                        variant="link"
+                        className="px-0 text-blue-600 hover:text-blue-800 text-xs md:text-sm h-8"
+                        asChild
+                    >
                         <Link href={href}>
                             Lihat detail <ArrowUpRight className="h-3 w-3 ml-1" />
                         </Link>

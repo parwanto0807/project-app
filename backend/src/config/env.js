@@ -24,7 +24,7 @@ export const MFA_TEMP_SECRET = clean(process.env.MFA_TEMP_SECRET);
 
 // 🔎 Debug aman di dev: tampilkan panjang, bukan nilainya
 if (NODE_ENV !== "production") {
-  console.log("[ENV] AT len:", JWT_SECRET.length, "RT len:", JWT_REFRESH_SECRET.length);
+  // console.log("[ENV] AT len:", JWT_SECRET.length, "RT len:", JWT_REFRESH_SECRET.length);
   if (JWT_SECRET === JWT_REFRESH_SECRET) {
     console.warn("[ENV] WARNING: JWT_SECRET dan JWT_REFRESH_SECRET sebaiknya BERBEDA.");
   }

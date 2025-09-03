@@ -738,7 +738,7 @@ export const logoutUser = async (req, res) => {
 };
 export const refreshHandler = async (req, res) => {
   const token = req.cookies.refreshToken;
-  console.log("[REFRESH HANDLER] Token:", token);
+  // console.log("[REFRESH HANDLER] Token:", token);
 
   if (!token) {
     return res.status(401).json({ error: "Refresh token missing" });
@@ -770,10 +770,10 @@ export const refreshHandler = async (req, res) => {
     // HANYA buat accessToken baru. refreshToken dan session tetap sama.
     const newAccessToken = generateAccessToken(user);
 
-    console.log(
-      "[REFRESH HANDLER] Berhasil refresh accessToken:",
-      newAccessToken
-    );
+    // console.log(
+    //   "[REFRESH HANDLER] Berhasil refresh accessToken:",
+    //   newAccessToken
+    // );
 
     return res.status(200).json({ success: true, accessToken: newAccessToken });
   } catch (err) {

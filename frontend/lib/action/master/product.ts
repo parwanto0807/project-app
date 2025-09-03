@@ -1,4 +1,4 @@
-"use server"
+"use server";
 
 import { randomUUID } from "crypto";
 
@@ -13,27 +13,21 @@ export async function fetchAllProducts(accessToken?: string) {
       `${process.env.NEXT_PUBLIC_API_URL}/api/master/product/getAllProducts`,
       {
         method: "GET",
-        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+        headers: accessToken
+          ? { Authorization: `Bearer ${accessToken}` } // ✅ wajib Bearer
+          : {},
         cache: "no-store",
-        credentials: "include",
+        credentials: "include", // boleh tetap include cookie kalau dipakai
       }
     );
 
-    if (!res.ok) {
-      throw new Error(`Gagal fetch produk: ${res.status}`);
-    }
+    if (!res.ok) throw new Error(`Gagal fetch produk: ${res.status}`);
 
     const data = await res.json();
-    return {
-      products: data || [],
-      isLoading: false,
-    };
+    return { products: data || [], isLoading: false };
   } catch (error) {
     console.error("[fetchAllProducts]", error);
-    return {
-      products: [],
-      isLoading: false,
-    };
+    return { products: [], isLoading: false };
   }
 }
 

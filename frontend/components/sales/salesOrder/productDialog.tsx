@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useEffect, useState } from "react";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Loader2, X } from "lucide-react";
@@ -42,31 +42,31 @@ const productTypes = ["Material", "Jasa", "Alat"] as const;
 
 // ===== Create Schema for Product =====
 const productSchema = z.object({
-  code: z.string().trim().min(1, "Kode produk wajib diisi"),
-  name: z.string().trim().min(2, "Nama produk minimal 2 karakter"),
-  description: z.string().optional(),
-  type: z.enum(productTypes, {
-    required_error: "Tipe produk wajib dipilih",
-  }),
-  purchaseUnit: z.string().trim().min(1, "Satuan pembelian wajib diisi"),
-  storageUnit: z.string().trim().min(1, "Satuan penyimpanan wajib diisi"),
-  usageUnit: z.string().trim().min(1, "Satuan penggunaan wajib diisi"),
+    code: z.string().trim().min(1, "Kode produk wajib diisi"),
+    name: z.string().trim().min(2, "Nama produk minimal 2 karakter"),
+    description: z.string().optional(),
+    type: z.enum(productTypes, {
+        required_error: "Tipe produk wajib dipilih",
+    }),
+    purchaseUnit: z.string().trim().min(1, "Satuan pembelian wajib diisi"),
+    storageUnit: z.string().trim().min(1, "Satuan penyimpanan wajib diisi"),
+    usageUnit: z.string().trim().min(1, "Satuan penggunaan wajib diisi"),
 
-  // FIX: Add a default value to ensure the type is always 'number'
-  conversionToStorage: z.coerce
-    .number({ invalid_type_error: "Harus berupa angka" })
-    .min(0, "Nilai tidak boleh negatif")
-    .default(1), // 👈 FIX IS HERE
+    // FIX: Add a default value to ensure the type is always 'number'
+    conversionToStorage: z.coerce
+        .number({ invalid_type_error: "Harus berupa angka" })
+        .min(0, "Nilai tidak boleh negatif")
+        .default(1), // 👈 FIX IS HERE
 
-  // FIX: Add a default value here as well
-  conversionToUsage: z.coerce
-    .number({ invalid_type_error: "Harus berupa angka" })
-    .min(0, "Nilai tidak boleh negatif")
-    .default(1), // 👈 FIX IS HERE
+    // FIX: Add a default value here as well
+    conversionToUsage: z.coerce
+        .number({ invalid_type_error: "Harus berupa angka" })
+        .min(0, "Nilai tidak boleh negatif")
+        .default(1), // 👈 FIX IS HERE
 
-  // FIX: And here, to ensure the type is always 'boolean'
-  isConsumable: z.boolean().default(true), // 👈 FIX IS HERE
-  isActive: z.boolean().default(true),
+    // FIX: And here, to ensure the type is always 'boolean'
+    isConsumable: z.boolean().default(true), // 👈 FIX IS HERE
+    isActive: z.boolean().default(true),
 });
 
 // ======================================================
@@ -91,6 +91,14 @@ export function ProductCreateDialog({ onCreated, createEndpoint }: BaseProps) {
             isConsumable: true,   // HARUS boolean, TIDAK undefined
         },
     });
+
+    useEffect(() => {
+        fetch("/api/product/generate-code")
+            .then((res) => res.json())
+            .then((data) => {
+                form.setValue("code", data.code); // ✅ set ke form
+            });
+    }, [form]);
 
     const submit = async (data: z.input<typeof productSchema>) => {
         setPending(true);
@@ -118,8 +126,27 @@ export function ProductCreateDialog({ onCreated, createEndpoint }: BaseProps) {
         }
     };
 
+    // 🔍 watch purchaseUnit
+    const purchaseUnitValue = useWatch({ control: form.control, name: "purchaseUnit" });
+
+    // 🪄 setiap purchaseUnit berubah → set storageUnit & usageUnit sama
+    useEffect(() => {
+        if (purchaseUnitValue) {
+            form.setValue("storageUnit", purchaseUnitValue);
+            form.setValue("usageUnit", purchaseUnitValue);
+        }
+    }, [purchaseUnitValue, form]);
     return (
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog open={dialogOpen} onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (open) {
+                fetch("/api/product/generate-code")
+                    .then((res) => res.json())
+                    .then((data) => {
+                        form.setValue("code", data.code);
+                    });
+            }
+        }}>
             <DialogTrigger asChild>
                 <Button type="button" variant="outline" size="sm" className="h-9 w-9 p-0 md:h-10 md:w-10">
                     <Plus className="h-4 w-4" />
@@ -148,10 +175,10 @@ export function ProductCreateDialog({ onCreated, createEndpoint }: BaseProps) {
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
                             <div className="grid gap-1.5">
                                 <Label htmlFor="code" className="text-sm md:text-base">Kode Produk (SKU)</Label>
-                                <Input 
-                                    id="code" 
-                                    {...form.register("code")} 
-                                    placeholder="e.g., KBL-001" 
+                                <Input
+                                    id="code"
+                                    {...form.register("code")}
+                                    placeholder="e.g., KBL-001"
                                     className="h-9 md:h-10"
                                 />
                                 {form.formState.errors.code && (
@@ -160,10 +187,10 @@ export function ProductCreateDialog({ onCreated, createEndpoint }: BaseProps) {
                             </div>
                             <div className="grid gap-1.5">
                                 <Label htmlFor="name" className="text-sm md:text-base">Nama Produk</Label>
-                                <Input 
-                                    id="name" 
-                                    {...form.register("name")} 
-                                    placeholder="e.g., Kabel UTP Cat 6" 
+                                <Input
+                                    id="name"
+                                    {...form.register("name")}
+                                    placeholder="e.g., Kabel UTP Cat 6"
                                     className="h-9 md:h-10"
                                 />
                                 {form.formState.errors.name && (
@@ -211,10 +238,10 @@ export function ProductCreateDialog({ onCreated, createEndpoint }: BaseProps) {
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-3 md:gap-4">
                             <div className="grid gap-1.5">
                                 <Label htmlFor="purchaseUnit" className="text-sm md:text-base">Satuan Beli</Label>
-                                <Input 
-                                    id="purchaseUnit" 
-                                    {...form.register("purchaseUnit")} 
-                                    placeholder="Roll" 
+                                <Input
+                                    id="purchaseUnit"
+                                    {...form.register("purchaseUnit")}
+                                    placeholder="Roll"
                                     className="h-9 md:h-10"
                                 />
                                 {form.formState.errors.purchaseUnit && (
@@ -223,10 +250,10 @@ export function ProductCreateDialog({ onCreated, createEndpoint }: BaseProps) {
                             </div>
                             <div className="grid gap-1.5">
                                 <Label htmlFor="storageUnit" className="text-sm md:text-base">Satuan Simpan</Label>
-                                <Input 
-                                    id="storageUnit" 
-                                    {...form.register("storageUnit")} 
-                                    placeholder="Roll" 
+                                <Input
+                                    id="storageUnit"
+                                    {...form.register("storageUnit")}
+                                    placeholder="Roll"
                                     className="h-9 md:h-10"
                                 />
                                 {form.formState.errors.storageUnit && (
@@ -235,10 +262,10 @@ export function ProductCreateDialog({ onCreated, createEndpoint }: BaseProps) {
                             </div>
                             <div className="grid gap-1.5">
                                 <Label htmlFor="usageUnit" className="text-sm md:text-base">Satuan Pakai</Label>
-                                <Input 
-                                    id="usageUnit" 
-                                    {...form.register("usageUnit")} 
-                                    placeholder="Meter" 
+                                <Input
+                                    id="usageUnit"
+                                    {...form.register("usageUnit")}
+                                    placeholder="Meter"
                                     className="h-9 md:h-10"
                                 />
                                 {form.formState.errors.usageUnit && (
@@ -281,10 +308,10 @@ export function ProductCreateDialog({ onCreated, createEndpoint }: BaseProps) {
                                 control={form.control}
                                 name="isConsumable"
                                 render={({ field }) => (
-                                    <Checkbox 
-                                        id="isConsumable" 
-                                        checked={field.value} 
-                                        onCheckedChange={field.onChange} 
+                                    <Checkbox
+                                        id="isConsumable"
+                                        checked={field.value}
+                                        onCheckedChange={field.onChange}
                                         className="h-4 w-4"
                                     />
                                 )}
@@ -297,17 +324,17 @@ export function ProductCreateDialog({ onCreated, createEndpoint }: BaseProps) {
                 </div>
 
                 <DialogFooter className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:space-x-2 pt-4 border-t">
-                    <Button 
-                        type="button" 
-                        variant="outline" 
+                    <Button
+                        type="button"
+                        variant="outline"
                         onClick={() => setDialogOpen(false)}
                         className="mt-0 sm:mt-0"
                     >
                         Batal
                     </Button>
-                    <Button 
-                        type="button" 
-                        disabled={pending} 
+                    <Button
+                        type="button"
+                        disabled={pending}
                         onClick={form.handleSubmit(submit)}
                         className="w-full sm:w-auto"
                     >
