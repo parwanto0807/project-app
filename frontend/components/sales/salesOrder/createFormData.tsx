@@ -20,6 +20,9 @@ import {
   // DollarSign,
   Percent,
   Package,
+  ChevronsUpDown,
+  Search,
+  Check,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -73,6 +76,7 @@ import {
 } from "@/schemas/index";
 import { ensureFreshToken } from "@/lib/http";
 import { ProductCreateDialog } from "./productDialog";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
 type ApiProduct = z.infer<typeof ApiProductSchema>;
 type ProductOption = { id: string; name: string; description?: string; usageUnit?: string | null; };
@@ -136,6 +140,10 @@ export function CreateSalesOrderForm({
   const [selectedApiType, setSelectedApiType] = React.useState<
     "PRODUCT" | "SERVICE" | "CUSTOM" | undefined
   >("PRODUCT");
+  const [projectSearchOpen, setProjectSearchOpen] = React.useState(false);
+  const [projectSearchQuery, setProjectSearchQuery] = React.useState("");
+  const [productSearchOpen, setProductSearchOpen] = React.useState<number | null>(null);
+  const [productSearchQuery, setProductSearchQuery] = React.useState("");
 
   // ✅ State untuk enum ProductType internal
   // const [selectedType, setSelectedType] = React.useState<
@@ -441,51 +449,84 @@ export function CreateSalesOrderForm({
                   const selectedCustomerId = form.watch("customerId");
                   const disabled = !selectedCustomerId || loadingProjects;
 
+                  // Filter project berdasarkan pencarian - ini boleh di dalam callback karena bukan hook
+                  const filteredProjects = projectOptions.filter((project) =>
+                    project.name.toLowerCase().includes(projectSearchQuery.toLowerCase())
+                  );
+
                   return (
-                    <FormItem>
+                    <FormItem className="flex flex-col">
                       <FormLabel>Project (Opsional)</FormLabel>
                       <div className="flex gap-2">
                         <FormControl>
                           <div className="relative w-full">
-                            <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Select
-                              value={field.value ?? undefined}
-                              onValueChange={(value) => {
-                                field.onChange(value === "none" ? undefined : value);
-                              }}
-                              disabled={disabled}
-                            >
-                              <SelectTrigger className="pl-9">
-                                <SelectValue
-                                  placeholder={
-                                    !selectedCustomerId
+                            {/* <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" /> */}
+                            <Popover open={projectSearchOpen} onOpenChange={setProjectSearchOpen}>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  role="combobox"
+                                  aria-expanded={projectSearchOpen}
+                                  className="w-full justify-between pl-9"
+                                  disabled={disabled}
+                                >
+                                  {field.value
+                                    ? projectOptions.find((project) => project.id === field.value)?.name
+                                    : !selectedCustomerId
                                       ? "Pilih customer dulu"
                                       : loadingProjects
                                         ? "Memuat project…"
-                                        : "Pilih project..."
-                                  }
-                                />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {!selectedCustomerId ? (
-                                  <div className="px-3 py-2 text-sm opacity-60">Customer belum dipilih</div>
-                                ) : loadingProjects ? (
-                                  <div className="px-3 py-2 text-sm opacity-60">Memuat project…</div>
-                                ) : projectOptions.length ? (
-                                  <>
-                                    {projectOptions.map((p) => (
-                                      <SelectItem key={p.id} value={p.id}>
-                                        {p.name}
-                                      </SelectItem>
-                                    ))}
-                                  </>
-                                ) : (
-                                  <div className="px-3 py-2 text-sm opacity-60">
-                                    Tidak ada project untuk customer ini
+                                        : "Pilih project..."}
+                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-full p-0">
+                                <Command>
+                                  <div className="flex items-center border-b px-3">
+                                    <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                                    <CommandInput
+                                      placeholder="Cari project..."
+                                      value={projectSearchQuery}
+                                      onValueChange={setProjectSearchQuery}
+                                    />
                                   </div>
-                                )}
-                              </SelectContent>
-                            </Select>
+                                  <CommandList>
+                                    <CommandEmpty>
+                                      {!selectedCustomerId ? (
+                                        "Customer belum dipilih"
+                                      ) : loadingProjects ? (
+                                        "Memuat project…"
+                                      ) : projectSearchQuery ? (
+                                        "Project tidak ditemukan"
+                                      ) : (
+                                        "Tidak ada project untuk customer ini"
+                                      )}
+                                    </CommandEmpty>
+                                    <CommandGroup>
+                                      {filteredProjects.map((project) => (
+                                        <CommandItem
+                                          key={project.id}
+                                          value={project.name}
+                                          onSelect={() => {
+                                            form.setValue("projectId", project.id);
+                                            setProjectSearchOpen(false);
+                                            setProjectSearchQuery("");
+                                          }}
+                                        >
+                                          <Check
+                                            className={cn(
+                                              "mr-2 h-4 w-4",
+                                              field.value === project.id ? "opacity-100" : "opacity-0"
+                                            )}
+                                          />
+                                          {project.name}
+                                        </CommandItem>
+                                      ))}
+                                    </CommandGroup>
+                                  </CommandList>
+                                </Command>
+                              </PopoverContent>
+                            </Popover>
                           </div>
                         </FormControl>
 
@@ -657,56 +698,107 @@ export function CreateSalesOrderForm({
 
                       {/* Pemilihan dari katalog (tampil untuk PRODUCT & SERVICE) */}
                       {isCatalogItem && (
-                        <div className="md:col-span-10">
+                        <div className="md:col-span-9">
                           <FormField
                             control={form.control}
                             name={`items.${index}.productId`}
-                            render={({ field }) => (
-                              <FormItem className="w-full">
-                                <FormLabel>{itemType === "PRODUCT" ? "Produk" : "Jasa"}</FormLabel>
-                                <div className="flex items-center gap-4">
-                                  <Select
-                                    value={field.value ?? ""}
-                                    onValueChange={(value) => {
-                                      field.onChange(value)
-                                      handleProductSelect(index, value) // pastikan handleProductSelect bisa SERVICE juga
-                                    }}
-                                  >
-                                    <FormControl>
-                                      <SelectTrigger className="w-full">   {/* ✅ penting */}
-                                        <SelectValue
-                                          placeholder={`Pilih ${itemType === "PRODUCT" ? "produk" : "service / jasa"
-                                            }`}
-                                        />
-                                      </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                      {optionsForType.map((opt) => (
-                                        <SelectItem key={opt.id} value={opt.id}>
-                                          {opt.name}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  {itemType === "PRODUCT" && (
-                                    <ProductCreateDialog
-                                      createEndpoint={`${process.env.NEXT_PUBLIC_API_URL}/api/master/product/createProduct`}
-                                      onCreated={(created) => {
-                                        setProductOptions((prev) => [
-                                          ...prev,
-                                          {
-                                            id: created.id,
-                                            name: created.name,
-                                          },
-                                        ]);
-                                        handleProductSelect(index, created.id);
+                            render={({ field }) => {
+                              // Filter options berdasarkan pencarian
+                              const filteredOptions = optionsForType.filter((opt) =>
+                                opt.name.toLowerCase().includes(productSearchQuery.toLowerCase())
+                              );
+
+                              return (
+                                <FormItem className="w-full">
+                                  <FormLabel>{itemType === "PRODUCT" ? "Produk" : "Jasa"}</FormLabel>
+                                  <div className="flex items-center gap-4">
+                                    <Popover
+                                      open={productSearchOpen === index}
+                                      onOpenChange={(open) => {
+                                        if (open) {
+                                          setProductSearchOpen(index);
+                                          setProductSearchQuery("");
+                                        } else {
+                                          setProductSearchOpen(null);
+                                        }
                                       }}
-                                    />
-                                  )}
-                                </div>
-                                <FormMessage />
-                              </FormItem>
-                            )}
+                                    >
+                                      <PopoverTrigger asChild>
+                                        <FormControl>
+                                          <Button
+                                            variant="outline"
+                                            role="combobox"
+                                            className="w-full justify-between"
+                                          >
+                                            {field.value
+                                              ? optionsForType.find((opt) => opt.id === field.value)?.name
+                                              : `Pilih ${itemType === "PRODUCT" ? "produk" : "service / jasa"}`}
+                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                          </Button>
+                                        </FormControl>
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-full p-0">
+                                        <Command>
+                                          <div className="flex items-center border-b px-3">
+                                            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                                            <CommandInput
+                                              placeholder={`Cari ${itemType === "PRODUCT" ? "produk" : "jasa"}...`}
+                                              value={productSearchQuery}
+                                              onValueChange={setProductSearchQuery}
+                                            />
+                                          </div>
+                                          <CommandList>
+                                            <CommandEmpty>
+                                              {productSearchQuery ? "Tidak ditemukan" : "Tidak ada data"}
+                                            </CommandEmpty>
+                                            <CommandGroup>
+                                              {filteredOptions.map((opt) => (
+                                                <CommandItem
+                                                  key={opt.id}
+                                                  value={opt.name}
+                                                  onSelect={() => {
+                                                    field.onChange(opt.id);
+                                                    handleProductSelect(index, opt.id);
+                                                    setProductSearchOpen(null);
+                                                    setProductSearchQuery("");
+                                                  }}
+                                                >
+                                                  <Check
+                                                    className={cn(
+                                                      "mr-2 h-4 w-4",
+                                                      field.value === opt.id ? "opacity-100" : "opacity-0"
+                                                    )}
+                                                  />
+                                                  {opt.name}
+                                                </CommandItem>
+                                              ))}
+                                            </CommandGroup>
+                                          </CommandList>
+                                        </Command>
+                                      </PopoverContent>
+                                    </Popover>
+
+                                    {itemType === "PRODUCT" && (
+                                      <ProductCreateDialog
+                                        createEndpoint={`${process.env.NEXT_PUBLIC_API_URL}/api/master/product/createProduct`}
+                                        onCreated={(created) => {
+                                          setProductOptions((prev) => [
+                                            ...prev,
+                                            {
+                                              id: created.id,
+                                              name: created.name,
+                                            },
+                                          ]);
+                                          handleProductSelect(index, created.id);
+                                          setProductSearchOpen(null);
+                                        }}
+                                      />
+                                    )}
+                                  </div>
+                                  <FormMessage />
+                                </FormItem>
+                              );
+                            }}
                           />
                         </div>
                       )}
@@ -715,40 +807,40 @@ export function CreateSalesOrderForm({
                     </div>
 
                     {/* Deskripsi */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name={`items.${index}.name`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Nama Item</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Nama item/jasa..." {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                    <FormField
-                      control={form.control}
-                      name={`items.${index}.name`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Nama Item</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Nama item/jasa..." {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name={`items.${index}.description`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Deskripsi (Opsional)</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="Deskripsi detail item/jasa..."
-                              className="resize-none"
-                              value={field.value || ""}
-                              onChange={(e) => field.onChange(e.target.value || undefined)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
+                      <FormField
+                        control={form.control}
+                        name={`items.${index}.description`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Deskripsi (Opsional)</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="Deskripsi detail item/jasa..."
+                                className="resize-none"
+                                value={field.value || ""}
+                                onChange={(e) => field.onChange(e.target.value || undefined)}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                     {/* Quantity, Harga, Diskon, Pajak */}
                     <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
                       <FormField
