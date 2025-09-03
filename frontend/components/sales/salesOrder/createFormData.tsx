@@ -133,12 +133,28 @@ export function CreateSalesOrderForm({
   const [productOptions, setProductOptions] = React.useState<ProductOption[]>([]);
   const [projectOptions, setProjectOptions] = React.useState<Project[]>(projects);
   const [loadingProjects, setLoadingProjects] = React.useState(false);
+  const [selectedApiType, setSelectedApiType] = React.useState<
+    "PRODUCT" | "SERVICE" | "CUSTOM" | undefined
+  >("PRODUCT");
+
+  // ✅ State untuk enum ProductType internal
+  // const [selectedType, setSelectedType] = React.useState<
+  //   "Material" | "Jasa" | "Alat" | undefined
+  // >("Material");
+
+  // const typeMap: Record<
+  //   "PRODUCT" | "SERVICE" | "CUSTOM",
+  //   "Material" | "Jasa" | "Alat" | undefined
+  // > = {
+  //   PRODUCT: "Material",
+  //   SERVICE: "Jasa", // bisa kamu ganti ke "Alat" kalau perlu
+  //   CUSTOM: undefined,
+  // };
 
   const itemsEndRef = React.useRef<HTMLDivElement | null>(null);
   const scrollToBottom = () => {
     itemsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
-
 
   React.useEffect(() => { setCustomerOptions(customers); }, [customers]);
   React.useEffect(() => { setProjectOptions(projects); }, [projects]);
@@ -184,7 +200,7 @@ export function CreateSalesOrderForm({
     (async () => {
       try {
         const accessToken = localStorage.getItem("accessToken"); // contoh ambil dari localStorage
-        const { products } = await fetchAllProducts(accessToken ?? undefined); // ✅ kirim token
+        const { products } = await fetchAllProducts(accessToken ?? undefined, selectedApiType); // ✅ kirim token
 
         setProductOptions(
           products.map((p: ApiProduct): ProductOption => ({
@@ -199,7 +215,7 @@ export function CreateSalesOrderForm({
         toast.error("Gagal memuat data produk");
       }
     })();
-  }, []);
+  }, [selectedApiType]);
 
 
   React.useEffect(() => {
@@ -252,8 +268,6 @@ export function CreateSalesOrderForm({
     form.setValue(`items.${index}.description`, selectedProduct.description ?? "", { shouldDirty: true, shouldTouch: true });
     form.setValue(`items.${index}.uom`, uomValue, { shouldDirty: true, shouldTouch: true });
   };
-
-
 
   function onSubmit(data: CreateSalesOrderPayload) {
     startTransition(async () => {
@@ -606,9 +620,16 @@ export function CreateSalesOrderForm({
                               <FormLabel>Tipe Item</FormLabel>
                               <Select
                                 value={field.value ?? "PRODUCT"}
-                                onValueChange={(next) => {
+                                onValueChange={(next: "PRODUCT" | "SERVICE" | "CUSTOM") => {
+                                  // ✅ update react-hook-form
                                   field.onChange(next);
-                                  // ✅ reset productId HANYA jika bukan PRODUCT & bukan SERVICE (contoh: CUSTOM)
+
+                                  // update API type
+                                  setSelectedApiType(next);
+                                  // ✅ update useState
+                                  // setSelectedType(typeMap[next]);
+
+                                  // ✅ reset productId kalau bukan PRODUCT / SERVICE
                                   if (!["PRODUCT", "SERVICE"].includes(next)) {
                                     form.setValue(`items.${index}.productId`, null, {
                                       shouldValidate: true,
@@ -893,7 +914,7 @@ export function CreateSalesOrderForm({
               <Button
                 type="button"
                 size="sm"
-                onClick={() => {
+                onClick={async () => {
                   append({
                     itemType: "PRODUCT",
                     productId: null,
@@ -907,6 +928,19 @@ export function CreateSalesOrderForm({
                   if (window.innerWidth >= 768) {
                     setTimeout(scrollToBottom, 100)
                   }
+                  // Ambil itemType default untuk row baru
+                  const newItemType: "PRODUCT" | "SERVICE" | "CUSTOM" = "PRODUCT";
+
+                  // 1️⃣ Fetch products sesuai itemType baru
+                  const accessToken = localStorage.getItem("accessToken");
+                  const { products } = await fetchAllProducts(accessToken ?? undefined, newItemType);
+
+                  setProductOptions(products.map(p => ({
+                    id: p.id,
+                    name: p.name,
+                    description: p.description,
+                    usageUnit: p.usageUnit ?? null,
+                  })));
                 }}
               >
                 <PlusCircle className="mr-2 h-4 w-4" />

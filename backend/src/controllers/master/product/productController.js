@@ -22,6 +22,32 @@ export const getAllProducts = async (req, res) => {
   }
 };
 
+export const getAllProductsByType = async (req, res) => {
+  try {
+    const { activeOnly = "true" } = req.query;
+    const { type } = req.params; // ✅ ambil dari params
+
+    const filter = activeOnly === "false" ? {} : { isActive: true };
+
+    if (type) {
+      filter.type = type;
+    }
+
+    const products = await prisma.product.findMany({
+      where: filter,
+      include: {
+        category: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    res.json(products);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Gagal mengambil data produk" });
+  }
+};
+
 // [GET] /products/:id - Ambil satu produk berdasarkan ID
 export const getProductById = async (req, res) => {
   try {
@@ -208,7 +234,7 @@ export async function getProductCount(req, res) {
     const filter = activeOnly === "false" ? {} : { isActive: true };
 
     const count = await prisma.product.count({
-      where: filter
+      where: filter,
     });
     res.json({ count });
   } catch (err) {

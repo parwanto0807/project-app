@@ -7,7 +7,7 @@ export async function generateProductCode() {
   return `PRD-${shortId}`;
 }
 
-export async function fetchAllProducts(accessToken?: string) {
+export async function fetchAllProductsOld(accessToken?: string) {
   try {
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/master/product/getAllProducts`,
@@ -24,6 +24,70 @@ export async function fetchAllProducts(accessToken?: string) {
     if (!res.ok) throw new Error(`Gagal fetch produk: ${res.status}`);
 
     const data = await res.json();
+    return { products: data || [], isLoading: false };
+  } catch (error) {
+    console.error("[fetchAllProducts]", error);
+    return { products: [], isLoading: false };
+  }
+}
+
+const typeMapping: Record<
+  "PRODUCT" | "SERVICE" | "CUSTOM",
+  "Material" | "Jasa" | "Alat"
+> = {
+  PRODUCT: "Material",
+  SERVICE: "Jasa",
+  CUSTOM: "Alat",
+};
+
+// Definisikan tipe untuk product
+interface Product {
+  id: string;
+  name: string;
+  type: "Material" | "Jasa" | "Alat";
+  usageUnit: string;
+  description: string;
+  // contoh: price: number; description: string; dll.
+}
+
+export async function fetchAllProducts(
+  accessToken?: string,
+  type?: "PRODUCT" | "SERVICE" | "CUSTOM"
+) {
+  try {
+    let url: string;
+
+    if (type) {
+      const backendType = typeMapping[type];
+
+      if (type === "SERVICE") {
+        // Untuk SERVICE, ambil semua data kemudian filter di frontend
+        url = `${process.env.NEXT_PUBLIC_API_URL}/api/master/product/getAllProducts`;
+      } else {
+        // Untuk PRODUCT dan CUSTOM, gunakan endpoint dengan filter
+        url = `${process.env.NEXT_PUBLIC_API_URL}/api/master/product/getAllProductsByType/${backendType}`;
+      }
+    } else {
+      // Jika tidak ada type, ambil semua data
+      url = `${process.env.NEXT_PUBLIC_API_URL}/api/master/product/getAllProducts`;
+    }
+
+    const res = await fetch(url, {
+      method: "GET",
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      cache: "no-store",
+      credentials: "include",
+    });
+
+    if (!res.ok) throw new Error(`Gagal fetch produk: ${res.status}`);
+
+    let data: Product[] = await res.json();
+
+    // Jika type adalah SERVICE, filter untuk mengecualikan Material
+    if (type === "SERVICE") {
+      data = data.filter((product: Product) => product.type !== "Material");
+    }
+
     return { products: data || [], isLoading: false };
   } catch (error) {
     console.error("[fetchAllProducts]", error);
