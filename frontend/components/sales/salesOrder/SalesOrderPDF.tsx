@@ -264,19 +264,6 @@ const styles = StyleSheet.create({
     marginTop: 15,
     fontStyle: 'italic',
   },
-  // MODIFIKASI: Menambahkan container untuk informasi utama dan box kanan
-  // mainContainer: {
-  //   flexDirection: 'row',
-  //   justifyContent: 'space-between',
-  // },
-  // leftSection: {
-  //   width: '60%', // Lebar untuk informasi utama
-  // },
-  // rightSection: {
-  //   width: '35%', // Lebar untuk box kanan
-  //   alignItems: 'flex-end',
-  //   marginRight: -2,
-  // },
   rightBox: {
     borderWidth: 1,
     borderColor: "#000",
@@ -359,6 +346,20 @@ export const SalesOrderPDF: React.FC<SalesOrderPDFProps> = ({ data }) => {
     }).format(amount);
   };
 
+  const formatDate = (date: Date | null) => {
+    if (!date) return '';
+    const day = date.getDate();
+    const month = date.toLocaleString('id-ID', { month: 'long' });
+    const year = date.getFullYear();
+    return `${day} ${month} ${year}`;
+  };
+
+  const Checkbox = ({ checked }: { checked: boolean }) => (
+    <View style={styles.checkbox}>
+      {checked && <Text>✓</Text>}
+    </View>
+  );
+
   // Hitung grand total
   const calculateGrandTotal = () => {
     return data.items.reduce((total, item) => {
@@ -368,171 +369,198 @@ export const SalesOrderPDF: React.FC<SalesOrderPDFProps> = ({ data }) => {
       return total + (itemTotal - discountAmount + taxAmount);
     }, 0);
   };
-  const formatDate = (date: Date | null) => {
-    if (!date) return '';
 
-    const day = date.getDate();
-    const month = date.toLocaleString('id-ID', { month: 'long' });
-    const year = date.getFullYear();
-
-    return `${day} ${month} ${year}`;
+  // Fungsi untuk memecah items menjadi chunks (10 items per halaman)
+  const chunkItems = (items: SalesOrderItem[], chunkSize: number = 10) => {
+    const chunks = [];
+    for (let i = 0; i < items.length; i += chunkSize) {
+      chunks.push(items.slice(i, i + chunkSize));
+    }
+    return chunks;
   };
 
-  // Fungsi untuk membuat checkbox
-  const Checkbox = ({ checked }: { checked: boolean }) => (
-    <View style={styles.checkbox}>
-      {checked && <Text>✓</Text>}
-    </View>
-  );
+  const itemChunks = chunkItems(data.items);
+  const totalPages = Math.max(itemChunks.length, 1); // Minimal 1 halaman
 
   return (
     <Document>
-      <Page size="A4" orientation="landscape" style={styles.page}>
-        {/* Header dengan Logo */}
-        <View style={styles.headerContainer}>
-          <PdfImage
-            style={styles.logo}
-            src="/Logo.png"
-          />
-          <View style={{ flex: 2 }}></View>
-          <View style={styles.headerTextContainer}>
-            <Text style={styles.header}>SALES ORDER</Text>
-          </View>
-          <View style={{ width: 100 }}></View>
-        </View>
-
-        {/* Container utama dengan dua kolom */}
-        <View style={styles.mainContainer}>
-          {/* Kolom kiri untuk informasi utama */}
-          <View style={styles.leftSection}>
-            <View style={styles.section}>
-              <View style={styles.fieldRow}>
-                <Text style={styles.fieldLabel}>NO SO</Text>
-                <Text style={styles.colon}>:</Text>
-                <Text style={styles.fieldValue}>{data.soNumber || "........"}</Text>
-              </View>
-
-              <View style={styles.fieldRow}>
-                <Text style={styles.fieldLabel}>DATE</Text>
-                <Text style={styles.colon}>:</Text>
-                <Text style={styles.fieldValue}>{formatDate(data.soDate) || "........"}</Text>
-              </View>
-
-              <View style={styles.fieldRow}>
-                <Text style={styles.fieldLabel}>CUSTOMER</Text>
-                <Text style={styles.colon}>:</Text>
-                <Text style={styles.fieldValue}>{data.customerName || "........"}</Text>
-              </View>
-
-              <View style={styles.fieldRow}>
-                <Text style={styles.fieldLabel}>CABANG</Text>
-                <Text style={styles.colon}>:</Text>
-                <Text style={styles.fieldValue}>{data.branch || "........"}</Text>
-              </View>
-
-              <View style={styles.fieldRow}>
-                <Text style={styles.fieldLabel}>LOKASI/UNIT</Text>
-                <Text style={styles.colon}>:</Text>
-                <Text style={styles.fieldValue}>{data.location || "........"}</Text>
-              </View>
-
-              <View style={styles.fieldRow}>
-                <Text style={styles.fieldLabel}>NAMA PROJECT</Text>
-                <Text style={styles.colon}>:</Text>
-                <Text style={styles.fieldValue}>{data.projectName || "........"}</Text>
-              </View>
-
-              <View style={styles.fieldRow}>
-                <Text style={styles.fieldLabel}>PIC CUSTOMER</Text>
-                <Text style={styles.colon}>:</Text>
-                <Text style={styles.fieldValue}>{data.customerPIC || "........"}</Text>
-              </View>
+      {itemChunks.map((chunk, pageIndex) => (
+        <Page
+          key={pageIndex}
+          size="A4"
+          orientation="landscape"
+          style={styles.page}
+        >
+          {/* Header dengan Logo (sama untuk setiap halaman) */}
+          <View style={styles.headerContainer}>
+            <PdfImage
+              style={styles.logo}
+              src="/Logo.png"
+            />
+            <View style={{ flex: 2 }}></View>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.header}>SALES ORDER</Text>
             </View>
+            <View style={{ width: 100 }}></View>
           </View>
 
-
-          {/* Kolom kanan untuk box REGULAR/SUPPORT dan tanda tangan */}
-          <View style={styles.rightSection}>
-            <View style={styles.rightBox}>
-              <View style={styles.checkboxRow}>
-                <View style={styles.checkbox} />
-                <Text style={styles.checkboxLabel}>REGULAR</Text>
-                <View style={styles.checkbox} />
-                <Text style={styles.checkboxLabel}>SUPPORT</Text>
-              </View>
-
-              <Text style={styles.madeBy}>Dibuat Oleh:</Text>
-              <Text style={styles.signatureSpace}>( ............................ )</Text>
-            </View>
-          </View>
-        </View>
-
-
-        {/* Tabel Item Pekerjaan */}
-        <View style={styles.section}>
-          <Text style={{ fontSize: 10, fontWeight: 'bold', marginBottom: 2, marginTop: 10 }}>ITEM PEKERJAAN</Text>
-          <View style={styles.table}>
-            {/* Table Header */}
-            <View style={[styles.tableRow, styles.tableHeader]}>
-              <Text style={[styles.tableCell, styles.colNo]}>NO</Text>
-              <Text style={[styles.tableCell, styles.colDesc]}>DISKRIPSI PEKERJAAN</Text>
-              <Text style={[styles.tableCell, styles.colQty]}>JUMLAH</Text>
-              <Text style={[styles.tableCell, styles.colPrice]}>HARGA JUAL</Text>
-              <Text style={[styles.tableCell, styles.colTotal]}>TOTAL HARGA JUAL</Text>
-            </View>
-
-            {/* Table Rows */}
-            {Array.from({ length: 10 }).map((_, index) => {
-              const item = data.items[index] || null;
-              return (
-                <View key={index} style={styles.tableRow}>
-                  <Text style={[styles.tableCell, styles.colNo]}>{index + 1}</Text>
-                  <Text style={[styles.tableCell, styles.colDesc]}>{item ? item.name : ""}</Text>
-                  <Text style={[styles.tableCell, styles.colQty]}>{item ? item.qty : ""}</Text>
-                  <Text style={[styles.tableCell, styles.colPrice]}>{item ? formatCurrency(item.unitPrice) : ""}</Text>
-                  <Text style={[styles.tableCell, styles.colTotal]}>
-                    {item ? formatCurrency(item.qty * item.unitPrice) : ""}
-                  </Text>
+          {/* Container utama dengan dua kolom */}
+          <View style={styles.mainContainer}>
+            {/* Kolom kiri untuk informasi utama */}
+            <View style={styles.leftSection}>
+              <View style={styles.section}>
+                <View style={styles.fieldRow}>
+                  <Text style={styles.fieldLabel}>NO SO</Text>
+                  <Text style={styles.colon}>:</Text>
+                  <Text style={styles.fieldValue}>{data.soNumber || "........"}</Text>
                 </View>
-              );
-            })}
-          </View>
-        </View>
-        <View style={styles.grandTotalContainer}>
-          <Text style={styles.grandTotalLabel}>GRAND TOTAL</Text>
-          <Text style={styles.grandTotalValue}>{formatCurrency(calculateGrandTotal())}</Text>
-        </View>
 
-        {/* Footer Section */}
-        {/* Status Dokumen */}
-        <View style={styles.documentStatus}>
-          <View style={styles.statusItem}>
-            <Checkbox checked={false} />
-            <Text>PENAWARAN HARGA</Text>
-          </View>
-          <View style={styles.statusItem}>
-            <Checkbox checked={false} />
-            <Text>PURCHASE ORDER</Text>
-          </View>
-          <View style={styles.statusItem}>
-            <Checkbox checked={false} />
-            <Text>BAP</Text>
-          </View>
-          <View style={styles.statusItem}>
-            <Checkbox checked={false} />
-            <Text>INVOICE</Text>
-          </View>
-          <View style={styles.statusItem}>
-            <Checkbox checked={false} />
-            <Text>STATUS PEMBAYARAN</Text>
-          </View>
-        </View>
+                <View style={styles.fieldRow}>
+                  <Text style={styles.fieldLabel}>DATE</Text>
+                  <Text style={styles.colon}>:</Text>
+                  <Text style={styles.fieldValue}>{formatDate(data.soDate) || "........"}</Text>
+                </View>
 
-        {/* Footer Note */}
-        <Text style={styles.footerNote}>
-          LEMBAR 1: FINANCE, LEMBAR 2: LOGISTIC, LEMBAR 3: SALES/ENGINEERING
-        </Text>
-      </Page>
+                <View style={styles.fieldRow}>
+                  <Text style={styles.fieldLabel}>CUSTOMER</Text>
+                  <Text style={styles.colon}>:</Text>
+                  <Text style={styles.fieldValue}>{data.customerName || "........"}</Text>
+                </View>
+
+                <View style={styles.fieldRow}>
+                  <Text style={styles.fieldLabel}>CABANG</Text>
+                  <Text style={styles.colon}>:</Text>
+                  <Text style={styles.fieldValue}>{data.branch || "........"}</Text>
+                </View>
+
+                <View style={styles.fieldRow}>
+                  <Text style={styles.fieldLabel}>LOKASI/UNIT</Text>
+                  <Text style={styles.colon}>:</Text>
+                  <Text style={styles.fieldValue}>{data.location || "........"}</Text>
+                </View>
+
+                <View style={styles.fieldRow}>
+                  <Text style={styles.fieldLabel}>NAMA PROJECT</Text>
+                  <Text style={styles.colon}>:</Text>
+                  <Text style={styles.fieldValue}>{data.projectName || "........"}</Text>
+                </View>
+
+                <View style={styles.fieldRow}>
+                  <Text style={styles.fieldLabel}>PIC CUSTOMER</Text>
+                  <Text style={styles.colon}>:</Text>
+                  <Text style={styles.fieldValue}>{data.customerPIC || "........"}</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Kolom kanan untuk box REGULAR/SUPPORT dan tanda tangan */}
+            <View style={styles.rightSection}>
+              <View style={styles.rightBox}>
+                <View style={styles.checkboxRow}>
+                  <Checkbox checked={data.type === "REGULAR"} />
+                  <Text style={styles.checkboxLabel}>REGULAR</Text>
+                  <Checkbox checked={data.type === "SUPPORT"} />
+                  <Text style={styles.checkboxLabel}>SUPPORT</Text>
+                </View>
+
+                <Text style={styles.madeBy}>Dibuat Oleh:</Text>
+                <Text style={styles.signatureSpace}>( ............................ )</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Tabel Item Pekerjaan */}
+          <View style={styles.section}>
+            <Text style={{ fontSize: 10, fontWeight: 'bold', marginBottom: 2, marginTop: 10 }}>
+              ITEM PEKERJAAN {totalPages > 1 ? `(Halaman ${pageIndex + 1} dari ${totalPages})` : ''}
+            </Text>
+            <View style={styles.table}>
+              {/* Table Header */}
+              <View style={[styles.tableRow, styles.tableHeader]}>
+                <Text style={[styles.tableCell, styles.colNo]}>NO</Text>
+                <Text style={[styles.tableCell, styles.colDesc]}>DISKRIPSI PEKERJAAN</Text>
+                <Text style={[styles.tableCell, styles.colQty]}>JUMLAH</Text>
+                <Text style={[styles.tableCell, styles.colPrice]}>HARGA JUAL</Text>
+                <Text style={[styles.tableCell, styles.colTotal]}>TOTAL HARGA JUAL</Text>
+              </View>
+
+              {/* Table Rows untuk chunk ini */}
+              {chunk.map((item, index) => {
+                const globalIndex = pageIndex * 10 + index;
+                return (
+                  <View key={globalIndex} style={styles.tableRow}>
+                    <Text style={[styles.tableCell, styles.colNo]}>{globalIndex + 1}</Text>
+                    <Text style={[styles.tableCell, styles.colDesc]}>{item.name}</Text>
+                    <Text style={[styles.tableCell, styles.colQty]}>{item.qty}</Text>
+                    <Text style={[styles.tableCell, styles.colPrice]}>{formatCurrency(item.unitPrice)}</Text>
+                    <Text style={[styles.tableCell, styles.colTotal]}>
+                      {formatCurrency(item.qty * item.unitPrice)}
+                    </Text>
+                  </View>
+                );
+              })}
+
+              {/* Tambahkan row kosong jika chunk kurang dari 10 */}
+              {Array.from({ length: 10 - chunk.length }).map((_, emptyIndex) => (
+                <View key={`empty-${emptyIndex}`} style={styles.tableRow}>
+                  <Text style={[styles.tableCell, styles.colNo]}>{chunk.length + emptyIndex + 1}</Text>
+                  <Text style={[styles.tableCell, styles.colDesc]}></Text>
+                  <Text style={[styles.tableCell, styles.colQty]}></Text>
+                  <Text style={[styles.tableCell, styles.colPrice]}></Text>
+                  <Text style={[styles.tableCell, styles.colTotal]}></Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {/* Grand Total hanya ditampilkan di halaman terakhir */}
+          {pageIndex === itemChunks.length - 1 && (
+            <View style={styles.grandTotalContainer}>
+              <Text style={styles.grandTotalLabel}>GRAND TOTAL</Text>
+              <Text style={styles.grandTotalValue}>{formatCurrency(calculateGrandTotal())}</Text>
+            </View>
+          )}
+
+          {/* Footer Section */}
+          {/* Status Dokumen hanya ditampilkan di halaman terakhir */}
+          {pageIndex === itemChunks.length - 1 && (
+            <>
+              <View style={styles.documentStatus}>
+                <View style={styles.statusItem}>
+                  <Checkbox checked={false} />
+                  <Text>PENAWARAN HARGA</Text>
+                </View>
+                <View style={styles.statusItem}>
+                  <Checkbox checked={false} />
+                  <Text>PURCHASE ORDER</Text>
+                </View>
+                <View style={styles.statusItem}>
+                  <Checkbox checked={false} />
+                  <Text>BAP</Text>
+                </View>
+                <View style={styles.statusItem}>
+                  <Checkbox checked={false} />
+                  <Text>INVOICE</Text>
+                </View>
+                <View style={styles.statusItem}>
+                  <Checkbox checked={false} />
+                  <Text>STATUS PEMBAYARAN</Text>
+                </View>
+              </View>
+
+              {/* Footer Note */}
+              <Text style={styles.footerNote}>
+                LEMBAR 1: FINANCE, LEMBAR 2: LOGISTIC, LEMBAR 3: SALES/ENGINEERING
+              </Text>
+            </>
+          )}
+
+          {/* Page Number */}
+          <Text style={styles.pageNumber}>
+            Halaman {pageIndex + 1} dari {totalPages}
+          </Text>
+        </Page>
+      ))}
     </Document>
   );
 };
