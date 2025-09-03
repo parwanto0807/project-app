@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import {
   Breadcrumb,
@@ -19,6 +19,7 @@ import { Loader2 } from "lucide-react";
 export default function CreateProductPageAdmin() {
   const { user, loading } = useCurrentUser();
   const router = useRouter();
+  const [code, setCode] = useState("");
 
   useEffect(() => {
     if (loading) return;
@@ -32,6 +33,9 @@ export default function CreateProductPageAdmin() {
       router.replace("/not-authorized");
       return;
     }
+    fetch("/api/product/generate-code")
+      .then((res) => res.json())
+      .then((data) => setCode(data.code));
   }, [loading, user, router]);
 
   if (loading || !user || user.role !== "admin") {
@@ -66,7 +70,7 @@ export default function CreateProductPageAdmin() {
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
-      <CreateProductForm role={user.role} />
+      <CreateProductForm role={user.role} code={code} />
     </AdminLayout>
   );
 }

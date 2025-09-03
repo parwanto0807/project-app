@@ -1,4 +1,12 @@
-// lib/action/master/product.ts
+"use server"
+
+import { randomUUID } from "crypto";
+
+export async function generateProductCode() {
+  const shortId = randomUUID().slice(0, 8).toUpperCase();
+  return `PRD-${shortId}`;
+}
+
 export async function fetchAllProducts(accessToken?: string) {
   try {
     const res = await fetch(
@@ -7,7 +15,7 @@ export async function fetchAllProducts(accessToken?: string) {
         method: "GET",
         headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
         cache: "no-store",
-        credentials: "include"
+        credentials: "include",
       }
     );
 
@@ -28,7 +36,6 @@ export async function fetchAllProducts(accessToken?: string) {
     };
   }
 }
-
 
 export async function fetchProductById(id: string) {
   try {

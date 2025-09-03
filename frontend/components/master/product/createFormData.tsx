@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import {
     Box,
     Package,
@@ -17,7 +17,8 @@ import {
     Type,
     List,
     Check,
-    X
+    X,
+    UploadCloudIcon
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -60,12 +61,11 @@ function getBasePath(role?: string) {
         : "/admin-area/master/products"
 }
 
-export function CreateProductForm({ role }: { role: string }) {
+export function CreateProductForm({ role, code }: { role: string; code: string }) {
     const router = useRouter();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { categories, loading: isLoadingCategories } = useCategories();
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-
 
     const form = useForm<ProductSchema>({
         resolver: zodResolver(ProductRegisterSchema),
@@ -148,6 +148,32 @@ export function CreateProductForm({ role }: { role: string }) {
         };
     }, []);
 
+    // set code awal dari prop
+    useEffect(() => {
+        if (code) {
+            form.setValue("code", code);
+            form.setValue("barcode", code); // otomatis set barcode juga
+        }
+    }, [code, form]);
+
+    // watch code supaya setiap kali berubah, barcode ikut update
+    const watchedCode = useWatch({ control: form.control, name: "code" });
+    useEffect(() => {
+        if (watchedCode) {
+            form.setValue("barcode", watchedCode);
+        }
+    }, [watchedCode, form]);
+
+    // 🔍 watch purchaseUnit
+    const purchaseUnitValue = useWatch({ control: form.control, name: "purchaseUnit" });
+
+    // 🪄 setiap purchaseUnit berubah → set storageUnit & usageUnit sama
+    useEffect(() => {
+        if (purchaseUnitValue) {
+            form.setValue("storageUnit", purchaseUnitValue);
+            form.setValue("usageUnit", purchaseUnitValue);
+        }
+    }, [purchaseUnitValue, form]);
 
     return (
         <Card className="max-w-4xl mx-auto">
@@ -386,6 +412,7 @@ export function CreateProductForm({ role }: { role: string }) {
                                     <ImageIcon className="w-5 h-5" />
                                     Media & Identification
                                 </h3>
+
                                 <FormField
                                     control={form.control}
                                     name="image"
@@ -393,21 +420,38 @@ export function CreateProductForm({ role }: { role: string }) {
                                         <FormItem>
                                             <FormLabel>Upload Image</FormLabel>
                                             <FormControl>
-                                                <Input
-                                                    type="file"
-                                                    accept="image/*"
-                                                    onChange={(e) => {
-                                                        const file = e.target.files?.[0] || null;
-                                                        field.onChange(file);
-                                                        if (file) {
-                                                            const url = URL.createObjectURL(file);
-                                                            setPreviewUrl(url);
-                                                        } else {
-                                                            setPreviewUrl(null);
-                                                        }
-                                                    }}
-                                                />
+                                                <div>
+                                                    {/* hidden input */}
+                                                    <input
+                                                        id="file-upload"
+                                                        type="file"
+                                                        accept="image/*"
+                                                        className="hidden"
+                                                        onChange={(e) => {
+                                                            const file = e.target.files?.[0] || null;
+                                                            field.onChange(file);
+                                                            if (file) {
+                                                                const url = URL.createObjectURL(file);
+                                                                setPreviewUrl(url);
+                                                            } else {
+                                                                setPreviewUrl(null);
+                                                            }
+                                                        }}
+                                                    />
+
+                                                    {/* styled button with colored icon */}
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        onClick={() => document.getElementById("file-upload")?.click()}
+                                                        className="flex items-center gap-2"
+                                                    >
+                                                        <UploadCloudIcon size={30} color="#2563eb" /> {/* biru elegan */}
+                                                        Choose File
+                                                    </Button>
+                                                </div>
                                             </FormControl>
+
                                             {previewUrl && (
                                                 <div className="mt-4">
                                                     <Image
@@ -415,11 +459,12 @@ export function CreateProductForm({ role }: { role: string }) {
                                                         alt="Preview"
                                                         width={300}
                                                         height={300}
-                                                        className="object-cover"
+                                                        className="object-cover rounded-lg border"
                                                         onLoad={() => URL.revokeObjectURL(previewUrl)}
                                                     />
                                                 </div>
                                             )}
+
                                             <FormMessage />
                                         </FormItem>
                                     )}
