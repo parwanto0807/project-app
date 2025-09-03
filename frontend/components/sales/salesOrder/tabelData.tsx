@@ -621,7 +621,7 @@ function MobileSalesOrderCard({ order, onExpand, onDeleteSuccess }: { order: Sal
 
     return (
         <>
-            <div className="border rounded-lg p-4 bg-white dark:bg-slate-800 shadow-sm">
+            <div className="border rounded-lg p-4 mb-1 bg-white dark:bg-slate-800 shadow-sm">
                 <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
                         <div className="flex items-center justify-center h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/50">
@@ -1100,7 +1100,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                             </div>
                         </div>
                     </CardHeader>
-                    <CardContent className="p-4">
+                    <CardContent className="p-2">
                         {isLoading ? (
                             <div className="space-y-4">
                                 {[...Array(5)].map((_, i) => (

@@ -150,12 +150,14 @@ export function UpdateSalesOrderForm({
     React.useEffect(() => {
         (async () => {
             try {
-                const { products } = await fetchAllProducts();
+                const accessToken = localStorage.getItem("accessToken"); // contoh ambil dari localStorage
+                const { products } = await fetchAllProducts(accessToken ?? undefined); // ✅ kirim token
+
                 setProductOptions(
                     products.map((p: ApiProduct): ProductOption => ({
                         id: p.id,
                         name: p.name,
-                        description: p.description ?? undefined,
+                        description: p.description,
                         usageUnit: p.usageUnit ?? null,
                     }))
                 );
