@@ -139,6 +139,11 @@ export function getMenuList(pathname: string, role: string) {
               label: "Data Products",
               active: isActive("/super-admin-area/master/products", pathname),
             },
+            {
+              href: "/super-admin-area/master/karyawan",
+              label: "Data Employee",
+              active: isActive("/super-admin-area/master/karyawan", pathname),
+            },
           ],
         },
         {
@@ -204,12 +209,17 @@ export function getMenuList(pathname: string, role: string) {
             {
               href: "/admin-area/master/customers",
               label: "Data Customer",
-              active: isActive("/super-admin-area/master/customers", pathname),
+              active: isActive("/admin-area/master/customers", pathname),
             },
             {
               href: "/admin-area/master/products",
               label: "Data Products",
               active: isActive("/admin-area/master/products", pathname),
+            },
+            {
+              href: "/admin-area/master/karyawan",
+              label: "Data Employee",
+              active: isActive("/admin-area/master/karyawan", pathname),
             },
           ],
         },

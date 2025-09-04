@@ -20,3 +20,6 @@ export const getNextCustomerCode = (tx = prisma) =>
 
 export const getNextProjectCode = (tx = prisma) =>
   getNextCode("PROJECT", "PRJ", 5, tx);
+
+export const getNextKaryawanCode = (tx = prisma) =>
+  getNextCode("EMPLOYEE", "NIK", 5, tx);

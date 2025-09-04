@@ -403,3 +403,29 @@ export type SalesOrderFormValues = CreateSalesOrderPayload & {
   customerName?: string;
   projectName?: string;
 };
+
+export const employeeFormSchema = z.object({
+  nik: z.string().optional(), // kalau kosong, backend generate otomatis
+  namaLengkap: z.string().min(1, "Nama wajib diisi"),
+  email: z.string().email("Email tidak valid"),
+  nomorTelepon: z.string().min(8, "Nomor telepon tidak valid"),
+  alamat: z.string().min(5, "Alamat terlalu singkat"),
+  jabatan: z.string().min(1, "Jabatan wajib diisi"),
+  departemen: z.string().min(1, "Departemen wajib diisi"),
+  statusKerja: z.string().min(1, "Status kerja wajib diisi"),
+  tipeKontrak: z.string().min(1, "Tipe kontrak wajib diisi"),
+  gajiPokok: z.coerce.number().nonnegative(),
+  tunjangan: z.coerce.number().nonnegative(),
+  potongan: z.coerce.number().nonnegative(),
+  isActive: z.boolean().default(true),
+  userId: z.string().optional(),
+
+  tanggalLahir: z.date().optional(),
+  tanggalMasuk: z.date().optional(),
+  tanggalKeluar: z.date().optional(),
+
+  foto: z.any().optional(), // file upload (foto karyawan)
+  teamIds: z.array(z.string()).optional(), // kalau ada relasi team
+});
+
+export type EmployeeFormValues = z.infer<typeof employeeFormSchema>;

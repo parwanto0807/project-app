@@ -10,6 +10,7 @@ import customerRoutes from "./routes/master/customer/customerRoutes.js"; // Impo
 import productRoutes from "./routes/master/product/productRoutes.js"; // Import product routes
 import kategoryRoutes from "./routes/master/product/kategoryProductRoutes.js"; // Import category routes
 import salesOrderRoutes from "./routes/salesOrder/salesOrderRoutes.js"; // Import sales order routes
+import karyawanRoutes from "./routes/master/karyawan/karyawanRoutes.js";
 import cookieParser from "cookie-parser";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -91,6 +92,7 @@ app.use("/api/master/customer", customerRoutes);
 app.use("/api/master/product", productRoutes);
 app.use("/api/master/product/kategory", kategoryRoutes);
 app.use("/api/salesOrder", salesOrderRoutes);
+app.use("/api/karyawan", karyawanRoutes);
 
 // Health Check Endpoint
 app.get("/api/health", (req, res) => {
