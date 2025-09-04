@@ -144,22 +144,8 @@ export function CreateSalesOrderForm({
   const [projectSearchQuery, setProjectSearchQuery] = React.useState("");
   const [productSearchOpen, setProductSearchOpen] = React.useState<number | null>(null);
   const [productSearchQuery, setProductSearchQuery] = React.useState("");
-
-  // ✅ State untuk enum ProductType internal
-  // const [selectedType, setSelectedType] = React.useState<
-  //   "Material" | "Jasa" | "Alat" | undefined
-  // >("Material");
-
-  // const typeMap: Record<
-  //   "PRODUCT" | "SERVICE" | "CUSTOM",
-  //   "Material" | "Jasa" | "Alat" | undefined
-  // > = {
-  //   PRODUCT: "Material",
-  //   SERVICE: "Jasa", // bisa kamu ganti ke "Alat" kalau perlu
-  //   CUSTOM: undefined,
-  // };
-
   const itemsEndRef = React.useRef<HTMLDivElement | null>(null);
+  const itemTypeRefs = React.useRef<(HTMLButtonElement | null)[]>([]);
   const scrollToBottom = () => {
     itemsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -626,7 +612,6 @@ export function CreateSalesOrderForm({
                   SERVICE: "bg-blue-600 text-white shadow-sm",
                   CUSTOM: "bg-pink-600 text-white shadow-sm",
                 };
-
                 const badgeColor = typeColors[itemType ?? "CUSTOM"];
 
                 return (
@@ -661,26 +646,43 @@ export function CreateSalesOrderForm({
                               <FormLabel>Tipe Item</FormLabel>
                               <Select
                                 value={field.value ?? "PRODUCT"}
-                                onValueChange={(next: "PRODUCT" | "SERVICE" | "CUSTOM") => {
-                                  // ✅ update react-hook-form
+                                onValueChange={async (next: "PRODUCT" | "SERVICE" | "CUSTOM") => {
                                   field.onChange(next);
 
-                                  // update API type
+                                  // update state juga kalau mau dipakai global
                                   setSelectedApiType(next);
-                                  // ✅ update useState
-                                  // setSelectedType(typeMap[next]);
 
-                                  // ✅ reset productId kalau bukan PRODUCT / SERVICE
-                                  if (!["PRODUCT", "SERVICE"].includes(next)) {
+                                  if (["PRODUCT", "SERVICE"].includes(next)) {
+                                    const accessToken = localStorage.getItem("accessToken");
+                                    const { products } = await fetchAllProductsByType(
+                                      accessToken ?? undefined,
+                                      next // ✅ langsung pakai "next", bukan selectedApiType
+                                    );
+
+                                    setProductOptions(
+                                      products.map((p) => ({
+                                        id: p.id,
+                                        name: p.name,
+                                        description: p.description,
+                                        usageUnit: p.usageUnit ?? null,
+                                      }))
+                                    );
+                                  } else {
                                     form.setValue(`items.${index}.productId`, null, {
                                       shouldValidate: true,
                                       shouldDirty: true,
                                     });
+                                    setProductOptions([]); // kosongkan kalau bukan PRODUCT / SERVICE
                                   }
                                 }}
                               >
                                 <FormControl>
-                                  <SelectTrigger>
+                                  <SelectTrigger
+                                    ref={(el) => {
+                                      itemTypeRefs.current[index] = el;
+                                    }}
+                                    className="focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                  >
                                     <SelectValue placeholder="Pilih tipe" />
                                   </SelectTrigger>
                                 </FormControl>
@@ -694,6 +696,8 @@ export function CreateSalesOrderForm({
                             </FormItem>
                           )}
                         />
+
+
                       </div>
 
                       {/* Pemilihan dari katalog (tampil untuk PRODUCT & SERVICE) */}
@@ -1001,12 +1005,17 @@ export function CreateSalesOrderForm({
                 </p>
               )}
             </CardContent>
-            <div ref={itemsEndRef} />
+
             <div className="flex items-center justify-end pt-1 pr-6">
               <Button
                 type="button"
                 size="sm"
+                className="relative overflow-hidden rounded-lg px-3 py-2 font-medium shadow-md transition-all duration-300 
+             bg-gradient-to-r from-sky-400 to-cyan-500 text-white hover:from-sky-500 hover:to-cyan-600
+             dark:from-emerald-400 dark:to-lime-500 dark:hover:from-emerald-500 dark:hover:to-lime-600
+             focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-400 dark:focus:ring-lime-400"
                 onClick={async () => {
+                  const newIndex = fields.length;
                   append({
                     itemType: "PRODUCT",
                     productId: null,
@@ -1020,26 +1029,25 @@ export function CreateSalesOrderForm({
                   if (window.innerWidth >= 768) {
                     setTimeout(scrollToBottom, 100)
                   }
-                  // Ambil itemType default untuk row baru
-                  const newItemType: "PRODUCT" | "SERVICE" | "CUSTOM" = "PRODUCT";
-
-                  // 1️⃣ Fetch products sesuai itemType baru
                   const accessToken = localStorage.getItem("accessToken");
-                  const { products } = await fetchAllProductsByType(accessToken ?? undefined, newItemType);
-
+                  const { products } = await fetchAllProductsByType(accessToken ?? undefined, "PRODUCT");
                   setProductOptions(products.map(p => ({
                     id: p.id,
                     name: p.name,
                     description: p.description,
                     usageUnit: p.usageUnit ?? null,
                   })));
+                  setTimeout(() => {
+                    itemTypeRefs.current[newIndex]?.focus();
+                  }, 200);
                 }}
               >
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Tambah Item
               </Button>
-            </div>
 
+            </div>
+            <div ref={itemsEndRef} />
           </Card>
 
           {/* Action Buttons */}

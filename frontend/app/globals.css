@@ -128,14 +128,48 @@ body,
   }
 }
 
+@layer base {
+  input,
+  textarea,
+  select,
+  button,
+  [role="combobox"] {
+    @apply outline-none transition duration-200;
+    @apply focus:outline-none focus:ring-2 focus:ring-offset-2;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2;
+  }
+
+  /* 🌞 Light mode → Neon biru */
+  :root input,
+  :root textarea,
+  :root select,
+  :root button,
+  :root [role="combobox"] {
+    @apply focus:ring-cyan-400 focus-visible:ring-cyan-400;
+  }
+
+  /* 🌙 Dark mode → Neon hijau */
+  .dark input,
+  .dark textarea,
+  .dark select,
+  .dark button,
+  .dark [role="combobox"] {
+    @apply focus:ring-lime-400 focus-visible:ring-lime-400;
+  }
+}
+
 /* Teks gradasi + sorot putih yang bergerak kanan-kiri */
-.shine-text{
-  display:inline-block;
-  font-weight:700;
-  color:transparent;
+.shine-text {
+  display: inline-block;
+  font-weight: 700;
+  color: transparent;
   /* lapis 1: sorot putih tipis | lapis 2: gradasi warna teks */
-  background-image:
-    linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.85) 50%, rgba(255,255,255,0) 100%),
+  background-image: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.85) 50%,
+      rgba(255, 255, 255, 0) 100%
+    ),
     linear-gradient(90deg, #6366f1, #a855f7, #ec4899); /* indigo → purple → pink */
   background-size: 20% 100%, 100% 100%;
   background-repeat: no-repeat, no-repeat;
@@ -147,11 +181,17 @@ body,
 
 /* Ping-pong: 0% di kiri → 100% di kanan → balik */
 @keyframes shine-move {
-  0%   { background-position: 0% 0%,   0% 0%; }
-  100% { background-position: 100% 0%, 0% 0%; }
+  0% {
+    background-position: 0% 0%, 0% 0%;
+  }
+  100% {
+    background-position: 100% 0%, 0% 0%;
+  }
 }
 
 /* Aksesibilitas: matikan animasi jika user prefer-reduced-motion */
 @media (prefers-reduced-motion: reduce) {
-  .shine-text { animation: none; }
+  .shine-text {
+    animation: none;
+  }
 }

@@ -24,6 +24,7 @@ router.get("/sales-orders/getById/:id", salesOrder.getById);
 
 // SO terakhir (berdasarkan soNumber di bulan berjalan)
 router.get("/sales-orders-last", salesOrder.getLastSalesOrder);
+router.get("/getMonthlySales", salesOrder.getMonthlySales);
 
 // Create SO (header + items + (optional) documents)
 router.post(

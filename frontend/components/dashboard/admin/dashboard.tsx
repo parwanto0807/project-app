@@ -1,14 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-// import { Progress } from "@/components/ui/progress";
-// import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import {
     AlertCircle,
     Building2,
@@ -27,9 +26,10 @@ import {
     MoreHorizontal,
     EyeOff,
     Eye,
+    BarChart3,
     //   Search
 } from "lucide-react";
-
+import { Separator } from "@/components/ui/separator";
 
 // =============================
 // KONFIGURASI API BACKEND
@@ -42,6 +42,7 @@ const ENDPOINTS = {
     salesOrderCount: `${API_BASE}/api/salesOrder/getSalesOrderCount`,
     recentSalesOrders: `${API_BASE}/api/salesOrder/getRecentSalesOrders?take=5&order=desc`,
     salesStats: `${API_BASE}/api/salesOrder/getSalesStats`,
+    monthlySales: `${API_BASE}/api/salesOrder/getMonthlySales?months=12`,
 };
 
 // =============================
@@ -77,6 +78,13 @@ interface SalesStats {
     pendingOrders: number;
     conversionRate: number;
     totalThisYear: number;
+}
+
+interface MonthlySalesData {
+    year: number;
+    month: number;
+    total: string;
+    orderCount?: number; // opsional jika ada
 }
 
 const toNumber = (v: unknown) => (typeof v === "number" && isFinite(v) ? v : parseFloat(String(v)) || 0);
@@ -141,6 +149,285 @@ function StatusBadge({ status }: { status: OrderStatus }) {
 }
 
 // =============================
+// KOMPONEN GRAFIK
+// =============================
+
+
+export function SalesChart({ data, loading }: { data: MonthlySalesData[]; loading: boolean }) {
+    const [isClient, setIsClient] = useState(false);
+    const [chartType, setChartType] = useState<"bar" | "line">("bar");
+    const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+    const [theme, setTheme] = useState<"blue" | "green" | "purple">("blue");
+    const chartRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
+
+    // Selalu ambil 6 bulan terakhir
+    const displayedData = data.slice(-6);
+
+    if (loading) {
+        return (
+            <div className="h-80 w-full flex items-center justify-center">
+                <div className="text-center">
+                    <Skeleton className="h-64 w-full mb-2" />
+                    <Skeleton className="h-4 w-32 mx-auto" />
+                </div>
+            </div>
+        );
+    }
+
+    if (!displayedData || displayedData.length === 0) {
+        return (
+            <div className="h-80 w-full flex flex-col items-center justify-center text-muted-foreground">
+                <BarChart3 className="h-12 w-12 mb-4 opacity-50" />
+                <p className="text-sm">Tidak ada data untuk ditampilkan</p>
+            </div>
+        );
+    }
+
+    // Tema warna
+    const themeColors = {
+        blue: {
+            bar: "linear-gradient(to top, #1d4ed8, #3b82f6, #60a5fa)",
+            barHover: "linear-gradient(to top, #3b82f6, #60a5fa, #93c5fd)",
+            dot: "bg-blue-500 ring-blue-300",
+            line: ["#1d4ed8", "#3b82f6", "#60a5fa"],
+        },
+        green: {
+            bar: "linear-gradient(to top, #166534, #22c55e, #86efac)",
+            barHover: "linear-gradient(to top, #22c55e, #4ade80, #86efac)",
+            dot: "bg-green-500 ring-green-300",
+            line: ["#166534", "#22c55e", "#86efac"],
+        },
+        purple: {
+            bar: "linear-gradient(to top, #6d28d9, #9333ea, #c084fc)",
+            barHover: "linear-gradient(to top, #9333ea, #c084fc, #e879f9)",
+            dot: "bg-purple-500 ring-purple-300",
+            line: ["#6d28d9", "#9333ea", "#c084fc"],
+        },
+    };
+
+    const labels = displayedData.map(item => {
+        const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Ags", "Sep", "Okt", "Nov", "Des"];
+        return `${monthNames[item.month - 1]} ${item.year}`;
+    });
+
+    const salesData = displayedData.map(item => parseFloat(item.total) || 0);
+    const maxSales = Math.max(...salesData);
+    const minSales = Math.min(...salesData);
+    const normalizedData = salesData.map(value => ((value - minSales) / (maxSales - minSales || 1)) * 100);
+
+    const getTooltipPosition = (index: number) => {
+        if (!chartRef.current) return {};
+        const chartWidth = chartRef.current.offsetWidth;
+        const itemWidth = chartWidth / displayedData.length;
+        const leftPosition = index * itemWidth + itemWidth / 2;
+        return { left: `${leftPosition}px`, transform: "translateX(-50%)" };
+    };
+
+    return (
+        <div className="w-full bg-white dark:bg-slate-900 rounded-lg shadow-md p-4 md:p-6 relative">
+            {/* Atas: controls + summary */}
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+                {/* Kiri: Select + Button */}
+                <div className="flex flex-wrap gap-2 items-center">
+                    <Select value={theme} onValueChange={(v: "blue" | "green" | "purple") => setTheme(v)}>
+                        <SelectTrigger className="h-8 w-28 text-xs">
+                            <SelectValue placeholder="Theme" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="blue">Blue</SelectItem>
+                            <SelectItem value="green">Green</SelectItem>
+                            <SelectItem value="purple">Purple</SelectItem>
+                        </SelectContent>
+                    </Select>
+
+                    <Button
+                        variant={chartType === "bar" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setChartType("bar")}
+                        className="h-8 text-xs"
+                    >
+                        Bar
+                    </Button>
+                    <Button
+                        variant={chartType === "line" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setChartType("line")}
+                        className="h-8 text-xs"
+                    >
+                        Line
+                    </Button>
+                </div>
+
+                {/* Kanan: Summary stats */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs w-full md:w-auto">
+                    <div className="text-center p-2 bg-slate-100 dark:bg-slate-800 rounded-md hover:dark:bg-slate-700">
+                        <div className="text-muted-foreground">Rata-rata</div>
+                        <div className="font-semibold">
+                            {formatIDR(salesData.reduce((sum, val) => sum + val, 0) / salesData.length)}
+                        </div>
+                    </div>
+                    <div className="text-center p-2 bg-slate-100 dark:bg-slate-800 rounded-md hover:dark:bg-slate-700">
+                        <div className="text-muted-foreground">Tertinggi</div>
+                        <div className="font-semibold">{formatIDR(maxSales)}</div>
+                    </div>
+                    <div className="text-center p-2 bg-slate-100 dark:bg-slate-800 rounded-md hover:dark:bg-slate-700 col-span-2 sm:col-span-1">
+                        <div className="text-muted-foreground">Total</div>
+                        <div className="font-semibold">
+                            {formatIDR(salesData.reduce((sum, val) => sum + val, 0))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="h-64 relative" ref={chartRef} onMouseLeave={() => setHoveredIndex(null)}>
+                {/* Tooltip */}
+                {hoveredIndex !== null && (
+                    <div
+                        className="absolute text-xs py-2 px-3 rounded-lg shadow-xl z-20 
+         bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 
+         text-white backdrop-blur-md
+         transform transition-all duration-300 ease-out
+         animate-in fade-in-0 zoom-in-95"
+                        style={{
+                            bottom: `calc(${normalizedData[hoveredIndex]}% + 50px)`,
+                            ...getTooltipPosition(hoveredIndex),
+                        }}
+                    >
+                        <div className="font-bold text-sm drop-shadow-sm">
+                            {formatIDR(salesData[hoveredIndex])}
+                        </div>
+                        <div className="text-slate-100 opacity-90">
+                            {labels[hoveredIndex]}
+                        </div>
+                    </div>
+                )}
+
+
+                {/* Chart content */}
+                <div className="absolute inset-0 flex items-end justify-between px-1 sm:px-2 pb-8">
+                    {/* Bar / Line Loop */}
+                    {displayedData.map((item, index) => {
+                        const height = normalizedData[index];
+                        const value = salesData[index];
+                        const isHovered = hoveredIndex === index;
+
+                        return (
+                            <div
+                                key={index}
+                                className="flex flex-col items-center h-full relative group"
+                                style={{ width: `${100 / displayedData.length}%` }}
+                                onMouseEnter={() => setHoveredIndex(index)}
+                            >
+                                <div className="h-full flex items-end justify-center w-full">
+                                    <div
+                                        className={`
+                w-2/3 sm:w-3/4 flex items-end justify-center relative
+                ${chartType === "bar" ? "rounded-t-md transition-all duration-300" : ""}
+                ${isHovered ? "scale-110 z-10" : ""}
+              `}
+                                        style={{
+                                            height: `${height}%`,
+                                            background:
+                                                chartType === "bar"
+                                                    ? isHovered
+                                                        ? themeColors[theme].barHover
+                                                        : themeColors[theme].bar
+                                                    : "transparent",
+                                        }}
+                                    >
+                                        {chartType === "line" && (
+                                            <div
+                                                className={`w-3 h-3 rounded-full transition-all duration-300 ${themeColors[theme].dot} ${isHovered ? "scale-150 ring-4" : ""
+                                                    }`}
+                                            ></div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Value label */}
+                                <div
+                                    className={`mt-1 text-[10px] sm:text-xs text-center font-medium transition-all duration-300 ${isHovered ? "opacity-100 text-blue-600 dark:text-blue-400" : "opacity-0"
+                                        }`}
+                                >
+                                    {formatIDR(value)}
+                                </div>
+                            </div>
+                        );
+                    })}
+
+
+                    {/* Line Chart */}
+                    {chartType === "line" && isClient && (
+                        <svg
+                            className="absolute inset-0 w-full h-full"
+                            viewBox="0 0 100 100"
+                            preserveAspectRatio="none"
+                            style={{ pointerEvents: "none" }}
+                        >
+                            <polyline
+                                fill="none"
+                                stroke={`url(#lineGradient-${theme})`}
+                                strokeWidth="1"
+                                strokeLinecap="round"
+                                points={displayedData
+                                    .map((_, index) => {
+                                        const x = (index / (displayedData.length - 1)) * 100;
+                                        const y = 100 - normalizedData[index];
+                                        return `${x},${y}`;
+                                    })
+                                    .join(" ")}
+                            />
+                            <defs>
+                                <linearGradient id={`lineGradient-${theme}`} x1="0%" y1="0%" x2="100%" y2="0%">
+                                    {themeColors[theme].line.map((c, i) => (
+                                        <stop
+                                            key={i}
+                                            offset={`${(i / (themeColors[theme].line.length - 1)) * 100}%`}
+                                            stopColor={c}
+                                        />
+                                    ))}
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                    )}
+                </div>
+
+                {/* Label bulan/tahun */}
+                {/* X-axis labels */}
+                <div className="absolute bottom-0 left-0 right-0 flex justify-between px-1 sm:px-2 text-[10px] sm:text-xs font-medium">
+                    {labels.map((label, index) => (
+                        <div
+                            key={index}
+                            className="w-full text-center text-transparent bg-clip-text 
+          bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 drop-shadow-sm"
+                        >
+                            {label}
+                        </div>
+                    ))}
+                    <div className="absolute bottom-5 left-6 sm:left-10 right-0 border-t border-dashed border-slate-400 dark:border-slate-600"></div>
+                </div>
+
+                {/* Y-axis labels */}
+                <div className="absolute left-0 top-0 h-full flex flex-col justify-between py-2 text-[10px] sm:text-xs font-bold">
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-green-500 drop-shadow-sm">
+                        {formatIDR(maxSales)}
+                    </span>
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-pink-500 drop-shadow-sm">
+                        {formatIDR(minSales)}
+                    </span>
+                    <div className="absolute top-0 bottom-5 left-6 sm:left-10 border-l border-dashed border-slate-400 dark:border-slate-600"></div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+
+// =============================
 // KOMPONEN HALAMAN DASHBOARD
 // =============================
 export default function DashboardAwalSalesOrder() {
@@ -153,6 +440,7 @@ export default function DashboardAwalSalesOrder() {
     const [salesOrderCount, setSalesOrderCount] = useState<number | null>(null);
     const [recentOrders, setRecentOrders] = useState<SalesOrderMini[]>([]);
     const [salesStats, setSalesStats] = useState<SalesStats | null>(null);
+    const [monthlySales, setMonthlySales] = useState<MonthlySalesData[]>([]);
 
     const now = new Date()
     const monthName = now.toLocaleString("id-ID", { month: "long" }) // contoh: September
@@ -187,22 +475,24 @@ export default function DashboardAwalSalesOrder() {
             setLoading(true);
             setError(null);
             try {
-                const [cst, prd, so, list] = await Promise.all([
+                const [cst, prd, so, list, monthly] = await Promise.all([
                     fetch(ENDPOINTS.customerCount, { credentials: "include" }),
                     fetch(ENDPOINTS.productCount, { credentials: "include" }),
                     fetch(ENDPOINTS.salesOrderCount, { credentials: "include" }),
                     fetch(ENDPOINTS.recentSalesOrders, { credentials: "include" }),
+                    fetch(ENDPOINTS.monthlySales, { credentials: "include" }),
                 ]);
 
                 if (!cst.ok || !prd.ok || !so.ok || !list.ok) {
                     throw new Error("Gagal memuat data dashboard. Periksa endpoint backend.");
                 }
 
-                const [cstJson, prdJson, soJson, listJsonRaw] = await Promise.all([
+                const [cstJson, prdJson, soJson, listJsonRaw, monthlyJson] = await Promise.all([
                     cst.json() as Promise<CountResponse>,
                     prd.json() as Promise<CountResponse>,
                     so.json() as Promise<CountResponse>,
                     list.json() as Promise<{ data: SalesOrderMini[] } | SalesOrderMini[]>,
+                    monthly.json() as Promise<MonthlySalesData[] | { data: MonthlySalesData[] }>,
                 ]);
 
                 const statsJson = await loadSalesStats();
@@ -214,6 +504,15 @@ export default function DashboardAwalSalesOrder() {
                 setSalesOrderCount(soJson.count);
                 setRecentOrders(Array.isArray(listJsonRaw) ? listJsonRaw : listJsonRaw.data);
                 setSalesStats(statsJson);
+
+                // Handle monthly sales data response format
+                let monthlyData: MonthlySalesData[] = [];
+                if (Array.isArray(monthlyJson)) {
+                    monthlyData = monthlyJson;
+                } else if (monthlyJson && typeof monthlyJson === 'object' && 'data' in monthlyJson) {
+                    monthlyData = (monthlyJson as { data: MonthlySalesData[] }).data;
+                }
+                setMonthlySales(monthlyData);
             } catch (e: unknown) {
                 if (cancelled) return;
                 console.error(e);
@@ -262,17 +561,6 @@ export default function DashboardAwalSalesOrder() {
                     </Button>
                 </div>
             </div>
-
-            {/* Tabs Navigation */}
-            {/* <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
-        <TabsList className="grid w-full grid-cols-3 lg:grid-cols-5 max-w-md">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="orders">Orders</TabsTrigger>
-          <TabsTrigger value="customers">Customers</TabsTrigger>
-          <TabsTrigger value="products">Products</TabsTrigger>
-          <TabsTrigger value="reports">Reports</TabsTrigger>
-        </TabsList>
-      </Tabs> */}
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
@@ -339,7 +627,7 @@ export default function DashboardAwalSalesOrder() {
                             </div>
                         </div>
                     </CardHeader>
-                    <CardContent className="p-0">
+                    <CardContent className="pb-0">
                         {loading ? (
                             <RecentTableSkeleton />
                         ) : error ? (
@@ -394,14 +682,21 @@ export default function DashboardAwalSalesOrder() {
                             </div>
                         )}
                     </CardContent>
-                    <CardFooter className="flex justify-between border-t p-3">
-                        <div className="text-xs text-muted-foreground">
-                            Menampilkan {recentOrders.length} dari {salesOrderCount} orders
-                        </div>
-                        <Button variant="outline" size="sm" className="text-xs">
-                            Lihat Semua Order
-                        </Button>
-                    </CardFooter>
+                    <Separator />
+
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-base md:text-lg flex items-center gap-2">
+                            <BarChart3 className="h-5 w-5 text-blue-600" />
+                            Grafik Sales Order 6 Bulan Terakhir
+                        </CardTitle>
+                        <CardDescription className="text-xs md:text-sm">
+                            Trend nilai sales order dalam 6 bulan terakhir
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <SalesChart data={monthlySales} loading={loading} />
+                    </CardContent>
+
                 </Card>
 
                 {/* Sidebar - Quick Actions & Stats */}
@@ -498,13 +793,6 @@ export default function DashboardAwalSalesOrder() {
                                             </div>
                                         </div>
                                     </div>
-                                    {/* <div className="pt-2">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-xs text-muted-foreground">Target Penjualan</span>
-                      <span className="text-xs font-semibold">75%</span>
-                    </div>
-                    <Progress value={75} className="h-2" />
-                  </div> */}
                                 </>
                             ) : (
                                 <div className="text-xs md:text-sm text-muted-foreground">Data tidak tersedia</div>
@@ -537,6 +825,24 @@ export default function DashboardAwalSalesOrder() {
                     </Card>
                 </div>
             </div>
+
+            {/* Sales Chart Section - Placed below the recent orders table */}
+            {/* <div className="mt-6">
+                <Card className="shadow-sm border">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="text-base md:text-lg flex items-center gap-2">
+                            <BarChart3 className="h-5 w-5 text-blue-600" />
+                            Grafik Sales Order 12 Bulan Terakhir
+                        </CardTitle>
+                        <CardDescription className="text-xs md:text-sm">
+                            Trend nilai sales order dalam 12 bulan terakhir
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <SalesChart data={monthlySales} loading={loading} />
+                    </CardContent>
+                </Card>
+            </div> */}
         </div>
     );
 }
