@@ -47,7 +47,7 @@ export default function DashboardPage() {
           <BreadcrumbList>
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link href="/admin" className="flex items-center gap-1.5 sm:gap-2 pl-2">
+                <Link href="/admin-area" className="flex items-center gap-1.5 sm:gap-2 pl-2">
                   <Home className="h-4 w-4 text-gray-500 sm:h-4 sm:w-4" />
                   <span className="text-sm sm:text-base">Home</span>
                 </Link>
