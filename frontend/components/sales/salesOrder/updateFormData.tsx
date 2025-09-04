@@ -21,7 +21,7 @@ import { toast } from "sonner"
 import { createSalesOrderSchema } from "@/schemas/index";
 import { updateSalesOrderAPI } from "@/lib/action/sales/salesOrder"
 import { fetchAllProjects } from "@/lib/action/master/project";
-import { fetchAllProducts } from "@/lib/action/master/product";
+import { fetchAllProductsByType } from "@/lib/action/master/product";
 import { ApiProductSchema } from "@/schemas/index";
 
 import { Button } from "@/components/ui/button"
@@ -109,6 +109,13 @@ export function UpdateSalesOrderForm({
     const [productOptions, setProductOptions] = React.useState<ProductOption[]>([]);
     const [projectOptions, setProjectOptions] = React.useState<Project[]>([]);
     const [loadingProjects, setLoadingProjects] = React.useState(false);
+    const itemsEndRef = React.useRef<HTMLDivElement | null>(null);
+    const scrollToBottom = () => {
+        itemsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+    const [selectedApiType, setSelectedApiType] = React.useState<
+        "PRODUCT" | "SERVICE" | "CUSTOM" | undefined
+    >("PRODUCT");
 
     React.useEffect(() => { setCustomerOptions(customers); }, [customers]);
 
@@ -151,7 +158,7 @@ export function UpdateSalesOrderForm({
         (async () => {
             try {
                 const accessToken = localStorage.getItem("accessToken"); // contoh ambil dari localStorage
-                const { products } = await fetchAllProducts(accessToken ?? undefined); // ✅ kirim token
+                const { products } = await fetchAllProductsByType(accessToken ?? undefined, selectedApiType); // ✅ kirim token
 
                 setProductOptions(
                     products.map((p: ApiProduct): ProductOption => ({
@@ -166,7 +173,7 @@ export function UpdateSalesOrderForm({
                 toast.error("Gagal memuat data produk");
             }
         })();
-    }, []);
+    }, [selectedApiType]);
 
     // Fetch projects
     React.useEffect(() => {
@@ -504,26 +511,7 @@ export function UpdateSalesOrderForm({
                                         Daftar produk atau jasa yang dipesan
                                     </CardDescription>
                                 </div>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                        append({
-                                            itemType: "PRODUCT",
-                                            productId: null, // Default null, akan diisi jika PRODUCT/SERVICE
-                                            name: "",
-                                            description: "",
-                                            qty: 1,
-                                            unitPrice: 0,
-                                            discount: 0,
-                                            taxRate: 0,
-                                        })
-                                    }
-                                >
-                                    <PlusCircle className="mr-2 h-4 w-4" />
-                                    Tambah Item
-                                </Button>
+
                             </div>
                         </CardHeader>
                         <CardContent className="space-y-4">
@@ -583,10 +571,12 @@ export function UpdateSalesOrderForm({
                                                         <FormItem>
                                                             <FormLabel>Tipe Item</FormLabel>
                                                             <Select
-                                                                value={field.value}
-                                                                onValueChange={(next) => {
+                                                                value={field.value ?? "PRODUCT"}
+                                                                onValueChange={async (next: "PRODUCT" | "SERVICE" | "CUSTOM") => {
                                                                     field.onChange(next);
 
+                                                                    // update state juga kalau mau dipakai global
+                                                                    setSelectedApiType(next);
                                                                     if (next === "CUSTOM") {
                                                                         form.setValue(`items.${index}.productId`, null, {
                                                                             shouldValidate: true,
@@ -841,6 +831,41 @@ export function UpdateSalesOrderForm({
                                 </p>
                             )}
                         </CardContent>
+                        <div className="flex items-center justify-end pt-1 pr-6">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="relative overflow-hidden rounded-lg px-3 py-2 font-medium shadow-md transition-all duration-300 
+    bg-gradient-to-r from-sky-400 to-cyan-500 text-white hover:from-sky-500 hover:to-cyan-600
+    dark:from-emerald-400 dark:to-lime-500 dark:hover:from-emerald-500 dark:hover:to-lime-600
+    focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-400 dark:focus:ring-lime-400"
+                                onClick={() => {
+                                    // Tambah item
+                                    append({
+                                        itemType: "PRODUCT",
+                                        productId: null, // Default null, akan diisi jika PRODUCT/SERVICE
+                                        name: "",
+                                        description: "",
+                                        qty: 1,
+                                        unitPrice: 0,
+                                        discount: 0,
+                                        taxRate: 0,
+                                    });
+
+                                    // Scroll ke bawah jika layar >= 768px
+                                    if (window.innerWidth >= 768) {
+                                        setTimeout(scrollToBottom, 100);
+                                    }
+                                }}
+                            >
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Tambah Item
+                            </Button>
+
+                            {/* Elemen target scroll */}
+                            <div ref={itemsEndRef} />
+                        </div>
                     </Card>
 
                     {/* Action Buttons */}

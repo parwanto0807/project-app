@@ -1036,6 +1036,10 @@ export function CreateSalesOrderForm({
                     name: p.name,
                     description: p.description,
                     usageUnit: p.usageUnit ?? null,
+                    qty: 1,
+                    unitPrice: 0,
+                    discount: 0,
+                    taxRate: 0,
                   })));
                   setTimeout(() => {
                     itemTypeRefs.current[newIndex]?.focus();
