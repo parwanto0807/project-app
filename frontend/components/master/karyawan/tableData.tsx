@@ -28,7 +28,7 @@ import {
   ChevronUp,
   ChevronLeft,
   ChevronRight,
-  Filter,
+  // Filter,
   User,
   Briefcase,
   Building,
@@ -39,6 +39,8 @@ import {
   Phone,
   Mail,
   Calendar,
+  // ImageIcon,
+  ChevronsUpDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +52,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { makeImageSrc } from "@/utils/makeImageSrc";
+
 
 interface TeamKaryawan {
   id: string;
@@ -67,6 +72,7 @@ interface Karyawan {
   email?: string;
   tanggalBergabung?: string;
   noTelepon?: string;
+  foto?: string;
 }
 
 interface EmployeeTableProps {
@@ -88,10 +94,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
   const [sortConfig, setSortConfig] = useState<{ key: SortableKey; direction: 'asc' | 'desc' } | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<string>("all");
-
-  console.log("Role", role);
-  // console.log("Data Karyawan", karyawan);
-
+  console.log("Role", role)
   // Filter and sort data
   const filteredAndSortedData = useMemo(() => {
     const filteredData = karyawan.filter((item) => {
@@ -107,7 +110,6 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
     });
 
     if (sortConfig !== null) {
-      // Create a new array to avoid mutating the original
       const sortedData = [...filteredData].sort((a, b) => {
         let aValue: string;
         let bValue: string;
@@ -116,7 +118,6 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
           aValue = a.teamKaryawan.map(tk => tk.team.namaTeam).join(', ');
           bValue = b.teamKaryawan.map(tk => tk.team.namaTeam).join(', ');
         } else {
-          // For other keys, ensure we're working with strings
           aValue = String(a[sortConfig.key] || '');
           bValue = String(b[sortConfig.key] || '');
         }
@@ -161,12 +162,21 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
     setExpandedRows(newExpandedRows);
   };
 
+  // Handle row click
+  const handleRowClick = (id: string, e: React.MouseEvent) => {
+    // Prevent expansion when clicking on actions (dropdown menu)
+    if ((e.target as HTMLElement).closest('button, a, [role="menuitem"]')) {
+      return;
+    }
+    toggleRowExpansion(id);
+  };
+
   // Get sort icon
   const getSortIcon = (key: SortableKey) => {
     if (sortConfig && sortConfig.key === key) {
       return sortConfig.direction === 'asc' ? <ChevronUp size={16} /> : <ChevronDown size={16} />;
     }
-    return <Filter size={16} className="text-gray-400" />;
+    return <ChevronsUpDown size={16} className="text-gray-400" />;
   };
 
   // Get status badge
@@ -181,14 +191,35 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
     }
   };
 
+  // Get avatar fallback initials
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
+  };
+
   // Mobile card view for employee
   const EmployeeCard = ({ employee }: { employee: Karyawan }) => {
     const isExpanded = expandedRows.has(employee.id);
 
     return (
-      <Card className="mb-4 overflow-hidden">
+      <Card className="mb-4 overflow-hidden border border-gray-200 dark:border-gray-700">
         <div className="p-4">
-          <div className="flex justify-between items-start">
+          <div className="flex items-start gap-3">
+            <Avatar className="h-10 w-10 border">
+              <AvatarImage
+                src={makeImageSrc(employee.foto)}
+                alt={employee.namaLengkap}
+                crossOrigin="anonymous"
+              />
+              <AvatarFallback className="bg-blue-100 text-blue-800">
+                {getInitials(employee.namaLengkap)}
+              </AvatarFallback>
+            </Avatar>
+
             <div className="flex-1">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-semibold text-lg">{employee.namaLengkap}</h3>
@@ -228,7 +259,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-8 w-8 p-0">
+                <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
                   <MoreVertical size={16} />
                 </Button>
               </DropdownMenuTrigger>
@@ -243,6 +274,17 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                     <FileDigit size={16} className="text-green-500" /> Detail
                   </Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => toggleRowExpansion(employee.id)} className="flex items-center gap-2 cursor-pointer">
+                  {isExpanded ? (
+                    <>
+                      <ChevronUp size={16} className="text-purple-500" /> Sembunyikan Detail
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown size={16} className="text-purple-500" /> Lihat Detail
+                    </>
+                  )}
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -250,7 +292,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
           <Button
             variant="ghost"
             size="sm"
-            className="w-full mt-3 flex items-center justify-center gap-1"
+            className="w-full mt-3 flex items-center justify-center gap-1 bg-blue-50 hover:bg-blue-100 text-blue-700"
             onClick={() => toggleRowExpansion(employee.id)}
           >
             {isExpanded ? (
@@ -266,39 +308,57 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
         </div>
 
         {isExpanded && (
-          <div className="bg-blue-50 p-4 border-t">
-            <div className="grid grid-cols-1 gap-4">
-              <div className="space-y-2">
-                <h4 className="font-semibold text-sm flex items-center gap-2">
+          <div className="bg-blue-50 dark:bg-blue-900/20 p-4 border-t">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-3">
+                <h4 className="font-semibold text-sm flex items-center gap-2 text-blue-700 dark:text-blue-300">
                   <User size={16} className="text-blue-500" />
                   Informasi Pribadi
                 </h4>
                 <div className="text-sm space-y-2">
                   {employee.noTelepon && (
-                    <div className="flex items-center gap-2">
-                      <Phone size={14} className="text-gray-500" />
+                    <div className="flex items-center gap-2 p-2 bg-white dark:bg-gray-800 rounded-md">
+                      <Phone size={14} className="text-blue-500" />
+                      <span className="font-medium">Telepon:</span>
                       <span>{employee.noTelepon}</span>
                     </div>
                   )}
                   {employee.email && (
-                    <div className="flex items-center gap-2">
-                      <Mail size={14} className="text-gray-500" />
+                    <div className="flex items-center gap-2 p-2 bg-white dark:bg-gray-800 rounded-md">
+                      <Mail size={14} className="text-blue-500" />
+                      <span className="font-medium">Email:</span>
                       <span className="truncate">{employee.email}</span>
                     </div>
                   )}
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <h4 className="font-semibold text-sm flex items-center gap-2">
+              <div className="space-y-3">
+                <h4 className="font-semibold text-sm flex items-center gap-2 text-blue-700 dark:text-blue-300">
                   <Briefcase size={16} className="text-blue-500" />
                   Informasi Pekerjaan
                 </h4>
-                <div className="text-sm">
+                <div className="text-sm space-y-2">
                   {employee.tanggalBergabung && (
-                    <div className="flex items-center gap-2">
-                      <Calendar size={14} className="text-gray-500" />
-                      <span>Bergabung: {employee.tanggalBergabung}</span>
+                    <div className="flex items-center gap-2 p-2 bg-white dark:bg-gray-800 rounded-md">
+                      <Calendar size={14} className="text-blue-500" />
+                      <span className="font-medium">Bergabung:</span>
+                      <span>{employee.tanggalBergabung}</span>
+                    </div>
+                  )}
+                  {employee.teamKaryawan.length > 0 && (
+                    <div className="p-2 bg-white dark:bg-gray-800 rounded-md">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Users size={14} className="text-blue-500" />
+                        <span className="font-medium">Team:</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {employee.teamKaryawan.map((tk, index) => (
+                          <Badge key={index} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                            {tk.team.namaTeam}
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -314,7 +374,8 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
   const MobileSkeleton = () => (
     <Card className="mb-4 overflow-hidden">
       <div className="p-4">
-        <div className="flex justify-between items-start mb-3">
+        <div className="flex items-start gap-3 mb-3">
+          <Skeleton className="h-12 w-12 rounded-full" />
           <div className="flex-1 space-y-2">
             <Skeleton className="h-6 w-3/4" />
             <Skeleton className="h-4 w-1/2" />
@@ -332,8 +393,8 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
   );
 
   return (
-    <Card className="rounded-t-2xl border bg-white dark:bg-gray-800 shadow-sm dark:border-gray-700 overflow-hidden">
-      <CardContent className="p-2 md:p-4">
+    <Card className="rounded-xl border bg-white dark:bg-gray-800 shadow-sm dark:border-gray-700 overflow-hidden">
+      <CardContent className="p-4 md:p-6">
         {/* Search and Filter Section */}
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <div className="relative flex-1">
@@ -371,12 +432,11 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
         </div>
 
         {/* Desktop Table View (hidden on mobile) */}
-        <div className="hidden md:block rounded-md border overflow-hidden">
+        <div className="hidden md:block rounded-lg border overflow-hidden">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader className="bg-gray-50 dark:bg-gray-700">
                 <TableRow>
-                  <TableHead className="w-12"></TableHead>
                   <TableHead
                     className="cursor-pointer hover:bg-gray-200 hover:dark:bg-gray-600"
                     onClick={() => handleSort('nik')}
@@ -456,42 +516,58 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                   : currentItems.length > 0
                     ? currentItems.map((item) => (
                       <React.Fragment key={item.id}>
-                        <TableRow className="hover:bg-gray-700 group">
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => toggleRowExpansion(item.id)}
-                              className="h-8 w-8"
-                            >
-                              {expandedRows.has(item.id) ? (
-                                <ChevronUp size={16} />
-                              ) : (
-                                <ChevronDown size={16} />
-                              )}
-                            </Button>
-                          </TableCell>
+                        <TableRow
+                          className={`hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer ${expandedRows.has(item.id) ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
+                          onClick={(e) => handleRowClick(item.id, e)}
+                        >
                           <TableCell className="font-medium">{item.nik}</TableCell>
                           <TableCell>
-                            <div className="font-semibold">{item.namaLengkap}</div>
-                            {item.email && (
-                              <div className="text-sm text-gray-500 truncate max-w-[150px]">
-                                {item.email}
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-10 w-10 border">
+                                <AvatarImage
+                                  src={makeImageSrc(item.foto)}
+                                  alt={item.namaLengkap}
+                                  crossOrigin="anonymous"
+                                />
+                                <AvatarFallback className="bg-blue-100 text-blue-800">
+                                  {getInitials(item.namaLengkap)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <div className="font-semibold">{item.namaLengkap}</div>
+                                {item.email && (
+                                  <div className="text-sm text-gray-500 truncate max-w-[150px]">
+                                    {item.email}
+                                  </div>
+                                )}
                               </div>
-                            )}
+                            </div>
                           </TableCell>
                           <TableCell>{item.jabatan}</TableCell>
                           <TableCell>{item.departemen || "-"}</TableCell>
                           <TableCell>{getStatusBadge(item.statusKerja)}</TableCell>
                           <TableCell>
                             {item.teamKaryawan.length > 0
-                              ? item.teamKaryawan.map((tk) => tk.team.namaTeam).join(", ")
+                              ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {item.teamKaryawan.slice(0, 2).map((tk, index) => (
+                                    <Badge key={index} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                      {tk.team.namaTeam}
+                                    </Badge>
+                                  ))}
+                                  {item.teamKaryawan.length > 2 && (
+                                    <Badge variant="outline" className="text-xs">
+                                      +{item.teamKaryawan.length - 2}
+                                    </Badge>
+                                  )}
+                                </div>
+                              )
                               : "-"}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="text-right">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
                                   <MoreVertical size={16} />
                                 </Button>
                               </DropdownMenuTrigger>
@@ -506,73 +582,110 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                                     <FileDigit size={16} className="text-green-500" /> Detail
                                   </Link>
                                 </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => toggleRowExpansion(item.id)} className="flex items-center gap-2 cursor-pointer">
+                                  {expandedRows.has(item.id) ? (
+                                    <>
+                                      <ChevronUp size={16} className="text-purple-500" /> Sembunyikan Detail
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ChevronDown size={16} className="text-purple-500" /> Lihat Detail
+                                    </>
+                                  )}
+                                </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </TableCell>
                         </TableRow>
                         {expandedRows.has(item.id) && (
-                          <TableRow className="bg-gray-900">
-                            <TableCell colSpan={8}>
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
-                                <div className="space-y-2">
-                                  <h4 className="font-semibold text-sm flex items-center gap-2">
-                                    <User size={16} className="text-blue-500" />
+                          <TableRow className="bg-blue-50 dark:bg-blue-900/20">
+                            <TableCell colSpan={8} className="p-0">
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-6">
+                                <div className="space-y-4">
+                                  <h4 className="font-semibold text-lg flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                                    <User size={20} className="text-blue-500" />
                                     Informasi Pribadi
                                   </h4>
-                                  <div className="text-sm">
-                                    <div className="flex justify-between py-1 border-b">
-                                      <span className="text-gray-500">NIK:</span>
+                                  <div className="space-y-3">
+                                    <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded-lg">
+                                      <span className="text-gray-500 flex items-center gap-2">
+                                        <User size={16} className="text-blue-500" />
+                                        NIK:
+                                      </span>
                                       <span className="font-medium">{item.nik}</span>
                                     </div>
-                                    <div className="flex justify-between py-1 border-b">
-                                      <span className="text-gray-500">Telepon:</span>
+                                    <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded-lg">
+                                      <span className="text-gray-500 flex items-center gap-2">
+                                        <Phone size={16} className="text-blue-500" />
+                                        Telepon:
+                                      </span>
                                       <span className="font-medium">{item.noTelepon || "-"}</span>
                                     </div>
-                                    <div className="flex justify-between py-1 border-b">
-                                      <span className="text-gray-500">Email:</span>
+                                    <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded-lg">
+                                      <span className="text-gray-500 flex items-center gap-2">
+                                        <Mail size={16} className="text-blue-500" />
+                                        Email:
+                                      </span>
                                       <span className="font-medium">{item.email || "-"}</span>
                                     </div>
                                   </div>
                                 </div>
 
-                                <div className="space-y-2">
-                                  <h4 className="font-semibold text-sm flex items-center gap-2">
-                                    <Briefcase size={16} className="text-blue-500" />
+                                <div className="space-y-4">
+                                  <h4 className="font-semibold text-lg flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                                    <Briefcase size={20} className="text-blue-500" />
                                     Informasi Pekerjaan
                                   </h4>
-                                  <div className="text-sm">
-                                    <div className="flex justify-between py-1 border-b">
-                                      <span className="text-gray-500">Jabatan:</span>
+                                  <div className="space-y-3">
+                                    <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded-lg">
+                                      <span className="text-gray-500 flex items-center gap-2">
+                                        <Briefcase size={16} className="text-blue-500" />
+                                        Jabatan:
+                                      </span>
                                       <span className="font-medium">{item.jabatan}</span>
                                     </div>
-                                    <div className="flex justify-between py-1 border-b">
-                                      <span className="text-gray-500">Departemen:</span>
+                                    <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded-lg">
+                                      <span className="text-gray-500 flex items-center gap-2">
+                                        <Building size={16} className="text-blue-500" />
+                                        Departemen:
+                                      </span>
                                       <span className="font-medium">{item.departemen || "-"}</span>
                                     </div>
-                                    <div className="flex justify-between py-1 border-b">
-                                      <span className="text-gray-500">Bergabung:</span>
+                                    <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded-lg">
+                                      <span className="text-gray-500 flex items-center gap-2">
+                                        <Calendar size={16} className="text-blue-500" />
+                                        Bergabung:
+                                      </span>
                                       <span className="font-medium">{item.tanggalBergabung || "-"}</span>
                                     </div>
                                   </div>
                                 </div>
 
-                                <div className="space-y-2">
-                                  <h4 className="font-semibold text-sm flex items-center gap-2">
-                                    <Users size={16} className="text-blue-500" />
+                                <div className="space-y-4">
+                                  <h4 className="font-semibold text-lg flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                                    <Users size={20} className="text-blue-500" />
                                     Team
                                   </h4>
-                                  <div className="text-sm">
+                                  <div className="p-3 bg-white dark:bg-gray-800 rounded-lg">
                                     {item.teamKaryawan.length > 0 ? (
-                                      <ul className="list-disc list-inside">
+                                      <div className="flex flex-wrap gap-2">
                                         {item.teamKaryawan.map((tk, index) => (
-                                          <li key={index} className="py-1 border-b">
+                                          <Badge key={index} className="bg-blue-100 text-blue-800 hover:bg-blue-200 border-blue-200">
                                             {tk.team.namaTeam}
-                                          </li>
+                                          </Badge>
                                         ))}
-                                      </ul>
+                                      </div>
                                     ) : (
-                                      <p className="text-gray-500">Tidak ada team</p>
+                                      <p className="text-gray-500 text-center py-2">Tidak ada team</p>
                                     )}
+                                  </div>
+
+                                  <h4 className="font-semibold text-lg flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                                    <CheckCircle size={20} className="text-blue-500" />
+                                    Status
+                                  </h4>
+                                  <div className="p-3 bg-white dark:bg-gray-800 rounded-lg flex justify-center">
+                                    {getStatusBadge(item.statusKerja)}
                                   </div>
                                 </div>
                               </div>
@@ -583,10 +696,10 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                     ))
                     : (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                        <TableCell colSpan={8} className="text-center py-12 text-gray-500">
                           <div className="flex flex-col items-center justify-center">
-                            <Search size={48} className="text-gray-300 mb-4" />
-                            <p className="text-lg font-medium">Tidak ada data yang ditemukan</p>
+                            <Search size={64} className="text-gray-300 mb-4" />
+                            <p className="text-lg font-medium mb-2">Tidak ada data yang ditemukan</p>
                             <p className="text-sm">Coba ubah kata kunci pencarian atau filter</p>
                           </div>
                         </TableCell>
@@ -604,10 +717,10 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
             : currentItems.length > 0
               ? currentItems.map((item) => <EmployeeCard key={item.id} employee={item} />)
               : (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-12 text-gray-500">
                   <div className="flex flex-col items-center justify-center">
-                    <Search size={48} className="text-gray-300 mb-4" />
-                    <p className="text-lg font-medium">Tidak ada data yang ditemukan</p>
+                    <Search size={64} className="text-gray-300 mb-4" />
+                    <p className="text-lg font-medium mb-2">Tidak ada data yang ditemukan</p>
                     <p className="text-sm">Coba ubah kata kunci pencarian atau filter</p>
                   </div>
                 </div>

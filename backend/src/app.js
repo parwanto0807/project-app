@@ -24,6 +24,17 @@ app.use(helmet());
 // app.use('/images', express.static(path.join(process.cwd(), 'public', 'images')));
 // Expose public folder
 app.use("/images", express.static(path.join(process.cwd(), "public/images")));
+// Serve static files dengan CORS headers
+// app.use(
+//   "/images",
+//   express.static(path.join(__dirname, "public", "images"), {
+//     setHeaders: (res, path) => {
+//       res.set("Access-Control-Allow-Origin", CLIENT_URL);
+//       res.set("Cross-Origin-Resource-Policy", "cross-origin");
+//       res.set("Access-Control-Allow-Credentials", "true");
+//     },
+//   })
+// );
 
 // CORS Configuration
 const allowedOrigins = [
@@ -31,7 +42,6 @@ const allowedOrigins = [
   "https://rylif-app.com",
   "https://www.rylif-app.com",
 ];
-
 
 app.use(
   cors({

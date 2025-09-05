@@ -26,7 +26,7 @@ const router = express.Router();
 /* ----------------------------- MULTER CONFIG ----------------------------- */
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, path.join(process.cwd(), "public/images")); // simpan di public/images
+    cb(null, path.join(process.cwd(), "public/images/employee")); // simpan di public/images
   },
   filename: function (req, file, cb) {
     const uniqueSuffix =

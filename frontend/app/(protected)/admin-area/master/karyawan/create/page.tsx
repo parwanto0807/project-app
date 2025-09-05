@@ -54,7 +54,7 @@ export default function CreateKaryawanPageAdmin() {
           <BreadcrumbSeparator />
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
-              <Link href="/admin-area/master/customers">Employee List</Link>
+              <Link href="/admin-area/master/karyawan">Employee List</Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />

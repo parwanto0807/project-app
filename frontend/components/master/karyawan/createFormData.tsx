@@ -34,7 +34,7 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
             departemen: "",
             statusKerja: "",
             tipeKontrak: "",
-            userId: "",
+            userId: undefined,
             gajiPokok: 0,
             tunjangan: 0,
             potongan: 0,
