@@ -8,7 +8,6 @@ import speakeasy from "speakeasy";
 import QRCode from "qrcode";
 import { setTokenCookies } from "../../utils/setCookies.js";
 
-
 // Asumsi file env.js mengekspor variabel-variabel ini
 import {
   JWT_SECRET,
@@ -103,9 +102,13 @@ export const googleLogin = async (req, res) => {
   // --- PERBAIKAN: Validasi variabel lingkungan ---
   const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL;
   if (!frontendUrl) {
-    console.error("FATAL ERROR: NEXT_PUBLIC_FRONTEND_URL environment variable is not set.");
+    console.error(
+      "FATAL ERROR: NEXT_PUBLIC_FRONTEND_URL environment variable is not set."
+    );
     // Kirim respons error umum agar tidak membocorkan detail konfigurasi
-    return res.status(500).json({ error: "Internal Server Error: Application is not configured correctly." });
+    return res.status(500).json({
+      error: "Internal Server Error: Application is not configured correctly.",
+    });
   }
 
   const { code } = req.query;
@@ -133,7 +136,8 @@ export const googleLogin = async (req, res) => {
 
     // Langkah 2: Ambil profil pengguna dari Google
     const profileRes = await axios.get(
-      "https://www.googleapis.com/oauth2/v1/userinfo", {
+      "https://www.googleapis.com/oauth2/v1/userinfo",
+      {
         headers: { Authorization: `Bearer ${access_token}` },
       }
     );
@@ -179,24 +183,28 @@ export const googleLogin = async (req, res) => {
 
     // Langkah 6: Redirect ke halaman admin setelah berhasil
     res.redirect(`${frontendUrl}/admin-area`);
-
   } catch (err) {
     // --- PENINGKATAN LOGGING UNTUK DEBUGGING ---
     console.error("--- GOOGLE LOGIN CRASH REPORT ---");
     console.error("Timestamp:", new Date().toISOString());
-    console.error("Full Error Object:", err); 
+    console.error("Full Error Object:", err);
     console.error("--- END OF REPORT ---");
 
     let errorMessage = "An+unexpected+error+occurred.+Please+try+again.";
 
     if (err.response?.data?.error === "invalid_grant") {
-      errorMessage = "Authorization+code+is+invalid+or+expired.+Please+try+logging+in+again.";
+      errorMessage =
+        "Authorization+code+is+invalid+or+expired.+Please+try+logging+in+again.";
     } else if (err.message === "Email not provided by Google") {
       errorMessage = "Failed+to+retrieve+email+from+Google.";
-    } else if (err.code && typeof err.code === 'string' && err.code.startsWith('P')) {
+    } else if (
+      err.code &&
+      typeof err.code === "string" &&
+      err.code.startsWith("P")
+    ) {
       errorMessage = "A+database+error+occurred.+Please+contact+support.";
     }
-    
+
     if (!res.headersSent) {
       res.redirect(`${loginUrl}?error=${errorMessage}`);
     }
@@ -781,69 +789,3 @@ export const refreshHandler = async (req, res) => {
     return res.status(401).json({ error: "Invalid refresh token." });
   }
 };
-
-// export const refreshHandler = async (req, res) => {
-//   const token = req.cookies.refreshToken;
-
-//   if (!token) {
-//     return res.status(401).json({ error: "Refresh token missing" });
-//   }
-
-//   try {
-//     const payload = jwt.verify(token, JWT_REFRESH_SECRET);
-
-//     const session = await prisma.userSession.findFirst({
-//       where: {
-//         userId: payload.userId,
-//         refreshToken: token,
-//         isRevoked: false,
-//         expiresAt: { gt: new Date() },
-//       },
-//     });
-
-//     if (!session) {
-//       return res.status(401).json({ error: "Invalid or expired session" });
-//     }
-
-//     const user = await prisma.user.findUnique({ where: { id: payload.userId } });
-//     if (!user) {
-//       return res.status(404).json({ error: "User not found" });
-//     }
-
-//     // Token Rotation
-//     const newAccessToken = generateAccessToken(user);
-//     const newRefreshToken = generateRefreshToken(user);
-//     const newSessionToken = crypto.randomBytes(32).toString('hex');
-
-//     await prisma.$transaction([
-//       prisma.userSession.update({
-//         where: { id: session.id },
-//         data: {
-//           isRevoked: true,
-//           sessionToken: session.sessionToken,
-//           // PERBAIKAN: Sertakan ipAddress yang ada untuk memenuhi persyaratan skema
-//           ipAddress: session.ipAddress,
-//         },
-//       }),
-//       prisma.userSession.create({
-//         data: {
-//           userId: user.id,
-//           refreshToken: newRefreshToken,
-//           sessionToken: newSessionToken,
-//           // Ambil IP address baru dari request saat ini untuk sesi baru
-//           ipAddress: req.headers["x-forwarded-for"] || req.socket.remoteAddress,
-//           userAgent: req.headers["user-agent"],
-//           expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-//         },
-//       }),
-//     ]);
-
-//     setAuthCookies(res, newRefreshToken, newSessionToken);
-
-//     return res.status(200).json({ success: true, accessToken: newAccessToken });
-
-//   } catch (err) {
-//     console.error("[REFRESH HANDLER] GAGAL TOTAL:", err);
-//     return res.status(401).json({ error: "Invalid refresh token or failed to process session." });
-//   }
-// };

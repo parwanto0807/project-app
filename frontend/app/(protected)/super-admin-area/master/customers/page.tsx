@@ -22,7 +22,7 @@ export default function CustomerPage() {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const token = localStorage.getItem("accessToken") || undefined;
-
+  console.log("Token", token);
   // Ubah ini sesuai dengan sistem auth kamu
   const userRole = "super"; // bisa ganti dari context / user state
 

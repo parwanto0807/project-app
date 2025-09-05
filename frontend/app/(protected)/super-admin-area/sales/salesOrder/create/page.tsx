@@ -54,7 +54,7 @@ export default function CreateSalesOrderPage() {
   const projects = DUMMY_PROJECTS;
   const [isDataLoading, setIsDataLoading] = useState(true);
   const token = localStorage.getItem("accessToken") || undefined;
-
+  console.log("Token", token);
   // useEffect untuk otentikasi dan otorisasi (tidak berubah)
   useEffect(() => {
     if (userLoading) return;

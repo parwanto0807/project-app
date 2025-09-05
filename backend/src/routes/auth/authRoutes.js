@@ -15,7 +15,7 @@ import {
   newVerifyMFA,
   getSessions,
   activateMfaSetup,
-  completeMfaSetup
+  completeMfaSetup,
 } from "../../controllers/auth/authController.js";
 
 import {
