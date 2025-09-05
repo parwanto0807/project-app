@@ -75,7 +75,7 @@ function authenticateToken(req, res, next) {
     req.headers.authorization?.split(" ")[1] ||
     req.body?.token;
 
-  console.log("[AUTH] req.cookies:", req.cookies);
+  console.log("[AUTH] req.cookies.accessToken:", req.cookies?.accessToken);
 
   if (!token) {
     console.warn("No authentication token found");
@@ -89,7 +89,7 @@ function authenticateToken(req, res, next) {
     if (err) {
       console.warn("Invalid token:", err.message);
       return res
-        .status(401) 
+        .status(401)
         .json({ error: "Unauthorized", message: "Invalid or expired token" });
     }
     req.user = decoded;

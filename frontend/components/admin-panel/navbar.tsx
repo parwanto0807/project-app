@@ -1,10 +1,11 @@
 import { ModeToggle } from "../mode-toggle";
 import { UserNav } from "@/components/admin-panel/user-nav";
 import { SheetMenu } from "@/components/admin-panel/sheet-menu";
+import type { User } from "@/hooks/use-current-user";
 
 interface NavbarProps {
   title: string;
-  role: "super" | "admin" | "pic" | "user";
+  role: User["role"];
 }
 
 export function Navbar({ title, role }: NavbarProps) {

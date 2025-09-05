@@ -71,8 +71,7 @@ const LoginForm = () => {
         // console.log("Login response:", loginData);
 
         if (loginData.accessToken) {
-          initializeTokensOnLogin(loginData.accessToken); // ⬅️ taruh di sini
-          // document.cookie = `accessToken=${loginData.accessToken}; Path=/; Max-Age=${ttlDetik}; SameSite=Lax`;
+          initializeTokensOnLogin(loginData.accessToken);
         }
 
         if (!loginRes.ok) {

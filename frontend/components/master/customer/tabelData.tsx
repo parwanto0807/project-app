@@ -45,6 +45,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import DeleteCustomerAlert from "./alert-delete";
 import ViewCustomerDetailDialogById from "./detail-data";
+import { User } from "@/hooks/use-current-user";
 
 type Customer = {
   id: string;
@@ -81,7 +82,7 @@ export function CustomersTable({
 }: {
   customers: Customer[];
   isLoading: boolean;
-  role: "super" | "admin";
+  role: User["role"];
 }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedCustomer, setExpandedCustomer] = useState<string | null>(null);

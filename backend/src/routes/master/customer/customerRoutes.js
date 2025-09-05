@@ -1,22 +1,28 @@
 // routes/customerRoutes.js
-import express from 'express';
+import express from "express";
 import {
   getAllCustomers,
   getCustomerById,
   createCustomer,
   updateCustomer,
   deleteCustomer,
-  getCustomerCount
-} from '../../../controllers/master/customer/customerController.js';
-import { authorizeAdmin, authorizeSuperAdmin } from '../../../middleware/authMiddleware.js';
+  getCustomerCount,
+} from "../../../controllers/master/customer/customerController.js";
+import {
+  authorizeAdmin,
+  authenticateToken,
+  authorizeSuperAdmin,
+} from "../../../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.get('/getAllCustomers', getAllCustomers);
-router.get('/getCustomerCount', getCustomerCount);
-router.get('/getCustomerById/:id', getCustomerById);
-router.post('/createCustomer', createCustomer, authorizeAdmin, authorizeSuperAdmin);
-router.put('/updateCustomer/:id', updateCustomer, authorizeAdmin, authorizeSuperAdmin);
-router.delete('/deleteCustomer/:id', deleteCustomer, authorizeAdmin, authorizeSuperAdmin);
+router.use("/", authenticateToken);
+
+router.get("/getAllCustomers", getAllCustomers);
+router.get("/getCustomerCount", getCustomerCount);
+router.get("/getCustomerById/:id", getCustomerById);
+router.post("/createCustomer", createCustomer);
+router.put("/updateCustomer/:id", updateCustomer);
+router.delete("/deleteCustomer/:id", deleteCustomer);
 
 export default router;

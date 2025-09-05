@@ -1,16 +1,14 @@
 // backend/src/utils/setCookies.js
 export const setTokenCookies = (res, accessToken, refreshToken) => {
-  res.cookie('accessToken', accessToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 15 * 60 * 1000,
-  });
+  const isProd = process.env.NODE_ENV === 'production';
 
-  res.cookie('refreshToken', refreshToken, {
+  const cookieOptions = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-  });
+    secure: isProd,
+    sameSite: isProd ? 'none' : 'lax',
+    path: '/',
+  };
+
+  res.cookie('accessToken', accessToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
+  res.cookie('refreshToken', refreshToken, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 });
 };

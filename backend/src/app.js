@@ -11,31 +11,18 @@ import productRoutes from "./routes/master/product/productRoutes.js"; // Import 
 import kategoryRoutes from "./routes/master/product/kategoryProductRoutes.js"; // Import category routes
 import salesOrderRoutes from "./routes/salesOrder/salesOrderRoutes.js"; // Import sales order routes
 import karyawanRoutes from "./routes/master/karyawan/karyawanRoutes.js";
-import cookieParser from "cookie-parser";
 import path from "path";
 import { fileURLToPath } from "url";
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+import cookieParser from "cookie-parser";
 
 // Security Middleware
 app.use(cookieParser());
 app.use(helmet());
-// app.use('/images', express.static(path.join(process.cwd(), 'public', 'images')));
 // Expose public folder
 app.use("/images", express.static(path.join(process.cwd(), "public/images")));
-// Serve static files dengan CORS headers
-// app.use(
-//   "/images",
-//   express.static(path.join(__dirname, "public", "images"), {
-//     setHeaders: (res, path) => {
-//       res.set("Access-Control-Allow-Origin", CLIENT_URL);
-//       res.set("Cross-Origin-Resource-Policy", "cross-origin");
-//       res.set("Access-Control-Allow-Credentials", "true");
-//     },
-//   })
-// );
-
 // CORS Configuration
 const allowedOrigins = [
   "http://localhost:3000",

@@ -17,6 +17,8 @@ export const LogoutButton = ({ children }: LogoutButtonProps) => {
         method: "POST",
         credentials: "include",
       });
+      localStorage.removeItem("accessToken");
+
       if (!res.ok) {
         throw new Error("Gagal logout");
       }

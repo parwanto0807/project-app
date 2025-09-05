@@ -16,38 +16,38 @@ import { fetchAllProducts } from "@/lib/action/master/product";
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { LayoutProps } from "@/types/layout";
 import ProductList from "@/components/master/product/tabelData";
+import { useCurrentUser } from "@/hooks/use-current-user" // ✅ import hook
 
 export default function ProductPageAdmin() {
   const [product, setProduct] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  const userRole = "admin"; // bisa ganti dari context / user state
-
+  const { user, loading } = useCurrentUser(); // ✅ ambil user dari hook
 
   useEffect(() => {
-    if (userRole !== "admin") {
+    if (loading) return; // tunggu data user selesai di-load
+
+    if (user?.role !== "admin") {
       router.push("/unauthorized");
       return;
     }
 
     const fetchData = async () => {
-      if (typeof window === "undefined") return; // pastikan di client
+      if (typeof window === "undefined") return;
       const token = localStorage.getItem("accessToken") || undefined;
-      // console.log("Token", token);
+      console.log("Token", token);
 
-      const result = await fetchAllProducts(token);
+      const result = await fetchAllProducts();
       setProduct(result.products);
       setIsLoading(result.isLoading);
     };
 
     fetchData();
-  }, [router, userRole]);
-
-
+  }, [router, user, loading]); // ✅ tambahkan user & loading
 
   const layoutProps: LayoutProps = {
     title: "Product Management",
-    role: "admin",
+    role: user?.role || "guest", // ✅ ambil dari user
     children: (
       <>
         <Breadcrumb>
@@ -78,7 +78,7 @@ export default function ProductPageAdmin() {
 
         <div className="h-full w-full">
           <div className="flex-1 space-y-4 p-4 pt-6 md:p-8">
-            <ProductList products={product} isLoading={isLoading} role={userRole} />
+            <ProductList products={product} isLoading={isLoading} role={user?.role || "guest"} />
           </div>
         </div>
       </>

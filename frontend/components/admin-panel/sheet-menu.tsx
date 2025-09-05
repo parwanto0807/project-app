@@ -11,9 +11,10 @@ import { MenuIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Menu } from "@/components/admin-panel/menu";
+import type { User } from "@/hooks/use-current-user";
 
 type SheetMenuProps = {
-  role: "super" | "admin" | "pic" | "user";
+  role: User["role"];
 };
 
 export function SheetMenu({ role }: SheetMenuProps) {

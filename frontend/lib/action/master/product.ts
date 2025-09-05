@@ -7,17 +7,14 @@ export async function generateProductCode() {
   return `PRD-${shortId}`;
 }
 
-export async function fetchAllProducts(accessToken?: string) {
+export async function fetchAllProducts() {
   try {
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/master/product/getAllProducts`,
       {
         method: "GET",
-        headers: accessToken
-          ? { Authorization: `Bearer ${accessToken}` } // ✅ wajib Bearer
-          : {},
+        credentials: "include", // 👉 penting biar cookie ikut terkirim
         cache: "no-store",
-        credentials: "include", // boleh tetap include cookie kalau dipakai
       }
     );
 

@@ -16,17 +16,18 @@ import { CustomersTable } from "@/components/master/customer/tabelData";
 import { fetchAllCustomers } from "@/lib/action/master/customer";
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { LayoutProps } from "@/types/layout";
+import { useCurrentUser } from "@/hooks/use-current-user"; // ✅ pakai hook auth
 
 export default function CustomerPageAdmin() {
   const [customers, setCustomers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-
-  // Ubah ini sesuai dengan sistem auth kamu
-  const userRole = "admin"; // bisa ganti dari context / user state
+  const { user, loading } = useCurrentUser(); // ✅ ambil user dari hook
 
   useEffect(() => {
-    if (userRole !== "admin") {
+    if (loading) return; // tunggu user selesai di-load
+
+    if (user?.role !== "admin") {
       router.push("/unauthorized");
       return;
     }
@@ -38,12 +39,11 @@ export default function CustomerPageAdmin() {
     };
 
     fetchData();
-  }, [router]);
-
+  }, [router, user, loading]);
 
   const layoutProps: LayoutProps = {
     title: "Customer Management",
-    role: "admin",
+    role: (user?.role as "admin" | "super") || "admin", // ✅ type-safe fallback
     children: (
       <>
         <Breadcrumb>
@@ -74,7 +74,7 @@ export default function CustomerPageAdmin() {
 
         <div className="h-full w-full">
           <div className="flex-1 space-y-4 p-4 pt-6 md:p-8">
-            <CustomersTable customers={customers} isLoading={isLoading} role={userRole} />
+            <CustomersTable customers={customers} isLoading={isLoading} role={user?.role ?? "guest"} />
           </div>
         </div>
       </>

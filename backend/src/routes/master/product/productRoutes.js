@@ -34,32 +34,14 @@ const router = express.Router();
 // 2. Serve folder images (pastikan di app utama, bukan router ini)
 // app.use('/images', express.static(path.join(process.cwd(), 'public/images')));
 
-router.get("/getAllProducts", authenticateToken, getAllProducts);
-router.get(
-  "/getAllProductsByType/:type",
-  authenticateToken,
-  getAllProductsByType
-);
+router.use("/", authenticateToken);
+
+router.get("/getAllProducts", getAllProducts);
+router.get("/getAllProductsByType/:type", getAllProductsByType);
 router.get("/getProductById/:id", getProductById);
 router.get("/getProductCount", getProductCount);
-
-// 3. CREATE (POST) – upload image & authorization dulu baru createProduct
-router.post(
-  "/createProduct",
-  authenticateToken,
-  upload.single("image"),
-  createProduct
-);
-
-// 4. UPDATE (PUT) – jika ingin support update gambar, bisa pakai upload.single('image') juga
-router.put(
-  "/updateProduct/:id",
-  authenticateToken,
-  upload.single("image"),
-  updateProduct
-);
-
-// 5. DELETE
-router.delete("/deleteProduct/:id", authenticateToken, deleteProduct);
+router.post("/createProduct", upload.single("image"), createProduct);
+router.put("/updateProduct/:id", upload.single("image"), updateProduct);
+router.delete("/deleteProduct/:id", deleteProduct);
 
 export default router;
