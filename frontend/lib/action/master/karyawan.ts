@@ -15,7 +15,6 @@ export async function fetchAllKaryawan() {
 
     const data = await res.json();
     console.log("Data Karyawan", data);
-
     return { karyawan: data || [], isLoading: false };
   } catch (error) {
     console.error("[fetchAllKaryawan]", error);

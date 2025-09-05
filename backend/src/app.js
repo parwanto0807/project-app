@@ -12,23 +12,21 @@ import kategoryRoutes from "./routes/master/product/kategoryProductRoutes.js"; /
 import salesOrderRoutes from "./routes/salesOrder/salesOrderRoutes.js"; // Import sales order routes
 import karyawanRoutes from "./routes/master/karyawan/karyawanRoutes.js";
 import path from "path";
-import { fileURLToPath } from "url";
+
 const app = express();
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 import cookieParser from "cookie-parser";
+import { allowedOrigins } from "./config/env.js";
 
 // Security Middleware
 app.use(cookieParser());
 app.use(helmet());
 // Expose public folder
-app.use("/images", express.static(path.join(process.cwd(), "public/images")));
+app.use(
+  "/images",
+  cors({ origin: allowedOrigins, credentials: true }), // tambahkan CORS
+  express.static(path.join(process.cwd(), "public/images"))
+);
 // CORS Configuration
-const allowedOrigins = [
-  "http://localhost:3000",
-  "https://rylif-app.com",
-  "https://www.rylif-app.com",
-];
 
 app.use(
   cors({

@@ -214,6 +214,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                 src={makeImageSrc(employee.foto)}
                 alt={employee.namaLengkap}
                 crossOrigin="anonymous"
+                className="object-cover"
               />
               <AvatarFallback className="bg-blue-100 text-blue-800">
                 {getInitials(employee.namaLengkap)}
@@ -528,6 +529,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                                   src={makeImageSrc(item.foto)}
                                   alt={item.namaLengkap}
                                   crossOrigin="anonymous"
+                                  className="object-cover"
                                 />
                                 <AvatarFallback className="bg-blue-100 text-blue-800">
                                   {getInitials(item.namaLengkap)}
