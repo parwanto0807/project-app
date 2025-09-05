@@ -22,8 +22,6 @@ export default function ProductPage() {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const userRole = "super"; // bisa ganti dari context / user state
-  const token = localStorage.getItem("accessToken") || undefined;
-  console.log("Token", token);
 
   useEffect(() => {
     if (userRole !== "super") {
@@ -35,13 +33,13 @@ export default function ProductPage() {
       if (typeof window === "undefined") return; // pastikan di client
 
 
-      const result = await fetchAllProducts(token);
+      const result = await fetchAllProducts();
       setProduct(result.products);
       setIsLoading(result.isLoading);
     };
 
     fetchData();
-  }, [router, token, userRole]);
+  }, [router, userRole]);
 
 
 

@@ -23,8 +23,6 @@ export default function CustomerPageAdmin() {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const { user, loading } = useCurrentUser(); // ✅ ambil user dari hook
-  const token = localStorage.getItem("accessToken") || undefined;
-  console.log("Token", token);
 
   useEffect(() => {
     if (loading) return; // tunggu user selesai di-load
@@ -35,13 +33,13 @@ export default function CustomerPageAdmin() {
     }
 
     const fetchData = async () => {
-      const result = await fetchAllCustomers(token);
+      const result = await fetchAllCustomers();
       setCustomers(result.customers);
       setIsLoading(result.isLoading);
     };
 
     fetchData();
-  }, [token, router, user, loading]);
+  }, [ router, user, loading]);
 
   const layoutProps: LayoutProps = {
     title: "Customer Management",

@@ -34,9 +34,6 @@ export default function ProductPageAdmin() {
 
     const fetchData = async () => {
       if (typeof window === "undefined") return;
-      const token = localStorage.getItem("accessToken") || undefined;
-      console.log("Token", token);
-
       const result = await fetchAllProducts();
       setProduct(result.products);
       setIsLoading(result.isLoading);

@@ -1,14 +1,11 @@
 "use server";
 
-export async function fetchAllCustomers(accessToken?: string) {
+export async function fetchAllCustomers() {
   try {
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/master/customer/getAllCustomers`,
       {
         method: "GET",
-        headers: accessToken
-          ? { Authorization: `Bearer ${accessToken}` } // ✅ wajib Bearer
-          : {},
         credentials: "include",
         cache: "no-store",
       }

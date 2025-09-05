@@ -21,7 +21,7 @@ export default function KaryawanPageAdmin() {
     const [karyawan, setKaryawan] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
-    const userRole = "admin"; 
+    const userRole = "admin";
 
     useEffect(() => {
         if (userRole !== "admin") {
@@ -31,9 +31,8 @@ export default function KaryawanPageAdmin() {
 
         const fetchData = async () => {
             if (typeof window === "undefined") return;
-            const token = localStorage.getItem("accessToken") || undefined;
 
-            const result = await fetchAllKaryawan(token);
+            const result = await fetchAllKaryawan();
             setKaryawan(result.karyawan);
             setIsLoading(result.isLoading);
         };

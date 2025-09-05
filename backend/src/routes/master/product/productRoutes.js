@@ -34,7 +34,7 @@ const router = express.Router();
 // 2. Serve folder images (pastikan di app utama, bukan router ini)
 // app.use('/images', express.static(path.join(process.cwd(), 'public/images')));
 
-router.use("/", authenticateToken);
+// router.use("/", authenticateToken);
 
 router.get("/getAllProducts", getAllProducts);
 router.get("/getAllProductsByType/:type", getAllProductsByType);

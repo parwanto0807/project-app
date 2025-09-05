@@ -75,7 +75,7 @@ function authenticateToken(req, res, next) {
     req.headers.authorization?.split(" ")[1] ||
     req.body?.token;
 
-  console.log("[AUTH] req.cookies.accessToken:", req.cookies?.accessToken);
+  console.log("KONTOL     :     ", req.cookies?.accessToken);
 
   if (!token) {
     console.warn("No authentication token found");

@@ -1,14 +1,11 @@
 "use server";
 
-export async function fetchAllKaryawan(accessToken?: string) {
+export async function fetchAllKaryawan() {
   try {
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/karyawan/getAllKaryawan`,
       {
         method: "GET",
-        headers: accessToken
-          ? { Authorization: `Bearer ${accessToken}` } // ✅ wajib Bearer
-          : {},
         credentials: "include",
         cache: "no-store",
       }

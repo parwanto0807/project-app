@@ -16,7 +16,7 @@ import {
 
 const router = express.Router();
 
-router.use("/", authenticateToken);
+// router.use("/", authenticateToken);
 
 router.get("/getAllCustomers", getAllCustomers);
 router.get("/getCustomerCount", getCustomerCount);
