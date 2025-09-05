@@ -35,7 +35,7 @@ export default function ProductPage() {
       const token = localStorage.getItem("accessToken") || undefined;
       console.log("Token", token);
 
-      const result = await fetchAllProducts();
+      const result = await fetchAllProducts(token);
       setProduct(result.products);
       setIsLoading(result.isLoading);
     };

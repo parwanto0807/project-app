@@ -53,6 +53,7 @@ export default function CreateSalesOrderPage() {
   const [customers, setCustomers] = useState<CustomerForForm[]>([]);
   const projects = DUMMY_PROJECTS;
   const [isDataLoading, setIsDataLoading] = useState(true);
+  const token = localStorage.getItem("accessToken") || undefined;
 
   // useEffect untuk otentikasi dan otorisasi (tidak berubah)
   useEffect(() => {
@@ -70,7 +71,7 @@ export default function CreateSalesOrderPage() {
   useEffect(() => {
     const fetchCustomerData = async () => {
       try {
-        const response = await fetchAllCustomers();
+        const response = await fetchAllCustomers(token);
 
         if (response && response.customers) {
           // 2. Gunakan tipe 'RawCustomer' untuk menggantikan 'any'
@@ -89,7 +90,7 @@ export default function CreateSalesOrderPage() {
     };
 
     fetchCustomerData();
-  }, []);
+  }, [token]);
 
   // ... sisa komponen tidak berubah ...
   if (userLoading || !user || user.role !== "super") {

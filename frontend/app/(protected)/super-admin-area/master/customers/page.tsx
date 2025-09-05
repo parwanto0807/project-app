@@ -21,6 +21,7 @@ export default function CustomerPage() {
   const [customers, setCustomers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const token = localStorage.getItem("accessToken") || undefined;
 
   // Ubah ini sesuai dengan sistem auth kamu
   const userRole = "super"; // bisa ganti dari context / user state
@@ -32,13 +33,13 @@ export default function CustomerPage() {
     }
 
     const fetchData = async () => {
-      const result = await fetchAllCustomers();
+      const result = await fetchAllCustomers(token);
       setCustomers(result.customers);
       setIsLoading(result.isLoading);
     };
 
     fetchData();
-  }, [router]);
+  }, [router, token]);
 
 
   const layoutProps: LayoutProps = {
