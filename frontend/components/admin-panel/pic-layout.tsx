@@ -1,8 +1,9 @@
 import { Navbar } from "@/components/admin-panel/navbar";
+import { User } from "@/hooks/use-current-user";
 
 interface ContentLayoutProps {
   title: string;
-  role: "pic";
+  role: User["role"]
   children: React.ReactNode;
 }
 
