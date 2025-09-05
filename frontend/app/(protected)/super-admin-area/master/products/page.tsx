@@ -33,9 +33,9 @@ export default function ProductPage() {
     const fetchData = async () => {
       if (typeof window === "undefined") return; // pastikan di client
       const token = localStorage.getItem("accessToken") || undefined;
-      // console.log("Token", token);
+      console.log("Token", token);
 
-      const result = await fetchAllProducts(token);
+      const result = await fetchAllProducts();
       setProduct(result.products);
       setIsLoading(result.isLoading);
     };
