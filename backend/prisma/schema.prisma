@@ -145,7 +145,7 @@ model Karyawan {
   alamat        String?
   nomorTelepon  String?
   email         String?   @unique
-  jabatan       String
+  jabatan       String?
   departemen    String?
   tanggalMasuk  DateTime?
   tanggalKeluar DateTime? // jika resign atau kontrak selesai

@@ -12,9 +12,9 @@ import {
   CalendarIcon,
   FileText,
   Hash,
-  Loader2,
+  // Loader2,
   PlusCircle,
-  Save,
+  // Save,
   Trash2,
   Calculator,
   // DollarSign,
@@ -23,6 +23,8 @@ import {
   ChevronsUpDown,
   Search,
   Check,
+  Loader2,
+  Save,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -79,7 +81,7 @@ import { ProductCreateDialog } from "./productDialog";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
 type ApiProduct = z.infer<typeof ApiProductSchema>;
-type ProductOption = { id: string; name: string; description?: string; usageUnit?: string | null; };
+type ProductOption = ApiProduct
 
 interface Customer {
   id: string
@@ -101,6 +103,13 @@ interface CreateSalesOrderFormProps {
   projects: Project[]
 }
 
+// Interface untuk state per item
+interface ItemState {
+  selectedApiType: "PRODUCT" | "SERVICE" | "CUSTOM" | undefined;
+  productOptions: ProductOption[];
+  productSearchOpen: boolean;
+  productSearchQuery: string;
+}
 
 const salesOrderFormSchema = z.object({
   soDate: z.coerce.date({ required_error: "Tanggal wajib diisi." }),
@@ -134,18 +143,21 @@ export function CreateSalesOrderForm({
   const router = useRouter()
   const [isPending, startTransition] = React.useTransition()
   const [customerOptions, setCustomerOptions] = React.useState(customers);
-  const [productOptions, setProductOptions] = React.useState<ProductOption[]>([]);
   const [projectOptions, setProjectOptions] = React.useState<Project[]>(projects);
   const [loadingProjects, setLoadingProjects] = React.useState(false);
-  const [selectedApiType, setSelectedApiType] = React.useState<
-    "PRODUCT" | "SERVICE" | "CUSTOM" | undefined
-  >("PRODUCT");
   const [projectSearchOpen, setProjectSearchOpen] = React.useState(false);
   const [projectSearchQuery, setProjectSearchQuery] = React.useState("");
-  const [productSearchOpen, setProductSearchOpen] = React.useState<number | null>(null);
-  const [productSearchQuery, setProductSearchQuery] = React.useState("");
   const itemsEndRef = React.useRef<HTMLDivElement | null>(null);
   const itemTypeRefs = React.useRef<(HTMLButtonElement | null)[]>([]);
+
+  // State per item menggunakan array
+  const [itemsState, setItemsState] = React.useState<ItemState[]>([{
+    selectedApiType: "PRODUCT",
+    productOptions: [],
+    productSearchOpen: false,
+    productSearchQuery: "",
+  }]);
+
   const scrollToBottom = () => {
     itemsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -190,27 +202,27 @@ export function CreateSalesOrderForm({
     name: "items",
   })
 
-  React.useEffect(() => {
-    (async () => {
-      try {
-        const accessToken = localStorage.getItem("accessToken"); // contoh ambil dari localStorage
-        const { products } = await fetchAllProductsByType(accessToken ?? undefined, selectedApiType); // ✅ kirim token
+  // Fungsi untuk update state per item
+  const updateItemState = (index: number, updates: Partial<ItemState>) => {
+    setItemsState(prev => {
+      const newState = [...prev];
+      newState[index] = { ...newState[index], ...updates };
+      return newState;
+    });
+  };
 
-        setProductOptions(
-          products.map((p: ApiProduct): ProductOption => ({
-            id: p.id,
-            name: p.name,
-            description: p.description,
-            usageUnit: p.usageUnit ?? null,
-          }))
-        );
-      } catch (error) {
-        console.error("Failed to fetch products:", error);
-        toast.error("Gagal memuat data produk");
+  // Fungsi untuk menambah state item baru
+  const addNewItemState = () => {
+    setItemsState(prev => [
+      ...prev,
+      {
+        selectedApiType: "PRODUCT",
+        productOptions: [],
+        productSearchOpen: false,
+        productSearchQuery: "",
       }
-    })();
-  }, [selectedApiType]);
-
+    ]);
+  };
 
   React.useEffect(() => {
     const onFocus = () => { ensureFreshToken(); };
@@ -227,6 +239,41 @@ export function CreateSalesOrderForm({
       clearInterval(id);
     };
   }, []);
+
+  // Fungsi untuk menghapus state item
+  const removeItemState = (index: number) => {
+    setItemsState(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Fetch products untuk item tertentu
+  const fetchProductsForItem = React.useCallback(async (index: number, type: "PRODUCT" | "SERVICE" | "CUSTOM" | undefined) => {
+    try {
+      const accessToken = localStorage.getItem("accessToken");
+      const { products } = await fetchAllProductsByType(accessToken ?? undefined, type);
+
+      setItemsState(prev => {
+        const newState = [...prev];
+        newState[index] = {
+          ...newState[index],
+          productOptions: products.map((p) => ({
+            id: p.id,
+            name: p.name,
+            description: p.description,
+            usageUnit: p.usageUnit ?? null,
+          }))
+        };
+        return newState;
+      });
+    } catch (error) {
+      console.error(`Failed to fetch products for item ${index}:`, error);
+      toast.error("Gagal memuat data produk");
+    }
+  }, []);
+
+  // Fetch products untuk item pertama saat mount
+  React.useEffect(() => {
+    fetchProductsForItem(0, "PRODUCT");
+  }, [fetchProductsForItem]); // Sekarang fetchProductsForItem stabil karena menggunakan useCallback
 
   // Fungsi untuk menghitung total per item
   const calculateItemTotal = (index: number) => {
@@ -249,19 +296,17 @@ export function CreateSalesOrderForm({
   };
 
   // TAMBAHKAN fungsi untuk handle product selection
-  const handleProductSelect = (index: number, productId: string) => {
-    const selectedProduct = productOptions.find(p => p.id === productId);
+  const handleProductSelect = React.useCallback((index: number, productId: string) => {
+    const selectedProduct = itemsState[index]?.productOptions.find(p => p.id === productId);
     if (!selectedProduct) return;
 
-    const uomValue =
-      selectedProduct.usageUnit ?? // ✅ fallback ke nama field di DB
-      "";
+    const uomValue = selectedProduct.usageUnit ?? "";
 
     form.setValue(`items.${index}.productId`, productId, { shouldDirty: true, shouldTouch: true });
     form.setValue(`items.${index}.name`, selectedProduct.name ?? "", { shouldDirty: true, shouldTouch: true });
     form.setValue(`items.${index}.description`, selectedProduct.description ?? "", { shouldDirty: true, shouldTouch: true });
     form.setValue(`items.${index}.uom`, uomValue, { shouldDirty: true, shouldTouch: true });
-  };
+  }, [form, itemsState]);
 
   function onSubmit(data: CreateSalesOrderPayload) {
     startTransition(async () => {
@@ -587,7 +632,7 @@ export function CreateSalesOrderForm({
             </CardContent>
           </Card>
 
-          {/* Bagian Item SO */}
+          { /* Bagian Item SO */}
           <Card>
             <CardHeader className="pb-3">
               <div className="flex justify-between items-center">
@@ -604,9 +649,15 @@ export function CreateSalesOrderForm({
                 const itemType = form.watch(`items.${index}.itemType`);
                 const isProduct = itemType === "PRODUCT";
                 const isCatalogItem = ["PRODUCT", "SERVICE"].includes(itemType ?? "");
-                const itemNo = String(index + 1).padStart(2, "0"); // ← nomor rapi 2 digit
-                const optionsForType =
-                  itemType === "SERVICE" ? productOptions /* sementara */ : productOptions;
+                const itemNo = String(index + 1).padStart(2, "0");
+                const itemState = itemsState[index] || {
+                  selectedApiType: "PRODUCT",
+                  productOptions: [],
+                  productSearchOpen: false,
+                  productSearchQuery: "",
+                };
+
+                const optionsForType = itemState.productOptions;
                 const typeColors: Record<string, string> = {
                   PRODUCT: "bg-green-600 text-white shadow-sm",
                   SERVICE: "bg-blue-600 text-white shadow-sm",
@@ -648,31 +699,16 @@ export function CreateSalesOrderForm({
                                 value={field.value ?? "PRODUCT"}
                                 onValueChange={async (next: "PRODUCT" | "SERVICE" | "CUSTOM") => {
                                   field.onChange(next);
-
-                                  // update state juga kalau mau dipakai global
-                                  setSelectedApiType(next);
+                                  updateItemState(index, { selectedApiType: next });
 
                                   if (["PRODUCT", "SERVICE"].includes(next)) {
-                                    const accessToken = localStorage.getItem("accessToken");
-                                    const { products } = await fetchAllProductsByType(
-                                      accessToken ?? undefined,
-                                      next // ✅ langsung pakai "next", bukan selectedApiType
-                                    );
-
-                                    setProductOptions(
-                                      products.map((p) => ({
-                                        id: p.id,
-                                        name: p.name,
-                                        description: p.description,
-                                        usageUnit: p.usageUnit ?? null,
-                                      }))
-                                    );
+                                    await fetchProductsForItem(index, next);
                                   } else {
                                     form.setValue(`items.${index}.productId`, null, {
                                       shouldValidate: true,
                                       shouldDirty: true,
                                     });
-                                    setProductOptions([]); // kosongkan kalau bukan PRODUCT / SERVICE
+                                    updateItemState(index, { productOptions: [] });
                                   }
                                 }}
                               >
@@ -696,8 +732,6 @@ export function CreateSalesOrderForm({
                             </FormItem>
                           )}
                         />
-
-
                       </div>
 
                       {/* Pemilihan dari katalog (tampil untuk PRODUCT & SERVICE) */}
@@ -709,7 +743,7 @@ export function CreateSalesOrderForm({
                             render={({ field }) => {
                               // Filter options berdasarkan pencarian
                               const filteredOptions = optionsForType.filter((opt) =>
-                                opt.name.toLowerCase().includes(productSearchQuery.toLowerCase())
+                                opt.name.toLowerCase().includes(itemState.productSearchQuery.toLowerCase())
                               );
 
                               return (
@@ -717,14 +751,12 @@ export function CreateSalesOrderForm({
                                   <FormLabel>{itemType === "PRODUCT" ? "Produk" : "Jasa"}</FormLabel>
                                   <div className="flex items-center gap-4">
                                     <Popover
-                                      open={productSearchOpen === index}
+                                      open={itemState.productSearchOpen}
                                       onOpenChange={(open) => {
-                                        if (open) {
-                                          setProductSearchOpen(index);
-                                          setProductSearchQuery("");
-                                        } else {
-                                          setProductSearchOpen(null);
-                                        }
+                                        updateItemState(index, {
+                                          productSearchOpen: open,
+                                          productSearchQuery: open ? "" : itemState.productSearchQuery
+                                        });
                                       }}
                                     >
                                       <PopoverTrigger asChild>
@@ -747,13 +779,13 @@ export function CreateSalesOrderForm({
                                             <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
                                             <CommandInput
                                               placeholder={`Cari ${itemType === "PRODUCT" ? "produk" : "jasa"}...`}
-                                              value={productSearchQuery}
-                                              onValueChange={setProductSearchQuery}
+                                              value={itemState.productSearchQuery}
+                                              onValueChange={(value) => updateItemState(index, { productSearchQuery: value })}
                                             />
                                           </div>
                                           <CommandList>
                                             <CommandEmpty>
-                                              {productSearchQuery ? "Tidak ditemukan" : "Tidak ada data"}
+                                              {itemState.productSearchQuery ? "Tidak ditemukan" : "Tidak ada data"}
                                             </CommandEmpty>
                                             <CommandGroup>
                                               {filteredOptions.map((opt) => (
@@ -763,8 +795,10 @@ export function CreateSalesOrderForm({
                                                   onSelect={() => {
                                                     field.onChange(opt.id);
                                                     handleProductSelect(index, opt.id);
-                                                    setProductSearchOpen(null);
-                                                    setProductSearchQuery("");
+                                                    updateItemState(index, {
+                                                      productSearchOpen: false,
+                                                      productSearchQuery: ""
+                                                    });
                                                   }}
                                                 >
                                                   <Check
@@ -786,15 +820,17 @@ export function CreateSalesOrderForm({
                                       <ProductCreateDialog
                                         createEndpoint={`${process.env.NEXT_PUBLIC_API_URL}/api/master/product/createProduct`}
                                         onCreated={(created) => {
-                                          setProductOptions((prev) => [
-                                            ...prev,
-                                            {
-                                              id: created.id,
-                                              name: created.name,
-                                            },
-                                          ]);
+                                          const newProduct = {
+                                            id: created.id,
+                                            name: created.name,
+                                          };
+
+                                          updateItemState(index, {
+                                            productOptions: [...optionsForType, newProduct]
+                                          });
+
                                           handleProductSelect(index, created.id);
-                                          setProductSearchOpen(null);
+                                          updateItemState(index, { productSearchOpen: false });
                                         }}
                                       />
                                     )}
@@ -989,7 +1025,10 @@ export function CreateSalesOrderForm({
                         variant="ghost"
                         size="sm"
                         className="text-white-600 hover:text-red-400 shadow-sm transition-colors"
-                        onClick={() => remove(index)}
+                        onClick={() => {
+                          remove(index);
+                          removeItemState(index);
+                        }}
                         disabled={fields.length <= 1}
                       >
                         <Trash2 className="h-4 w-4 mr-2 text-red-400" />
@@ -1025,22 +1064,18 @@ export function CreateSalesOrderForm({
                     unitPrice: 0,
                     discount: 0,
                     taxRate: 0,
-                  })
+                  });
+
+                  // Tambah state untuk item baru
+                  addNewItemState();
+
+                  // Fetch products untuk item baru
+                  await fetchProductsForItem(newIndex, "PRODUCT");
+
                   if (window.innerWidth >= 768) {
-                    setTimeout(scrollToBottom, 100)
+                    setTimeout(scrollToBottom, 100);
                   }
-                  const accessToken = localStorage.getItem("accessToken");
-                  const { products } = await fetchAllProductsByType(accessToken ?? undefined, "PRODUCT");
-                  setProductOptions(products.map(p => ({
-                    id: p.id,
-                    name: p.name,
-                    description: p.description,
-                    usageUnit: p.usageUnit ?? null,
-                    qty: 1,
-                    unitPrice: 0,
-                    discount: 0,
-                    taxRate: 0,
-                  })));
+
                   setTimeout(() => {
                     itemTypeRefs.current[newIndex]?.focus();
                   }, 200);
@@ -1049,7 +1084,6 @@ export function CreateSalesOrderForm({
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Tambah Item
               </Button>
-
             </div>
             <div ref={itemsEndRef} />
           </Card>

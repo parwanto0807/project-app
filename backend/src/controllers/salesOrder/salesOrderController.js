@@ -127,6 +127,40 @@ export const create = async (req, res) => {
         .json({ message: "Data yang dikirim tidak lengkap." });
     }
 
+    // OPTIMASI: Kumpulkan semua productId yang diperlukan
+    const productIdsToFetch = [];
+    const productIdToIndexMap = new Map();
+
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i] ?? {};
+      const itemType =
+        typeof it.itemType === "string" ? it.itemType.toUpperCase() : "PRODUCT";
+
+      if ((itemType === "PRODUCT" || itemType === "SERVICE") && it.productId) {
+        productIdsToFetch.push(it.productId);
+        productIdToIndexMap.set(it.productId, i);
+      }
+    }
+
+    // OPTIMASI: Fetch semua produk sekaligus di luar transaksi
+    let products = [];
+    if (productIdsToFetch.length > 0) {
+      products = await prisma.product.findMany({
+        where: { id: { in: productIdsToFetch } },
+        select: {
+          id: true,
+          name: true,
+          usageUnit: true, // PERBAIKAN: Gunakan usageUnit sesuai schema Product
+          description: true,
+        },
+      });
+    }
+
+    const productMap = new Map();
+    products.forEach((product) => {
+      productMap.set(product.id, product);
+    });
+
     // Siapkan items + hitung totals header
     const preparedItems = [];
     let subtotal = 0;
@@ -156,22 +190,20 @@ export const create = async (req, res) => {
 
       // Snapshot name/uom (untuk PRODUCT & SERVICE)
       let name = it.name;
-      let uom = it.uom ?? null;
+      let uom = it.uom ?? it.usageUnit ?? null; // Support both uom and usageUnit from request
+
       if (itemType === "PRODUCT" || itemType === "SERVICE") {
         const needSnapshot = !name || !uom;
         if (needSnapshot) {
-          // PERBAIKAN: Gunakan instance `prisma` (lowercase)
-          const prod = await prisma.product.findUnique({
-            where: { id: it.productId },
-            select: { name: true, uom: true },
-          });
-          if (!prod) {
+          const product = productMap.get(it.productId);
+          if (!product) {
             return res.status(400).json({
               message: `Product/Service tidak ditemukan: ${it.productId}`,
             });
           }
-          if (!name) name = prod.name || undefined;
-          if (!uom) uom = prod.uom ?? null;
+          if (!name) name = product.name || undefined;
+          // PERBAIKAN: Gunakan usageUnit dari product untuk dijadikan uom
+          if (!uom) uom = product.usageUnit ?? null;
         }
       } else {
         // itemType === "CUSTOM"
@@ -214,73 +246,105 @@ export const create = async (req, res) => {
       const amt = calcLineExclusive(qty, unitPrice, discount, taxRate);
 
       subtotal += amt.net;
-      discountTotal += qty * unitPrice - amt.net; // Menghitung diskon nominal
+      discountTotal += qty * unitPrice - amt.net;
       taxTotal += amt.tax;
       grandTotal += amt.total;
 
-      preparedItems.push({
-        lineNo: idx, // 1..n
+      // FIX: Gunakan field yang sesuai dengan schema
+      const itemData = {
+        lineNo: idx,
         itemType,
-        // productId null hanya untuk CUSTOM
-        productId: itemType === "CUSTOM" ? null : it.productId,
         name,
-        uom,
+        uom: uom, // PERBAIKAN: Gunakan uom untuk SalesOrderItem
         description: it.description ?? null,
         qty: new Prisma.Decimal(qty),
         unitPrice: new Prisma.Decimal(unitPrice),
         discount: new Prisma.Decimal(discount),
         taxRate: new Prisma.Decimal(taxRate),
-        lineTotal: new Prisma.Decimal(amt.net), // lineTotal konsisten (sebelum pajak)
-      });
+        lineTotal: new Prisma.Decimal(amt.net),
+      };
+
+      // Only add product relation for PRODUCT and SERVICE types
+      if (itemType === "PRODUCT" || itemType === "SERVICE") {
+        itemData.product = {
+          connect: { id: it.productId },
+        };
+      }
+
+      preparedItems.push(itemData);
     }
 
     // Transaksi: create header + items + documents
-    // PERBAIKAN: Gunakan instance `prisma` (lowercase)
-    const created = await prisma.$transaction(async (tx) => {
-      const so = await tx.salesOrder.create({
-        data: {
-          ...(soNumber ? { soNumber } : {}),
-          soDate: new Date(soDate),
-          customer: { connect: { id: customerId } },
-          project: { connect: { id: projectId } },
-          user: { connect: { id: userId } },
-          type,
-          ...(status ? { status } : {}),
-          currency: currency || "IDR",
-          notes: notes ?? null,
-          subtotal: new Prisma.Decimal(r2(subtotal)),
-          discountTotal: new Prisma.Decimal(r2(discountTotal)),
-          taxTotal: new Prisma.Decimal(r2(taxTotal)),
-          grandTotal: new Prisma.Decimal(r2(grandTotal)),
-          items: { create: preparedItems },
-          ...(Array.isArray(documents) && documents.length > 0
-            ? {
-                documents: {
-                  create: documents.map((d) => ({
-                    docType: d.docType,
-                    docNumber: d.docNumber ?? null,
-                    docDate: d.docDate ? new Date(d.docDate) : null,
-                    fileUrl: d.fileUrl ?? null,
-                    meta: d.meta ?? undefined,
-                  })),
+    const created = await prisma.$transaction(
+      async (tx) => {
+        const so = await tx.salesOrder.create({
+          data: {
+            ...(soNumber ? { soNumber } : {}),
+            soDate: new Date(soDate),
+            customer: { connect: { id: customerId } },
+            project: { connect: { id: projectId } },
+            user: { connect: { id: userId } },
+            type,
+            ...(status ? { status } : {}),
+            currency: currency || "IDR",
+            notes: notes ?? null,
+            subtotal: new Prisma.Decimal(r2(subtotal)),
+            discountTotal: new Prisma.Decimal(r2(discountTotal)),
+            taxTotal: new Prisma.Decimal(r2(taxTotal)),
+            grandTotal: new Prisma.Decimal(r2(grandTotal)),
+            items: { create: preparedItems },
+            ...(Array.isArray(documents) && documents.length > 0
+              ? {
+                  documents: {
+                    create: documents.map((d) => ({
+                      docType: d.docType,
+                      docNumber: d.docNumber ?? null,
+                      docDate: d.docDate ? new Date(d.docDate) : null,
+                      fileUrl: d.fileUrl ?? null,
+                      meta: d.meta ?? undefined,
+                    })),
+                  },
+                }
+              : {}),
+          },
+          include: {
+            customer: true,
+            project: true,
+            user: true,
+            items: {
+              include: {
+                product: {
+                  select: {
+                    id: true,
+                    name: true,
+                    usageUnit: true, // PERBAIKAN: Sesuaikan dengan schema Product
+                    description: true,
+                  },
                 },
-              }
-            : {}),
-        },
-        include: {
-          customer: true,
-          project: true,
-          user: true,
-          items: { include: { product: true } },
-          documents: true,
-        },
-      });
-      return so;
-    });
+              },
+            },
+            documents: true,
+          },
+        });
+        return so;
+      },
+      {
+        timeout: 30000,
+        maxWait: 30000,
+      }
+    );
 
     return res.status(201).json(created);
   } catch (error) {
     console.error("Error creating sales order in backend:", error);
+
+    if (error.code === "P2028") {
+      return res.status(500).json({
+        message:
+          "Transaksi timeout. Silakan coba lagi atau hubungi administrator.",
+      });
+    }
+
     if (
       error &&
       error.code === "P2002" &&
@@ -290,6 +354,13 @@ export const create = async (req, res) => {
     ) {
       return res.status(409).json({ message: "Nomor SO sudah digunakan." });
     }
+
+    if (error.name === "PrismaClientValidationError") {
+      return res.status(400).json({
+        message: "Data tidak valid. Silakan periksa kembali input Anda.",
+      });
+    }
+
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };

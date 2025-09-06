@@ -7,19 +7,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { cn } from '@/lib/utils';
-import { User, Briefcase, ShieldCheck, CalendarIcon, Loader2, Camera, Upload, X } from 'lucide-react';
+import { User, Briefcase, ShieldCheck, Loader2, Camera, Upload, X } from 'lucide-react';
 import { employeeFormSchema, type EmployeeFormValues } from '@/schemas';
 import Image from 'next/image';
+import { useRouter } from "next/navigation";
+
+function getBasePath(role?: string) {
+    return role === "super"
+        ? "/super-admin-area/master/karyawan"
+        : "/admin-area/master/karyawan"
+}
 
 export default function CreateEmployeeForm({ role }: { role: string }) {
     const [filePreview, setFilePreview] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [submitStatus, setSubmitStatus] = useState<{ success: boolean; message: string }>({ success: false, message: '' });
+    const router = useRouter();
 
     console.log("Role", role)
     const form = useForm({
@@ -98,6 +103,8 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
             setSubmitStatus({ success: true, message: "Karyawan berhasil dibuat!" });
             form.reset();
             setFilePreview(null);
+            const basePath = getBasePath(role)
+            router.push(basePath)
         } catch (err) {
             console.error(err);
             setSubmitStatus({
@@ -139,27 +146,51 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
                                 <FormField name="nomorTelepon" control={form.control} render={({ field }) => (
                                     <FormItem><FormLabel>Nomor Telepon</FormLabel><FormControl><Input placeholder="Contoh: 08123456789" {...field} /></FormControl><FormMessage /></FormItem>
                                 )} />
-                                <FormField name="tanggalLahir" control={form.control} render={({ field }) => (
-                                    <FormItem className="flex flex-col"><FormLabel>Tanggal Lahir</FormLabel>
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <FormControl>
-                                                    <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                        {field.value ? (
-                                                            new Intl.DateTimeFormat("id-ID", { dateStyle: "long" }).format(field.value)
-                                                        ) : (
-                                                            <span>Pilih tanggal</span>
-                                                        )}
-                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                    </Button>
-                                                </FormControl>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0" align="start">
-                                                <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date > new Date() || date < new Date("1930-01-01")} initialFocus />
-                                            </PopoverContent>
-                                        </Popover>
-                                        <FormMessage /></FormItem>
-                                )} />
+                                <FormField
+                                    name="tanggalLahir"
+                                    control={form.control}
+                                    render={({ field }) => {
+                                        const parseDateFromInput = (value: string): Date | undefined => {
+                                            const date = new Date(value);
+                                            if (isNaN(date.getTime())) return undefined;
+                                            return date;
+                                        };
+
+                                        const formatDateForInput = (date?: Date): string => {
+                                            if (!date) return "";
+                                            const year = date.getFullYear();
+                                            const month = String(date.getMonth() + 1).padStart(2, "0");
+                                            const day = String(date.getDate()).padStart(2, "0");
+                                            return `${year}-${month}-${day}`; // format for <input type="date" />
+                                        };
+
+                                        return (
+                                            <FormItem className="flex flex-col">
+                                                <FormLabel>Tanggal Lahir</FormLabel>
+                                                <FormDescription className='text-teal-600 text-xs'>Tahun Bulan Hari</FormDescription>
+                                                <Input
+                                                    type="date"
+                                                    className="mt-2 border px-3 py-2 rounded-md text-sm"
+                                                    value={formatDateForInput(field.value)}
+                                                    onChange={(e) => {
+                                                        const date = parseDateFromInput(e.target.value);
+                                                        if (
+                                                            date &&
+                                                            date <= new Date() &&
+                                                            date >= new Date("1930-01-01")
+                                                        ) {
+                                                            field.onChange(date);
+                                                        } else {
+                                                            field.onChange(undefined);
+                                                        }
+                                                    }}
+                                                />
+
+                                                <FormMessage />
+                                            </FormItem>
+                                        );
+                                    }}
+                                />
                                 <FormField name="alamat" control={form.control} render={({ field }) => (
                                     <FormItem className="md:col-span-2"><FormLabel>Alamat</FormLabel><FormControl><Textarea placeholder="Masukkan alamat lengkap..." {...field} /></FormControl><FormMessage /></FormItem>
                                 )} />
@@ -179,25 +210,47 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
                                 <FormField name="departemen" control={form.control} render={({ field }) => (
                                     <FormItem><FormLabel>Departemen</FormLabel><FormControl><Input placeholder="Contoh: Teknologi Informasi" {...field} /></FormControl><FormMessage /></FormItem>
                                 )} />
-                                <FormField name="tanggalMasuk" control={form.control} render={({ field }) => (
-                                    <FormItem className="flex flex-col"><FormLabel>Tanggal Masuk</FormLabel>
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <FormControl>
-                                                    <Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                        {field.value ? (
-                                                            new Intl.DateTimeFormat("id-ID", { dateStyle: "long" }).format(field.value)
-                                                        ) : (
-                                                            <span>Pilih tanggal</span>
-                                                        )}
-                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                    </Button>
-                                                </FormControl>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent>
-                                        </Popover>
-                                        <FormMessage /></FormItem>
-                                )} />
+                                <FormField
+                                    name="tanggalMasuk"
+                                    control={form.control}
+                                    render={({ field }) => {
+                                        const parseDateFromInput = (value: string): Date | undefined => {
+                                            const date = new Date(value);
+                                            return isNaN(date.getTime()) ? undefined : date;
+                                        };
+
+                                        const formatDateForInput = (date?: Date): string => {
+                                            if (!date) return "";
+                                            const year = date.getFullYear();
+                                            const month = String(date.getMonth() + 1).padStart(2, "0");
+                                            const day = String(date.getDate()).padStart(2, "0");
+                                            return `${year}-${month}-${day}`;
+                                        };
+
+                                        return (
+                                            <FormItem className="flex flex-col">
+                                                <FormLabel>Tanggal Masuk</FormLabel>
+                                                <Input
+                                                    type="date"
+                                                    min="1930-01-01"
+                                                    max={formatDateForInput(new Date())}
+                                                    className="mt-2 border px-3 py-2 rounded-md text-sm"
+                                                    value={formatDateForInput(field.value)}
+                                                    onChange={(e) => {
+                                                        const date = parseDateFromInput(e.target.value);
+                                                        if (date) {
+                                                            field.onChange(date);
+                                                        } else {
+                                                            field.onChange(undefined);
+                                                        }
+                                                    }}
+                                                />
+                                                <FormMessage />
+                                            </FormItem>
+                                        );
+                                    }}
+                                />
+
                                 <FormField name="statusKerja" control={form.control} render={({ field }) => (
                                     <FormItem><FormLabel>Status Kerja</FormLabel>
                                         <Select onValueChange={field.onChange} defaultValue={field.value}>
