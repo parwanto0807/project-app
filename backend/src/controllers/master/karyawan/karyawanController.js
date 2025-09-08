@@ -132,57 +132,78 @@ export const getKaryawanById = async (req, res) => {
 // UPDATE karyawan
 export const updateKaryawan = async (req, res) => {
   const { id } = req.params;
-  const {
-    namaLengkap,
-    tanggalLahir,
-    alamat,
-    nomorTelepon,
-    email,
-    jabatan,
-    departemen,
-    tanggalMasuk,
-    tanggalKeluar,
-    statusKerja,
-    tipeKontrak,
-    gajiPokok,
-    tunjangan,
-    potongan,
-    userId,
-    teamIds, // array of teamId
-    foto,
-    isActive,
-  } = req.body;
-
   try {
+    const {
+      namaLengkap,
+      tanggalLahir,
+      alamat,
+      nomorTelepon,
+      email,
+      jabatan,
+      departemen,
+      tanggalMasuk,
+      tanggalKeluar,
+      statusKerja,
+      tipeKontrak,
+      gajiPokok,
+      tunjangan,
+      potongan,
+      userId,
+      teamIds,
+      foto,
+      isActive,
+    } = req.body;
+
+    const data = {
+      namaLengkap,
+      alamat,
+      nomorTelepon,
+      email,
+      jabatan,
+      departemen,
+      statusKerja,
+      tipeKontrak,
+      foto,
+      isActive: isActive ?? true,
+    };
+
+    // normalisasi tanggal
+    if (tanggalLahir !== undefined) {
+      data.tanggalLahir = tanggalLahir ? new Date(tanggalLahir) : null;
+    }
+    if (tanggalMasuk !== undefined) {
+      data.tanggalMasuk = tanggalMasuk ? new Date(tanggalMasuk) : null;
+    }
+    if (tanggalKeluar !== undefined) {
+      data.tanggalKeluar = tanggalKeluar ? new Date(tanggalKeluar) : null;
+    }
+
+    if (isActive !== undefined) {
+      data.isActive = isActive === true || isActive === "true";
+    }
+
+    // normalisasi angka
+    if (gajiPokok !== undefined)
+      data.gajiPokok = gajiPokok ? Number(gajiPokok) : null;
+    if (tunjangan !== undefined)
+      data.tunjangan = tunjangan ? Number(tunjangan) : null;
+    if (potongan !== undefined)
+      data.potongan = potongan ? Number(potongan) : null;
+
+    // normalisasi userId
+    if (userId !== undefined) data.userId = userId || null;
+
+    // relasi team
+    if (teamIds) {
+      data.teamKaryawan = {
+        deleteMany: {},
+        create: teamIds.map((teamId) => ({ teamId })),
+      };
+    }
+
     const karyawan = await prisma.karyawan.update({
       where: { id },
-      data: {
-        namaLengkap,
-        tanggalLahir: tanggalLahir ? new Date(tanggalLahir) : null,
-        alamat,
-        nomorTelepon,
-        email,
-        jabatan,
-        departemen,
-        tanggalMasuk: tanggalMasuk ? new Date(tanggalMasuk) : null,
-        tanggalKeluar: tanggalKeluar ? new Date(tanggalKeluar) : null,
-        statusKerja,
-        tipeKontrak,
-        gajiPokok,
-        tunjangan,
-        potongan,
-        userId,
-        foto,
-        isActive,
-
-        // update relasi TeamKaryawan
-        teamKaryawan: teamIds
-          ? {
-              deleteMany: {}, // hapus semua dulu
-              create: teamIds.map((teamId) => ({ teamId })),
-            }
-          : undefined,
-      },
+      data,
       include: {
         teamKaryawan: { include: { team: true } },
         gaji: true,
@@ -193,7 +214,9 @@ export const updateKaryawan = async (req, res) => {
     res.json(karyawan);
   } catch (error) {
     console.error("[updateKaryawan] error:", error);
-    res.status(500).json({ message: "Gagal update karyawan" });
+    res
+      .status(500)
+      .json({ message: "Gagal update karyawan", detail: error.message });
   }
 };
 

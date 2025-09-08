@@ -17,7 +17,7 @@ export function useCurrentUser() {
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    let isMounted = true; 
+    let isMounted = true;
 
     const fetchUser = async () => {
       try {
@@ -48,15 +48,16 @@ export function useCurrentUser() {
   // Ini memastikan bahwa objek yang sama dikembalikan kecuali jika
   // nilai user atau loading benar-benar berubah, yang dapat mencegah
   // render ulang yang tidak perlu di komponen yang menggunakan hook ini.
-  const memoizedValue = useMemo(() => ({
-    user,
-    loading,
-    setUser
-  }), [user, loading]);
-  
-  console.log("User", user);
+  const memoizedValue = useMemo(
+    () => ({
+      user,
+      loading,
+      setUser,
+    }),
+    [user, loading]
+  );
+
+  // console.log("User", user);
 
   return memoizedValue;
 }
-
-

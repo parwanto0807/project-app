@@ -15,7 +15,6 @@ import Image from 'next/image';
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from 'sonner';
 import { fetchKaryawanById } from '@/lib/action/master/karyawan';
-import { makeImageSrc } from '@/utils/makeImageSrc';
 
 function getBasePath(role?: string) {
     return role === "super"
@@ -74,8 +73,10 @@ export default function UpdateEmployeeForm({ employee, role, id }: { employee: s
 
                 // kalau ada foto, set ke state
                 if (employeeData.foto) {
-                    setFilePreview(employeeData.foto);
+                    // hilangkan leading slash kalau ada
+                    setFilePreview(employeeData.foto.replace(/^\/+/, ""));
                 }
+
             } catch (error) {
                 console.error("Error fetching employee data:", error);
                 toast.error(error instanceof Error ? error.message : "Failed to fetch employee.");
@@ -87,8 +88,6 @@ export default function UpdateEmployeeForm({ employee, role, id }: { employee: s
 
         fetchEmployeeData();
     }, [id, form, router, employee]);
-
-    console.log("data image", filePreview)
 
     const handleFileChange = (
         e: React.ChangeEvent<HTMLInputElement>,
@@ -205,9 +204,24 @@ export default function UpdateEmployeeForm({ employee, role, id }: { employee: s
                                 <FormField name="email" control={form.control} render={({ field }) => (
                                     <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" placeholder="contoh@perusahaan.com" {...field} /></FormControl><FormMessage /></FormItem>
                                 )} />
-                                <FormField name="nomorTelepon" control={form.control} render={({ field }) => (
-                                    <FormItem><FormLabel>Nomor Telepon</FormLabel><FormControl><Input placeholder="Contoh: 08123456789" {...field} /></FormControl><FormMessage /></FormItem>
-                                )} />
+                                <FormField
+                                    name="nomorTelepon"
+                                    control={form.control}
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Nomor Telepon</FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    placeholder="Contoh: 08123456789"
+                                                    {...field}
+                                                    value={field.value ?? ""} // <- fallback biar gak null
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+
                                 <FormField
                                     name="tanggalLahir"
                                     control={form.control}
@@ -252,9 +266,24 @@ export default function UpdateEmployeeForm({ employee, role, id }: { employee: s
                                         );
                                     }}
                                 />
-                                <FormField name="alamat" control={form.control} render={({ field }) => (
-                                    <FormItem className="md:col-span-2"><FormLabel>Alamat</FormLabel><FormControl><Textarea placeholder="Masukkan alamat lengkap..." {...field} /></FormControl><FormMessage /></FormItem>
-                                )} />
+                                <FormField
+                                    name="alamat"
+                                    control={form.control}
+                                    render={({ field }) => (
+                                        <FormItem className="md:col-span-2">
+                                            <FormLabel>Alamat</FormLabel>
+                                            <FormControl>
+                                                <Textarea
+                                                    placeholder="Masukkan alamat lengkap..."
+                                                    {...field}
+                                                    value={field.value ?? ""} // fallback biar tidak null
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+
                             </div>
                         </div>
 
@@ -265,12 +294,41 @@ export default function UpdateEmployeeForm({ employee, role, id }: { employee: s
                                 Informasi Pekerjaan
                             </h3>
                             <div className="grid md:grid-cols-2 gap-4">
-                                <FormField name="jabatan" control={form.control} render={({ field }) => (
-                                    <FormItem><FormLabel>Jabatan</FormLabel><FormControl><Input placeholder="Contoh: Software Engineer" {...field} /></FormControl><FormMessage /></FormItem>
-                                )} />
-                                <FormField name="departemen" control={form.control} render={({ field }) => (
-                                    <FormItem><FormLabel>Departemen</FormLabel><FormControl><Input placeholder="Contoh: Teknologi Informasi" {...field} /></FormControl><FormMessage /></FormItem>
-                                )} />
+                                <FormField
+                                    name="jabatan"
+                                    control={form.control}
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Jabatan</FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    placeholder="Contoh: Software Engineer"
+                                                    {...field}
+                                                    value={field.value ?? ""}
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+
+                                <FormField
+                                    name="departemen"
+                                    control={form.control}
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Departemen</FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    placeholder="Contoh: Teknologi Informasi"
+                                                    {...field}
+                                                    value={field.value ?? ""}
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
                                 <FormField
                                     name="tanggalMasuk"
                                     control={form.control}
@@ -346,15 +404,66 @@ export default function UpdateEmployeeForm({ employee, role, id }: { employee: s
                                         </Select>
                                         <FormMessage /></FormItem>
                                 )} />
-                                <FormField name="gajiPokok" control={form.control} render={({ field }) => (
-                                    <FormItem><FormLabel>Gaji Pokok</FormLabel><FormControl><Input type="number" placeholder="Contoh: 5000000" {...field} onChange={e => field.onChange(Number(e.target.value))} /></FormControl><FormMessage /></FormItem>
-                                )} />
-                                <FormField name="tunjangan" control={form.control} render={({ field }) => (
-                                    <FormItem><FormLabel>Tunjangan</FormLabel><FormControl><Input type="number" placeholder="Contoh: 1000000" {...field} onChange={e => field.onChange(Number(e.target.value))} /></FormControl><FormMessage /></FormItem>
-                                )} />
-                                <FormField name="potongan" control={form.control} render={({ field }) => (
-                                    <FormItem><FormLabel>Potongan</FormLabel><FormControl><Input type="number" placeholder="Contoh: 100000" {...field} onChange={e => field.onChange(Number(e.target.value))} /></FormControl><FormMessage /></FormItem>
-                                )} />
+                                <FormField
+                                    name="gajiPokok"
+                                    control={form.control}
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Gaji Pokok</FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    type="number"
+                                                    placeholder="Contoh: 5000000"
+                                                    {...field}
+                                                    value={field.value ?? ""} // null → ""
+                                                    onChange={(e) => field.onChange(e.target.value === "" ? null : Number(e.target.value))}
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+
+                                <FormField
+                                    name="tunjangan"
+                                    control={form.control}
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Tunjangan</FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    type="number"
+                                                    placeholder="Contoh: 1000000"
+                                                    {...field}
+                                                    value={field.value ?? ""}
+                                                    onChange={(e) => field.onChange(e.target.value === "" ? null : Number(e.target.value))}
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+
+                                <FormField
+                                    name="potongan"
+                                    control={form.control}
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Potongan</FormLabel>
+                                            <FormControl>
+                                                <Input
+                                                    type="number"
+                                                    placeholder="Contoh: 100000"
+                                                    {...field}
+                                                    value={field.value ?? ""}
+                                                    onChange={(e) => field.onChange(e.target.value === "" ? null : Number(e.target.value))}
+                                                />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+
                                 <FormField name="userId" control={form.control} render={({ field }) => (
                                     <FormItem><FormLabel>User ID (untuk login)</FormLabel><FormControl><Input placeholder="ID unik pengguna" {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
                                 )} />
@@ -387,7 +496,7 @@ export default function UpdateEmployeeForm({ employee, role, id }: { employee: s
                                                         {filePreview ? (
                                                             <div className="relative w-full h-full">
                                                                 <Image
-                                                                    src={makeImageSrc(filePreview)}
+                                                                    src={`/api/proxy/${filePreview}`} // sekarang sudah pasti tanpa double slash
                                                                     alt="Preview foto karyawan"
                                                                     fill
                                                                     className="object-cover"
@@ -403,6 +512,7 @@ export default function UpdateEmployeeForm({ employee, role, id }: { employee: s
                                                                 <span className="text-xs">No Image</span>
                                                             </div>
                                                         )}
+
                                                     </div>
                                                     {value instanceof File && (
                                                         <span className="text-sm text-muted-foreground text-center max-w-32 truncate">

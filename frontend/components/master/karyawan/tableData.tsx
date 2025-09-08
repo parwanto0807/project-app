@@ -54,6 +54,9 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { makeImageSrc } from "@/utils/makeImageSrc";
+import DeleteEmployeeAlert from "./alert-delete";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 interface TeamKaryawan {
   id: string;
@@ -70,7 +73,7 @@ interface Karyawan {
   teamKaryawan: TeamKaryawan[];
   email?: string;
   tanggalBergabung?: string;
-  noTelepon?: string;
+  nomorTelepon?: string;
   foto?: string;
   alamat?: string;
   tanggalLahir?: string;
@@ -96,7 +99,13 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
   const [sortConfig, setSortConfig] = useState<{ key: SortableKey; direction: 'asc' | 'desc' } | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  console.log("role", role)
+  const router = useRouter();
+
+  const handleDeleteSuccess = async () => {
+    toast.success("Karyawan berhasil dihapus");
+    router.refresh();
+  };
+
   // Filter and sort data
   const filteredAndSortedData = useMemo(() => {
     const filteredData = karyawan.filter((item) => {
@@ -284,7 +293,13 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href={`/admin-area/karyawan/detail/${employee.id}`} className="flex items-center gap-2 cursor-pointer">
+                  <DeleteEmployeeAlert
+                    id={employee.id}
+                    onDelete={handleDeleteSuccess}
+                  />
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="#" className="flex items-center gap-2 cursor-pointer">
                     <FileDigit size={16} className="text-green-500" /> Detail
                   </Link>
                 </DropdownMenuItem>
@@ -368,11 +383,11 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                     </div>
                   )}
 
-                  {employee.noTelepon && (
+                  {employee.nomorTelepon && (
                     <div className="flex items-center gap-2 p-2 bg-white dark:bg-gray-800 rounded-md">
                       <Phone size={14} className="text-blue-500" />
                       <span className="font-medium">Telepon:</span>
-                      <span>{employee.noTelepon}</span>
+                      <span>{employee.nomorTelepon}</span>
                     </div>
                   )}
 
@@ -661,7 +676,16 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                                   </Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem asChild>
-                                  <Link href={`/admin-area/master/karyawan/detail/${item.id}`} className="flex items-center gap-2 cursor-pointer">
+                                  <DeleteEmployeeAlert
+                                    id={item.id}
+                                    onDelete={() => {
+                                      toast.success("Karyawan berhasil dihapus");
+                                      router.refresh();
+                                    }}
+                                  />
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                  <Link href="#" className="flex items-center gap-2 cursor-pointer">
                                     <FileDigit size={16} className="text-green-500" /> Detail
                                   </Link>
                                 </DropdownMenuItem>
@@ -742,7 +766,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                                         <Phone size={16} className="text-blue-500" />
                                         Telepon:
                                       </span>
-                                      <span className="font-medium">{item.noTelepon || "-"}</span>
+                                      <span className="font-medium">{item.nomorTelepon || "-"}</span>
                                     </div>
 
                                     <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded-lg">
@@ -842,7 +866,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
 
                                     <Button asChild variant="outline" className="w-full">
                                       <Link
-                                        href={`/admin-area/karyawan/detail/${item.id}`}
+                                        href="#"
                                         className="flex items-center justify-center gap-2"
                                       >
                                         <FileDigit size={16} /> Lihat Detail Lengkap
@@ -966,6 +990,9 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
             </div>
           </div>
         )}
+        <div className="text-sm text-gray-500">
+          <h4>Role : {role}</h4>
+        </div>
       </CardContent>
     </Card>
   );

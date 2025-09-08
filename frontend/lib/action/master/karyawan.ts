@@ -14,7 +14,6 @@ export async function fetchAllKaryawan() {
     if (!res.ok) throw new Error(`Gagal fetch: ${res.status}`);
 
     const data = await res.json();
-    console.log("Data Karyawan", data);
     return { karyawan: data || [], isLoading: false };
   } catch (error) {
     console.error("[fetchAllKaryawan]", error);

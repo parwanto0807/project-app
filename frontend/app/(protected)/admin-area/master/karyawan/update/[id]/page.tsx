@@ -18,8 +18,9 @@ import { fetchKaryawanById } from "@/lib/action/master/karyawan";
 import { EmployeeUpdateSchema } from "@/schemas";
 import { z } from "zod";
 import Link from "next/link";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PageLoading } from "@/components/ui/loading";
 
 type Employee = z.infer<typeof EmployeeUpdateSchema>;
 
@@ -46,7 +47,6 @@ export default function UpdateEmployeePage() {
     }
   }, [userLoading, user, router]);
 
-
   useEffect(() => {
     if (!id) {
       setError("ID karyawan tidak ditemukan");
@@ -57,10 +57,8 @@ export default function UpdateEmployeePage() {
     const fetchData = async () => {
       try {
         setLoadingData(true);
-        // Perbaikan di sini: Ambil hanya properti karyawan dari hasil fetch
         const result = await fetchKaryawanById(id);
 
-        // Pastikan kita hanya menyimpan data karyawan, bukan seluruh objek result
         if (result.karyawan) {
           setData(result.karyawan);
           setError("");
@@ -94,6 +92,19 @@ export default function UpdateEmployeePage() {
       router.push(getBasePath());
     }
   };
+
+  // Tampilkan PageLoading untuk semua kasus loading
+  if (userLoading || loadingData) {
+    return (
+      <PageLoading
+        title={userLoading ? "Memverifikasi akses" : "Memuat data karyawan"}
+        description={userLoading ?
+          "Mohon tunggu sementara kami memeriksa otentikasi Anda" :
+          "Mohon tunggu sementara kami menyiapkan data karyawan"
+        }
+      />
+    );
+  }
 
   return (
     <AdminLayout title="Update Data Karyawan" role={role}>
@@ -132,20 +143,7 @@ export default function UpdateEmployeePage() {
         </Breadcrumb>
       </div>
 
-      {userLoading || loadingData ? (
-        <div className="flex flex-col items-center justify-center py-12">
-          <div className="relative">
-            <Loader2 className="h-12 w-12 text-primary animate-spin" />
-            <div className="absolute inset-0 rounded-full border-4 border-primary/10 animate-pulse"></div>
-          </div>
-          <p className="mt-4 text-lg font-medium text-gray-600">
-            Memuat data karyawan...
-          </p>
-          <p className="text-sm text-gray-500 mt-2">
-            Mohon tunggu sementara kami menyiapkan data karyawan
-          </p>
-        </div>
-      ) : error ? (
+      {error ? (
         <div className="flex flex-col items-center justify-center py-12 space-y-4">
           <div className="bg-red-100 p-4 rounded-full">
             <svg

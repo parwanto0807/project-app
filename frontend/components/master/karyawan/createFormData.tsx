@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { User, Briefcase, ShieldCheck, Loader2, Camera, Upload, X } from 'lucide-react';
+import { User, Briefcase, ShieldCheck, Loader2, Camera, Upload, X, ArrowLeft } from 'lucide-react';
 import { employeeFormSchema, type EmployeeFormValues } from '@/schemas';
 import Image from 'next/image';
 import { useRouter } from "next/navigation";
@@ -144,7 +144,7 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
                                     <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" placeholder="contoh@perusahaan.com" {...field} /></FormControl><FormMessage /></FormItem>
                                 )} />
                                 <FormField name="nomorTelepon" control={form.control} render={({ field }) => (
-                                    <FormItem><FormLabel>Nomor Telepon</FormLabel><FormControl><Input placeholder="Contoh: 08123456789" {...field} /></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>Nomor Telepon</FormLabel><FormControl><Input placeholder="Contoh: 08123456789" {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
                                 )} />
                                 <FormField
                                     name="tanggalLahir"
@@ -192,7 +192,7 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
                                     }}
                                 />
                                 <FormField name="alamat" control={form.control} render={({ field }) => (
-                                    <FormItem className="md:col-span-2"><FormLabel>Alamat</FormLabel><FormControl><Textarea placeholder="Masukkan alamat lengkap..." {...field} /></FormControl><FormMessage /></FormItem>
+                                    <FormItem className="md:col-span-2"><FormLabel>Alamat</FormLabel><FormControl><Textarea placeholder="Masukkan alamat lengkap..." {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
                                 )} />
                             </div>
                         </div>
@@ -205,10 +205,10 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
                             </h3>
                             <div className="grid md:grid-cols-2 gap-4">
                                 <FormField name="jabatan" control={form.control} render={({ field }) => (
-                                    <FormItem><FormLabel>Jabatan</FormLabel><FormControl><Input placeholder="Contoh: Software Engineer" {...field} /></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>Jabatan</FormLabel><FormControl><Input placeholder="Contoh: Software Engineer" {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
                                 )} />
                                 <FormField name="departemen" control={form.control} render={({ field }) => (
-                                    <FormItem><FormLabel>Departemen</FormLabel><FormControl><Input placeholder="Contoh: Teknologi Informasi" {...field} /></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>Departemen</FormLabel><FormControl><Input placeholder="Contoh: Teknologi Informasi" {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
                                 )} />
                                 <FormField
                                     name="tanggalMasuk"
@@ -286,16 +286,16 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
                                         <FormMessage /></FormItem>
                                 )} />
                                 <FormField name="gajiPokok" control={form.control} render={({ field }) => (
-                                    <FormItem><FormLabel>Gaji Pokok</FormLabel><FormControl><Input type="number" placeholder="Contoh: 5000000" {...field} onChange={e => field.onChange(Number(e.target.value))} /></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>Gaji Pokok</FormLabel><FormControl><Input type="number" placeholder="Contoh: 5000000" {...field} value={field.value ?? ""} onChange={e => field.onChange(Number(e.target.value))} /></FormControl><FormMessage /></FormItem>
                                 )} />
                                 <FormField name="tunjangan" control={form.control} render={({ field }) => (
-                                    <FormItem><FormLabel>Tunjangan</FormLabel><FormControl><Input type="number" placeholder="Contoh: 1000000" {...field} onChange={e => field.onChange(Number(e.target.value))} /></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>Tunjangan</FormLabel><FormControl><Input type="number" placeholder="Contoh: 1000000" {...field} value={field.value ?? ""} onChange={e => field.onChange(Number(e.target.value))} /></FormControl><FormMessage /></FormItem>
                                 )} />
                                 <FormField name="potongan" control={form.control} render={({ field }) => (
-                                    <FormItem><FormLabel>Potongan</FormLabel><FormControl><Input type="number" placeholder="Contoh: 100000" {...field} onChange={e => field.onChange(Number(e.target.value))} /></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>Potongan</FormLabel><FormControl><Input type="number" placeholder="Contoh: 100000" {...field} value={field.value ?? ""} onChange={e => field.onChange(Number(e.target.value))} /></FormControl><FormMessage /></FormItem>
                                 )} />
                                 <FormField name="userId" control={form.control} render={({ field }) => (
-                                    <FormItem><FormLabel>User ID (untuk login)</FormLabel><FormControl><Input placeholder="ID unik pengguna" {...field} /></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>User ID (untuk login)</FormLabel><FormControl><Input placeholder="ID unik pengguna" {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
                                 )} />
                                 <FormField name="isActive" control={form.control} render={({ field }) => (
                                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 mt-4 md:mt-0">
@@ -391,7 +391,16 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
                             />
                         </div>
 
-                        <CardFooter className="flex justify-end p-0 pt-6">
+                        <CardFooter className="flex flex-col sm:flex-row justify-between gap-3 p-0 pt-6">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => router.back()}
+                                className="w-full sm:w-auto"
+                            >
+                                <ArrowLeft className="mr-2 h-4 w-4" />
+                                Batal
+                            </Button>
                             <Button type="submit" disabled={isLoading} className="w-full md:w-auto">
                                 {isLoading ? (
                                     <> <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Mohon Tunggu... </>

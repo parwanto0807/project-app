@@ -179,7 +179,12 @@ export const salesOrderItemBase = z.object({
   name: z.string().trim().min(1, "Nama item wajib diisi."),
   description: z.string().trim().optional().nullable(),
 
-  uom: z.string().trim().max(20, "UOM maksimal 20 karakter.").optional().nullable(),
+  uom: z
+    .string()
+    .trim()
+    .max(20, "UOM maksimal 20 karakter.")
+    .optional()
+    .nullable(),
 
   qty: z.coerce
     .number()
@@ -217,9 +222,15 @@ export const salesOrderItemBase = z.object({
 export type SalesOrderItemBase = z.infer<typeof salesOrderItemBase>;
 
 /* Lintas-field rules */
-const validateItemBusinessRules = (val: SalesOrderItemBase, ctx: z.RefinementCtx) => {
+const validateItemBusinessRules = (
+  val: SalesOrderItemBase,
+  ctx: z.RefinementCtx
+) => {
   // PRODUCT & SERVICE: productId wajib
-  if ((val.itemType === "PRODUCT" || val.itemType === "SERVICE") && !val.productId) {
+  if (
+    (val.itemType === "PRODUCT" || val.itemType === "SERVICE") &&
+    !val.productId
+  ) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["productId"],
@@ -254,12 +265,14 @@ const validateItemBusinessRules = (val: SalesOrderItemBase, ctx: z.RefinementCtx
 };
 
 /* CREATE item */
-export const salesOrderItemSchema = salesOrderItemBase.superRefine(validateItemBusinessRules);
+export const salesOrderItemSchema = salesOrderItemBase.superRefine(
+  validateItemBusinessRules
+);
 
 /* UPDATE item (PATCH) */
 export const salesOrderItemUpdateSchema = salesOrderItemBase
   .extend({
-    id: z.string().uuid().optional().nullable(),     // null ⇒ item baru saat PATCH
+    id: z.string().uuid().optional().nullable(), // null ⇒ item baru saat PATCH
     lineNo: z.coerce.number().int().positive().optional(), // pindah posisi baris
   })
   .superRefine(validateItemBusinessRules);
@@ -333,7 +346,7 @@ export const salesOrderUpdateSchema = z.object({
   projectId: z.string().uuid().optional().nullable(),
   userId: z.string().uuid().optional(),
 
-  type: OrderTypeEnum.optional(),          // PATCH ⇒ opsional
+  type: OrderTypeEnum.optional(), // PATCH ⇒ opsional
   status: OrderStatusEnum.optional(),
 
   currency: z.string().optional(),
@@ -405,31 +418,38 @@ export type SalesOrderFormValues = CreateSalesOrderPayload & {
 };
 
 export const employeeFormSchema = z.object({
-  nik: z.string().optional(), // kalau kosong, backend generate otomatis
+  nik: z.string().optional(),
   namaLengkap: z.string().min(1, "Nama wajib diisi"),
   email: z.string().email("Email tidak valid"),
-  nomorTelepon: z.string().min(8, "Nomor telepon tidak valid"),
-  alamat: z.string().min(5, "Alamat terlalu singkat"),
-  jabatan: z.string().min(1, "Jabatan wajib diisi"),
-  departemen: z.string().min(1, "Departemen wajib diisi"),
+  alamat: z.string().min(5, "Alamat terlalu singkat").optional().nullable(),
+  nomorTelepon: z
+    .string()
+    .min(8, "Nomor telepon tidak valid")
+    .optional()
+    .nullable(),
+  jabatan: z.string().min(1, "Jabatan wajib diisi").optional().nullable(),
+  departemen: z.string().min(1, "Departemen wajib diisi").optional().nullable(),
+
   statusKerja: z.string().min(1, "Status kerja wajib diisi"),
   tipeKontrak: z.string().min(1, "Tipe kontrak wajib diisi"),
-  gajiPokok: z.coerce.number().nonnegative(),
-  tunjangan: z.coerce.number().nonnegative(),
-  potongan: z.coerce.number().nonnegative(),
+
+  gajiPokok: z.coerce.number().nonnegative().nullable().optional(),
+  tunjangan: z.coerce.number().nonnegative().nullable().optional(),
+  potongan: z.coerce.number().nonnegative().nullable().optional(),
+
   isActive: z.boolean().default(true),
-  userId: z.string().optional(),
+  userId: z.string().optional().nullable(),
 
-  tanggalLahir: z.date().optional(),
-  tanggalMasuk: z.date().optional(),
-  tanggalKeluar: z.date().optional(),
+  tanggalLahir: z.coerce.date().optional(),
+  tanggalMasuk: z.coerce.date().optional(),
+  tanggalKeluar: z.coerce.date().optional(),
 
-  foto: z.any().optional(), // file upload (foto karyawan)
-  teamIds: z.array(z.string()).optional(), // kalau ada relasi team
+  foto: z.any().optional(),
+  teamIds: z.array(z.string()).optional(),
 });
 
 export type EmployeeFormValues = z.infer<typeof employeeFormSchema>;
 
 export const EmployeeUpdateSchema = employeeFormSchema.partial().extend({
-  id: z.string().uuid({ message: "ID produk tidak valid" }),
+  id: z.string().uuid({ message: "ID karyawan tidak valid" }),
 });
