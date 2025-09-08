@@ -333,7 +333,7 @@ export function CreateSalesOrderForm({
   }
 
   return (
-    <div className="w-full max-w-5xl mx-auto space-y-6">
+    <div className="w-full mx-auto space-y-6">
       <div className="flex items-center space-x-3">
         <div className="flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/50">
           <FileText className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -356,281 +356,309 @@ export function CreateSalesOrderForm({
                 Informasi dasar mengenai sales order
               </CardDescription>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <FormItem>
-                <FormLabel>Nomor Sales Order</FormLabel>
-                <div className="relative">
-                  <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Akan dibuat otomatis oleh sistem"
-                    className="pl-9"
-                    disabled
-                  />
-                </div>
-                <FormMessage />
-              </FormItem>
-
-              <FormField
-                control={form.control}
-                name="soDate"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Tanggal SO</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "dd MMM yyyy")
-                            ) : (
-                              <span>Pilih tanggal</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={(d) => field.onChange(d ?? field.value ?? new Date())}
-                          disabled={date =>
-                            date > new Date() || date < new Date("1900-01-01")
-                          }
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              {/* Customer Field */}
-              <FormField
-                control={form.control}
-                name="customerId"
-                render={({ field }) => (
+            <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-5">
+              {/* Nomor SO & Tanggal */}
+              <div className="grid grid-cols-1 gap-4 md:col-span-2 md:grid-cols-2">
+                <div>
                   <FormItem>
-                    <FormLabel>Customer</FormLabel>
-                    <div className="flex gap-2">
-                      <FormControl>
-                        <div className="relative w-full">
-                          <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Select
-                            value={field.value}
-                            onValueChange={async (id) => {
-                              field.onChange(id);
-                              form.setValue("projectId", "");
-                              setLoadingProjects(true);
-                              try {
-                                const { projects } = await fetchAllProjects({ customerId: id });
-                                setProjectOptions(projects.map((p) => ({ id: p.id, name: p.name })));
-                              } finally {
-                                setLoadingProjects(false);
-                              }
-                            }}
-                          >
-                            <SelectTrigger className="pl-9">
-                              <SelectValue placeholder="Pilih customer..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {customerOptions.map((c) => (
-                                <SelectItem key={c.id} value={c.id}>
-                                  {c.name} {c.branch ? `(${c.branch})` : ""}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </FormControl>
-
-                      <CustomerCreateDialog
-                        createEndpoint={`${process.env.NEXT_PUBLIC_API_URL}/api/master/customer/createCustomer`}
-                        onCreated={async (created) => {
-                          setCustomerOptions((prev) => [created, ...prev]);
-                          field.onChange(created.id);
-                          form.setValue("projectId", "");
-                          setLoadingProjects(true);
-                          try {
-                            const { projects } = await fetchAllProjects({ customerId: created.id });
-                            setProjectOptions(projects.map((p) => ({ id: p.id, name: p.name })));
-                          } finally {
-                            setLoadingProjects(false);
-                          }
-                        }}
+                    <FormLabel>Nomor Sales Order</FormLabel>
+                    <div className="relative">
+                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Akan dibuat otomatis oleh sistem"
+                        className="pl-9"
+                        disabled
                       />
                     </div>
                     <FormMessage />
                   </FormItem>
-                )}
-              />
+                </div>
+                <div>
+                  <FormField
+                    control={form.control}
+                    name="soDate"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>Tanggal SO</FormLabel>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant={"outline"}
+                                className={cn(
+                                  "pl-3 text-left font-normal",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                              >
+                                {field.value ? (
+                                  format(field.value, "dd MMM yyyy")
+                                ) : (
+                                  <span>Pilih tanggal</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={(d) =>
+                                field.onChange(d ?? field.value ?? new Date())
+                              }
+                              disabled={(date) =>
+                                date > new Date() || date < new Date("1900-01-01")
+                              }
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
 
-              {/* Project Field */}
-              <FormField
-                control={form.control}
-                name="projectId"
-                render={({ field }) => {
-                  const selectedCustomerId = form.watch("customerId");
-                  const disabled = !selectedCustomerId || loadingProjects;
-
-                  // Filter project berdasarkan pencarian - ini boleh di dalam callback karena bukan hook
-                  const filteredProjects = projectOptions.filter((project) =>
-                    project.name.toLowerCase().includes(projectSearchQuery.toLowerCase())
-                  );
-
-                  return (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Project (Opsional)</FormLabel>
+              {/* Customer */}
+              <div className="md:col-span-2">
+                <FormField
+                  control={form.control}
+                  name="customerId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Customer</FormLabel>
                       <div className="flex gap-2">
-                        <FormControl>
-                          <div className="relative w-full">
-                            {/* <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" /> */}
-                            <Popover open={projectSearchOpen} onOpenChange={setProjectSearchOpen}>
-                              <PopoverTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  role="combobox"
-                                  aria-expanded={projectSearchOpen}
-                                  className="w-full justify-between pl-9"
-                                  disabled={disabled}
-                                >
-                                  {field.value
-                                    ? projectOptions.find((project) => project.id === field.value)?.name
-                                    : !selectedCustomerId
-                                      ? "Pilih customer dulu"
-                                      : loadingProjects
-                                        ? "Memuat project…"
-                                        : "Pilih project..."}
-                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-full p-0">
-                                <Command>
-                                  <div className="flex items-center border-b px-3">
-                                    <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                                    <CommandInput
-                                      placeholder="Cari project..."
-                                      value={projectSearchQuery}
-                                      onValueChange={setProjectSearchQuery}
-                                    />
-                                  </div>
-                                  <CommandList>
-                                    <CommandEmpty>
-                                      {!selectedCustomerId ? (
-                                        "Customer belum dipilih"
-                                      ) : loadingProjects ? (
-                                        "Memuat project…"
-                                      ) : projectSearchQuery ? (
-                                        "Project tidak ditemukan"
-                                      ) : (
-                                        "Tidak ada project untuk customer ini"
-                                      )}
-                                    </CommandEmpty>
-                                    <CommandGroup>
-                                      {filteredProjects.map((project) => (
-                                        <CommandItem
-                                          key={project.id}
-                                          value={project.name}
-                                          onSelect={() => {
-                                            form.setValue("projectId", project.id);
-                                            setProjectSearchOpen(false);
-                                            setProjectSearchQuery("");
-                                          }}
-                                        >
-                                          <Check
-                                            className={cn(
-                                              "mr-2 h-4 w-4",
-                                              field.value === project.id ? "opacity-100" : "opacity-0"
-                                            )}
-                                          />
-                                          {project.name}
-                                        </CommandItem>
-                                      ))}
-                                    </CommandGroup>
-                                  </CommandList>
-                                </Command>
-                              </PopoverContent>
-                            </Popover>
-                          </div>
-                        </FormControl>
-
-                        <ProjectCreateDialog
-                          createEndpoint={`${process.env.NEXT_PUBLIC_API_URL}/api/salesOrder/project/create`}
-                          customerId={selectedCustomerId}
-                          onCreated={(created) => {
-                            setProjectOptions((prev) => [created, ...prev]);
-                            form.setValue("projectId", created.id);
+                        <CustomerCreateDialog
+                          createEndpoint={`${process.env.NEXT_PUBLIC_API_URL}/api/master/customer/createCustomer`}
+                          onCreated={async (created) => {
+                            setCustomerOptions((prev) => [created, ...prev]);
+                            field.onChange(created.id);
+                            form.setValue("projectId", "");
+                            setLoadingProjects(true);
+                            try {
+                              const { projects } = await fetchAllProjects({
+                                customerId: created.id,
+                              });
+                              setProjectOptions(
+                                projects.map((p) => ({ id: p.id, name: p.name }))
+                              );
+                            } finally {
+                              setLoadingProjects(false);
+                            }
                           }}
                         />
+                        <FormControl>
+                          <div className="relative w-full">
+                            <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Select
+                              value={field.value}
+                              onValueChange={async (id) => {
+                                field.onChange(id);
+                                form.setValue("projectId", "");
+                                setLoadingProjects(true);
+                                try {
+                                  const { projects } = await fetchAllProjects({
+                                    customerId: id,
+                                  });
+                                  setProjectOptions(
+                                    projects.map((p) => ({ id: p.id, name: p.name }))
+                                  );
+                                } finally {
+                                  setLoadingProjects(false);
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="pl-9">
+                                <SelectValue placeholder="Pilih customer..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {customerOptions.map((c) => (
+                                  <SelectItem key={c.id} value={c.id}>
+                                    {c.name} {c.branch ? `(${c.branch})` : ""}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </FormControl>
                       </div>
                       <FormMessage />
                     </FormItem>
-                  );
-                }}
-              />
+                  )}
+                />
+              </div>
 
-              <FormField
-                control={form.control}
-                name="type"
-                render={({ field }) => (
-                  <FormItem className="space-y-3">
-                    <FormLabel>Tipe SO</FormLabel>
-                    <FormControl>
-                      <RadioGroup
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        className="flex flex-col space-y-2 md:flex-row md:space-y-0 md:space-x-4"
-                      >
-                        <FormItem className="flex items-center space-x-2 space-y-0">
-                          <FormControl>
-                            <RadioGroupItem value="REGULAR" />
-                          </FormControl>
-                          <FormLabel className="font-normal">
-                            Regular
-                          </FormLabel>
-                        </FormItem>
-                        <FormItem className="flex items-center space-x-2 space-y-0">
-                          <FormControl>
-                            <RadioGroupItem value="SUPPORT" />
-                          </FormControl>
-                          <FormLabel className="font-normal">
-                            Support
-                          </FormLabel>
-                        </FormItem>
-                      </RadioGroup>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* Project */}
+              <div className="md:col-span-2">
+                <FormField
+                  control={form.control}
+                  name="projectId"
+                  render={({ field }) => {
+                    const selectedCustomerId = form.watch("customerId");
+                    const disabled = !selectedCustomerId || loadingProjects;
 
-              <FormField
-                control={form.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem className="md:col-span-2">
-                    <FormLabel>Catatan (Opsional)</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Tambahkan catatan untuk SO ini..."
-                        className="resize-none"
-                        value={field.value || ""}
-                        onChange={(e) => field.onChange(e.target.value || undefined)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                    const filteredProjects = projectOptions.filter((project) =>
+                      project.name
+                        .toLowerCase()
+                        .includes(projectSearchQuery.toLowerCase())
+                    );
+
+                    return (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>Project (Opsional)</FormLabel>
+                        <div className="flex gap-2">
+                          <ProjectCreateDialog
+                            createEndpoint={`${process.env.NEXT_PUBLIC_API_URL}/api/salesOrder/project/create`}
+                            customerId={selectedCustomerId}
+                            onCreated={(created) => {
+                              setProjectOptions((prev) => [created, ...prev]);
+                              form.setValue("projectId", created.id);
+                            }}
+                          />
+                          <FormControl>
+                            <div className="relative w-full">
+                              <Popover
+                                open={projectSearchOpen}
+                                onOpenChange={setProjectSearchOpen}
+                              >
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    aria-expanded={projectSearchOpen}
+                                    className="w-full justify-between"
+                                    disabled={disabled}
+                                  >
+                                    {field.value
+                                      ? projectOptions.find(
+                                        (project) => project.id === field.value
+                                      )?.name
+                                      : !selectedCustomerId
+                                        ? "Pilih customer dulu"
+                                        : loadingProjects
+                                          ? "Memuat project…"
+                                          : "Pilih project..."}
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-full p-0">
+                                  <Command>
+                                    <div className="flex items-center border-b px-3">
+                                      <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                                      <CommandInput
+                                        placeholder="Cari project..."
+                                        value={projectSearchQuery}
+                                        onValueChange={setProjectSearchQuery}
+                                      />
+                                    </div>
+                                    <CommandList>
+                                      <CommandEmpty>
+                                        {!selectedCustomerId ? (
+                                          "Customer belum dipilih"
+                                        ) : loadingProjects ? (
+                                          "Memuat project…"
+                                        ) : projectSearchQuery ? (
+                                          "Project tidak ditemukan"
+                                        ) : (
+                                          "Tidak ada project untuk customer ini"
+                                        )}
+                                      </CommandEmpty>
+                                      <CommandGroup>
+                                        {filteredProjects.map((project) => (
+                                          <CommandItem
+                                            key={project.id}
+                                            value={project.name}
+                                            onSelect={() => {
+                                              form.setValue("projectId", project.id);
+                                              setProjectSearchOpen(false);
+                                              setProjectSearchQuery("");
+                                            }}
+                                          >
+                                            <Check
+                                              className={cn(
+                                                "mr-2 h-4 w-4",
+                                                field.value === project.id
+                                                  ? "opacity-100"
+                                                  : "opacity-0"
+                                              )}
+                                            />
+                                            {project.name}
+                                          </CommandItem>
+                                        ))}
+                                      </CommandGroup>
+                                    </CommandList>
+                                  </Command>
+                                </PopoverContent>
+                              </Popover>
+                            </div>
+                          </FormControl>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
+                />
+              </div>
+
+              {/* Notes */}
+              <div className="md:col-span-3">
+                <FormField
+                  control={form.control}
+                  name="notes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Catatan (Opsional)</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Tambahkan catatan untuk SO ini..."
+                          className="resize-none"
+                          value={field.value || ""}
+                          onChange={(e) => field.onChange(e.target.value || undefined)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Type */}
+              <div className="md:col-span-2">
+                <FormField
+                  control={form.control}
+                  name="type"
+                  render={({ field }) => (
+                    <FormItem className="space-y-3">
+                      <FormLabel>Tipe SO</FormLabel>
+                      <FormControl>
+                        <RadioGroup
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          className="flex flex-col space-y-2 md:flex-row md:space-y-0 md:space-x-4"
+                        >
+                          <FormItem className="flex items-center space-x-2 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="REGULAR" />
+                            </FormControl>
+                            <FormLabel className="font-normal">Regular</FormLabel>
+                          </FormItem>
+                          <FormItem className="flex items-center space-x-2 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="SUPPORT" />
+                            </FormControl>
+                            <FormLabel className="font-normal">Support</FormLabel>
+                          </FormItem>
+                        </RadioGroup>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </CardContent>
           </Card>
+
 
           { /* Bagian Item SO */}
           <Card>
@@ -668,27 +696,25 @@ export function CreateSalesOrderForm({
                 return (
                   <div
                     key={row.id}
-                    className="grid grid-cols-1 gap-4 p-4 border rounded-lg bg-muted/30"
+                    className="flex flex-col gap-4 p-4 border rounded-lg bg-muted/30"
                     aria-label={`Item ${index + 1}`}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
+                    <div className="grid grid-cols-1 md:grid-cols-14 gap-4">
+                      <div className="grid gap-1">
+                        {/* Label tipe item */}
+                        <span className="text-xs text-muted-foreground">
+                          {isProduct ? "Product" : itemType === "SERVICE" ? "Service" : "Custom"}
+                        </span>
                         {/* 🔢 Item Number Badge */}
                         <span
                           className={`inline-flex h-7 items-center rounded px-3 text-sm font-semibold ${badgeColor}`}
                         >
                           Item {itemNo}
                         </span>
-
-                        {/* Label tipe item */}
-                        <span className="text-xs text-muted-foreground">
-                          {isProduct ? "Product" : itemType === "SERVICE" ? "Service" : "Custom"}
-                        </span>
                       </div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+
                       {/* Tipe Item */}
-                      <div className="md:col-span-2">
+                      <div className="md:col-span-1">
                         <FormField
                           control={form.control}
                           name={`items.${index}.itemType`}
@@ -717,7 +743,7 @@ export function CreateSalesOrderForm({
                                     ref={(el) => {
                                       itemTypeRefs.current[index] = el;
                                     }}
-                                    className="focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                                    className="focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 text-xs"
                                   >
                                     <SelectValue placeholder="Pilih tipe" />
                                   </SelectTrigger>
@@ -735,13 +761,14 @@ export function CreateSalesOrderForm({
                       </div>
 
                       {/* Pemilihan dari katalog (tampil untuk PRODUCT & SERVICE) */}
-                      {isCatalogItem && (
-                        <div className="md:col-span-9">
+                      {/* Kolom productId / name */}
+                      <div className="md:col-span-3">
+                        {isCatalogItem ? (
+                          // === PRODUCT & SERVICE ===
                           <FormField
                             control={form.control}
                             name={`items.${index}.productId`}
                             render={({ field }) => {
-                              // Filter options berdasarkan pencarian
                               const filteredOptions = optionsForType.filter((opt) =>
                                 opt.name.toLowerCase().includes(itemState.productSearchQuery.toLowerCase())
                               );
@@ -750,21 +777,38 @@ export function CreateSalesOrderForm({
                                 <FormItem className="w-full">
                                   <FormLabel>{itemType === "PRODUCT" ? "Produk" : "Jasa"}</FormLabel>
                                   <div className="flex items-center gap-4">
+                                    {["PRODUCT", "SERVICE"].includes(itemType ?? "") && (
+                                      <ProductCreateDialog
+                                        createEndpoint={`${process.env.NEXT_PUBLIC_API_URL}/api/master/product/createProduct`}
+                                        onCreated={(created) => {
+                                          const newProduct = {
+                                            id: created.id,
+                                            name: created.name,
+                                          };
+                                          updateItemState(index, {
+                                            productOptions: [...optionsForType, newProduct],
+                                          });
+
+                                          handleProductSelect(index, created.id);
+                                          updateItemState(index, { productSearchOpen: false });
+                                        }}
+                                      />
+                                    )}
                                     <Popover
                                       open={itemState.productSearchOpen}
-                                      onOpenChange={(open) => {
+                                      onOpenChange={(open) =>
                                         updateItemState(index, {
                                           productSearchOpen: open,
-                                          productSearchQuery: open ? "" : itemState.productSearchQuery
-                                        });
-                                      }}
+                                          productSearchQuery: open ? "" : itemState.productSearchQuery,
+                                        })
+                                      }
                                     >
                                       <PopoverTrigger asChild>
                                         <FormControl>
                                           <Button
                                             variant="outline"
                                             role="combobox"
-                                            className="w-full justify-between"
+                                            className="max-w-4/5 justify-between"
                                           >
                                             {field.value
                                               ? optionsForType.find((opt) => opt.id === field.value)?.name
@@ -780,12 +824,16 @@ export function CreateSalesOrderForm({
                                             <CommandInput
                                               placeholder={`Cari ${itemType === "PRODUCT" ? "produk" : "jasa"}...`}
                                               value={itemState.productSearchQuery}
-                                              onValueChange={(value) => updateItemState(index, { productSearchQuery: value })}
+                                              onValueChange={(value) =>
+                                                updateItemState(index, { productSearchQuery: value })
+                                              }
                                             />
                                           </div>
                                           <CommandList>
                                             <CommandEmpty>
-                                              {itemState.productSearchQuery ? "Tidak ditemukan" : "Tidak ada data"}
+                                              {itemState.productSearchQuery
+                                                ? "Tidak ditemukan"
+                                                : "Tidak ada data"}
                                             </CommandEmpty>
                                             <CommandGroup>
                                               {filteredOptions.map((opt) => (
@@ -797,14 +845,16 @@ export function CreateSalesOrderForm({
                                                     handleProductSelect(index, opt.id);
                                                     updateItemState(index, {
                                                       productSearchOpen: false,
-                                                      productSearchQuery: ""
+                                                      productSearchQuery: "",
                                                     });
                                                   }}
                                                 >
                                                   <Check
                                                     className={cn(
                                                       "mr-2 h-4 w-4",
-                                                      field.value === opt.id ? "opacity-100" : "opacity-0"
+                                                      field.value === opt.id
+                                                        ? "opacity-100"
+                                                        : "opacity-0"
                                                     )}
                                                   />
                                                   {opt.name}
@@ -815,202 +865,237 @@ export function CreateSalesOrderForm({
                                         </Command>
                                       </PopoverContent>
                                     </Popover>
-
-                                    {itemType === "PRODUCT" && (
-                                      <ProductCreateDialog
-                                        createEndpoint={`${process.env.NEXT_PUBLIC_API_URL}/api/master/product/createProduct`}
-                                        onCreated={(created) => {
-                                          const newProduct = {
-                                            id: created.id,
-                                            name: created.name,
-                                          };
-
-                                          updateItemState(index, {
-                                            productOptions: [...optionsForType, newProduct]
-                                          });
-
-                                          handleProductSelect(index, created.id);
-                                          updateItemState(index, { productSearchOpen: false });
-                                        }}
-                                      />
-                                    )}
                                   </div>
                                   <FormMessage />
                                 </FormItem>
                               );
                             }}
                           />
-                        </div>
-                      )}
-
-                      {/* Nama Item: span menyesuaikan */}
-                    </div>
-
-                    {/* Deskripsi */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name={`items.${index}.name`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Nama Item</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Nama item/jasa..." {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
+                        ) : (
+                          // === CUSTOM ===
+                          <FormField
+                            control={form.control}
+                            name={`items.${index}.name`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Nama Item</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Nama item/jasa..." {...field} value={field.value ?? ""} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
                         )}
-                      />
+                      </div>
 
-                      <FormField
-                        control={form.control}
-                        name={`items.${index}.description`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Deskripsi (Opsional)</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="Deskripsi detail item/jasa..."
-                                className="resize-none"
-                                value={field.value || ""}
-                                onChange={(e) => field.onChange(e.target.value || undefined)}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    {/* Quantity, Harga, Diskon, Pajak */}
-                    <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-                      <FormField
-                        control={form.control}
-                        name={`items.${index}.qty`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Quantity</FormLabel>
-                            <FormControl>
-                              <div className="relative">
-                                <Package className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+
+                      <div className="md:col-span-1 md:col-start-7">
+                        <FormField
+                          control={form.control}
+                          name={`items.${index}.qty`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Quantity</FormLabel>
+                              <FormControl>
+                                <div className="relative">
+                                  <Package className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                  <Input
+                                    type="number"
+                                    step="0.0001"
+                                    min="0"
+                                    placeholder="1.0000"
+                                    className="pl-9"
+                                    value={field.value}
+                                    onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                  />
+                                </div>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <div className="md:col-span-1">
+                        <FormField
+                          control={form.control}
+                          name={`items.${index}.uom`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>UOM</FormLabel>
+                              <FormControl>
                                 <Input
-                                  type="number"
-                                  step="0.0001"
-                                  min="0"
-                                  placeholder="1.0000"
-                                  className="pl-9"
-                                  value={field.value}
-                                  onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                  {...field}
+                                  placeholder="Pcs, Lot, Kg, Ltr, etc."
+                                  value={field.value ?? ""}
+                                  onChange={(e) => field.onChange(e.target.value || null)}
                                 />
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
 
-                      <FormField
-                        control={form.control}
-                        name={`items.${index}.uom`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>UOM</FormLabel>
-                            <FormControl>
-                              <Input
-                                {...field}
-                                placeholder="Pcs, Lot, Kg, Ltr, etc."
-                                value={field.value ?? ""}
-                                onChange={(e) => field.onChange(e.target.value || null)}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      <div className="md:col-span-2">
+                        <FormField
+                          control={form.control}
+                          name={`items.${index}.unitPrice`}
+                          render={({ field }) => {
+                            // const formattedPrice =
+                            //   typeof field.value === "number"
+                            //     ? new Intl.NumberFormat("id-ID", {
+                            //       style: "currency",
+                            //       currency: "IDR",
+                            //       minimumFractionDigits: 0,
+                            //     }).format(field.value)
+                            //     : "";
 
-                      <FormField
-                        control={form.control}
-                        name={`items.${index}.unitPrice`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Harga Satuan</FormLabel>
-                            <FormControl>
-                              <div className="relative">
-                                <span
-                                  className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"
-                                  aria-hidden="true"
-                                >
-                                  Rp
-                                </span>
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  placeholder="0.00"
-                                  className="pl-10"
-                                  value={field.value}
-                                  onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                                />
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                            return (
+                              <FormItem>
+                                {/* 🔹 Label & Formatted Value */}
+                                <div className="flex items-center justify-between">
+                                  <FormLabel>Harga Satuan</FormLabel>
+                                  <span className="text-sm text-muted-foreground">
+                                    {/* {formattedPrice !== "" ? formattedPrice : "Rp 0"} */}
+                                  </span>
+                                </div>
+
+                                {/* 🔹 Input */}
+                                <FormControl>
+                                  <div className="relative">
+                                    <span
+                                      className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"
+                                      aria-hidden="true"
+                                    >
+                                      Rp
+                                    </span>
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      placeholder="0.00"
+                                      className="pl-10"
+                                      value={field.value}
+                                      onChange={(e) =>
+                                        field.onChange(parseFloat(e.target.value) || 0)
+                                      }
+                                    />
+                                  </div>
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            );
+                          }}
+                        />
+
+                      </div>
+                      <div className="md:col-span-1">
+                        <FormField
+                          control={form.control}
+                          name={`items.${index}.discount`}
+                          render={({ field }) => {
+                            // const discountValue = field.value || 0;
+                            // const unitPrice = form.watch(`items.${index}.unitPrice`) || 0;
+                            // const qty = form.watch(`items.${index}.qty`) || 1;
+
+                            // const totalBeforeDiscount = unitPrice * qty;
+                            // const discountAmount = (discountValue / 100) * totalBeforeDiscount;
+
+                            // const formattedDiscount = new Intl.NumberFormat("id-ID", {
+                            //   style: "currency",
+                            //   currency: "IDR",
+                            //   minimumFractionDigits: 0,
+                            // }).format(discountAmount);
 
 
-                      <FormField
-                        control={form.control}
-                        name={`items.${index}.discount`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Diskon (%)</FormLabel>
-                            <FormControl>
-                              <div className="relative">
-                                <Percent className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  max="100"
-                                  placeholder="0.00"
-                                  className="pl-9"
-                                  value={field.value}
-                                  onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                                />
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                            return (
+                              <FormItem>
+                                {/* 🔹 Label & Formatted Discount Value */}
+                                <div className="flex items-center justify-between">
+                                  <FormLabel className="flex items-center justify-between">
+                                    <span>Diskon (%)</span>
+                                    {/* <span className="text-sm font-normal text-muted-foreground">{formattedDiscount}</span> */}
+                                  </FormLabel>
+                                </div>
 
-                      <FormField
-                        control={form.control}
-                        name={`items.${index}.taxRate`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Pajak (%)</FormLabel>
-                            <FormControl>
-                              <div className="relative">
-                                <Percent className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  placeholder="0.00"
-                                  className="pl-9"
-                                  value={field.value}
-                                  onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                                />
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                                {/* 🔹 Input */}
+                                <FormControl>
+                                  <div className="relative">
+                                    <Percent className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      max="100"
+                                      placeholder="0.00"
+                                      className="pl-9"
+                                      value={field.value}
+                                      onChange={(e) =>
+                                        field.onChange(parseFloat(e.target.value) || 0)
+                                      }
+                                    />
+                                  </div>
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            );
+                          }}
+                        />
 
-                      <div className="flex flex-col justify-end">
-                        <FormLabel>Total</FormLabel>
+                      </div>
+                      <div className="md:col-span-1">
+                        <FormField
+                          control={form.control}
+                          name={`items.${index}.taxRate`}
+                          render={({ field }) => {
+                            // const taxRate = field.value || 0;
+                            // const unitPrice = form.watch(`items.${index}.unitPrice`) || 0;
+                            // const qty = form.watch(`items.${index}.qty`) || 1;
+                            // const discount = form.watch(`items.${index}.discount`) || 0;
+
+                            // const subtotal = unitPrice * qty;
+                            // const discountAmount = (discount / 100) * subtotal;
+                            // const taxableAmount = subtotal - discountAmount;
+                            // const taxAmount = (taxRate / 100) * taxableAmount;
+
+                            // const formattedTax = new Intl.NumberFormat("id-ID", {
+                            //   style: "currency",
+                            //   currency: "IDR",
+                            //   minimumFractionDigits: 0,
+                            // }).format(taxAmount);
+
+                            return (
+                              <FormItem>
+                                <FormLabel className="flex items-center justify-between">
+                                  <span>Pajak (%)</span>
+                                  {/* <span className="text-sm font-normal text-muted-foreground">{formattedTax}</span> */}
+                                </FormLabel>
+                                <FormControl>
+                                  <div className="relative w-5/6">
+                                    <Percent className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      placeholder="0.00"
+                                      className="pl-9"
+                                      value={field.value}
+                                      onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                    />
+                                  </div>
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            );
+                          }}
+                        />
+
+                      </div>
+                      <div className="md:col-span-2 pt-0.5 flex flex-col items-center">
+                        <FormLabel className="mb-1 text-center text-green-600 font-bold">
+                          Total
+                        </FormLabel>
                         <div className="flex items-center h-10 px-3 rounded-md border bg-background font-medium">
                           <Calculator className="h-4 w-4 mr-2 text-muted-foreground" />
                           {calculateItemTotal(index)}
@@ -1018,23 +1103,51 @@ export function CreateSalesOrderForm({
                       </div>
                     </div>
 
-                    {/* Delete Button */}
-                    <div className="flex items-center justify-end pt-2">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="text-white-600 hover:text-red-400 shadow-sm transition-colors"
-                        onClick={() => {
-                          remove(index);
-                          removeItemState(index);
-                        }}
-                        disabled={fields.length <= 1}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2 text-red-400" />
-                        Hapus
-                      </Button>
+
+                    {/* Quantity, Harga, Diskon, Pajak */}
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                      <div className={`md:col-span-3 md:col-start-3 ${itemType !== "CUSTOM" ? "hidden" : ""}`}>
+                        <FormField
+                          control={form.control}
+                          name={`items.${index}.description`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Deskripsi (Opsional)</FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="Deskripsi detail item/jasa..."
+                                  className="resize-none"
+                                  value={field.value ?? ""}
+                                  onChange={(e) => field.onChange(e.target.value || undefined)}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      {/* Delete Button */}
+                      <div className="md:col-span-1 md:col-start-12 pt-5">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="text-white-600 hover:text-red-400 shadow-sm transition-colors"
+                          onClick={() => {
+                            remove(index);
+                            removeItemState(index);
+                          }}
+                          disabled={fields.length <= 1}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2 text-red-400" />
+                          Hapus
+                        </Button>
+                      </div>
+
                     </div>
+
+
                   </div>
                 )
               })}
@@ -1120,7 +1233,7 @@ export function CreateSalesOrderForm({
 // Komponen Skeleton
 function CreateSalesOrderFormSkeleton() {
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-6">
+    <div className="w-full md:max-w-5/6 mx-auto space-y-6">
       <div className="flex items-center space-x-3">
         <Skeleton className="h-12 w-12 rounded-full" />
         <div className="space-y-2">

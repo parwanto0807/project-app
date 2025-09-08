@@ -148,7 +148,7 @@ export function ProductCreateDialog({ onCreated, createEndpoint }: BaseProps) {
             }
         }}>
             <DialogTrigger asChild>
-                <Button type="button" variant="outline" size="sm" className="h-9 w-9 p-0 md:h-10 md:w-10">
+                <Button type="button" variant="outline" size="sm" className="h-8 w-8 p-0 md:h-9 md:w-9">
                     <Plus className="h-4 w-4" />
                 </Button>
             </DialogTrigger>

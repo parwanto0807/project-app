@@ -29,7 +29,6 @@ import {
     Card,
     CardContent,
     CardDescription,
-    //   CardFooter,
     CardHeader,
     CardTitle,
 } from "@/components/ui/card"
@@ -56,13 +55,13 @@ import {
 } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-// import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { salesOrderUpdateSchema } from "@/schemas/index";
 import { type SalesOrder } from "@/schemas";
 import { ensureFreshToken } from "@/lib/http";
+import { ProductCreateDialog } from "./productDialog";
 
 type ApiProduct = z.infer<typeof ApiProductSchema>;
 type ProductOption = { id: string; name: string; description?: string; usageUnit?: string | null; };
@@ -106,16 +105,16 @@ export function UpdateSalesOrderForm({
     const router = useRouter()
     const [isPending, startTransition] = React.useTransition()
     const [customerOptions, setCustomerOptions] = React.useState(customers);
-    const [productOptions, setProductOptions] = React.useState<ProductOption[]>([]);
     const [projectOptions, setProjectOptions] = React.useState<Project[]>([]);
     const [loadingProjects, setLoadingProjects] = React.useState(false);
     const itemsEndRef = React.useRef<HTMLDivElement | null>(null);
     const scrollToBottom = () => {
         itemsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
-    const [selectedApiType, setSelectedApiType] = React.useState<
-        "PRODUCT" | "SERVICE" | "CUSTOM" | undefined
-    >("PRODUCT");
+
+    // State untuk menyimpan productOptions per index item
+    const [productOptionsPerItem, setProductOptionsPerItem] = React.useState<Record<number, ProductOption[]>>({});
+    const [loadingProductsPerItem, setLoadingProductsPerItem] = React.useState<Record<number, boolean>>({});
 
     React.useEffect(() => { setCustomerOptions(customers); }, [customers]);
 
@@ -135,7 +134,7 @@ export function UpdateSalesOrderForm({
             isTaxInclusive: salesOrder.isTaxInclusive || false,
             items: salesOrder.items.map(item => ({
                 id: item.id,
-                itemType: item.itemType || "PRODUCT", // Pastikan itemType tidak undefined
+                itemType: item.itemType || "PRODUCT",
                 productId: item.productId || null,
                 name: item.name || "",
                 description: item.description || null,
@@ -148,32 +147,56 @@ export function UpdateSalesOrderForm({
         },
     });
 
-    // Inisialisasi useFieldArray
     const { fields, append, remove } = useFieldArray({
         control: form.control,
         name: "items",
     })
 
-    React.useEffect(() => {
-        (async () => {
-            try {
-                const accessToken = localStorage.getItem("accessToken"); // contoh ambil dari localStorage
-                const { products } = await fetchAllProductsByType(accessToken ?? undefined, selectedApiType); // ✅ kirim token
+    const ItemTypeContext = React.createContext<"PRODUCT" | "SERVICE">("PRODUCT");
+    const ProductCreateDialogWithContext: React.FC<{
+        onProductCreated: () => void;
+    }> = ({ onProductCreated }) => {
+        const itemType = React.useContext(ItemTypeContext);
 
-                setProductOptions(
-                    products.map((p: ApiProduct): ProductOption => ({
-                        id: p.id,
-                        name: p.name,
-                        description: p.description,
-                        usageUnit: p.usageUnit ?? null,
-                    }))
-                );
-            } catch (error) {
-                console.error("Failed to fetch products:", error);
-                toast.error("Gagal memuat data produk");
-            }
-        })();
-    }, [selectedApiType]);
+        const createEndpoint = itemType === "PRODUCT"
+            ? "/api/products"
+            : "/api/services";
+
+        return (
+            <ProductCreateDialog
+                createEndpoint={createEndpoint}
+                onCreated={onProductCreated}
+            />
+        );
+    };
+
+    // Fungsi untuk memuat produk berdasarkan tipe untuk item tertentu
+    const fetchProductsForItem = async (index: number, itemType: "PRODUCT" | "SERVICE" | "CUSTOM") => {
+        if (itemType === "CUSTOM") {
+            setProductOptionsPerItem(prev => ({ ...prev, [index]: [] }));
+            return;
+        }
+
+        setLoadingProductsPerItem(prev => ({ ...prev, [index]: true }));
+        try {
+            const accessToken = localStorage.getItem("accessToken");
+            const { products } = await fetchAllProductsByType(accessToken ?? undefined, itemType);
+
+            const options = products.map((p: ApiProduct): ProductOption => ({
+                id: p.id,
+                name: p.name,
+                description: p.description,
+                usageUnit: p.usageUnit ?? null,
+            }));
+
+            setProductOptionsPerItem(prev => ({ ...prev, [index]: options }));
+        } catch (error) {
+            console.error(`Failed to fetch products for item ${index}:`, error);
+            toast.error(`Gagal memuat data produk untuk item ${index + 1}`);
+        } finally {
+            setLoadingProductsPerItem(prev => ({ ...prev, [index]: false }));
+        }
+    };
 
     // Fetch projects
     React.useEffect(() => {
@@ -203,7 +226,7 @@ export function UpdateSalesOrderForm({
         window.addEventListener("focus", onFocus);
         document.addEventListener("visibilitychange", onVis);
 
-        const id = setInterval(onFocus, 60_000); // tiap 60s cek ringan (opsional)
+        const id = setInterval(onFocus, 60_000);
 
         return () => {
             window.removeEventListener("focus", onFocus);
@@ -215,14 +238,13 @@ export function UpdateSalesOrderForm({
     // Fungsi untuk handle product selection
     const handleProductSelect = (index: number, productId: string | undefined) => {
         if (!productId) {
-            // Reset values jika productId undefined
             form.setValue(`items.${index}.name`, "", { shouldDirty: true, shouldTouch: true });
             form.setValue(`items.${index}.description`, "", { shouldDirty: true, shouldTouch: true });
             form.setValue(`items.${index}.uom`, "", { shouldDirty: true, shouldTouch: true });
             return;
         }
 
-        const selectedProduct = productOptions.find(p => p.id === productId);
+        const selectedProduct = productOptionsPerItem[index]?.find(p => p.id === productId);
         if (!selectedProduct) return;
 
         const uomValue = selectedProduct.usageUnit ?? "";
@@ -233,12 +255,15 @@ export function UpdateSalesOrderForm({
         form.setValue(`items.${index}.uom`, uomValue, { shouldDirty: true, shouldTouch: true });
     };
 
+    // Fungsi untuk refresh produk setelah menambah produk baru
+    const handleProductCreated = (index: number, itemType: "PRODUCT" | "SERVICE") => {
+        fetchProductsForItem(index, itemType);
+    };
+
     function onSubmit(data: UpdateSalesOrderPayload) {
         startTransition(async () => {
             try {
-                // Bersihkan data sebelum dikirim
                 const cleanedData = salesOrderUpdateSchema.parse(data);
-
                 const result = await updateSalesOrderAPI(salesOrder.id, cleanedData);
 
                 if (result.error) {
@@ -255,7 +280,6 @@ export function UpdateSalesOrderForm({
         });
     }
 
-    // Tampilan Skeleton saat data fetching
     if (isLoading) {
         return <UpdateSalesOrderFormSkeleton />
     }
@@ -339,7 +363,6 @@ export function UpdateSalesOrderForm({
                                 )}
                             />
 
-                            {/* Customer Field */}
                             <FormField
                                 control={form.control}
                                 name="customerId"
@@ -383,7 +406,6 @@ export function UpdateSalesOrderForm({
                                 )}
                             />
 
-                            {/* Project Field */}
                             <FormField
                                 control={form.control}
                                 name="projectId"
@@ -501,7 +523,6 @@ export function UpdateSalesOrderForm({
                         </CardContent>
                     </Card>
 
-                    {/* Bagian Item SO */}
                     <Card>
                         <CardHeader className="pb-3">
                             <div className="flex justify-between items-center">
@@ -511,20 +532,17 @@ export function UpdateSalesOrderForm({
                                         Daftar produk atau jasa yang dipesan
                                     </CardDescription>
                                 </div>
-
                             </div>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             {fields.map((row, index) => {
-                                type Option = { id: string; name: string };
+                                // type Option = { id: string; name: string };
                                 const itemType = form.watch(`items.${index}.itemType`);
                                 const isCatalogItem = itemType === "PRODUCT" || itemType === "SERVICE";
                                 const itemNo = String(index + 1).padStart(2, "0");
-                                const serviceOptions: Option[] = (productOptions as Option[]) ?? [];
-                                const getOptionsForType = (t?: "PRODUCT" | "SERVICE" | "CUSTOM"): Option[] =>
-                                    t === "SERVICE" ? serviceOptions : (productOptions as Option[]) ?? [];
+                                const productOptions = productOptionsPerItem[index] || [];
+                                const loadingProducts = loadingProductsPerItem[index] || false;
 
-                                // Watch nilai yang dibutuhkan untuk subtotal
                                 const qty = form.watch(`items.${index}.qty`) ?? 0;
                                 const unitPrice = form.watch(`items.${index}.unitPrice`) ?? 0;
                                 const discount = form.watch(`items.${index}.discount`) ?? 0;
@@ -534,7 +552,6 @@ export function UpdateSalesOrderForm({
                                 const net = gross * (1 - discount / 100);
                                 const total = net * (1 + taxRate / 100);
 
-                                // Fungsi untuk validasi productId berdasarkan itemType
                                 const validateProductId = (type: string, productId: string | null | undefined) => {
                                     if ((type === "PRODUCT" || type === "SERVICE") && !productId) {
                                         return "Produk/jasa harus dipilih";
@@ -544,7 +561,6 @@ export function UpdateSalesOrderForm({
 
                                 return (
                                     <div key={row.id} className="grid grid-cols-1 gap-4 p-4 border rounded-lg bg-muted/30">
-                                        {/* Header kecil di tiap item: nomor + tipe */}
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-2">
                                                 <span
@@ -562,7 +578,6 @@ export function UpdateSalesOrderForm({
                                         </div>
 
                                         <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                                            {/* Tipe Item */}
                                             <div className="md:col-span-2">
                                                 <FormField
                                                     control={form.control}
@@ -574,32 +589,26 @@ export function UpdateSalesOrderForm({
                                                                 value={field.value ?? "PRODUCT"}
                                                                 onValueChange={async (next: "PRODUCT" | "SERVICE" | "CUSTOM") => {
                                                                     field.onChange(next);
+                                                                    await fetchProductsForItem(index, next);
 
-                                                                    // update state juga kalau mau dipakai global
-                                                                    setSelectedApiType(next);
                                                                     if (next === "CUSTOM") {
                                                                         form.setValue(`items.${index}.productId`, null, {
                                                                             shouldValidate: true,
                                                                             shouldDirty: true,
                                                                         });
-                                                                        // Reset field lainnya jika perlu
                                                                         form.setValue(`items.${index}.name`, "", { shouldDirty: true });
                                                                         form.setValue(`items.${index}.description`, "", { shouldDirty: true });
                                                                         form.setValue(`items.${index}.uom`, "", { shouldDirty: true });
                                                                     } else if (next === "PRODUCT" || next === "SERVICE") {
                                                                         const currentProductId = form.getValues(`items.${index}.productId`);
-                                                                        if (!currentProductId) {
-                                                                            const options = getOptionsForType(next);
-                                                                            if (options.length > 0) {
-                                                                                const productIdValue = options[0].id;
-                                                                                form.setValue(`items.${index}.productId`, productIdValue, {
-                                                                                    shouldValidate: true,
-                                                                                    shouldDirty: true,
-                                                                                });
-                                                                                handleProductSelect(index, productIdValue);
-                                                                            }
-                                                                        } else {
-                                                                            // Jika sudah ada productId, pastikan untuk memanggil handleProductSelect
+                                                                        if (!currentProductId && productOptions.length > 0) {
+                                                                            const productIdValue = productOptions[0].id;
+                                                                            form.setValue(`items.${index}.productId`, productIdValue, {
+                                                                                shouldValidate: true,
+                                                                                shouldDirty: true,
+                                                                            });
+                                                                            handleProductSelect(index, productIdValue);
+                                                                        } else if (currentProductId) {
                                                                             handleProductSelect(index, currentProductId);
                                                                         }
                                                                     }
@@ -622,9 +631,8 @@ export function UpdateSalesOrderForm({
                                                 />
                                             </div>
 
-                                            {/* Pemilihan dari katalog (tampil untuk PRODUCT & SERVICE) */}
                                             {isCatalogItem && (
-                                                <div className="md:col-span-10">
+                                                <div className="md:col-span-9">
                                                     <FormField
                                                         control={form.control}
                                                         name={`items.${index}.productId`}
@@ -633,23 +641,38 @@ export function UpdateSalesOrderForm({
                                                             <FormItem className="w-full">
                                                                 <FormLabel>{itemType === "PRODUCT" ? "Produk" : "Jasa"}</FormLabel>
                                                                 <Select
-                                                                    value={field.value ?? undefined} // Konversi null menjadi undefined
+                                                                    value={field.value ?? undefined}
                                                                     onValueChange={(value) => {
-                                                                        field.onChange(value); // value adalah string
-                                                                        handleProductSelect(index, value); // Kirim string langsung
+                                                                        field.onChange(value);
+                                                                        handleProductSelect(index, value);
                                                                     }}
+                                                                    disabled={loadingProducts}
                                                                 >
                                                                     <FormControl>
                                                                         <SelectTrigger className="w-full">
-                                                                            <SelectValue placeholder={`Pilih ${itemType === "PRODUCT" ? "produk" : "jasa"}`} />
+                                                                            <SelectValue
+                                                                                placeholder={
+                                                                                    loadingProducts
+                                                                                        ? "Memuat produk..."
+                                                                                        : `Pilih ${itemType === "PRODUCT" ? "produk" : "jasa"}`
+                                                                                }
+                                                                            />
                                                                         </SelectTrigger>
                                                                     </FormControl>
                                                                     <SelectContent>
-                                                                        {getOptionsForType(itemType).map((opt) => (
-                                                                            <SelectItem key={opt.id} value={opt.id}>
-                                                                                {opt.name}
-                                                                            </SelectItem>
-                                                                        ))}
+                                                                        {loadingProducts ? (
+                                                                            <div className="px-3 py-2 text-sm opacity-60">Memuat...</div>
+                                                                        ) : productOptions.length > 0 ? (
+                                                                            productOptions.map((opt) => (
+                                                                                <SelectItem key={opt.id} value={opt.id}>
+                                                                                    {opt.name}
+                                                                                </SelectItem>
+                                                                            ))
+                                                                        ) : (
+                                                                            <div className="px-3 py-2 text-sm opacity-60">
+                                                                                Tidak ada {itemType === "PRODUCT" ? "produk" : "jasa"} yang tersedia
+                                                                            </div>
+                                                                        )}
                                                                     </SelectContent>
                                                                 </Select>
                                                                 <FormMessage />
@@ -658,9 +681,18 @@ export function UpdateSalesOrderForm({
                                                     />
                                                 </div>
                                             )}
+
+                                            {isCatalogItem && (
+                                                <div className="md:col-span-1 flex items-end">
+                                                    <ItemTypeContext.Provider value={itemType}>
+                                                        <ProductCreateDialogWithContext
+                                                            onProductCreated={() => handleProductCreated(index, itemType)}
+                                                        />
+                                                    </ItemTypeContext.Provider>
+                                                </div>
+                                            )}
                                         </div>
 
-                                        {/* Deskripsi */}
                                         <FormField
                                             control={form.control}
                                             name={`items.${index}.name`}
@@ -693,7 +725,6 @@ export function UpdateSalesOrderForm({
                                             )}
                                         />
 
-                                        {/* Quantity, Harga, Diskon, Pajak */}
                                         <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
                                             <FormField
                                                 control={form.control}
@@ -808,7 +839,6 @@ export function UpdateSalesOrderForm({
                                             </div>
                                         </div>
 
-                                        {/* Delete Button */}
                                         <div className="flex items-center justify-end pt-2">
                                             <Button
                                                 type="button"
@@ -841,10 +871,9 @@ export function UpdateSalesOrderForm({
     dark:from-emerald-400 dark:to-lime-500 dark:hover:from-emerald-500 dark:hover:to-lime-600
     focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-400 dark:focus:ring-lime-400"
                                 onClick={() => {
-                                    // Tambah item
                                     append({
                                         itemType: "PRODUCT",
-                                        productId: null, // Default null, akan diisi jika PRODUCT/SERVICE
+                                        productId: null,
                                         name: "",
                                         description: "",
                                         qty: 1,
@@ -853,7 +882,6 @@ export function UpdateSalesOrderForm({
                                         taxRate: 0,
                                     });
 
-                                    // Scroll ke bawah jika layar >= 768px
                                     if (window.innerWidth >= 768) {
                                         setTimeout(scrollToBottom, 100);
                                     }
@@ -863,12 +891,10 @@ export function UpdateSalesOrderForm({
                                 Tambah Item
                             </Button>
 
-                            {/* Elemen target scroll */}
                             <div ref={itemsEndRef} />
                         </div>
                     </Card>
 
-                    {/* Action Buttons */}
                     <div className="flex justify-end gap-2 sticky bottom-4 bg-cyan-100 dark:bg-cyan-950 p-4 rounded-lg border shadow-sm">
                         <Button
                             type="button"
@@ -897,7 +923,6 @@ export function UpdateSalesOrderForm({
     )
 }
 
-// Komponen Skeleton
 function UpdateSalesOrderFormSkeleton() {
     return (
         <div className="w-full max-w-4xl mx-auto space-y-6">

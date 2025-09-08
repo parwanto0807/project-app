@@ -28,7 +28,6 @@ import {
   ChevronUp,
   ChevronLeft,
   ChevronRight,
-  // Filter,
   User,
   Briefcase,
   Building,
@@ -39,7 +38,8 @@ import {
   Phone,
   Mail,
   Calendar,
-  // ImageIcon,
+  MapPin,
+  Hash,
   ChevronsUpDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -54,7 +54,6 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { makeImageSrc } from "@/utils/makeImageSrc";
-
 
 interface TeamKaryawan {
   id: string;
@@ -73,6 +72,9 @@ interface Karyawan {
   tanggalBergabung?: string;
   noTelepon?: string;
   foto?: string;
+  alamat?: string;
+  tanggalLahir?: string;
+  jenisKelamin?: string;
 }
 
 interface EmployeeTableProps {
@@ -94,7 +96,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
   const [sortConfig, setSortConfig] = useState<{ key: SortableKey; direction: 'asc' | 'desc' } | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  console.log("Role", role)
+  console.log("role", role)
   // Filter and sort data
   const filteredAndSortedData = useMemo(() => {
     const filteredData = karyawan.filter((item) => {
@@ -201,6 +203,17 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
       .substring(0, 2);
   };
 
+  // Format date
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "-";
+    const date = new Date(dateString);
+    return date.toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+  };
+
   // Mobile card view for employee
   const EmployeeCard = ({ employee }: { employee: Karyawan }) => {
     const isExpanded = expandedRows.has(employee.id);
@@ -209,7 +222,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
       <Card className="mb-4 overflow-hidden border border-gray-200 dark:border-gray-700">
         <div className="p-4">
           <div className="flex items-start gap-3">
-            <Avatar className="h-10 w-10 border">
+            <Avatar className="h-12 w-12 border">
               <AvatarImage
                 src={makeImageSrc(employee.foto)}
                 alt={employee.namaLengkap}
@@ -229,7 +242,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
 
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2">
-                  <User size={14} className="text-blue-500" />
+                  <Hash size={14} className="text-blue-500" />
                   <span className="font-medium">NIK:</span>
                   <span>{employee.nik}</span>
                 </div>
@@ -310,6 +323,22 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
 
         {isExpanded && (
           <div className="bg-blue-50 dark:bg-blue-900/20 p-4 border-t">
+            <div className="flex flex-col items-center mb-4">
+              <Avatar className="h-24 w-24 border-2 border-white shadow-md mb-3">
+                <AvatarImage
+                  src={makeImageSrc(employee.foto)}
+                  alt={employee.namaLengkap}
+                  crossOrigin="anonymous"
+                  className="object-cover"
+                />
+                <AvatarFallback className="bg-blue-100 text-blue-800 text-xl">
+                  {getInitials(employee.namaLengkap)}
+                </AvatarFallback>
+              </Avatar>
+              <h3 className="font-bold text-xl text-center">{employee.namaLengkap}</h3>
+              <p className="text-gray-600 text-center">{employee.jabatan}</p>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-3">
                 <h4 className="font-semibold text-sm flex items-center gap-2 text-blue-700 dark:text-blue-300">
@@ -317,6 +346,28 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                   Informasi Pribadi
                 </h4>
                 <div className="text-sm space-y-2">
+                  <div className="flex items-center gap-2 p-2 bg-white dark:bg-gray-800 rounded-md">
+                    <Hash size={14} className="text-blue-500" />
+                    <span className="font-medium">NIK:</span>
+                    <span>{employee.nik}</span>
+                  </div>
+
+                  {employee.tanggalLahir && (
+                    <div className="flex items-center gap-2 p-2 bg-white dark:bg-gray-800 rounded-md">
+                      <Calendar size={14} className="text-blue-500" />
+                      <span className="font-medium">Tanggal Lahir:</span>
+                      <span>{formatDate(employee.tanggalLahir)}</span>
+                    </div>
+                  )}
+
+                  {employee.jenisKelamin && (
+                    <div className="flex items-center gap-2 p-2 bg-white dark:bg-gray-800 rounded-md">
+                      <User size={14} className="text-blue-500" />
+                      <span className="font-medium">Jenis Kelamin:</span>
+                      <span>{employee.jenisKelamin}</span>
+                    </div>
+                  )}
+
                   {employee.noTelepon && (
                     <div className="flex items-center gap-2 p-2 bg-white dark:bg-gray-800 rounded-md">
                       <Phone size={14} className="text-blue-500" />
@@ -324,11 +375,20 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                       <span>{employee.noTelepon}</span>
                     </div>
                   )}
+
                   {employee.email && (
                     <div className="flex items-center gap-2 p-2 bg-white dark:bg-gray-800 rounded-md">
                       <Mail size={14} className="text-blue-500" />
                       <span className="font-medium">Email:</span>
                       <span className="truncate">{employee.email}</span>
+                    </div>
+                  )}
+
+                  {employee.alamat && (
+                    <div className="flex items-start gap-2 p-2 bg-white dark:bg-gray-800 rounded-md">
+                      <MapPin size={14} className="text-blue-500 mt-0.5" />
+                      <span className="font-medium">Alamat:</span>
+                      <span className="flex-1">{employee.alamat}</span>
                     </div>
                   )}
                 </div>
@@ -340,13 +400,34 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                   Informasi Pekerjaan
                 </h4>
                 <div className="text-sm space-y-2">
+                  <div className="flex items-center gap-2 p-2 bg-white dark:bg-gray-800 rounded-md">
+                    <Briefcase size={14} className="text-blue-500" />
+                    <span className="font-medium">Jabatan:</span>
+                    <span>{employee.jabatan}</span>
+                  </div>
+
+                  {employee.departemen && (
+                    <div className="flex items-center gap-2 p-2 bg-white dark:bg-gray-800 rounded-md">
+                      <Building size={14} className="text-blue-500" />
+                      <span className="font-medium">Departemen:</span>
+                      <span>{employee.departemen}</span>
+                    </div>
+                  )}
+
                   {employee.tanggalBergabung && (
                     <div className="flex items-center gap-2 p-2 bg-white dark:bg-gray-800 rounded-md">
                       <Calendar size={14} className="text-blue-500" />
                       <span className="font-medium">Bergabung:</span>
-                      <span>{employee.tanggalBergabung}</span>
+                      <span>{formatDate(employee.tanggalBergabung)}</span>
                     </div>
                   )}
+
+                  <div className="flex items-center gap-2 p-2 bg-white dark:bg-gray-800 rounded-md">
+                    <CheckCircle size={14} className="text-blue-500" />
+                    <span className="font-medium">Status:</span>
+                    {getStatusBadge(employee.statusKerja)}
+                  </div>
+
                   {employee.teamKaryawan.length > 0 && (
                     <div className="p-2 bg-white dark:bg-gray-800 rounded-md">
                       <div className="flex items-center gap-2 mb-1">
@@ -575,12 +656,12 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem asChild>
-                                  <Link href={`/admin-area/karyawan/edit/${item.id}`} className="flex items-center gap-2 cursor-pointer">
+                                  <Link href={`/admin-area/master/karyawan/update/${item.id}`} className="flex items-center gap-2 cursor-pointer">
                                     <Edit2 size={16} className="text-blue-500" /> Edit
                                   </Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem asChild>
-                                  <Link href={`/admin-area/karyawan/detail/${item.id}`} className="flex items-center gap-2 cursor-pointer">
+                                  <Link href={`/admin-area/master/karyawan/detail/${item.id}`} className="flex items-center gap-2 cursor-pointer">
                                     <FileDigit size={16} className="text-green-500" /> Detail
                                   </Link>
                                 </DropdownMenuItem>
@@ -600,10 +681,29 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                           </TableCell>
                         </TableRow>
                         {expandedRows.has(item.id) && (
-                          <TableRow className="bg-blue-50 dark:bg-blue-900/20">
+                          <TableRow className="bg-blue-50 dark:bg-gray-900">
                             <TableCell colSpan={8} className="p-0">
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-6">
-                                <div className="space-y-4">
+                              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 p-6">
+                                {/* Profile Section with Larger Image */}
+                                <div className="lg:col-span-1 flex flex-col items-center">
+                                  <Avatar className="h-32 w-32 border-2 border-white shadow-lg mb-4">
+                                    <AvatarImage
+                                      src={makeImageSrc(item.foto)}
+                                      alt={item.namaLengkap}
+                                      crossOrigin="anonymous"
+                                      className="object-cover"
+                                    />
+                                    <AvatarFallback className="bg-blue-100 text-blue-800 text-2xl">
+                                      {getInitials(item.namaLengkap)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <h3 className="font-bold text-xl text-center mb-1">{item.namaLengkap}</h3>
+                                  <p className="text-gray-600 text-center mb-3">{item.jabatan}</p>
+                                  {getStatusBadge(item.statusKerja)}
+                                </div>
+
+                                {/* Personal Information */}
+                                <div className="lg:col-span-1 space-y-4">
                                   <h4 className="font-semibold text-lg flex items-center gap-2 text-blue-700 dark:text-blue-300">
                                     <User size={20} className="text-blue-500" />
                                     Informasi Pribadi
@@ -611,11 +711,32 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                                   <div className="space-y-3">
                                     <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded-lg">
                                       <span className="text-gray-500 flex items-center gap-2">
-                                        <User size={16} className="text-blue-500" />
+                                        <Hash size={16} className="text-blue-500" />
                                         NIK:
                                       </span>
                                       <span className="font-medium">{item.nik}</span>
                                     </div>
+
+                                    {item.tanggalLahir && (
+                                      <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded-lg">
+                                        <span className="text-gray-500 flex items-center gap-2">
+                                          <Calendar size={16} className="text-blue-500" />
+                                          Tanggal Lahir:
+                                        </span>
+                                        <span className="font-medium">{formatDate(item.tanggalLahir)}</span>
+                                      </div>
+                                    )}
+
+                                    {item.jenisKelamin && (
+                                      <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded-lg">
+                                        <span className="text-gray-500 flex items-center gap-2">
+                                          <User size={16} className="text-blue-500" />
+                                          Jenis Kelamin:
+                                        </span>
+                                        <span className="font-medium">{item.jenisKelamin}</span>
+                                      </div>
+                                    )}
+
                                     <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded-lg">
                                       <span className="text-gray-500 flex items-center gap-2">
                                         <Phone size={16} className="text-blue-500" />
@@ -623,6 +744,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                                       </span>
                                       <span className="font-medium">{item.noTelepon || "-"}</span>
                                     </div>
+
                                     <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded-lg">
                                       <span className="text-gray-500 flex items-center gap-2">
                                         <Mail size={16} className="text-blue-500" />
@@ -630,10 +752,21 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                                       </span>
                                       <span className="font-medium">{item.email || "-"}</span>
                                     </div>
+
+                                    {item.alamat && (
+                                      <div className="p-3 bg-white dark:bg-gray-800 rounded-lg">
+                                        <div className="flex items-start gap-2 mb-1">
+                                          <MapPin size={16} className="text-blue-500 mt-0.5" />
+                                          <span className="text-gray-500">Alamat:</span>
+                                        </div>
+                                        <p className="font-medium mt-1">{item.alamat}</p>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
 
-                                <div className="space-y-4">
+                                {/* Work Information */}
+                                <div className="lg:col-span-1 space-y-4">
                                   <h4 className="font-semibold text-lg flex items-center gap-2 text-blue-700 dark:text-blue-300">
                                     <Briefcase size={20} className="text-blue-500" />
                                     Informasi Pekerjaan
@@ -646,6 +779,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                                       </span>
                                       <span className="font-medium">{item.jabatan}</span>
                                     </div>
+
                                     <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded-lg">
                                       <span className="text-gray-500 flex items-center gap-2">
                                         <Building size={16} className="text-blue-500" />
@@ -653,17 +787,27 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                                       </span>
                                       <span className="font-medium">{item.departemen || "-"}</span>
                                     </div>
+
                                     <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded-lg">
                                       <span className="text-gray-500 flex items-center gap-2">
                                         <Calendar size={16} className="text-blue-500" />
                                         Bergabung:
                                       </span>
-                                      <span className="font-medium">{item.tanggalBergabung || "-"}</span>
+                                      <span className="font-medium">{formatDate(item.tanggalBergabung) || "-"}</span>
+                                    </div>
+
+                                    <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded-lg">
+                                      <span className="text-gray-500 flex items-center gap-2">
+                                        <CheckCircle size={16} className="text-blue-500" />
+                                        Status:
+                                      </span>
+                                      {getStatusBadge(item.statusKerja)}
                                     </div>
                                   </div>
                                 </div>
 
-                                <div className="space-y-4">
+                                {/* Team Information */}
+                                <div className="lg:col-span-1 space-y-4">
                                   <h4 className="font-semibold text-lg flex items-center gap-2 text-blue-700 dark:text-blue-300">
                                     <Users size={20} className="text-blue-500" />
                                     Team
@@ -682,13 +826,30 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                                     )}
                                   </div>
 
-                                  <h4 className="font-semibold text-lg flex items-center gap-2 text-blue-700 dark:text-blue-300">
-                                    <CheckCircle size={20} className="text-blue-500" />
-                                    Status
-                                  </h4>
-                                  <div className="p-3 bg-white dark:bg-gray-800 rounded-lg flex justify-center">
-                                    {getStatusBadge(item.statusKerja)}
+                                  {/* Action Buttons */}
+                                  <div className="flex flex-col gap-2 mt-6">
+                                    <Button
+                                      asChild
+                                      className="w-full bg-blue-600 hover:bg-blue-700"
+                                    >
+                                      <Link
+                                        href={`/admin-area/master/karyawan/update/${item.id}`}
+                                        className="flex items-center justify-center gap-2"
+                                      >
+                                        <Edit2 size={16} /> Edit Profil
+                                      </Link>
+                                    </Button>
+
+                                    <Button asChild variant="outline" className="w-full">
+                                      <Link
+                                        href={`/admin-area/karyawan/detail/${item.id}`}
+                                        className="flex items-center justify-center gap-2"
+                                      >
+                                        <FileDigit size={16} /> Lihat Detail Lengkap
+                                      </Link>
+                                    </Button>
                                   </div>
+
                                 </div>
                               </div>
                             </TableCell>

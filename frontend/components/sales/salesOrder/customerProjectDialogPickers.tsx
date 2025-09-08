@@ -87,7 +87,7 @@ export function CustomerCreateDialog({ onCreated, createEndpoint }: BaseProps) {
   return (
     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
       <DialogTrigger asChild>
-        <Button type="button" variant="outline" size="sm" className="h-9 w-9 p-0 md:h-10 md:w-10">
+        <Button type="button" variant="outline" size="sm" className="h-9 w-9 p-0 md:h-9 md:w-9">
           <Plus className="h-4 w-4" />
         </Button>
       </DialogTrigger>
@@ -242,7 +242,7 @@ export function ProjectCreateDialog(
           variant="outline" 
           disabled={!customerId}
           size="sm" 
-          className="h-9 w-9 p-0 md:h-10 md:w-10"
+          className="h-9 w-9 p-0 md:h-9 md:w-9"
         >
           <Plus className="h-4 w-4" />
         </Button>

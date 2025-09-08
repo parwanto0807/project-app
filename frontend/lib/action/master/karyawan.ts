@@ -25,7 +25,7 @@ export async function fetchAllKaryawan() {
 export async function fetchKaryawanById(id: string) {
   try {
     const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/master/karyawan/getKaryawanById/${id}`,
+      `${process.env.NEXT_PUBLIC_API_URL}/api/karyawan/getKaryawanById/${id}`,
       {
         method: "GET",
         credentials: "include",

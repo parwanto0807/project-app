@@ -429,3 +429,7 @@ export const employeeFormSchema = z.object({
 });
 
 export type EmployeeFormValues = z.infer<typeof employeeFormSchema>;
+
+export const EmployeeUpdateSchema = employeeFormSchema.partial().extend({
+  id: z.string().uuid({ message: "ID produk tidak valid" }),
+});

@@ -1,0 +1,218 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { AdminLayout } from "@/components/admin-panel/admin-layout";
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { toast } from "sonner";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import UpdateEmployeeForm from "@/components/master/karyawan/updateFormData";
+import { fetchKaryawanById } from "@/lib/action/master/karyawan";
+import { EmployeeUpdateSchema } from "@/schemas";
+import { z } from "zod";
+import Link from "next/link";
+import { Loader2, ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+type Employee = z.infer<typeof EmployeeUpdateSchema>;
+
+export default function UpdateEmployeePage() {
+  const params = useParams();
+  const id = params?.id as string | undefined;
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const fromPage = searchParams.get('from') || 'list';
+  const { user, loading: userLoading } = useCurrentUser();
+
+  const [data, setData] = useState<Employee | null>(null);
+  const [error, setError] = useState("");
+  const [role, setRole] = useState<"admin" | "super">("admin");
+  const [loadingData, setLoadingData] = useState(true);
+
+  // Redirect if not logged in
+  useEffect(() => {
+    if (!userLoading && !user) {
+      router.push("/auth/login");
+    } else if (!userLoading && user) {
+      const userRole = user.role as "admin" | "super";
+      setRole(userRole);
+    }
+  }, [userLoading, user, router]);
+
+
+  useEffect(() => {
+    if (!id) {
+      setError("ID karyawan tidak ditemukan");
+      setLoadingData(false);
+      return;
+    }
+
+    const fetchData = async () => {
+      try {
+        setLoadingData(true);
+        // Perbaikan di sini: Ambil hanya properti karyawan dari hasil fetch
+        const result = await fetchKaryawanById(id);
+
+        // Pastikan kita hanya menyimpan data karyawan, bukan seluruh objek result
+        if (result.karyawan) {
+          setData(result.karyawan);
+          setError("");
+        } else {
+          throw new Error(result.karyawan || "Data karyawan tidak ditemukan");
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Gagal memuat data karyawan";
+        setError(errorMessage);
+        toast.error("Gagal memuat data", {
+          description: errorMessage,
+        });
+      } finally {
+        setLoadingData(false);
+      }
+    };
+
+    fetchData();
+  }, [id]);
+
+  const getBasePath = () => {
+    return role === "super"
+      ? "/super-admin-area/master/karyawan"
+      : "/admin-area/master/karyawan";
+  };
+
+  const handleBack = () => {
+    if (fromPage === 'detail') {
+      router.push(`${getBasePath()}/${id}`);
+    } else {
+      router.push(getBasePath());
+    }
+  };
+
+  return (
+    <AdminLayout title="Update Data Karyawan" role={role}>
+      <div className="mb-6">
+        <Button
+          variant="ghost"
+          onClick={handleBack}
+          className="mb-4"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Kembali
+        </Button>
+
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link href={role === "super" ? "/super-admin-area" : "/admin-area"}>
+                  Dashboard
+                </Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link href={getBasePath()}>
+                  Data Karyawan
+                </Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>Update Karyawan</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
+
+      {userLoading || loadingData ? (
+        <div className="flex flex-col items-center justify-center py-12">
+          <div className="relative">
+            <Loader2 className="h-12 w-12 text-primary animate-spin" />
+            <div className="absolute inset-0 rounded-full border-4 border-primary/10 animate-pulse"></div>
+          </div>
+          <p className="mt-4 text-lg font-medium text-gray-600">
+            Memuat data karyawan...
+          </p>
+          <p className="text-sm text-gray-500 mt-2">
+            Mohon tunggu sementara kami menyiapkan data karyawan
+          </p>
+        </div>
+      ) : error ? (
+        <div className="flex flex-col items-center justify-center py-12 space-y-4">
+          <div className="bg-red-100 p-4 rounded-full">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-10 w-10 text-red-500"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </div>
+          <p className="text-center text-red-500 text-lg font-medium">{error}</p>
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              onClick={handleBack}
+            >
+              Kembali ke Daftar
+            </Button>
+            <Button
+              onClick={() => window.location.reload()}
+            >
+              Coba Lagi
+            </Button>
+          </div>
+        </div>
+      ) : data ? (
+        <UpdateEmployeeForm
+          role={role}
+          id={id!}
+          employee={data.id}
+        />
+      ) : (
+        <div className="flex flex-col items-center justify-center py-12 space-y-4">
+          <div className="bg-yellow-100 p-4 rounded-full">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-10 w-10 text-yellow-500"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+          </div>
+          <p className="text-center text-yellow-600 text-lg font-medium">
+            Data karyawan tidak ditemukan. {id ? `(ID: ${id})` : ''}
+          </p>
+          <Button
+            onClick={handleBack}
+            className="px-4 py-2"
+          >
+            Kembali ke Daftar Karyawan
+          </Button>
+        </div>
+      )}
+    </AdminLayout>
+  );
+}

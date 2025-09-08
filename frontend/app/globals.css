@@ -133,11 +133,11 @@ body,
   textarea,
   select,
   button,
-  [role="combobox"] {
+  /* [role="combobox"] {
     @apply outline-none transition duration-200;
     @apply focus:outline-none focus:ring-2 focus:ring-offset-2;
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2;
-  }
+  } */
 
   /* 🌞 Light mode → Neon biru */
   :root input,
