@@ -12,6 +12,8 @@ import {
     Trash2,
     EyeIcon,
     DownloadIcon,
+    EyeOff,
+    Loader2,
 } from "lucide-react"
 import Decimal from "decimal.js"
 import {
@@ -559,6 +561,23 @@ function MobileSalesOrderCard({ order, onExpand, onDeleteSuccess }: { order: Sal
     const [isDeleting, setIsDeleting] = React.useState(false)
     const router = useRouter()
     const pdfActions = usePdfActions();
+    const [isExpanded, setisExpanded] = React.useState(false);
+    const [isLoading, setIsLoading] = React.useState(false);
+
+    const handleClick = async () => {
+        setIsLoading(true);
+        try {
+            await pdfActions.handleDownloadPdf(order); // Pastikan ini async/returns Promise
+        } catch (error) {
+            console.error('Download failed:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const toggleExpand = () => {
+        setisExpanded(prev => !prev)
+    }
 
     const total = order.items.reduce((sum, item) => {
         const itemQty = new Decimal(item.qty ?? 0)
@@ -666,20 +685,35 @@ function MobileSalesOrderCard({ order, onExpand, onDeleteSuccess }: { order: Sal
                             size="sm"
                             onClick={(e) => {
                                 e.stopPropagation()
-                                onExpand()
+                                onExpand();
+                                toggleExpand();
                             }}
                             className="text-xs h-8"
                         >
-                            <Eye className="h-3 w-3 mr-1" />
-                            View
+                            {isExpanded ? (
+                                <>
+                                    <EyeOff className="h-3 w-3 mr-1" />
+                                    Hide
+                                </>
+                            ) : (
+                                <>
+                                    <Eye className="h-3 w-3 mr-1" />
+                                    View
+                                </>
+                            )}
                         </Button>
-
                         <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => pdfActions.handleDownloadPdf(order)}
+                            onClick={handleClick}
+                            disabled={isLoading} // Opsional: disable tombol saat loading
+                            className="h-8"
                         >
-                            <DownloadIcon className="h-4 w-4" />
+                            {isLoading ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <DownloadIcon className="h-4 w-4" />
+                            )}
                         </Button>
                         <Button
                             variant="outline"
@@ -1034,7 +1068,8 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                 order.soNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 order.project?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 order.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                order.type.toLowerCase().includes(searchTerm.toLowerCase())
+                order.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                order.customer.branch?.toLowerCase().includes(searchTerm.toLowerCase())
             )
         })
     }, [salesOrders, searchTerm])
@@ -1072,7 +1107,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                                     <ShoppingCartIcon className="h-6 w-6 text-primary-foreground" />
                                 </div>
                                 <div>
-                                    <CardTitle className="text-xl">Sales Orders</CardTitle>
+                                    <CardTitle className="text-xl">Sales Orders </CardTitle>
                                     <p className="text-sm text-muted-foreground">
                                         Manage sales orders
                                     </p>
@@ -1142,8 +1177,8 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
 
                                             {/* Tambahkan detailnya di sini */}
                                             {row?.getIsExpanded() && (
-                                                <div className="p-4 mb-4 bg-white dark:bg-slate-800 border rounded-md text-sm shadow">
-                                                    <div className="mt-4 md:hidden">
+                                                <div className="p-4 mb-4 bg-white dark:bg-slate-950 border rounded-md text-sm shadow">
+                                                    <div className="mt-0 mb-4 md:hidden">
                                                         <div className="text-sm font-medium mb-2 text-green-600 ">Detail Items:</div>
                                                         {order.items.map((item, idx) => (
                                                             <div key={idx} className="mb-3 pb-3 border-b border-gray-100 dark:border-gray-800 last:border-b-0 last:mb-0 last:pb-0">

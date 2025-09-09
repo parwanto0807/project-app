@@ -17,6 +17,8 @@ import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { LayoutProps } from "@/types/layout";
 import { EmployeeTable } from "@/components/master/karyawan/tableData";
 import { TableLoading } from "@/components/ui/loading";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 
 export default function KaryawanPageAdmin() {
     const [karyawan, setKaryawan] = useState([]);
@@ -35,11 +37,11 @@ export default function KaryawanPageAdmin() {
             try {
                 setIsLoading(true);
                 setError(null);
-                
+
                 if (typeof window === "undefined") return;
 
                 const result = await fetchAllKaryawan();
-                
+
                 if (result.karyawan) {
                     setKaryawan(result.karyawan || []);
                 } else {
@@ -73,8 +75,8 @@ export default function KaryawanPageAdmin() {
                         <BreadcrumbSeparator />
                         <BreadcrumbItem>
                             <BreadcrumbLink asChild>
-                                <Badge variant="outline" className="hover:bg-accent">
-                                    <Link href="/admin-area/master">Master Data</Link>
+                                <Badge variant="outline">
+                                    <BreadcrumbPage>Master Data</BreadcrumbPage>
                                 </Badge>
                             </BreadcrumbLink>
                         </BreadcrumbItem>
@@ -88,7 +90,7 @@ export default function KaryawanPageAdmin() {
                 </Breadcrumb>
 
                 <div className="h-full w-full">
-                    <div className="flex-1 space-y-4 p-4 pt-6 md:p-8">
+                    <div className="flex-1 space-y-4 p-2 pt-6 md:p-8">
                         {/* Header dengan statistik loading */}
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                             <div>
@@ -105,7 +107,7 @@ export default function KaryawanPageAdmin() {
                         </div>
 
                         {/* Content Area */}
-                        <div className="rounded-lg border bg-card p-6 shadow-sm">
+                        <div className="rounded-lg border bg-card p-2 shadow-sm">
                             {isLoading ? (
                                 <TableLoading rowCount={8} colCount={5} />
                             ) : error ? (
@@ -160,6 +162,16 @@ export default function KaryawanPageAdmin() {
                                     <p className="text-sm text-muted-foreground">
                                         Tidak ada data karyawan yang tersedia saat ini.
                                     </p>
+                                    <Link href="/admin-area/master/karyawan/create" className="group">
+                                        <Button
+                                            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-2 px-4 md:px-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 flex items-center gap-2 w-full md:w-auto"
+                                            aria-label="Tambah Karyawan Baru"
+                                        >
+                                            <Plus size={18} className="transition-transform duration-300 group-hover:rotate-90" />
+                                            <span className="hidden md:inline">Tambah Karyawan</span>
+                                            <span className="md:hidden">Tambah</span>
+                                        </Button>
+                                    </Link>
                                 </div>
                             ) : (
                                 <EmployeeTable karyawan={karyawan} role={userRole} isLoading={isLoading} />

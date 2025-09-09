@@ -77,14 +77,14 @@ export default function CreateKaryawanPageAdmin() {
                   href={getBasePath()}
                   className="text-sm font-medium hover:text-primary transition-colors"
                 >
-                  Data Karyawan
+                  Employee List
                 </Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbPage className="text-sm font-semibold">
-                Tambah Karyawan
+                Create Employee
               </BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>

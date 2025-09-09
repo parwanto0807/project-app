@@ -229,8 +229,8 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
 
     return (
       <Card className="mb-4 overflow-hidden border border-gray-200 dark:border-gray-700">
-        <div className="p-4">
-          <div className="flex items-start gap-3">
+        <div className="p-2">
+          <div className="flex items-start gap-2">
             <Avatar className="h-12 w-12 border">
               <AvatarImage
                 src={makeImageSrc(employee.foto)}
@@ -491,7 +491,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
 
   return (
     <Card className="rounded-xl border bg-white dark:bg-gray-800 shadow-sm dark:border-gray-700 overflow-hidden">
-      <CardContent className="p-4 md:p-6">
+      <CardContent className="p-2 md:p-6">
         {/* Search and Filter Section */}
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <div className="relative flex-1">
@@ -519,9 +519,12 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
             </SelectContent>
           </Select>
 
-          <Link href="/admin-area/master/karyawan/create">
-            <Button className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2 w-full md:w-auto">
-              <Plus size={18} />
+          <Link href="/admin-area/master/karyawan/create" className="group">
+            <Button
+              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-2 px-4 md:px-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 flex items-center gap-2 w-full md:w-auto"
+              aria-label="Tambah Karyawan Baru"
+            >
+              <Plus size={18} className="transition-transform duration-300 group-hover:rotate-90" />
               <span className="hidden md:inline">Tambah Karyawan</span>
               <span className="md:hidden">Tambah</span>
             </Button>
