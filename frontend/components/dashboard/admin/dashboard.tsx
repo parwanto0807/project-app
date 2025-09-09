@@ -38,11 +38,14 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
 const ENDPOINTS = {
     customerCount: `${API_BASE}/api/master/customer/getCustomerCount`,
+    customerList: `${API_BASE}/api/master/customer/getAllCustomers`,
     productCount: `${API_BASE}/api/master/product/getProductCount`,
     salesOrderCount: `${API_BASE}/api/salesOrder/getSalesOrderCount`,
     recentSalesOrders: `${API_BASE}/api/salesOrder/getRecentSalesOrders?take=5&order=desc`,
     salesStats: `${API_BASE}/api/salesOrder/getSalesStats`,
-    monthlySales: `${API_BASE}/api/salesOrder/getMonthlySales?months=12`,
+    // monthlySales: `${API_BASE}/api/salesOrder/getMonthlySales?months=12`,
+    monthlySales: (customerId?: string) =>
+        `${API_BASE}/api/salesOrder/getMonthlySales?months=12${customerId ? `&customerId=${customerId}` : ''}`,
 };
 
 // =============================
@@ -85,7 +88,22 @@ interface MonthlySalesData {
     month: number;
     total: string;
     orderCount?: number; // opsional jika ada
+    customerId?: string;
+    customerName?: string;
 }
+
+interface Customer {
+    id: string;
+    name: string;
+    code: string;
+}
+
+interface SalesChartProps {
+    data: MonthlySalesData[];
+    loading: boolean;
+    onCustomerChange?: (customerId: string) => void;
+}
+
 
 const toNumber = (v: unknown) => (typeof v === "number" && isFinite(v) ? v : parseFloat(String(v)) || 0);
 
@@ -153,21 +171,50 @@ function StatusBadge({ status }: { status: OrderStatus }) {
 // =============================
 
 
-export function SalesChart({ data, loading }: { data: MonthlySalesData[]; loading: boolean }) {
+export function SalesChart({ data, loading, onCustomerChange }: SalesChartProps) {
     const [isClient, setIsClient] = useState(false);
     const [chartType, setChartType] = useState<"bar" | "line">("bar");
     const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
     const [theme, setTheme] = useState<"blue" | "green" | "purple">("blue");
+    const [selectedCustomer, setSelectedCustomer] = useState<string>("all");
+    const [customers, setCustomers] = useState<Customer[]>([]);
+    const [customersLoading, setCustomersLoading] = useState(true);
     const chartRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         setIsClient(true);
+        fetchCustomers();
     }, []);
+
+    // Fetch customer list from API
+    const fetchCustomers = async () => {
+        try {
+            setCustomersLoading(true);
+            const response = await fetch(ENDPOINTS.customerList, { credentials: "include" });
+            if (response.ok) {
+                const data = await response.json();
+                // Handle different response formats
+                setCustomers(Array.isArray(data) ? data : data.customers || data.data || []);
+            }
+        } catch (error) {
+            console.error('Error fetching customers:', error);
+        } finally {
+            setCustomersLoading(false);
+        }
+    };
+
+    // Handle customer selection change
+    const handleCustomerChange = (customerId: string) => {
+        setSelectedCustomer(customerId);
+        if (onCustomerChange) {
+            onCustomerChange(customerId === "all" ? "" : customerId);
+        }
+    };
 
     // Selalu ambil 6 bulan terakhir
     const displayedData = data.slice(-6);
 
-    if (loading) {
+    if (loading || customersLoading) {
         return (
             <div className="h-80 w-full flex items-center justify-center">
                 <div className="text-center">
@@ -233,6 +280,21 @@ export function SalesChart({ data, loading }: { data: MonthlySalesData[]; loadin
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
                 {/* Kiri: Select + Button */}
                 <div className="flex flex-wrap gap-2 items-center">
+                    {/* Customer Select */}
+                    <Select value={selectedCustomer} onValueChange={handleCustomerChange}>
+                        <SelectTrigger className="h-8 w-80 text-xs">
+                            <SelectValue placeholder="Pilih Customer" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Semua Customer</SelectItem>
+                            {customers.map(customer => (
+                                <SelectItem key={customer.id} value={customer.id}>
+                                    {customer.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
                     <Select value={theme} onValueChange={(v: "blue" | "green" | "purple") => setTheme(v)}>
                         <SelectTrigger className="h-8 w-28 text-xs">
                             <SelectValue placeholder="Theme" />
@@ -306,7 +368,6 @@ export function SalesChart({ data, loading }: { data: MonthlySalesData[]; loadin
                     </div>
                 )}
 
-
                 {/* Chart content */}
                 <div className="absolute inset-0 flex items-end justify-between px-1 sm:px-2 pb-8">
                     {/* Bar / Line Loop */}
@@ -358,7 +419,6 @@ export function SalesChart({ data, loading }: { data: MonthlySalesData[]; loadin
                             </div>
                         );
                     })}
-
 
                     {/* Line Chart */}
                     {chartType === "line" && isClient && (
@@ -447,6 +507,7 @@ export default function DashboardAwalSalesOrder() {
     const year = now.getFullYear()
     const [hidden, setHidden] = useState(true);
     const toggleHidden = () => setHidden(!hidden);
+    const [selectedCustomerId, setSelectedCustomerId] = useState("");
 
     const bulanIndo = [
         "Januari", "Februari", "Maret", "April", "Mei", "Juni",
@@ -475,15 +536,18 @@ export default function DashboardAwalSalesOrder() {
             setLoading(true);
             setError(null);
             try {
+                // Panggil fungsi monthlySales() untuk mendapatkan URL string
+                const monthlySalesUrl = ENDPOINTS.monthlySales();
+
                 const [cst, prd, so, list, monthly] = await Promise.all([
                     fetch(ENDPOINTS.customerCount, { credentials: "include" }),
                     fetch(ENDPOINTS.productCount, { credentials: "include" }),
                     fetch(ENDPOINTS.salesOrderCount, { credentials: "include" }),
                     fetch(ENDPOINTS.recentSalesOrders, { credentials: "include" }),
-                    fetch(ENDPOINTS.monthlySales, { credentials: "include" }),
+                    fetch(monthlySalesUrl, { credentials: "include" }), // Gunakan URL yang sudah dipanggil
                 ]);
 
-                if (!cst.ok || !prd.ok || !so.ok || !list.ok) {
+                if (!cst.ok || !prd.ok || !so.ok || !list.ok || !monthly.ok) {
                     throw new Error("Gagal memuat data dashboard. Periksa endpoint backend.");
                 }
 
@@ -536,6 +600,36 @@ export default function DashboardAwalSalesOrder() {
         return ((thisMonth - lastMonth) / lastMonth) * 100;
     };
 
+    const fetchMonthlySales = async (customerId?: string) => {
+        try {
+            setLoading(true);
+            const monthlySalesUrl = ENDPOINTS.monthlySales(customerId);
+            const response = await fetch(monthlySalesUrl, { credentials: "include" });
+
+            if (!response.ok) {
+                throw new Error("Gagal memuat data penjualan bulanan");
+            }
+
+            const data = await response.json();
+            // Handle different response formats
+            const monthlyData = Array.isArray(data) ? data : data.data || data.monthlySales || [];
+            setMonthlySales(monthlyData);
+        } catch (error) {
+            console.error("Error fetching monthly sales:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Load data on component mount and when customer changes
+    useEffect(() => {
+        fetchMonthlySales(selectedCustomerId);
+    }, [selectedCustomerId]);
+
+    // Handle customer change from SalesChart
+    const handleCustomerChange = (customerId: string) => {
+        setSelectedCustomerId(customerId);
+    };
     return (
         <div className="min-h-screen bg-slate-50 p-4 md:p-6 lg:p-8 dark:bg-slate-900">
             {/* Header */}
@@ -694,7 +788,7 @@ export default function DashboardAwalSalesOrder() {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <SalesChart data={monthlySales} loading={loading} />
+                        <SalesChart data={monthlySales} loading={loading} onCustomerChange={handleCustomerChange} />
                     </CardContent>
 
                 </Card>
