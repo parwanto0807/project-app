@@ -88,6 +88,7 @@ app.use("/api/master/product", productRoutes);
 app.use("/api/master/product/kategory", kategoryRoutes);
 app.use("/api/salesOrder", salesOrderRoutes);
 app.use("/api/karyawan", karyawanRoutes);
+app.use("/api/team", karyawanRoutes);
 
 // Health Check Endpoint
 app.get("/api/health", (req, res) => {

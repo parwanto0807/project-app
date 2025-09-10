@@ -221,6 +221,11 @@ export function getMenuList(pathname: string, role: string) {
               label: "Data Employee",
               active: isActive("/admin-area/master/karyawan", pathname),
             },
+            {
+              href: "/admin-area/master/team",
+              label: "Data Team",
+              active: isActive("/admin-area/master/team", pathname),
+            },
           ],
         },
       ],

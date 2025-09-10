@@ -347,10 +347,24 @@ export const getTeamById = async (req, res) => {
   try {
     const team = await prisma.team.findUnique({
       where: { id },
-      include: { karyawan: { include: { karyawan: true } } },
+      include: {
+        karyawan: {
+          include: {
+            karyawan: true,
+          },
+        },
+      },
     });
+
     if (!team) return res.status(404).json({ message: "Team tidak ditemukan" });
-    res.json(team);
+
+    // Transform data to flatten structure
+    const transformedTeam = {
+      ...team,
+      karyawan: team.karyawan.map((k) => k.karyawan),
+    };
+
+    res.json(transformedTeam);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Gagal mengambil data team" });
@@ -358,20 +372,71 @@ export const getTeamById = async (req, res) => {
 };
 
 // CREATE team
+// routes/teamRoutes.js (atau file route Anda)
+
 export const createTeam = async (req, res) => {
-  const { namaTeam, karyawanIds = [] } = req.body;
   try {
-    const team = await prisma.team.create({
+    // ✅ Ambil data dari req.body (bukan formData)
+    const { namaTeam, deskripsi = "", karyawanIds = [] } = req.body;
+
+    console.log("Data yang diterima:", { namaTeam, deskripsi, karyawanIds });
+
+    // Validasi
+    if (!namaTeam?.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: "Nama team wajib diisi",
+      });
+    }
+
+    // 1. Buat record Team baru
+    const newTeam = await prisma.team.create({
       data: {
-        namaTeam,
-        karyawan: { create: karyawanIds.map((karyawanId) => ({ karyawanId })) },
+        namaTeam: namaTeam.trim(),
+        deskripsi: deskripsi.trim(),
       },
-      include: { karyawan: { include: { karyawan: true } } },
     });
-    res.status(201).json(team);
+
+    // 2. Jika ada karyawanIds, buat record TeamKaryawan
+    if (Array.isArray(karyawanIds) && karyawanIds.length > 0) {
+      // Validasi apakah semua karyawanId ada di database
+      const existingKaryawans = await prisma.karyawan.findMany({
+        where: {
+          id: {
+            in: karyawanIds,
+          },
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      const validKaryawanIds = existingKaryawans.map((k) => k.id);
+
+      if (validKaryawanIds.length > 0) {
+        // Buat relasi TeamKaryawan
+        await prisma.teamKaryawan.createMany({
+          data: validKaryawanIds.map((karyawanId) => ({
+            teamId: newTeam.id,
+            karyawanId: karyawanId,
+          })),
+        });
+      }
+    }
+
+    // ✅ Kirim respons HTTP yang benar
+    res.status(201).json({
+      success: true,
+      newTeam,
+    });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Gagal membuat team" });
+    console.error("Error creating team:", error);
+
+    // ✅ Kirim error sebagai respons HTTP
+    res.status(500).json({
+      success: false,
+      error: error.message || "Internal server error",
+    });
   }
 };
 
@@ -402,10 +467,26 @@ export const updateTeam = async (req, res) => {
 export const deleteTeam = async (req, res) => {
   const { id } = req.params;
   try {
-    await prisma.team.delete({ where: { id } });
+    // Hapus semua relasi TeamKaryawan terlebih dahulu
+    await prisma.teamKaryawan.deleteMany({
+      where: { teamId: id },
+    });
+
+    // Baru hapus team
+    await prisma.team.delete({
+      where: { id },
+    });
+
     res.json({ message: "Team berhasil dihapus" });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Gagal menghapus team" });
+
+    if (error.code === "P2025") {
+      return res.status(404).json({ message: "Team tidak ditemukan" });
+    }
+
+    res
+      .status(500)
+      .json({ message: "Gagal menghapus team", error: error.message });
   }
 };
