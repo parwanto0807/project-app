@@ -140,7 +140,7 @@ export const OrderStatusEnum = z.enum([
   "DRAFT",
   "SENT",
   "CONFIRMED",
-  "IN_PROGRESS",
+  "IN_PROGRESS_SPK",
   "FULFILLED",
   "PARTIALLY_INVOICED",
   "INVOICED",
@@ -453,3 +453,61 @@ export type EmployeeFormValues = z.infer<typeof employeeFormSchema>;
 export const EmployeeUpdateSchema = employeeFormSchema.partial().extend({
   id: z.string().uuid({ message: "ID karyawan tidak valid" }),
 });
+
+// Detail SPK
+export const SPKDetailSchema = z.object({
+  id: z.string().optional(), // perlu kalau update
+  karyawanId: z.string().optional().nullable(),
+  salesOrderItemId: z.string().optional().nullable(),
+  lokasiUnit: z.string().optional().nullable(),
+});
+
+// Create SPK
+export const SPKCreateSchema = z.object({
+  spkNumber: z.string().optional(),
+  spkDate: z.date({ required_error: "Tanggal SPK wajib diisi" }),
+  createdById: z.string().min(1, "Pembuat wajib dipilih"),
+  salesOrderId: z.string().min(1, "Sales Order wajib dipilih"),
+  teamId: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+  details: z.array(SPKDetailSchema).min(1, "Minimal 1 detail SPK"),
+});
+
+export const SPKUpdateSchema = SPKCreateSchema.extend({
+  id: z.string().min(1, "ID wajib ada untuk update"),
+});
+
+export const SpkFormSchema = z.object({
+  spkNumber: z.string().optional(),
+  spkDate: z.date({
+    required_error: "Tanggal SPK wajib diisi",
+  }),
+  salesOrderId: z.string().min(1, "Sales Order wajib dipilih"),
+  createdById: z.string().min(1, "Pembuat wajib dipilih"),
+  teamId: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+  details: z
+    .array(
+      z.object({
+        id: z.string(),
+        karyawanId: z.string().min(1, "Karyawan wajib dipilih"),
+        salesOrderItemId: z.string().optional().nullable(),
+        lokasiUnit: z.string().optional().nullable(),
+      })
+    )
+    .min(1, "Minimal 1 detail SPK"),
+});
+
+export type SPKDetailInput = z.infer<typeof SPKDetailSchema>;
+export type SPKCreateInput = z.infer<typeof SPKCreateSchema>;
+export type SPKUpdateInput = z.infer<typeof SPKUpdateSchema>;
+export type SpkFormValues = z.infer<typeof SpkFormSchema>;
+export type SpkApiPayload = Omit<SpkFormValues, "spkDate"> & {
+  spkDate: string;
+};
+export function formToPayload(values: SpkFormValues): SpkApiPayload {
+  return {
+    ...values,
+    spkDate: values.spkDate.toISOString(),
+  };
+}

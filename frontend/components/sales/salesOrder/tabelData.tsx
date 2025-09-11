@@ -14,6 +14,7 @@ import {
     DownloadIcon,
     EyeOff,
     Loader2,
+    CalendarIcon,
 } from "lucide-react"
 import Decimal from "decimal.js"
 import {
@@ -76,6 +77,55 @@ import { mapFormToPdfData } from "./SalesOrderPDF";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { pdf } from "@react-pdf/renderer"
 import { SalesOrderPDF } from "./SalesOrderPDF"
+import { OrderStatusEnum } from "@/schemas/index";
+import * as z from "zod";
+
+
+type OrderStatus = z.infer<typeof OrderStatusEnum>;
+
+const statusConfig: Record<OrderStatus, { label: string; className: string }> = {
+    DRAFT: {
+        label: "Draft",
+        className: "bg-gray-100 text-gray-700 border-gray-200",
+    },
+    SENT: {
+        label: "Sent",
+        className: "bg-yellow-100 text-yellow-700 border-yellow-200",
+    },
+    CONFIRMED: {
+        label: "Confirmed",
+        className: "bg-indigo-100 text-indigo-700 border-indigo-200",
+    },
+    IN_PROGRESS_SPK: {
+        label: "In Progress SPK",
+        className: "bg-orange-100 text-orange-700 border-orange-200",
+    },
+    FULFILLED: {
+        label: "Fulfilled",
+        className: "bg-purple-100 text-purple-700 border-purple-200",
+    },
+    PARTIALLY_INVOICED: {
+        label: "Partially Invoiced",
+        className: "bg-cyan-100 text-cyan-700 border-cyan-200",
+    },
+    INVOICED: {
+        label: "Invoiced",
+        className: "bg-blue-100 text-blue-700 border-blue-200",
+    },
+    PARTIALLY_PAID: {
+        label: "Partially Paid",
+        className: "bg-teal-100 text-teal-700 border-teal-200",
+    },
+    PAID: {
+        label: "Paid",
+        className: "bg-green-100 text-green-700 border-green-200",
+    },
+    CANCELLED: {
+        label: "Cancelled",
+        className: "bg-red-100 text-red-700 border-red-200",
+    },
+};
+
 
 interface SalesOrderTableProps {
     salesOrders: SalesOrder[]
@@ -563,6 +613,8 @@ function MobileSalesOrderCard({ order, onExpand, onDeleteSuccess }: { order: Sal
     const pdfActions = usePdfActions();
     const [isExpanded, setisExpanded] = React.useState(false);
     const [isLoading, setIsLoading] = React.useState(false);
+    const status = (order?.status ?? "DRAFT") as OrderStatus;
+    const config = statusConfig[status] || statusConfig.DRAFT;
 
     const handleClick = async () => {
         setIsLoading(true);
@@ -590,9 +642,9 @@ function MobileSalesOrderCard({ order, onExpand, onDeleteSuccess }: { order: Sal
         maximumFractionDigits: 0,
     }).format(total.toNumber())
 
-    const docs = Array.isArray(order?.documents) ? order.documents : [];
-    const hasPaid = docs.some((d) => d.docType === "PAYMENT_RECEIPT");
-    const hasInvoice = docs.some((d) => d.docType === "INVOICE");
+    // const docs = Array.isArray(order?.documents) ? order.documents : [];
+    // const hasPaid = docs.some((d) => d.docType === "PAYMENT_RECEIPT");
+    // const hasInvoice = docs.some((d) => d.docType === "INVOICE");
 
     useBodyScrollLock(showDeleteDialog);
 
@@ -653,14 +705,13 @@ function MobileSalesOrderCard({ order, onExpand, onDeleteSuccess }: { order: Sal
                             </p>
                         </div>
                     </div>
-                    <Badge className={cn(
-                        "text-xs",
-                        hasPaid ? "bg-green-100 text-green-700" :
-                            hasInvoice ? "bg-blue-100 text-blue-700" :
-                                "bg-gray-100 text-gray-700"
-                    )}>
-                        {hasPaid ? "Paid" : hasInvoice ? "Invoiced" : "Draft"}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                        <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                        {/* <span className="text-sm text-muted-foreground">Status:</span> */}
+                        <Badge className={cn("text-xs rounded-md px-2 py-0.5", config.className)}>
+                            {config.label}
+                        </Badge>
+                    </div>
                 </div>
 
                 <div className="space-y-2 mb-3">
@@ -949,14 +1000,15 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                 <DataTableColumnHeader column={column} title="Status" />
             ),
             cell: ({ row }) => {
-                const order = row.original
+                const order = row.original;
                 const docs = Array.isArray(order?.documents) ? order.documents : [];
                 const has = (t: "QUOTATION" | "PO" | "BAP" | "INVOICE" | "PAYMENT_RECEIPT") =>
                     docs.some((d) => d.docType === t);
 
+                // Override jika ada dokumen tertentu
                 if (has("PAYMENT_RECEIPT")) {
                     return (
-                        <Badge className="bg-green-100 text-green-700 hover:bg-green-200 border-green-200">
+                        <Badge className="bg-green-100 text-green-700 hover:bg-green-200 border-green-200 rounded-md px-2.5 py-0.5">
                             <CheckCircle2 className="mr-1 h-3 w-3" />
                             Paid
                         </Badge>
@@ -965,17 +1017,22 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
 
                 if (has("INVOICE")) {
                     return (
-                        <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200">
+                        <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200 rounded-md px-2.5 py-0.5">
                             <ReceiptText className="mr-1 h-3 w-3" />
                             Invoiced
                         </Badge>
                     );
                 }
 
-                const label = (order?.status ?? "DRAFT").replaceAll("_", " ");
+                // Ambil status, fallback ke "DRAFT"
+                const status = (order?.status ?? "DRAFT") as OrderStatus;
+
+                // Ambil konfigurasi berdasarkan status
+                const config = statusConfig[status] || statusConfig.DRAFT;
+
                 return (
-                    <Badge variant="outline" className="capitalize">
-                        {label.toLowerCase()}
+                    <Badge className={`capitalize rounded-md px-2.5 py-0.5 ${config.className}`}>
+                        {config.label}
                     </Badge>
                 );
             },

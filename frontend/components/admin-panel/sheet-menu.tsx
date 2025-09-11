@@ -34,7 +34,7 @@ export function SheetMenu({ role }: SheetMenuProps) {
             variant="link"
             asChild
           >
-            <Link href="/dashboard" className="flex items-center gap-2">
+            <Link href="#" className="flex items-center gap-2">
               <Image
                 src="/LogoMd.png"
                 alt="ProyekID"

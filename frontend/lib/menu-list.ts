@@ -1,21 +1,22 @@
 import {
-  HomeIcon,
+  // HomeIcon,
   SettingsIcon,
   CreditCardIcon,
   UsersIcon,
   // FileTextIcon,
-  // BellIcon,
-  // MessageSquareIcon,
-  // CalendarIcon,
   HelpCircleIcon,
-  // LandmarkIcon,
   FileSearchIcon,
-  // WalletIcon,
   // BuildingIcon,
+  BriefcaseIcon,
+  // UserCheckIcon,
+  // PackageIcon,
+  // ShieldIcon,
+  // BookOpenIcon,
+  // PhoneIcon,
   // ClipboardListIcon,
-  // AlertCircleIcon,
-  // BarChart2Icon,
-  LucideIcon,
+  PackageOpen,
+  BarChart3Icon,
+  type LucideIcon,
 } from "lucide-react";
 
 interface Submenu {
@@ -54,7 +55,7 @@ export function getMenuList(pathname: string, role: string) {
         {
           label: "Dashboard Super Admin",
           href: "/super-admin-area",
-          icon: HomeIcon,
+          icon: BarChart3Icon,
           active: isActive("/super-admin-area", pathname),
           submenus: [],
         },
@@ -67,7 +68,7 @@ export function getMenuList(pathname: string, role: string) {
         {
           label: "Dashboard Admin",
           href: "/admin-area",
-          icon: HomeIcon,
+          icon: BarChart3Icon,
           active: isActive("/admin-area", pathname),
           submenus: [],
         },
@@ -80,7 +81,7 @@ export function getMenuList(pathname: string, role: string) {
         {
           label: "Dashboard Pic",
           href: "/pic-area",
-          icon: HomeIcon,
+          icon: BarChart3Icon,
           active: isActive("/pic-area", pathname),
           submenus: [],
         },
@@ -93,7 +94,7 @@ export function getMenuList(pathname: string, role: string) {
         {
           label: "Dashboard User",
           href: "/user-area",
-          icon: HomeIcon,
+          icon: BarChart3Icon,
           active: isActive("/user-area", pathname),
           submenus: [],
         },
@@ -101,7 +102,7 @@ export function getMenuList(pathname: string, role: string) {
     },
     {
       groupLabel: "SALES",
-      allowedRoles: ["super", "admin"], // cukup gabung di sini
+      allowedRoles: ["super", "admin"],
       menus: [
         {
           label: "Sales Management",
@@ -120,13 +121,33 @@ export function getMenuList(pathname: string, role: string) {
       ],
     },
     {
+      groupLabel: "LOGISTIC",
+      allowedRoles: ["super", "admin"],
+      menus: [
+        {
+          label: "Logistic Management",
+          href: "/logistic",
+          icon: PackageOpen,
+          active: isActive("/logistic", pathname),
+          submenus: [
+            {
+              href: `${basePath}/logistic/spk`,
+              label: "Surat Perintah Kerja",
+              active: isActive(`${basePath}/logistic/spk`, pathname),
+              disabled: role === "user" || role === "pic",
+            },
+          ],
+        },
+      ],
+    },
+    {
       groupLabel: "PENGATURAN",
       allowedRoles: ["super"],
       menus: [
         {
           label: "Master Data",
           href: "/super-admin-area/master",
-          icon: UsersIcon,
+          icon: BriefcaseIcon, // Menggunakan BriefcaseIcon sebagai pengganti
           active: isActive("/super-admin-area/master", pathname),
           submenus: [
             {
@@ -203,7 +224,7 @@ export function getMenuList(pathname: string, role: string) {
         {
           label: "Master Data",
           href: "/admin-area/master",
-          icon: UsersIcon,
+          icon: BriefcaseIcon, // Menggunakan BriefcaseIcon sebagai pengganti
           active: isActive("/admin-area/master", pathname),
           submenus: [
             {
@@ -232,7 +253,7 @@ export function getMenuList(pathname: string, role: string) {
     },
     {
       groupLabel: "BANTUAN",
-      allowedRoles: ["super", "admin", "pic", "warga"],
+      allowedRoles: ["super", "admin", "pic", "user"],
       menus: [
         {
           label: "Pusat Bantuan",

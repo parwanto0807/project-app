@@ -121,23 +121,6 @@ model Counter {
   updatedAt  DateTime @updatedAt
 }
 
-model TeamKaryawan {
-  id         String   @id @default(cuid())
-  team       Team     @relation(fields: [teamId], references: [id])
-  teamId     String
-  karyawan   Karyawan @relation(fields: [karyawanId], references: [id])
-  karyawanId String
-}
-
-model Team {
-  id        String         @id @default(cuid())
-  namaTeam  String
-  deskripsi String?
-  karyawan  TeamKaryawan[]
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
-}
-
 model Karyawan {
   id            String    @id @default(cuid())
   nik           String    @unique // Nomor Induk Karyawan
@@ -167,7 +150,9 @@ model Karyawan {
   teamKaryawan TeamKaryawan[]
 
   // Relasi ke penggajian
-  gaji Gaji[]
+  gaji      Gaji[]
+  spkDetail SPKDetail[]
+  spk       SPK[]       @relation("SPKCreatedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -276,7 +261,7 @@ enum OrderStatus {
   DRAFT
   SENT
   CONFIRMED
-  IN_PROGRESS
+  IN_PROGRESS_SPK
   FULFILLED
   PARTIALLY_INVOICED
   INVOICED
@@ -294,6 +279,7 @@ enum ItemType {
 enum DocType {
   QUOTATION
   PO
+  SPK
   BAP
   INVOICE
   PAYMENT_RECEIPT
@@ -328,6 +314,7 @@ model SalesOrder {
   items     SalesOrderItem[]
   documents SalesOrderDocument[]
   invoices  Invoice[]
+  spk       SPK[]
 
   @@index([customerId, soDate])
   @@index([status])
@@ -350,8 +337,9 @@ model SalesOrderItem {
   taxRate     Decimal @default(0) @db.Decimal(5, 2)
   lineTotal   Decimal @default(0) @db.Decimal(18, 2)
 
-  salesOrder SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  product    Product?   @relation(fields: [productId], references: [id], onDelete: SetNull, onUpdate: Cascade) // ← nullable
+  salesOrder SalesOrder  @relation(fields: [salesOrderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  product    Product?    @relation(fields: [productId], references: [id], onDelete: SetNull, onUpdate: Cascade) // ← nullable
+  spkDetail  SPKDetail[]
 
   @@index([salesOrderId])
   @@index([productId])
@@ -370,6 +358,70 @@ model SalesOrderDocument {
   salesOrder SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@index([salesOrderId, docType])
+}
+
+model TeamKaryawan {
+  id         String   @id @default(cuid())
+  team       Team     @relation(fields: [teamId], references: [id])
+  teamId     String
+  karyawan   Karyawan @relation(fields: [karyawanId], references: [id])
+  karyawanId String
+}
+
+model Team {
+  id        String         @id @default(cuid())
+  namaTeam  String
+  deskripsi String?
+  karyawan  TeamKaryawan[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  spk SPK[]
+}
+
+model SPK {
+  id        String   @id @default(uuid())
+  spkNumber String   @unique // Nomor SPK
+  spkDate   DateTime @default(now())
+
+  // Yang memberi perintah
+  createdById String
+  createdBy   Karyawan @relation("SPKCreatedBy", fields: [createdById], references: [id])
+
+  // Relasi ke Sales Order
+  salesOrderId String
+  salesOrder   SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  // Tim yang menerima perintah (optional, bisa juga langsung ke karyawan)
+  teamId String?
+  team   Team?   @relation(fields: [teamId], references: [id])
+
+  // Detail SPK
+  details SPKDetail[]
+
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SPKDetail {
+  id    String @id @default(uuid())
+  spkId String
+  spk   SPK    @relation(fields: [spkId], references: [id], onDelete: Cascade)
+
+  // Karyawan yang menerima tugas
+  karyawanId String?
+  karyawan   Karyawan? @relation(fields: [karyawanId], references: [id])
+
+  // Relasi ke item pekerjaan dari SalesOrder
+  salesOrderItemId String?
+  salesOrderItem   SalesOrderItem? @relation(fields: [salesOrderItemId], references: [id])
+
+  // Info tambahan (misal lokasi/unit dari form SPK)
+  lokasiUnit String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ================== (Opsional tapi direkomendasikan) ==================

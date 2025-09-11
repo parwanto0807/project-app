@@ -38,7 +38,7 @@ export function Sidebar({ role }: SidebarProps) {
     
     {/* Logo */}
     <Button variant="link" asChild className="p-0 m-0">
-      <Link href="/dashboard" className="w-full flex justify-center">
+      <Link href="#" className="w-full flex justify-center">
         <div
           className={cn(
             "mb-4 flex items-center justify-center w-full",
