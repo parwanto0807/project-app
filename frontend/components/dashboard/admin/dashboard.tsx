@@ -96,6 +96,7 @@ interface Customer {
     id: string;
     name: string;
     code: string;
+    branch: string;
 }
 
 interface SalesChartProps {
@@ -289,7 +290,7 @@ export function SalesChart({ data, loading, onCustomerChange }: SalesChartProps)
                             <SelectItem value="all">Semua Customer</SelectItem>
                             {customers.map(customer => (
                                 <SelectItem key={customer.id} value={customer.id}>
-                                    {customer.name}
+                                    {customer.name} - {customer.branch}
                                 </SelectItem>
                             ))}
                         </SelectContent>

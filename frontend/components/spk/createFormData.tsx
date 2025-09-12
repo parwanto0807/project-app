@@ -702,7 +702,7 @@ export default function CreateFormSPK({
                             )}
                         />
 
-                        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+                        <div className="flex justify-end gap-2 sticky bottom-4 bg-cyan-100 dark:bg-cyan-950 p-4 rounded-lg border shadow-sm">
                             <Button type="button" variant="outline" onClick={handleCancel}>
                                 Batal
                             </Button>
