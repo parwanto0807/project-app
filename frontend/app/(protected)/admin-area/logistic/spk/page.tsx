@@ -12,14 +12,99 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
-import { fetchAllSpk } from "@/lib/action/master/spk/spk";
+import { fetchAllSpk, deleteSpk } from "@/lib/action/master/spk/spk";
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { LayoutProps } from "@/types/layout";
 import TabelDataSpk from "@/components/spk/tabelData";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { toast } from "sonner";
+
+// Import tipe SPK dari file yang sesuai atau definisikan ulang
+// Berdasarkan error, SPK memiliki properti: spkNumber, spkDate, salesOrderId, teamId, dan 6 properti lainnya
+interface SPK {
+  id: string;
+  spkNumber: string;
+  spkDate: Date;
+  salesOrderId: string;
+  teamId: string;
+  createdById: string;
+
+  createdBy: {
+    id: string;
+    namaLengkap: string;
+    jabatan?: string | null;
+    nik?: string | null;
+    departemen?: string | null;
+  };
+
+  salesOrder: {
+    id: string;
+    soNumber: string;
+    projectName: string;
+    customer: {
+      name: string;      // diisi dari customer.name
+      address: string;   // ✅ baru
+      branch: string;    // ✅ baru
+    }
+    project?: {
+      id: string;
+      name: string;
+    };
+    items: {
+      id: string;
+      lineNo: number;
+      itemType: string;
+      name: string;
+      description?: string | null;
+      qty: number;
+      uom?: string | null;
+      unitPrice: number;
+      discount: number;
+      taxRate: number;
+      lineTotal: number;
+    }[];
+  };
+
+  team?: {
+    id: string;
+    namaTeam: string;
+    teamKaryawan?: {
+      teamId: string;
+      karyawan?: {
+        id: string;
+        namaLengkap: string;
+        jabatan: string;
+        departemen: string;
+      };
+    };
+  } | null;
+
+  details: {
+    id: string;
+    karyawan?: {
+      id: string;
+      namaLengkap: string;
+      jabatan: string;
+      departemen: string;
+      nik: string;
+    };
+    salesOrderItemSPK?: {
+      id: string;
+      name: string;
+      description?: string;
+      qty: number;
+      uom?: string | null;
+    };
+    lokasiUnit?: string | null;
+  }[];
+
+  notes?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export default function SpkPageAdmin() {
-  const [dataSpk, setDataSpk] = useState([]);
+  const [dataSpk, setDataSpk] = useState<SPK[]>([]);
   const { user, loading: userLoading } = useCurrentUser();
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
@@ -35,16 +120,49 @@ export default function SpkPageAdmin() {
       return;
     }
 
-    const fetchData = async () => {
-      const result = await fetchAllSpk();
-      setDataSpk(result);
-      setIsLoading(false);
-    };
-
     fetchData();
   }, [router, user, userLoading]);
 
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      const result = await fetchAllSpk();
+      setDataSpk(result);
+    } catch (error) {
+      console.error("Error fetching SPK data:", error);
+      toast.error("Gagal memuat data SPK");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  const handleDeleteSpk = async (spkId: string) => {
+    try {
+      // const confirmDelete = window.confirm("Apakah Anda yakin ingin menghapus SPK ini?");
+      // if (!confirmDelete) return;
+
+      // Simpan data sebelumnya untuk fallback jika gagal
+      const previousData = dataSpk;
+
+      // Optimistic update: langsung hapus dari UI
+      setDataSpk(prevData => prevData.filter(spk => spk.id !== spkId));
+
+      const result = await deleteSpk(spkId);
+
+      if (!result.success) {
+        // Jika gagal, kembalikan data sebelumnya
+        setDataSpk(previousData);
+        toast.error(result.message || "Gagal menghapus SPK");
+        return;
+      }
+
+      toast.success(result.message || "SPK berhasil dihapus");
+
+    } catch (error) {
+      console.error("Error deleting SPK:", error);
+      toast.error("Terjadi kesalahan saat menghapus SPK");
+    }
+  };
   const layoutProps: LayoutProps = {
     title: "Sales Management",
     role: "admin",
@@ -78,7 +196,12 @@ export default function SpkPageAdmin() {
 
         <div className="h-full w-full">
           <div className="flex-1 space-y-4 p-4 pt-6 md:p-4">
-            <TabelDataSpk dataSpk={dataSpk} isLoading={isLoading} role={user?.role} />
+            <TabelDataSpk
+              dataSpk={dataSpk}
+              isLoading={isLoading}
+              role={user?.role}
+              onDeleteSpk={handleDeleteSpk}
+            />
           </div>
         </div>
       </>

@@ -83,19 +83,36 @@ export async function updateSpk(id: string, data: SpkApiPayload) {
 }
 
 // (Bonus) ✅ Delete SPK
-export async function deleteSpk(id: string) {
+export async function deleteSpk(
+  id: string
+): Promise<{ success: boolean; message?: string }> {
   try {
-    const res = await fetch(`${API_URL}/spk/${id}`, {
+    const res = await fetch(`${API_URL}/api/spk/deleteSPK/${id}`, {
       method: "DELETE",
     });
 
+    const responseData = await res.json();
+
     if (!res.ok) {
-      throw new Error("Gagal delete SPK");
+      return {
+        success: false,
+        message: responseData.message || "Gagal delete SPK",
+      };
     }
 
-    return await res.json();
+    return {
+      success: true,
+      message: responseData.message || "SPK berhasil dihapus",
+    };
   } catch (error) {
     console.error("deleteSpk error:", error);
-    throw error;
+
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Terjadi kesalahan saat menghapus SPK",
+    };
   }
 }

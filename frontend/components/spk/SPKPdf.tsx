@@ -576,7 +576,7 @@ export const SPKPDF: React.FC<SPKPDFProps> = ({ data }) => {
                                     <Text style={[styles.tableCell, styles.colNo]}>{index + 1}</Text>
                                     <Text style={[styles.tableCell, styles.colPekerjaan]}>
                                         {item.name || 'Tugas Khusus'}
-                                        {item.description ? ` - ${item.description}` : ''}
+                                        {/* {item.description ? ` - ${item.description}` : ''} */}
                                     </Text>
                                     <Text style={[styles.tableCell, styles.colLokasi]}>
                                         {item.qty > 0 ? `${item.qty} ${item.uom || 'unit'}` : '-'}

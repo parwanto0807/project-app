@@ -966,12 +966,12 @@ function StatCard({
     const isPositive = trend && trend >= 0;
 
     return (
-        <Card className="min-h-40 overflow-hidden border shadow-sm transition-all hover:shadow-md">
+        <Card className="min-h-40 overflow-hidden border shadow-sm transition-all duration-300 hover:bg-cyan-100 dark:hover:bg-gray-950 hover:shadow-lg hover:-translate-y-1 hover:scale-[1.02] group">
             <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-                <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
+                <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground transition-colors duration-300 group-hover:text-foreground">
                     {title}
                 </CardTitle>
-                <div className="h-8 w-8 rounded-full bg-blue-50 flex items-center justify-center">
+                <div className="h-8 w-8 rounded-full bg-blue-50 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-blue-100 group-hover:rotate-6">
                     {icon}
                 </div>
             </CardHeader>
@@ -981,11 +981,11 @@ function StatCard({
                     <Skeleton className="h-7 w-20 mt-1" />
                 ) : (
                     <div className="flex items-center gap-2">
-                        <span className="text-2xl font-bold">
+                        <span className="text-2xl font-bold transition-all duration-300 group-hover:text-blue-700">
                             {showValue
                                 ? value !== null
                                     ? formatted
-                                        ? `Rp ${value.toLocaleString("id-ID")}` // ✅ tambah Rp
+                                        ? `Rp ${value.toLocaleString("id-ID")}`
                                         : value
                                     : "-"
                                 : "XXX.XXX.XXX"}
@@ -995,12 +995,12 @@ function StatCard({
                             <button
                                 type="button"
                                 onClick={() => setShowValue((prev) => !prev)}
-                                className="text-gray-500 hover:text-gray-700"
+                                className="text-gray-500 hover:text-gray-700 transition-colors duration-300"
                             >
                                 {showValue ? (
-                                    <Eye className="h-6 w-6 ml-2 text-green-500" />
+                                    <Eye className="h-6 w-6 ml-2 text-green-500 transition-transform duration-300 group-hover:scale-110" />
                                 ) : (
-                                    <EyeOff className="h-6 w-6 ml-2" />
+                                    <EyeOff className="h-6 w-6 ml-2 transition-transform duration-300 group-hover:scale-110" />
                                 )}
                             </button>
                         )}
@@ -1009,13 +1009,12 @@ function StatCard({
 
                 {trend !== undefined && !loading && (
                     <div
-                        className={`flex items-center text-xs mt-2 ${isPositive ? "text-green-600" : "text-red-600"
-                            }`}
+                        className={`flex items-center text-xs mt-2 transition-all duration-300 ${isPositive ? "text-green-600 group-hover:text-green-700" : "text-red-600 group-hover:text-red-700"}`}
                     >
                         {isPositive ? (
-                            <ArrowUpRight className="h-3 w-3 mr-1" />
+                            <ArrowUpRight className="h-3 w-3 mr-1 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
                         ) : (
-                            <ArrowDownRight className="h-3 w-3 mr-1" />
+                            <ArrowDownRight className="h-3 w-3 mr-1 transition-transform duration-300 group-hover:translate-y-0.5 group-hover:translate-x-0.5" />
                         )}
                         {Math.abs(trend).toFixed(1)}%{" "}
                         {isPositive ? "peningkatan" : "penurunan"} dari bulan lalu
@@ -1027,11 +1026,11 @@ function StatCard({
                 {href && (
                     <Button
                         variant="link"
-                        className="px-0 text-blue-600 hover:text-blue-800 text-xs md:text-sm h-8"
+                        className="px-0 text-blue-600 hover:text-blue-800 text-xs md:text-sm h-8 transition-all duration-300 group-hover:translate-x-1"
                         asChild
                     >
                         <Link href={href}>
-                            Lihat detail <ArrowUpRight className="h-3 w-3 ml-1" />
+                            Lihat detail <ArrowUpRight className="h-3 w-3 ml-1 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
                         </Link>
                     </Button>
                 )}

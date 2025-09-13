@@ -56,16 +56,6 @@ import { pdf } from "@react-pdf/renderer";
 import { mapFormValuesToPdfProps, SpkPdfValues } from "@/lib/validations/spk-mapper";
 import { SpkFormValuesPdfProps } from "@/types/spk";
 
-// type SPKDetail = {
-//     id: string;
-//     idSpk: string;
-//     idKaryawan?: string | null;
-//     karyawan?: {
-//         id: string;
-//         namaLengkap: string;
-//     } | null;
-//     tugas?: string | null;
-// };
 
 type SPK = {
     id: string;
@@ -154,6 +144,7 @@ type TabelDataSpkProps = {
     role?: string;
     isLoading: boolean;
     className?: string;
+    onDeleteSpk?: (spkId: string) => void;
 };
 
 function getBasePath(role?: string) {
@@ -219,6 +210,7 @@ export default function TabelDataSpk({
     role,
     isLoading,
     className = "",
+    onDeleteSpk,
 }: TabelDataSpkProps) {
     const [searchTerm, setSearchTerm] = useState("");
     const [filterBy, setFilterBy] = useState("all");
@@ -230,6 +222,19 @@ export default function TabelDataSpk({
     const pdfActions = usePdfActions();
 
     const isMobile = useMediaQuery("(max-width: 768px)");
+    const handleDelete = async (spkId: string) => {
+        const confirmDelete = window.confirm(
+            "Apakah Anda yakin ingin menghapus SPK ini? Tindakan ini tidak dapat dibatalkan."
+        );
+        if (confirmDelete) {
+            try {
+                await onDeleteSpk?.(spkId);
+            } catch (error) {
+                console.error("Gagal menghapus SPK:", error);
+            }
+        }
+    };
+
     const filteredData = useMemo(() => {
         if (!Array.isArray(dataSpk)) return [];
 
@@ -776,13 +781,12 @@ export default function TabelDataSpk({
                                                                         <Edit className="h-4 w-4 text-muted-foreground" />
                                                                         Edit
                                                                     </DropdownMenuItem>
-
                                                                     <DropdownMenuItem
                                                                         className="cursor-pointer gap-2 text-sm text-destructive focus:text-destructive"
                                                                         onClick={(e) => {
+                                                                            e.preventDefault();
                                                                             e.stopPropagation();
-                                                                            // handle delete
-                                                                            console.log("Delete clicked");
+                                                                            handleDelete(spk.id);
                                                                         }}
                                                                     >
                                                                         <Trash2 className="h-4 w-4" />
