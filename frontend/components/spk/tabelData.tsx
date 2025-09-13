@@ -48,7 +48,7 @@ import Link from "next/link";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { useRouter } from "next/navigation";
-import { SalesOrderDocument, SalesOrderItem } from "@/lib/validations/sales-order";
+// import { SalesOrderDocument, SalesOrderItem } from "@/lib/validations/sales-order";
 
 import { SPKPDF } from "@/components/spk/SPKPdf";
 import SPKPdfPreview from "./spkPdfPreview";
@@ -56,64 +56,97 @@ import { pdf } from "@react-pdf/renderer";
 import { mapFormValuesToPdfProps, SpkPdfValues } from "@/lib/validations/spk-mapper";
 import { SpkFormValuesPdfProps } from "@/types/spk";
 
-type SPKDetail = {
-    id: string;
-    idSpk: string;
-    idKaryawan?: string | null;
-    karyawan?: {
-        id: string;
-        namaLengkap: string;
-    } | null;
-    tugas?: string | null;
-};
+// type SPKDetail = {
+//     id: string;
+//     idSpk: string;
+//     idKaryawan?: string | null;
+//     karyawan?: {
+//         id: string;
+//         namaLengkap: string;
+//     } | null;
+//     tugas?: string | null;
+// };
 
 type SPK = {
     id: string;
     spkNumber: string;
     spkDate: Date;
-    idSalesOrder?: string | null;
-    customerId: string;
-    projectsId: string;
-    type: string;
-    status: string;
-    salesOrder?: {
-        id: string;
-        soNumber: string;
-        soDate: Date // fallback pakai `now`
-        userId: string;
-        currency: string;
-        isTaxInclusive: number;
-        subtotal: number; // sum(net) = setelah diskon, sebelum pajak
-        discountTotal: number; // sum(discount)
-        taxTotal: number; // sum(tax)
-        grandTotal: number; // sum(total)
-        customer: {
-            id: string;
-            name: string;
-        },
-        project: {
-            id: string;
-            name: string;
-        }
-    } | null;
-    idTeam?: string | null;
-    team?: {
-        id: string;
-        namaTeam: string;
-    } | null;
-    details?: SPKDetail[];
-    notes?: string | null;
-    idCreatedBy?: string | null;
-    createdBy?: {
+    salesOrderId: string;
+    teamId: string;
+    createdById: string;
+
+    createdBy: {
         id: string;
         namaLengkap: string;
         jabatan?: string | null;
         nik?: string | null;
+        departemen?: string | null;
+    };
+
+    salesOrder: {
+        id: string;
+        soNumber: string;
+        projectName: string;
+        customer: {
+            name: string;      // diisi dari customer.name
+            address: string;   // ✅ baru
+            branch: string;    // ✅ baru
+        }
+        project?: {
+            id: string;
+            name: string;
+        };
+        items: {
+            id: string;
+            lineNo: number;
+            itemType: string;
+            name: string;
+            description?: string | null;
+            qty: number;
+            uom?: string | null;
+            unitPrice: number;
+            discount: number;
+            taxRate: number;
+            lineTotal: number;
+        }[];
+    };
+
+    team?: {
+        id: string;
+        namaTeam: string;
+        teamKaryawan?: {
+            teamId: string;
+            karyawan?: {
+                id: string;
+                namaLengkap: string;
+                jabatan: string;
+                departemen: string;
+            };
+        };
     } | null;
-    items: SalesOrderItem[];
-    documents: SalesOrderDocument[];
-    createdAt: string; // ISO string
-    updatedAt: string; // ISO string
+
+    details: {
+        id: string;
+        karyawan?: {
+            id: string;
+            namaLengkap: string;
+            jabatan: string;
+            departemen: string;
+            nik: string;
+        };
+        salesOrderItemSPK?: {
+            id: string;
+            name: string;
+            description?: string;
+            qty: number;
+            uom?: string | null;
+        };
+        lokasiUnit?: string | null;
+    }[];
+
+    notes?: string | null;
+    createdAt: Date;
+    updatedAt: Date;
 };
 
 type TabelDataSpkProps = {
@@ -122,7 +155,6 @@ type TabelDataSpkProps = {
     isLoading: boolean;
     className?: string;
 };
-
 
 function getBasePath(role?: string) {
     return role === "super"
@@ -142,10 +174,10 @@ export function normalizePdfProps(data: SpkFormValuesPdfProps) {
 function usePdfActions() {
     const [pdfDialogOpen, setPdfDialogOpen] = React.useState(false);
     const [selectedSpk, setSelectedSpk] = React.useState<SpkFormValuesPdfProps | null>(null);
-
     const handleDownloadPdf = async (spk: SpkPdfValues) => {
         try {
             const pdfData = mapFormValuesToPdfProps(spk);
+
             const normalized = normalizePdfProps(pdfData);
             const blob = await pdf(<SPKPDF data={normalized} />).toBlob();
             const url = URL.createObjectURL(blob);
@@ -197,9 +229,7 @@ export default function TabelDataSpk({
     const router = useRouter();
     const pdfActions = usePdfActions();
 
-
     const isMobile = useMediaQuery("(max-width: 768px)");
-
     const filteredData = useMemo(() => {
         if (!Array.isArray(dataSpk)) return [];
 
@@ -259,52 +289,110 @@ export default function TabelDataSpk({
     const pageNumbers = getPageNumbers();
 
     // Fungsi untuk memetakan data SPK ke format yang diharapkan oleh PDF
-    // Fungsi untuk memetakan data SPK ke format yang diharapkan oleh PDF
     const mapSpkToPdfValues = (spk: SPK): SpkPdfValues => {
-        // Ensure spkDate is a Date object
+        // pastikan spkDate berbentuk Date
         const spkDate = spk.spkDate instanceof Date ? spk.spkDate : new Date(spk.spkDate);
 
         return {
             id: spk.id,
             spkNumber: spk.spkNumber,
-            spkDate: spkDate, // Use the ensured Date object
+            spkDate: spkDate,
+            salesOrderId: spk.salesOrderId,
+            teamId: spk.teamId,
+            createdById: spk.createdById,
+
             createdBy: {
                 id: spk.createdBy?.id || "",
                 namaLengkap: spk.createdBy?.namaLengkap || "",
                 jabatan: spk.createdBy?.jabatan ?? null,
                 nik: spk.createdBy?.nik ?? null,
+                departemen: spk.createdBy?.departemen ?? null,
             },
+
             salesOrder: spk.salesOrder
                 ? {
                     id: spk.salesOrder.id,
                     soNumber: spk.salesOrder.soNumber,
-                    customerName: spk.salesOrder.customer?.name || "",
                     projectName: spk.salesOrder.project?.name || "",
-                    project: spk.salesOrder.project ? {
-                        id: spk.salesOrder.project.id || "",
-                        name: spk.salesOrder.project.name || "",
-                    } : undefined,
+                    customer:
+                    {
+                        name: spk.salesOrder.customer?.name || "",
+                        address: spk.salesOrder.customer?.address || "",
+                        branch: spk.salesOrder.customer?.branch || "",
+                    },
+                    project: spk.salesOrder.project
+                        ? {
+                            id: spk.salesOrder.project.id || "",
+                            name: spk.salesOrder.project.name || "",
+                        }
+                        : undefined,
+                    items:
+                        spk.salesOrder.items?.map((item) => ({
+                            id: item.id,
+                            lineNo: item.lineNo,
+                            itemType: item.itemType,
+                            name: item.name ?? "",
+                            description: item.description ?? "",
+                            qty: Number(item.qty) || 0,
+                            uom: item.uom ?? "",
+                            unitPrice: Number(item.unitPrice) || 0,
+                            discount: Number(item.discount) || 0,
+                            taxRate: Number(item.taxRate) || 0,
+                            lineTotal: Number(item.lineTotal) || 0,
+                        })) || [],
                 }
                 : {
                     id: "",
                     soNumber: "",
-                    customerName: "",
                     projectName: "",
+                    customer: { name: "", address: "", branch: "" },
                     project: undefined,
+                    items: [],
                 },
+
             team: spk.team
-                ? { id: spk.team.id, namaTeam: spk.team.namaTeam }
-                : undefined,
-            details: spk.details?.map((detail) => ({
-                id: detail.id,
-                karyawan: detail.karyawan
-                    ? {
-                        id: detail.karyawan.id,
-                        namaLengkap: detail.karyawan.namaLengkap,
-                    }
-                    : undefined,
-                lokasiUnit: detail.tugas ?? null,
-            })) || [],
+                ? {
+                    id: spk.team.id,
+                    namaTeam: spk.team.namaTeam,
+                    teamKaryawan: spk.team.teamKaryawan
+                        ? {
+                            teamId: spk.team.teamKaryawan.teamId,
+                            karyawan: spk.team.teamKaryawan.karyawan
+                                ? {
+                                    id: spk.team.teamKaryawan.karyawan.id, // ✅ WAJIB ada
+                                    namaLengkap: spk.team.teamKaryawan.karyawan.namaLengkap,
+                                    jabatan: spk.team.teamKaryawan.karyawan.jabatan,
+                                    departemen: spk.team.teamKaryawan.karyawan.departemen,
+                                }
+                                : undefined,
+                        }
+                        : undefined,
+                }
+                : null,
+            details:
+                spk.details?.map((detail) => ({
+                    id: detail.id,
+                    karyawan: detail.karyawan
+                        ? {
+                            id: detail.karyawan?.id ?? "",
+                            namaLengkap: detail.karyawan?.namaLengkap ?? "",
+                            jabatan: detail.karyawan?.jabatan ?? "",
+                            nik: detail.karyawan?.nik ?? "",
+                            departemen: detail.karyawan?.departemen ?? "",
+                        }
+                        : undefined,
+                    lokasiUnit: detail.lokasiUnit ?? null,
+                    salesOrderItemSPK: detail.salesOrderItemSPK
+                        ? {
+                            id: detail.salesOrderItemSPK.id,
+                            name: detail.salesOrderItemSPK.name ?? "",
+                            description: detail.salesOrderItemSPK.description ?? "",
+                            qty: Number(detail.salesOrderItemSPK.qty) || 0,
+                            uom: detail.salesOrderItemSPK.uom ?? "",
+                        }
+                        : undefined,
+                })) || [],
+
             notes: spk.notes ?? null,
             createdAt: new Date(spk.createdAt),
             updatedAt: new Date(spk.updatedAt),
@@ -486,9 +574,9 @@ export default function TabelDataSpk({
                                                             {detail.karyawan?.namaLengkap || "Karyawan tidak ditentukan"}
                                                         </p>
                                                     </div>
-                                                    {detail.tugas && (
+                                                    {detail.lokasiUnit && (
                                                         <p className="text-sm text-muted-foreground pl-6">
-                                                            {detail.tugas}
+                                                            {detail.lokasiUnit}
                                                         </p>
                                                     )}
                                                 </div>
@@ -763,9 +851,9 @@ export default function TabelDataSpk({
                                                                                     {detail.karyawan?.namaLengkap || "Karyawan tidak ditentukan"}
                                                                                 </p>
                                                                             </div>
-                                                                            {detail.tugas && (
+                                                                            {detail.lokasiUnit && (
                                                                                 <p className="text-sm text-muted-foreground pl-6">
-                                                                                    {detail.tugas}
+                                                                                    {detail.lokasiUnit}
                                                                                 </p>
                                                                             )}
                                                                         </div>

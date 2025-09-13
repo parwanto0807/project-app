@@ -85,23 +85,37 @@ export const getAllSPK = async (req, res) => {
     const spkList = await prisma.sPK.findMany({
       include: {
         createdBy: true,
-        salesOrder: true,
+        salesOrder: {
+          include: {
+            customer: {      // ✅ ambil data customer
+              select: {
+                name: true,
+                address: true,
+                branch: true,
+              },
+            },
+            items: true,     // ✅ ambil semua items dari SalesOrder
+          },
+        },
         team: true,
         details: {
           include: {
             karyawan: true,
-            salesOrderItem: true,
+            salesOrderItem: true, // ✅ ambil item per detail juga
           },
         },
       },
       orderBy: { createdAt: "desc" },
     });
+
     res.json(spkList);
   } catch (error) {
     console.error("Error getAllSPK:", error);
     res.status(500).json({ error: "Failed to fetch SPK list" });
   }
 };
+
+
 
 // ✅ GET SPK BY ID
 export const getSPKById = async (req, res) => {

@@ -10,48 +10,84 @@ import {
 } from "@/components/ui/dialog";
 import { Download, Printer, X } from "lucide-react";
 
+// ====== TIPE INPUT FORM (SUDAH LENGKAP DAN BENAR) ======
 export interface SpkFormData {
   id: string;
   spkNumber: string;
-  spkDate: Date | string;
+  spkDate: Date;
   salesOrderId: string;
   teamId: string;
   createdById: string;
+
   createdBy: {
     id: string;
-    nama: string;
+    namaLengkap: string;
     jabatan?: string | null;
-    nik?: string;
+    nik?: string | null;
+    departemen?: string | null;
   };
+
   salesOrder: {
     id: string;
     soNumber: string;
-    customerName: string;
     projectName: string;
-    project: {
+    customer: {
+      name: string;
+      address: string;
+      branch: string;
+    }
+    project?: {
       id: string;
       name: string;
     };
+    items: {
+      id: string;
+      lineNo: number;
+      itemType: string;
+      name: string;
+      description?: string | null;
+      qty: number;
+      uom?: string | null;
+      unitPrice: number;
+      discount: number;
+      taxRate: number;
+      lineTotal: number;
+    }[];
   };
+
   team?: {
     id: string;
     namaTeam: string;
+    teamKaryawan?: {
+      teamId: string;
+      karyawan?: {
+        id: string;
+        namaLengkap: string;
+        jabatan: string;
+        departemen: string;
+      };
+    };
   } | null;
+
   details: {
     id: string;
     karyawan?: {
       id: string;
-      nama: string;
+      namaLengkap: string;
+      jabatan: string;
+      departemen: string;
+      nik: string;
     };
-    salesOrderItem?: {
+    salesOrderItemSPK?: {
       id: string;
       name: string;
       description?: string;
       qty: number;
-      uom: string;
+      uom?: string | null;
     };
     lokasiUnit?: string | null;
   }[];
+
   notes?: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -61,14 +97,12 @@ interface SPKPdfPreviewProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   data: SpkFormData;
-  // onDownload prop dihapus karena tidak digunakan
 }
 
 const SPKPdfPreview: React.FC<SPKPdfPreviewProps> = ({
   open,
   onOpenChange,
   data,
-  // onDownload dihapus dari parameter
 }) => {
   const pdfData = mapToFormDataSpk(data);
 
@@ -77,7 +111,7 @@ const SPKPdfPreview: React.FC<SPKPdfPreviewProps> = ({
       const blob = await pdf(<SPKPDF data={pdfData} />).toBlob();
       const url = URL.createObjectURL(blob);
       const printWindow = window.open(url, "_blank");
-      
+
       if (printWindow) {
         printWindow.onload = () => {
           printWindow.print();
@@ -115,7 +149,7 @@ const SPKPdfPreview: React.FC<SPKPdfPreviewProps> = ({
             Preview SPK - {data.spkNumber}
           </DialogTitle>
         </DialogHeader>
-        
+
         <div className="flex-1 overflow-hidden">
           <PDFViewer width="100%" height="100%" className="border rounded-md">
             <SPKPDF data={pdfData} />
@@ -141,72 +175,114 @@ const SPKPdfPreview: React.FC<SPKPdfPreviewProps> = ({
   );
 };
 
-// Fungsi mapping yang konsisten dengan tipe SPKPDFProps
+// ====== MAPPING FUNGSI — SUDAH SESUAI DENGAN SpkFormData ======
 export function mapToFormDataSpk(formData: SpkFormData): SPKPDFProps["data"] {
   return {
     spkNumber: formData.spkNumber || "",
-    spkDate: formData.spkDate instanceof Date ? formData.spkDate : new Date(formData.spkDate),
-    createdBy: formData.createdBy
-      ? {
-          id: formData.createdBy.id || "",
-          nama: formData.createdBy.nama || "",
-          jabatan: formData.createdBy.jabatan || undefined,
-          nik: formData.createdBy.nik || undefined,
-        }
-      : {
-          id: "",
-          nama: "Unknown",
-          jabatan: undefined,
-          nik: undefined,
-        },
+    spkDate:
+      formData.spkDate instanceof Date
+        ? formData.spkDate
+        : new Date(formData.spkDate),
+
+    createdBy: {
+      id: formData.createdBy?.id || "",
+      namaLengkap: formData.createdBy?.namaLengkap || "",
+      jabatan: formData.createdBy?.jabatan ?? null,
+      nik: formData.createdBy?.nik ?? null,
+      departemen: formData.createdBy?.departemen ?? null,
+    },
+
     salesOrder: formData.salesOrder
       ? {
-          id: formData.salesOrder.id || "",
-          soNumber: formData.salesOrder.soNumber || "",
-          customerName: formData.salesOrder.customerName || "",
-          projectName: formData.salesOrder.projectName || "",
-          project: formData.salesOrder.project
-            ? {
-                id: formData.salesOrder.project.id || "",
-                name: formData.salesOrder.project.name || "",
-              }
-            : undefined,
-        }
-      : {
-          id: "",
-          soNumber: "",
-          customerName: "",
-          projectName: "",
-          project: undefined,
+        id: formData.salesOrder.id || "",
+        soNumber: formData.salesOrder.soNumber || "",
+        projectName: formData.salesOrder.projectName || "",
+        customer: {
+          name: formData.salesOrder.customer.name,
+          address: formData.salesOrder.customer.address,
+          branch: formData.salesOrder.customer.branch,
         },
+        project: formData.salesOrder.project
+          ? {
+            id: formData.salesOrder.project.id || "",
+            name: formData.salesOrder.project.name || "",
+          }
+          : undefined,
+        items:
+          formData.salesOrder.items?.map((item) => ({
+            id: item.id || "",
+            lineNo: item.lineNo,
+            itemType: item.itemType,
+            name: item.name || "",
+            description: item.description ?? null,
+            qty: item.qty,
+            uom: item.uom ?? null,
+            unitPrice: item.unitPrice,
+            discount: item.discount,
+            taxRate: item.taxRate,
+            lineTotal: item.lineTotal,
+          })) || [],
+      }
+      : {
+        id: "",
+        soNumber: "",
+        customer: { name: "", branch: "", address: "" },
+        projectName: "",
+        project: undefined,
+        items: [],
+      },
+
     team: formData.team
       ? {
-          id: formData.team.id || "",
-          namaTeam: formData.team.namaTeam || "",
-        }
+        id: formData.team.id || "",
+        namaTeam: formData.team.namaTeam || "",
+        teamKaryawan: formData.team.teamKaryawan
+          ? {
+            teamId: formData.team.teamKaryawan.teamId || "",
+            karyawan: formData.team.teamKaryawan.karyawan
+              ? {
+                id: formData.team.teamKaryawan.karyawan.id || "",
+                namaLengkap:
+                  formData.team.teamKaryawan.karyawan.namaLengkap || "",
+                jabatan:
+                  formData.team.teamKaryawan.karyawan.jabatan || "",
+                departemen:
+                  formData.team.teamKaryawan.karyawan.departemen || "",
+              }
+              : undefined,
+          }
+          : undefined,
+      }
       : undefined,
+
     details:
       formData.details?.map((detail) => ({
         id: detail.id || "",
         karyawan: detail.karyawan
           ? {
-              id: detail.karyawan.id || "",
-              nama: detail.karyawan.nama || "",
-            }
+            id: detail.karyawan?.id ?? "",
+            namaLengkap: detail.karyawan?.namaLengkap ?? "",
+            jabatan: detail.karyawan?.jabatan ?? "",
+            nik: detail.karyawan?.nik ?? "",
+            departemen: detail.karyawan?.departemen ?? "",
+          }
           : undefined,
-        salesOrderItem: detail.salesOrderItem
+        salesOrderItemSPK: detail.salesOrderItemSPK
           ? {
-              id: detail.salesOrderItem.id || "",
-              name: detail.salesOrderItem.name || "",
-              description: detail.salesOrderItem.description || undefined,
-              qty: detail.salesOrderItem.qty || 0,
-              uom: detail.salesOrderItem.uom || "",
-            }
+            id: detail.salesOrderItemSPK.id,
+            name: detail.salesOrderItemSPK.name,
+            description: detail.salesOrderItemSPK.description ?? null,
+            qty: detail.salesOrderItemSPK.qty,
+            uom: detail.salesOrderItemSPK.uom ?? null,
+          }
           : undefined,
-        lokasiUnit: detail.lokasiUnit || undefined,
+        lokasiUnit: detail.lokasiUnit ?? null,
       })) || [],
-    notes: formData.notes || undefined,
+
+
+    notes: formData.notes ?? null,
   };
 }
+
 
 export default SPKPdfPreview;

@@ -1,4 +1,3 @@
-// components/spk/SPKPDF.tsx
 import React from 'react';
 import { Page, Text, View, Document, StyleSheet, Font, Image as PdfImage } from '@react-pdf/renderer';
 import { SpkPdfValues } from '@/lib/validations/spk-mapper';
@@ -9,41 +8,69 @@ Font.register({
     src: "/fonts/Oswald-Regular.ttf",
 });
 
+
 type Karyawan = {
     id: string;
-    nama: string;
+    namaLengkap?: string;
     jabatan?: string | null;
-    nik?: string;
+    nik?: string | null | undefined;
+    departemen?: string | null;
+};
+
+type TeamKaryawan = {
+    teamId: string;
+    karyawan?: Karyawan;
 };
 
 type Team = {
     id: string;
     namaTeam: string;
+    teamKaryawan?: TeamKaryawan | null; // ← opsional, dan isinya objek tunggal
 };
 
 type SalesOrder = {
     id: string;
     soNumber: string;
-    customerName: string;
     projectName: string;
+    customer: {
+        name: string;      // diisi dari customer.name
+        address: string;   // ✅ baru
+        branch: string;    // ✅ baru
+    }
     project?: {
         id: string;
         name: string;
     }
+    items: SalesOrderItem[];
 };
 
 type SalesOrderItem = {
     id: string;
+    lineNo: number;
+    itemType: string;
     name: string;
     description?: string | null;
     qty: number;
     uom?: string | null;
+    unitPrice: number;
+    discount: number;
+    taxRate: number;
+    lineTotal: number;
 };
+
+type SalesOrderItemSPK = {
+    id: string;
+    name: string;
+    description?: string;
+    qty: number;
+    uom?: string | null;
+} | null;
+
 
 export interface SPKDetail {
     id: string;
     karyawan?: Karyawan | null;
-    salesOrderItem?: SalesOrderItem | null;
+    salesOrderItem?: SalesOrderItemSPK | null;
     lokasiUnit?: string | null;
 }
 
@@ -60,56 +87,93 @@ export interface SPKPDFProps {
 }
 
 export interface SpkFormValuesPdfProps {
-    spkNumber: string; // wajib
-    spkDate: Date | string;
+    id: string;
+    spkNumber: string;
+    spkDate: Date;
     salesOrderId: string;
     teamId: string;
     createdById: string;
+
     createdBy: {
         id: string;
-        nama: string;
+        namaLengkap: string;
         jabatan?: string | null;
-        nik?: string;
+        nik?: string | null;
+        departemen?: string | null;
     };
+
     salesOrder: {
         id: string;
         soNumber: string;
-        customerName: string;
         projectName: string;
-        project: {
+        customer: {
+            name: string;      // diisi dari customer.name
+            address: string;   // ✅ baru
+            branch: string;    // ✅ baru
+        }
+        project?: {
             id: string;
             name: string;
-        }
+        };
+        items: {
+            id: string;
+            lineNo: number;
+            itemType: string;
+            name: string;
+            description?: string | null;
+            qty: number;
+            uom?: string | null;
+            unitPrice: number;
+            discount: number;
+            taxRate: number;
+            lineTotal: number;
+        }[];
     };
+
     team?: {
         id: string;
-        nama: string;
+        namaTeam: string;
+        teamKaryawan?: {
+            teamId: string;
+            karyawan?: {
+                namaLengkap: string;
+                jabatan: string;
+                departemen: string;
+            };
+        };
     } | null;
+
     details: {
         id: string;
         karyawan?: {
             id: string;
-            nama: string;
+            namaLengkap: string;
+            jabatan: string;
+            departemen: string;
+            nik: string;
         };
         salesOrderItem?: {
             id: string;
             name: string;
             description?: string;
             qty: number;
-            uom: string;
+            uom?: string | null;
         };
         lokasiUnit?: string | null;
     }[];
-    notes?: string | null;
-}
 
+    notes?: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+}
 
 const styles = StyleSheet.create({
     page: {
         flexDirection: 'column',
         backgroundColor: '#FFFFFF',
         padding: 20,
-        fontFamily: 'Helvetica'
+        fontFamily: 'Helvetica',
+        fontSize: 10,
     },
     headerContainer: {
         flexDirection: 'row',
@@ -118,48 +182,39 @@ const styles = StyleSheet.create({
         marginBottom: 15,
     },
     logo: {
-        width: 100,
-        height: 50,
-        marginRight: -20,
+        width: 110,
+        height: 30,
     },
-    headerTextContainer: {
+    companyInfo: {
+        fontSize: 9,
+        textAlign: 'right',
+        maxWidth: '60%',
+    },
+    titleContainer: {
         alignItems: 'center',
-        marginTop: 20,
+        marginBottom: 15,
     },
     header: {
-        fontSize: 18,
+        fontSize: 16,
         textAlign: 'center',
         fontWeight: 'bold',
         textDecoration: 'underline',
-        marginBottom: 2,
-    },
-    subHeader: {
-        fontSize: 14,
-        textAlign: 'center',
-        fontWeight: 'bold',
-        marginBottom: 10,
+        marginBottom: 5,
+        fontFamily: 'Oswald', // ← TELAH DITAMBAHKAN!
     },
     mainContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
         marginBottom: 10,
-    },
-    leftSection: {
-        width: '60%',
-    },
-    rightSection: {
-        width: '35%',
     },
     section: {
         marginBottom: 10,
     },
     fieldRow: {
         flexDirection: "row",
-        marginBottom: 4,
+        marginBottom: 5,
         alignItems: 'flex-start',
     },
     fieldLabel: {
-        width: "30%",
+        width: "25%",
         fontSize: 10,
         fontWeight: "bold",
     },
@@ -174,6 +229,7 @@ const styles = StyleSheet.create({
         borderBottomWidth: 0.5,
         borderBottomColor: "#000000",
         minHeight: 12,
+        paddingBottom: 2,
     },
     table: {
         display: 'flex',
@@ -200,27 +256,26 @@ const styles = StyleSheet.create({
         fontSize: 9,
         borderRightWidth: 1,
         borderRightColor: '#000000',
+        display: 'flex',
+        justifyContent: 'center',
+        flexDirection: 'column',
     },
     colNo: {
-        width: '8%',
+        width: '5%',
         textAlign: 'center',
+    },
+    colNama: {
+        width: '65%',
+    },
+    colJabatan: {
+        width: '30%',
+        borderRightWidth: 0,
     },
     colPekerjaan: {
-        width: '42%',
+        width: '65%',
     },
     colLokasi: {
-        width: '20%',
-    },
-    colJumlah: {
-        width: '10%',
-        textAlign: 'center',
-    },
-    colSatuan: {
-        width: '10%',
-        textAlign: 'center',
-    },
-    colPelaksana: {
-        width: '20%',
+        width: '30%',
         borderRightWidth: 0,
     },
     notesSection: {
@@ -238,82 +293,157 @@ const styles = StyleSheet.create({
     },
     signatureSection: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginTop: 40,
+        justifyContent: 'flex-start',
+        marginTop: 20,
     },
     signatureBox: {
         alignItems: 'center',
         width: '45%',
     },
     signatureLine: {
-        width: '100%',
+        width: '80%',
+        alignItems: 'center',
         borderBottomWidth: 1,
         borderBottomColor: '#000000',
         marginBottom: 5,
-        height: 30,
+        height: 50,
     },
     signatureLabel: {
+        alignItems: 'center',
         fontSize: 10,
         fontWeight: 'bold',
     },
-    pageNumber: {
-        position: 'absolute',
-        bottom: 30,
-        left: 0,
-        right: 0,
-        textAlign: 'center',
+    lampiranSection: {
+        marginTop: 10,
         fontSize: 10,
-        color: 'grey',
+    },
+    tembusanSection: {
+        marginTop: 10,
+        fontSize: 10,
+    },
+    dateLocation: {
+        marginTop: 20,
+        textAlign: 'right',
+        fontSize: 10,
+        marginBottom: 1,
+    },
+    footerContainer: {
+        marginTop: 10,
     },
 });
 
-// Fungsi untuk mapping data form ke format PDF
-export function mapToFormDataSpk(formData: SpkPdfValues): SpkFormValuesPdfProps {
+export function mapToFormDataSpk(
+    formData: SpkPdfValues
+): SpkFormValuesPdfProps {
     return {
+        id: formData.id,
         spkNumber: formData.spkNumber,
-        spkDate: formData.spkDate.toDateString(),
+        spkDate: formData.spkDate,
         salesOrderId: formData.salesOrder?.id || "",
         teamId: formData.team?.id || "",
         createdById: formData.createdBy.id,
+
         createdBy: {
             id: formData.createdBy.id,
-            nama: formData.createdBy.namaLengkap, // Map namaLengkap ke nama
-            jabatan: formData.createdBy.jabatan || null,
-            nik: formData.createdBy.nik || undefined // Tambahkan nik
+            namaLengkap: formData.createdBy.namaLengkap,
+            jabatan: formData.createdBy.jabatan ?? null,
+            nik: formData.createdBy.nik ?? null,
+            departemen: formData.createdBy.departemen ?? null,
         },
+
         salesOrder: {
-            id: formData.salesOrder.id,
-            soNumber: formData.salesOrder.soNumber,
-            customerName: formData.salesOrder.customerName,
-            projectName: formData.salesOrder.projectName,
-            project: {
-                id: formData.salesOrder.project?.id || "",
-                name: formData.salesOrder.project?.name || "",
-            }
+            id: formData.salesOrder?.id || "",
+            soNumber: formData.salesOrder?.soNumber || "",
+            projectName: formData.salesOrder?.projectName || "",
+            customer: {
+                name: formData.salesOrder.customer.name,
+                address: formData.salesOrder.customer.address,
+                branch: formData.salesOrder.customer.branch,
+            },
+            project: formData.salesOrder?.project
+                ? {
+                    id: formData.salesOrder.project.id || "",
+                    name: formData.salesOrder.project.name || "",
+                }
+                : undefined,
+            items:
+                formData.salesOrder?.items?.map((item) => ({
+                    id: item.id,
+                    lineNo: item.lineNo,
+                    itemType: item.itemType,
+                    name: item.name,
+                    description: item.description ?? null,
+                    qty: item.qty,
+                    uom: item.uom ?? null,
+                    unitPrice: item.unitPrice,
+                    discount: item.discount,
+                    taxRate: item.taxRate,
+                    lineTotal: item.lineTotal,
+                })) || [],
         },
-        team: formData.team ? {
-            id: formData.team.id,
-            nama: formData.team.namaTeam
-        } : undefined,
-        details: formData.details.map(detail => ({
+
+        team: formData.team
+            ? {
+                id: formData.team.id,
+                namaTeam: formData.team.namaTeam,
+                teamKaryawan: formData.team.teamKaryawan
+                    ? {
+                        teamId: formData.team.teamKaryawan.teamId || "",
+                        karyawan: formData.team.teamKaryawan.karyawan
+                            ? {
+                                namaLengkap:
+                                    formData.team.teamKaryawan.karyawan.namaLengkap || "",
+                                jabatan:
+                                    formData.team.teamKaryawan.karyawan.jabatan || "",
+                                departemen:
+                                    formData.team.teamKaryawan.karyawan.departemen || "",
+                            }
+                            : undefined,
+                    }
+                    : undefined,
+            }
+            : undefined,
+
+        details: formData.details.map((detail) => ({
             id: detail.id,
             karyawan: detail.karyawan
                 ? {
-                    id: detail.karyawan?.id,
-                    nama: detail.karyawan?.namaLengkap // Map namaLengkap ke nama
-                } : undefined,
-            salesOrderItem: detail.salesOrderItem ? {
-                id: detail.salesOrderItem.id,
-                name: detail.salesOrderItem.name,
-                description: detail.salesOrderItem.description ?? undefined,
-                qty: detail.salesOrderItem.qty,
-                uom: detail.salesOrderItem.uom ?? "",
-            } : undefined,
-            lokasiUnit: detail.lokasiUnit ?? null
-        })) || [],
-        notes: formData.notes
+                    id: detail.karyawan.id,
+                    namaLengkap: detail.karyawan.namaLengkap,
+                    jabatan: detail.karyawan.jabatan,
+                    nik: detail.karyawan.nik,
+                    departemen: detail.karyawan.departemen,
+                }
+                : undefined,
+            salesOrderItem: detail.salesOrderItem
+                ? {
+                    id: detail.salesOrderItem.id,
+                    name: detail.salesOrderItem.name,
+                    description: detail.salesOrderItem.description ?? undefined,
+                    qty: detail.salesOrderItem.qty,
+                    uom: detail.salesOrderItem.uom ?? null,
+                }
+                : undefined,
+            lokasiUnit: detail.lokasiUnit ?? null,
+        })),
+
+        notes: formData.notes ?? null,
+        createdAt: formData.createdAt,
+        updatedAt: formData.updatedAt,
     };
 }
+
+const getUniqueKaryawans = (details: SPKDetail[]): Karyawan[] => {
+    const seen = new Set<string>();
+    return details
+        .filter(d => d.karyawan)
+        .map(d => d.karyawan!)
+        .filter(k => {
+            if (seen.has(k.id)) return false;
+            seen.add(k.id);
+            return true;
+        });
+};
 
 export const SPKPDF: React.FC<SPKPDFProps> = ({ data }) => {
     const formatDate = (date: Date) => {
@@ -322,188 +452,217 @@ export const SPKPDF: React.FC<SPKPDFProps> = ({ data }) => {
         const year = date.getFullYear();
         return `${day} ${month} ${year}`;
     };
-
-    // Fungsi untuk memecah details menjadi chunks (15 details per halaman)
-    const chunkDetails = (details: SPKDetail[], chunkSize: number = 15) => {
-        const chunks = [];
-        for (let i = 0; i < details.length; i += chunkSize) {
-            chunks.push(details.slice(i, i + chunkSize));
-        }
-        return chunks;
-    };
-
-    const detailChunks = chunkDetails(data.details);
-    const totalPages = Math.max(detailChunks.length, 1);
-
     return (
         <Document>
-            {detailChunks.map((chunk, pageIndex) => (
-                <Page
-                    key={pageIndex}
-                    size="A4"
-                    style={styles.page}
-                >
-                    {/* Header dengan Logo */}
-                    <View style={styles.headerContainer}>
-                        <PdfImage
-                            style={styles.logo}
-                            src="/Logo.png"
-                        />
-                        <View style={styles.headerTextContainer}>
-                            <Text style={styles.header}>SURAT PERINTAH KERJA (SPK)</Text>
-                            <Text style={styles.subHeader}>PT. CONTOH PERUSAHAAN</Text>
-                        </View>
-                        <View style={{ width: 100 }}></View>
+            <Page size="A4" style={styles.page}>
+                {/* Header */}
+                <View style={styles.headerContainer}>
+                    <PdfImage style={styles.logo} src="/Logo.png" />
+                    <View style={styles.companyInfo}>
+                        <Text style={{ color: '#008000', fontWeight: 'bold', fontSize: 12 }}>PT. RYLIF MIKRO MANDIRI</Text>
+                        <Text>Office: Jl. Anyar RT. 01/RW. 01, Kampung Pulo, No. 5</Text>
+                        <Text>Kemang Pratama, Bekasi Barat, Bekasi - 17144, Indonesia</Text>
+                        <Text>Phone: 0857-7414-8874 | Email: rylifmikromandiri@gmail.com</Text>
+                    </View>
+                </View>
+
+                {/* Judul */}
+                <View style={styles.titleContainer}>
+                    <Text style={styles.header}>SURAT PERINTAH KERJA (SPK)</Text>
+                    <Text style={styles.colon}>:</Text>
+                    <Text style={styles.fieldValue}>{data.spkNumber}</Text>
+                </View>
+
+                {/* Informasi Pemberi Perintah */}
+                <View style={styles.section}>
+                    <Text style={{ fontSize: 10, fontWeight: 'bold', marginBottom: 5 }}>
+                        Yang Bertanda Tangan dibawah ini :
+                    </Text>
+
+                    <View style={styles.fieldRow}>
+                        <Text style={styles.fieldLabel}>Nama</Text>
+                        <Text style={styles.colon}>:</Text>
+                        <Text style={styles.fieldValue}>{data.createdBy.namaLengkap}</Text>
                     </View>
 
-                    {/* Informasi SPK */}
-                    <View style={styles.mainContainer}>
-                        <View style={styles.leftSection}>
-                            <View style={styles.section}>
-                                <View style={styles.fieldRow}>
-                                    <Text style={styles.fieldLabel}>NO. SPK</Text>
-                                    <Text style={styles.colon}>:</Text>
-                                    <Text style={styles.fieldValue}>{data.spkNumber}</Text>
-                                </View>
-
-                                <View style={styles.fieldRow}>
-                                    <Text style={styles.fieldLabel}>TANGGAL</Text>
-                                    <Text style={styles.colon}>:</Text>
-                                    <Text style={styles.fieldValue}>{formatDate(data.spkDate)}</Text>
-                                </View>
-
-                                <View style={styles.fieldRow}>
-                                    <Text style={styles.fieldLabel}>DIBUAT OLEH</Text>
-                                    <Text style={styles.colon}>:</Text>
-                                    <Text style={styles.fieldValue}>
-                                        {data.createdBy.nama} {data.createdBy.jabatan && `(${data.createdBy.jabatan})`}
-                                    </Text>
-                                </View>
-
-                                <View style={styles.fieldRow}>
-                                    <Text style={styles.fieldLabel}>TIM PELAKSANA</Text>
-                                    <Text style={styles.colon}>:</Text>
-                                    <Text style={styles.fieldValue}>
-                                        {data.team ? data.team.namaTeam : 'Individu'}
-                                    </Text>
-                                </View>
-                            </View>
-                        </View>
-
-                        <View style={styles.rightSection}>
-                            <View style={styles.section}>
-                                <View style={styles.fieldRow}>
-                                    <Text style={styles.fieldLabel}>NO. SO</Text>
-                                    <Text style={styles.colon}>:</Text>
-                                    <Text style={styles.fieldValue}>{data.salesOrder.soNumber}</Text>
-                                </View>
-
-                                <View style={styles.fieldRow}>
-                                    <Text style={styles.fieldLabel}>CUSTOMER</Text>
-                                    <Text style={styles.colon}>:</Text>
-                                    <Text style={styles.fieldValue}>{data.salesOrder.customerName}</Text>
-                                </View>
-
-                                <View style={styles.fieldRow}>
-                                    <Text style={styles.fieldLabel}>PROJECT</Text>
-                                    <Text style={styles.colon}>:</Text>
-                                    <Text style={styles.fieldValue}>{data.salesOrder.projectName}</Text>
-                                </View>
-                            </View>
-                        </View>
+                    <View style={styles.fieldRow}>
+                        <Text style={styles.fieldLabel}>Jabatan</Text>
+                        <Text style={styles.colon}>:</Text>
+                        <Text style={styles.fieldValue}>{data.createdBy.jabatan || '-'}</Text>
                     </View>
 
-                    {/* Tabel Detail Pekerjaan */}
-                    <View style={styles.section}>
-                        <Text style={{ fontSize: 10, fontWeight: 'bold', marginBottom: 2 }}>
-                            DETAIL PEKERJAAN {totalPages > 1 ? `(Halaman ${pageIndex + 1} dari ${totalPages})` : ''}
-                        </Text>
-                        <View style={styles.table}>
-                            {/* Table Header */}
-                            <View style={[styles.tableRow, styles.tableHeader]}>
-                                <Text style={[styles.tableCell, styles.colNo]}>NO</Text>
-                                <Text style={[styles.tableCell, styles.colPekerjaan]}>URAIAN PEKERJAAN</Text>
-                                <Text style={[styles.tableCell, styles.colLokasi]}>LOKASI/UNIT</Text>
-                                <Text style={[styles.tableCell, styles.colJumlah]}>JUMLAH</Text>
-                                <Text style={[styles.tableCell, styles.colSatuan]}>SATUAN</Text>
-                                <Text style={[styles.tableCell, styles.colPelaksana]}>PELAKSANA</Text>
+                    <View style={styles.fieldRow}>
+                        <Text style={styles.fieldLabel}>Divisi</Text> {/* ← Diperbaiki */}
+                        <Text style={styles.colon}>:</Text>
+                        <Text style={styles.fieldValue}>{data.createdBy.departemen}</Text> {/* ← Diperbaiki */}
+                    </View>
+
+                    <View style={styles.fieldRow}>
+                        <Text style={styles.fieldLabel}>Tanggal</Text>
+                        <Text style={styles.colon}>:</Text>
+                        <Text style={styles.fieldValue}>{formatDate(data.spkDate)}</Text>
+                    </View>
+
+                    <View style={styles.fieldRow}>
+                        <Text style={styles.fieldLabel}>No. SO</Text> {/* ← Diperbaiki */}
+                        <Text style={styles.colon}>:</Text>
+                        <Text style={styles.fieldValue}>{data.salesOrder.soNumber}</Text>
+                    </View>
+                </View>
+
+                {/* Penerima Perintah */}
+                <View style={styles.section}>
+                    <Text style={{ fontSize: 10, fontWeight: 'bold', marginBottom: 5 }}>
+                        Memberikan perintah kerja kepada :
+                    </Text>
+
+                    <View style={styles.table}>
+                        {/* Header */}
+                        <View style={[styles.tableRow, styles.tableHeader]}>
+                            <Text style={[styles.tableCell, styles.colNo]}>No</Text>
+                            <Text style={[styles.tableCell, styles.colNama]}>Nama</Text>
+                            <Text style={[styles.tableCell, styles.colJabatan]}>Jabatan / Section</Text>
+                        </View>
+
+                        {/* Isi: Semua karyawan unik dari details */}
+                        {getUniqueKaryawans(data.details).map((karyawan, index) => (
+                            <View key={karyawan.id} style={styles.tableRow}>
+                                <Text style={[styles.tableCell, styles.colNo]}>{index + 1}</Text>
+                                <Text style={[styles.tableCell, styles.colNama]}>{karyawan.namaLengkap || '-'}</Text>
+                                <Text style={[styles.tableCell, styles.colJabatan]}>{karyawan.jabatan || '-'} - {karyawan.departemen}</Text>
                             </View>
+                        ))}
 
-                            {/* Table Rows untuk chunk ini */}
-                            {chunk.map((detail, index) => {
-                                const globalIndex = pageIndex * 15 + index;
-                                const pekerjaan = detail.salesOrderItem?.name || 'Tugas Khusus';
-                                const deskripsi = detail.salesOrderItem?.description || '';
-                                const uraianPekerjaan = deskripsi ? `${pekerjaan} - ${deskripsi}` : pekerjaan;
+                        {/* Jika tidak ada karyawan di details, gunakan createdBy sebagai fallback */}
+                        {getUniqueKaryawans(data.details).length === 0 && (
+                            <View key="fallback-createdby" style={styles.tableRow}>
+                                <Text style={[styles.tableCell, styles.colNo]}>1</Text>
+                                <Text style={[styles.tableCell, styles.colNama]}>{data.createdBy.namaLengkap}</Text>
+                                <Text style={[styles.tableCell, styles.colJabatan]}>{data.createdBy.jabatan || "Team Pelaksana"}</Text>
+                            </View>
+                        )}
 
-                                return (
-                                    <View key={detail.id} style={styles.tableRow}>
-                                        <Text style={[styles.tableCell, styles.colNo]}>{globalIndex + 1}</Text>
-                                        <Text style={[styles.tableCell, styles.colPekerjaan]}>{uraianPekerjaan}</Text>
-                                        <Text style={[styles.tableCell, styles.colLokasi]}>{detail.lokasiUnit || '-'}</Text>
-                                        <Text style={[styles.tableCell, styles.colJumlah]}>
-                                            {detail.salesOrderItem?.qty || '-'}
-                                        </Text>
-                                        <Text style={[styles.tableCell, styles.colSatuan]}>
-                                            {detail.salesOrderItem?.uom || '-'}
-                                        </Text>
-                                        <Text style={[styles.tableCell, styles.colPelaksana]}>
-                                            {detail.karyawan?.nama || 'Tim'}
-                                        </Text>
-                                    </View>
-                                );
-                            })}
+                        {/* Isi sisa hingga 5 baris */}
+                        {Array.from({
+                            length: Math.max(0, 5 - getUniqueKaryawans(data.details).length),
+                        }).map((_, index) => (
+                            <View key={`empty-${index}`} style={styles.tableRow}>
+                                <Text style={[styles.tableCell, styles.colNo]}>{getUniqueKaryawans(data.details).length + index + 1}</Text>
+                                <Text style={[styles.tableCell, styles.colNama]}></Text>
+                                <Text style={[styles.tableCell, styles.colJabatan]}></Text>
+                            </View>
+                        ))}
+                    </View>
+                </View>
 
-                            {/* Tambahkan row kosong jika chunk kurang dari 15 */}
-                            {Array.from({ length: 15 - chunk.length }).map((_, emptyIndex) => (
-                                <View key={`empty-${emptyIndex}`} style={styles.tableRow}>
-                                    <Text style={[styles.tableCell, styles.colNo]}>{chunk.length + emptyIndex + 1}</Text>
+                {/* Daftar Pekerjaan */}
+                <View style={styles.section}>
+                    <Text style={{ fontSize: 10, fontWeight: 'bold', marginBottom: 5 }}>
+                        Untuk melakukan pekerjaan :
+                    </Text>
+
+                    <View style={styles.table}>
+                        {/* Header */}
+                        <View style={[styles.tableRow, styles.tableHeader]}>
+                            <Text style={[styles.tableCell, styles.colNo]}>No</Text>
+                            <Text style={[styles.tableCell, styles.colPekerjaan]}>Nama Pekerjaan</Text>
+                            <Text style={[styles.tableCell, styles.colLokasi]}>Jumlah  / Unit</Text>
+                        </View>
+
+                        {/* Isi dari salesOrder.items */}
+                        {data.salesOrder.items && data.salesOrder.items.length > 0 ? (
+                            data.salesOrder.items.map((item, index) => (
+                                <View key={item.id} style={styles.tableRow}>
+                                    <Text style={[styles.tableCell, styles.colNo]}>{index + 1}</Text>
+                                    <Text style={[styles.tableCell, styles.colPekerjaan]}>
+                                        {item.name || 'Tugas Khusus'}
+                                        {item.description ? ` - ${item.description}` : ''}
+                                    </Text>
+                                    <Text style={[styles.tableCell, styles.colLokasi]}>
+                                        {item.qty > 0 ? `${item.qty} ${item.uom || 'unit'}` : '-'}
+                                    </Text>
+                                </View>
+                            ))
+                        ) : (
+                            // Jika tidak ada item, tampilkan satu baris kosong atau pesan
+                            <View key="no-items" style={styles.tableRow}>
+                                <Text style={[styles.tableCell, styles.colNo]}>1</Text>
+                                <Text style={[styles.tableCell, styles.colPekerjaan]}>Tidak ada item pekerjaan</Text>
+                                <Text style={[styles.tableCell, styles.colLokasi]}>-</Text>
+                            </View>
+                        )}
+
+                        {/* Isi sisa hingga 5 baris jika perlu */}
+                        {data.salesOrder.items && data.salesOrder.items.length > 0 && (
+                            Array.from({
+                                length: Math.max(0, 5 - data.salesOrder.items.length),
+                            }).map((_, emptyIndex) => (
+                                <View key={`empty-item-${emptyIndex}`} style={styles.tableRow}>
+                                    <Text style={[styles.tableCell, styles.colNo]}>{data.salesOrder.items.length + emptyIndex + 1}</Text>
                                     <Text style={[styles.tableCell, styles.colPekerjaan]}></Text>
                                     <Text style={[styles.tableCell, styles.colLokasi]}></Text>
-                                    <Text style={[styles.tableCell, styles.colJumlah]}></Text>
-                                    <Text style={[styles.tableCell, styles.colSatuan]}></Text>
-                                    <Text style={[styles.tableCell, styles.colPelaksana]}></Text>
                                 </View>
-                            ))}
-                        </View>
+                            ))
+                        )}
+
+                        {/* Jika tidak ada items sama sekali, isi 5 baris kosong */}
+                        {!data.salesOrder.items || data.salesOrder.items.length === 0 && (
+                            Array.from({ length: 5 }).map((_, index) => (
+                                <View key={`empty-all-${index}`} style={styles.tableRow}>
+                                    <Text style={[styles.tableCell, styles.colNo]}>{index + 1}</Text>
+                                    <Text style={[styles.tableCell, styles.colPekerjaan]}></Text>
+                                    <Text style={[styles.tableCell, styles.colLokasi]}></Text>
+                                </View>
+                            ))
+                        )}
+                    </View>
+                </View>
+
+                {/* Catatan */}
+                <View style={styles.section}>
+                    <Text style={{ fontSize: 10, fontStyle: 'italic' }}>
+                        Demikian surat perintah ini dibuat, agar dapat dipergunakan dan dilaksanakan sebaik-baiknya dengan penuh tanggung jawab. Jika nantinya terdapat suatu kondisi diluar ketentuan surat perintah ini, maka dapat dibicarakan lebih lanjut.
+                    </Text>
+                </View>
+
+                {/* Note */}
+                {data.notes && (
+                    <View style={styles.notesSection}>
+                        <Text style={styles.notesLabel}>Note :</Text>
+                        <Text style={styles.notesValue}>{data.notes}</Text>
+                    </View>
+                )}
+
+                {/* Lampiran */}
+                <View style={styles.lampiranSection}>
+                    <Text style={styles.notesLabel}>Lampiran :</Text>
+                    <Text>1. Laporan Progress Pekerjaan (LPP)</Text>
+                </View>
+
+                {/* Tembusan dan Footer dalam satu baris */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, marginRight: 30 }}>
+                    {/* Tembusan di sebelah kiri */}
+                    <View style={{ width: '45%' }}>
+                        <Text style={styles.notesLabel}>Tembusan :</Text>
+                        <Text>1. Direktur PT. RYLIF MIKRO MANDIRI</Text>
+                        <Text>2. Logistic</Text>
+                        <Text>3. Operasional Team</Text>
                     </View>
 
-                    {/* Catatan hanya ditampilkan di halaman terakhir */}
-                    {pageIndex === detailChunks.length - 1 && data.notes && (
-                        <View style={styles.notesSection}>
-                            <Text style={styles.notesLabel}>CATATAN:</Text>
-                            <View style={styles.notesValue}>
-                                <Text>{data.notes}</Text>
-                            </View>
+                    {/* Footer: Tanggal, Lokasi, dan Tanda Tangan di sebelah kanan */}
+                    <View style={{ width: '45%', alignItems: 'flex-end' }}>
+                        <View style={{ marginBottom: 5 }}>
+                            <Text>Bekasi, {formatDate(data.spkDate)}</Text>
                         </View>
-                    )}
 
-                    {/* Tanda tangan hanya ditampilkan di halaman terakhir */}
-                    {pageIndex === detailChunks.length - 1 && (
-                        <View style={styles.signatureSection}>
-                            <View style={styles.signatureBox}>
-                                <Text style={styles.signatureLabel}>Yang Memberi Perintah,</Text>
-                                <View style={styles.signatureLine}></View>
-                                <Text style={styles.signatureLabel}>{data.createdBy.nama}</Text>
-                                <Text style={styles.signatureLabel}>{data.createdBy.jabatan}</Text>
-                            </View>
-
-                            <View style={styles.signatureBox}>
-                                <Text style={styles.signatureLabel}>Yang Menerima Perintah,</Text>
-                                <View style={styles.signatureLine}></View>
-                                <Text style={styles.signatureLabel}>
-                                    {data.team ? `Koordinator ${data.team.namaTeam}` : 'Pelaksana'}
-                                </Text>
-                            </View>
+                        <View style={{ alignItems: 'center' }}>
+                            <Text style={styles.signatureLabel}>Hormat Kami,</Text>
+                            <View style={styles.signatureLine}></View>
+                            <Text style={styles.signatureLabel}>({data.createdBy.namaLengkap})</Text>
                         </View>
-                    )}
-
-                    {/* Page Number */}
-                    <Text style={styles.pageNumber}>
-                        Halaman {pageIndex + 1} dari {totalPages}
-                    </Text>
-                </Page>
-            ))}
+                    </View>
+                </View>
+            </Page>
         </Document>
     );
 };
