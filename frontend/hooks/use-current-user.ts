@@ -8,6 +8,7 @@ import { api } from "@/lib/http";
 export interface User {
   id: string;
   name: string;
+  email: string;
   role: string;
   avatar?: string;
 }

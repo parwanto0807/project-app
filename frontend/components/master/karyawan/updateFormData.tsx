@@ -465,7 +465,7 @@ export default function UpdateEmployeeForm({ employee, role, id }: { employee: s
                                 />
 
                                 <FormField name="userId" control={form.control} render={({ field }) => (
-                                    <FormItem><FormLabel>User ID (untuk login)</FormLabel><FormControl><Input placeholder="ID unik pengguna" {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>User ID (untuk login)</FormLabel><FormControl><Input placeholder="ID unik pengguna" {...field} value={field.value ?? ""} disabled/></FormControl><FormMessage /></FormItem>
                                 )} />
                                 <FormField name="isActive" control={form.control} render={({ field }) => (
                                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 mt-4 md:mt-0">

@@ -19,6 +19,10 @@ import {
   createTeam,
   updateTeam,
   deleteTeam,
+  checkAccountEmail,
+  fetchUserByEmail,
+  createAccountEmail,
+  fetchKaryawanByEmail,
 } from "../../../controllers/master/karyawan/karyawanController.js";
 
 const router = express.Router();
@@ -38,6 +42,7 @@ const upload = multer({ storage });
 /* ----------------------------- KARYAWAN ROUTES ----------------------------- */
 router.get("/getKaryawanCount", getKaryawanCount);
 router.get("/getAllKaryawan", getAllKaryawan);
+router.post("/fetchKaryawanByEmail", fetchKaryawanByEmail);
 router.get("/getKaryawanById/:id", getKaryawanById);
 
 // ⬇️ contoh: upload single image dengan field name = "foto"
@@ -58,5 +63,10 @@ router.get("/getTeamById/:id", getTeamById);
 router.post("/createTeam", createTeam);
 router.put("/updateTeam/:id", updateTeam);
 router.delete("/deleteTeam/:id", deleteTeam);
+
+/* ----------------------------- USER ROUTES ----------------------------- */
+router.post("/fetchUserByEmail", fetchUserByEmail);
+router.post("/checkAccountEmail", checkAccountEmail);
+router.post("/createAccountEmail", createAccountEmail);
 
 export default router;

@@ -21,6 +21,44 @@ export async function fetchAllKaryawan() {
   }
 }
 
+export const fetchKaryawanByEmail = async (email: string) => {
+  const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/karyawan/fetchKaryawanByEmail`;
+
+  try {
+    console.log('🔍 Mengirim permintaan ke:', apiUrl, 'dengan email:', email);
+
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email }),
+      credentials: "include",
+      cache: "no-store",
+    });
+
+    console.log('📡 Response status:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Response error:', errorText);
+      if (response.status === 404) {
+        console.error(`Error: Karyawan dengan email ${email} tidak ditemukan.`);
+        return null;
+      }
+      throw new Error(`Gagal mengambil data user. Status: ${response.status} | ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ Respons dari backend:', data); // 👈 CEK INI!
+
+    return data;
+  } catch (error) {
+    console.error("Terjadi kesalahan saat fetching data user:", error);
+    return null;
+  }
+};
+
 export async function fetchKaryawanById(id: string) {
   try {
     const res = await fetch(
@@ -124,4 +162,90 @@ export async function fetchTeamById(id: string) {
     console.error("[fetchTeamById]", error);
     return { team: null, isLoading: false };
   }
+}
+
+export const fetchUserByEmail = async (email: string) => {
+  const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/karyawan/fetchUserByEmail`;
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email }), // ✅ kirim email dari form
+      credentials: "include",
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        console.error(`Error: User dengan email ${email} tidak ditemukan.`);
+        return null;
+      }
+      throw new Error(`Gagal mengambil data user. Status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.user;
+  } catch (error) {
+    console.error("Terjadi kesalahan saat fetching data user:", error);
+    return null;
+  }
+};
+
+export interface AccountEmail {
+  id: string;
+  email: string;
+  createdAt: string;
+}
+
+export type CheckAccountEmailResult = {
+  exists: boolean;
+  error?: string; // opsional, hanya untuk error server
+};
+
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL; // e.g., "http://localhost:3000"
+
+export async function checkAccountEmail(
+  email: string
+): Promise<CheckAccountEmailResult> {
+  try {
+    const response = await fetch(`${BASE_URL}/api/karyawan/checkAccountEmail`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      return {
+        exists: false,
+        error: errorData.error || "Gagal memeriksa email",
+      };
+    }
+
+    const data = await response.json();
+    return { exists: data.exists ?? false, error: undefined };
+  } catch (err) {
+    console.error("Gagal cek email:", err);
+    return { exists: false, error: "Terjadi kesalahan jaringan" };
+  }
+}
+
+// Simpan email baru
+// Simpan email
+export async function createAccountEmail(
+  email: string
+): Promise<AccountEmail | null> {
+  const response = await fetch(`${BASE_URL}/api/karyawan/createAccountEmail`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+
+  if (!response.ok) return null;
+
+  const data = await response.json();
+  return data.data as AccountEmail; // langsung kembalikan AccountEmail
 }

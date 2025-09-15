@@ -699,9 +699,9 @@ export const registerAdmin = async (req, res) => {
 
 export const getProfile = async (req, res) => {
   try {
-    // req.user is attached by the authenticateToken middleware
     const userId = req.user.userId;
 
+    // 1. Ambil data user — minimal field
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -717,7 +717,38 @@ export const getProfile = async (req, res) => {
     if (!user) {
       return res.status(404).json({ success: false, error: "User not found" });
     }
-    return res.status(200).json({ success: true, user });
+
+    // 2. Cek karyawan berdasarkan email — HANYA ambil userId (tanpa relasi!)
+    const existingKaryawan = await prisma.karyawan.findUnique({
+      where: { email: user.email },
+      select: {
+        id: true,
+        userId: true, // ← Hanya ini yang penting!
+        // TIDAK ambil user: {...} — hemat query & bandwidth
+      },
+    });
+
+    // 3. Jika ada dan userId null → update
+    if (existingKaryawan && existingKaryawan.userId === null) {
+      await prisma.karyawan.update({
+        where: { id: existingKaryawan.id },
+        data: { userId: user.id },
+      });
+
+      console.log(`✅ Updated karyawan ${existingKaryawan.id} with userId: ${user.id}`);
+
+      // ✅ Asumsi update berhasil → update nilai lokal (aman!)
+      existingKaryawan.userId = user.id;
+    }
+
+    // 4. Kirim response — tanpa duplikasi data, tanpa relasi berat
+    return res.status(200).json({
+      success: true,
+      user: {
+        ...user,
+        karyawan: existingKaryawan || null, // ← cukup id & userId
+      },
+    });
   } catch (err) {
     console.error("getProfile error:", err.message);
     return res

@@ -17,6 +17,7 @@ import {
   PackageOpen,
   BarChart3Icon,
   type LucideIcon,
+  PackageCheckIcon,
 } from "lucide-react";
 
 interface Submenu {
@@ -134,6 +135,26 @@ export function getMenuList(pathname: string, role: string) {
               href: `${basePath}/logistic/spk`,
               label: "Surat Perintah Kerja",
               active: isActive(`${basePath}/logistic/spk`, pathname),
+              disabled: role === "user" || role === "pic",
+            },
+          ],
+        },
+      ],
+    },
+    {
+      groupLabel: "PRODUCTION",
+      allowedRoles: ["super", "admin"],
+      menus: [
+        {
+          label: "Production Management",
+          href: "/logistic",
+          icon: PackageCheckIcon,
+          active: isActive("/logistic", pathname),
+          submenus: [
+            {
+              href: `${basePath}/logistic/spkReport`,
+              label: "SPK Progress",
+              active: isActive(`${basePath}/logistic/spkReport`, pathname),
               disabled: role === "user" || role === "pic",
             },
           ],

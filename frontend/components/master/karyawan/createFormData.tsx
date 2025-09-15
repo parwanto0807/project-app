@@ -9,10 +9,11 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { User, Briefcase, ShieldCheck, Loader2, Camera, Upload, X, ArrowLeft } from 'lucide-react';
+import { User, Briefcase, ShieldCheck, Loader2, Camera, Upload, X, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
 import { employeeFormSchema, type EmployeeFormValues } from '@/schemas';
 import Image from 'next/image';
 import { useRouter } from "next/navigation";
+import { checkAccountEmail, createAccountEmail } from '@/lib/action/master/karyawan';
 
 function getBasePath(role?: string) {
     return role === "super"
@@ -116,6 +117,95 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
         }
     }
 
+    const [checking, setChecking] = useState(false);
+    const [emailStatus, setEmailStatus] = useState<{
+        type: "success" | "error";
+        message: string;
+    } | null>(null); // ← ubah jadi `null`, biar bisa hilang
+
+    const handleCheckEmail = async (email: string) => {
+        if (!email || !/\S+@\S+\.\S+/.test(email)) {
+            setEmailStatus({
+                type: "error",
+                message: "❌ Email tidak valid",
+            });
+            return;
+        }
+
+        setChecking(true); // Aktifkan loading button
+
+        try {
+            const result = await checkAccountEmail(email);
+
+            if (result.error) {
+                setEmailStatus({
+                    type: "error",
+                    message: result.error,
+                });
+                return;
+            }
+
+            if (result.exists) {
+                setEmailStatus({
+                    type: "error",
+                    message: `✅ Email ${email} sudah terdaftar.`,
+                });
+            } else {
+                setEmailStatus({
+                    type: "success",
+                    message: `❌ Email ${email} belum terdaftar. Siap disimpan!`,
+                });
+
+                // Tampilkan konfirmasi simpan — tapi tetap biarkan status muncul 5 detik dulu
+                setTimeout(() => {
+                    const confirmSave = window.confirm(
+                        `Email ${email} belum terdaftar. Apakah ingin menyimpannya?`
+                    );
+
+                    if (confirmSave) {
+                        createAccountEmail(email)
+                            .then((newEmail) => {
+                                if (newEmail && newEmail.email) {
+                                    setEmailStatus({
+                                        type: "success",
+                                        message: `✅ Email ${newEmail.email} berhasil disimpan.`,
+                                    });
+                                } else {
+                                    setEmailStatus({
+                                        type: "error",
+                                        message: `❌ Gagal menyimpan email ${email}.`,
+                                    });
+                                }
+                            })
+                            .catch(() => {
+                                setEmailStatus({
+                                    type: "error",
+                                    message: `❌ Gagal menyimpan email ${email}.`,
+                                });
+                            });
+                    } else {
+                        setEmailStatus({
+                            type: "error",
+                            message: `❌ Email ${email} tidak jadi disimpan.`,
+                        });
+                    }
+                }, 500); // Delay 500ms agar user lihat status "belum terdaftar" dulu
+            }
+        } catch (err) {
+            console.error("Gagal cek email:", err);
+            setEmailStatus({
+                type: "error",
+                message: "Terjadi kesalahan jaringan",
+            });
+        } finally {
+            setChecking(false);
+
+            // ⏳ AUTO-HIDE STATUS SETELAH 5 DETIK
+            setTimeout(() => {
+                setEmailStatus(null); // Hilangkan pesan otomatis
+            }, 5000);
+        }
+    };
 
     return (
         <Card className="w-full max-w-4xl mx-auto">
@@ -140,9 +230,56 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
                                 <FormField name="namaLengkap" control={form.control} render={({ field }) => (
                                     <FormItem><FormLabel>Nama Lengkap</FormLabel><FormControl><Input placeholder="Contoh: Budi Santoso" {...field} /></FormControl><FormMessage /></FormItem>
                                 )} />
-                                <FormField name="email" control={form.control} render={({ field }) => (
-                                    <FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" placeholder="contoh@perusahaan.com" {...field} /></FormControl><FormMessage /></FormItem>
-                                )} />
+                                <FormField
+                                    name="email"
+                                    control={form.control}
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Email</FormLabel>
+                                            <div className="flex gap-2">
+                                                <FormControl>
+                                                    <Input
+                                                        type="email"
+                                                        placeholder="contoh@perusahaan.com"
+                                                        {...field}
+                                                    />
+                                                </FormControl>
+                                                <Button
+                                                    type="button"
+                                                    variant="secondary"
+                                                    onClick={() => handleCheckEmail(field.value)}
+                                                    disabled={checking}
+                                                    className="h-10 px-4 py-2 text-sm font-medium transition-all duration-200 flex items-center gap-2"
+                                                >
+                                                    {checking ? (
+                                                        <>
+                                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                                            Cek...
+                                                        </>
+                                                    ) : (
+                                                        "Cek Email"
+                                                    )}
+                                                </Button>
+                                            </div>
+                                            {emailStatus && (
+                                                <div
+                                                    className={`mt-2 flex items-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-300 ease-in-out ${emailStatus.type === "success"
+                                                        ? "bg-red-50 text-red-800 border border-red-200 shadow-sm"
+                                                        : "bg-green-50 text-green-800 border border-green-200 shadow-sm"
+                                                        }`}
+                                                >
+                                                    {emailStatus.type === "success" ? (
+                                                        <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-600" />
+                                                    ) : (
+                                                        <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-green-600" />
+                                                    )}
+                                                    <span>{emailStatus.message}</span>
+                                                </div>
+                                            )}
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
                                 <FormField name="nomorTelepon" control={form.control} render={({ field }) => (
                                     <FormItem><FormLabel>Nomor Telepon</FormLabel><FormControl><Input placeholder="Contoh: 08123456789" {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
                                 )} />
@@ -295,7 +432,7 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
                                     <FormItem><FormLabel>Potongan</FormLabel><FormControl><Input type="number" placeholder="Contoh: 100000" {...field} value={field.value ?? ""} onChange={e => field.onChange(Number(e.target.value))} /></FormControl><FormMessage /></FormItem>
                                 )} />
                                 <FormField name="userId" control={form.control} render={({ field }) => (
-                                    <FormItem><FormLabel>User ID (untuk login)</FormLabel><FormControl><Input placeholder="ID unik pengguna" {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>User ID (untuk login)</FormLabel><FormControl><Input placeholder="ID unik pengguna" {...field} value={field.value ?? ""} disabled/></FormControl><FormMessage /></FormItem>
                                 )} />
                                 <FormField name="isActive" control={form.control} render={({ field }) => (
                                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 mt-4 md:mt-0">

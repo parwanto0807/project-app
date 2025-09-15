@@ -2,6 +2,24 @@ import { SpkApiPayload } from "@/schemas/index";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
+export async function getSpkByEmail(email: string) {
+  try {
+    const response = await fetch(
+      `${API_URL}/api/spk/getSpkByEmail?email=${encodeURIComponent(email)}`
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || "Gagal mengambil data SPK");
+    }
+
+    return await response.json();
+  } catch (err) {
+    console.error("Gagal ambil SPK berdasarkan email:", err);
+    throw err;
+  }
+}
+
 // ✅ Ambil semua SPK
 export async function fetchAllSpk() {
   try {

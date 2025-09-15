@@ -150,9 +150,10 @@ model Karyawan {
   teamKaryawan TeamKaryawan[]
 
   // Relasi ke penggajian
-  gaji      Gaji[]
-  spkDetail SPKDetail[]
-  spk       SPK[]       @relation("SPKCreatedBy")
+  gaji           Gaji[]
+  spkDetail      SPKDetail[]
+  spk            SPK[]            @relation("SPKCreatedBy")
+  spkFieldReport SPKFieldReport[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -337,9 +338,10 @@ model SalesOrderItem {
   taxRate     Decimal @default(0) @db.Decimal(5, 2)
   lineTotal   Decimal @default(0) @db.Decimal(18, 2)
 
-  salesOrder SalesOrder  @relation(fields: [salesOrderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  product    Product?    @relation(fields: [productId], references: [id], onDelete: SetNull, onUpdate: Cascade) // ← nullable
-  spkDetail  SPKDetail[]
+  salesOrder   SalesOrder       @relation(fields: [salesOrderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  product      Product?         @relation(fields: [productId], references: [id], onDelete: SetNull, onUpdate: Cascade) // ← nullable
+  spkDetail    SPKDetail[]
+  fieldReports SPKFieldReport[] @relation("SPKDetailToFieldReport")
 
   @@index([salesOrderId])
   @@index([productId])
@@ -397,7 +399,8 @@ model SPK {
   team   Team?   @relation(fields: [teamId], references: [id])
 
   // Detail SPK
-  details SPKDetail[]
+  details        SPKDetail[]
+  spkFieldReport SPKFieldReport[]
 
   notes     String?
   createdAt DateTime @default(now())
@@ -409,19 +412,60 @@ model SPKDetail {
   spkId String
   spk   SPK    @relation(fields: [spkId], references: [id], onDelete: Cascade)
 
-  // Karyawan yang menerima tugas
   karyawanId String?
   karyawan   Karyawan? @relation(fields: [karyawanId], references: [id])
 
-  // Relasi ke item pekerjaan dari SalesOrder
   salesOrderItemId String?
   salesOrderItem   SalesOrderItem? @relation(fields: [salesOrderItemId], references: [id])
 
-  // Info tambahan (misal lokasi/unit dari form SPK)
   lokasiUnit String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+enum ReportType {
+  PROGRESS
+  FINAL
+}
+
+enum ReportStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model SPKFieldReport {
+  id         String                @id @default(uuid())
+  spkId      String
+  spk        SPK                   @relation(fields: [spkId], references: [id], onDelete: Cascade)
+  karyawanId String
+  karyawan   Karyawan              @relation(fields: [karyawanId], references: [id])
+  type       ReportType            @default(PROGRESS)
+  note       String?
+  reportedAt DateTime              @default(now())
+  progress   Int?                  @default(0)
+  status     ReportStatus          @default(PENDING)
+  photos     SPKFieldReportPhoto[]
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+
+  soDetailId String?
+  soDetail   SalesOrderItem? @relation("SPKDetailToFieldReport", fields: [soDetailId], references: [id], onDelete: SetNull)
+}
+
+model SPKFieldReportPhoto {
+  id         String         @id @default(uuid())
+  reportId   String
+  report     SPKFieldReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  imageUrl   String
+  caption    String?
+  uploadedBy String
+  uploadedAt DateTime       @default(now())
+  latitude   Float?
+  longitude  Float?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
 }
 
 // ================== (Opsional tapi direkomendasikan) ==================

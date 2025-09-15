@@ -12,6 +12,7 @@ import kategoryRoutes from "./routes/master/product/kategoryProductRoutes.js"; /
 import salesOrderRoutes from "./routes/salesOrder/salesOrderRoutes.js"; // Import sales order routes
 import karyawanRoutes from "./routes/master/karyawan/karyawanRoutes.js";
 import spkRouter from "./routes/spk/spkRoutes.js";
+import spkReportRouter from "./routes/spk/spkReportRoutes.js";
 import path from "path";
 
 const app = express();
@@ -91,6 +92,7 @@ app.use("/api/salesOrder", salesOrderRoutes);
 app.use("/api/karyawan", karyawanRoutes);
 app.use("/api/team", karyawanRoutes);
 app.use("/api/spk", spkRouter);
+app.use("/api/spk/report", spkReportRouter);
 
 // Health Check Endpoint
 app.get("/api/health", (req, res) => {

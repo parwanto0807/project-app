@@ -3,6 +3,69 @@ import { getNextSpkCode } from "../../utils/generateCode.js";
 
 const prisma = new PrismaClient();
 
+export const getSpkByEmail = async (req, res) => {
+  const { email } = req.query;
+
+  // Validasi: email wajib ada
+  if (!email || typeof email !== "string") {
+    return res.status(400).json({
+      error: "Parameter 'email' diperlukan dan harus berupa string",
+    });
+  }
+
+  try {
+    // Cari semua SPK yang memiliki setidaknya satu detail dengan karyawan.email = email
+    const spkList = await prisma.sPK.findMany({
+      where: {
+        details: {
+          some: {
+            karyawan: {
+              email: email, // ← ini yang dicari!
+            },
+          },
+        },
+      },
+      include: {
+        createdBy: true,
+        salesOrder: {
+          include: {
+            customer: {
+              select: {
+                name: true,
+                address: true,
+                branch: true,
+              },
+            },
+            project: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            items: true,
+          },
+        },
+        team: true,
+        details: {
+          include: {
+            karyawan: true,
+            salesOrderItem: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    // Kirim response — bisa kosong jika tidak ada SPK
+    res.json(spkList);
+  } catch (error) {
+    console.error("Error getSpkByEmail:", error);
+    res
+      .status(500)
+      .json({ error: "Gagal mengambil daftar SPK berdasarkan email karyawan" });
+  }
+};
+
 // ✅ CREATE SPK
 export const createSPK = async (req, res) => {
   try {
@@ -87,14 +150,15 @@ export const getAllSPK = async (req, res) => {
         createdBy: true,
         salesOrder: {
           include: {
-            customer: {      // ✅ ambil data customer
+            customer: {
+              // ✅ ambil data customer
               select: {
                 name: true,
                 address: true,
                 branch: true,
               },
             },
-            items: true,     // ✅ ambil semua items dari SalesOrder
+            items: true, // ✅ ambil semua items dari SalesOrder
           },
         },
         team: true,
@@ -114,8 +178,6 @@ export const getAllSPK = async (req, res) => {
     res.status(500).json({ error: "Failed to fetch SPK list" });
   }
 };
-
-
 
 // ✅ GET SPK BY ID
 export const getSPKById = async (req, res) => {

@@ -447,7 +447,13 @@ export default function TabelDataSpk({
                                                     <Edit className="h-4 w-4" />
                                                 </Button>
                                             </Link>
-                                            <Button size="sm" variant="destructive" className="h-8 w-8 p-0">
+                                            <Button size="sm" variant="destructive" className="h-8 w-8 p-0"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+                                                    handleDelete(spk.id);
+                                                }}
+                                            >
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </>
@@ -722,67 +728,71 @@ export default function TabelDataSpk({
                                                 )}
                                             </TableCell>
                                             <TableCell>
-                                                <div className="flex gap-1 flex-wrap">
+                                                <div className="flex flex-wrap gap-2">
                                                     <Button
                                                         size="sm"
                                                         variant="outline"
                                                         onClick={() => toggleRow(spk.id)}
-                                                        className="h-8 w-8 p-0"
+                                                        className="h-8 w-8 rounded-full p-0 transition-all duration-300 dark:border-gray-700 dark:hover:bg-gray-600"
+                                                        title={expandedRows.has(spk.id) ? "Tutup Detail" : "Buka Detail"}
                                                     >
                                                         {expandedRows.has(spk.id) ? (
-                                                            <ChevronUp className="h-4 w-4" />
+                                                            <ChevronUp className="h-4 w-4 text-blue-500 dark:text-blue-300" />
                                                         ) : (
-                                                            <ChevronDown className="h-4 w-4" />
+                                                            <ChevronDown className="h-4 w-4 text-blue-500 dark:text-blue-300" />
                                                         )}
                                                     </Button>
                                                     <Button
                                                         size="sm"
                                                         variant="outline"
-                                                        className="h-8 w-8 p-0"
-                                                        onClick={() => pdfActions.handlePreview(spkPdfData)} // Gunakan pdfActions
-                                                        title="Preview PDF"
+                                                        className="h-8 w-8 rounded-full p-0 transition-all duration-300 dark:border-gray-700 dark:hover:bg-gray-600"
+                                                        onClick={() => pdfActions.handlePreview(spkPdfData)}
+                                                        title="Pratinjau PDF"
                                                     >
-                                                        <Eye className="h-4 w-4" />
+                                                        <Eye className="h-4 w-4 text-green-500 dark:text-green-300" />
                                                     </Button>
                                                     <Button
                                                         size="sm"
                                                         variant="outline"
-                                                        className="h-8 w-8 p-0"
-                                                        onClick={() => pdfActions.handleDownloadPdf(spkPdfData)} // Gunakan pdfActions
-                                                        title="Download PDF"
+                                                        className="h-8 w-8 rounded-full p-0 transition-all duration-300 dark:border-gray-700 dark:hover:bg-gray-600"
+                                                        onClick={() => pdfActions.handleDownloadPdf(spkPdfData)}
+                                                        title="Unduh PDF"
                                                     >
-                                                        <Download className="h-4 w-4" />
+                                                        <Download className="h-4 w-4 text-purple-500 dark:text-purple-300" />
                                                     </Button>
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild>
                                                             <Button
                                                                 variant="ghost"
                                                                 size="sm"
-                                                                className="h-8 w-8 p-0 cursor-pointer hover:bg-muted"
+                                                                className="h-8 w-8 p-0 transition-all duration-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
                                                                     e.preventDefault();
                                                                 }}
                                                             >
-                                                                <span className="sr-only">Open menu</span>
-                                                                <MoreHorizontal className="h-4 w-4" />
+                                                                <span className="sr-only">Buka menu</span>
+                                                                <MoreHorizontal className="h-4 w-4 text-gray-500 dark:text-gray-400" />
                                                             </Button>
                                                         </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end" className="w-48">
+                                                        <DropdownMenuContent
+                                                            align="end"
+                                                            className="w-48 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
+                                                        >
                                                             {role === "admin" && (
                                                                 <>
                                                                     <DropdownMenuItem
-                                                                        className="cursor-pointer gap-2 text-sm"
+                                                                        className="cursor-pointer gap-2 text-sm text-gray-700 dark:text-gray-300 transition-colors duration-200 hover:bg-gray-100 focus:bg-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700"
                                                                         onClick={(e) => {
                                                                             e.stopPropagation();
                                                                             router.push(`${basePath}/update/${spk.id}`);
                                                                         }}
                                                                     >
-                                                                        <Edit className="h-4 w-4 text-muted-foreground" />
-                                                                        Edit
+                                                                        <Edit className="h-4 w-4 text-blue-400 dark:text-blue-300" />
+                                                                        <span>Edit</span>
                                                                     </DropdownMenuItem>
                                                                     <DropdownMenuItem
-                                                                        className="cursor-pointer gap-2 text-sm text-destructive focus:text-destructive"
+                                                                        className="cursor-pointer gap-2 text-sm text-red-600 dark:text-red-400 transition-colors duration-200 hover:bg-red-50 focus:bg-red-50 dark:hover:bg-red-900 dark:focus:bg-red-900"
                                                                         onClick={(e) => {
                                                                             e.preventDefault();
                                                                             e.stopPropagation();
@@ -790,7 +800,7 @@ export default function TabelDataSpk({
                                                                         }}
                                                                     >
                                                                         <Trash2 className="h-4 w-4" />
-                                                                        <span>Delete</span>
+                                                                        <span>Hapus</span>
                                                                     </DropdownMenuItem>
                                                                 </>
                                                             )}
@@ -933,8 +943,12 @@ export default function TabelDataSpk({
                         </SelectContent>
                     </Select>
                     <Link href="/admin-area/logistic/spk/create">
-                        <Button className="w-full sm:w-auto">
-                            <Plus className="mr-2 h-4 w-4" />
+                        <Button
+                            className="bg-gradient-to-r from-cyan-400 to-teal-500 text-white font-semibold py-2 px-4 md:px-6 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 hover:shadow-lg flex items-center gap-2 w-full justify-center md:justify-start
+                   dark:from-cyan-500 dark:to-teal-600 dark:text-gray-100"
+                            aria-label="Tambah SPK Baru"
+                        >
+                            <Plus size={18} className="transition-transform duration-300 group-hover:rotate-90" />
                             <span className="hidden sm:inline">Tambah SPK</span>
                             <span className="sm:hidden">Tambah</span>
                         </Button>

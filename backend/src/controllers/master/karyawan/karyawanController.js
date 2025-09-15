@@ -336,7 +336,6 @@ export const getAllTeam = async (req, res) => {
     });
     res.json(teams);
     console.log(teams);
-    
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Gagal mengambil data team" });
@@ -490,5 +489,118 @@ export const deleteTeam = async (req, res) => {
     res
       .status(500)
       .json({ message: "Gagal menghapus team", error: error.message });
+  }
+};
+
+export const fetchUserByEmail = async (req, res) => {
+  try {
+    const { email } = req.body; // ✅ ambil dari body form
+    if (!email) {
+      return res.status(400).json({ message: "Email wajib diisi." });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        active: true,
+        createdAt: true,
+        updatedAt: true,
+        lastLoginAt: true,
+      },
+    });
+
+    if (!user) {
+      return res
+        .status(404)
+        .json({ message: `User dengan email ${email} tidak ditemukan.` });
+    }
+
+    res.status(200).json({
+      message: "Data user berhasil diambil.",
+      user,
+    });
+  } catch (error) {
+    console.error("Error saat mengambil data user:", error);
+    res
+      .status(500)
+      .json({ error: "Terjadi kesalahan server saat mengambil data user." });
+  }
+};
+
+export const checkAccountEmail = async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({
+      message: "Email wajib diisi.",
+    });
+  }
+
+  try {
+    const existingEmail = await prisma.accountEmail.findUnique({
+      where: { email },
+    });
+
+    if (existingEmail) {
+      return res.status(200).json({ exists: true });
+    } else {
+      return res.status(200).json({ exists: false });
+    }
+  } catch (error) {
+    console.error("Error saat memproses email:", error);
+    res.status(500).json({
+      error: "Terjadi kesalahan server.",
+    });
+  }
+};
+
+export const createAccountEmail = async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ message: "Email wajib diisi." });
+  }
+
+  try {
+    const newAccountEmail = await prisma.accountEmail.create({
+      data: { email },
+    });
+
+    return res.status(201).json({
+      message: "Email berhasil didaftarkan.",
+      data: newAccountEmail,
+    });
+  } catch (error) {
+    console.error("Error saat membuat email:", error);
+    res.status(500).json({ error: "Terjadi kesalahan server." });
+  }
+};
+
+export const fetchKaryawanByEmail = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: "Email wajib diisi." });
+    }
+
+    const user = await prisma.karyawan.findUnique({
+      where: { email },
+      select: { id: true, email: true, namaLengkap: true },
+    });
+
+    if (!user) {
+      return res
+        .status(404)
+        .json({ message: `Karyawan dengan email ${email} tidak ditemukan.` });
+    }
+
+    res.status(200).json({ message: "Data Karyawan berhasil diambil.", user });
+  } catch (error) {
+    console.error("Error saat mengambil data Karyawan:", error);
+    res.status(500).json({ error: "Terjadi kesalahan server." });
   }
 };

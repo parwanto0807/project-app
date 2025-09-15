@@ -42,16 +42,16 @@ export default function CreateKaryawanPageAdmin() {
   // Tampilkan loading halaman penuh selama proses autentikasi
   if (loading || !authorized) {
     return (
-      <PageLoading 
-        title="Memverifikasi akses" 
-        description="Mohon tunggu sementara kami memeriksa otentikasi Anda" 
+      <PageLoading
+        title="Memverifikasi akses"
+        description="Mohon tunggu sementara kami memeriksa otentikasi Anda"
       />
     );
   }
 
   const getBasePath = () => {
-    return role === "super" 
-      ? "/super-admin-area/master/karyawan" 
+    return role === "super"
+      ? "/super-admin-area/master/karyawan"
       : "/admin-area/master/karyawan";
   };
 
@@ -62,7 +62,7 @@ export default function CreateKaryawanPageAdmin() {
           <BreadcrumbList>
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link 
+                <Link
                   href={role === "super" ? "/super-admin-area" : "/admin-area"}
                   className="text-sm font-medium hover:text-primary transition-colors"
                 >
@@ -73,7 +73,7 @@ export default function CreateKaryawanPageAdmin() {
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link 
+                <Link
                   href={getBasePath()}
                   className="text-sm font-medium hover:text-primary transition-colors"
                 >

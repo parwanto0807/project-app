@@ -511,3 +511,143 @@ export function formToPayload(values: SpkFormValues): SpkApiPayload {
     spkDate: values.spkDate.toISOString(),
   };
 }
+
+// 💡 Schema untuk Photo
+export const spkFieldReportPhotoSchema = z.object({
+  id: z.string().optional(),
+  reportId: z.string().optional(),
+  imageUrl: z.string().url("URL gambar tidak valid"),
+  caption: z.string().optional(),
+  uploadedBy: z.string(),
+  uploadedAt: z.string().datetime().optional(),
+});
+
+// 💡 Schema untuk Karyawan (minimal)
+export const karyawanMinimalSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  position: z.string().optional(),
+});
+
+// 💡 Schema untuk SPK Field Report
+export const spkFieldReportSchema = z.object({
+  id: z.string().optional(),
+  spkId: z.string({ required_error: "SPK ID wajib diisi" }),
+  karyawanId: z.string({ required_error: "Karyawan ID wajib diisi" }),
+  type: z.enum(["PROGRESS", "FINAL"], {
+    required_error: "Type harus PROGRESS atau FINAL",
+  }),
+  note: z.string().optional(),
+  status: z.enum(["PENDING", "APPROVED", "REJECTED"]).default("PENDING"),
+  reportedAt: z.string().datetime().optional(),
+  karyawan: karyawanMinimalSchema.optional(),
+  photos: z.array(spkFieldReportPhotoSchema).optional(),
+});
+
+// 💡 Schema untuk membuat laporan baru
+export const createSpkFieldReportSchema = z.object({
+  spkId: z.string({ required_error: "SPK ID wajib diisi" }),
+  karyawanId: z.string({ required_error: "Karyawan ID wajib diisi" }),
+  type: z.enum(["PROGRESS", "FINAL"], {
+    required_error: "Type harus PROGRESS atau FINAL",
+  }),
+  note: z.string().optional(),
+  photos: z.array(z.instanceof(File)).optional(),
+});
+
+// 💡 Schema untuk update status laporan
+export const updateReportStatusSchema = z.object({
+  status: z.enum(["APPROVED", "REJECTED", "PENDING"], {
+    required_error: "Status harus APPROVED, REJECTED, atau PENDING",
+  }),
+});
+
+// 💡 Schema untuk menambah foto ke laporan
+export const addPhotosToReportSchema = z.object({
+  reportId: z.string({ required_error: "Report ID wajib diisi" }),
+  karyawanId: z.string({ required_error: "Karyawan ID wajib diisi" }),
+  photos: z.array(z.instanceof(File)).min(1, "Minimal 1 foto harus diupload"),
+});
+
+// 💡 Schema untuk query parameters
+export const getReportsQuerySchema = z.object({
+  spkId: z.string({ required_error: "SPK ID wajib diisi" }),
+  type: z.enum(["PROGRESS", "FINAL"]).optional(),
+});
+
+// 💡 Type inference dari schema
+export type SpkFieldReport = z.infer<typeof spkFieldReportSchema>;
+export type SpkFieldReportPhoto = z.infer<typeof spkFieldReportPhotoSchema>;
+export type CreateSpkFieldReportInput = z.infer<
+  typeof createSpkFieldReportSchema
+>;
+export type UpdateReportStatusInput = z.infer<typeof updateReportStatusSchema>;
+export type AddPhotosToReportInput = z.infer<typeof addPhotosToReportSchema>;
+export type GetReportsQueryInput = z.infer<typeof getReportsQuerySchema>;
+export type KaryawanMinimal = z.infer<typeof karyawanMinimalSchema>;
+
+// 💡 Validator functions
+export const validateCreateSpkFieldReport = (
+  data: unknown
+): CreateSpkFieldReportInput => {
+  return createSpkFieldReportSchema.parse(data);
+};
+
+export const validateUpdateReportStatus = (
+  data: unknown
+): UpdateReportStatusInput => {
+  return updateReportStatusSchema.parse(data);
+};
+
+export const validateAddPhotosToReport = (
+  data: unknown
+): AddPhotosToReportInput => {
+  return addPhotosToReportSchema.parse(data);
+};
+
+export const validateGetReportsQuery = (
+  data: unknown
+): GetReportsQueryInput => {
+  return getReportsQuerySchema.parse(data);
+};
+
+// 💡 Utility functions untuk form validation
+export const createReportFormDataValidator = (
+  formData: FormData
+): CreateSpkFieldReportInput => {
+  const data = {
+    spkId: formData.get("spkId") as string,
+    karyawanId: formData.get("karyawanId") as string,
+    type: formData.get("type") as "PROGRESS" | "FINAL",
+    note: formData.get("note") as string | undefined,
+    photos: formData.getAll("photos") as File[],
+  };
+
+  return validateCreateSpkFieldReport(data);
+};
+
+export const createUpdateStatusValidator = (data: {
+  status: string;
+}): UpdateReportStatusInput => {
+  return validateUpdateReportStatus(data);
+};
+
+// 💡 Error handling utility
+export const formatZodError = (error: z.ZodError): string[] => {
+  return error.errors.map((err) => {
+    const path = err.path.join(".");
+    return path ? `${path}: ${err.message}` : err.message;
+  });
+};
+
+// 💡 Default values
+export const defaultSpkFieldReport: Partial<SpkFieldReport> = {
+  status: "PENDING",
+  note: "",
+  photos: [],
+};
+
+export const defaultCreateReport: Partial<CreateSpkFieldReportInput> = {
+  note: "",
+  photos: [],
+};
