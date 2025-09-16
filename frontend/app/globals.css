@@ -246,3 +246,60 @@ body,
   from { transform: rotate(0deg); }
   to { transform: rotate(-360deg); }
 }
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.animate-pulse-on-change {
+  animation: pulse 0.8s ease-in-out;
+}
+[data-orientation="horizontal"] .thumb {
+  background: white;
+  border: 3px solid #3b82f6;
+  width: 20px;
+  height: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  transition: all 0.2s ease;
+}
+
+[data-orientation="horizontal"] .thumb:hover {
+  transform: scale(1.1);
+  border-color: #2563eb;
+}
+
+[data-orientation="horizontal"] .thumb:active {
+  transform: scale(1.2);
+  border-color: #1d4ed8;
+}
+
+/* Style untuk Thumb Slider */
+[data-orientation="horizontal"] .thumb {
+  display: block;
+  width: 20px;
+  height: 20px;
+  background-color: white;
+  border: 3px solid #10b981; /* warna border (hijau) */
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  cursor: grab;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+[data-orientation="horizontal"] .thumb:hover {
+  transform: scale(1.1);
+  border-color: #059669;
+}
+
+[data-orientation="horizontal"] .thumb:active {
+  cursor: grabbing;
+  transform: scale(1.2);
+  border-color: #047857;
+}
+
+/* Opsional: Tambahkan animasi saat drag */
+[data-orientation="horizontal"] .thumb[data-state="active"] {
+  transform: scale(1.2);
+  border-color: #065f46;
+}

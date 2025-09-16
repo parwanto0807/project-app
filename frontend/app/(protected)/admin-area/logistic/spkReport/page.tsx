@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
-import { getSpkByEmail } from "@/lib/action/master/spk/spk";
+import { fetchAllSpk, getSpkByEmail } from "@/lib/action/master/spk/spk";
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { LayoutProps } from "@/types/layout";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -123,14 +123,21 @@ export default function SpkReportPageAdmin() {
 
         try {
             setIsLoading(true);
-            const result = await getSpkByEmail(email);
+
+            let result: SPK[] = [];
+            if (role === "admin" || role === "super") {
+                result = await fetchAllSpk();   // ✅ ambil semua SPK untuk admin/super
+            } else {
+                result = await getSpkByEmail(email); // ✅ user biasa hanya SPK yang assigned
+            }
+
             setDataSpk(result);
 
             const karyawan = await fetchKaryawanByEmail(email);
             if (karyawan) {
-                setDataKarywanByEmail(karyawan.user.id); // 👈 Gunakan langsung .id, bukan .data.id
+                setDataKarywanByEmail(karyawan.user.id);
             } else {
-                setDataKarywanByEmail(''); // 👈 Set ke string kosong jika tidak ditemukan
+                setDataKarywanByEmail("");
                 console.warn("⚠️ Karyawan dengan email", email, "tidak ditemukan di database");
             }
 
@@ -140,7 +147,7 @@ export default function SpkReportPageAdmin() {
         } finally {
             setIsLoading(false);
         }
-    }, [email]); // ✅ Hanya tergantung pada email
+    }, [email, role]); // ✅ Hanya tergantung pada email
 
     useEffect(() => {
         if (userLoading) return;
@@ -161,7 +168,7 @@ export default function SpkReportPageAdmin() {
     }, [router, user, userLoading, email, fetchData]); // ✅ Semua dependency termasuk fetchData!
 
     const layoutProps: LayoutProps = {
-        title: "Sales Management",
+        title: "Production Management",
         role: "admin",
         children: (
             <>
@@ -178,14 +185,14 @@ export default function SpkReportPageAdmin() {
                         <BreadcrumbItem>
                             <BreadcrumbLink asChild>
                                 <Badge variant="outline">
-                                    <BreadcrumbPage>SPK Management</BreadcrumbPage>
+                                    <BreadcrumbPage>SPK Report</BreadcrumbPage>
                                 </Badge>
                             </BreadcrumbLink>
                         </BreadcrumbItem>
                         <BreadcrumbSeparator />
                         <BreadcrumbItem>
                             <Badge variant="outline">
-                                <BreadcrumbPage>SPK List</BreadcrumbPage>
+                                <BreadcrumbPage>Monitoring Progress</BreadcrumbPage>
                             </Badge>
                         </BreadcrumbItem>
                     </BreadcrumbList>

@@ -9,13 +9,18 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Camera, Upload, CheckCircle, Clock, User, X, Archive, Sparkles, TrendingUp, FileText, Eye, Loader2, Download, ZoomIn } from 'lucide-react';
+import { Camera, Upload, CheckCircle, Clock, X, Archive, Sparkles, TrendingUp, FileText, Eye, Loader2, Download, ZoomIn } from 'lucide-react';
 import Image from 'next/image';
 import { createReportFormData, createSpkFieldReport, fetchSPKReports } from '@/lib/action/master/spk/spkReport';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Badge } from '../ui/badge';
-import { fetchAllKaryawan } from '@/lib/action/master/karyawan';
+// import { fetchAllKaryawan } from '@/lib/action/master/karyawan';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
+import { Slider } from '../ui/slider';
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
+import { updateReportStatus } from '@/lib/action/master/spk/spkReport';
+
 
 // 👇 DEFINSI TIPE DATA API (TETAP UTUH)
 interface SPKDataApi {
@@ -100,12 +105,12 @@ interface SPKDataApi {
   updatedAt: Date;
 }
 
-interface Karyawan {
-  id: string;
-  namaLengkap: string;
-  departemen?: string | null;
-  isLoading: boolean;
-}
+// interface Karyawan {
+//   id: string;
+//   namaLengkap: string;
+//   departemen?: string | null;
+//   isLoading: boolean;
+// }
 
 // 👇 INTERFACE YANG DIGUNAKAN OLEH UI
 interface SPKData {
@@ -139,6 +144,7 @@ interface ReportHistory {
   reportedAt: Date;
   itemName: string;
   karyawanName: string;
+  soDetailId: string;
   progress: number;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
 }
@@ -147,6 +153,8 @@ interface ProgressFormData {
   spkId: string;
   note: string;
   type: 'PROGRESS' | 'FINAL';
+  progress: number;
+  minProgress: number;
   photos: File[];
   items: string | null; // ID dari SPKDetail
 }
@@ -159,17 +167,20 @@ interface FormMonitoringProgressSpkProps {
   userId: string;
 }
 
-interface Karyawan {
-  id: string;
-  namaLengkap: string;
-  departemen?: string | null;
-}
+// interface Karyawan {
+//   id: string;
+//   namaLengkap: string;
+//   departemen?: string | null;
+// }
 
 // 👇 PERBAIKI: HAPUS 'success' dan 'message', karena API tidak kirim
-interface KaryawanResponse {
-  karyawan: Karyawan[];
-  isLoading: boolean;
-}
+// interface KaryawanResponse {
+//   karyawan: Karyawan[];
+//   isLoading: boolean;
+// }
+
+type ItemProgress = Record<string, number>; // key: soDetailId, value: progress
+type SPKItemProgressMap = Record<string, ItemProgress>; // key: spkNumber
 
 type TabType = 'list' | 'report' | 'history';
 
@@ -179,6 +190,8 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
     spkId: '',
     note: '',
     type: 'PROGRESS',
+    progress: 0,
+    minProgress: 0,
     photos: [],
     items: null,
   });
@@ -195,24 +208,33 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
 
   const [selectedReport, setSelectedReport] = useState<ReportHistory | null>(null);
   const [modalType, setModalType] = useState<'view' | 'approve' | 'reject' | null>(null);
-  const [karyawans, setKaryawans] = useState<Karyawan[]>([]);
+  // const [karyawans, setKaryawans] = useState<Karyawan[]>([]);
   const [userSpk, setUserSpk] = useState<SPKData[]>([]);
-  const [loadingKaryawans, setLoadingKaryawans] = useState(false);
+  // const [loadingKaryawans, setLoadingKaryawans] = useState(false);
 
-  console.log("Data SPK", dataSpk);
-  console.log("Data SO Item", selectedSpk);
-  console.log("Report", reports);
+  const [spkItemProgress, setSpkItemProgress] = useState<SPKItemProgressMap>({});
+
+  // console.log("Data SPK", dataSpk);
+  // console.log("Data SO Item", selectedSpk);
+  console.log("User SPK", userSpk);
+  // console.log("Report", reports);
+  // console.log("Total Progress", summaryProgress);
+
+  const getSPKFieldProgress = (spk: SPKData): number => {
+    const itemProgressMap = spkItemProgress[spk.spkNumber];
+    if (!itemProgressMap) return 0;
+
+    const reportedProgresses = spk.items.map(item => itemProgressMap[item.id] ?? 0);
+    const totalProgress = reportedProgresses.reduce((sum, p) => sum + p, 0);
+    return Math.round(totalProgress / spk.items.length);
+  };
 
   // 👇 MAP KE SPKData (DIBENARKAN)
   const mapToSPKData = (raw: SPKDataApi[]): SPKData[] => {
     return raw.map(item => {
       // 1. Ambil clientName dari salesOrder.customer.name
       const clientName = item.salesOrder?.customer?.name || 'Client Tidak Dikenal';
-
-      // 2. Ambil projectName dari salesOrder.project.name (atau fallback)
       const projectName = item.salesOrder?.project?.name || 'Project Tidak Dikenal';
-
-      // 3. Tentukan assignedTo: prioritas dari teamKaryawan > createdBy
       const assignedTo =
         item.team?.teamKaryawan?.karyawan?.namaLengkap ||
         item.createdBy?.namaLengkap ||
@@ -223,7 +245,6 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
       const completedDetails = item.details?.filter(d => d.status === 'DONE').length || 0;
       const progress = totalDetails > 0 ? Math.round((completedDetails / totalDetails) * 100) : 0;
 
-      // 5. Tentukan status SPK berdasarkan progress
       // 5. Tentukan status SPK berdasarkan progress — SESUAI DENGAN INTERFACE SPKData
       let status: 'PENDING' | 'PROGRESS' | 'COMPLETED';
       if (progress === 100) status = 'COMPLETED';
@@ -235,14 +256,8 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
 
       // 👇 NEW: Mapping items dari salesOrder + hitung progress per item
       const items = item.salesOrder?.items?.map(itemSales => {
-        const relatedDetails = item.details?.filter(
-          detail => detail.salesOrderItem?.id === itemSales.id
-        ) || [];
-
-        // Jika ada minimal 1 detail DONE → item dianggap selesai
+        const relatedDetails = item.details?.filter(detail => detail.salesOrderItem?.id === itemSales.id) || [];
         const hasDoneDetail = relatedDetails.some(detail => detail.status === 'DONE');
-
-        // CHANGE: Use 'DONE' instead of 'FINAL' to match the SPKData interface
         const itemStatus: 'PENDING' | 'DONE' = hasDoneDetail ? 'DONE' : 'PENDING';
         const itemProgress = hasDoneDetail ? 100 : 0;
 
@@ -271,11 +286,33 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
     });
   };
 
+  // ✅ Hitung spkItemProgress hanya saat reports berubah
+  useEffect(() => {
+    const newSpkItemProgress: SPKItemProgressMap = {};
+
+    for (const report of reports) {
+      const { spkNumber, soDetailId, progress } = report;
+
+      if (!newSpkItemProgress[spkNumber]) {
+        newSpkItemProgress[spkNumber] = {};
+      }
+
+      const currentProgress = newSpkItemProgress[spkNumber][soDetailId] ?? 0;
+      newSpkItemProgress[spkNumber][soDetailId] = Math.max(currentProgress, progress ?? 0);
+    }
+
+    setSpkItemProgress(newSpkItemProgress);
+  }, [reports]);
+
+  useEffect(() => {
+    if (formData.type === 'FINAL') {
+      setFormData(prev => ({ ...prev, progress: 100 }));
+    }
+  }, [formData.type]);
 
   useEffect(() => {
     if (dataSpk && dataSpk.length > 0) {
       const mapped = mapToSPKData(dataSpk);
-      console.log("Mapped", mapped);
       setUserSpk(mapped);
     } else {
       setUserSpk([]);
@@ -283,7 +320,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
   }, [dataSpk]);
 
   const filteredUserSpk = userSpk.filter(spk => {
-    if (role === 'admin' || role === 'supervisor') return true;
+    if (role === 'admin' || role === 'super') return true;
     return spk.assignedTo === userEmail;
   });
 
@@ -301,26 +338,28 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
     }
   }, [filters]);
 
+
+
   // 👇 FETCH DAFTAR KARYAWAN UNTUK FILTER ADMIN
-  useEffect(() => {
-    if (role === 'admin') {
-      const fetchKaryawans = async () => {
-        setLoadingKaryawans(true);
-        try {
-          const response: KaryawanResponse = await fetchAllKaryawan(); // ✅ Sekarang valid!
+  // useEffect(() => {
+  //   if (role === 'admin') {
+  //     const fetchKaryawans = async () => {
+  //       setLoadingKaryawans(true);
+  //       try {
+  //         const response: KaryawanResponse = await fetchAllKaryawan(); // ✅ Sekarang valid!
 
-          setKaryawans(response.karyawan); // ✅ Langsung assign array
-        } catch (error) {
-          console.error('Error fetching karyawans:', error);
-          toast.error('Gagal memuat daftar karyawan');
-        } finally {
-          setLoadingKaryawans(false);
-        }
-      };
+  //         setKaryawans(response.karyawan); // ✅ Langsung assign array
+  //       } catch (error) {
+  //         console.error('Error fetching karyawans:', error);
+  //         toast.error('Gagal memuat daftar karyawan');
+  //       } finally {
+  //         setLoadingKaryawans(false);
+  //       }
+  //     };
 
-      fetchKaryawans();
-    }
-  }, [role]);
+  //     fetchKaryawans();
+  //   }
+  // }, [role]);
 
   // 👇 EFFECT: Fetch riwayat saat filter berubah
   useEffect(() => {
@@ -328,7 +367,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
   }, [filters, fetchReports]);
 
   // 👇 HANDLE UPLOAD FOTO
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
@@ -338,7 +377,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
       photos: [...prev.photos, ...newPhotos],
     }));
     e.target.value = ''; // Reset input
-  };
+  }
 
   const removePhoto = (index: number) => {
     setFormData(prev => ({
@@ -372,10 +411,18 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
         return;
       }
 
+      // 👇 VALIDASI PROGRESS — WAJIB DIISI (kecuali FINAL)
+      if (formData.type === 'PROGRESS' && formData.progress <= 0) {
+        toast.error("Progress harus diisi", { description: "Silakan atur progress menggunakan slider sebelum mengirim laporan." });
+        setUploading(false);
+        return;
+      }
+
       const reportData = createReportFormData({
         spkId: selectedSpk.id,
         karyawanId: userId,
         type: formData.type,
+        progress: formData.progress,
         note: formData.note,
         photos: formData.photos,
         soDetailId: formData.items, // ✅ Ini adalah SPKDetail.id — sesuai model Prisma
@@ -391,6 +438,8 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
       setFormData({
         spkId: '',
         note: '',
+        progress: 0,
+        minProgress: 0,
         type: 'PROGRESS',
         photos: [],
         items: null,
@@ -414,21 +463,20 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
   // 👇 APPROVE / REJECT LAPORAN (ADMIN)
   const handleApproveReport = async (reportId: string) => {
     try {
-      const res = await fetch(`/api/reports/${reportId}/approve`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ approvedBy: userId }),
-      });
+      const result = await updateReportStatus(reportId, "APPROVED");
 
-      if (!res.ok) throw new Error('Gagal menyetujui laporan');
+      if (!result.success) {
+        throw new Error(result.message || "Gagal menyetujui laporan");
+      }
 
       toast.success("Laporan disetujui");
       fetchReports();
     } catch (error) {
-      console.error(error);
+      console.error("Error handleApproveReport:", error);
       toast.error("Gagal menyetujui laporan");
     }
   };
+
 
   const handleRejectReport = async (reportId: string) => {
     try {
@@ -495,13 +543,48 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
         <Clock className="h-12 w-12 text-muted-foreground mb-3 opacity-50" />
         <h3 className="text-lg font-medium text-muted-foreground">Tidak ada SPK</h3>
         <p className="text-sm text-muted-foreground/70 mt-1">
-          {role === 'admin' || role === 'supervisor'
+          {role === 'admin' || role === 'super'
             ? 'Belum ada SPK yang terdaftar.'
             : `Tidak ada SPK yang ditugaskan ke ${userEmail}.`}
         </p>
       </div>
     );
   }
+
+  // Fungsi handleChangeItem
+  const handleChangeItem = (itemId: string | null) => {
+    if (!selectedSpk) {
+      console.warn("Data SPK belum tersedia");
+      return;
+    }
+
+    if (!itemId) {
+      setFormData(prev => ({
+        ...prev,
+        items: null,
+        progress: 0,
+        minProgress: 0, // tambahkan state ini
+      }));
+      return;
+    }
+
+    // ✅ Cari item dari selectedSpk
+    const selectedItem = selectedSpk.items.find(item => item.id === itemId);
+
+    if (selectedItem) {
+      // ✅ Cari progress dari reports berdasarkan item.id
+      const relatedReport = reports?.find(report => report.soDetailId === selectedItem.id);
+      const prevProgress = relatedReport?.progress ?? 0;
+
+      setFormData(prev => ({
+        ...prev,
+        items: itemId,
+        progress: prevProgress,   // posisi awal = progress terakhir
+        minProgress: prevProgress // simpan batas minimal
+      }));
+    }
+  };
+
 
   return (
     <div className="h-full w-full p-1 md:p-4">
@@ -513,7 +596,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
             <h1 className="text-xl md:text-2xl font-bold tracking-tight">Monitoring Progress SPK</h1>
           </div>
           <p className="text-xs md:text-sm text-blue-100 opacity-90">
-            {role === 'admin' || role === 'supervisor'
+            {role === 'admin' || role === 'super'
               ? 'Monitor semua SPK yang sedang berjalan'
               : `Laporkan progress pekerjaan untuk SPK yang ditugaskan kepada Anda`}
           </p>
@@ -551,10 +634,10 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
               <CardHeader className="pb-2 bg-gradient-to-r from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
                 <CardTitle className="text-base md:text-lg font-semibold flex items-center gap-2">
                   <FileText className="h-5 w-5 text-blue-600" />
-                  {role === 'admin' || role === 'supervisor' ? 'Semua SPK' : 'SPK Saya'}
+                  {role === 'admin' || role === 'super' ? 'Semua SPK' : 'SPK Saya'}
                 </CardTitle>
                 <CardDescription className="text-xs text-muted-foreground">
-                  {role === 'admin' || role === 'supervisor'
+                  {role === 'admin' || role === 'super'
                     ? 'Klik SPK untuk memulai pelaporan'
                     : 'Pilih SPK yang ditugaskan kepada Anda'}
                 </CardDescription>
@@ -565,77 +648,87 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                     <Clock className="mx-auto h-8 w-8 text-muted-foreground mb-2 opacity-50" />
                     <h3 className="text-sm font-medium mb-1">Tidak ada SPK</h3>
                     <p className="text-xs text-muted-foreground">
-                      {role === 'admin' || role === 'supervisor'
+                      {role === 'admin' || role === 'super'
                         ? 'Tidak ada SPK yang terdaftar'
                         : `Tidak ada SPK yang ditugaskan ke ${userEmail}`}
                     </p>
                   </div>
                 ) : (
-                  <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-                    {filteredUserSpk.map((spk, index) => (
-                      <div
-                        key={spk.id}
-                        className="transform transition-all duration-500 hover:scale-105"
-                        style={{ animationDelay: `${index * 100}ms` }}
-                      >
-                        <Card
-                          onClick={() => {
-                            setSelectedSpk(spk);
-                            setActiveTab('report');
-                          }}
-                          className={`cursor-pointer transition-all duration-300 transform hover:-translate-y-1 border overflow-hidden group p-0 h-auto ${selectedSpk?.id === spk.id
-                            ? 'border-blue-500 shadow-md bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/20 ring-1 ring-blue-500/20'
-                            : 'border-border/40 hover:border-blue-300 bg-card hover:bg-card/90 shadow-sm hover:shadow-md'
-                            }`}
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {filteredUserSpk.map((spk, index) => {
+                      // Tentukan status berdasarkan progress
+                      const progress = getSPKFieldProgress(spk);
+                      const status = progress === 100 ? 'COMPLETED' : 'PROGRESS';
+                      const statusColor = status === 'COMPLETED' ? 'bg-green-500' : 'bg-blue-500';
+
+                      return (
+                        <div
+                          key={spk.id}
+                          className="transform transition-all duration-500 hover:scale-105"
+                          style={{ animationDelay: `${index * 100}ms` }}
                         >
-                          <div className={`absolute top-0 left-0 w-1 h-full ${spk.status === 'COMPLETED' ? 'bg-green-500' :
-                            spk.status === 'PROGRESS' ? 'bg-blue-500' :
-                              'bg-yellow-500'
-                            }`}></div>
-                          <div className="p-3">
-                            <div className="flex justify-between items-start mb-2">
-                              <div className="min-w-0 flex-1">
-                                <h3 className="text-xs md:text-sm font-medium group-hover:text-blue-600 transition-colors truncate">
-                                  {spk.spkNumber}
-                                </h3>
-                                <p className="text-[10px] text-wrap text-muted-foreground truncate mt-0.5 md:text-xs">{spk.clientName}</p>
-                                <p className="text-[10px] text-wrap text-muted-foreground truncate mt-0.5 md:text-xs">{spk.projectName}</p>
+                          <div
+                            onClick={() => {
+                              setSelectedSpk(spk);
+                              setActiveTab('report');
+                            }}
+                            className={`cursor-pointer transition-all duration-300 transform hover:-translate-y-1 border overflow-hidden group p-0 h-auto rounded-lg ${selectedSpk?.id === spk.id
+                              ? 'border-blue-500 shadow-md bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/20 ring-1 ring-blue-500/20'
+                              : 'border-gray-200 hover:border-blue-300 bg-white hover:bg-gray-50/90 shadow-sm hover:shadow-md'
+                              }`}
+                          >
+                            <div className={`absolute top-0 left-0 w-1 h-full ${statusColor}`}></div>
+                            <div className="p-4 pl-5">
+                              <div className="flex justify-between items-start mb-3">
+                                <div className="min-w-0 flex-1">
+                                  <h3 className="text-sm md:text-base font-semibold group-hover:text-blue-600 transition-colors truncate">
+                                    {spk.spkNumber}
+                                  </h3>
+                                  <p className="text-xs text-gray-500 truncate mt-1 md:text-sm">{spk.clientName}</p>
+                                  <p className="text-xs text-gray-500 truncate mt-1 md:text-sm">{spk.projectName}</p>
+                                </div>
+                                <div className="ml-2 flex-shrink-0">
+                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${status === 'COMPLETED'
+                                    ? 'bg-green-100 text-green-800'
+                                    : 'bg-blue-100 text-blue-800'
+                                    }`}>
+                                    {status === 'COMPLETED' ? 'Selesai' : 'Progress'}
+                                  </span>
+                                </div>
                               </div>
-                              <div className="ml-2 flex-shrink-0">
-                                <StatusBadge status={spk.status} />
+                              <div className="flex justify-between items-center mb-2">
+                                <span className="text-xs text-gray-500">Progress</span>
+                                <span className="text-xs font-medium">{progress}%</span>
                               </div>
-                            </div>
-                            <div className="flex justify-between items-center mb-1.5">
-                              <span className="text-xs text-muted-foreground">Progress</span>
-                              <span className="text-xs font-medium">{spk.progress}%</span>
-                            </div>
-                            <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden mb-2">
-                              <div
-                                className={`h-full rounded-full ${spk.status === 'COMPLETED' ? 'bg-green-500' :
-                                  spk.status === 'PROGRESS' ? 'bg-blue-500' :
-                                    'bg-yellow-500'
-                                  }`}
-                                style={{ width: `${spk.progress}%` }}
-                              />
-                            </div>
-                            <div className="flex items-center justify-between text-xs text-muted-foreground">
-                              <div className="flex items-center gap-1">
-                                <Clock className="h-3 w-3 flex-shrink-0" />
-                                <span className="truncate text-[11px]">
-                                  {new Date(spk.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
-                                </span>
+                              <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden mb-3">
+                                <div
+                                  className={`h-full rounded-full ${statusColor}`}
+                                  style={{ width: `${progress}%` }}
+                                />
                               </div>
-                              <div className="flex items-center gap-1">
-                                <User className="h-3 w-3 flex-shrink-0" />
-                                <span className="truncate text-[11px] max-w-[80px] md:max-w-[100px]">
-                                  {spk.assignedTo?.split('@')[0] || 'Tidak ditugaskan'}
-                                </span>
+                              <div className="flex items-center justify-between text-xs text-gray-500">
+                                <div className="flex items-center gap-1">
+                                  <svg className="h-3 w-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  <span className="truncate text-xs">
+                                    {new Date(spk.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <svg className="h-3 w-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                  </svg>
+                                  <span className="truncate text-xs max-w-[80px] md:max-w-[100px]">
+                                    {spk.assignedTo?.split('@')[0] || 'Tidak ditugaskan'}
+                                  </span>
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </Card>
-                      </div>
-                    ))}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
@@ -659,69 +752,138 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                   <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label className="text-xs font-medium">Jenis Laporan</Label>
+                        <Label className="text-xs font-medium">Item Pekerjaan</Label>
                         <Select
-                          value={formData.type}
-                          onValueChange={(value: 'PROGRESS' | 'FINAL') =>
-                            setFormData(prev => ({ ...prev, type: value }))
-                          }
+                          value={formData.items || ""}
+                          onValueChange={(value) => handleChangeItem(value || null)}
+                          disabled={!selectedSpk}
                         >
-                          <SelectTrigger className="text-xs h-10 border-border/60 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-colors">
-                            <SelectValue placeholder="Pilih jenis" />
+                          <SelectTrigger className="h-10 w-full text-xs border-border/60">
+                            <SelectValue placeholder="Pilih item pekerjaan..." />
                           </SelectTrigger>
-                          <SelectContent className="text-xs border-border/60">
-                            <SelectItem value="PROGRESS" className="focus:bg-green-50 focus:text-green-700">Progress Pekerjaan</SelectItem>
-                            <SelectItem value="FINAL" className="focus:bg-blue-50 focus:text-blue-700">Selesai</SelectItem>
+                          <SelectContent>
+                            {selectedSpk?.items.map((item) => (
+                              <SelectItem key={item.id} value={item.id}>
+                                {item.name}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
-                      </div>
 
-                      <div className="space-y-2">
-                        <Label className="text-xs font-medium">Item Pekerjaan</Label>
-                        <select
-                          value={formData.items || ''}
-                          onChange={(e) =>
-                            setFormData(prev => ({
-                              ...prev,
-                              items: e.target.value || null,
-                            }))
-                          }
-                          className="h-10 text-xs border-border/60 rounded-md border px-3 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-colors"
-                        >
-                          <option value="" disabled>Pilih item pekerjaan...</option>
-                          {selectedSpk.items.map((item) => (
-                            <option key={item.id} value={item.id}>
-                              {item.name} • {item.progress}% • {item.status === 'DONE' ? '✓ Selesai' : '⏳ Belum dimulai'}
-                            </option>
-                          ))}
-                        </select>
-                        {formData.items && (
+
+                        {formData.items && selectedSpk && (
                           <div className="mt-1 text-xs text-gray-600">
-                            ✅ Item dipilih: {selectedSpk.items.find(i => i.id === formData.items)?.name}
+                            ✅ Item dipilih: {selectedSpk.items.find((i) => i.id === formData.items)?.name}
                           </div>
                         )}
+
                         {!formData.items && (
                           <p className="text-xs text-red-500 mt-1">* Harap pilih satu item pekerjaan.</p>
                         )}
                       </div>
 
                       <div className="space-y-2">
-                        <Label className="text-xs font-medium">Progress Saat Ini</Label>
-                        <div className="flex items-center gap-2 bg-muted/30 p-2 rounded-lg">
-                          <div className="h-2 w-full bg-muted rounded-full overflow-hidden flex-1">
-                            <div
-                              className={`h-full rounded-full ${selectedSpk.status === 'COMPLETED' ? 'bg-green-500' :
-                                selectedSpk.status === 'PROGRESS' ? 'bg-blue-500' :
-                                  'bg-yellow-500'
-                                }`}
-                              style={{ width: `${selectedSpk.progress}%` }}
-                            />
-                          </div>
-                          <span className="text-xs font-medium min-w-[2rem] bg-white dark:bg-gray-800 px-2 py-1 rounded-md shadow-sm">
-                            {selectedSpk.progress}%
-                          </span>
-                        </div>
+                        <Label className="text-xs font-medium">Jenis Laporan</Label>
+                        <Select
+                          value={formData.type}
+                          onValueChange={(value: 'PROGRESS' | 'FINAL') =>
+                            setFormData(prev => ({
+                              ...prev,
+                              type: value,
+                              progress: value === 'FINAL' ? 100 : prev.progress, // ✅ kalau pilih FINAL → progress 100
+                            }))
+                          }
+                        >
+                          <SelectTrigger className="text-xs h-10 border-border/60 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-colors">
+                            <SelectValue placeholder="Pilih jenis" />
+                          </SelectTrigger>
+                          <SelectContent className="text-xs border-border/60">
+                            <SelectItem
+                              value="PROGRESS"
+                              className="focus:bg-green-50 focus:text-green-700"
+                            >
+                              Progress Pekerjaan
+                            </SelectItem>
+                            <SelectItem
+                              value="FINAL"
+                              className="focus:bg-blue-50 focus:text-blue-700"
+                            >
+                              Selesai
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+
                       </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-xs font-medium">Atur Progress Item</Label>
+
+                        <div className="flex flex-col md:flex-row md:items-center gap-4 bg-muted/30 p-4 rounded-2xl shadow-sm border">
+                          {/* Slider */}
+                          <Slider
+                            value={[formData.progress]}
+                            onValueChange={(value) => {
+                              const newProgress = Math.max(value[0], formData.minProgress ?? 0);
+
+                              setFormData((prev) => ({
+                                ...prev,
+                                progress: newProgress,
+                                type: newProgress === 100 ? "FINAL" : prev.type, // ✅ kalau 100 otomatis FINAL
+                              }));
+                            }}
+                            disabled={formData.type === "FINAL" || !formData.items}
+                            min={formData.minProgress ?? 0}
+                            max={100}
+                            step={5}
+                            className="flex-1"
+                          />
+
+
+                          {/* Persentase + Status */}
+                          <div className="flex flex-row md:flex-row items-center justify-between gap-2 md:gap-4">
+                            {/* Persentase */}
+                            <motion.span
+                              key={formData.progress}
+                              initial={{ scale: 0.9, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              transition={{ duration: 0.2 }}
+                              className={cn(
+                                "text-xs font-bold min-w-[3rem] text-center px-3 py-1 rounded-md shadow-sm border",
+                                formData.progress === 100
+                                  ? "bg-green-600 text-white"
+                                  : formData.progress >= 50
+                                    ? "bg-yellow-500 text-white"
+                                    : "bg-red-500 text-white"
+                              )}
+                            >
+                              Latest Progress - {formData.progress}%
+                            </motion.span>
+
+                            {/* Status */}
+                            <span
+                              className={cn(
+                                "text-xs font-semibold px-2 py-1 rounded-full",
+                                formData.progress === 100
+                                  ? "bg-green-100 text-green-700 dark:bg-green-800 dark:text-green-100"
+                                  : "bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-100"
+                              )}
+                            >
+                              {formData.progress === 100 ? "DONE" : "IN PROGRESS"}
+                            </span>
+                          </div>
+                        </div>
+
+
+                        {formData.items && selectedSpk && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            ⚙️ Atur progress untuk:{" "}
+                            <strong>
+                              {selectedSpk.items.find((i) => i.id === formData.items)?.name ?? "-"}
+                            </strong>
+                          </div>
+                        )}
+                      </div>
+
                     </div>
 
                     <div className="space-y-2">
@@ -775,23 +937,26 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                       </div>
                     </div>
 
-                    <div className="flex flex-col-reverse sm:flex-row gap-3 pt-4 border-t border-border/40">
+                    <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-4 border-t border-border/40">
+                      {/* Tombol Kembali */}
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => setActiveTab('list')}
+                        onClick={() => setActiveTab("list")}
                         disabled={uploading}
-                        className="text-xs flex-1 sm:flex-none gap-1 border-border/60 hover:bg-muted/50 transition-all"
+                        className="text-xs w-full sm:w-auto gap-1 border-border/60 hover:bg-muted/50 transition-all"
                       >
                         <X className="h-3 w-3" />
                         Kembali
                       </Button>
+
+                      {/* Tombol Kirim */}
                       <Button
                         type="submit"
                         disabled={uploading || !formData.note}
                         size="sm"
-                        className="text-xs flex-1 sm:flex-none gap-1 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5"
+                        className="text-xs w-full sm:w-auto gap-1 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5"
                       >
                         {uploading ? (
                           <>
@@ -806,6 +971,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                         )}
                       </Button>
                     </div>
+
                   </form>
                 </CardContent>
               </Card>
@@ -816,7 +982,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
           <TabsContent value="history" className="animate-fade-in">
             <div className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-10 gap-3">
               {/* Tanggal */}
-              <div>
+              {/* <div>
                 <Label className="text-xs font-medium">Tanggal</Label>
                 <Select value={filters.date} onValueChange={(v) => setFilters({ ...filters, date: v as 'all' | 'today' | 'thisWeek' | 'thisMonth' })}>
                   <SelectTrigger className="h-10 text-xs border-border/60">
@@ -829,10 +995,10 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                     <SelectItem value="all">Semua</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
+              </div> */}
 
               {/* Status Laporan */}
-              <div>
+              {/* <div>
                 <Label className="text-xs font-medium">Status</Label>
                 <Select value={filters.status} onValueChange={(v) => setFilters({ ...filters, date: v as 'all' | 'today' | 'thisWeek' | 'thisMonth' })}>
                   <SelectTrigger className="h-10 text-xs border-border/60">
@@ -845,10 +1011,10 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                     <SelectItem value="all">Semua</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
+              </div> */}
 
               {/* User (Hanya Admin) */}
-              {role === 'admin' && (
+              {/* {role === 'admin' && (
                 <div>
                   <Label className="text-xs font-medium">Karyawan</Label>
                   <Select value={filters.karyawanId} onValueChange={(v) => setFilters({ ...filters, karyawanId: v })}>
@@ -870,9 +1036,9 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                     </SelectContent>
                   </Select>
                 </div>
-              )}
+              )} */}
               {/* SPK */}
-              <div className='col-span-1 col-start-6'>
+              <div className='col-span-1 col-start-1'>
                 <Label className="text-xs font-medium">SPK</Label>
                 <Select value={filters.spkId} onValueChange={(v) => setFilters({ ...filters, spkId: v })}>
                   <SelectTrigger className="h-10 text-xs border-border/60">
@@ -925,7 +1091,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                 ) : (
                   <div className="rounded-md border border-border/40 overflow-hidden">
                     <Table>
-                      <TableHeader className="bg-muted/50">
+                      <TableHeader className="bg-gradient-to-r from-purple-50 to-white dark:from-purple-900/30 dark:to-gray-800 sticky top-0 z-10">
                         <TableRow>
                           <TableHead className="w-[120px]">Status</TableHead>
                           <TableHead>SPK & Item</TableHead>
@@ -960,6 +1126,23 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                                   <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
                                     <Clock className="w-3 h-3" />
                                     <span className="text-xs font-medium">Menunggu</span>
+                                  </div>
+                                )}
+
+                                {report.status === 'PENDING' ? (
+                                  <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                                    <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div>
+                                    <span className="text-xs font-medium">Menunggu Admin</span>
+                                  </div>
+                                ) : report.status === 'APPROVED' ? (
+                                  <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                                    <CheckCircle className="w-3 h-3" />
+                                    <span className="text-xs font-medium">Disetujui Admin</span>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                                    <Clock className="w-3 h-3" />
+                                    <span className="text-xs font-medium">Ditolak Admin</span>
                                   </div>
                                 )}
                               </div>
@@ -1309,38 +1492,38 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
 };
 
 // 👇 STATUS BADGE — TETAP UTUH
-const StatusBadge = ({ status }: { status: string }) => {
-  const getIcon = () => {
-    switch (status) {
-      case 'COMPLETED': return <CheckCircle className="h-3 w-3" />;
-      case 'PROGRESS': return <Clock className="h-3 w-3" />;
-      case 'PENDING': return <Clock className="h-3 w-3" />;
-      default: return <Clock className="h-3 w-3" />;
-    }
-  };
-  const getColorClass = () => {
-    switch (status) {
-      case 'COMPLETED': return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800';
-      case 'PROGRESS': return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800';
-      case 'PENDING': return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-800';
-      default: return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-800';
-    }
-  };
-  const getStatusText = () => {
-    switch (status) {
-      case 'PENDING': return 'Menunggu';
-      case 'COMPLETED': return 'Selesai';
-      case 'PROGRESS': return 'Berjalan';
-      default: return status;
-    }
-  };
-  return (
-    <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getColorClass()} transition-all duration-300`}>
-      {getIcon()}
-      {getStatusText()}
-    </div>
-  );
-};
+// const StatusBadge = ({ status }: { status: string }) => {
+//   const getIcon = () => {
+//     switch (status) {
+//       case 'COMPLETED': return <CheckCircle className="h-3 w-3" />;
+//       case 'PROGRESS': return <Clock className="h-3 w-3" />;
+//       case 'PENDING': return <Clock className="h-3 w-3" />;
+//       default: return <Clock className="h-3 w-3" />;
+//     }
+//   };
+//   const getColorClass = () => {
+//     switch (status) {
+//       case 'COMPLETED': return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800';
+//       case 'PROGRESS': return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800';
+//       case 'PENDING': return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-800';
+//       default: return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-800';
+//     }
+//   };
+//   const getStatusText = () => {
+//     switch (status) {
+//       case 'PENDING': return 'Menunggu';
+//       case 'COMPLETED': return 'Selesai';
+//       case 'PROGRESS': return 'Berjalan';
+//       default: return status;
+//     }
+//   };
+//   return (
+//     <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getColorClass()} transition-all duration-300`}>
+//       {getIcon()}
+//       {getStatusText()}
+//     </div>
+//   );
+// };
 
 // 👇 SKELETON LOADER — TETAP UTUH
 const SkeletonLoader = () => {

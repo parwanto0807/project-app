@@ -385,6 +385,7 @@ model SPK {
   id        String   @id @default(uuid())
   spkNumber String   @unique // Nomor SPK
   spkDate   DateTime @default(now())
+  progress  Int? @default(0)
 
   // Yang memberi perintah
   createdById String

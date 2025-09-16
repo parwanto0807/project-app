@@ -8,7 +8,17 @@ const prisma = new PrismaClient();
 // 💡 Membuat laporan lapangan (Progress atau Final)
 export const createSpkFieldReport = async (req, res) => {
   try {
-    const { spkId, karyawanId, type, note, soDetailId } = req.body;
+    const {
+      spkId,
+      karyawanId,
+      type,
+      note,
+      soDetailId,
+      progress: progressStr, // ← ambil sebagai string dulu
+    } = req.body;
+
+    // ✅ Konversi progress ke number
+    const progress = progressStr ? parseInt(progressStr, 10) : 0;
 
     // Validasi wajib
     if (!spkId || !karyawanId || !type) {
@@ -23,6 +33,12 @@ export const createSpkFieldReport = async (req, res) => {
         .json({ error: 'Type harus "PROGRESS" atau "FINAL".' });
     }
 
+    if (isNaN(progress) || progress < 0 || progress > 100) {
+      return res
+        .status(400)
+        .json({ error: "Progress harus angka antara 0-100" });
+    }
+
     // Cek apakah SPK dan Karyawan ada
     const spk = await prisma.sPK.findUnique({ where: { id: spkId } });
     if (!spk) return res.status(404).json({ error: "SPK tidak ditemukan." });
@@ -33,7 +49,7 @@ export const createSpkFieldReport = async (req, res) => {
     if (!karyawan)
       return res.status(404).json({ error: "Karyawan tidak ditemukan." });
 
-    // Cek apakah karyawan terkait dengan SPK ini (via SPKDetail)
+    // Cek akses
     const hasAccess = await prisma.sPKDetail.findFirst({
       where: {
         spkId,
@@ -46,24 +62,23 @@ export const createSpkFieldReport = async (req, res) => {
         .json({ error: "Anda tidak berwenang membuat laporan untuk SPK ini." });
     }
 
-    // Simpan laporan utama
+    // ✅ Simpan laporan
     const report = await prisma.sPKFieldReport.create({
       data: {
         spkId,
         karyawanId,
         type,
+        progress,
         note: note || null,
         status: "PENDING",
-        soDetailId,
+        soDetailId: soDetailId || null,
       },
     });
 
-    // Jika ada file foto
+    // Handle upload foto
     if (req.files && Array.isArray(req.files) && req.files.length > 0) {
-
       const photoPromises = req.files.map((photo) => {
         const imageUrl = `/images/spk/${photo.filename}`;
-
         return prisma.sPKFieldReportPhoto.create({
           data: {
             reportId: report.id,
@@ -74,15 +89,111 @@ export const createSpkFieldReport = async (req, res) => {
         });
       });
 
-      const createdPhotos = await Promise.all(photoPromises);
+      await Promise.all(photoPromises);
     }
 
-    // Ambil report dengan relasi foto dan karyawan
+    // ✅ HITUNG ULANG PROGRESS SPK - APPROACH BARU
+    const totalItems = await prisma.salesOrderItem.count({
+      where: {
+        salesOrderId: (
+          await prisma.sPK.findUnique({
+            where: { id: spkId },
+            select: { salesOrderId: true },
+          })
+        )?.salesOrderId,
+      },
+    });
+
+    console.log("Total item:", totalItems);
+
+    const reportsWithSoDetail = await prisma.sPKFieldReport.findMany({
+      where: {
+        spkId,
+        soDetailId: { not: null }, // Hanya ambil yang punya soDetailId
+      },
+      orderBy: { reportedAt: "desc" },
+      select: {
+        id: true,
+        soDetailId: true,
+        progress: true,
+        reportedAt: true,
+      },
+    });
+
+    console.log(
+      `[DEBUG] Reports with soDetailId found: ${reportsWithSoDetail.length}`
+    );
+
+    // Kelompokkan progress terbaru per soDetailId
+    const latestProgressMap = new Map();
+
+    for (const report of reportsWithSoDetail) {
+      if (!latestProgressMap.has(report.soDetailId)) {
+        latestProgressMap.set(report.soDetailId, report.progress);
+        console.log(
+          `[DEBUG] Mapped soDetailId ${report.soDetailId} -> progress ${report.progress}`
+        );
+      }
+    }
+
+    // Hitung rata-rata progress
+    let totalProgress = 0;
+    let count = totalItems;
+
+    for (const [soDetailId, progressValue] of latestProgressMap) {
+      totalProgress += progressValue;
+      // count++;
+      console.log(
+        `[DEBUG] SO Detail ${soDetailId}: progress = ${progressValue}`
+      );
+    }
+
+    console.log(`[DEBUG] Total progress: ${totalProgress}, Count: ${count}`);
+    const averageProgress = count > 0 ? Math.round(totalProgress / count) : 0;
+
+    // ✅ Update SPK - Pastikan tipe data match
+    // Cek tipe data field progress di model SPK
+    const spkData = await prisma.sPK.findUnique({
+      where: { id: spkId },
+      select: { progress: true },
+    });
+
+    console.log(
+      `[DEBUG] Current SPK progress type: ${typeof spkData?.progress}`
+    );
+
+    // Update progress SPK
+    await prisma.sPK.update({
+      where: { id: spkId },
+      data: {
+        progress: averageProgress,
+        // Jika error karena tipe Decimal, gunakan:
+        // progress: new Prisma.Decimal(averageProgress)
+      },
+    });
+
+    console.log(
+      `[SPK ${spkId}] Updated progress: ${averageProgress}% (from ${count} items)`
+    );
+
+    // Ambil report lengkap dengan relasi
     const populatedReport = await prisma.sPKFieldReport.findUnique({
       where: { id: report.id },
       include: {
-        karyawan: true,
+        karyawan: {
+          select: {
+            id: true,
+            namaLengkap: true,
+            jabatan: true,
+          },
+        },
         photos: true,
+        soDetail: {
+          select: {
+            id: true,
+            product: true,
+          },
+        },
       },
     });
 
@@ -90,6 +201,11 @@ export const createSpkFieldReport = async (req, res) => {
       success: true,
       message: "Laporan berhasil dibuat",
       data: populatedReport,
+      progressUpdate: {
+        averageProgress,
+        itemsCount: count,
+        totalProgress,
+      },
     });
   } catch (error) {
     console.error("Error creating SPK field report:", error);
@@ -284,17 +400,13 @@ export const deleteReport = async (req, res) => {
  */
 export const getSPKFieldReports = async (req, res) => {
   try {
-    const {
-      date,
-      status,
-      spkId,
-      karyawanId,
-    } = req.query;
+    const { date, status, spkId, karyawanId } = req.query;
 
     // Validasi input
-    if (status && !['PENDING', 'APPROVED', 'REJECTED'].includes(status)) {
+    if (status && !["PENDING", "APPROVED", "REJECTED"].includes(status)) {
       return res.status(400).json({
-        error: 'Parameter status harus salah satu: PENDING, APPROVED, atau REJECTED',
+        error:
+          "Parameter status harus salah satu: PENDING, APPROVED, atau REJECTED",
       });
     }
 
@@ -302,22 +414,22 @@ export const getSPKFieldReports = async (req, res) => {
     const where = {};
 
     // Filter tanggal
-    if (date === 'today') {
+    if (date === "today") {
       const startOfDay = new Date();
       startOfDay.setHours(0, 0, 0, 0);
       where.reportedAt = { gte: startOfDay };
-    } else if (date === 'thisWeek') {
+    } else if (date === "thisWeek") {
       const startOfWeek = new Date();
       startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
       where.reportedAt = { gte: startOfWeek };
-    } else if (date === 'thisMonth') {
+    } else if (date === "thisMonth") {
       const startOfMonth = new Date();
       startOfMonth.setDate(1);
       where.reportedAt = { gte: startOfMonth };
     }
 
     // Filter status
-    if (status && status !== 'all') {
+    if (status && status !== "all") {
       where.status = status;
     }
 
@@ -357,22 +469,22 @@ export const getSPKFieldReports = async (req, res) => {
         },
       },
       orderBy: {
-        reportedAt: 'desc',
+        reportedAt: "desc",
       },
     });
 
     // Mapping ke format frontend: ReportHistory[]
-    const formatted = reports.map(report => ({
+    const formatted = reports.map((report) => ({
       id: report.id,
       spkNumber: report.spk.spkNumber,
       clientName: report.spk.clientName,
       projectName: report.spk.projectName,
       type: report.type,
       note: report.note,
-      photos: report.photos.map(photo => photo.imageUrl),
+      photos: report.photos.map((photo) => photo.imageUrl),
       reportedAt: report.reportedAt,
       soDetailId: report.soDetailId,
-      itemName: report.soDetail?.name || 'Item tidak dikenal',
+      itemName: report.soDetail?.name || "Item tidak dikenal",
       karyawanName: report.karyawan.namaLengkap,
       progress: report.progress || 0,
       status: report.status, // PENDING, APPROVED, REJECTED
@@ -380,9 +492,9 @@ export const getSPKFieldReports = async (req, res) => {
 
     res.json(formatted);
   } catch (error) {
-    console.error('[getSPKFieldReports]', error);
+    console.error("[getSPKFieldReports]", error);
     res.status(500).json({
-      error: 'Gagal mengambil laporan',
+      error: "Gagal mengambil laporan",
       details: error instanceof Error ? error.message : String(error),
     });
   }

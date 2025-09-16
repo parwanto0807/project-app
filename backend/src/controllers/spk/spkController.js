@@ -158,6 +158,12 @@ export const getAllSPK = async (req, res) => {
                 branch: true,
               },
             },
+            project: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
             items: true, // ✅ ambil semua items dari SalesOrder
           },
         },

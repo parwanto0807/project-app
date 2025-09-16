@@ -64,6 +64,7 @@ export const createReportFormData = ({
   spkId,
   karyawanId,
   type,
+  progress,
   note,
   photos,
   soDetailId,
@@ -71,6 +72,7 @@ export const createReportFormData = ({
   spkId: string;
   karyawanId: string | "";
   type: "PROGRESS" | "FINAL";
+  progress: number;
   note?: string;
   photos?: File[];
   soDetailId?: string; // 👈 boleh null/undefined
@@ -81,6 +83,7 @@ export const createReportFormData = ({
     spkId,
     karyawanId,
     type,
+    progress,
     note,
     photos,
     soDetailId,
@@ -94,6 +97,7 @@ export const createReportFormData = ({
 
   // ✅ Wajib: type
   formData.append("type", type);
+  formData.append("progress", String(progress));
 
   // ✅ Opsional: note — hanya jika ada dan bukan kosong
   if (note && note.trim() !== "") {

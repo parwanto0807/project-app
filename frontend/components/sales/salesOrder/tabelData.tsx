@@ -692,14 +692,14 @@ function MobileSalesOrderCard({ order, onExpand, onDeleteSuccess }: { order: Sal
 
     return (
         <>
-            <div className="border rounded-lg p-4 mb-1 bg-white dark:bg-slate-800 shadow-sm">
+            <div className="border rounded-lg p-2 mb-1 bg-white dark:bg-slate-800 shadow-sm">
                 <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/50">
-                            <FileTextIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        <div className="flex items-center justify-center h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/50">
+                            <FileTextIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                         </div>
                         <div>
-                            <p className="font-semibold text-base">{order.soNumber}</p>
+                            <p className="font-semibold text-xs">{order.soNumber}</p>
                             <p className="text-xs text-muted-foreground">
                                 {format(new Date(order.soDate), "dd MMM yyyy")}
                             </p>
@@ -717,11 +717,11 @@ function MobileSalesOrderCard({ order, onExpand, onDeleteSuccess }: { order: Sal
                 <div className="space-y-2 mb-3">
                     <div className="flex items-center gap-2">
                         <FaToolbox className="h-4 w-4 text-red-500" />
-                        <span className="text-sm font-medium">{order.project?.name || "No Project"}</span>
+                        <span className="text-xs font-medium">{order.project?.name || "No Project"}</span>
                     </div>
                     <div className="flex items-center gap-2">
                         <UserCheck2Icon className="h-4 w-4 text-purple-500" />
-                        <span className="text-sm">{order.customer.name} </span>
+                        <span className="text-xs">{order.customer.name} </span>
                     </div>
                 </div>
 
@@ -1157,46 +1157,47 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
         return (
             <>
                 <Card className="border-none shadow-lg">
-                    <CardHeader className="bg-gradient-to-r from-primary/5 to-blue-100 dark:from-slate-800 dark:to-slate-900">
-                        <div className="flex flex-col space-y-4">
+                    <CardHeader className="flex flex-col gap-1 bg-gradient-to-r from-blue-600 to-purple-600 p-4 rounded-lg text-white shadow-lg transform transition-all duration-300 hover:shadow-xl">
+                        <div className="flex flex-col space-y-1">
                             <div className="flex items-center space-x-3">
                                 <div className="flex items-center justify-center h-12 w-12 rounded-full bg-primary">
                                     <ShoppingCartIcon className="h-6 w-6 text-primary-foreground" />
                                 </div>
                                 <div>
                                     <CardTitle className="text-xl">Sales Orders </CardTitle>
-                                    <p className="text-sm text-muted-foreground">
+                                    <p className="text-sm text-white dark:text-muted-foreground">
                                         Manage sales orders
                                     </p>
                                 </div>
                             </div>
-                            <div className="flex flex-col space-y-2">
-                                <div className="relative">
-                                    <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
-                                    <Input
-                                        placeholder="Search orders..."
-                                        className="w-full pl-9"
-                                        value={searchTerm}
-                                        onChange={(e) => {
-                                            setSearchTerm(e.target.value)
-                                            setCurrentPage(1)
-                                        }}
-                                    />
-                                </div>
-                                <Link href={`${basePath}/create`} passHref>
-                                    <Button className="bg-primary hover:bg-primary/90 w-full">
-                                        <PlusCircleIcon className="mr-2 h-4 w-4" />
-                                        New Order
-                                    </Button>
-                                </Link>
-                            </div>
                         </div>
+
                     </CardHeader>
+                    <div className="flex flex-col space-y-2">
+                        <div className="relative">
+                            <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
+                            <Input
+                                placeholder="Search orders..."
+                                className="w-full pl-9"
+                                value={searchTerm}
+                                onChange={(e) => {
+                                    setSearchTerm(e.target.value)
+                                    setCurrentPage(1)
+                                }}
+                            />
+                        </div>
+                        <Link href={`${basePath}/create`} passHref>
+                            <Button className="bg-primary hover:bg-primary/90 w-full">
+                                <PlusCircleIcon className="mr-2 h-4 w-4" />
+                                New Order
+                            </Button>
+                        </Link>
+                    </div>
                     <CardContent className="p-2">
                         {isLoading ? (
                             <div className="space-y-4">
                                 {[...Array(5)].map((_, i) => (
-                                    <div key={i} className="border rounded-lg p-4 bg-white">
+                                    <div key={i} className="border rounded-lg p-2 bg-white">
                                         <div className="flex items-center justify-between mb-3">
                                             <div className="flex items-center gap-3">
                                                 <Skeleton className="h-10 w-10 rounded-full" />
@@ -1253,7 +1254,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                                                                 </div>
                                                             </div>
                                                         ))}
-                                                        <div className="flex justify-between mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 font-bold">
+                                                        <div className="flex justify-between mt-1 pt-1 border-t border-gray-200 dark:border-gray-700 font-bold">
                                                             <span>Total Amount:</span>
                                                             <span>
                                                                 Rp {order.items.reduce((sum, item) => sum + (item.qty * item.unitPrice), 0).toLocaleString('id-ID')}
@@ -1268,7 +1269,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
 
 
                                 {totalPages > 1 && (
-                                    <div className="flex items-center justify-between pt-4 border-t mt-4">
+                                    <div className="flex items-center justify-between pt-1 border-t mt-1">
                                         <p className="text-xs text-muted-foreground">
                                             Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredSalesOrders.length)} of {filteredSalesOrders.length} orders
                                         </p>
@@ -1336,7 +1337,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
 
     return (
         <Card className="border-none shadow-lg">
-            <CardHeader className="bg-gradient-to-r from-primary/5 to-blue-100 dark:from-slate-800 dark:to-slate-900">
+            <CardHeader className="bg-gradient-to-r from-primary/5 to-blue-100 dark:from-slate-900 dark:to-slate-950">
                 <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
                     <div className="flex items-center space-x-3">
                         <div className="flex items-center justify-center h-12 w-12 rounded-full bg-primary">

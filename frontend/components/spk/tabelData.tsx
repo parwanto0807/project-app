@@ -55,6 +55,8 @@ import SPKPdfPreview from "./spkPdfPreview";
 import { pdf } from "@react-pdf/renderer";
 import { mapFormValuesToPdfProps, SpkPdfValues } from "@/lib/validations/spk-mapper";
 import { SpkFormValuesPdfProps } from "@/types/spk";
+import { Progress } from "../ui/progress";
+import { cn } from "@/lib/utils";
 
 
 type SPK = {
@@ -64,7 +66,7 @@ type SPK = {
     salesOrderId: string;
     teamId: string;
     createdById: string;
-
+    progress: number;
     createdBy: {
         id: string;
         namaLengkap: string;
@@ -625,6 +627,7 @@ export default function TabelDataSpk({
                             <TableHead>Sales Order</TableHead>
                             <TableHead>Tim / Karyawan</TableHead>
                             <TableHead>Pembuat</TableHead>
+                            <TableHead>Progress</TableHead>
                             <TableHead>Notes</TableHead>
                             <TableHead className="w-48">Aksi</TableHead>
                         </TableRow>
@@ -638,6 +641,7 @@ export default function TabelDataSpk({
                                     <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                                     <TableCell><Skeleton className="h-5 w-28" /></TableCell>
                                     <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                                    <TableCell><Skeleton className="h-5 w-28" /></TableCell>
                                     <TableCell><Skeleton className="h-5 w-28" /></TableCell>
                                     <TableCell><Skeleton className="h-5 w-28" /></TableCell>
                                     <TableCell className="flex gap-2">
@@ -713,9 +717,29 @@ export default function TabelDataSpk({
                                                 ) : (
                                                     <span className="text-muted-foreground">-</span>
                                                 )}
-                                            </TableCell>
+                                            </TableCell >
                                             <TableCell className="font-medium">
                                                 {spk.createdBy?.namaLengkap || <span className="text-muted-foreground">-</span>}
+                                            </TableCell >
+                                            <TableCell>
+                                                <div className="flex items-center gap-2">
+                                                    <Progress
+                                                        value={spk.progress}
+                                                        className={cn(
+                                                            "h-2 w-full transition-colors duration-300",
+                                                            spk.progress >= 80
+                                                                ? "bg-emerald-100 [&>div]:bg-emerald-500"
+                                                                : spk.progress >= 50
+                                                                    ? "bg-sky-100 [&>div]:bg-sky-500"
+                                                                    : spk.progress >= 20
+                                                                        ? "bg-amber-100 [&>div]:bg-amber-500"
+                                                                        : "bg-rose-100 [&>div]:bg-rose-500"
+                                                        )}
+                                                    />
+                                                    <span className="text-xs text-muted-foreground min-w-[3ch] text-right">
+                                                        {spk.progress}%
+                                                    </span>
+                                                </div>
                                             </TableCell>
                                             <TableCell>
                                                 {spk.notes ? (
