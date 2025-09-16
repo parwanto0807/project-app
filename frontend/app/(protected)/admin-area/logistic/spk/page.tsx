@@ -28,7 +28,7 @@ interface SPK {
   salesOrderId: string;
   teamId: string;
   createdById: string;
-
+  progress: number;
   createdBy: {
     id: string;
     namaLengkap: string;
