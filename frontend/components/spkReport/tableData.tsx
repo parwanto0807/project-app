@@ -747,7 +747,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                                   <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Progress</span>
                                   <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{progress}%</span>
                                 </div>
-                                <div className="h-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                <div className="h-2 w-1/2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                                   <div
                                     className={`h-full rounded-full transition-all duration-500 ${statusColor}`}
                                     style={{ width: `${progress}%` }}
