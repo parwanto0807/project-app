@@ -978,12 +978,12 @@ export default function TabelDataSpk({
                     <div className="hidden sm:flex flex-col space-y-2 sm:flex-row sm:space-x-2 sm:space-y-0">
                         {/* Search */}
                         <div className="relative">
-                            <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
+                            <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-white" />
                             <Input
                                 placeholder="Cari SPK..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-9"
+                                className="w-full pl-9 text-white"
                             />
                         </div>
 

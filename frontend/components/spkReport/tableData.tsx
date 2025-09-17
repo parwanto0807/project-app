@@ -218,8 +218,8 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
 
   // console.log("Data SPK", dataSpk);
   // console.log("Data SO Item", selectedSpk);
-  console.log("User SPK", userSpk);
-  // console.log("Report", reports);
+  // console.log("User SPK", userSpk);
+  console.log("Report", reports);
   // console.log("Total Progress", summaryProgress);
 
   const totalPages = Math.ceil(reports.length / itemsPerPage);
@@ -1112,9 +1112,9 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                           {/* Table Header — tetap sticky */}
                           <TableHeader className="bg-gradient-to-r from-purple-50 to-white dark:from-purple-900/30 dark:to-gray-800 sticky top-0 z-10">
                             <TableRow className="[&>th]:py-2 [&>th]:px-2 [&>th]:text-xs [&>th]:font-semibold">
-                              <TableHead className="w-[120px] sticky left-0 bg-gradient-to-r from-purple-50 to-white dark:from-purple-900/30 dark:to-gray-800 z-10">Status</TableHead>
-                              <TableHead className="min-w-[140px]">SPK & Item</TableHead>
                               <TableHead className="min-w-[140px]">Klien & Proyek</TableHead>
+                              <TableHead className="min-w-[140px]">SPK & Item</TableHead>
+                              <TableHead className="w-[120px] sticky left-0 bg-gradient-to-r from-purple-50 to-white dark:from-purple-900/30 dark:to-gray-800 z-10">Status</TableHead>
                               <TableHead className="min-w-[120px]">Catatan</TableHead>
                               <TableHead className="w-[80px]">Foto</TableHead>
                               <TableHead className="w-[100px]">Tanggal</TableHead>
@@ -1137,42 +1137,15 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                                 className="hover:bg-muted/30 transition-colors cursor-pointer [&>td]:py-2 [&>td]:px-2"
                                 onClick={() => setSelectedReport(report)}
                               >
-                                {/* Status */}
-                                <TableCell className="sticky left-0 bg-card z-10">
-                                  <div className="flex flex-col gap-1">
-                                    {report.type === 'PROGRESS' ? (
-                                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></div>
-                                        <span className="text-xs">Progress</span>
-                                      </div>
-                                    ) : report.type === 'FINAL' ? (
-                                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                                        <CheckCircle className="w-3 h-3" />
-                                        <span className="text-xs">Selesai</span>
-                                      </div>
-                                    ) : (
-                                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
-                                        <Clock className="w-3 h-3" />
-                                        <span className="text-xs">Menunggu</span>
-                                      </div>
-                                    )}
-
-                                    {report.status === 'PENDING' ? (
-                                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></div>
-                                        <span className="text-xs">Menunggu</span>
-                                      </div>
-                                    ) : report.status === 'APPROVED' ? (
-                                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                                        <CheckCircle className="w-3 h-3" />
-                                        <span className="text-xs">Disetujui</span>
-                                      </div>
-                                    ) : (
-                                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
-                                        <X className="w-3 h-3" />
-                                        <span className="text-xs">Ditolak</span>
-                                      </div>
-                                    )}
+                                {/* Klien & Proyek */}
+                                <TableCell>
+                                  <div className="space-y-0.5">
+                                    <div className="text-xs font-medium text-foreground line-clamp-1">
+                                      {userSpk.find((i) => i.spkNumber === report.spkNumber)?.clientName ?? "-"}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground line-clamp-1">
+                                      {userSpk.find((i) => i.spkNumber === report.spkNumber)?.projectName ?? "-"}
+                                    </div>
                                   </div>
                                 </TableCell>
 
@@ -1184,11 +1157,42 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                                   </div>
                                 </TableCell>
 
-                                {/* Klien & Proyek */}
-                                <TableCell>
-                                  <div className="space-y-0.5">
-                                    <div className="text-xs font-medium text-foreground line-clamp-1">{report.clientName}</div>
-                                    <div className="text-xs text-muted-foreground line-clamp-1">{report.projectName}</div>
+                                {/* Status */}
+                                <TableCell className="sticky left-0 bg-card z-10">
+                                  <div className="flex flex-col gap-1">
+                                    {report.type === 'PROGRESS' ? (
+                                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></div>
+                                        <span className="text-xs">Progress - {report.progress}%</span>
+                                      </div>
+                                    ) : report.type === 'FINAL' ? (
+                                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                                        <CheckCircle className="w-3 h-3" />
+                                        <span className="text-xs">Selesai - {report.progress}% </span>
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                                        <Clock className="w-3 h-3" />
+                                        <span className="text-xs">Menunggu</span>
+                                      </div>
+                                    )}
+
+                                    {report.status === 'PENDING' ? (
+                                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></div>
+                                        <span className="text-xs">Menunggu ⏳</span>
+                                      </div>
+                                    ) : report.status === 'APPROVED' ? (
+                                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                                        <CheckCircle className="w-3 h-3" />
+                                        <span className="text-xs">Disetujui ✅</span>
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
+                                        <X className="w-3 h-3" />
+                                        <span className="text-xs">Ditolak ❌</span>
+                                      </div>
+                                    )}
                                   </div>
                                 </TableCell>
 
