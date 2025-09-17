@@ -743,7 +743,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                               </div>
 
                               <div className="mb-4">
-                                <div className="flex justify-between items-center mb-2">
+                                <div className="flex items-center mb-2 gap-4">
                                   <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Progress</span>
                                   <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{progress}%</span>
                                 </div>
