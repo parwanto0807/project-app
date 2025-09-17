@@ -195,7 +195,7 @@ export default function SpkPageAdmin() {
         </Breadcrumb>
 
         <div className="h-full w-full">
-          <div className="flex-1 space-y-4 p-4 pt-6 md:p-4">
+          <div className="flex-1 space-y-2 p-1 pt-4 md:p-2">
             <TabelDataSpk
               dataSpk={dataSpk}
               isLoading={isLoading}

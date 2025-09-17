@@ -25,7 +25,6 @@ import {
     PaginationItem,
 } from "@/components/ui/pagination";
 import {
-    Search,
     Plus,
     ChevronDown,
     ChevronUp,
@@ -41,7 +40,8 @@ import {
     Trash2,
     MoreHorizontal,
     Eye,
-    Download
+    Download,
+    SearchIcon
 } from "lucide-react";
 import React, { useState, useMemo, Fragment } from "react";
 import Link from "next/link";
@@ -211,7 +211,6 @@ export default function TabelDataSpk({
     dataSpk = [],
     role,
     isLoading,
-    className = "",
     onDeleteSpk,
 }: TabelDataSpkProps) {
     const [searchTerm, setSearchTerm] = useState("");
@@ -414,14 +413,18 @@ export default function TabelDataSpk({
 
                 return (
                     <Card key={`spk-card-${spk.id}`} className="overflow-hidden">
-                        <CardContent className="p-4">
+                        <CardContent className="px-2">
                             <div className="flex justify-between items-start mb-3">
                                 <div>
-                                    <Badge variant="outline" className="font-medium">
-                                        #{(currentPage - 1) * itemsPerPage + idx + 1}
-                                    </Badge>
-                                    <h3 className="font-semibold mt-1">{spk.spkNumber}</h3>
-                                    <p className="text-sm text-muted-foreground">
+                                    <div className="flex gap-2 mb-2">
+                                        <Badge variant="outline" className="font-medium">
+                                            #{(currentPage - 1) * itemsPerPage + idx + 1}
+                                        </Badge>
+                                        <div className="flex">
+                                            <h3 className="font-semibold text-xs text-blue-700 md:text-lg mt-1">{spk.spkNumber}</h3>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs mt-1 md:text-sm text-muted-foreground">
                                         {new Date(spk.spkDate).toLocaleDateString("id-ID", {
                                             day: "2-digit",
                                             month: "short",
@@ -463,11 +466,11 @@ export default function TabelDataSpk({
                                 </div>
                             </div>
                             <div className="space-y-2 text-sm">
-                                <div className="flex items-center">
+                                <div className="flex items-center text-xs md:text-sm">
                                     <FileText className="h-4 w-4 mr-2 text-primary" />
-                                    <span>{spk.salesOrder?.soNumber || "-"}</span>
+                                    <span>SO Number : {spk.salesOrder?.soNumber || "-"}</span>
                                 </div>
-                                <div className="flex items-center">
+                                <div className="flex items-center gap-2">
                                     {spk.team ? (
                                         <>
                                             <Users className="h-4 w-4 mr-2 text-blue-600" />
@@ -498,11 +501,34 @@ export default function TabelDataSpk({
                                     ) : (
                                         <span className="text-muted-foreground">-</span>
                                     )}
+                                    <div className="flex items-center">
+                                        <User className="h-4 w-4 mr-2 text-muted-foreground" />
+                                        <span>{spk.createdBy?.namaLengkap || "-"}</span>
+                                    </div>
                                 </div>
-                                <div className="flex items-center">
-                                    <User className="h-4 w-4 mr-2 text-muted-foreground" />
-                                    <span>{spk.createdBy?.namaLengkap || "-"}</span>
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                                    <span className="text-xs md:text-sm font-medium whitespace-nowrap">Progress:</span>
+                                    <div className="flex w-1/2 items-center gap-2">
+                                        <Progress
+                                            value={spk.progress}
+                                            className={cn(
+                                                "h-2 w-full transition-colors duration-300",
+                                                spk.progress >= 80
+                                                    ? "bg-emerald-100 [&>div]:bg-emerald-500"
+                                                    : spk.progress >= 50
+                                                        ? "bg-sky-100 [&>div]:bg-sky-500"
+                                                        : spk.progress >= 20
+                                                            ? "bg-amber-100 [&>div]:bg-amber-500"
+                                                            : "bg-rose-100 [&>div]:bg-rose-500"
+                                            )}
+                                        />
+                                        <span className="text-xs text-muted-foreground min-w-[3ch] text-right">
+                                            {spk.progress || 0 }%
+                                        </span>
+                                    </div>
+
                                 </div>
+
                                 {spk.notes && (
                                     <div className="flex items-start text-wrap">
                                         <MessageSquare className="h-4 w-4 mr-2 text-amber-600 mt-0.5" />
@@ -534,8 +560,8 @@ export default function TabelDataSpk({
                         </CardContent>
                         {/* Expanded Detail */}
                         {expandedRows.has(spk.id) && (
-                            <div className="bg-muted/30 p-4 border-t">
-                                <h4 className="font-semibold mb-3 text-lg flex items-center">
+                            <div className="bg-muted/30 p-4 border-t text-xs">
+                                <h4 className="font-semibold mb-3 text-sm flex items-center">
                                     <PackageOpen className="h-5 w-5 mr-2 text-primary" />
                                     Detail SPK: {spk.spkNumber}
                                 </h4>
@@ -627,7 +653,7 @@ export default function TabelDataSpk({
                             <TableHead>Sales Order</TableHead>
                             <TableHead>Tim / Karyawan</TableHead>
                             <TableHead>Pembuat</TableHead>
-                            <TableHead>Progress</TableHead>
+                            <TableHead className="w-1/12">Progress</TableHead>
                             <TableHead>Notes</TableHead>
                             <TableHead className="w-48">Aksi</TableHead>
                         </TableRow>
@@ -901,7 +927,7 @@ export default function TabelDataSpk({
                                                         )}
                                                         {spk.notes && (
                                                             <div className="mt-4">
-                                                                <h5 className="font-medium mb-2 flex items-center">
+                                                                <h5 className="font-medium mb-2 flex items-center text-wrap">
                                                                     <MessageSquare className="h-5 w-5 mr-2 text-amber-600" />
                                                                     Catatan:
                                                                 </h5>
@@ -933,79 +959,114 @@ export default function TabelDataSpk({
     );
 
     return (
-        <Card className={`w-full ${className}`}>
-            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-gradient-to-r from-primary/5 to-blue-100 dark:from-slate-800 dark:to-slate-900 gap-4">
-                <CardTitle className="flex items-center space-x-3">
-                    <div className="flex items-center justify-center h-12 w-12 rounded-full bg-primary">
-                        <PackageOpen className="h-6 w-6 text-primary-foreground" />
+        <Card className="border-none shadow-lg">
+            {/* Header */}
+            <CardHeader className="bg-gradient-to-r from-cyan-600 to-purple-600 p-4 rounded-lg text-white">
+                <div className="flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0">
+                    <div className="flex items-center space-x-3">
+                        <div className="flex items-center justify-center h-12 w-12 rounded-full bg-primary">
+                            <PackageOpen className="h-6 w-6 text-primary-foreground" />
+                        </div>
+
+                        <div>
+                            <CardTitle className="text-xl font-semibold">Surat Perintah Kerja</CardTitle>
+                            <p className="text-sm text-white dark:text-muted-foreground">Manage SPK logistic ke produksi</p>
+                        </div>
                     </div>
-                    <div className="flex flex-col p-2">
-                        <span className="text-xl">Surat Perintah Kerja</span>
-                        <span className="text-sm text-muted-foreground font-normal">
-                            Manage surat perintah kerja logistic ke produksi
-                        </span>
+
+                    {/* Toolbar: Search + Filter + Button */}
+                    <div className="hidden sm:flex flex-col space-y-2 sm:flex-row sm:space-x-2 sm:space-y-0">
+                        {/* Search */}
+                        <div className="relative">
+                            <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
+                            <Input
+                                placeholder="Cari SPK..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-9"
+                            />
+                        </div>
+
+                        {/* Filter */}
+                        <Select value={filterBy} onValueChange={setFilterBy}>
+                            <SelectTrigger className="w-full sm:w-[180px]">
+                                <SelectValue placeholder="Filter" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Semua</SelectItem>
+                                <SelectItem value="with-team">Dengan Tim</SelectItem>
+                                <SelectItem value="without-team">Tanpa Tim</SelectItem>
+                            </SelectContent>
+                        </Select>
+
+                        {/* Tambah Button */}
+                        <Link href="/admin-area/logistic/spk/create" className="w-full sm:w-auto">
+                            <Button
+                                className="w-full sm:w-auto bg-gradient-to-r from-cyan-400 to-teal-500 hover:from-cyan-500 hover:to-teal-600 text-white font-medium shadow-md hover:shadow-lg transition-all duration-300 flex items-center gap-2 justify-center"
+                                aria-label="Tambah SPK Baru"
+                            >
+                                <Plus size={18} />
+                                <span className="hidden sm:inline">Tambah SPK</span>
+                                <span className="sm:hidden">Tambah</span>
+                            </Button>
+                        </Link>
                     </div>
-                </CardTitle>
-                <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                    <div className="relative flex-1 sm:w-64">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Cari SPK..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-10"
-                        />
-                    </div>
-                    <Select value={filterBy} onValueChange={setFilterBy}>
-                        <SelectTrigger className="w-full sm:w-[180px]">
-                            <SelectValue placeholder="Filter" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Semua</SelectItem>
-                            <SelectItem value="with-team">Dengan Tim</SelectItem>
-                            <SelectItem value="without-team">Tanpa Tim</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <Link href="/admin-area/logistic/spk/create">
-                        <Button
-                            className="bg-gradient-to-r from-cyan-400 to-teal-500 text-white font-semibold py-2 px-4 md:px-6 rounded-lg shadow-md transition-all duration-300 transform hover:scale-105 hover:shadow-lg flex items-center gap-2 w-full justify-center md:justify-start
-                   dark:from-cyan-500 dark:to-teal-600 dark:text-gray-100"
-                            aria-label="Tambah SPK Baru"
-                        >
-                            <Plus size={18} className="transition-transform duration-300 group-hover:rotate-90" />
-                            <span className="hidden sm:inline">Tambah SPK</span>
-                            <span className="sm:hidden">Tambah</span>
-                        </Button>
-                    </Link>
                 </div>
             </CardHeader>
-            <CardContent>
+
+            {/* Toolbar Mobile — hanya muncul di mobile */}
+            <div className="sm:hidden pt-0 px-1 space-y-2 border-b border-border bg-white dark:bg-gray-800">
+                {/* Search */}
+                <div className="relative">
+                    <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
+                    <Input
+                        placeholder="Cari SPK..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-9"
+                    />
+                </div>
+
+                {/* Tambah Button */}
+                <Link href="/admin-area/logistic/spk/create" className="w-full">
+                    <Button
+                        variant="default"
+                        className="w-full bg-black text-white hover:bg-gray-800 px-4 py-3 flex items-center justify-center gap-2"
+                    >
+                        <Plus size={18} />
+                        Tambah SPK
+                    </Button>
+                </Link>
+            </div>
+
+            {/* Konten Utama */}
+            <CardContent className="p-0 pt-2">
                 {isLoading ? (
-                    <div className="space-y-4">
+                    <div className="p-4 space-y-4">
                         {Array.from({ length: 3 }).map((_, i) => (
-                            <Skeleton key={i} className="h-24 w-full" />
+                            <Skeleton key={i} className="h-24 w-full rounded" />
                         ))}
                     </div>
                 ) : (
                     <>
                         {isMobile ? renderMobileView() : renderDesktopView()}
+
                         {/* Pagination */}
                         {filteredData.length > 0 && (
-                            <div className="flex flex-col sm:flex-row justify-between items-center mt-6 gap-4">
+                            <div className="p-4 flex flex-col sm:flex-row justify-between items-center gap-4 border-t border-border">
                                 <p className="text-sm text-muted-foreground">
-                                    Menampilkan {(currentPage - 1) * itemsPerPage + 1} -{" "}
-                                    {Math.min(currentPage * itemsPerPage, filteredData.length)} dari{" "}
-                                    {filteredData.length} data
+                                    Menampilkan {(currentPage - 1) * itemsPerPage + 1}–
+                                    {Math.min(currentPage * itemsPerPage, filteredData.length)} dari {filteredData.length}
                                 </p>
                                 <Pagination>
                                     <PaginationContent>
                                         <PaginationItem>
                                             <Button
                                                 variant="outline"
-                                                size="sm"
+                                                size="icon"
                                                 onClick={() => handlePageChange(currentPage - 1)}
                                                 disabled={currentPage === 1}
-                                                className="h-8 w-8 p-0"
+                                                className="h-8 w-8"
                                             >
                                                 <ChevronLeft className="h-4 w-4" />
                                             </Button>
@@ -1014,9 +1075,9 @@ export default function TabelDataSpk({
                                             <PaginationItem key={page}>
                                                 <Button
                                                     variant={currentPage === page ? "default" : "outline"}
-                                                    size="sm"
+                                                    size="icon"
                                                     onClick={() => handlePageChange(page)}
-                                                    className="h-8 w-8 p-0"
+                                                    className="h-8 w-8"
                                                 >
                                                     {page}
                                                 </Button>
@@ -1025,10 +1086,10 @@ export default function TabelDataSpk({
                                         <PaginationItem>
                                             <Button
                                                 variant="outline"
-                                                size="sm"
+                                                size="icon"
                                                 onClick={() => handlePageChange(currentPage + 1)}
                                                 disabled={currentPage === totalPages}
-                                                className="h-8 w-8 p-0"
+                                                className="h-8 w-8"
                                             >
                                                 <ChevronRight className="h-4 w-4" />
                                             </Button>
@@ -1040,6 +1101,8 @@ export default function TabelDataSpk({
                     </>
                 )}
             </CardContent>
+
+            {/* PDF Preview Modal */}
             {pdfActions.selectedSpk && (
                 <SPKPdfPreview
                     open={pdfActions.pdfDialogOpen}

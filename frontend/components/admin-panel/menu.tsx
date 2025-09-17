@@ -209,7 +209,7 @@ export function Menu({ isOpen, role, theme = 'dark' }: MenuProps) {
   };
 
   return (
-    <ScrollArea className="h-[calc(100vh-80px)] overflow-y-auto">
+    <ScrollArea className="h-[calc(95vh-80px)] overflow-y-auto">
       <nav className={cn(
         "mt-1 h-full w-full rounded-xl",
         theme === 'dark' ? "bg-gray-900" : "bg-white"

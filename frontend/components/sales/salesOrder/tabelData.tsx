@@ -1171,7 +1171,6 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                                 </div>
                             </div>
                         </div>
-
                     </CardHeader>
                     <div className="flex flex-col space-y-2">
                         <div className="relative">

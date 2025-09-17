@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Camera, Upload, CheckCircle, Clock, X, Archive, Sparkles, TrendingUp, FileText, Eye, Loader2, Download, ZoomIn, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Camera, Upload, CheckCircle, Clock, X, Archive, Sparkles, TrendingUp, FileText, Eye, Loader2, Download, ZoomIn, ChevronRight, ChevronLeft, User, Calendar, Users2Icon } from 'lucide-react';
 import Image from 'next/image';
 import { createReportFormData, createSpkFieldReport, fetchSPKReports } from '@/lib/action/master/spk/spkReport';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog';
@@ -122,6 +122,7 @@ interface SPKData {
   progress: number;
   deadline: string;
   assignedTo: string;
+  teamName: string;
   items: {
     id: string;
     name: string;
@@ -256,6 +257,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
       const totalDetails = item.details?.length || 0;
       const completedDetails = item.details?.filter(d => d.status === 'DONE').length || 0;
       const progress = totalDetails > 0 ? Math.round((completedDetails / totalDetails) * 100) : 0;
+      const teamName = item.team?.namaTeam || 'Team belum ditentukan'
 
       // 5. Tentukan status SPK berdasarkan progress — SESUAI DENGAN INTERFACE SPKData
       let status: 'PENDING' | 'PROGRESS' | 'COMPLETED';
@@ -290,6 +292,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
         clientName,
         projectName,
         status,
+        teamName,
         progress,
         deadline,
         assignedTo,
@@ -603,7 +606,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
 
 
   return (
-    <div className="h-full w-full p-1 md:p-4">
+    <div className="h-full w-full p-1 md:p-2">
       <div className="flex flex-col gap-4">
         {/* Header */}
         <div className="flex flex-col gap-1 bg-gradient-to-r from-blue-600 to-purple-600 p-4 rounded-lg text-white shadow-lg transform transition-all duration-300 hover:shadow-xl">
@@ -618,11 +621,11 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
           </p>
         </div>
 
-        <Tabs defaultValue="list" value={activeTab} onValueChange={(v) => setActiveTab(v as TabType)} className="w-full">
+        <Tabs defaultValue="list" value={activeTab} onValueChange={(v) => setActiveTab(v as TabType)} className="w-full border-1 rounded-xl">
           <TabsList className="grid w-full grid-cols-2 lg:grid-cols-3 mb-3 h-10 bg-muted/50 p-1 rounded-lg">
             <TabsTrigger
               value="list"
-              className="text-xs md:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-300 rounded-md flex items-center gap-1"
+              className="shadow-cyan-400 cursor-pointer text-xs md:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-300 rounded-md flex items-center gap-1"
             >
               <FileText className="h-3 w-3 md:h-4 md:w-4" />
               Daftar SPK
@@ -630,14 +633,14 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
             <TabsTrigger
               value="report"
               disabled={!selectedSpk}
-              className="text-xs md:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-300 rounded-md flex items-center gap-1"
+              className="shadow-cyan-400 cursor-pointer text-xs md:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-300 rounded-md flex items-center gap-1"
             >
               <Sparkles className="h-3 w-3 md:h-4 md:w-4" />
               Lapor Progress
             </TabsTrigger>
             <TabsTrigger
               value="history"
-              className="hidden lg:flex text-xs md:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-300 rounded-md items-center gap-1"
+              className="shadow-cyan-400 cursor-pointer hidden lg:flex text-xs md:text-sm data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-300 rounded-md items-center gap-1"
             >
               <Archive className="h-3 w-3 md:h-4 md:w-4" />
               Riwayat
@@ -646,96 +649,132 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
 
           {/* TAB 1: DAFTAR SPK */}
           <TabsContent value="list" className="animate-fade-in">
-            <Card className="border-border/40 bg-card/90 backdrop-blur-sm shadow-md rounded-xl overflow-hidden transition-all duration-300 hover:shadow-lg">
-              <CardHeader className="pb-2 bg-gradient-to-r from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
-                <CardTitle className="text-base md:text-lg font-semibold flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-blue-600" />
-                  {role === 'admin' || role === 'super' ? 'Semua SPK' : 'SPK Saya'}
-                </CardTitle>
-                <CardDescription className="text-xs text-muted-foreground">
-                  {role === 'admin' || role === 'super'
-                    ? 'Klik SPK untuk memulai pelaporan'
-                    : 'Pilih SPK yang ditugaskan kepada Anda'}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-3">
-                {filteredUserSpk.length === 0 ? (
-                  <div className="text-center py-6 animate-pulse">
-                    <Clock className="mx-auto h-8 w-8 text-muted-foreground mb-2 opacity-50" />
-                    <h3 className="text-sm font-medium mb-1">Tidak ada SPK</h3>
-                    <p className="text-xs text-muted-foreground">
+            <Card className="border border-gray-200/60 dark:border-gray-700/50 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm shadow-sm rounded-xl overflow-hidden transition-all duration-300 hover:shadow-md">
+              <CardHeader className="pb-3 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 dark:from-gray-800 dark:to-gray-800 border-b border-gray-100 dark:border-gray-700">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg md:text-xl font-semibold flex items-center gap-2 text-gray-800 dark:text-white">
+                      <FileText className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                      {role === 'admin' || role === 'super' ? 'Semua SPK' : 'SPK Saya'}
+                    </CardTitle>
+                    <CardDescription className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                       {role === 'admin' || role === 'super'
-                        ? 'Tidak ada SPK yang terdaftar'
-                        : `Tidak ada SPK yang ditugaskan ke ${userEmail}`}
+                        ? 'Klik SPK untuk memulai pelaporan'
+                        : 'Pilih SPK yang ditugaskan kepada Anda'}
+                    </CardDescription>
+                  </div>
+                  {filteredUserSpk.length > 0 && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300">
+                      {filteredUserSpk.length} SPK
+                    </span>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="p-5">
+                {filteredUserSpk.length === 0 ? (
+                  <div className="text-center py-10 px-4 animate-fade-in">
+                    <div className="mx-auto w-16 h-16 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-full mb-4">
+                      <Clock className="h-8 w-8 text-gray-400 dark:text-gray-500" />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Tidak ada SPK</h3>
+                    <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto">
+                      {role === 'admin' || role === 'super'
+                        ? 'Tidak ada SPK yang terdaftar dalam sistem'
+                        : `Belum ada SPK yang ditugaskan untuk ${userEmail}`}
                     </p>
                   </div>
                 ) : (
-                  <div className="grid gap-4 text-xs md:grid-cols-2 lg:grid-cols-3">
+                  <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
                     {filteredUserSpk.map((spk, index) => {
-                      // Tentukan status berdasarkan progress
                       const progress = getSPKFieldProgress(spk);
                       const status = progress === 100 ? 'COMPLETED' : 'PROGRESS';
-                      const statusColor = status === 'COMPLETED' ? 'bg-green-500' : 'bg-blue-500';
+                      const statusColor = status === 'COMPLETED'
+                        ? 'bg-green-500'
+                        : progress > 75
+                          ? 'bg-blue-500'
+                          : progress > 50
+                            ? 'bg-indigo-500'
+                            : progress > 25
+                              ? 'bg-amber-500'
+                              : 'bg-rose-500';
 
                       return (
                         <div
                           key={spk.id}
-                          className="transform transition-all duration-500 hover:scale-105"
-                          style={{ animationDelay: `${index * 100}ms` }}
+                          className="transform transition-all duration-300 hover:scale-[1.02]"
+                          style={{ animationDelay: `${index * 75}ms` }}
                         >
                           <div
                             onClick={() => {
                               setSelectedSpk(spk);
                               setActiveTab('report');
                             }}
-                            className={`cursor-pointer transition-all duration-300 transform hover:-translate-y-1 border overflow-hidden group p-0 h-auto rounded-lg ${selectedSpk?.id === spk.id
-                              ? 'border-blue-500 shadow-md bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-800/20 ring-1 ring-blue-500/20'
-                              : 'border-gray-200 hover:border-blue-300 bg-white hover:bg-gray-50/90 shadow-sm hover:shadow-md'
+                            className={`cursor-pointer transition-all duration-300 h-full rounded-xl overflow-hidden group border ${selectedSpk?.id === spk.id
+                              ? 'border-indigo-500 shadow-md bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 ring-2 ring-indigo-500/20'
+                              : 'border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-500 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md'
                               }`}
                           >
-                            <div className={`absolute top-0 left-0 w-1 h-full ${statusColor}`}></div>
-                            <div className="p-4 pl-5">
-                              <div className="flex justify-between items-start mb-3">
-                                <div className="min-w-0 flex-1">
-                                  <h3 className="text-sm md:text-base font-semibold group-hover:text-blue-600 transition-colors truncate">
+                            <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-indigo-400 to-blue-400 opacity-90"></div>
+
+                            <div className="p-5 pl-6">
+                              <div className="flex justify-between items-start mb-4">
+                                <div className="min-w-0 flex-1 pr-2">
+                                  <h3 className="text-base font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate mb-1">
                                     {spk.spkNumber}
                                   </h3>
-                                  <p className="text-xs text-wrap text-gray-500 truncate mt-1 md:text-sm">{spk.clientName}</p>
-                                  <p className="text-xs text-wrap text-gray-500 truncate mt-1 md:text-sm">{spk.projectName}</p>
+                                  <p className="text-sm text-wrap text-gray-700 dark:text-gray-300 font-medium truncate mb-1">{spk.clientName}</p>
+                                  <p className="text-xs text-wrap text-gray-500 dark:text-gray-400 truncate">{spk.projectName}</p>
                                 </div>
                                 <div className="ml-2 flex-shrink-0">
-                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${status === 'COMPLETED'
-                                    ? 'bg-green-100 text-green-800'
-                                    : 'bg-blue-100 text-blue-800'
-                                    }`}>
+                                  <span
+                                    className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${status === 'COMPLETED'
+                                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                                      : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+                                      }`}
+                                  >
+                                    {status === 'COMPLETED' ? (
+                                      <CheckCircle className="w-3.5 h-3.5 mr-1" />
+                                    ) : (
+                                      <Clock className="w-3.5 h-3.5 mr-1" />
+                                    )}
                                     {status === 'COMPLETED' ? 'Selesai' : 'Progress'}
                                   </span>
                                 </div>
                               </div>
-                              <div className="flex justify-between items-center mb-2">
-                                <span className="text-xs text-gray-500">Progress</span>
-                                <span className="text-xs font-medium">{progress}%</span>
+
+                              <div className="mb-4">
+                                <div className="flex justify-between items-center mb-2">
+                                  <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Progress</span>
+                                  <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{progress}%</span>
+                                </div>
+                                <div className="h-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full transition-all duration-500 ${statusColor}`}
+                                    style={{ width: `${progress}%` }}
+                                  />
+                                </div>
                               </div>
-                              <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden mb-3">
-                                <div
-                                  className={`h-full rounded-full ${statusColor}`}
-                                  style={{ width: `${progress}%` }}
-                                />
-                              </div>
-                              <div className="flex items-center justify-between text-xs text-gray-500">
-                                <div className="flex items-center gap-1">
-                                  <svg className="h-3 w-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                  </svg>
-                                  <span className="truncate text-xs">
-                                    {new Date(spk.deadline).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+
+                              <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-100 dark:border-gray-700">
+                                <div className="flex items-center gap-1.5">
+                                  <Calendar className="h-3.5 w-3.5 flex-shrink-0 text-rose-500" />
+                                  <span className="truncate">
+                                    {new Date(spk.deadline).toLocaleDateString('id-ID', {
+                                      day: 'numeric',
+                                      month: 'short',
+                                      year: 'numeric'
+                                    })}
                                   </span>
                                 </div>
-                                <div className="flex items-center gap-1">
-                                  <svg className="h-3 w-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                  </svg>
-                                  <span className="truncate text-xs max-w-[80px] md:max-w-[100px]">
+                                <div className='flex items-center justify-center gap-1'>
+                                  <Users2Icon className='h-3.5 w-3.5 flex-shrink-0 text-indigo-500' />
+                                  <span className="truncate max-w-[80px] md:max-w-[100px]">
+                                    {spk.teamName?.split('@')[0] || 'Team Belum ditentukan'}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <User className="h-3.5 w-3.5 flex-shrink-0 text-indigo-500" />
+                                  <span className="truncate max-w-[80px] md:max-w-[100px]">
                                     {spk.assignedTo?.split('@')[0] || 'Tidak ditugaskan'}
                                   </span>
                                 </div>
