@@ -22,7 +22,7 @@ import {
     //   Eye,
     //   Plus,
     Download,
-    Filter,
+    // Filter,
     MoreHorizontal,
     EyeOff,
     Eye,
@@ -701,7 +701,7 @@ export default function DashboardAwalSalesOrder() {
                     <CardHeader className="pb-3">
                         <div className="flex items-center justify-between">
                             <div>
-                                <CardTitle className="text-base md:text-lg flex items-center gap-2">
+                                <CardTitle className="text-xs md:text-lg flex items-center gap-2">
                                     <Calendar className="h-5 w-5 text-blue-600" />
                                     Sales Order Terbaru
                                 </CardTitle>
@@ -710,10 +710,10 @@ export default function DashboardAwalSalesOrder() {
                                 </CardDescription>
                             </div>
                             <div className="flex gap-2">
-                                <Button variant="outline" size="sm" className="h-8 gap-1">
+                                {/* <Button variant="outline" size="sm" className="h-8 gap-1">
                                     <Filter className="h-3.5 w-3.5" />
                                     Filter
-                                </Button>
+                                </Button> */}
                                 <Button variant="ghost" size="sm" asChild className="h-8 text-xs md:text-sm">
                                     <Link href="/admin-area/sales/salesOrder" className="text-blue-600 hover:text-blue-800">
                                         Lihat semua
@@ -967,11 +967,11 @@ function StatCard({
 
     return (
         <Card className="min-h-20 p-2 overflow-hidden border shadow-sm transition-all duration-300 hover:bg-cyan-100 dark:hover:bg-gray-950 hover:shadow-md hover:-translate-y-0.5 group">
-            <CardHeader className="p-0 pb-0 flex flex-row items-center justify-between space-y-0">
+            <CardHeader className="p-2 pb-0 flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="text-xs font-medium text-muted-foreground transition-colors duration-300 group-hover:text-foreground">
                     {title}
                 </CardTitle>
-                <div className="h-5 w-5 rounded-full bg-blue-50 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-blue-100 group-hover:rotate-6">
+                <div className="h-8 w-8 rounded-full bg-blue-50 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-blue-100 group-hover:rotate-6">
                     {icon}
                 </div>
             </CardHeader>
