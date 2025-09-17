@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Camera, Upload, CheckCircle, Clock, X, Archive, Sparkles, TrendingUp, FileText, Eye, Loader2, Download, ZoomIn } from 'lucide-react';
+import { Camera, Upload, CheckCircle, Clock, X, Archive, Sparkles, TrendingUp, FileText, Eye, Loader2, Download, ZoomIn, ChevronRight, ChevronLeft } from 'lucide-react';
 import Image from 'next/image';
 import { createReportFormData, createSpkFieldReport, fetchSPKReports } from '@/lib/action/master/spk/spkReport';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog';
@@ -211,14 +211,26 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
   // const [karyawans, setKaryawans] = useState<Karyawan[]>([]);
   const [userSpk, setUserSpk] = useState<SPKData[]>([]);
   // const [loadingKaryawans, setLoadingKaryawans] = useState(false);
-
   const [spkItemProgress, setSpkItemProgress] = useState<SPKItemProgressMap>({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
 
   // console.log("Data SPK", dataSpk);
   // console.log("Data SO Item", selectedSpk);
   console.log("User SPK", userSpk);
   // console.log("Report", reports);
   // console.log("Total Progress", summaryProgress);
+
+  const totalPages = Math.ceil(reports.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentReports = reports.slice(startIndex, startIndex + itemsPerPage);
+
+  // Handler ganti halaman
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
 
   const getSPKFieldProgress = (spk: SPKData): number => {
     const itemProgressMap = spkItemProgress[spk.spkNumber];
@@ -309,6 +321,10 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
       setFormData(prev => ({ ...prev, progress: 100 }));
     }
   }, [formData.type]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters]);
 
   useEffect(() => {
     if (dataSpk && dataSpk.length > 0) {
@@ -654,7 +670,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                     </p>
                   </div>
                 ) : (
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  <div className="grid gap-4 text-xs md:grid-cols-2 lg:grid-cols-3">
                     {filteredUserSpk.map((spk, index) => {
                       // Tentukan status berdasarkan progress
                       const progress = getSPKFieldProgress(spk);
@@ -684,8 +700,8 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                                   <h3 className="text-sm md:text-base font-semibold group-hover:text-blue-600 transition-colors truncate">
                                     {spk.spkNumber}
                                   </h3>
-                                  <p className="text-xs text-gray-500 truncate mt-1 md:text-sm">{spk.clientName}</p>
-                                  <p className="text-xs text-gray-500 truncate mt-1 md:text-sm">{spk.projectName}</p>
+                                  <p className="text-xs text-wrap text-gray-500 truncate mt-1 md:text-sm">{spk.clientName}</p>
+                                  <p className="text-xs text-wrap text-gray-500 truncate mt-1 md:text-sm">{spk.projectName}</p>
                                 </div>
                                 <div className="ml-2 flex-shrink-0">
                                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${status === 'COMPLETED'
@@ -818,6 +834,39 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                       <div className="space-y-2">
                         <Label className="text-xs font-medium">Atur Progress Item</Label>
 
+                        {/* Persentase + Status */}
+                        <div className="flex flex-row md:flex-row items-center justify-between gap-2 md:gap-4">
+                          {/* Persentase */}
+                          <motion.span
+                            key={formData.progress}
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ duration: 0.2 }}
+                            className={cn(
+                              "text-xs font-bold min-w-[3rem] text-center px-3 py-1 rounded-md shadow-sm border",
+                              formData.progress === 100
+                                ? "bg-green-600 text-white"
+                                : formData.progress >= 50
+                                  ? "bg-yellow-500 text-white"
+                                  : "bg-red-500 text-white"
+                            )}
+                          >
+                            Latest Progress - {formData.progress}%
+                          </motion.span>
+
+                          {/* Status */}
+                          <span
+                            className={cn(
+                              "text-xs font-semibold px-2 py-1 rounded-full",
+                              formData.progress === 100
+                                ? "bg-green-100 text-green-700 dark:bg-green-800 dark:text-green-100"
+                                : "bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-100"
+                            )}
+                          >
+                            {formData.progress === 100 ? "DONE" : "IN PROGRESS"}
+                          </span>
+                        </div>
+
                         <div className="flex flex-col md:flex-row md:items-center gap-4 bg-muted/30 p-4 rounded-2xl shadow-sm border">
                           {/* Slider */}
                           <Slider
@@ -837,40 +886,6 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                             step={5}
                             className="flex-1"
                           />
-
-
-                          {/* Persentase + Status */}
-                          <div className="flex flex-row md:flex-row items-center justify-between gap-2 md:gap-4">
-                            {/* Persentase */}
-                            <motion.span
-                              key={formData.progress}
-                              initial={{ scale: 0.9, opacity: 0 }}
-                              animate={{ scale: 1, opacity: 1 }}
-                              transition={{ duration: 0.2 }}
-                              className={cn(
-                                "text-xs font-bold min-w-[3rem] text-center px-3 py-1 rounded-md shadow-sm border",
-                                formData.progress === 100
-                                  ? "bg-green-600 text-white"
-                                  : formData.progress >= 50
-                                    ? "bg-yellow-500 text-white"
-                                    : "bg-red-500 text-white"
-                              )}
-                            >
-                              Latest Progress - {formData.progress}%
-                            </motion.span>
-
-                            {/* Status */}
-                            <span
-                              className={cn(
-                                "text-xs font-semibold px-2 py-1 rounded-full",
-                                formData.progress === 100
-                                  ? "bg-green-100 text-green-700 dark:bg-green-800 dark:text-green-100"
-                                  : "bg-blue-100 text-blue-700 dark:bg-blue-800 dark:text-blue-100"
-                              )}
-                            >
-                              {formData.progress === 100 ? "DONE" : "IN PROGRESS"}
-                            </span>
-                          </div>
                         </div>
 
 
@@ -980,104 +995,65 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
 
           {/* TAB 3: RIWAYAT LAPORAN — LENGKAP DENGAN FILTER & ACTIONS */}
           <TabsContent value="history" className="animate-fade-in">
-            <div className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-10 gap-3">
-              {/* Tanggal */}
-              {/* <div>
-                <Label className="text-xs font-medium">Tanggal</Label>
-                <Select value={filters.date} onValueChange={(v) => setFilters({ ...filters, date: v as 'all' | 'today' | 'thisWeek' | 'thisMonth' })}>
-                  <SelectTrigger className="h-10 text-xs border-border/60">
-                    <SelectValue placeholder="Semua" />
-                  </SelectTrigger>
-                  <SelectContent className="text-xs">
-                    <SelectItem value="today">Hari Ini</SelectItem>
-                    <SelectItem value="thisWeek">Minggu Ini</SelectItem>
-                    <SelectItem value="thisMonth">Bulan Ini</SelectItem>
-                    <SelectItem value="all">Semua</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div> */}
-
-              {/* Status Laporan */}
-              {/* <div>
-                <Label className="text-xs font-medium">Status</Label>
-                <Select value={filters.status} onValueChange={(v) => setFilters({ ...filters, date: v as 'all' | 'today' | 'thisWeek' | 'thisMonth' })}>
-                  <SelectTrigger className="h-10 text-xs border-border/60">
-                    <SelectValue placeholder="Semua" />
-                  </SelectTrigger>
-                  <SelectContent className="text-xs">
-                    <SelectItem value="PROGRESS">Progress</SelectItem>
-                    <SelectItem value="FINAL">Selesai</SelectItem>
-                    <SelectItem value="PENDING">Menunggu</SelectItem>
-                    <SelectItem value="all">Semua</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div> */}
-
-              {/* User (Hanya Admin) */}
-              {/* {role === 'admin' && (
-                <div>
-                  <Label className="text-xs font-medium">Karyawan</Label>
-                  <Select value={filters.karyawanId} onValueChange={(v) => setFilters({ ...filters, karyawanId: v })}>
-                    <SelectTrigger className="h-10 text-xs border-border/60" disabled={loadingKaryawans}>
-                      <SelectValue placeholder={loadingKaryawans ? "Memuat..." : "Semua"} />
-                    </SelectTrigger>
-                    <SelectContent className="text-xs max-h-48 overflow-y-auto">
-                      {loadingKaryawans ? (
-                        <SelectItem value="loading" disabled>Loading karyawan...</SelectItem>
-                      ) : karyawans.length === 0 ? (
-                        <SelectItem value="empty" disabled>Tidak ada karyawan</SelectItem>
-                      ) : (
-                        karyawans.map(k => (
-                          <SelectItem key={k.id} value={k.id}>
-                            {k.namaLengkap} ({k.departemen || '-'})
+            <Card className="border-border/40 bg-card/90 backdrop-blur-sm shadow-md rounded-xl overflow-hidden transition-all duration-300 hover:shadow-lg">
+              {/* Header Card — Judul + Filter */}
+              <CardHeader className="pb-4 pt-3 bg-gradient-to-r from-purple-50 to-white dark:from-purple-900/30 dark:to-gray-800 sticky top-0 z-10">
+                <div className="grid grid-cols-10 gap-4">
+                  {/* Judul */}
+                  <div className='col-span-1 col-start-1'>
+                    <CardTitle className="text-base font-semibold flex items-center gap-2">
+                      <Archive className="h-4 w-4 text-purple-600" />
+                      Riwayat Laporan
+                    </CardTitle>
+                    <CardDescription className="text-xs">Riwayat laporan SPK Anda</CardDescription>
+                  </div>
+                  <div className="col-span-1 col-start-5">
+                    <Label className="text-xs font-medium">SPK</Label>
+                    <Select value={filters.spkId} onValueChange={(v) => setFilters({ ...filters, spkId: v })}>
+                      <SelectTrigger className="h-10 text-xs border-border/60">
+                        <SelectValue placeholder="Semua SPK" />
+                      </SelectTrigger>
+                      <SelectContent className="text-xs max-h-48 overflow-y-auto">
+                        {filteredUserSpk.map(spk => (
+                          <SelectItem key={spk.id} value={spk.id}>
+                            {spk.spkNumber} - {spk.clientName}
                           </SelectItem>
-                        ))
-                      )}
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Reset Filter — sejajar kanan */}
+                  <div className="col-span-2 col-start-9 pt-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-10 w-full text-xs"
+                      onClick={() => setFilters({ date: 'all', status: 'all', spkId: '', karyawanId: '' })}
+                    >
+                      Reset Filter
+                    </Button>
+                  </div>
+                  {/* </div> */}
+                </div>
+
+                <div className="col-span-1 col-start-10">
+                  <Label className="text-xs font-medium">Item Per Page</Label>
+                  <Select value={String(itemsPerPage)} onValueChange={(v) => setItemsPerPage(Number(v))}>
+                    <SelectTrigger className="h-7 w-20 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5</SelectItem>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-              )} */}
-              {/* SPK */}
-              <div className='col-span-1 col-start-1'>
-                <Label className="text-xs font-medium">SPK</Label>
-                <Select value={filters.spkId} onValueChange={(v) => setFilters({ ...filters, spkId: v })}>
-                  <SelectTrigger className="h-10 text-xs border-border/60">
-                    <SelectValue placeholder="Semua SPK" />
-                  </SelectTrigger>
-                  <SelectContent className="text-xs max-h-48 overflow-y-auto">
-                    {filteredUserSpk.map(spk => (
-                      <SelectItem key={spk.id} value={spk.id}>
-                        {spk.spkNumber} - {spk.clientName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Reset Filter */}
-              <div className="col-span-2 col-start-9 pt-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-10 w-full text-xs"
-                  onClick={() => setFilters({ date: 'all', status: 'all', spkId: '', karyawanId: '' })}
-                >
-                  Reset
-                </Button>
-              </div>
-            </div>
-
-            {/* Card dengan tinggi yang dikurangi 50% */}
-            <Card className="border-border/40 bg-card/90 backdrop-blur-sm shadow-md rounded-xl overflow-hidden transition-all duration-300 hover:shadow-lg max-h-[50vh]">
-              <CardHeader className="pb-2 pt-3 bg-gradient-to-r from-purple-50 to-white dark:from-purple-900/30 dark:to-gray-800 sticky top-0 z-10">
-                <CardTitle className="text-base font-semibold flex items-center gap-2">
-                  <Archive className="h-4 w-4 text-purple-600" />
-                  Riwayat Laporan
-                </CardTitle>
-                <CardDescription className="text-xs">Riwayat laporan SPK Anda</CardDescription>
               </CardHeader>
 
-              <CardContent className="pt-2 px-3 pb-2 overflow-y-auto" style={{ maxHeight: 'calc(50vh - 70px)' }}>
+              {/* Body Card — Konten Tabel */}
+              <CardContent className="pt-0 px-3 pb-2 flex flex-col h-full">
                 {loadingReports ? (
                   <div className="flex justify-center py-6">
                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -1089,199 +1065,267 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                     <p className="text-xs mt-1 text-muted-foreground/70">Lakukan pelaporan pertama Anda.</p>
                   </div>
                 ) : (
-                  <div className="rounded-md border border-border/40 overflow-hidden">
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader className="bg-gradient-to-r from-purple-50 to-white dark:from-purple-900/30 dark:to-gray-800 sticky top-0 z-10">
-                          <TableRow className="[&>th]:py-2 [&>th]:px-2 [&>th]:text-xs [&>th]:font-semibold">
-                            <TableHead className="w-[120px] sticky left-0 bg-gradient-to-r from-purple-50 to-white dark:from-purple-900/30 dark:to-gray-800 z-10">Status</TableHead>
-                            <TableHead className="min-w-[140px]">SPK & Item</TableHead>
-                            <TableHead className="min-w-[140px]">Klien & Proyek</TableHead>
-                            <TableHead className="min-w-[120px]">Catatan</TableHead>
-                            <TableHead className="w-[80px]">Foto</TableHead>
-                            <TableHead className="w-[100px]">Tanggal</TableHead>
-                            {role === 'admin' && <TableHead className="w-[110px] sticky right-0 bg-gradient-to-r from-purple-50 to-white dark:from-purple-900/30 dark:to-gray-800 z-10">Aksi</TableHead>}
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody className="divide-y divide-border/40">
-                          {reports.map((report) => (
-                            <TableRow
-                              key={report.id}
-                              className="hover:bg-muted/30 transition-colors cursor-pointer [&>td]:py-2 [&>td]:px-2"
-                              onClick={() => setSelectedReport(report)}
-                            >
-                              {/* Status */}
-                              <TableCell className="sticky left-0 bg-card z-10">
-                                <div className="flex flex-col gap-1">
-                                  {report.type === 'PROGRESS' ? (
-                                    <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-                                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></div>
-                                      <span className="text-xs">Progress</span>
-                                    </div>
-                                  ) : report.type === 'FINAL' ? (
-                                    <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                                      <CheckCircle className="w-3 h-3" />
-                                      <span className="text-xs">Selesai</span>
-                                    </div>
-                                  ) : (
-                                    <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
-                                      <Clock className="w-3 h-3" />
-                                      <span className="text-xs">Menunggu</span>
-                                    </div>
-                                  )}
-
-                                  {report.status === 'PENDING' ? (
-                                    <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-                                      <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></div>
-                                      <span className="text-xs">Menunggu</span>
-                                    </div>
-                                  ) : report.status === 'APPROVED' ? (
-                                    <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                                      <CheckCircle className="w-3 h-3" />
-                                      <span className="text-xs">Disetujui</span>
-                                    </div>
-                                  ) : (
-                                    <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
-                                      <X className="w-3 h-3" />
-                                      <span className="text-xs">Ditolak</span>
-                                    </div>
-                                  )}
-                                </div>
-                              </TableCell>
-
-                              {/* SPK & Item */}
-                              <TableCell>
-                                <div className="space-y-0.5">
-                                  <div className="font-medium text-foreground text-xs">{report.spkNumber}</div>
-                                  <div className="text-xs text-muted-foreground line-clamp-1">{report.itemName}</div>
-                                </div>
-                              </TableCell>
-
-                              {/* Klien & Proyek */}
-                              <TableCell>
-                                <div className="space-y-0.5">
-                                  <div className="text-xs font-medium text-foreground line-clamp-1">{report.clientName}</div>
-                                  <div className="text-xs text-muted-foreground line-clamp-1">{report.projectName}</div>
-                                </div>
-                              </TableCell>
-
-                              {/* Catatan */}
-                              <TableCell className="max-w-[120px]">
-                                {report.note ? (
-                                  <div className="flex items-start gap-1">
-                                    <FileText className="w-3 h-3 mt-0.5 text-muted-foreground flex-shrink-0" />
-                                    <span className="text-xs text-muted-foreground line-clamp-2">{report.note}</span>
-                                  </div>
-                                ) : (
-                                  <span className="text-xs text-muted-foreground/70">-</span>
-                                )}
-                              </TableCell>
-
-                              {/* Foto */}
-                              <TableCell>
-                                {report.photos.length > 0 ? (
-                                  <div className="flex items-center gap-1">
-                                    <div className="relative">
-                                      <Camera className="w-3.5 h-3.5 text-blue-500" />
-                                      {report.photos.length > 1 && (
-                                        <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-[8px] rounded-full w-3 h-3 flex items-center justify-center">
-                                          {report.photos.length}
-                                        </span>
-                                      )}
-                                    </div>
-                                    <span className="text-xs text-muted-foreground">{report.photos.length}</span>
-                                  </div>
-                                ) : (
-                                  <span className="text-xs text-muted-foreground/70">-</span>
-                                )}
-                              </TableCell>
-
-                              {/* Tanggal */}
-                              <TableCell>
-                                <div className="text-xs text-muted-foreground">
-                                  {new Date(report.reportedAt).toLocaleDateString('id-ID', {
-                                    day: 'numeric',
-                                    month: 'short',
-                                    year: 'numeric',
-                                  })}
-                                </div>
-                                <div className="text-[10px] text-muted-foreground/70">
-                                  {new Date(report.reportedAt).toLocaleTimeString('id-ID', {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                  })}
-                                </div>
-                              </TableCell>
-
-                              {/* Aksi (Admin Only) */}
+                  <>
+                    {/* Container tabel dengan tinggi maksimal dan overflow terkontrol */}
+                    <div className="rounded-md border border-border/40 overflow-hidden flex-1 flex flex-col min-h-0">
+                      <div className="overflow-y-auto">
+                        <Table>
+                          {/* Table Header — tetap sticky */}
+                          <TableHeader className="bg-gradient-to-r from-purple-50 to-white dark:from-purple-900/30 dark:to-gray-800 sticky top-0 z-10">
+                            <TableRow className="[&>th]:py-2 [&>th]:px-2 [&>th]:text-xs [&>th]:font-semibold">
+                              <TableHead className="w-[120px] sticky left-0 bg-gradient-to-r from-purple-50 to-white dark:from-purple-900/30 dark:to-gray-800 z-10">Status</TableHead>
+                              <TableHead className="min-w-[140px]">SPK & Item</TableHead>
+                              <TableHead className="min-w-[140px]">Klien & Proyek</TableHead>
+                              <TableHead className="min-w-[120px]">Catatan</TableHead>
+                              <TableHead className="w-[80px]">Foto</TableHead>
+                              <TableHead className="w-[100px]">Tanggal</TableHead>
                               {role === 'admin' && (
-                                <TableCell className="sticky right-0 bg-card z-10">
-                                  <div className="flex items-center gap-1">
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-6 w-6 p-0 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedReport(report);
-                                        setModalType('view');
-                                      }}
-                                    >
-                                      <Eye className="h-3 w-3" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-6 w-6 p-0 text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedReport(report);
-                                        setModalType('approve');
-                                      }}
-                                    >
-                                      <CheckCircle className="h-3 w-3" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-6 w-6 p-0 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedReport(report);
-                                        setModalType('reject');
-                                      }}
-                                    >
-                                      <X className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
+                                <TableHead className="w-[110px] sticky right-0 bg-gradient-to-r from-purple-50 to-white dark:from-purple-900/30 dark:to-gray-800 z-10">
+                                  Aksi
+                                </TableHead>
                               )}
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </div>
-                )}
+                          </TableHeader>
 
-                {/* Action Bar */}
-                {reports.length > 0 && (
-                  <div className="mt-4 flex flex-col sm:flex-row gap-2 justify-end sticky bottom-0 bg-card py-2 px-3 rounded-b-lg border-t border-border/40">
-                    <Button variant="outline" size="sm" onClick={exportToCSV} className="text-xs h-7">
-                      <Download className="h-3 w-3 mr-1" />
-                      Ekspor CSV
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => downloadPDF(selectedReport!)}
-                      disabled={!selectedReport}
-                      className="text-xs h-7"
-                    >
-                      <Download className="h-3 w-3 mr-1" />
-                      Unduh PDF
-                    </Button>
-                  </div>
+                          {/* Scrollable Table Body */}
+                          <TableBody
+                            className="divide-y divide-border/40 overflow-y-auto"
+                            style={{ maxHeight: 'calc(50vh - 200px)' }} // Sesuaikan tinggi sesuai kebutuhan
+                          >
+                            {currentReports.map((report) => (
+                              <TableRow
+                                key={report.id}
+                                className="hover:bg-muted/30 transition-colors cursor-pointer [&>td]:py-2 [&>td]:px-2"
+                                onClick={() => setSelectedReport(report)}
+                              >
+                                {/* Status */}
+                                <TableCell className="sticky left-0 bg-card z-10">
+                                  <div className="flex flex-col gap-1">
+                                    {report.type === 'PROGRESS' ? (
+                                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></div>
+                                        <span className="text-xs">Progress</span>
+                                      </div>
+                                    ) : report.type === 'FINAL' ? (
+                                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                                        <CheckCircle className="w-3 h-3" />
+                                        <span className="text-xs">Selesai</span>
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                                        <Clock className="w-3 h-3" />
+                                        <span className="text-xs">Menunggu</span>
+                                      </div>
+                                    )}
+
+                                    {report.status === 'PENDING' ? (
+                                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></div>
+                                        <span className="text-xs">Menunggu</span>
+                                      </div>
+                                    ) : report.status === 'APPROVED' ? (
+                                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                                        <CheckCircle className="w-3 h-3" />
+                                        <span className="text-xs">Disetujui</span>
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">
+                                        <X className="w-3 h-3" />
+                                        <span className="text-xs">Ditolak</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </TableCell>
+
+                                {/* SPK & Item */}
+                                <TableCell>
+                                  <div className="space-y-0.5">
+                                    <div className="font-medium text-foreground text-xs">{report.spkNumber}</div>
+                                    <div className="text-xs text-muted-foreground line-clamp-1">{report.itemName}</div>
+                                  </div>
+                                </TableCell>
+
+                                {/* Klien & Proyek */}
+                                <TableCell>
+                                  <div className="space-y-0.5">
+                                    <div className="text-xs font-medium text-foreground line-clamp-1">{report.clientName}</div>
+                                    <div className="text-xs text-muted-foreground line-clamp-1">{report.projectName}</div>
+                                  </div>
+                                </TableCell>
+
+                                {/* Catatan */}
+                                <TableCell className="max-w-[120px]">
+                                  {report.note ? (
+                                    <div className="flex items-start gap-1">
+                                      <FileText className="w-3 h-3 mt-0.5 text-muted-foreground flex-shrink-0" />
+                                      <span className="text-xs text-muted-foreground line-clamp-2">{report.note}</span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground/70">-</span>
+                                  )}
+                                </TableCell>
+
+                                {/* Foto */}
+                                <TableCell>
+                                  {report.photos.length > 0 ? (
+                                    <div className="flex items-center gap-1">
+                                      <div className="relative">
+                                        <Camera className="w-3.5 h-3.5 text-blue-500" />
+                                        {report.photos.length > 1 && (
+                                          <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-[8px] rounded-full w-3 h-3 flex items-center justify-center">
+                                            {report.photos.length}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <span className="text-xs text-muted-foreground">{report.photos.length}</span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground/70">-</span>
+                                  )}
+                                </TableCell>
+
+                                {/* Tanggal */}
+                                <TableCell>
+                                  <div className="text-xs text-muted-foreground">
+                                    {new Date(report.reportedAt).toLocaleDateString('id-ID', {
+                                      day: 'numeric',
+                                      month: 'short',
+                                      year: 'numeric',
+                                    })}
+                                  </div>
+                                  <div className="text-[10px] text-muted-foreground/70">
+                                    {new Date(report.reportedAt).toLocaleTimeString('id-ID', {
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    })}
+                                  </div>
+                                </TableCell>
+
+                                {/* Aksi (Admin Only) */}
+                                {role === 'admin' && (
+                                  <TableCell className="sticky right-0 bg-card z-10">
+                                    <div className="flex items-center gap-1">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 w-7 p-0 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedReport(report);
+                                          setModalType('view');
+                                        }}
+                                      >
+                                        <Eye className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 w-7 p-0 text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedReport(report);
+                                          setModalType('approve');
+                                        }}
+                                      >
+                                        <CheckCircle className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 w-7 p-0 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedReport(report);
+                                          setModalType('reject');
+                                        }}
+                                      >
+                                        <X className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                )}
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                        {/* ✅ Pagination Controls */}
+                        {reports.length > 0 && totalPages > 1 && (
+                          <div className="flex items-center justify-between mt-3 px-1">
+                            <div className="text-xs text-muted-foreground">
+                              Menampilkan {startIndex + 1}–{Math.min(startIndex + itemsPerPage, reports.length)} dari {reports.length} laporan
+                            </div>
+
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => goToPage(currentPage - 1)}
+                                disabled={currentPage === 1}
+                                className="h-7 px-2 text-xs"
+                              >
+                                <ChevronLeft className="h-3.5 w-3.5" />
+                              </Button>
+
+                              {/* Tombol nomor halaman — maks 5 tombol ditampilkan */}
+                              {(() => {
+                                const pages = [];
+                                const maxVisible = 5;
+                                let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+                                const endPage = Math.min(totalPages, startPage + maxVisible - 1);
+
+                                if (endPage - startPage + 1 < maxVisible) {
+                                  startPage = Math.max(1, endPage - maxVisible + 1);
+                                }
+
+                                for (let i = startPage; i <= endPage; i++) {
+                                  pages.push(
+                                    <Button
+                                      key={i}
+                                      variant={currentPage === i ? "default" : "outline"}
+                                      size="sm"
+                                      onClick={() => goToPage(i)}
+                                      className={`h-7 w-7 p-0 text-xs ${currentPage === i ? 'bg-purple-600 text-white hover:bg-purple-700' : ''}`}
+                                    >
+                                      {i}
+                                    </Button>
+                                  );
+                                }
+                                return pages;
+                              })()}
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => goToPage(currentPage + 1)}
+                                disabled={currentPage === totalPages}
+                                className="h-7 px-2 text-xs"
+                              >
+                                <ChevronRight className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* ✅ Action Bar — DIPISAHKAN dari scroll area, sticky di bottom card */}
+                    <div className="mt-4 flex flex-col sm:flex-row gap-2 justify-end bg-cyan-800 py-2 px-3 rounded-b-lg border-t border-border/40">
+                      <Button variant="outline" size="sm" onClick={exportToCSV} className="text-xs h-7">
+                        <Download className="h-3 w-3 mr-1" />
+                        Ekspor CSV
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => downloadPDF(selectedReport!)}
+                        disabled={!selectedReport}
+                        className="text-xs h-7"
+                      >
+                        <Download className="h-3 w-3 mr-1" />
+                        Unduh PDF
+                      </Button>
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>

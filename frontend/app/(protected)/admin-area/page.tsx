@@ -42,7 +42,7 @@ export default function DashboardPage() {
   return (
     <AdminLayout title="Dashboard Admin" role={user.role}>
       {/* Page Header */}
-      <div className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
+      <div className="space-y-3 sm:space-y-4 mb-2 sm:mb-4">
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>

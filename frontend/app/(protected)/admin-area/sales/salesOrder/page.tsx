@@ -73,7 +73,7 @@ export default function SalesOrderPageAdmin() {
         </Breadcrumb>
 
         <div className="h-full w-full">
-          <div className="flex-1 space-y-2 p-2 pt-2 md:p-4">
+          <div className="flex-1 space-y-2 p-2 pt-1 md:p-4">
             <SalesOrderTable salesOrders={salesOrders} isLoading={isLoading} role={userRole} />
           </div>
         </div>

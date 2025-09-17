@@ -61,7 +61,7 @@ export function Sidebar({ role }: SidebarProps) {
     </Button>
 
     {/* Menu */}
-    <div className="mt-2 px-1">
+    <div className="mt-6 px-1">
       <Menu
         isOpen={sidebar.isOpen}
         role={role}

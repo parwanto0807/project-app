@@ -1157,7 +1157,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
         return (
             <>
                 <Card className="border-none shadow-lg">
-                    <CardHeader className="flex flex-col gap-1 bg-gradient-to-r from-blue-600 to-purple-600 p-4 rounded-lg text-white shadow-lg transform transition-all duration-300 hover:shadow-xl">
+                    <CardHeader className="flex flex-col gap-1 bg-gradient-to-r from-cyan-600 to-purple-600 p-4 rounded-lg text-white shadow-lg transform transition-all duration-300 hover:shadow-xl">
                         <div className="flex flex-col space-y-1">
                             <div className="flex items-center space-x-3">
                                 <div className="flex items-center justify-center h-12 w-12 rounded-full bg-primary">
@@ -1337,7 +1337,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
 
     return (
         <Card className="border-none shadow-lg">
-            <CardHeader className="bg-gradient-to-r from-primary/5 to-blue-100 dark:from-slate-900 dark:to-slate-950">
+            <CardHeader className="bg-gradient-to-r from-cyan-600 to-purple-600 p-4 rounded-lg text-white">
                 <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
                     <div className="flex items-center space-x-3">
                         <div className="flex items-center justify-center h-12 w-12 rounded-full bg-primary">
@@ -1345,14 +1345,14 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                         </div>
                         <div>
                             <CardTitle className="text-2xl">Sales Orders</CardTitle>
-                            <p className="text-sm text-muted-foreground">
+                            <p className="text-sm text-white">
                                 Manage and track all sales orders
                             </p>
                         </div>
                     </div>
                     <div className="flex flex-col space-y-2 sm:flex-row sm:space-x-2 sm:space-y-0">
                         <div className="relative">
-                            <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
+                            <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-white" />
                             <Input
                                 placeholder="Search orders..."
                                 className="w-full pl-9 sm:w-64"

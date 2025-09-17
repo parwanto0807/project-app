@@ -966,27 +966,27 @@ function StatCard({
     const isPositive = trend && trend >= 0;
 
     return (
-        <Card className="min-h-40 overflow-hidden border shadow-sm transition-all duration-300 hover:bg-cyan-100 dark:hover:bg-gray-950 hover:shadow-lg hover:-translate-y-1 hover:scale-[1.02] group">
-            <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-                <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground transition-colors duration-300 group-hover:text-foreground">
+        <Card className="min-h-20 p-2 overflow-hidden border shadow-sm transition-all duration-300 hover:bg-cyan-100 dark:hover:bg-gray-950 hover:shadow-md hover:-translate-y-0.5 group">
+            <CardHeader className="p-0 pb-0 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-xs font-medium text-muted-foreground transition-colors duration-300 group-hover:text-foreground">
                     {title}
                 </CardTitle>
-                <div className="h-8 w-8 rounded-full bg-blue-50 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-blue-100 group-hover:rotate-6">
+                <div className="h-5 w-5 rounded-full bg-blue-50 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-blue-100 group-hover:rotate-6">
                     {icon}
                 </div>
             </CardHeader>
 
-            <CardContent>
+            <CardContent className="p-0 py-0">
                 {loading ? (
-                    <Skeleton className="h-7 w-20 mt-1" />
+                    <Skeleton className="h-2 w-16 mt-1 px-4" />
                 ) : (
-                    <div className="flex items-center gap-2">
-                        <span className="text-2xl font-bold transition-all duration-300 group-hover:text-blue-700">
+                    <div className="flex items-center gap-1 px-3">
+                        <span className="text-lg font-bold transition-all duration-300 group-hover:text-blue-700">
                             {showValue
                                 ? value !== null
                                     ? formatted
                                         ? `Rp ${value.toLocaleString("id-ID")}`
-                                        : value
+                                        : value.toLocaleString("id-ID")
                                     : "-"
                                 : "XXX.XXX.XXX"}
                         </span>
@@ -998,9 +998,9 @@ function StatCard({
                                 className="text-gray-500 hover:text-gray-700 transition-colors duration-300"
                             >
                                 {showValue ? (
-                                    <Eye className="h-6 w-6 ml-2 text-green-500 transition-transform duration-300 group-hover:scale-110" />
+                                    <Eye className="h-3 w-3 ml-1 text-green-500 transition-transform duration-300 group-hover:scale-110" />
                                 ) : (
-                                    <EyeOff className="h-6 w-6 ml-2 transition-transform duration-300 group-hover:scale-110" />
+                                    <EyeOff className="h-3 w-3 ml-1 transition-transform duration-300 group-hover:scale-110" />
                                 )}
                             </button>
                         )}
@@ -1009,28 +1009,28 @@ function StatCard({
 
                 {trend !== undefined && !loading && (
                     <div
-                        className={`flex items-center text-xs mt-2 transition-all duration-300 ${isPositive ? "text-green-600 group-hover:text-green-700" : "text-red-600 group-hover:text-red-700"}`}
+                        className={`flex items-center text-[10px] mt-0 transition-all duration-300 ${isPositive ? "text-green-600 group-hover:text-green-700" : "text-red-600 group-hover:text-red-700"}`}
                     >
                         {isPositive ? (
-                            <ArrowUpRight className="h-3 w-3 mr-1 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                            <ArrowUpRight className="h-2.5 w-2.5 mr-0.5 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
                         ) : (
-                            <ArrowDownRight className="h-3 w-3 mr-1 transition-transform duration-300 group-hover:translate-y-0.5 group-hover:translate-x-0.5" />
+                            <ArrowDownRight className="h-2.5 w-2.5 mr-0.5 transition-transform duration-300 group-hover:translate-y-0.5 group-hover:translate-x-0.5" />
                         )}
                         {Math.abs(trend).toFixed(1)}%{" "}
-                        {isPositive ? "peningkatan" : "penurunan"} dari bulan lalu
+                        {isPositive ? "naik" : "turun"} dari bulan lalu
                     </div>
                 )}
             </CardContent>
 
-            <CardFooter className="pt-0">
+            <CardFooter className="p-0 pt-0">
                 {href && (
                     <Button
                         variant="link"
-                        className="px-0 text-blue-600 hover:text-blue-800 text-xs md:text-sm h-8 transition-all duration-300 group-hover:translate-x-1"
+                        className="p-0 text-blue-600 hover:text-blue-800 text-xs h-2 transition-all duration-300 group-hover:translate-x-1"
                         asChild
                     >
                         <Link href={href}>
-                            Lihat detail <ArrowUpRight className="h-3 w-3 ml-1 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                            Lihat detail <ArrowUpRight className="h-2.5 w-2.5 ml-0.5 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
                         </Link>
                     </Button>
                 )}

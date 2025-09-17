@@ -11,7 +11,7 @@ export function AdminLayout({ title, role, children }: ContentLayoutProps) {
   return (
     <div>
       <Navbar title={title} role={role} />
-      <div className="max-h-screen pt-8 pb-8 px-0 sm:px-2">{children}</div>
+      <div className="max-h-screen pt-4 pb-4 px-2 md:px-4 sm:px-2">{children}</div>
     </div>
   );
 }
