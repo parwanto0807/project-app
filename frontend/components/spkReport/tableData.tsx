@@ -719,10 +719,10 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                             <div className="p-5 pl-6">
                               <div className="flex justify-between items-start mb-4">
                                 <div className="min-w-0 flex-1 pr-2">
-                                  <h3 className="text-base font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate mb-1">
+                                  <h3 className="text-xs font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate mb-1 md:text-base">
                                     {spk.spkNumber}
                                   </h3>
-                                  <p className="text-sm text-wrap text-gray-700 dark:text-gray-300 font-medium truncate mb-1">{spk.clientName}</p>
+                                  <p className="text-xs text-wrap text-gray-700 dark:text-gray-300 font-medium truncate mb-1 md:text-sm">{spk.clientName}</p>
                                   <p className="text-xs text-wrap text-gray-500 dark:text-gray-400 truncate">{spk.projectName}</p>
                                 </div>
                                 <div className="ml-2 flex-shrink-0">
@@ -744,6 +744,12 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
 
                               <div className="mb-4">
                                 <div className="flex items-center mb-2 gap-4">
+                                  <div className='flex items-center justify-center gap-1'>
+                                    <Users2Icon className='h-3.5 w-3.5 flex-shrink-0 text-indigo-500' />
+                                    <span className="truncate max-w-[80px] text-xs md:max-w-[100px]">
+                                      {spk.teamName?.split('@')[0] || 'Team Belum ditentukan'}
+                                    </span>
+                                  </div>
                                   <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Progress</span>
                                   <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{progress}%</span>
                                 </div>
@@ -764,12 +770,6 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                                       month: 'short',
                                       year: 'numeric'
                                     })}
-                                  </span>
-                                </div>
-                                <div className='flex items-center justify-center gap-1'>
-                                  <Users2Icon className='h-3.5 w-3.5 flex-shrink-0 text-indigo-500' />
-                                  <span className="truncate max-w-[80px] md:max-w-[100px]">
-                                    {spk.teamName?.split('@')[0] || 'Team Belum ditentukan'}
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
