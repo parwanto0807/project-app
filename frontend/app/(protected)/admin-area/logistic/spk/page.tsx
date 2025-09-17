@@ -164,7 +164,7 @@ export default function SpkPageAdmin() {
     }
   };
   const layoutProps: LayoutProps = {
-    title: "Sales Management",
+    title: "Logistic Management",
     role: "admin",
     children: (
       <>

@@ -645,7 +645,7 @@ export default function TabelDataSpk({
         <div className="rounded-md border overflow-x-auto">
             <div className="min-w-[800px]">
                 <Table>
-                    <TableHeader>
+                    <TableHeader className="bg-cyan-50 dark:bg-gray-800">
                         <TableRow>{/* PERBAIKAN: Tidak ada whitespace di dalam TableRow */}
                             <TableHead className="w-12">#</TableHead>
                             <TableHead>Nomor SPK</TableHead>
@@ -959,7 +959,7 @@ export default function TabelDataSpk({
     );
 
     return (
-        <Card className="border-none shadow-lg">
+        <Card className="border-none shadow-lg dark:bg-gray-950">
             {/* Header */}
             <CardHeader className="bg-gradient-to-r from-cyan-600 to-purple-600 p-4 rounded-lg text-white">
                 <div className="flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0">
@@ -1015,7 +1015,7 @@ export default function TabelDataSpk({
             </CardHeader>
 
             {/* Toolbar Mobile — hanya muncul di mobile */}
-            <div className="sm:hidden pt-0 px-1 space-y-2 border-b border-border bg-white dark:bg-gray-800">
+            <div className="sm:hidden pt-0 px-1 space-y-2 border-b border-border bg-white dark:bg-gray-950 rounded-xl">
                 {/* Search */}
                 <div className="relative">
                     <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
@@ -1031,7 +1031,7 @@ export default function TabelDataSpk({
                 <Link href="/admin-area/logistic/spk/create" className="w-full">
                     <Button
                         variant="default"
-                        className="w-full bg-black text-white hover:bg-gray-800 px-4 py-3 flex items-center justify-center gap-2"
+                        className="w-full bg-gray-800 text-white hover:bg-gray-700 px-4 py-3 flex items-center justify-center gap-2"
                     >
                         <Plus size={18} />
                         Tambah SPK
@@ -1040,7 +1040,7 @@ export default function TabelDataSpk({
             </div>
 
             {/* Konten Utama */}
-            <CardContent className="p-0 pt-2">
+            <CardContent className="p-0 pt-2 bg-white dark:bg-gray-950">
                 {isLoading ? (
                     <div className="p-4 space-y-4">
                         {Array.from({ length: 3 }).map((_, i) => (

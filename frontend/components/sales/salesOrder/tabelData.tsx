@@ -1156,8 +1156,8 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
     if (isMobile) {
         return (
             <>
-                <Card className="border-none shadow-lg">
-                    <CardHeader className="flex flex-col gap-1 bg-gradient-to-r from-cyan-600 to-purple-600 p-4 rounded-lg text-white shadow-lg transform transition-all duration-300 hover:shadow-xl">
+                <Card className="border-none shadow-lg gap-4">
+                    <CardHeader className="flex flex-col gap-4 bg-gradient-to-r from-cyan-600 to-purple-600 p-2 rounded-lg text-white shadow-lg transform transition-all duration-300 hover:shadow-xl">
                         <div className="flex flex-col space-y-1">
                             <div className="flex items-center space-x-3">
                                 <div className="flex items-center justify-center h-12 w-12 rounded-full bg-primary">
@@ -1192,7 +1192,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                             </Button>
                         </Link>
                     </div>
-                    <CardContent className="p-2">
+                    <CardContent className="p-1">
                         {isLoading ? (
                             <div className="space-y-4">
                                 {[...Array(5)].map((_, i) => (
@@ -1335,7 +1335,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
     }
 
     return (
-        <Card className="border-none shadow-lg">
+        <Card className="border-none shadow-lg gap-4">
             <CardHeader className="bg-gradient-to-r from-cyan-600 to-purple-600 p-4 rounded-lg text-white">
                 <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
                     <div className="flex items-center space-x-3">
@@ -1371,9 +1371,9 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                     </div>
                 </div>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="p-2">
                 {isLoading ? (
-                    <div className="space-y-4 p-6">
+                    <div className="space-y-4 p-4">
                         {[...Array(5)].map((_, i) => (
                             <div key={i} className="flex items-center space-x-4 p-4 border rounded-lg">
                                 <Skeleton className="h-12 w-12 rounded-full" />
