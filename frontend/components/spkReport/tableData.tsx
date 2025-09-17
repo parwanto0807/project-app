@@ -650,27 +650,27 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
           {/* TAB 1: DAFTAR SPK */}
           <TabsContent value="list" className="animate-fade-in">
             <Card className="border border-gray-200/60 dark:border-gray-700/50 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm shadow-sm rounded-xl overflow-hidden transition-all duration-300 hover:shadow-md">
-              <CardHeader className="pb-3 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 dark:from-gray-800 dark:to-gray-800 border-b border-gray-100 dark:border-gray-700">
+              <CardHeader className="pb-0 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 dark:from-gray-800 dark:to-gray-800 border-b border-gray-100 dark:border-gray-700">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-lg md:text-xl font-semibold flex items-center gap-2 text-gray-800 dark:text-white">
+                    <CardTitle className="text-lg md:text-xl font-semibold flex items-center gap-2 rounded-xl text-gray-800 dark:text-white ">
                       <FileText className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
                       {role === 'admin' || role === 'super' ? 'Semua SPK' : 'SPK Saya'}
                     </CardTitle>
-                    <CardDescription className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    <CardDescription className="text-sm text-gray-500 dark:text-gray-400 mt-0 rounded-xl">
                       {role === 'admin' || role === 'super'
                         ? 'Klik SPK untuk memulai pelaporan'
                         : 'Pilih SPK yang ditugaskan kepada Anda'}
                     </CardDescription>
                   </div>
                   {filteredUserSpk.length > 0 && (
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300">
+                    <span className="inline-flex items-center px-1 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300">
                       {filteredUserSpk.length} SPK
                     </span>
                   )}
                 </div>
               </CardHeader>
-              <CardContent className="p-5">
+              <CardContent className="px-2">
                 {filteredUserSpk.length === 0 ? (
                   <div className="text-center py-10 px-4 animate-fade-in">
                     <div className="mx-auto w-16 h-16 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-full mb-4">
@@ -716,7 +716,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                           >
                             <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-indigo-400 to-blue-400 opacity-90"></div>
 
-                            <div className="p-5 pl-6">
+                            <div className="py-2 px-2">
                               <div className="flex justify-between items-start mb-4">
                                 <div className="min-w-0 flex-1 pr-2">
                                   <h3 className="text-xs font-semibold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate mb-1 md:text-base">
