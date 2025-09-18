@@ -12,12 +12,12 @@ export default function WargaLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && user?.role !== "warga") {
+    if (!loading && user?.role !== "user") {
       router.push("/unauthorized");
     }
   }, [user, loading, router]);
 
-  if (loading || user?.role !== "warga") return null;
+  if (loading || user?.role !== "user") return null;
 
   return (
     <AdminPanelLayout role={user?.role}>

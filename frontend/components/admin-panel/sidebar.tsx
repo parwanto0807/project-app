@@ -10,7 +10,7 @@ import { useTheme } from "next-themes";
 import { useEffect } from "react";
 
 type SidebarProps = {
-  role: "super" | "admin" | "pic" | "warga";
+  role: "super" | "admin" | "pic" | "user";
 };
 
 export function Sidebar({ role }: SidebarProps) {

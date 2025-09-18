@@ -7,6 +7,7 @@ const prisma = new PrismaClient();
 
 // 💡 Membuat laporan lapangan (Progress atau Final)
 export const createSpkFieldReport = async (req, res) => {
+  console.log("Body", req.body)
   try {
     const {
       spkId,

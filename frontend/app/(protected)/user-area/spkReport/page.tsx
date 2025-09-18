@@ -127,7 +127,7 @@ export default function SpkReportPageAdmin() {
             setIsLoading(true);
 
             let result: SPK[] = [];
-            if (role === "admin" || role === "super") {
+            if (role === "admin" || role ==='super') {
                 result = await fetchAllSpk();   // ✅ ambil semua SPK untuk admin/super
             } else {
                 result = await getSpkByEmail(email); // ✅ user biasa hanya SPK yang assigned
@@ -157,7 +157,7 @@ export default function SpkReportPageAdmin() {
             router.replace("/auth/login");
             return;
         }
-        if (user.role !== "admin") {
+        if (user.role !== "user") {
             router.replace("/not-authorized");
             return;
         }
@@ -171,7 +171,7 @@ export default function SpkReportPageAdmin() {
 
     const layoutProps: LayoutProps = {
         title: "Production Management",
-        role: "admin",
+        role: "user",
         children: (
             <>
                 <Breadcrumb>
@@ -179,7 +179,7 @@ export default function SpkReportPageAdmin() {
                         <BreadcrumbItem>
                             <BreadcrumbLink asChild>
                                 <Badge variant="outline">
-                                    <Link href="/admin-area">Dashboard</Link>
+                                    <Link href="/user-area">Dashboard</Link>
                                 </Badge>
                             </BreadcrumbLink>
                         </BreadcrumbItem>

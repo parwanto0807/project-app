@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Camera, Upload, CheckCircle, Clock, X, Archive, Sparkles, TrendingUp, FileText, Eye, Loader2, Download, ZoomIn, ChevronRight, ChevronLeft, User, Calendar, Users2Icon, ChevronsRight, PackageOpenIcon, MoveRight, Wrench, PenTool, FileSignature, ShieldCheck, Trash2 } from 'lucide-react';
+import { Camera, Upload, CheckCircle, Clock, X, Archive, Sparkles, TrendingUp, FileText, Eye, Loader2, Download, ZoomIn, ChevronRight, ChevronLeft, User, Calendar, Users2Icon, ChevronsRight, PackageOpenIcon, MoveRight, Wrench, PenTool, FileSignature, ShieldCheck, Trash2, UserCheck2Icon } from 'lucide-react';
 import Image from 'next/image';
 import { createReportFormData, createSpkFieldReport, deleteReport, fetchSPKReports } from '@/lib/action/master/spk/spkReport';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog';
@@ -74,6 +74,7 @@ interface SPKDataApi {
       teamId: string;
       karyawan?: {
         namaLengkap: string;
+        email: string;
         jabatan: string;
         departemen: string;
       };
@@ -87,6 +88,7 @@ interface SPKDataApi {
       namaLengkap: string;
       jabatan: string;
       departemen: string;
+      email: string;
       nik: string;
     };
     salesOrderItem?: {
@@ -123,6 +125,7 @@ interface SPKData {
   deadline: string;
   assignedTo: string;
   teamName: string;
+  email: string;
   items: {
     id: string;
     name: string;
@@ -221,7 +224,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
   // console.log("Data SPK", dataSpk);
   // console.log("Data SO Item", selectedSpk);
   // console.log("User SPK", userSpk);
-  console.log("Report", reports);
+  // console.log("Report", reports);
   // console.log("Total Progress", summaryProgress);
 
   const totalPages = Math.ceil(reports.length / itemsPerPage);
@@ -274,6 +277,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
       const completedDetails = item.details?.filter(d => d.status === 'DONE').length || 0;
       const progress = totalDetails > 0 ? Math.round((completedDetails / totalDetails) * 100) : 0;
       const teamName = item.team?.namaTeam || 'Team belum ditentukan'
+      const email = item.team?.teamKaryawan?.karyawan?.email || ' Email belum ditentukan'
 
       // 5. Tentukan status SPK berdasarkan progress — SESUAI DENGAN INTERFACE SPKData
       let status: 'PENDING' | 'PROGRESS' | 'COMPLETED';
@@ -307,6 +311,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
         spkNumber: item.spkNumber,
         clientName,
         projectName,
+        email,
         status,
         teamName,
         progress,
@@ -363,9 +368,10 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
     }
   }, [dataSpk]);
 
+
   const filteredUserSpk = userSpk.filter(spk => {
-    if (role === 'admin' || role === 'super') return true;
-    return spk.assignedTo === userEmail;
+    if (role === 'admin' || role === 'super' || role === 'user') return true;
+    return spk.email === userEmail;
   });
 
   // 👇 FETCH RIWAYAT LAPORAN DARI BACKEND
@@ -1164,6 +1170,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                             <TableRow className="[&>th]:py-0 [&>th]:px-2 [&>th]:text-xs [&>th]:font-semibold">
                               <TableHead className="w-[40px]">SPK Number, Pelanggan, Project Name </TableHead>
                               <TableHead></TableHead>
+                              <TableHead className="w-[180px]">Team Lead. Lapangan</TableHead>
                               <TableHead className="w-[180px]">Progress</TableHead>
                               <TableHead className="w-[50px]">Approve Admin</TableHead>
                               <TableHead className="w-[80px]">Foto</TableHead>
@@ -1274,7 +1281,12 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                                                 <span className="text-xs text-muted-foreground/70">-</span>
                                               )}
                                             </TableCell>
-
+                                            <TableCell>
+                                              <div className="flex items-start gap-1">
+                                                <UserCheck2Icon className="w-4 h-4 mt-0.5 text-orange-700 flex-shrink-0" />
+                                                <span className="text-xs text-muted-foreground line-clamp-2">{report.karyawanName}</span>
+                                              </div>
+                                            </TableCell>
                                             {/* Status */}
                                             <TableCell className="sticky left-0 bg-card z-10">
                                               <div className="flex flex-col gap-1">

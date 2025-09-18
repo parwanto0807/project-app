@@ -12,7 +12,7 @@ const fontSans = FontSans({
   variable: "--font-sans",
 });
 
-type Role = "super" | "admin" | "pic" | "warga";
+type Role = "super" | "admin" | "pic" | "user";
 
 type AdminPanelLayoutProps = {
   children: React.ReactNode;

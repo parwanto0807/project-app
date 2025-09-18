@@ -246,15 +246,17 @@ const LoginForm = () => {
             </Button>
           </form>
 
-          <div className="mt-3 sm:mt-4 text-center text-xs">
-            Don&apos;t have an account?{" "}
-            <Link
-              href="/auth/register"
-              className="text-primary hover:underline transition-colors"
-            >
-              Sign up
-            </Link>
-          </div>
+          {false && (
+            <div className="mt-3 sm:mt-4 text-center text-xs">
+              Don&apos;t have an account?{" "}
+              <Link
+                href="/auth/register"
+                className="text-primary hover:underline transition-colors"
+              >
+                Sign up
+              </Link>
+            </div>
+          )}
         </Form>
       </CardWrapper>
 
