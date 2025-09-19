@@ -486,102 +486,117 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                     {/* Header Card — Judul + Filter */}
                     <CardHeader className="pb-4 pt-3 bg-gradient-to-r from-purple-50 to-white dark:from-purple-900/30 dark:to-gray-800 sticky top-0 z-10">
                         <div className="flex flex-col md:grid md:grid-cols-10 gap-4">
-                            {/* Judul */}
-                            <div className='md:col-span-1 md:col-start-1'>
-                                <CardTitle className="text-base font-semibold flex items-center gap-2">
-                                    <Archive className="h-4 w-4 text-purple-600" />
-                                    <span className="hidden md:inline">Riwayat Laporan</span>
-                                    <span className="md:hidden">Laporan</span>
-                                </CardTitle>
-                                <CardDescription className="text-xs">Riwayat laporan SPK Anda</CardDescription>
-                            </div>
+                            {/* Judul - Mobile Layout */}
+                            <div className='flex md:col-span-1 md:col-start-1 justify-between items-center md:block'>
+                                <div className='flex flex-col'>
+                                    <CardTitle className="text-base font-semibold flex items-center gap-2">
+                                        <Archive className="h-4 w-4 text-purple-600" />
+                                        <span className="hidden md:inline">Riwayat Laporan</span>
+                                        <span className="md:hidden">Laporan</span>
+                                    </CardTitle>
+                                    <CardDescription className="text-xs">Riwayat laporan SPK Anda</CardDescription>
+                                </div>
 
-                            {/* Mobile Filter Button */}
-                            <div className="md:hidden flex justify-end">
-                                <Sheet open={isMobileFilterOpen} onOpenChange={setIsMobileFilterOpen}>
-                                    <SheetTrigger asChild>
-                                        <Button variant="outline" size="sm" className="h-10 text-xs">
-                                            <Filter className="h-4 w-4 mr-1" />
-                                            Filter
-                                        </Button>
-                                    </SheetTrigger>
-                                    <SheetContent side="bottom" className="h-3/4">
-                                        <SheetHeader>
-                                            <SheetTitle>Filter Laporan</SheetTitle>
-                                        </SheetHeader>
-                                        <ScrollArea className="h-full mt-4">
-                                            <div className="space-y-4">
-                                                <div>
-                                                    <Label className="text-xs font-medium">SPK</Label>
-                                                    <Select value={filters.spkId} onValueChange={(v) => setFilters({ ...filters, spkId: v })}>
-                                                        <SelectTrigger className="h-10 text-xs border-border/60">
-                                                            <SelectValue placeholder="Semua SPK" />
-                                                        </SelectTrigger>
-                                                        <SelectContent className="text-xs max-h-48 overflow-y-auto">
-                                                            {filteredUserSpk.map(spk => (
-                                                                <SelectItem key={spk.id} value={spk.id}>
-                                                                    {spk.spkNumber} - {spk.clientName}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
+                                {/* Mobile Filter Button & Items Per Page - Now in the same row */}
+                                <div className="flex items-center gap-2 md:hidden">
+                                    <div className="flex items-center gap-1">
+                                        <Label className="text-xs font-medium hidden xs:inline">Item:</Label>
+                                        <select
+                                            value={itemsPerPage}
+                                            onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                                            className="h-7 w-12 text-xs border rounded-md bg-background flex items-center justify-center text-center"
+                                        >
+                                            <option value="5">5</option>
+                                            <option value="10">10</option>
+                                            <option value="20">20</option>
+                                        </select>
+                                    </div>
 
-                                                <div>
-                                                    <Label className="text-xs font-medium">Status</Label>
-                                                    <Select
-                                                        value={filters.status}
-                                                        onValueChange={(v: 'all' | 'PENDING' | 'APPROVED' | 'REJECTED') =>
-                                                            setFilters({ ...filters, status: v })
-                                                        }
-                                                    >
-                                                        <SelectTrigger className="h-10 text-xs border-border/60">
-                                                            <SelectValue placeholder="Semua Status" />
-                                                        </SelectTrigger>
-                                                        <SelectContent className="text-xs">
-                                                            <SelectItem value="all">Semua Status</SelectItem>
-                                                            <SelectItem value="PENDING">Menunggu</SelectItem>
-                                                            <SelectItem value="APPROVED">Disetujui</SelectItem>
-                                                            <SelectItem value="REJECTED">Ditolak</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
+                                    <Sheet open={isMobileFilterOpen} onOpenChange={setIsMobileFilterOpen}>
+                                        <SheetTrigger asChild>
+                                            <Button variant="outline" size="sm" className="h-10 text-xs">
+                                                <Filter className="h-4 w-4 mr-1" />
+                                                Filter
+                                            </Button>
+                                        </SheetTrigger>
+                                        <SheetContent side="bottom" className="h-3/4">
+                                            <SheetHeader>
+                                                <SheetTitle>Filter Laporan</SheetTitle>
+                                            </SheetHeader>
+                                            <ScrollArea className="h-full mt-4">
+                                                <div className="space-y-4 px-6">
+                                                    <div>
+                                                        <Label className="text-xs font-medium mb-2">SPK</Label>
+                                                        <Select value={filters.spkId} onValueChange={(v) => setFilters({ ...filters, spkId: v })}>
+                                                            <SelectTrigger className="h-10 text-xs border-border/60">
+                                                                <SelectValue placeholder="Semua SPK" />
+                                                            </SelectTrigger>
+                                                            <SelectContent className="text-xs max-h-48 overflow-y-auto">
+                                                                {filteredUserSpk.map(spk => (
+                                                                    <SelectItem key={spk.id} value={spk.id}>
+                                                                        {spk.spkNumber} - {spk.clientName}
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
 
-                                                <div>
-                                                    <Label className="text-xs font-medium">Periode</Label>
-                                                    <Select value={filters.date} onValueChange={(v: 'all' | 'today' | 'thisWeek' | 'thisMonth') =>
-                                                        setFilters({ ...filters, date: v })}>
-                                                        <SelectTrigger className="h-10 text-xs border-border/60">
-                                                            <SelectValue placeholder="Semua Periode" />
-                                                        </SelectTrigger>
-                                                        <SelectContent className="text-xs">
-                                                            <SelectItem value="all">Semua Periode</SelectItem>
-                                                            <SelectItem value="today">Hari Ini</SelectItem>
-                                                            <SelectItem value="thisWeek">Minggu Ini</SelectItem>
-                                                            <SelectItem value="thisMonth">Bulan Ini</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
+                                                    <div>
+                                                        <Label className="text-xs font-medium mb-2">Status</Label>
+                                                        <Select
+                                                            value={filters.status}
+                                                            onValueChange={(v: 'all' | 'PENDING' | 'APPROVED' | 'REJECTED') =>
+                                                                setFilters({ ...filters, status: v })
+                                                            }
+                                                        >
+                                                            <SelectTrigger className="h-10 text-xs border-border/60">
+                                                                <SelectValue placeholder="Semua Status" />
+                                                            </SelectTrigger>
+                                                            <SelectContent className="text-xs">
+                                                                <SelectItem value="all">Semua Status</SelectItem>
+                                                                <SelectItem value="PENDING">Menunggu</SelectItem>
+                                                                <SelectItem value="APPROVED">Disetujui</SelectItem>
+                                                                <SelectItem value="REJECTED">Ditolak</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
 
-                                                <div className="flex gap-2 pt-4">
-                                                    <Button
-                                                        variant="outline"
-                                                        className="flex-1"
-                                                        onClick={() => setIsMobileFilterOpen(false)}
-                                                    >
-                                                        Batal
-                                                    </Button>
-                                                    <Button
-                                                        className="flex-1"
-                                                        onClick={() => setIsMobileFilterOpen(false)}
-                                                    >
-                                                        Terapkan
-                                                    </Button>
+                                                    <div>
+                                                        <Label className="text-xs font-medium mb-2">Periode</Label>
+                                                        <Select value={filters.date} onValueChange={(v: 'all' | 'today' | 'thisWeek' | 'thisMonth') =>
+                                                            setFilters({ ...filters, date: v })}>
+                                                            <SelectTrigger className="h-10 text-xs border-border/60">
+                                                                <SelectValue placeholder="Semua Periode" />
+                                                            </SelectTrigger>
+                                                            <SelectContent className="text-xs">
+                                                                <SelectItem value="all">Semua Periode</SelectItem>
+                                                                <SelectItem value="today">Hari Ini</SelectItem>
+                                                                <SelectItem value="thisWeek">Minggu Ini</SelectItem>
+                                                                <SelectItem value="thisMonth">Bulan Ini</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+
+                                                    <div className="flex gap-2 pt-4">
+                                                        <Button
+                                                            variant="outline"
+                                                            className="flex-1"
+                                                            onClick={() => setIsMobileFilterOpen(false)}
+                                                        >
+                                                            Batal
+                                                        </Button>
+                                                        <Button
+                                                            className="flex-1"
+                                                            onClick={() => setIsMobileFilterOpen(false)}
+                                                        >
+                                                            Terapkan
+                                                        </Button>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </ScrollArea>
-                                    </SheetContent>
-                                </Sheet>
+                                            </ScrollArea>
+                                        </SheetContent>
+                                    </Sheet>
+                                </div>
                             </div>
 
                             {/* Desktop Filters */}
@@ -614,10 +629,10 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                                 </Button>
                             </div>
 
-                            <div className="hidden md:flex md:col-span-2 md:col-start-10 gap-2 ">
+                            <div className="hidden md:flex md:col-span-2 md:col-start-10 gap-2 items-center">
                                 <Label className="text-xs font-medium">Item Per Page</Label>
                                 <Select value={String(itemsPerPage)} onValueChange={(v) => setItemsPerPage(Number(v))}>
-                                    <SelectTrigger className="h-7 w-20 text-xs mt-3">
+                                    <SelectTrigger className="h-7 w-20 text-xs">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -927,12 +942,14 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                                         </Table>
                                         {/* ✅ Pagination Controls */}
                                         {reports.length > 0 && totalPages > 1 && (
-                                            <div className="flex items-center justify-between mt-3 px-1">
+                                            <div className="flex flex-col mt-4 space-y-2 px-1">
+                                                {/* Info jumlah data */}
                                                 <div className="text-xs text-muted-foreground">
                                                     Menampilkan {startIndex + 1}–{Math.min(startIndex + itemsPerPage, reports.length)} dari {reports.length} laporan
                                                 </div>
 
-                                                <div className="flex items-center gap-1">
+                                                {/* Pagination buttons */}
+                                                <div className="flex items-center justify-center gap-1">
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
@@ -943,7 +960,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                                                         <ChevronLeft className="h-3.5 w-3.5" />
                                                     </Button>
 
-                                                    {/* Tombol nomor halaman — maks 5 tombol ditampilkan */}
+                                                    {/* Tombol nomor halaman */}
                                                     {(() => {
                                                         const pages = [];
                                                         const maxVisible = 5;
@@ -961,7 +978,8 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                                                                     variant={currentPage === i ? "default" : "outline"}
                                                                     size="sm"
                                                                     onClick={() => goToPage(i)}
-                                                                    className={`h-7 w-7 p-0 text-xs ${currentPage === i ? 'bg-purple-600 text-white hover:bg-purple-700' : ''}`}
+                                                                    className={`h-7 w-7 p-0 text-xs ${currentPage === i ? "bg-purple-600 text-white hover:bg-purple-700" : ""
+                                                                        }`}
                                                                 >
                                                                     {i}
                                                                 </Button>
@@ -982,6 +1000,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                                                 </div>
                                             </div>
                                         )}
+
                                     </div>
                                 </div>
 
