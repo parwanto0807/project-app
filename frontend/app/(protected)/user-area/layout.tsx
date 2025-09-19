@@ -1,13 +1,14 @@
 "use client";
 
 import AdminPanelLayout from "@/components/admin-panel/admin-panel-layout";
+import { BackToDashboardButton } from "@/components/spkReport/backToDashboard";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-export default function WargaLayout({ children }: { children: React.ReactNode }) {
+export default function UserLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useCurrentUser();
   const router = useRouter();
 
@@ -29,6 +30,7 @@ export default function WargaLayout({ children }: { children: React.ReactNode })
       >
         <Toaster />
         {children}
+        <BackToDashboardButton />
       </ThemeProvider>
     </AdminPanelLayout>
   );

@@ -402,7 +402,8 @@ model SPK {
   // Detail SPK
   details        SPKDetail[]
   spkFieldReport SPKFieldReport[]
-
+  spkStatus  Boolean @default(false)
+  spkStatusClose Boolean @default(false)
   notes     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

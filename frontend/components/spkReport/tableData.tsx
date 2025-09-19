@@ -1071,6 +1071,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                       <Label className="text-xs font-medium">Catatan</Label>
                       <Textarea
                         placeholder="Jelaskan progress, kendala, atau detail penting..."
+                        disabled={formData.progress === 100}
                         value={formData.note}
                         onChange={(e) => setFormData(prev => ({ ...prev, note: e.target.value }))}
                         rows={3}

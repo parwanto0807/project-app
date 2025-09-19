@@ -10,7 +10,6 @@ import {
     Plus,
     BarChart3,
     Download,
-    Eye,
     CheckCircle,
     Clock
 } from "lucide-react";
@@ -145,7 +144,6 @@ interface SPKData {
 
 interface FormMonitoringProgressSpkProps {
     dataSpk: SPKDataApi[];
-    userEmail: string;
     role: string;
     userId: string;
 }
@@ -212,14 +210,13 @@ const SkeletonCard = () => (
     <div className="w-full h-44 bg-gray-200/30 dark:bg-gray-700/30 rounded-2xl animate-pulse shadow-sm backdrop-blur-md"></div>
 );
 
-const DashboardUserSPK = ({ dataSpk, userEmail, role, userId }: FormMonitoringProgressSpkProps) => {
-    const [isLoading, setIsLoading] = useState(true);
+const DashboardUserSPK = ({ dataSpk, role, userId }: FormMonitoringProgressSpkProps) => {
     const [userSpk, setUserSpk] = useState<SPKData[]>([]);
     const [reports, setReports] = useState<ReportHistory[]>([]);
     const [loadingReports, setLoadingReports] = useState(true);
     const router = useRouter();
     const isQuickActionsEnabled = false;
-    console.log("email", userEmail);
+    console.log("email");
 
     // Fungsi helper untuk format jarak waktu relatif dalam bahasa Indonesia
     const formatDistanceToNow = (date: Date): string => {
@@ -244,12 +241,6 @@ const DashboardUserSPK = ({ dataSpk, userEmail, role, userId }: FormMonitoringPr
 
         return 'baru saja';
     };
-
-    // Efek loading awal
-    useEffect(() => {
-        const timer = setTimeout(() => setIsLoading(false), 1200);
-        return () => clearTimeout(timer);
-    }, []);
 
     // Map dataSpk ke userSpk
     useEffect(() => {
@@ -331,7 +322,7 @@ const DashboardUserSPK = ({ dataSpk, userEmail, role, userId }: FormMonitoringPr
                         'in-progress',
             }));
     }, [reports]);
-    console.log("Recent", recentActivities); 
+    console.log("Recent", recentActivities);
 
     // Data statistik untuk UI
     const statsData = [
@@ -359,7 +350,7 @@ const DashboardUserSPK = ({ dataSpk, userEmail, role, userId }: FormMonitoringPr
     };
 
     // Tampilkan skeleton jika masih loading
-    if (isLoading || loadingReports) {
+    if (loadingReports) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-blue-50/70 via-indigo-50/70 to-purple-50/70 dark:from-gray-900 dark:via-gray-900 dark:to-gray-850 p-6 flex flex-col items-center justify-center space-y-6">
                 <div className="text-center mb-8">
@@ -535,9 +526,6 @@ const DashboardUserSPK = ({ dataSpk, userEmail, role, userId }: FormMonitoringPr
                                     </div>
                                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{activity.time}</p>
                                 </div>
-                                <button className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 p-2">
-                                    <Eye className="w-4 h-4" />
-                                </button>
                             </div>
                         ))
                     ) : (

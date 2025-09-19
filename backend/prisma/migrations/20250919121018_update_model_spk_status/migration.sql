@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "SPK" ADD COLUMN     "spkStatus" BOOLEAN NOT NULL DEFAULT false;

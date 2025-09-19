@@ -845,7 +845,10 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                                                                                                     <span className="text-xs text-muted-foreground">{report.photos.length}</span>
                                                                                                 </div>
                                                                                             </DialogTrigger>
-                                                                                            <DialogContent className="max-w-4xl p-4">
+                                                                                            <DialogContent className="max-w-4xl p-4 border-cyan-300">
+                                                                                                <DialogHeader>
+                                                                                                    <DialogTitle>Foto Bukti</DialogTitle>
+                                                                                                </DialogHeader>
                                                                                                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                                                                                                     {report.photos.map((photo: string, idx: number) => {
                                                                                                         const getPhotoUrl = (path: string) => {

@@ -17,6 +17,7 @@ export const getSpkByEmail = async (req, res) => {
     // Cari semua SPK yang memiliki setidaknya satu detail dengan karyawan.email = email
     const spkList = await prisma.sPK.findMany({
       where: {
+        spkStatus: false,
         details: {
           some: {
             karyawan: {
@@ -146,6 +147,9 @@ export const createSPK = async (req, res) => {
 export const getAllSPK = async (req, res) => {
   try {
     const spkList = await prisma.sPK.findMany({
+      where: {
+        spkStatusClose: false,
+      },
       include: {
         createdBy: true,
         salesOrder: {

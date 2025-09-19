@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 
 // 💡 Membuat laporan lapangan (Progress atau Final)
 export const createSpkFieldReport = async (req, res) => {
-  console.log("Body", req.body)
+  console.log("Body", req.body);
   try {
     const {
       spkId,
@@ -151,12 +151,9 @@ export const createSpkFieldReport = async (req, res) => {
       where: { id: spkId },
       data: {
         progress: averageProgress,
+        spkStatus: averageProgress === 100 ? true : false,
       },
     });
-
-    console.log(
-      `[SPK ${spkId}] Updated progress: ${averageProgress}% (from ${count} items)`
-    );
 
     // Ambil report lengkap dengan relasi
     const populatedReport = await prisma.sPKFieldReport.findUnique({

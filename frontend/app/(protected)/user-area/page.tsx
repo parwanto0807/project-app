@@ -100,7 +100,7 @@ export default function DashboardPage() {
       {/* Main Dashboard Content */}
       <DashboardUserSPK
         dataSpk={dataSpk}
-        userEmail={email}
+        // userEmail={email}
         role={role}
         userId={userId}
       />
