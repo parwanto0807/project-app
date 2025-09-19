@@ -140,7 +140,7 @@ const RegisterForm = () => {
                       <SelectContent>
                         <SelectItem value="admin">Admin</SelectItem>
                         <SelectItem value="pic">PIC</SelectItem>
-                        <SelectItem value="warga">Resident</SelectItem>
+                        <SelectItem value="user">User</SelectItem>
                       </SelectContent>
                     </Select>
                   </FormControl>
