@@ -55,6 +55,7 @@ export interface ReportHistory {
   soDetailId: string;
   itemName: string;
   karyawanName: string;
+  email: string;
   progress: number;
   status: "PENDING" | "APPROVED" | "REJECTED";
 }

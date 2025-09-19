@@ -770,8 +770,8 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="text-lg md:text-xl font-semibold flex items-center gap-2 rounded-xl text-gray-800 dark:text-white ">
-                      <FileText className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-                      {role === 'admin' || role === 'super' ? 'Semua SPK' : 'SPK Saya'}
+                      <FileText className="h-6 w-6 text-indigo-600 dark:text-indigo-400 items-center justify-center" />
+                      {role === 'admin' || role === 'super' ? 'Semua SPK' : 'SPK List'}
                     </CardTitle>
                     <CardDescription className="text-sm text-gray-500 dark:text-gray-400 mt-0 rounded-xl">
                       {role === 'admin' || role === 'super'

@@ -506,6 +506,7 @@ export const getSPKFieldReports = async (req, res) => {
         karyawan: {
           select: {
             namaLengkap: true,
+            email: true,
           },
         },
         soDetail: {
@@ -537,6 +538,7 @@ export const getSPKFieldReports = async (req, res) => {
       soDetailId: report.soDetailId,
       itemName: report.soDetail?.name || "Item tidak dikenal",
       karyawanName: report.karyawan.namaLengkap,
+      email: report.karyawan.email,
       progress: report.progress || 0,
       status: report.status, // PENDING, APPROVED, REJECTED
     }));

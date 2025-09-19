@@ -319,7 +319,7 @@ const DashboardUserSPK = ({ dataSpk, userEmail, role, userId }: FormMonitoringPr
     const recentActivities = useMemo(() => {
         return [...reports]
             .sort((a, b) => new Date(b.reportedAt).getTime() - new Date(a.reportedAt).getTime())
-            .slice(0, 3)
+            .slice(0, 5)
             .map(report => ({
                 id: report.id,
                 title: report.spkNumber,
@@ -490,7 +490,7 @@ const DashboardUserSPK = ({ dataSpk, userEmail, role, userId }: FormMonitoringPr
                 className="bg-white/40 dark:bg-gray-800/40 backdrop-blur-xl rounded-3xl p-4 border border-white/30 dark:border-gray-700/30 shadow-2xl max-w-6xl mx-auto mb-8 relative z-10"
             >
                 <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-base font-bold text-gray-800 dark:text-white">Aktivitas Terbaru</h2>
+                    <h2 className="text-base font-bold text-gray-800 dark:text-white">5 Aktivitas Terbaru</h2>
                     <button
                         className="text-sm text-blue-600 dark:text-blue-400 font-medium flex items-center cursor-pointer"
                         onClick={() => router.push("/user-area/spkReportDetail")}

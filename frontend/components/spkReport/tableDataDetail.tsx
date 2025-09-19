@@ -15,6 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { updateReportStatus } from '@/lib/action/master/spk/spkReport';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../ui/sheet';
 import { ScrollArea } from '../ui/scroll-area';
+import { DialogTrigger } from '@radix-ui/react-dialog';
 
 
 // 👇 DEFINSI TIPE DATA API (TETAP UTUH)
@@ -137,6 +138,7 @@ interface ReportHistory {
     reportedAt: Date;
     itemName: string;
     karyawanName: string;
+    email: string;
     soDetailId: string;
     progress: number;
     status: 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -194,7 +196,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
     const [isDeleting, setIsDeleting] = useState(false);
     const [isApproving, setIsApproving] = useState(false);
     const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
-     console.log("User", userId, spkItemProgress)
+    console.log("User", userId, spkItemProgress)
     // console.log("Data SPK", dataSpk);
     // console.log("Data SO Item", selectedSpk);
     // console.log("User SPK", userSpk);
@@ -345,32 +347,31 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
         try {
             let reports = await fetchSPKReports(filters);
 
-            // ✅ SORT: Pertama berdasarkan spkNumber, lalu itemName (keduanya string)
+            // ✅ FILTER di frontend sesuai userEmail (kecuali admin/super)
+            if (role !== "admin" && role !== "super") {
+                reports = reports.filter(r => r.email === userEmail);
+            }
+
+            // ✅ SORT
             reports = [...reports].sort((a, b) => {
-                // Bandingkan spkNumber dulu
                 const spkCompare = a.spkNumber.localeCompare(b.spkNumber, undefined, {
                     numeric: true,
-                    sensitivity: 'base',
+                    sensitivity: "base",
                 });
-
-                // Jika spkNumber sama, bandingkan itemName
-                if (spkCompare === 0) {
-                    return a.itemName.localeCompare(b.itemName, undefined, {
-                        sensitivity: 'base', // case-insensitive
-                    });
-                }
-
-                return spkCompare;
+                return spkCompare === 0
+                    ? a.itemName.localeCompare(b.itemName, undefined, { sensitivity: "base" })
+                    : spkCompare;
             });
 
-            setReports(reports); // Simpan yang sudah terurut
+            setReports(reports);
         } catch (error) {
-            console.error('Error fetching reports:', error);
-            toast.error('Gagal memuat riwayat laporan');
+            console.error("Error fetching reports:", error);
+            toast.error("Gagal memuat riwayat laporan");
         } finally {
             setLoadingReports(false);
         }
-    }, [filters]);
+    }, [filters, userEmail, role]);
+
 
     useEffect(() => {
         fetchReports();
@@ -586,19 +587,19 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                             {/* Desktop Filters */}
                             <div className="hidden md:flex md:col-span-1 md:col-start-3">
                                 <div className='flex gap-4'>
-                                <Label className="text-xs font-medium">SPK</Label>
-                                <Select value={filters.spkId} onValueChange={(v) => setFilters({ ...filters, spkId: v })}>
-                                    <SelectTrigger className="h-10 text-xs border-border/60 mt-3">
-                                        <SelectValue placeholder="Semua SPK" />
-                                    </SelectTrigger>
-                                    <SelectContent className="text-xs max-h-48 overflow-y-auto">
-                                        {filteredUserSpk.map(spk => (
-                                            <SelectItem key={spk.id} value={spk.id}>
-                                                {spk.spkNumber} - {spk.clientName}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                    <Label className="text-xs font-medium">SPK</Label>
+                                    <Select value={filters.spkId} onValueChange={(v) => setFilters({ ...filters, spkId: v })}>
+                                        <SelectTrigger className="h-10 text-xs border-border/60 mt-3">
+                                            <SelectValue placeholder="Semua SPK" />
+                                        </SelectTrigger>
+                                        <SelectContent className="text-xs max-h-48 overflow-y-auto">
+                                            {filteredUserSpk.map(spk => (
+                                                <SelectItem key={spk.id} value={spk.id}>
+                                                    {spk.spkNumber} - {spk.clientName}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                             </div>
 
@@ -815,17 +816,57 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                                                                                 {/* Foto */}
                                                                                 <TableCell>
                                                                                     {report.photos.length > 0 ? (
-                                                                                        <div className="flex items-center gap-1">
-                                                                                            <div className="relative">
-                                                                                                <Camera className="w-3.5 h-3.5 text-blue-500" />
-                                                                                                {report.photos.length > 1 && (
-                                                                                                    <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-[8px] rounded-full w-3 h-3 flex items-center justify-center">
-                                                                                                        {report.photos.length}
-                                                                                                    </span>
-                                                                                                )}
-                                                                                            </div>
-                                                                                            <span className="text-xs text-muted-foreground">{report.photos.length}</span>
-                                                                                        </div>
+                                                                                        <Dialog>
+                                                                                            <DialogTrigger asChild>
+                                                                                                <div className="flex items-center gap-1 cursor-pointer hover:opacity-80">
+                                                                                                    <div className="relative">
+                                                                                                        <Camera className="w-3.5 h-3.5 text-blue-500" />
+                                                                                                        {report.photos.length > 1 && (
+                                                                                                            <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-[8px] rounded-full w-3 h-3 flex items-center justify-center">
+                                                                                                                {report.photos.length}
+                                                                                                            </span>
+                                                                                                        )}
+                                                                                                    </div>
+                                                                                                    <span className="text-xs text-muted-foreground">{report.photos.length}</span>
+                                                                                                </div>
+                                                                                            </DialogTrigger>
+                                                                                            <DialogContent className="max-w-4xl p-4">
+                                                                                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                                                                                                    {report.photos.map((photo: string, idx: number) => {
+                                                                                                        const getPhotoUrl = (path: string) => {
+                                                                                                            if (path.startsWith("http")) return path;
+                                                                                                            const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
+                                                                                                            const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+                                                                                                            return `${baseUrl}${normalizedPath}`;
+                                                                                                        };
+                                                                                                        const photoUrl = getPhotoUrl(photo);
+
+                                                                                                        return (
+                                                                                                            <div
+                                                                                                                key={idx}
+                                                                                                                className="group relative aspect-square rounded-xl overflow-hidden border border-border/40 bg-muted/30 cursor-pointer"
+                                                                                                                onClick={() => window.open(photoUrl, "_blank")}
+                                                                                                            >
+                                                                                                                <Image
+                                                                                                                    src={photoUrl}
+                                                                                                                    alt={`bukti-${idx + 1}`}
+                                                                                                                    fill
+                                                                                                                    className="object-cover transition-transform duration-300 group-hover:scale-110"
+                                                                                                                    sizes="(max-width: 768px) 50vw, 25vw"
+                                                                                                                    onError={(e) => {
+                                                                                                                        e.currentTarget.src = "/images/placeholder-image.svg";
+                                                                                                                    }}
+                                                                                                                />
+                                                                                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                                                                                                    <ZoomIn className="h-6 w-6 text-white drop-shadow" />
+                                                                                                                </div>
+                                                                                                            </div>
+                                                                                                        );
+                                                                                                    })}
+                                                                                                </div>
+                                                                                            </DialogContent>
+
+                                                                                        </Dialog>
                                                                                     ) : (
                                                                                         <span className="text-xs text-muted-foreground/70">-</span>
                                                                                     )}
