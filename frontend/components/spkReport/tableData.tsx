@@ -436,24 +436,35 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
 
   // 👇 HANDLE UPLOAD FOTO
   function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+    const { files } = e.target
+    if (!files || files.length === 0) return
 
-    const newPhotos = Array.from(files);
-    setFormData(prev => ({
+    const newPhotos = Array.from(files).filter(
+      (file) => file.type.startsWith("image/") && file.size <= 2 * 1024 * 1024
+    )
+
+    if (newPhotos.length === 0) {
+      alert("File harus berupa gambar dan ≤ 2MB")
+      e.target.value = ""
+      return
+    }
+
+    setFormData((prev) => ({
       ...prev,
       photos: [...prev.photos, ...newPhotos],
-    }));
-    e.target.value = ''; // Reset input
+    }))
+
+    e.target.value = ""
   }
 
-  const removePhoto = (index: number) => {
-    setFormData(prev => ({
+
+  // Hapus foto berdasarkan index
+  function removePhoto(index: number) {
+    setFormData((prev) => ({
       ...prev,
       photos: prev.photos.filter((_, i) => i !== index),
-    }));
-  };
-
+    }))
+  }
   // 👇 SUBMIT LAPORAN
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1011,20 +1022,29 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                     <div className="space-y-2">
                       <Label className="text-xs font-medium">Dokumentasi Foto</Label>
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                        {/* Tombol Upload */}
                         <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer border-muted/40 hover:border-green-400 hover:bg-green-50/50 transition-all duration-300 group">
                           <Camera className="w-5 h-5 mb-1 text-muted-foreground group-hover:text-green-600 transition-colors" />
-                          <span className="text-xs text-muted-foreground group-hover:text-green-600 transition-colors">Tambah Foto</span>
+                          <span className="text-xs text-muted-foreground group-hover:text-green-600 transition-colors">
+                            Tambah Foto
+                          </span>
                           <Input
                             type="file"
                             multiple
                             accept="image/*"
+                            capture="environment"
                             className="hidden"
                             onChange={handleFileUpload}
                             disabled={uploading}
                           />
                         </label>
+
+                        {/* Preview Foto */}
                         {formData.photos.map((file, index) => (
-                          <div key={index} className="relative group transform transition-all duration-300 hover:scale-105">
+                          <div
+                            key={index}
+                            className="relative group transform transition-all duration-300 hover:scale-105"
+                          >
                             <div className="relative h-24 w-full overflow-hidden rounded-lg border border-border/60">
                               <Image
                                 src={URL.createObjectURL(file)}
@@ -1034,6 +1054,8 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                               />
                               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300"></div>
                             </div>
+
+                            {/* Tombol Hapus */}
                             <button
                               type="button"
                               onClick={() => removePhoto(index)}
