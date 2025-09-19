@@ -18,7 +18,7 @@ import { LayoutProps } from "@/types/layout";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { fetchKaryawanByEmail } from "@/lib/action/master/karyawan";
 import { toast } from "sonner";
-import FormMonitoringProgressSpk from "@/components/spkReport/tableData";
+import ModalDetailLaporan from "@/components/spkReport/tableDataDetail";
 
 interface SPK {
     id: string;
@@ -103,7 +103,7 @@ interface SPK {
     updatedAt: Date;
 }
 
-export default function SpkReportPageAdmin() {
+export default function SpkReportDetailPageAdmin() {
     const { user, loading: userLoading } = useCurrentUser();
     const [dataSpk, setDataSpk] = useState<SPK[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -194,7 +194,7 @@ export default function SpkReportPageAdmin() {
 
                 <div className="h-full w-full">
                     <div className="flex-1 space-y-4 p-0 pt-6 md:p-4">
-                        <FormMonitoringProgressSpk
+                        <ModalDetailLaporan
                             dataSpk={dataSpk}
                             isLoading={isLoading}
                             userEmail={email}
