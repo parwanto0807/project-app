@@ -194,7 +194,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
     const [isDeleting, setIsDeleting] = useState(false);
     const [isApproving, setIsApproving] = useState(false);
     const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
-
+     console.log("User", userId, spkItemProgress)
     // console.log("Data SPK", dataSpk);
     // console.log("Data SO Item", selectedSpk);
     // console.log("User SPK", userSpk);
