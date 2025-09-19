@@ -26,7 +26,7 @@ export const RegisterSchema = z
 
 export const RegisterSchemaEmail = z.object({
   email: z.string().email({ message: "Email tidak valid" }),
-  role: z.enum(["admin", "pic", "warga"], {
+  role: z.enum(["admin", "pic", "user"], {
     required_error: "Role wajib dipilih",
   }),
 });
