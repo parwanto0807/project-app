@@ -1010,16 +1010,19 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                                         <Download className="h-3 w-3 mr-1" />
                                         Ekspor CSV
                                     </Button>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => downloadPDF(selectedReport!)}
-                                        disabled={!selectedReport}
-                                        className="text-xs h-7"
-                                    >
-                                        <Download className="h-3 w-3 mr-1" />
-                                        Unduh PDF
-                                    </Button>
+                                    {false && (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => downloadPDF(selectedReport!)}
+                                            disabled={!selectedReport}
+                                            className="text-xs h-7"
+                                        >
+                                            <Download className="h-3 w-3 mr-1" />
+                                            Unduh PDF
+                                        </Button>
+                                    )}
+
                                 </div>
                             </>
                         )}
