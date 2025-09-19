@@ -10,7 +10,9 @@ import {
     Plus,
     BarChart3,
     Download,
-    Eye
+    Eye,
+    CheckCircle,
+    Clock
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -322,12 +324,14 @@ const DashboardUserSPK = ({ dataSpk, userEmail, role, userId }: FormMonitoringPr
                 id: report.id,
                 title: report.spkNumber,
                 description: report.itemName,
+                progress: report.progress,
                 time: formatDistanceToNow(new Date(report.reportedAt)) + ' lalu',
                 status: report.status === 'APPROVED' ? 'completed' :
                     report.status === 'PENDING' ? 'pending' :
                         'in-progress',
             }));
     }, [reports]);
+    console.log("Recent", recentActivities); 
 
     // Data statistik untuk UI
     const statsData = [
@@ -373,7 +377,7 @@ const DashboardUserSPK = ({ dataSpk, userEmail, role, userId }: FormMonitoringPr
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50/70 via-indigo-50/70 to-purple-50/70 dark:from-gray-900 dark:via-gray-900 dark:to-gray-850 p-5 transition-colors duration-500 pb-24 relative overflow-hidden">
+        <div className="min-h-screen bg-gradient-to-br from-blue-50/70 via-indigo-50/70 to-purple-50/70 dark:from-gray-900 dark:via-gray-900 dark:to-gray-850 py-5 px-1 transition-colors duration-500 pb-24 relative overflow-hidden">
 
             {/* Background decorative elements */}
             <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
@@ -483,10 +487,10 @@ const DashboardUserSPK = ({ dataSpk, userEmail, role, userId }: FormMonitoringPr
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                className="bg-white/40 dark:bg-gray-800/40 backdrop-blur-xl rounded-3xl p-6 border border-white/30 dark:border-gray-700/30 shadow-2xl max-w-6xl mx-auto mb-8 relative z-10"
+                className="bg-white/40 dark:bg-gray-800/40 backdrop-blur-xl rounded-3xl p-4 border border-white/30 dark:border-gray-700/30 shadow-2xl max-w-6xl mx-auto mb-8 relative z-10"
             >
                 <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-xl font-bold text-gray-800 dark:text-white">Aktivitas Terbaru</h2>
+                    <h2 className="text-base font-bold text-gray-800 dark:text-white">Aktivitas Terbaru</h2>
                     <button
                         className="text-sm text-blue-600 dark:text-blue-400 font-medium flex items-center cursor-pointer"
                         onClick={() => router.push("/user-area/spkReportDetail")}
@@ -498,7 +502,7 @@ const DashboardUserSPK = ({ dataSpk, userEmail, role, userId }: FormMonitoringPr
                 <div className="space-y-4">
                     {recentActivities.length > 0 ? (
                         recentActivities.map((activity) => (
-                            <div key={activity.id} className="flex items-start p-4 bg-white/50 dark:bg-gray-700/50 rounded-2xl border border-white/30 dark:border-gray-600/30">
+                            <div key={activity.id} className="flex items-start p-2 bg-white/50 dark:bg-gray-700/50 rounded-2xl border border-white/30 dark:border-gray-600/30">
                                 <div className={`rounded-full p-2 mr-4 ${activity.status === 'completed' ? 'bg-green-100/50 dark:bg-green-900/30 text-green-600 dark:text-green-400' :
                                     activity.status === 'pending' ? 'bg-amber-100/50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400' :
                                         'bg-blue-100/50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
@@ -508,8 +512,27 @@ const DashboardUserSPK = ({ dataSpk, userEmail, role, userId }: FormMonitoringPr
                                             <BarChart2 className="w-4 h-4" />}
                                 </div>
                                 <div className="flex-1">
-                                    <h3 className="font-semibold text-gray-800 dark:text-white">{activity.title}</h3>
-                                    <p className="text-sm text-gray-600 dark:text-gray-300">{activity.description}</p>
+                                    <h3 className="text-xs font-semibold text-gray-800 dark:text-white">{activity.title}</h3>
+                                    <p className="text-xs text-gray-600 dark:text-gray-300">{activity.description}</p>
+                                    <div className="flex flex-col gap-1 mt-1">
+                                        {activity.status === 'pending' ? (
+                                            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></div>
+                                                <span className="text-xs">Progress - {activity.progress}%</span>
+                                            </div>
+                                        ) : activity.status === 'completed' ? (
+                                            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                                                <CheckCircle className="w-3 h-3" />
+                                                <span className="text-xs">Selesai - {activity.progress}% </span>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                                                <Clock className="w-3 h-3" />
+                                                <span className="text-xs">Menunggu Approve Aadmin - {activity.progress}%</span>
+                                            </div>
+                                        )}
+
+                                    </div>
                                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{activity.time}</p>
                                 </div>
                                 <button className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 p-2">
@@ -533,7 +556,7 @@ const DashboardUserSPK = ({ dataSpk, userEmail, role, userId }: FormMonitoringPr
                     className={`... ${isQuickActionsEnabled ? '' : 'opacity-60 pointer-events-none select-none'}`}
                 >
                     {/* <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-6">Aksi Cepat</h2> */}
-                    <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-6">Aksi Cepat (Segera Hadir)</h2>
+                    <h2 className="text-base font-bold text-gray-800 dark:text-white mb-6">Aksi Cepat (Segera Hadir)</h2>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <button className="bg-white/70 dark:bg-gray-700/70 hover:bg-white dark:hover:bg-gray-600/70 backdrop-blur-md rounded-2xl p-4 border border-white/30 dark:border-gray-600/30 shadow-sm transition-all duration-300 group">

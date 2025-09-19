@@ -472,7 +472,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                 <div className="flex flex-col gap-1 bg-gradient-to-r from-blue-600 to-purple-600 p-4 rounded-lg text-white shadow-lg transform transition-all duration-300 hover:shadow-xl">
                     <div className="flex items-center gap-2">
                         <TrendingUp className="h-6 w-6 md:h-7 md:w-7" />
-                        <h1 className="text-xl md:text-2xl font-bold tracking-tight">Monitoring Progress SPK</h1>
+                        <h1 className="text-xl md:text-2xl font-bold tracking-tight">Laporan Progress SPK</h1>
                     </div>
                     <p className="text-xs md:text-sm text-blue-100 opacity-90">
                         {role === 'admin' || role === 'super'
