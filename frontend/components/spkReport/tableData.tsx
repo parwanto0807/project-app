@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Camera, Upload, CheckCircle, Clock, X, Archive, Sparkles, TrendingUp, FileText, Eye, Loader2, Download, ZoomIn, ChevronRight, ChevronLeft, User, Calendar, Users2Icon, ChevronsRight, PackageOpenIcon, MoveRight, Wrench, PenTool, FileSignature, ShieldCheck, Trash2, UserCheck2Icon } from 'lucide-react';
+import { Camera, Upload, CheckCircle, Clock, X, Archive, Sparkles, TrendingUp, FileText, Eye, Loader2, Download, ZoomIn, ChevronRight, ChevronLeft, User, Calendar, Users2Icon, ChevronsRight, PackageOpenIcon, MoveRight, Wrench, PenTool, FileSignature, ShieldCheck, Trash2, UserCheck2Icon, ImageIcon } from 'lucide-react';
 import Image from 'next/image';
 import { createReportFormData, createSpkFieldReport, deleteReport, fetchSPKReports } from '@/lib/action/master/spk/spkReport';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog';
@@ -435,27 +435,87 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
   }, [filters, fetchReports]);
 
   // 👇 HANDLE UPLOAD FOTO
-  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  // Helper untuk resize image
+  async function resizeImage(
+    file: File,
+    maxWidth = 1280,
+    maxHeight = 1280,
+    quality = 0.8
+  ): Promise<File> {
+    return new Promise((resolve, reject) => {
+      const img = document.createElement("img") as HTMLImageElement
+      const reader = new FileReader()
+
+      reader.onload = (e) => {
+        img.src = e.target?.result as string
+      }
+
+      img.onload = () => {
+        const canvas = document.createElement("canvas")
+        let { width, height } = img
+
+        if (width > maxWidth || height > maxHeight) {
+          const aspect = width / height
+          if (width > height) {
+            width = maxWidth
+            height = Math.round(maxWidth / aspect)
+          } else {
+            height = maxHeight
+            width = Math.round(maxHeight * aspect)
+          }
+        }
+
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext("2d")
+        ctx?.drawImage(img, 0, 0, width, height)
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) return reject(new Error("Resize gagal"))
+            resolve(new File([blob], file.name, { type: "image/jpeg" }))
+          },
+          "image/jpeg",
+          quality
+        )
+      }
+
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+  }
+
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const { files } = e.target
     if (!files || files.length === 0) return
 
-    const newPhotos = Array.from(files).filter(
-      (file) => file.type.startsWith("image/") && file.size <= 2 * 1024 * 1024
-    )
+    const processedPhotos: File[] = []
 
-    if (newPhotos.length === 0) {
-      alert("File harus berupa gambar dan ≤ 2MB")
-      e.target.value = ""
-      return
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith("image/")) continue
+
+      if (file.size > 2 * 1024 * 1024) {
+        // Resize kalau lebih dari 2MB
+        try {
+          const resized = await resizeImage(file)
+          processedPhotos.push(resized)
+        } catch (err) {
+          console.error("Gagal resize:", err)
+        }
+      } else {
+        processedPhotos.push(file)
+      }
     }
 
     setFormData((prev) => ({
       ...prev,
-      photos: [...prev.photos, ...newPhotos],
+      photos: [...prev.photos, ...processedPhotos],
     }))
 
     e.target.value = ""
   }
+
 
 
   // Hapus foto berdasarkan index
@@ -1022,24 +1082,6 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                     <div className="space-y-2">
                       <Label className="text-xs font-medium">Dokumentasi Foto</Label>
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                        {/* Tombol Upload */}
-                        <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer border-muted/40 hover:border-green-400 hover:bg-green-50/50 transition-all duration-300 group">
-                          <Camera className="w-5 h-5 mb-1 text-muted-foreground group-hover:text-green-600 transition-colors" />
-                          <span className="text-xs text-muted-foreground group-hover:text-green-600 transition-colors">
-                            Tambah Foto
-                          </span>
-                          <Input
-                            type="file"
-                            multiple
-                            accept="image/*"
-                            capture="environment"
-                            className="hidden"
-                            onChange={handleFileUpload}
-                            disabled={uploading}
-                          />
-                        </label>
-
-                        {/* Preview Foto */}
                         {formData.photos.map((file, index) => (
                           <div
                             key={index}
@@ -1066,6 +1108,35 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                             </button>
                           </div>
                         ))}
+                        {/* Tombol Upload */}
+                        <div className="flex gap-3">
+                          {/* Tombol Kamera */}
+                          <label className="flex flex-col items-center justify-center w-24 h-24 border-2 border-dashed rounded-lg cursor-pointer hover:border-green-400 hover:bg-green-50/50 transition-all duration-300 group">
+                            <Camera className="w-5 h-5 mb-1 text-muted-foreground group-hover:text-green-600 transition-colors" />
+                            <span className="text-xs text-muted-foreground group-hover:text-green-600 transition-colors">Kamera</span>
+                            <Input
+                              type="file"
+                              accept="image/*"
+                              capture="environment" // langsung buka kamera belakang
+                              className="hidden"
+                              onChange={handleFileUpload}
+                              disabled={uploading}
+                            />
+                          </label>
+
+                          {/* Tombol Galeri */}
+                          <label className="flex flex-col items-center justify-center w-24 h-24 border-2 border-dashed rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-all duration-300 group">
+                            <ImageIcon className="w-5 h-5 mb-1 text-muted-foreground group-hover:text-blue-600 transition-colors" />
+                            <span className="text-xs text-muted-foreground group-hover:text-blue-600 transition-colors">Galeri</span>
+                            <Input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={handleFileUpload}
+                              disabled={uploading}
+                            />
+                          </label>
+                        </div>
                       </div>
                     </div>
 
