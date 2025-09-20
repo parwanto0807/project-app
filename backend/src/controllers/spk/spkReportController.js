@@ -493,13 +493,39 @@ export const getSPKFieldReports = async (req, res) => {
 
     // Query database dengan relasi
     const reports = await prisma.sPKFieldReport.findMany({
-      where,
+      where: {
+        ...where, // spread kondisi dinamis (date, status, spkId, karyawanId)
+        spk: {
+          spkStatus: false,
+          ...(spkId ? { id: spkId } : {}), // filter SPK ID jika ada
+          ...(req.query.spkNumber ? { spkNumber: req.query.spkNumber } : {}), // filter SPK Number jika ada
+        },
+      },
       include: {
         spk: {
           select: {
             spkNumber: true,
+            salesOrder: {
+              include: {
+                customer: {
+                  // ✅ ambil data customer
+                  select: {
+                    name: true,
+                    address: true,
+                    branch: true,
+                  },
+                },
+                project: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
+              },
+            },
           },
         },
+
         karyawan: {
           select: {
             namaLengkap: true,
@@ -526,8 +552,8 @@ export const getSPKFieldReports = async (req, res) => {
     const formatted = reports.map((report) => ({
       id: report.id,
       spkNumber: report.spk.spkNumber,
-      clientName: report.spk.clientName,
-      projectName: report.spk.projectName,
+      clientName: report.spk.salesOrder.customer.name,
+      projectName: report.spk.salesOrder.project?.name,
       type: report.type,
       note: report.note,
       photos: report.photos.map((photo) => photo.imageUrl),
@@ -539,7 +565,6 @@ export const getSPKFieldReports = async (req, res) => {
       progress: report.progress || 0,
       status: report.status, // PENDING, APPROVED, REJECTED
     }));
-
     res.json(formatted);
   } catch (error) {
     console.error("[getSPKFieldReports]", error);

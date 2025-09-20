@@ -16,6 +16,7 @@ import { updateReportStatus } from '@/lib/action/master/spk/spkReport';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../ui/sheet';
 import { ScrollArea } from '../ui/scroll-area';
 import { DialogTrigger } from '@radix-ui/react-dialog';
+import PreviewPdf from './previewPdfSpk';
 
 
 // 👇 DEFINSI TIPE DATA API (TETAP UTUH)
@@ -187,15 +188,16 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
 
     const [selectedReport, setSelectedReport] = useState<ReportHistory | null>(null);
     const [modalType, setModalType] = useState<'view' | 'approve' | 'reject' | null>(null);
-    // const [karyawans, setKaryawans] = useState<Karyawan[]>([]);
     const [userSpk, setUserSpk] = useState<SPKData[]>([]);
-    // const [loadingKaryawans, setLoadingKaryawans] = useState(false);
     const [spkItemProgress, setSpkItemProgress] = useState<SPKItemProgressMap>({});
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(5);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isApproving, setIsApproving] = useState(false);
     const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+    const [previewSpk, setPreviewSpk] = useState<string | undefined>(undefined);
+
+
     console.log("User", userId, spkItemProgress)
     // console.log("Data SPK", dataSpk);
     // console.log("Data SO Item", selectedSpk);
@@ -270,6 +272,8 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                     uom: itemSales.uom || undefined,
                     status: itemStatus,
                     progress: itemProgress,
+                    clientName:clientName,
+                    projectName: projectName,
                 };
             }) || []; // Jika salesOrder.items tidak ada, kembalikan array kosong
 
@@ -362,6 +366,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                     ? a.itemName.localeCompare(b.itemName, undefined, { sensitivity: "base" })
                     : spkCompare;
             });
+            console.log("Report from backend", reports); 
 
             setReports(reports);
         } catch (error) {
@@ -413,12 +418,24 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
 
 
     // 👇 DOWNLOAD PDF
-    const downloadPDF = (report: ReportHistory) => {
-        toast.info("Mengunduh PDF...", { duration: 2000 });
-        // Implementasi PDF generator (misal: react-to-pdf atau server-side)
-        // Contoh sederhana:
-        window.open(`/api/reports/${report.id}/pdf`, '_blank');
+    const downloadPDF = () => {
+        if (!filters.spkId) {
+            toast.error("Anda harus memilih SPK terlebih dahulu");
+            return;
+        }
+
+        // Cari spkNumber dari list
+        const selectedSpk = filteredUserSpk.find(spk => spk.id === filters.spkId);
+        // console.log("Selected SPK for PDF:", selectedSpk);
+        if (!selectedSpk) {
+            toast.error("SPK tidak ditemukan");
+            return;
+        }
+
+        // Set spkNumber, bukan spkId
+        setPreviewSpk(selectedSpk.spkNumber);
     };
+
 
     // 👇 EXPORT CSV
     const exportToCSV = () => {
@@ -1013,19 +1030,16 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                                         <Download className="h-3 w-3 mr-1" />
                                         Ekspor CSV
                                     </Button>
-                                    {false && (
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => downloadPDF(selectedReport!)}
-                                            disabled={!selectedReport}
-                                            className="text-xs h-7"
-                                        >
-                                            <Download className="h-3 w-3 mr-1" />
-                                            Unduh PDF
-                                        </Button>
-                                    )}
-
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={downloadPDF} // ← Panggil fungsi yang membuka modal
+                                        // disabled={!selectedReport}
+                                        className="text-xs h-7"
+                                    >
+                                        <Download className="h-3 w-3 mr-1" />
+                                        Unduh PDF
+                                    </Button>
                                 </div>
                             </>
                         )}
@@ -1333,6 +1347,15 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                 )
             }
 
+            {previewSpk && reports && (
+                <PreviewPdf
+                    reports={reports}
+                    initialSpk={previewSpk}
+                    open={!!previewSpk}
+                    onOpenChange={(open) => !open && setPreviewSpk(undefined)}
+                />
+            )}
+
             {/* Style Animasi */}
             <style jsx>{`
         @keyframes fadeIn {
@@ -1346,6 +1369,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
         </div >
     );
 };
+
 
 const SkeletonLoader = () => {
     return (
