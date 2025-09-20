@@ -272,7 +272,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                     uom: itemSales.uom || undefined,
                     status: itemStatus,
                     progress: itemProgress,
-                    clientName:clientName,
+                    clientName: clientName,
                     projectName: projectName,
                 };
             }) || []; // Jika salesOrder.items tidak ada, kembalikan array kosong
@@ -366,7 +366,6 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                     ? a.itemName.localeCompare(b.itemName, undefined, { sensitivity: "base" })
                     : spkCompare;
             });
-            console.log("Report from backend", reports); 
 
             setReports(reports);
         } catch (error) {

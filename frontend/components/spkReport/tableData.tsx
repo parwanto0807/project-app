@@ -20,6 +20,7 @@ import { Slider } from '../ui/slider';
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { updateReportStatus } from '@/lib/action/master/spk/spkReport';
+import PreviewPdf from './previewPdfSpk';
 
 
 // 👇 DEFINSI TIPE DATA API (TETAP UTUH)
@@ -148,6 +149,7 @@ interface ReportHistory {
   reportedAt: Date;
   itemName: string;
   karyawanName: string;
+  email: string;
   soDetailId: string;
   progress: number;
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -220,6 +222,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
   const [itemsPerPage, setItemsPerPage] = useState(5);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
+  const [previewSpk, setPreviewSpk] = useState<string | undefined>(undefined);
 
   // console.log("Data SPK", dataSpk);
   // console.log("Data SO Item", selectedSpk);
@@ -408,26 +411,24 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
   }, [filters]);
 
 
-  // 👇 FETCH DAFTAR KARYAWAN UNTUK FILTER ADMIN
-  // useEffect(() => {
-  //   if (role === 'admin') {
-  //     const fetchKaryawans = async () => {
-  //       setLoadingKaryawans(true);
-  //       try {
-  //         const response: KaryawanResponse = await fetchAllKaryawan(); // ✅ Sekarang valid!
+  // 👇 DOWNLOAD PDF
+  const downloadPDF = () => {
+    if (!filters.spkId) {
+      toast.error("Anda harus memilih SPK terlebih dahulu");
+      return;
+    }
 
-  //         setKaryawans(response.karyawan); // ✅ Langsung assign array
-  //       } catch (error) {
-  //         console.error('Error fetching karyawans:', error);
-  //         toast.error('Gagal memuat daftar karyawan');
-  //       } finally {
-  //         setLoadingKaryawans(false);
-  //       }
-  //     };
+    // Cari spkNumber dari list
+    const selectedSpk = filteredUserSpk.find(spk => spk.id === filters.spkId);
+    // console.log("Selected SPK for PDF:", selectedSpk);
+    if (!selectedSpk) {
+      toast.error("SPK tidak ditemukan");
+      return;
+    }
 
-  //     fetchKaryawans();
-  //   }
-  // }, [role]);
+    // Set spkNumber, bukan spkId
+    setPreviewSpk(selectedSpk.spkNumber);
+  };
 
   // 👇 EFFECT: Fetch riwayat saat filter berubah
   useEffect(() => {
@@ -629,15 +630,6 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
       console.error(error);
       toast.error("Gagal menolak laporan");
     }
-  };
-
-
-  // 👇 DOWNLOAD PDF
-  const downloadPDF = (report: ReportHistory) => {
-    toast.info("Mengunduh PDF...", { duration: 2000 });
-    // Implementasi PDF generator (misal: react-to-pdf atau server-side)
-    // Contoh sederhana:
-    window.open(`/api/reports/${report.id}/pdf`, '_blank');
   };
 
   // 👇 EXPORT CSV
@@ -1565,8 +1557,8 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => downloadPDF(selectedReport!)}
-                        disabled={!selectedReport}
+                        onClick={downloadPDF} // ← Panggil fungsi yang membuka modal
+                        // disabled={!selectedReport}
                         className="text-xs h-7"
                       >
                         <Download className="h-3 w-3 mr-1" />
@@ -1879,6 +1871,15 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
         </Dialog>
       )}
 
+      {previewSpk && reports && (
+        <PreviewPdf
+          reports={reports}
+          initialSpk={previewSpk}
+          open={!!previewSpk}
+          onOpenChange={(open) => !open && setPreviewSpk(undefined)}
+        />
+      )}
+
       {/* Style Animasi */}
       <style jsx>{`
         @keyframes fadeIn {
@@ -1892,40 +1893,6 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
     </div>
   );
 };
-
-// 👇 STATUS BADGE — TETAP UTUH
-// const StatusBadge = ({ status }: { status: string }) => {
-//   const getIcon = () => {
-//     switch (status) {
-//       case 'COMPLETED': return <CheckCircle className="h-3 w-3" />;
-//       case 'PROGRESS': return <Clock className="h-3 w-3" />;
-//       case 'PENDING': return <Clock className="h-3 w-3" />;
-//       default: return <Clock className="h-3 w-3" />;
-//     }
-//   };
-//   const getColorClass = () => {
-//     switch (status) {
-//       case 'COMPLETED': return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800';
-//       case 'PROGRESS': return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800';
-//       case 'PENDING': return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-800';
-//       default: return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-800';
-//     }
-//   };
-//   const getStatusText = () => {
-//     switch (status) {
-//       case 'PENDING': return 'Menunggu';
-//       case 'COMPLETED': return 'Selesai';
-//       case 'PROGRESS': return 'Berjalan';
-//       default: return status;
-//     }
-//   };
-//   return (
-//     <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getColorClass()} transition-all duration-300`}>
-//       {getIcon()}
-//       {getStatusText()}
-//     </div>
-//   );
-// };
 
 // 👇 SKELETON LOADER — TETAP UTUH
 const SkeletonLoader = () => {

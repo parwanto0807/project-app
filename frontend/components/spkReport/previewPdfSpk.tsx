@@ -81,9 +81,13 @@ const styles = StyleSheet.create({
         fontSize: 9,
         color: '#212529',
     },
+    emailText: {
+        color: "blue",
+        textDecorationLine: "underline", // opsional, biar mirip link
+    },
     section: {
-        marginBottom: 12,
-        padding: 10,
+        marginBottom: 8,
+        padding: 6,
         borderWidth: 1,
         borderColor: '#dee2e6',
         borderRadius: 5,
@@ -131,7 +135,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         borderBottomWidth: 1,
         borderBottomColor: '#dee2e6',
-        minHeight: 25,
+        minHeight: 5,
         alignItems: 'center',
     },
     tableRowEven: {
@@ -291,6 +295,13 @@ const PdfDocument = ({ reports }: { reports: ReportHistory[] }) => {
                             <Text style={styles.infoValue}>{Object.keys(groupedReports).length} item</Text>
                         </View>
                     </View>
+                    <View style={styles.clientInfo}>
+                        <View style={styles.infoItem}>
+                            <Text style={styles.infoLabel}>DAILAPORKAN OLEH</Text>
+                            <Text style={styles.infoValue}>{reports[0]?.karyawanName || '-'}</Text>
+                            <Text style={[styles.infoValue, styles.emailText]}>{reports[0]?.email}</Text>
+                        </View>
+                    </View>
                 </View>
 
                 {/* Konten - Grouping berdasarkan item */}
@@ -299,8 +310,7 @@ const PdfDocument = ({ reports }: { reports: ReportHistory[] }) => {
                     <Text style={[styles.tableColMedium, { color: '#fff' }]}>Tanggal & Waktu</Text>
                     <Text style={[styles.tableCol, { color: '#fff' }]}>Keterangan</Text>
                     <Text style={[styles.tableColSmall, { color: '#fff' }]}>Progress</Text>
-                    <Text style={[styles.tableColSmall, { color: '#fff' }]}>Status</Text>
-                    <Text style={[styles.tableColMedium, { color: '#fff' }]}>Dilaporkan Oleh</Text>
+                    <Text style={[styles.tableColSmall, { color: '#fff' }]}>Status Approve Admin</Text>
                 </View>
 
                 {/* Loop per itemName */}
@@ -344,12 +354,21 @@ const PdfDocument = ({ reports }: { reports: ReportHistory[] }) => {
                                             <View
                                                 style={[
                                                     styles.progressFill,
-                                                    { width: `${report.progress}%` }
+                                                    {
+                                                        width: `${report.progress}%`,
+                                                        backgroundColor:
+                                                            report.progress < 30
+                                                                ? "red"
+                                                                : report.progress < 70
+                                                                    ? "orange"
+                                                                    : "green",
+                                                    },
                                                 ]}
                                             />
                                         </View>
                                     </View>
                                 </View>
+
 
                                 <Text style={[
                                     styles.tableColSmall,
@@ -357,15 +376,6 @@ const PdfDocument = ({ reports }: { reports: ReportHistory[] }) => {
                                 ]}>
                                     {report.status === 'APPROVED' ? 'Disetujui' :
                                         report.status === 'PENDING' ? 'Menunggu' : 'Ditolak'}
-                                </Text>
-
-                                <Text style={styles.tableColMedium}>
-                                    {report.karyawanName}
-                                    {report.email && (
-                                        <Text style={styles.noteText}>
-                                            {"\n"}{report.email}
-                                        </Text>
-                                    )}
                                 </Text>
                             </View>
                         ))}
@@ -375,7 +385,7 @@ const PdfDocument = ({ reports }: { reports: ReportHistory[] }) => {
 
                 {/* Footer */}
                 <Text style={styles.footer}>
-                    Dokumen ini dicetak secara otomatis dari Sistem Monitoring Progress SPK
+                    Dokumen ini dicetak secara otomatis dari Sistem Monitoring Progress SPK PT. Rylif Mikro Mandiri
                 </Text>
                 <Text
                     style={styles.pageNumber}
