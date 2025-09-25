@@ -137,6 +137,12 @@ export function getMenuList(pathname: string, role: string) {
               active: isActive(`${basePath}/logistic/spk`, pathname),
               disabled: role === "user" || role === "pic",
             },
+            {
+              href: `${basePath}/logistic/bap`,
+              label: "Berita Acara Pekerjaan",
+              active: isActive(`${basePath}/logistic/bap`, pathname),
+              disabled: role === "user" || role === "pic",
+            },
           ],
         },
       ],
@@ -278,24 +284,24 @@ export function getMenuList(pathname: string, role: string) {
       menus: [
         {
           label: "Pusat Bantuan",
-          href: "/help",
+          href: "#",
           icon: HelpCircleIcon,
-          active: isActive("/help", pathname),
+          active: isActive("#", pathname),
           submenus: [
             {
-              href: "/help/faq",
+              href: "#",
               label: "FAQ",
-              active: isActive("/help/faq", pathname),
+              active: isActive("#", pathname),
             },
             {
-              href: "/help/panduan",
+              href: "#",
               label: "Panduan Penggunaan",
-              active: isActive("/help/panduan", pathname),
+              active: isActive("#", pathname),
             },
             {
-              href: "/help/kontak",
+              href: "#",
               label: "Kontak Admin",
-              active: isActive("/help/kontak", pathname),
+              active: isActive("#", pathname),
             },
           ],
         },

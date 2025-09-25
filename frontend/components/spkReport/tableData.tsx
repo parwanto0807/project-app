@@ -1181,14 +1181,14 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
               <CardHeader className="pb-4 pt-3 bg-gradient-to-r from-purple-50 to-white dark:from-purple-900/30 dark:to-gray-800 sticky top-0 z-10">
                 <div className="grid grid-cols-10 gap-4">
                   {/* Judul */}
-                  <div className='col-span-1 col-start-1'>
+                  <div className='col-span-2 col-start-1'>
                     <CardTitle className="text-base font-semibold flex items-center gap-2">
                       <Archive className="h-4 w-4 text-purple-600" />
                       Riwayat Laporan
                     </CardTitle>
                     <CardDescription className="text-xs">Riwayat laporan SPK Anda</CardDescription>
                   </div>
-                  <div className="col-span-1 col-start-5">
+                  <div className="col-span-1 col-start-5 items-center justify-center hidden lg:flex gap-2">
                     <Label className="text-xs font-medium">SPK</Label>
                     <Select value={filters.spkId} onValueChange={(v) => setFilters({ ...filters, spkId: v })}>
                       <SelectTrigger className="h-10 text-xs border-border/60">
@@ -1205,7 +1205,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                   </div>
 
                   {/* Reset Filter — sejajar kanan */}
-                  <div className="col-span-2 col-start-9 pt-3">
+                  <div className="col-span-2 col-start-9">
                     <Button
                       variant="outline"
                       size="sm"
@@ -1218,7 +1218,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                   {/* </div> */}
                 </div>
 
-                <div className="col-span-1 col-start-10">
+                <div className="col-span-1 col-start-10 items-center justify-center hidden lg:flex gap-2">
                   <Label className="text-xs font-medium">Item Per Page</Label>
                   <Select value={String(itemsPerPage)} onValueChange={(v) => setItemsPerPage(Number(v))}>
                     <SelectTrigger className="h-7 w-20 text-xs">
@@ -1562,7 +1562,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                         className="text-xs h-7"
                       >
                         <Download className="h-3 w-3 mr-1" />
-                        Unduh PDF
+                        Preview PDF
                       </Button>
                     </div>
                   </>

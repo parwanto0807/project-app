@@ -257,19 +257,19 @@ export const getReportsBySpkId = async (req, res) => {
       whereClause.type = type;
     }
 
-    const reports = await prisma.sPKFieldReport.findMany({
+    const reports = await prisma.sPKFieldReport.findUnique({
       where: whereClause,
       include: {
         karyawan: true,
-        photos: true,
+        photos: true, // ✅ ambil semua foto terkait
       },
-      orderBy: { reportedAt: "desc" },
+      // orderBy: { reportedAt: "desc" },
     });
-
     res.json({
       success: true,
       data: reports,
     });
+
   } catch (error) {
     console.error("Error fetching reports:", error);
     res
@@ -575,7 +575,38 @@ export const getSPKFieldReports = async (req, res) => {
   }
 };
 
-// 💡 Tambah foto baru ke laporan yang sudah ada
+export const getReportsBySpkIdBap = async (req, res) => {
+  try {
+    const { spkId } = req.params;
+
+    if (!spkId) {
+      return res.status(400).json({ error: "spkId diperlukan" });
+    }
+
+    const reports = await prisma.sPKFieldReport.findMany({
+      where: { spkId },
+      include: {
+        karyawan: true,
+        photos: true, // ✅ ambil semua foto terkait
+      },
+      orderBy: { reportedAt: "desc" }, // opsional: urutkan terbaru
+    });
+
+    console.log("Data:", reports);
+
+    res.json({
+      success: true,
+      data: reports,
+    });
+  } catch (error) {
+    console.error("Error fetching reports:", error);
+    res.status(500).json({
+      error: "Gagal mengambil laporan",
+      details: error.message,
+    });
+  }
+};
+
 
 // Export default object jika diperlukan
 export default {
@@ -585,5 +616,6 @@ export default {
   updateReportStatus,
   deleteReport,
   addPhotosToReport,
+  getReportsBySpkIdBap,
   getSPKFieldReports,
 };

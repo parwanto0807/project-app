@@ -20,7 +20,6 @@ export async function getSpkByEmail(email: string) {
   }
 }
 
-// ✅ Ambil semua SPK
 export async function fetchAllSpk() {
   try {
     const res = await fetch(`${API_URL}/api/spk/getAllSPK`, {
@@ -39,7 +38,6 @@ export async function fetchAllSpk() {
   }
 }
 
-// ✅ Ambil SPK by ID
 export async function fetchSpkById(id: string) {
   console.log("SPK ID", id);
   try {
@@ -59,7 +57,25 @@ export async function fetchSpkById(id: string) {
   }
 }
 
-// (Bonus) ✅ Create SPK
+export async function fetchSpkByIdBap(id: string) {
+  console.log("SPK ID", id);
+  try {
+    const res = await fetch(`${API_URL}/api/spk/getReportsBySpkIdBap/${id}`, {
+      method: "GET",
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      throw new Error("Gagal fetch SPK by ID");
+    }
+
+    return await res.json();
+  } catch (error) {
+    console.error("fetchSpkById error:", error);
+    throw error;
+  }
+}
+
 export async function createSpk(data: SpkApiPayload) {
   try {
     const res = await fetch(`${API_URL}/api/spk/createSPK`, {
@@ -80,7 +96,6 @@ export async function createSpk(data: SpkApiPayload) {
   }
 }
 
-// (Bonus) ✅ Update SPK
 export async function updateSpk(id: string, data: SpkApiPayload) {
   try {
     const res = await fetch(`${API_URL}/api/spk/updateSPK${id}`, {
@@ -100,7 +115,6 @@ export async function updateSpk(id: string, data: SpkApiPayload) {
   }
 }
 
-// (Bonus) ✅ Delete SPK
 export async function deleteSpk(
   id: string
 ): Promise<{ success: boolean; message?: string }> {

@@ -50,7 +50,6 @@ export const fetchKaryawanByEmail = async (email: string) => {
     }
 
     const data = await response.json();
-    console.log('✅ Respons dari backend:', data); // 👈 CEK INI!
 
     return data;
   } catch (error) {

@@ -1,0 +1,11 @@
+-- DropForeignKey
+ALTER TABLE "BAP" DROP CONSTRAINT "BAP_createdById_fkey";
+
+-- DropForeignKey
+ALTER TABLE "BAP" DROP CONSTRAINT "BAP_userId_fkey";
+
+-- AddForeignKey
+ALTER TABLE "BAP" ADD CONSTRAINT "BAP_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "Karyawan"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "BAP" ADD CONSTRAINT "BAP_userId_fkey" FOREIGN KEY ("userId") REFERENCES "Karyawan"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

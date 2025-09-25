@@ -13,12 +13,12 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { Loader2 } from "lucide-react";
 import CreateFormSPK from "@/components/spk/createFormData";
 
 import { fetchAllSalesOrder } from "@/lib/action/sales/salesOrder";
 import { getAllTeam } from "@/lib/action/master/team/getAllTeam";
 import { fetchAllKaryawan } from "@/lib/action/master/karyawan";
+import { AdminLoading } from "@/components/admin-loading";
 
 interface Karyawan {
   id: string;
@@ -73,11 +73,8 @@ export default function CreateSpkPageAdmin() {
   // Loading akses
   if (userLoading || !user || user.role !== "admin") {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="flex items-center gap-3 text-muted-foreground">
-          <Loader2 className="h-5 w-5 animate-spin" aria-label="Loading" />
-          <span>Memeriksa akses...</span>
-        </div>
+      <div>
+        <AdminLoading message="Preparing SPK creation form..." />;
       </div>
     );
   }
@@ -88,13 +85,13 @@ export default function CreateSpkPageAdmin() {
         <BreadcrumbList>
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
-              <Link href="/super-admin-area">Dashboard</Link>
+              <Link href="/admin-area">Dashboard</Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
-              <Link href="/super-admin-area/spk">SPK List</Link>
+              <Link href="/admin-area/logistic/spk">SPK List</Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />

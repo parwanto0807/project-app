@@ -9,6 +9,7 @@ import {
   deleteReport,
   addPhotosToReport,
   getSPKFieldReports,
+  getReportsBySpkIdBap,
 } from "../../controllers/spk/spkReportController.js";
 
 const router = express.Router();
@@ -20,6 +21,7 @@ router.post(
 );
 router.get("/getSPKFieldReports", getSPKFieldReports); // 👈 Ini yang kita buat!
 router.get("/getReportsBySpkId/:spkId", getReportsBySpkId);
+router.get("/getReportsBySpkIdBap/:spkId", getReportsBySpkIdBap);
 router.get("/getReportById/:id", getReportById);
 router.put("/updateReportStatus/:id/status", updateReportStatus);
 router.delete("/deleteReport/:id", deleteReport);

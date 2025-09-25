@@ -17,3 +17,15 @@ export function formatDateToDDMMMYYYY(date: Date | string | number): string {
   const year = d.getFullYear();
   return `${day}-${month}-${year}`;
 }
+
+// lib/utils.ts
+export const getFullImageUrl = (path: string | undefined): string => {
+    if (!path) return "/placeholder-image.jpg"; // fallback image
+
+    // Jika sudah full URL (http://...), biarkan
+    if (path.startsWith("http")) return path;
+
+    // Jika path relatif (misal: /images/spk/xxx.jpg), prefix dengan base URL
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+    return `${baseUrl}${path.startsWith("/") ? "" : "/"}${path}`;
+};

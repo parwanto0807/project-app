@@ -22,6 +22,12 @@ export const getAll = async (req, res) => {
         user: true,
         items: { include: { product: true } },
         documents: true,
+        spk:{
+          select:{
+            spkNumber: true,
+            id: true,
+          }
+        }
       },
       orderBy: { soDate: "desc" },
     });

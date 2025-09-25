@@ -463,18 +463,13 @@ const PreviewPdf: React.FC<PreviewPdfProps> = ({ reports, initialSpk, open, onOp
         if (selectedReports.length === 0) return;
         const blob = await pdf(<PdfDocument reports={selectedReports} />).toBlob();
         const url = URL.createObjectURL(blob);
-        const iframe = document.createElement("iframe");
-        iframe.style.display = "none";
-        iframe.src = url;
-        document.body.appendChild(iframe);
-        iframe.onload = () => {
-            iframe.contentWindow?.print();
-            setTimeout(() => {
-                document.body.removeChild(iframe);
-                URL.revokeObjectURL(url);
-            }, 100);
-        };
+        const win = window.open(url);
+        win?.addEventListener("load", () => {
+            win.print();
+        });
     };
+
+
 
     return (
         <Dialog
