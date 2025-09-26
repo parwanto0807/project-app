@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Upload, FileText, Package, Loader2, ZoomIn, Plus, Trash2, Calendar, Edit, RefreshCw } from "lucide-react";
+import { Upload, FileText, Package, Loader2, ZoomIn, Plus, Trash2, Calendar, Edit, RefreshCw, X } from "lucide-react";
 import Image from "next/image";
 import { Karyawan } from "@/lib/validations/karyawan";
 import { BAPCreateSchema } from "@/schemas/bap";
@@ -154,6 +154,7 @@ type UpdateBAPFormProps = {
     users: Karyawan[];
 };
 
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export const getReportsBySpkId = async (
@@ -242,6 +243,61 @@ function BAPPhotoForm({
     onRemove: (index: number) => void;
     source?: "manual" | "spk" | "existing";
 }) {
+    const [imgSrc, setImgSrc] = useState<string>(() => {
+        if (!photo.photoUrl) return "/placeholder.jpg";
+
+        const cleanUrl = photo.photoUrl.trim();
+
+        // kalau sudah full URL
+        if (cleanUrl.startsWith("http")) {
+            return cleanUrl;
+        }
+
+        if (photo.source === "manual") {
+            return `${API_URL}${cleanUrl}`;
+        }
+
+        if (photo.source === "spk") {
+            // kalau dari spk, cek apakah backend sudah kasih full URL atau cuma filename
+            return cleanUrl.includes("/images/spk/")
+                ? cleanUrl // sudah full URL
+                : `${API_URL}/images/spk/${cleanUrl}`; // masih filename
+        }
+
+        return `${API_URL}${cleanUrl}`;
+    });
+
+    useEffect(() => {
+        if (!photo.photoUrl) {
+            setImgSrc("/placeholder.jpg");
+            return;
+        }
+
+        const cleanUrl = photo.photoUrl.trim();
+
+        if (cleanUrl.startsWith("http")) {
+            setImgSrc(cleanUrl);
+            return;
+        }
+
+        if (photo.source === "manual") {
+            setImgSrc(`${API_URL}${cleanUrl}`);
+            return;
+        }
+
+        if (photo.source === "spk") {
+            setImgSrc(
+                cleanUrl.includes("/images/spk/")
+                    ? cleanUrl
+                    : `${API_URL}/images/spk/${cleanUrl}`
+            );
+            return;
+        }
+
+        setImgSrc(`${API_URL}${cleanUrl}`);
+    }, [photo.photoUrl, photo.source]);
+
+
     return (
         <Card className="p-4 border-l-4 border-l-blue-500">
             <div className="flex justify-between items-center mb-3">
@@ -280,16 +336,25 @@ function BAPPhotoForm({
                     </Label>
                     <div className="relative w-full h-32 border-2 border-dashed border-gray-300 rounded-md overflow-hidden">
                         {photo.photoUrl ? (
-                            <Image
-                                src={`${API_URL}${photo.photoUrl}`}
-                                alt={`Preview ${index + 1}`}
-                                fill
-                                className="object-cover"
-                                onError={(e) => {
-                                    console.error(`Error loading image: ${photo.photoUrl}`);
-                                    (e.target as HTMLImageElement).src = "/placeholder.jpg";
-                                }}
-                            />
+                            <div className="relative w-full h-32 border rounded-md overflow-hidden">
+                                <Image
+                                    src={imgSrc}
+                                    alt={`Preview ${index + 1}`}
+                                    fill
+                                    sizes="(max-width: 768px) 100vw, 50vw"
+                                    className="object-cover"
+                                    onError={() => {
+                                        setImgSrc("/placeholder.jpg");
+                                    }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => onRemove(index)}
+                                    className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 hover:bg-red-400 transition cursor-pointer"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            </div>
                         ) : (
                             <div className="flex items-center justify-center h-full text-gray-400">
                                 <Upload className="h-8 w-8" />
@@ -355,7 +420,8 @@ function BAPPhotoForm({
                                         const url = URL.createObjectURL(file);
                                         onUpdate(index, {
                                             photoUrl: url,
-                                            file: file
+                                            file: file,
+                                            source: "manual",
                                         });
                                     }
                                 }}
@@ -385,6 +451,7 @@ export function UpdateBAPForm({
     const [isAddingManual, setIsAddingManual] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [bapData, setBapData] = useState<BAPUpdateInput | null>(null);
+    const [photosToDelete, setPhotosToDelete] = useState<string[]>([]);
 
     const router = useRouter();
     const form = useForm({
@@ -501,19 +568,6 @@ export function UpdateBAPForm({
                         const allPhotos: SpkPhoto[] = result.data.flatMap(
                             (report: SpkFieldReport) => report.photos || []
                         );
-
-                        // Debug: lihat struktur data photos
-                        console.log('SPK Photos data:', {
-                            spkId,
-                            reportCount: result.data.length,
-                            photoCount: allPhotos.length,
-                            photos: allPhotos.map(p => ({
-                                id: p.id,
-                                path: p.imageUrl,
-                                caption: p.caption
-                            }))
-                        });
-
                         setSpkPhotos(allPhotos);
                     } else {
                         setSpkPhotos([]);
@@ -564,8 +618,18 @@ export function UpdateBAPForm({
 
     // Fungsi untuk menghapus foto BAP
     const removeBAPPhoto = (index: number) => {
-        setBapPhotos(prev => prev.filter((_, i) => i !== index));
+        setBapPhotos((prev) => {
+            const photo = prev[index];
+
+            if (photo.source === "existing" && photo.id) {
+                // tandai untuk delete di backend
+                setPhotosToDelete((del) => [...del, photo.id!]);
+            }
+
+            return prev.filter((_, i) => i !== index);
+        });
     };
+
 
     // Fungsi addPhotosFromSPK - tambahkan debugging
     const addPhotosFromSPK = (selectedSpkPhotos: SpkPhoto[]) => {
@@ -598,15 +662,12 @@ export function UpdateBAPForm({
         try {
             setLoading(true);
 
-            if (!bapDataById) {
-                throw new Error("BAP ID is required");
-            }
+            if (!bapDataById) throw new Error("BAP ID is required");
 
-            // Pisahkan foto baru dan lama
+            // ✅ Foto baru dari manual upload (perlu di-upload ke server)
             const newPhotos = bapPhotos.filter(photo => photo.file instanceof File);
-            const existingPhotos = bapPhotos.filter(photo => !(photo.file instanceof File));
+            console.log("News Photo", newPhotos);
 
-            // Upload foto baru
             const uploadPromises = newPhotos.map(async (photo) => {
                 if (photo.file instanceof File) {
                     const uploadResult = await uploadBAPPhoto(photo.file);
@@ -614,13 +675,13 @@ export function UpdateBAPForm({
                     if (!uploadResult.success || !uploadResult.data) {
                         throw new Error(`Failed to upload photo: ${uploadResult.error || 'Unknown error'}`);
                     }
-
+                    console.log("Photo New Result", uploadResult);
                     return {
                         photoUrl: uploadResult.data.photoUrl,
                         category: photo.category,
                         caption: photo.caption || undefined,
                         bapId: bapDataById,
-                        createdAt: null, // ✅ tambahkan default
+                        createdAt: null,
                     };
                 }
                 return null;
@@ -628,45 +689,52 @@ export function UpdateBAPForm({
 
             const uploadedPhotos = await Promise.all(uploadPromises);
 
-            // Foto existing
-            const preparedExistingPhotos = existingPhotos.map((photo) => {
-                let safeUrl = photo.photoUrl || "";
-                if (safeUrl.startsWith("blob:")) safeUrl = "";
-                else if (safeUrl.startsWith("http")) safeUrl = new URL(safeUrl).pathname;
-
-                return {
-                    id: photo.id,
-                    photoUrl: safeUrl,
+            const spkPhotos = bapPhotos
+                .filter((photo) => photo.source === "spk")
+                .map((photo) => ({
+                    photoUrl: photo.photoUrl, // pakai resolved URL kalau ada
                     category: photo.category,
                     caption: photo.caption || undefined,
+                    source: "spk",
                     bapId: bapDataById,
-                    // 🔑 ubah string ke Date | null
-                    createdAt: photo.createdAt
-                        ? new Date(photo.createdAt) // kalau string → jadi Date
-                        : null,                    // kalau kosong → null
-                };
-            });
+                    createdAt: photo.createdAt ? new Date(photo.createdAt) : null,
+                }));
 
+            // Foto existing yang masih ada (bukan yang dihapus)
+            const preparedExistingPhotos = bapPhotos
+                .filter((photo) => photo.source === "existing")
+                .map((photo) => {
+                    let safeUrl = photo.photoUrl || "";
+                    if (safeUrl.startsWith("blob:")) safeUrl = "";
+                    else if (safeUrl.startsWith("http"))
+                        safeUrl = new URL(safeUrl).pathname;
+
+                    return {
+                        id: photo.id,
+                        photoUrl: safeUrl,
+                        category: photo.category,
+                        caption: photo.caption || undefined,
+                        source: "existing",
+                        bapId: bapDataById,
+                        createdAt: photo.createdAt ? new Date(photo.createdAt) : null,
+                    };
+                });
 
             // Gabungkan semua foto
             const allPhotos = [
                 ...preparedExistingPhotos,
-                ...uploadedPhotos.filter(
-                    (photo): photo is NonNullable<typeof photo> => photo !== null
-                ),
+                ...spkPhotos,
+                ...uploadedPhotos.filter((p): p is NonNullable<typeof p> => p !== null),
             ];
+            console.log("All photos to submit:", allPhotos);
 
             // Data final untuk update
             const updateInput = {
                 ...values,
                 photos: allPhotos,
+                photosToDelete, // 🔑 kirim ke backend
             };
-
-            console.log("📤 Final data untuk updateBAP:", {
-                id: bapDataById,
-                input: updateInput,
-                photoCount: allPhotos.length,
-            });
+            console.log("Final update input:", updateInput);
 
             const result = await updateBAP(bapDataById, updateInput);
 
@@ -682,6 +750,7 @@ export function UpdateBAPForm({
             setLoading(false);
         }
     };
+
 
 
     // Helper untuk reset form setelah sukses

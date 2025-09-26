@@ -1,4 +1,5 @@
 import { PrismaClient } from "../../../prisma/generated/prisma/index.js";
+import path from "path";
 
 const prisma = new PrismaClient();
 
@@ -70,7 +71,14 @@ export const getAllBAP = async (req, res) => {
         salesOrder: {
           select: {
             soNumber: true,
-            customer: { select: { name: true , contactPerson: true, branch: true, address:true} },
+            customer: {
+              select: {
+                name: true,
+                contactPerson: true,
+                branch: true,
+                address: true,
+              },
+            },
             project: { select: { name: true, location: true } },
             items: true,
           },
@@ -149,7 +157,7 @@ export const createBAP = async (req, res) => {
 
     // --- 1. Handle JSON mode (Full SPK) ---
     if (photos && Array.isArray(photos)) {
-      allPhotos = photos.map(photo => ({
+      allPhotos = photos.map((photo) => ({
         photoUrl: photo.photoUrl,
         caption: photo.caption || null,
         category: photo.category || "BEFORE",
@@ -163,7 +171,7 @@ export const createBAP = async (req, res) => {
       uploadedPhotos = req.files.map((file, idx) => {
         // ✅ FIX: Handle array structure dari frontend
         let caption, category, source;
-        
+
         // Coba baca sebagai array structure [index]
         if (req.body[`captions[${idx}]`] !== undefined) {
           caption = req.body[`captions[${idx}]`] || null;
@@ -179,7 +187,7 @@ export const createBAP = async (req, res) => {
             : req.body.categories || "BEFORE";
           source = "manual";
         }
-        
+
         return {
           photoUrl: `/images/spk/${file.filename}`,
           caption,
@@ -199,7 +207,7 @@ export const createBAP = async (req, res) => {
       spkPhotos = photoPaths.map((path, idx) => {
         // ✅ FIX: Handle array structure
         let caption, category, source;
-        
+
         if (req.body[`captions[${idx}]`] !== undefined) {
           caption = req.body[`captions[${idx}]`] || null;
           category = req.body[`categories[${idx}]`] || "BEFORE";
@@ -207,13 +215,19 @@ export const createBAP = async (req, res) => {
         } else {
           const captions = Array.isArray(req.body.captions)
             ? req.body.captions
-            : req.body.captions ? [req.body.captions] : [];
+            : req.body.captions
+            ? [req.body.captions]
+            : [];
           const categories = Array.isArray(req.body.categories)
             ? req.body.categories
-            : req.body.categories ? [req.body.categories] : [];
+            : req.body.categories
+            ? [req.body.categories]
+            : [];
           const sources = Array.isArray(req.body.sources)
             ? req.body.sources
-            : req.body.sources ? [req.body.sources] : [];
+            : req.body.sources
+            ? [req.body.sources]
+            : [];
 
           caption = captions[idx] || null;
           category = categories[idx] || "BEFORE";
@@ -278,7 +292,6 @@ export const createBAP = async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 };
-
 
 // Update BAP
 export const updateBAP = async (req, res) => {
@@ -410,5 +423,26 @@ export const approveBAP = async (req, res) => {
     res.json(updatedBAP);
   } catch (error) {
     res.status(400).json({ error: error.message });
+  }
+};
+
+export const uploadBAPPhoto = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
+    // Buat URL relative untuk disimpan di DB
+    const photoUrl = `/images/spk/${req.file.filename}`;
+
+    res.json({
+      success: true,
+      url: photoUrl,
+      filename: req.file.filename,
+      originalName: req.file.originalname,
+    });
+  } catch (error) {
+    console.error("Upload error:", error);
+    res.status(500).json({ error: "Failed to upload photo" });
   }
 };

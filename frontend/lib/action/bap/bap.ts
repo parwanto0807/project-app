@@ -84,8 +84,7 @@ export const getAllBAP = async (params?: {
 
     const url = `/api/bap/getAllBAP?${queryParams.toString()}`;
 
-    const res = await fetchAPI(url); // fetchAPI sudah return JSON
-    console.log("📥 Data dari API:", res);
+    const res = await fetchAPI(url);
 
     return {
       success: true,
@@ -114,7 +113,6 @@ export const getBAPById = async (id: string): Promise<APIResponse<BAP>> => {
     }
 
     const data = await fetchAPI(`/api/bap/getBAPById/${id}`);
-    console.log("Response dari API:", data);
 
     // Validasi response
     if (!data) {
@@ -126,7 +124,6 @@ export const getBAPById = async (id: string): Promise<APIResponse<BAP>> => {
 
     // Validate response with schema
     const validatedData = BAPSchema.parse(data);
-    console.log("Data divalidasi:", validatedData);
 
     return {
       success: true,
@@ -244,7 +241,7 @@ export const updateBAP = async (id: string, input: BAPUpdateInput) => {
     // Validate input
     const validatedInput = BAPUpdateSchema.parse(input);
 
-    const data = await fetchAPI(`/updateBAP/${id}`, {
+    const data = await fetchAPI(`/api/bap/updateBAP/${id}`, {
       method: "PUT",
       body: JSON.stringify(validatedInput),
     });
@@ -323,7 +320,7 @@ export const uploadBAPPhoto = async (file: File) => {
     formData.append("file", file);
 
     // Ganti dengan endpoint upload yang sesuai
-    const response = await fetch(`${API_BASE_URL}/upload`, {
+    const response = await fetch(`${API_BASE_URL}/api/bap/uploadBAPPhoto`, {
       method: "POST",
       body: formData,
     });
