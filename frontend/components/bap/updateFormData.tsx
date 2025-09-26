@@ -451,6 +451,7 @@ export function UpdateBAPForm({
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [bapData, setBapData] = useState<BAPUpdateInput | null>(null);
     const [photosToDelete, setPhotosToDelete] = useState<string[]>([]);
+    const [isMobile, setIsMobile] = useState(false);
 
     const router = useRouter();
     const form = useForm({
@@ -469,6 +470,14 @@ export function UpdateBAPForm({
             photos: [] as BAPPhoto[],
         },
     });
+
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth < 768); // misal <768px = mobile
+        handleResize(); // set awal
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+    }, []);
 
     // Fetch BAP data by ID
     useEffect(() => {
@@ -867,10 +876,14 @@ export function UpdateBAPForm({
                                     <SelectContent>
                                         {salesOrders.map((so) => (
                                             <SelectItem key={so.id} value={so.id} className="text-sm">
-                                                {so.soNumber} - {so.customer?.name} {so.spk?.[0] ? `(SPK: ${so.spk[0].spkNumber})` : ''}
+                                                {isMobile
+                                                    ? so.soNumber
+                                                    : `${so.soNumber} - ${so.customer?.name} ${so.spk?.[0] ? `(SPK: ${so.spk[0].spkNumber})` : ''}`
+                                                }
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
+
                                 </Select>
                                 {form.formState.errors.salesOrderId && (
                                     <p className="text-red-500 text-xs mt-1">{form.formState.errors.salesOrderId.message}</p>
