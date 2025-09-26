@@ -269,21 +269,25 @@ export const updateBAP = async (id: string, input: BAPUpdateInput) => {
   }
 };
 
-// Delete BAP
 export const deleteBAP = async (id: string) => {
   try {
-    await fetchAPI(`/deleteBAP/${id}`, {
+    const data = await fetchAPI(`/api/bap/deleteBAP/${id}`, {
       method: "DELETE",
     });
 
     return {
       success: true,
-      message: "BAP deleted successfully",
+      message: "BAP berhasil dihapus",
+      data,
     };
   } catch (error) {
+    console.error("Error deleting BAP:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to delete BAP",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Terjadi kesalahan saat menghapus BAP",
     };
   }
 };

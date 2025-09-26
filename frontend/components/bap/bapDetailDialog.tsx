@@ -40,7 +40,7 @@ export function BAPDetailDrawer({ open, onOpenChange, bap }: BAPDetailDrawerProp
 
     return (
         <Drawer open={open} onOpenChange={onOpenChange} direction="right">
-            <DrawerContent className="h-full w-full sm:w-[800px] ml-auto">
+            <DrawerContent className="h-full w-full sm:w-[800px] ml-auto" aria-describedby={undefined}>
                 <div className="flex flex-col h-full">
                     {/* Header */}
                     <DrawerHeader className="flex-shrink-0 border-b p-4 sm:p-6">

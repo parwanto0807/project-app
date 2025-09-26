@@ -248,22 +248,22 @@ function BAPPhotoForm({
 
         const cleanUrl = photo.photoUrl.trim();
 
-        // kalau sudah full URL
-        if (cleanUrl.startsWith("http")) {
+        // Sudah full URL (http/https/blob) - langsung return tanpa modifikasi
+        if (cleanUrl.startsWith("http") || cleanUrl.startsWith("blob:")) {
             return cleanUrl;
         }
 
-        if (photo.source === "manual") {
-            return `${API_URL}${cleanUrl}`;
-        }
+        // Manual upload - tanpa API_URL karena relative path
+        if (photo.source === "manual") return cleanUrl;
 
+        // SPK upload
         if (photo.source === "spk") {
-            // kalau dari spk, cek apakah backend sudah kasih full URL atau cuma filename
             return cleanUrl.includes("/images/spk/")
-                ? cleanUrl // sudah full URL
-                : `${API_URL}/images/spk/${cleanUrl}`; // masih filename
+                ? cleanUrl
+                : `${API_URL}/images/spk/${cleanUrl}`;
         }
 
+        // Default case
         return `${API_URL}${cleanUrl}`;
     });
 
@@ -275,13 +275,14 @@ function BAPPhotoForm({
 
         const cleanUrl = photo.photoUrl.trim();
 
-        if (cleanUrl.startsWith("http")) {
+        // Sudah full URL (http/https/blob) - langsung set tanpa modifikasi
+        if (cleanUrl.startsWith("http") || cleanUrl.startsWith("blob:")) {
             setImgSrc(cleanUrl);
             return;
         }
 
         if (photo.source === "manual") {
-            setImgSrc(`${API_URL}${cleanUrl}`);
+            setImgSrc(cleanUrl); // Hilangkan API_URL untuk mode manual
             return;
         }
 
@@ -296,8 +297,6 @@ function BAPPhotoForm({
 
         setImgSrc(`${API_URL}${cleanUrl}`);
     }, [photo.photoUrl, photo.source]);
-
-
     return (
         <Card className="p-4 border-l-4 border-l-blue-500">
             <div className="flex justify-between items-center mb-3">

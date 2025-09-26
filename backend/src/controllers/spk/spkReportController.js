@@ -592,7 +592,7 @@ export const getReportsBySpkIdBap = async (req, res) => {
       orderBy: { reportedAt: "desc" }, // opsional: urutkan terbaru
     });
 
-    console.log("Data:", reports);
+    // console.log("Data:", reports);
 
     res.json({
       success: true,

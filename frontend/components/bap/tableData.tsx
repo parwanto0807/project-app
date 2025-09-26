@@ -62,6 +62,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
 import { BAPPdfDocument } from "./bapPdfPreview";
 import { BAPDetailDrawer } from "./bapDetailDialog";
+import { DeleteConfirmationDialog } from "./alertDeleteDialog";
+import { useDeleteBAP } from "@/hooks/use-delete-bap";
+import { toast } from "sonner"; // Jika menggunakan Sonner untuk notifikasi
 
 export interface BAPData {
     id: string;
@@ -137,6 +140,23 @@ export function BAPDataTable({
     const [isPdfPreviewOpen, setIsPdfPreviewOpen] = useState(false);
     const [selectedBapForDetail, setSelectedBapForDetail] = useState<BAPData | null>(null);
     const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+
+    // Gunakan custom hook untuk delete functionality
+    const {
+        isDialogOpen,
+        isLoading: isDeleting,
+        openDialog,
+        closeDialog,
+        handleDelete,
+    } = useDeleteBAP({
+        onSuccess: () => {
+            toast.success("BAP berhasil dihapus");
+            // Data akan otomatis refresh via window.location.reload()
+        },
+        onError: (error) => {
+            toast.error(`Gagal menghapus BAP: ${error}`);
+        },
+    });
 
     useEffect(() => {
         const checkMobile = () => {
@@ -272,11 +292,10 @@ export function BAPDataTable({
                                 <FileText className="mr-2 h-4 w-4" />
                                 Preview PDF
                             </DropdownMenuItem>
+                            {/* Ganti dengan fungsi openDialog */}
                             <DropdownMenuItem
                                 className="text-red-600"
-                                onClick={() => {
-                                    console.log("Delete BAP:", bap.id);
-                                }}
+                                onClick={() => openDialog(bap.id)}
                             >
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Hapus
@@ -542,11 +561,10 @@ export function BAPDataTable({
                                                                 <FileText className="mr-2 h-4 w-4" />
                                                                 Preview PDF
                                                             </DropdownMenuItem>
+                                                            {/* Ganti dengan fungsi openDialog untuk mobile */}
                                                             <DropdownMenuItem
                                                                 className="text-red-600"
-                                                                onClick={() => {
-                                                                    console.log("Delete BAP:", bap.id);
-                                                                }}
+                                                                onClick={() => openDialog(bap.id)}
                                                             >
                                                                 <Trash2 className="mr-2 h-4 w-4" />
                                                                 Hapus
@@ -656,13 +674,23 @@ export function BAPDataTable({
                     )}
                 </DialogContent>
             </Dialog>
+
             {/* Dialog Detail */}
             <BAPDetailDrawer
                 open={isDetailDialogOpen}
                 onOpenChange={setIsDetailDialogOpen}
                 bap={selectedBapForDetail}
             />
-        </>
 
+            {/* Delete Confirmation Dialog */}
+            <DeleteConfirmationDialog
+                isOpen={isDialogOpen}
+                onClose={closeDialog}
+                onConfirm={handleDelete}
+                isLoading={isDeleting}
+                title="Hapus BAP"
+                description="Apakah Anda yakin ingin menghapus BAP ini? Tindakan ini tidak dapat dibatalkan dan data akan dihapus secara permanen."
+            />
+        </>
     );
 }
