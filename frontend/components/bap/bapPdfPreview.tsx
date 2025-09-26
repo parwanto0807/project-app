@@ -1,6 +1,7 @@
 import { Page, Text, View, Document, StyleSheet, Image as PdfImage } from '@react-pdf/renderer';
 import { format } from 'date-fns';
 import { getFullImageUrl } from '@/lib/utils';
+import path from 'path';
 
 export interface BAPData {
     id: string;
@@ -21,7 +22,7 @@ export interface BAPData {
     salesOrder: {
         id: string;
         soNumber: string;
-        customer: { id: string; name: string; branch: string, contactPerson: string; address:string };
+        customer: { id: string; name: string; branch: string, contactPerson: string; address: string };
         project?: {
             name: string;
             location: string | null;
@@ -431,6 +432,7 @@ const formatCurrency = (amount: number) => {
 
 export function BAPPdfDocument({ bap }: { bap: BAPData }) {
     // Prepare work items data
+    const logoPath = path.resolve('/LogoMd.png');
     const workItems = bap.salesOrder.items && bap.salesOrder.items.length > 0
         ? bap.salesOrder.items
         : [{
@@ -454,10 +456,7 @@ export function BAPPdfDocument({ bap }: { bap: BAPData }) {
             <Page size="A4" style={styles.page}>
                 {/* Header Container dengan Logo dan Company Info */}
                 <View style={styles.headerContainer}>
-                    <PdfImage
-                        style={styles.logo}
-                        src="/Logomd.png"
-                    />
+                    <PdfImage style={styles.logo} src={logoPath} />
                     <View style={styles.companyInfo}>
                         <Text style={{ color: '#008000', fontWeight: 'bold', fontSize: 12, marginBottom: 5 }}>
                             PT. RYLIF MIKRO MANDIRI
@@ -602,7 +601,7 @@ export function BAPPdfDocument({ bap }: { bap: BAPData }) {
                 <View style={styles.headerContainer}>
                     <PdfImage
                         style={styles.logo}
-                        src="/Logomd.png"
+                        src={logoPath}
                     />
                     <View style={styles.companyInfo}>
                         <Text style={{ color: '#008000', fontWeight: 'bold', fontSize: 12, marginBottom: 5 }}>
