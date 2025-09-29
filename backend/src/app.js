@@ -13,7 +13,9 @@ import salesOrderRoutes from "./routes/salesOrder/salesOrderRoutes.js"; // Impor
 import karyawanRoutes from "./routes/master/karyawan/karyawanRoutes.js";
 import bapRouter from "./routes/bap/bapRoutes.js";
 import spkRouter from "./routes/spk/spkRoutes.js";
+import bankRoutes from "./routes/master/bank/bankRoutes.js";
 import spkReportRouter from "./routes/spk/spkReportRoutes.js";
+import invoiceRoutes from "./routes/invoice/invoiceRoutes.js";
 import path from "path";
 
 const app = express();
@@ -89,12 +91,14 @@ app.use("/api/auth", authRoutes);
 app.use("/api/master/customer", customerRoutes);
 app.use("/api/master/product", productRoutes);
 app.use("/api/master/product/kategory", kategoryRoutes);
+app.use("/api/master/banks", bankRoutes);
 app.use("/api/salesOrder", salesOrderRoutes);
 app.use("/api/karyawan", karyawanRoutes);
 app.use("/api/team", karyawanRoutes);
 app.use("/api/spk", spkRouter);
 app.use("/api/spk/report", spkReportRouter);
 app.use("/api/bap", bapRouter);
+app.use("/api/invoice", invoiceRoutes);
 
 // Health Check Endpoint
 app.get("/api/health", (req, res) => {

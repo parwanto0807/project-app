@@ -143,17 +143,24 @@ export const createSpkFieldReport = async (req, res) => {
     // Cek tipe data field progress di model SPK
     const spkData = await prisma.sPK.findUnique({
       where: { id: spkId },
-      select: { progress: true },
+      select: { progress: true, salesOrderId: true },
     });
 
     // Update progress SPK
-    await prisma.sPK.update({
+    const updatedSpk = await prisma.sPK.update({
       where: { id: spkId },
       data: {
         progress: averageProgress,
         spkStatus: averageProgress === 100 ? true : false,
       },
     });
+
+    if (averageProgress === 100 && spk.salesOrderId) {
+      await prisma.salesOrder.update({
+        where: { id: spk.salesOrderId },
+        data: { status: "FULFILLED" },
+      });
+    }
 
     // Ambil report lengkap dengan relasi
     const populatedReport = await prisma.sPKFieldReport.findUnique({
@@ -269,7 +276,6 @@ export const getReportsBySpkId = async (req, res) => {
       success: true,
       data: reports,
     });
-
   } catch (error) {
     console.error("Error fetching reports:", error);
     res
@@ -496,7 +502,7 @@ export const getSPKFieldReports = async (req, res) => {
       where: {
         ...where, // spread kondisi dinamis (date, status, spkId, karyawanId)
         spk: {
-          spkStatus: false,
+          spkStatusClose: false,
           ...(spkId ? { id: spkId } : {}), // filter SPK ID jika ada
           ...(req.query.spkNumber ? { spkNumber: req.query.spkNumber } : {}), // filter SPK Number jika ada
         },
@@ -606,7 +612,6 @@ export const getReportsBySpkIdBap = async (req, res) => {
     });
   }
 };
-
 
 // Export default object jika diperlukan
 export default {

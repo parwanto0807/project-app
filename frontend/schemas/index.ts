@@ -138,10 +138,10 @@ export const ProductCategoryUpdateSchema = ProductCategoryRegisterSchema.extend(
 export const OrderTypeEnum = z.enum(["REGULAR", "SUPPORT"]);
 export const OrderStatusEnum = z.enum([
   "DRAFT",
-  "SENT",
   "CONFIRMED",
   "IN_PROGRESS_SPK",
   "FULFILLED",
+  "BAST",
   "PARTIALLY_INVOICED",
   "INVOICED",
   "PARTIALLY_PAID",

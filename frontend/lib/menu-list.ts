@@ -18,6 +18,7 @@ import {
   BarChart3Icon,
   type LucideIcon,
   PackageCheckIcon,
+  Wallet2,
 } from "lucide-react";
 
 interface Submenu {
@@ -161,6 +162,26 @@ export function getMenuList(pathname: string, role: string) {
               href: `${basePath}/logistic/spkReport`,
               label: "SPK Progress",
               active: isActive(`${basePath}/logistic/spkReport`, pathname),
+              disabled: role === "user" || role === "pic",
+            },
+          ],
+        },
+      ],
+    },
+    {
+      groupLabel: "FINANCE",
+      allowedRoles: ["super", "admin"],
+      menus: [
+        {
+          label: "Finance Management",
+          href: "/finance",
+          icon: Wallet2,
+          active: isActive("/finance", pathname),
+          submenus: [
+            {
+              href: `${basePath}/finance/invoice`,
+              label: "Invoicing",
+              active: isActive(`${basePath}/finance/invoice`, pathname),
               disabled: role === "user" || role === "pic",
             },
           ],

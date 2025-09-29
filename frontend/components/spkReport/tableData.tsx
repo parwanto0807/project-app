@@ -729,7 +729,15 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
           </p>
         </div>
 
-        <Tabs defaultValue="list" value={activeTab} onValueChange={(v) => setActiveTab(v as TabType)} className="w-full border-1 rounded-xl">
+        <Tabs
+          defaultValue="list"
+          value={activeTab}
+          onValueChange={(v) => {
+            setActiveTab(v as TabType);
+            setFilters({ date: 'all', status: 'all', spkId: '', karyawanId: '' }); // reset filter tiap ganti tab
+          }}
+          className="w-full border rounded-xl"
+        >
           <TabsList className="grid w-full grid-cols-2 lg:grid-cols-3 mb-3 h-10 bg-muted/50 p-1 rounded-lg">
             <TabsTrigger
               value="list"
@@ -814,13 +822,17 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                         >
                           <div
                             onClick={() => {
+                              if (progress === 100) {
+                                alert("SPK sudah Closing, Anda tidak bisa membuat Laporan lagi");
+                                return;
+                              }
                               setSelectedSpk(spk);
-                              setActiveTab('report');
+                              setActiveTab("report");
                             }}
                             className={`cursor-pointer transition-all duration-300 h-full rounded-xl overflow-hidden group border ${selectedSpk?.id === spk.id
-                              ? 'border-indigo-500 shadow-md bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 ring-2 ring-indigo-500/20'
-                              : 'border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-500 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md'
-                              }`}
+                              ? "border-indigo-500 shadow-md bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 ring-2 ring-indigo-500/20"
+                              : "border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-500 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md"
+                              } ${progress === 100 ? "pointer-events-auto" : ""}`}
                           >
                             <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-indigo-400 to-blue-400 opacity-90"></div>
 

@@ -72,12 +72,14 @@ model User {
   updatedAt      DateTime     @updatedAt
   active         Boolean      @default(true)
 
-  trustedDevices TrustedDevice[]
-  sessions       UserSession[]
-  loginAttempts  LoginAttempt[]
-  salesOrders    SalesOrder[]    @relation("UserSalesOrders")
-  karyawan       Karyawan?
-  createdBAP     BAP[]           @relation("BAPCreatedBy") // semua BAP yang dibuat user ini
+  trustedDevices   TrustedDevice[]
+  sessions         UserSession[]
+  loginAttempts    LoginAttempt[]
+  salesOrders      SalesOrder[]    @relation("UserSalesOrders")
+  karyawan         Karyawan?
+  createdBAP       BAP[]           @relation("BAPCreatedBy") // semua BAP yang dibuat user ini
+  createdInvoices  Invoice[]       @relation("InvoiceCreatedBy")
+  verifiedPayments Payment[]
 }
 
 model LoginAttempt {
@@ -151,11 +153,12 @@ model Karyawan {
   teamKaryawan TeamKaryawan[]
 
   // Relasi ke penggajian
-  gaji           Gaji[]
-  spkDetail      SPKDetail[]
-  spk            SPK[]            @relation("SPKCreatedBy")
-  spkFieldReport SPKFieldReport[]
-  approvedBAP    BAP[]            @relation("BAPApprovedBy") // semua BAP yang di-approve user ini
+  gaji             Gaji[]
+  spkDetail        SPKDetail[]
+  spk              SPK[]            @relation("SPKCreatedBy")
+  spkFieldReport   SPKFieldReport[]
+  approvedBAP      BAP[]            @relation("BAPApprovedBy") // semua BAP yang di-approve user ini
+  approvedInvoices Invoice[]        @relation("InvoiceApprovedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -262,10 +265,10 @@ enum OrderType {
 
 enum OrderStatus {
   DRAFT
-  SENT
   CONFIRMED
   IN_PROGRESS_SPK
   FULFILLED
+  BAST
   PARTIALLY_INVOICED
   INVOICED
   PARTIALLY_PAID
@@ -538,61 +541,244 @@ enum BAPStatus {
   APPROVED
 }
 
+// ENUM Definitions
+enum InvoiceStatus {
+  DRAFT
+  WAITING_APPROVAL
+  APPROVED
+  REJECTED
+  UNPAID
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PaymentMethod {
+  TRANSFER
+  CASH
+  CREDIT_CARD
+  VA
+  E_WALLET
+  CHEQUE
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum InstallmentStatus {
+  PENDING
+  DUE_SOON
+  OVERDUE
+  PARTIALLY_PAID
+  PAID
+}
+
 // ================== (Opsional tapi direkomendasikan) ==================
+model BankAccount {
+  id            String  @id @default(uuid())
+  bankName      String
+  accountNumber String  @unique
+  accountHolder String
+  branch        String?
+  isActive      Boolean @default(true)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  invoice   Invoice[]
+  payment   Payment[]
+}
+
 model Invoice {
   id            String   @id @default(uuid())
   invoiceNumber String   @unique
   invoiceDate   DateTime
-  salesOrderId  String? // link ke SO kalau berasal dari SO
+  dueDate       DateTime // Tanggal jatuh tempo
+  salesOrderId  String?
   currency      String   @default("IDR")
+  exchangeRate  Decimal  @default(1) @db.Decimal(18, 6) // Untuk multi-currency
+  bankAccountId String?
 
+  // Termin informasi
+  paymentTerm     String? // NET_30, NET_60, dll
+  installmentType String  @default("FULL") // FULL, INSTALLMENT
+  totalAmount     Decimal @default(0) @db.Decimal(18, 2) // Total amount sebelum termin
+
+  // Breakdown amounts
   subtotal      Decimal @default(0) @db.Decimal(18, 2)
   discountTotal Decimal @default(0) @db.Decimal(18, 2)
   taxTotal      Decimal @default(0) @db.Decimal(18, 2)
   grandTotal    Decimal @default(0) @db.Decimal(18, 2)
+  paidTotal     Decimal @default(0) @db.Decimal(18, 2) // Total yang sudah dibayar
+  balanceDue    Decimal @default(0) @db.Decimal(18, 2) // Sisa yang harus dibayar
 
-  status    String   @default("UNPAID") // atau buat enum InvoiceStatus
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  // Status workflow
+  status         InvoiceStatus  @default(WAITING_APPROVAL)
+  approvalStatus ApprovalStatus @default(PENDING)
 
-  salesOrder SalesOrder?   @relation(fields: [salesOrderId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  items      InvoiceItem[]
-  payments   Payment[]
+  // Tracking informasi
+  notes           String?
+  internalNotes   String? // Catatan internal untuk tim finance
+  termsConditions String? // Syarat dan ketentuan invoice
+
+  // User tracking
+  createdById    String
+  approvedById   String?
+  rejectedById   String?
+  rejectedReason String?
+
+  // Timestamps
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  approvedAt DateTime?
+
+  // Relations
+  salesOrder   SalesOrder?   @relation(fields: [salesOrderId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  items        InvoiceItem[]
+  payments     Payment[]
+  installments Installment[] // Termin pembayaran
+  createdBy    User          @relation("InvoiceCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  approvedBy   Karyawan?     @relation("InvoiceApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  invoiceTax   InvoiceTax[]
+  bankAccount  BankAccount?  @relation(fields: [bankAccountId], references: [id])
 
   @@index([salesOrderId])
+  @@index([createdById])
+  @@index([status])
+  @@index([dueDate])
+  @@index([invoiceDate])
 }
 
 model InvoiceItem {
-  id          String  @id @default(uuid())
-  invoiceId   String
-  // Snapshot dari SO item agar invoice “beku”
-  soItemId    String? // refer ke SO item jika perlu telusur asal
+  id        String  @id @default(uuid())
+  invoiceId String
+  soItemId  String?
+
+  // Item details
+  itemCode    String? // Kode item dari master data
   name        String
   description String?
   uom         String?
-  qty         Decimal @db.Decimal(18, 4)
-  unitPrice   Decimal @db.Decimal(18, 2)
-  discount    Decimal @default(0) @db.Decimal(18, 2)
-  taxRate     Decimal @default(0) @db.Decimal(5, 2)
-  lineTotal   Decimal @default(0) @db.Decimal(18, 2)
+
+  // Quantity dan harga
+  qty             Decimal @db.Decimal(18, 4)
+  unitPrice       Decimal @db.Decimal(18, 2)
+  discount        Decimal @default(0) @db.Decimal(18, 2)
+  discountPercent Decimal @default(0) @db.Decimal(5, 2)
+
+  // Tax information
+  taxRate Decimal @default(0) @db.Decimal(5, 2)
+  taxCode String? // PPN, PPH23, dll
+  taxable Boolean @default(true)
+
+  // Calculated fields
+  lineTotal Decimal @default(0) @db.Decimal(18, 2)
+  taxAmount Decimal @default(0) @db.Decimal(18, 2)
+  netAmount Decimal @default(0) @db.Decimal(18, 2)
 
   invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   @@index([invoiceId])
+  @@index([itemCode])
 }
 
 model Payment {
-  id        String   @id @default(uuid())
-  invoiceId String
-  payDate   DateTime
-  amount    Decimal  @db.Decimal(18, 2)
-  method    String? // transfer, cash, VA Midtrans, dll
-  reference String? // no. bukti, VA number, settlement id
-  notes     String?
+  id            String  @id @default(uuid())
+  invoiceId     String
+  installmentId String? // Link ke installment jika bayar termin
+
+  // Payment details
+  payDate      DateTime
+  amount       Decimal  @db.Decimal(18, 2)
+  currency     String   @default("IDR")
+  exchangeRate Decimal  @default(1) @db.Decimal(18, 6)
+
+  // Payment method
+  method        PaymentMethod // TRANSFER, CASH, CREDIT_CARD, VA, E_WALLET
+  bankAccountId String? // Rekening tujuan
+  reference     String? // No. bukti, VA number, settlement id
+
+  // Status
+  status       PaymentStatus @default(PENDING) // PENDING, COMPLETED, FAILED, CANCELLED
+  verified     Boolean       @default(false)
+  verifiedById String?
+  verifiedAt   DateTime?
+
+  // Additional info
+  notes      String?
+  attachment String? // URL bukti pembayaran
+
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  invoice     Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  installment Installment? @relation(fields: [installmentId], references: [id], onDelete: SetNull)
+  verifiedBy  User?        @relation(fields: [verifiedById], references: [id], onDelete: SetNull)
+  bankAccount BankAccount? @relation(fields: [bankAccountId], references: [id])
+
+  @@index([invoiceId, payDate])
+  @@index([status])
+  @@index([reference])
+}
+
+model Installment {
+  id                String @id @default(uuid())
+  invoiceId         String
+  installmentNumber Int // 1, 2, 3, ...
+  name              String // DP, After Installation, Final, dll
+
+  // Amount details
+  amount     Decimal  @db.Decimal(18, 2)
+  percentage Decimal? @db.Decimal(5, 2) // Persentase dari total
+
+  // Due date dan status
+  dueDate DateTime
+  status  InstallmentStatus @default(PENDING) // PENDING, DUE_SOON, OVERDUE, PARTIALLY_PAID, PAID
+
+  // Tracking pembayaran
+  paidAmount Decimal   @default(0) @db.Decimal(18, 2)
+  balance    Decimal   @default(0) @db.Decimal(18, 2)
+  paidAt     DateTime?
+
+  // Description
+  description String?
+  conditions  String? // Kondisi yang harus dipenuhi sebelum bayar
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  invoice  Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  payments Payment[]
+
+  @@index([invoiceId])
+  @@index([dueDate])
+  @@index([status])
+}
+
+// Tabel terpisah untuk tax summary jika diperlukan reporting detail
+model InvoiceTax {
+  id            String  @id @default(uuid())
+  invoiceId     String
+  taxCode       String // PPN, PPH23, dll
+  taxRate       Decimal @db.Decimal(5, 2)
+  taxableAmount Decimal @db.Decimal(18, 2)
+  taxAmount     Decimal @db.Decimal(18, 2)
 
   invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
-  @@index([invoiceId, payDate])
+  @@index([invoiceId])
+  @@index([taxCode])
 }

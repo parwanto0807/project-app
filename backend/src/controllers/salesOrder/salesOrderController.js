@@ -1,14 +1,14 @@
 import { Prisma } from "../../../prisma/generated/prisma/index.js";
 import { prisma } from "../../lib/prismaClient.js";
-import { toNum, rollup } from "../../lib/soUtils.js";
+import { toNum } from "../../lib/soUtils.js";
 
 /** Hitung total per baris */
-function calcLineTotal(qty, unitPrice, discount, taxRate) {
-  const base = qty * unitPrice;
-  const afterDisc = Math.max(base - discount, 0);
-  const tax = (taxRate / 100) * afterDisc;
-  return Math.max(afterDisc + tax, 0);
-}
+// function calcLineTotal(qty, unitPrice, discount, taxRate) {
+//   const base = qty * unitPrice;
+//   const afterDisc = Math.max(base - discount, 0);
+//   const tax = (taxRate / 100) * afterDisc;
+//   return Math.max(afterDisc + tax, 0);
+// }
 
 // ===================== Controllers =====================
 
@@ -22,15 +22,77 @@ export const getAll = async (req, res) => {
         user: true,
         items: { include: { product: true } },
         documents: true,
-        spk:{
-          select:{
+        spk: {
+          select: {
             spkNumber: true,
             id: true,
-          }
-        }
+          },
+        },
       },
       orderBy: { soDate: "desc" },
     });
+    res.json(salesOrders);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Gagal mengambil data Sales Order" });
+  }
+};
+
+export const getAllInvoice = async (req, res) => {
+  try {
+    const salesOrders = await prisma.salesOrder.findMany({
+      where: {
+        status: {
+          in: ["FULFILLED", "BAST"], // hanya ambil status ini
+        },
+      },
+      include: {
+        customer: true,
+        project: true,
+        user: true,
+        items: { include: { product: true } },
+        documents: true,
+        spk: {
+          select: {
+            spkNumber: true,
+            id: true,
+          },
+        },
+      },
+      orderBy: { soDate: "desc" },
+    });
+
+    res.json(salesOrders);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Gagal mengambil data Sales Order" });
+  }
+};
+
+export const getAllBap = async (req, res) => {
+  try {
+    const salesOrders = await prisma.salesOrder.findMany({
+      where: {
+        status: {
+          in: ["FULFILLED"], // hanya ambil status ini
+        },
+      },
+      include: {
+        customer: true,
+        project: true,
+        user: true,
+        items: { include: { product: true } },
+        documents: true,
+        spk: {
+          select: {
+            spkNumber: true,
+            id: true,
+          },
+        },
+      },
+      orderBy: { soDate: "desc" },
+    });
+
     res.json(salesOrders);
   } catch (error) {
     console.error(error);
@@ -1094,61 +1156,3 @@ export async function getMonthlySales(req, res) {
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 }
-
-// export async function getMonthlySales(req, res) {
-//   try {
-//     const months = parseInt(req.query.months) || 6; // default 12 bulan
-//     const now = new Date();
-
-//     // ambil dari x bulan lalu
-//     const startDate = new Date();
-//     startDate.setMonth(startDate.getMonth() - (months - 1));
-//     startDate.setDate(1); // mulai dari awal bulan
-//     startDate.setHours(0, 0, 0, 0); // set ke awal hari
-
-//     // Set now ke akhir hari
-//     const endDate = new Date(now);
-//     endDate.setHours(23, 59, 59, 999);
-
-//     // Query aggregate per bulan menggunakan parameterized query
-//     const sales = await prisma.$queryRaw`
-//       SELECT
-//         EXTRACT(YEAR FROM "createdAt")::integer as year,
-//         EXTRACT(MONTH FROM "createdAt")::integer as month,
-//         COALESCE(SUM("grandTotal"), 0)::float as total
-//       FROM "SalesOrder"
-//       WHERE "createdAt" BETWEEN ${startDate} AND ${endDate}
-//       GROUP BY year, month
-//       ORDER BY year, month;
-//     `;
-
-//     // Simpan hasil query ke Map biar gampang lookup
-//     const monthlyMap = new Map();
-//     sales.forEach((s) => {
-//       const key = `${s.year}-${s.month}`;
-//       monthlyMap.set(key, parseFloat(s.total) || 0);
-//     });
-
-//     // Generate data lengkap per bulan (isi 0 kalau nggak ada)
-//     const monthlyData = [];
-//     for (let i = 0; i < months; i++) {
-//       const date = new Date(startDate);
-//       date.setMonth(startDate.getMonth() + i);
-
-//       const year = date.getFullYear();
-//       const month = date.getMonth() + 1;
-//       const key = `${year}-${month}`;
-
-//       monthlyData.push({
-//         year,
-//         month,
-//         total: monthlyMap.get(key) || 0,
-//       });
-//     }
-
-//     res.json({ success: true, data: monthlyData });
-//   } catch (error) {
-//     console.error("Error getMonthlySales:", error);
-//     res.status(500).json({ success: false, message: "Internal server error" });
-//   }
-// }

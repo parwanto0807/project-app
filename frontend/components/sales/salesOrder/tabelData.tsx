@@ -86,43 +86,43 @@ type OrderStatus = z.infer<typeof OrderStatusEnum>;
 const statusConfig: Record<OrderStatus, { label: string; className: string }> = {
     DRAFT: {
         label: "Draft",
-        className: "bg-gray-100 text-gray-700 border-gray-200",
-    },
-    SENT: {
-        label: "Sent",
-        className: "bg-yellow-100 text-yellow-700 border-yellow-200",
+        className: "bg-red-400 text-gray-700 border-gray-200",
     },
     CONFIRMED: {
         label: "Confirmed",
-        className: "bg-indigo-100 text-indigo-700 border-indigo-200",
+        className: "bg-indigo-300 text-indigo-800 border-indigo-200",
     },
     IN_PROGRESS_SPK: {
         label: "In Progress SPK",
-        className: "bg-orange-100 text-orange-700 border-orange-200",
+        className: "bg-orange-300 text-orange-800 border-orange-200",
     },
     FULFILLED: {
-        label: "Fulfilled",
-        className: "bg-purple-100 text-purple-700 border-purple-200",
+        label: "SPK Closing",
+        className: "bg-blue-500 text-white border-purple-200",
+    },
+    BAST: {
+        label: "BAST",
+        className: "bg-purple-300 text-purple-800 border-purple-200",
     },
     PARTIALLY_INVOICED: {
         label: "Partially Invoiced",
-        className: "bg-cyan-100 text-cyan-700 border-cyan-200",
+        className: "bg-cyan-300 text-cyan-800 border-cyan-200",
     },
     INVOICED: {
         label: "Invoiced",
-        className: "bg-blue-100 text-blue-700 border-blue-200",
+        className: "bg-blue-300 text-blue-800 border-blue-200",
     },
     PARTIALLY_PAID: {
         label: "Partially Paid",
-        className: "bg-teal-100 text-teal-700 border-teal-200",
+        className: "bg-teal-300 text-teal-800 border-teal-200",
     },
     PAID: {
         label: "Paid",
-        className: "bg-green-100 text-green-700 border-green-200",
+        className: "bg-green-300 text-green-800 border-green-200",
     },
     CANCELLED: {
         label: "Cancelled",
-        className: "bg-red-100 text-red-700 border-red-200",
+        className: "bg-red-300 text-red-800 border-red-200",
     },
 };
 
@@ -487,15 +487,48 @@ function ActionsCell({ order, onDeleteSuccess, role }: { order: SalesOrder; onDe
                             View Details
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                            className="cursor-pointer gap-2 text-xs"
                             onClick={handleEditOrder}
+                            disabled={[
+                                "INVOICED",
+                                "PAID",
+                                "FULFILLED",
+                                "PARTIALLY_INVOICED",
+                                "PARTIALLY_PAID",
+                            ].includes(order.status)}
+                            className={`cursor-pointer gap-2 text-xs ${[
+                                "INVOICED",
+                                "PAID",
+                                "FULFILLED",
+                                "PARTIALLY_INVOICED",
+                                "PARTIALLY_PAID",
+                            ].includes(order.status)
+                                ? "opacity-50 cursor-not-allowed"
+                                : ""
+                                }`}
                         >
                             <Edit className="h-3 w-3" />
                             Edit Order
                         </DropdownMenuItem>
+
                         <DropdownMenuItem
-                            className="text-red-600 focus:text-red-600 cursor-pointer gap-2 text-xs"
                             onClick={handleDeleteClick}
+                            disabled={[
+                                "INVOICED",
+                                "PAID",
+                                "FULFILLED",
+                                "PARTIALLY_INVOICED",
+                                "PARTIALLY_PAID",
+                            ].includes(order.status)}
+                            className={`cursor-pointer gap-2 text-xs ${[
+                                "INVOICED",
+                                "PAID",
+                                "FULFILLED",
+                                "PARTIALLY_INVOICED",
+                                "PARTIALLY_PAID",
+                            ].includes(order.status)
+                                ? "opacity-50 cursor-not-allowed"
+                                : ""
+                                }`}
                         >
                             <Trash2 className="h-3 w-3" />
                             Delete
@@ -555,17 +588,54 @@ function ActionsCell({ order, onDeleteSuccess, role }: { order: SalesOrder; onDe
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48" onClick={(e) => e.stopPropagation()}>
                     <DropdownMenuItem
-                        className="cursor-pointer gap-2"
                         onClick={handleEditOrder}
+                        disabled={[
+                            "INVOICED",
+                            "PAID",
+                            "FULFILLED",
+                            "BAST",
+                            "PARTIALLY_INVOICED",
+                            "PARTIALLY_PAID",
+                        ].includes(order.status)}
+                        className={`cursor-pointer gap-2 text-xs ${[
+                            "INVOICED",
+                            "PAID",
+                            "FULFILLED",
+                            "BAST",
+                            "PARTIALLY_INVOICED",
+                            "PARTIALLY_PAID",
+                        ].includes(order.status)
+                            ? "opacity-50 cursor-not-allowed"
+                            : ""
+                            }`}
                     >
-                        <Edit className="h-4 w-4" />
+                        <Edit className="h-3 w-3" />
                         Edit Order
                     </DropdownMenuItem>
+
                     <DropdownMenuItem
-                        className="text-red-600 focus:text-red-600 cursor-pointer gap-2"
                         onClick={handleDeleteClick}
+                        disabled={[
+                            "INVOICED",
+                            "PAID",
+                            "FULFILLED",
+                            "BAST",
+                            "PARTIALLY_INVOICED",
+                            "PARTIALLY_PAID",
+                        ].includes(order.status)}
+                        className={`cursor-pointer gap-2 text-xs ${[
+                            "INVOICED",
+                            "PAID",
+                            "FULFILLED",
+                            "BAST",
+                            "PARTIALLY_INVOICED",
+                            "PARTIALLY_PAID",
+                        ].includes(order.status)
+                            ? "opacity-50 cursor-not-allowed"
+                            : ""
+                            }`}
                     >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3 w-3" />
                         Delete
                     </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -825,6 +895,7 @@ const useBodyScrollLock = (isLocked: boolean) => {
     }, [isLocked]);
 };
 
+
 function mapToFormData(order: SalesOrder): SalesOrderFormData {
     return {
         soNumber: order.soNumber,
@@ -917,6 +988,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
     const handleDelete = onDeleteOrder ?? (() => { });
     const pdfActions = usePdfActions();
     const basePath = getBasePath(role);
+
 
     // Update local state when prop changes
     React.useEffect(() => {

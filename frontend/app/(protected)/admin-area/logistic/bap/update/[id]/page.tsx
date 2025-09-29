@@ -16,7 +16,7 @@ import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { LayoutProps } from "@/types/layout";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { UpdateBAPForm } from "@/components/bap/updateFormData";
-import { fetchAllSalesOrder } from "@/lib/action/sales/salesOrder";
+import { fetchAllSalesOrderInvoice } from "@/lib/action/sales/salesOrder";
 import { fetchAllKaryawan } from "@/lib/action/master/karyawan";
 import { getBAPById } from "@/lib/action/bap/bap";
 import { Karyawan } from "@/lib/validations/karyawan";
@@ -132,7 +132,7 @@ export default function CreateBAPPage() {
       try {
         setIsLoading(true);
         const [salesOrderRes, usersRes, bapRes] = await Promise.all([
-          fetchAllSalesOrder(),
+          fetchAllSalesOrderInvoice(),
           fetchAllKaryawan(),
           bapId ? getBAPById(bapId) : Promise.resolve({ success: false, data: null })
         ]);

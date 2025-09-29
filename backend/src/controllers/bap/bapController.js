@@ -246,13 +246,18 @@ export const createBAP = async (req, res) => {
     // --- 4. Gabungkan semua photos ---
     allPhotos = [...allPhotos, ...uploadedPhotos, ...spkPhotos];
 
-    console.log("Photos to be saved:", allPhotos);
-
     // ... rest of your code
     const salesOrder = await prisma.salesOrder.findUnique({
       where: { id: salesOrderId },
       include: { project: true },
     });
+
+    if (salesOrder?.id) {
+      await prisma.salesOrder.update({
+        where: { id: salesOrder.id },
+        data: { status: "BAST" },
+      });
+    }
 
     if (!salesOrder) {
       return res.status(404).json({ error: "Sales Order not found" });
@@ -280,11 +285,19 @@ export const createBAP = async (req, res) => {
           select: {
             soNumber: true,
             customer: { select: { name: true } },
+            spk: { select: { id: true } },
           },
         },
         photos: true,
       },
     });
+
+    if (bap?.salesOrder?.spk?.length) {
+      await prisma.sPKFieldReport.updateMany({
+        where: { spkId: { in: bap.salesOrder.spk.map((spk) => spk.id) } },
+        data: { status: "APPROVED" },
+      });
+    }
 
     res.status(201).json(bap);
   } catch (error) {

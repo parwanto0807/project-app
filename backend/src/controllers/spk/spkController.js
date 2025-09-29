@@ -155,7 +155,6 @@ export const getAllSPK = async (req, res) => {
         salesOrder: {
           include: {
             customer: {
-              // ✅ ambil data customer
               select: {
                 name: true,
                 address: true,
@@ -168,14 +167,14 @@ export const getAllSPK = async (req, res) => {
                 name: true,
               },
             },
-            items: true, // ✅ ambil semua items dari SalesOrder
+            items: true,
           },
         },
         team: true,
         details: {
           include: {
             karyawan: true,
-            salesOrderItem: true, // ✅ ambil item per detail juga
+            salesOrderItem: true,
           },
         },
       },
