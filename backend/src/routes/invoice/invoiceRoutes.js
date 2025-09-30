@@ -88,6 +88,11 @@ const addPaymentValidation = [
 // );
 
 // Protected routes tanpa middleware untuk testing
+
+router.get("/getInvoiceStats", InvoiceController.getInvoiceStats);
+router.get("/getInvoiceCount", InvoiceController.getInvoiceCount);
+router.get("/getMonthlyInvoice", InvoiceController.getMonthlyInvoice);
+
 router.get(
   "/getInvoices",
   [

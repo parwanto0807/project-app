@@ -13,10 +13,9 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { Loader2 } from "lucide-react";
 import { CreateSalesOrderForm } from "@/components/sales/salesOrder/createFormData";
-
 import { fetchAllCustomers } from "@/lib/action/master/customer";
+import { AdminLoading } from "@/components/admin-loading";
 
 // 1. Definisikan tipe manual yang dibutuhkan oleh form
 interface CustomerForForm {
@@ -91,16 +90,8 @@ export default function CreateSalesOrderPageAdmin() {
     fetchCustomerData();
   }, []);
 
-  // ... sisa komponen tidak berubah ...
   if (userLoading || !user || user.role !== "admin") {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="flex items-center gap-3 text-muted-foreground">
-          <Loader2 className="h-5 w-5 animate-spin" aria-label="Loading" />
-          <span>Memeriksa akses...</span>
-        </div>
-      </div>
-    );
+    return <AdminLoading message="Preparing Sales Order creation form..." />;
   }
 
   return (

@@ -3,6 +3,62 @@ import { validationResult } from "express-validator";
 
 const prisma = new PrismaClient();
 
+// Start of day lokal (misal UTC+7 untuk Jakarta)
+export function startOfDayLocal(d, tzOffsetMinutes) {
+  d = d || new Date();
+  tzOffsetMinutes = tzOffsetMinutes || 0;
+  const dt = new Date(d);
+  dt.setMinutes(dt.getMinutes() + tzOffsetMinutes);
+  dt.setHours(0, 0, 0, 0);
+  dt.setMinutes(dt.getMinutes() - tzOffsetMinutes);
+  return dt;
+}
+
+export function startOfMonthLocal(d, tzOffsetMinutes) {
+  d = d || new Date();
+  tzOffsetMinutes = tzOffsetMinutes || 0;
+  const dt = new Date(d);
+  dt.setMinutes(dt.getMinutes() + tzOffsetMinutes);
+  dt.setDate(1);
+  dt.setHours(0, 0, 0, 0);
+  dt.setMinutes(dt.getMinutes() - tzOffsetMinutes);
+  return dt;
+}
+
+export function startOfYearLocal(d, tzOffsetMinutes) {
+  d = d || new Date();
+  tzOffsetMinutes = tzOffsetMinutes || 0;
+  const dt = new Date(d);
+  dt.setMinutes(dt.getMinutes() + tzOffsetMinutes);
+  dt.setMonth(0, 1);
+  dt.setHours(0, 0, 0, 0);
+  dt.setMinutes(dt.getMinutes() - tzOffsetMinutes);
+  return dt;
+}
+
+export function startOfLastMonthLocal(d, tzOffsetMinutes) {
+  d = d || new Date();
+  tzOffsetMinutes = tzOffsetMinutes || 0;
+  const dt = new Date(d);
+  dt.setMonth(dt.getMonth() - 1, 1);
+  dt.setHours(0, 0, 0, 0);
+  return new Date(dt.getTime() - tzOffsetMinutes * 60000);
+}
+
+export function endOfLastMonthLocal(d, tzOffsetMinutes) {
+  d = d || new Date();
+  tzOffsetMinutes = tzOffsetMinutes || 0;
+  const dt = new Date(d);
+  dt.setDate(0);
+  dt.setHours(23, 59, 59, 999);
+  return new Date(dt.getTime() - tzOffsetMinutes * 60000);
+}
+
+// Safely convert Prisma Decimal / null / undefined -> number
+export function num(x) {
+  return x == null ? 0 : Number(x);
+}
+
 class InvoiceController {
   constructor() {
     this.createInvoice = this.createInvoice.bind(this);
@@ -192,7 +248,6 @@ class InvoiceController {
       });
     }
   }
-
   // Calculate invoice totals from items
   calculateInvoiceTotals(items) {
     let subtotal = 0;
@@ -223,7 +278,6 @@ class InvoiceController {
       balanceDue: grandTotal,
     };
   }
-
   // Create new invoice
   async createInvoice(req, res) {
     try {
@@ -834,62 +888,203 @@ class InvoiceController {
     }
   }
 
-  // Get invoice statistics
+  // ====== INVOICE STATS ======
   async getInvoiceStats(req, res) {
     try {
-      const { year = new Date().getFullYear() } = req.query;
+      const now = new Date();
+      const currentYear = now.getUTCFullYear();
+      const currentMonth = now.getUTCMonth();
+      const currentDate = now.getUTCDate();
 
-      const startDate = new Date(year, 0, 1);
-      const endDate = new Date(year, 11, 31, 23, 59, 59);
+      // Simple UTC date calculations
+      const startToday = new Date(
+        Date.UTC(currentYear, currentMonth, currentDate, 0, 0, 0, 0)
+      );
+      const startMonth = new Date(
+        Date.UTC(currentYear, currentMonth, 1, 0, 0, 0, 0)
+      );
+      const startYear = new Date(Date.UTC(currentYear, 0, 1, 0, 0, 0, 0));
 
-      const stats = await prisma.invoice.aggregate({
-        where: {
-          invoiceDate: {
-            gte: startDate,
-            lte: endDate,
-          },
-        },
-        _sum: {
-          grandTotal: true,
-          paidTotal: true,
-          taxTotal: true,
-        },
-        _count: {
-          id: true,
-        },
-      });
+      // Last month calculations
+      const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+      const prevMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+      const startLastMonth = new Date(
+        Date.UTC(prevMonthYear, prevMonth, 1, 0, 0, 0, 0)
+      );
+      const endLastMonth = new Date(
+        Date.UTC(currentYear, currentMonth, 0, 23, 59, 59, 999)
+      );
 
-      // Count by status
-      const statusCounts = await prisma.invoice.groupBy({
-        by: ["status"],
-        where: {
-          invoiceDate: {
-            gte: startDate,
-            lte: endDate,
-          },
-        },
-        _count: {
-          id: true,
-        },
+      const [
+        todayAgg,
+        mtdAgg,
+        ytdAgg,
+        lastMonthAgg,
+        yearSummaryAgg,
+        pendingAgg,
+        paidAgg,
+      ] = await Promise.all([
+        prisma.invoice.aggregate({
+          _sum: { grandTotal: true },
+          where: { invoiceDate: { gte: startToday, lte: now } },
+        }),
+        prisma.invoice.aggregate({
+          _sum: { grandTotal: true },
+          where: { invoiceDate: { gte: startMonth, lte: now } },
+        }),
+        prisma.invoice.aggregate({
+          _sum: { grandTotal: true },
+          where: { invoiceDate: { gte: startYear, lte: now } },
+        }),
+        prisma.invoice.aggregate({
+          _sum: { grandTotal: true },
+          where: { invoiceDate: { gte: startLastMonth, lte: endLastMonth } },
+        }),
+        prisma.invoice.aggregate({
+          _sum: { grandTotal: true },
+          where: { invoiceDate: { gte: startYear, lte: now } },
+        }),
+        prisma.invoice.aggregate({
+          _sum: { grandTotal: true },
+          where: { status: { in: ["WAITING_APPROVAL", "UNPAID"] } },
+        }),
+        prisma.invoice.aggregate({
+          _sum: { grandTotal: true },
+          where: { status: { in: ["PAID", "PARTIALLY_PAID"] } },
+        }),
+      ]);
+
+      // Handle null results dengan default value 0
+      const today = num(todayAgg._sum.grandTotal) || 0;
+      const mtd = num(mtdAgg._sum.grandTotal) || 0;
+      const ytd = num(ytdAgg._sum.grandTotal) || 0;
+      const lastMonthTotal = num(lastMonthAgg._sum.grandTotal) || 0;
+      const yearSummary = num(yearSummaryAgg._sum.grandTotal) || 0;
+      const pendingInvoices = num(pendingAgg._sum.grandTotal) || 0;
+      const paidInvoices = num(paidAgg._sum.grandTotal) || 0;
+
+      // Calculate collection rate dengan handling division by zero
+      const totalInvoices = yearSummary || 1; // Avoid division by zero
+      const collectionRate = paidInvoices / totalInvoices;
+
+      // Debug log untuk memastikan data benar
+      console.log("DEBUG Invoice Stats:", {
+        today,
+        mtd,
+        ytd,
+        lastMonth: lastMonthTotal,
+        yearSummary,
+        pendingInvoices,
+        paidInvoices,
+        collectionRate,
       });
 
       res.json({
-        success: true,
-        data: {
-          totalAmount: stats._sum.grandTotal || 0,
-          totalPaid: stats._sum.paidTotal || 0,
-          totalTax: stats._sum.taxTotal || 0,
-          totalInvoices: stats._count.id,
-          statusCounts,
-        },
+        today,
+        mtd,
+        ytd,
+        lastMonth: lastMonthTotal,
+        yearSummary,
+        pendingInvoices,
+        paidInvoices,
+        collectionRate,
       });
+    } catch (err) {
+      console.error("[getInvoiceStats] error:", err);
+      res.status(500).json({ message: "Gagal mengambil statistik invoice" });
+    }
+  }
+
+  // ====== INVOICE COUNT ======
+  async getInvoiceCount(req, res) {
+    try {
+      const startOfYear = new Date(new Date().getFullYear(), 0, 1);
+      const endOfYear = new Date(new Date().getFullYear(), 11, 31, 23, 59, 59);
+
+      const count = await prisma.invoice.count({
+        where: { createdAt: { gte: startOfYear, lte: endOfYear } },
+      });
+
+      res.json({ count });
+    } catch (err) {
+      console.error("[getInvoiceCount] error:", err);
+      res
+        .status(500)
+        .json({ message: "Gagal mengambil jumlah invoice tahun ini" });
+    }
+  }
+
+  // ====== MONTHLY INVOICE ======
+  async getMonthlyInvoice(req, res) {
+    try {
+      const months = parseInt(req.query.months) || 6;
+      const customerId = req.query.customerId;
+
+      const now = new Date();
+      const startDate = new Date();
+      startDate.setMonth(startDate.getMonth() - (months - 1));
+      startDate.setDate(1);
+      startDate.setHours(0, 0, 0, 0);
+
+      const endDate = new Date(now);
+      endDate.setHours(23, 59, 59, 999);
+
+      let whereClause = `"i"."invoiceDate" BETWEEN $1 AND $2`;
+      const params = [startDate, endDate];
+
+      if (customerId) {
+        whereClause += ` AND "so"."customerId" = $${params.length + 1}`;
+        params.push(customerId);
+      }
+
+      const invoices = await prisma.$queryRawUnsafe(
+        `
+  SELECT 
+    EXTRACT(YEAR FROM "i"."invoiceDate")::integer as year,
+    EXTRACT(MONTH FROM "i"."invoiceDate")::integer as month,
+    COALESCE(SUM("i"."grandTotal"), 0)::float as total,
+    COALESCE(SUM(CASE WHEN "i"."status" IN ('PAID', 'PARTIALLY_PAID') THEN "i"."grandTotal" ELSE 0 END), 0)::float as paid_total
+  FROM "Invoice" i
+  JOIN "SalesOrder" so ON i."salesOrderId" = so.id
+  WHERE ${whereClause}
+  GROUP BY year, month
+  ORDER BY year, month;
+  `,
+        ...params
+      );
+
+      const monthlyMap = new Map();
+      const paidMonthlyMap = new Map();
+
+      invoices.forEach((s) => {
+        const key = `${s.year}-${s.month}`;
+        monthlyMap.set(key, parseFloat(s.total) || 0);
+        paidMonthlyMap.set(key, parseFloat(s.paid_total) || 0);
+      });
+
+      const monthlyData = [];
+      for (let i = 0; i < months; i++) {
+        const date = new Date(startDate);
+        date.setMonth(startDate.getMonth() + i);
+
+        const year = date.getFullYear();
+        const month = date.getMonth() + 1;
+        const key = `${year}-${month}`;
+
+        monthlyData.push({
+          year,
+          month,
+          total: monthlyMap.get(key) || 0,
+          paid_total: paidMonthlyMap.get(key) || 0,
+        });
+      }
+
+      res.json({ success: true, data: monthlyData });
     } catch (error) {
-      console.error("Get invoice stats error:", error);
-      res.status(500).json({
-        success: false,
-        message: "Failed to fetch invoice statistics",
-        error: error.message,
-      });
+      console.error("[getMonthlyInvoice] error:", error);
+      res
+        .status(500)
+        .json({ success: false, message: "Internal server error" });
     }
   }
 }

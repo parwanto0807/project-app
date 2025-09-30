@@ -2,16 +2,6 @@ import { Prisma } from "../../../prisma/generated/prisma/index.js";
 import { prisma } from "../../lib/prismaClient.js";
 import { toNum } from "../../lib/soUtils.js";
 
-/** Hitung total per baris */
-// function calcLineTotal(qty, unitPrice, discount, taxRate) {
-//   const base = qty * unitPrice;
-//   const afterDisc = Math.max(base - discount, 0);
-//   const tax = (taxRate / 100) * afterDisc;
-//   return Math.max(afterDisc + tax, 0);
-// }
-
-// ===================== Controllers =====================
-
 /** Ambil semua sales order */
 export const getAll = async (req, res) => {
   try {
@@ -971,57 +961,76 @@ export async function getRecentSalesOrders(req, res) {
   }
 }
 
-function startOfDayLocal(d = new Date(), tzOffsetMinutes = 0) {
-  // Jika kamu butuh Asia/Jakarta (UTC+7), set tzOffsetMinutes = 420
-  const dt = new Date(d);
-  // Normalisasi ke “awal hari” versi lokal (tanpa lib tambahan)
-  dt.setMinutes(dt.getMinutes() + tzOffsetMinutes);
-  dt.setHours(0, 0, 0, 0);
-  dt.setMinutes(dt.getMinutes() - tzOffsetMinutes);
-  return dt;
-}
-function startOfMonthLocal(d = new Date(), tzOffsetMinutes = 0) {
-  const dt = new Date(d);
-  dt.setMinutes(dt.getMinutes() + tzOffsetMinutes);
-  dt.setDate(1);
-  dt.setHours(0, 0, 0, 0);
-  dt.setMinutes(dt.getMinutes() - tzOffsetMinutes);
-  return dt;
-}
-function startOfYearLocal(d = new Date(), tzOffsetMinutes = 0) {
-  const dt = new Date(d);
-  dt.setMinutes(dt.getMinutes() + tzOffsetMinutes);
-  dt.setMonth(0, 1);
-  dt.setHours(0, 0, 0, 0);
-  dt.setMinutes(dt.getMinutes() - tzOffsetMinutes);
-  return dt;
-}
-function startOfLastMonthLocal(d = new Date(), tzOffsetMinutes = 0) {
-  const dt = new Date(d);
-  dt.setMonth(dt.getMonth() - 1, 1); // tanggal 1 bulan lalu
-  dt.setHours(0, 0, 0, 0);
-  return new Date(dt.getTime() - tzOffsetMinutes * 60000);
-}
-function endOfLastMonthLocal(d = new Date(), tzOffsetMinutes = 0) {
-  const dt = new Date(d);
-  dt.setDate(0); // last day of prev month
-  dt.setHours(23, 59, 59, 999);
-  return new Date(dt.getTime() - tzOffsetMinutes * 60000);
-}
+// function startOfDayLocal(d = new Date(), tzOffsetMinutes = 0) {
+//   const dt = new Date(d);
+//   // Reset to UTC midnight then adjust for timezone
+//   dt.setUTCHours(0, 0, 0, 0);
+//   return new Date(dt.getTime() + tzOffsetMinutes * 60000);
+// }
+
+// function startOfMonthLocal(d = new Date(), tzOffsetMinutes = 0) {
+//   const dt = new Date(d);
+//   // Set to first day of month at UTC midnight, then adjust for timezone
+//   dt.setUTCDate(1);
+//   dt.setUTCHours(0, 0, 0, 0);
+//   return new Date(dt.getTime() + tzOffsetMinutes * 60000);
+// }
+
+// function startOfYearLocal(d = new Date(), tzOffsetMinutes = 0) {
+//   const dt = new Date(d);
+//   // Set to first day of year at UTC midnight, then adjust for timezone
+//   dt.setUTCMonth(0, 1);
+//   dt.setUTCHours(0, 0, 0, 0);
+//   return new Date(dt.getTime() + tzOffsetMinutes * 60000);
+// }
+
+// function startOfLastMonthLocal(d = new Date(), tzOffsetMinutes = 0) {
+//   const dt = new Date(d);
+//   // Go to first day of current month, then subtract one month
+//   dt.setUTCDate(1);
+//   dt.setUTCHours(0, 0, 0, 0);
+//   dt.setUTCMonth(dt.getUTCMonth() - 1);
+//   return new Date(dt.getTime() + tzOffsetMinutes * 60000);
+// }
+
+// function endOfLastMonthLocal(d = new Date(), tzOffsetMinutes = 0) {
+//   const dt = new Date(d);
+//   // Go to first day of current month, then subtract 1ms to get end of previous month
+//   dt.setUTCDate(1);
+//   dt.setUTCHours(0, 0, 0, 0);
+//   const endOfLastMonth = new Date(dt.getTime() - 1);
+//   return new Date(endOfLastMonth.getTime() + tzOffsetMinutes * 60000);
+// }
 
 // Safely convert Prisma Decimal | number | null | undefined → number
+
 const num = (x) => (x == null ? 0 : Number(x));
 
 export async function getSalesStats(req, res) {
   try {
-    const jakartaOffset = 7 * 60;
     const now = new Date();
+    const currentYear = now.getUTCFullYear();
+    const currentMonth = now.getUTCMonth();
+    const currentDate = now.getUTCDate();
 
-    const startToday = startOfDayLocal(now, jakartaOffset);
-    const startMonth = startOfMonthLocal(now, jakartaOffset);
-    const startYear = startOfYearLocal(now, jakartaOffset);
-    const startLastMonth = startOfLastMonthLocal(now, jakartaOffset);
-    const endLastMonth = endOfLastMonthLocal(now, jakartaOffset);
+    // Simple UTC date calculations
+    const startToday = new Date(
+      Date.UTC(currentYear, currentMonth, currentDate, 0, 0, 0, 0)
+    );
+    const startMonth = new Date(
+      Date.UTC(currentYear, currentMonth, 1, 0, 0, 0, 0)
+    );
+    const startYear = new Date(Date.UTC(currentYear, 0, 1, 0, 0, 0, 0));
+
+    // Last month calculations - GUNAKAN VARIABLE NAME YANG BERBEDA
+    const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1; // Ganti 'lastMonth' jadi 'prevMonth'
+    const prevMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear; // Ganti 'lastMonthYear' jadi 'prevMonthYear'
+    const startLastMonth = new Date(
+      Date.UTC(prevMonthYear, prevMonth, 1, 0, 0, 0, 0)
+    );
+    const endLastMonth = new Date(
+      Date.UTC(currentYear, currentMonth, 0, 23, 59, 59, 999)
+    );
 
     const [todayAgg, mtdAgg, ytdAgg, lastMonthAgg, yearSummaryAgg] =
       await Promise.all([
@@ -1047,13 +1056,33 @@ export async function getSalesStats(req, res) {
         }),
       ]);
 
-    const today = num(todayAgg._sum.grandTotal);
-    const mtd = num(mtdAgg._sum.grandTotal);
-    const ytd = num(ytdAgg._sum.grandTotal);
-    const lastMonth = num(lastMonthAgg._sum.grandTotal);
-    const yearSummary = num(yearSummaryAgg._sum.grandTotal);
+    // DEBUG: Check actual data in the ranges
+    const todayOrders = await prisma.salesOrder.findMany({
+      where: { soDate: { gte: startToday, lte: now } },
+      select: { soDate: true, grandTotal: true },
+      orderBy: { soDate: "desc" },
+    });
 
-    res.json({ today, mtd, ytd, lastMonth, yearSummary });
+    const mtdOrders = await prisma.salesOrder.findMany({
+      where: { soDate: { gte: startMonth, lte: now } },
+      select: { soDate: true, grandTotal: true },
+      orderBy: { soDate: "desc" },
+    });
+
+    // Handle null results - GUNAKAN VARIABLE YANG KONSISTEN
+    const today = num(todayAgg._sum.grandTotal) || 0;
+    const mtd = num(mtdAgg._sum.grandTotal) || 0;
+    const ytd = num(ytdAgg._sum.grandTotal) || 0;
+    const lastMonthTotal = num(lastMonthAgg._sum.grandTotal) || 0; // Ganti 'lastMonth' jadi 'lastMonthTotal'
+    const yearSummary = num(yearSummaryAgg._sum.grandTotal) || 0;
+
+    res.json({
+      today,
+      mtd,
+      ytd,
+      lastMonth: lastMonthTotal, // Kirim sebagai 'lastMonth' tapi variable lokal beda
+      yearSummary,
+    });
   } catch (err) {
     console.error("[getSalesStats] error:", err);
     res.status(500).json({ message: "Gagal mengambil statistik penjualan" });
