@@ -1,4 +1,4 @@
-import { Invoice, InvoiceStatus } from "@/schemas/invoice/index";
+import { Invoice } from "@/schemas/invoice/index";
 
 export function calculateItemTotal(item: {
   qty: number;
@@ -33,13 +33,18 @@ export function isInvoiceOverdue(invoice: Invoice): boolean {
   );
 }
 
-export function getInvoiceStatusColor(status: InvoiceStatus): string {
-  const statusColors = {
-    DRAFT: "bg-gray-100 text-gray-800",
-    WAITING_APPROVAL: "bg-yellow-100 text-yellow-800",
-    APPROVED: "bg-green-100 text-green-800",
-    REJECTED: "bg-red-100 text-red-800",
-    CANCELLED: "bg-gray-100 text-gray-800",
-  };
-  return statusColors[status] || "bg-gray-100 text-gray-800";
-}
+// export function getInvoiceStatusColor(status: InvoiceStatus): string {
+//   const statusColors: Record<InvoiceStatus, string> = {
+//     DRAFT: "bg-gray-100 text-gray-800",
+//     WAITING_APPROVAL: "bg-yellow-100 text-yellow-800",
+//     APPROVED: "bg-green-100 text-green-800",
+//     REJECTED: "bg-red-100 text-red-800",
+//     UNPAID: "bg-red-50 text-red-700",
+//     PARTIALLY_PAID: "bg-yellow-50 text-yellow-700",
+//     PAID: "bg-green-50 text-green-700",
+//     OVERDUE: "bg-red-200 text-red-900",
+//     CANCELLED: "bg-gray-100 text-gray-800",
+//   };
+
+//   return statusColors[status] || "bg-gray-100 text-gray-800";
+// }

@@ -39,11 +39,11 @@ export type InvoiceStatus =
   | "WAITING_APPROVAL"
   | "APPROVED"
   | "REJECTED"
-  | "CANCELLED"
   | "UNPAID"
   | "PARTIALLY_PAID"
   | "PAID"
-  | "OVERDUE";
+  | "OVERDUE"
+  | "CANCELLED";
 
 export interface Invoice {
   id: string;
