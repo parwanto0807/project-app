@@ -891,28 +891,58 @@ class InvoiceController {
   // ====== INVOICE STATS ======
   async getInvoiceStats(req, res) {
     try {
+      // const now = new Date();
+      // const currentYear = now.getUTCFullYear();
+      // const currentMonth = now.getUTCMonth();
+      // const currentDate = now.getUTCDate();
+
+      // // Simple UTC date calculations
+      // const startToday = new Date(
+      //   Date.UTC(currentYear, currentMonth, currentDate, 0, 0, 0, 0)
+      // );
+      // const startMonth = new Date(
+      //   Date.UTC(currentYear, currentMonth, 1, 0, 0, 0, 0)
+      // );
+      // const startYear = new Date(Date.UTC(currentYear, 0, 1, 0, 0, 0, 0));
+
+      // // Last month calculations
+      // const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+      // const prevMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+      // const startLastMonth = new Date(
+      //   Date.UTC(prevMonthYear, prevMonth, 1, 0, 0, 0, 0)
+      // );
+      // const endLastMonth = new Date(
+      //   Date.UTC(currentYear, currentMonth, 0, 23, 59, 59, 999)
+      // );
       const now = new Date();
-      const currentYear = now.getUTCFullYear();
-      const currentMonth = now.getUTCMonth();
-      const currentDate = now.getUTCDate();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth(); // 0–11
+      const currentDate = now.getDate();
 
-      // Simple UTC date calculations
       const startToday = new Date(
-        Date.UTC(currentYear, currentMonth, currentDate, 0, 0, 0, 0)
+        currentYear,
+        currentMonth,
+        currentDate,
+        0,
+        0,
+        0,
+        0
       );
-      const startMonth = new Date(
-        Date.UTC(currentYear, currentMonth, 1, 0, 0, 0, 0)
-      );
-      const startYear = new Date(Date.UTC(currentYear, 0, 1, 0, 0, 0, 0));
+      const startMonth = new Date(currentYear, currentMonth, 1, 0, 0, 0, 0);
+      const startYear = new Date(currentYear, 0, 1, 0, 0, 0, 0);
 
-      // Last month calculations
+      // Bulan lalu (lokal)
       const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
       const prevMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
-      const startLastMonth = new Date(
-        Date.UTC(prevMonthYear, prevMonth, 1, 0, 0, 0, 0)
-      );
+      const startLastMonth = new Date(prevMonthYear, prevMonth, 1, 0, 0, 0, 0);
       const endLastMonth = new Date(
-        Date.UTC(currentYear, currentMonth, 0, 23, 59, 59, 999)
+        currentYear,
+        currentMonth,
+        0,
+        23,
+        59,
+        59,
+        999
       );
 
       const [

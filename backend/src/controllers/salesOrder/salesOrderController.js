@@ -1009,28 +1009,46 @@ const num = (x) => (x == null ? 0 : Number(x));
 export async function getSalesStats(req, res) {
   try {
     const now = new Date();
-    const currentYear = now.getUTCFullYear();
-    const currentMonth = now.getUTCMonth();
-    const currentDate = now.getUTCDate();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth(); // 0–11
+    const currentDate = now.getDate();
 
-    // Simple UTC date calculations
     const startToday = new Date(
-      Date.UTC(currentYear, currentMonth, currentDate, 0, 0, 0, 0)
+      currentYear,
+      currentMonth,
+      currentDate,
+      0,
+      0,
+      0,
+      0
     );
-    const startMonth = new Date(
-      Date.UTC(currentYear, currentMonth, 1, 0, 0, 0, 0)
-    );
-    const startYear = new Date(Date.UTC(currentYear, 0, 1, 0, 0, 0, 0));
+    const startMonth = new Date(currentYear, currentMonth, 1, 0, 0, 0, 0);
+    const startYear = new Date(currentYear, 0, 1, 0, 0, 0, 0);
 
-    // Last month calculations - GUNAKAN VARIABLE NAME YANG BERBEDA
-    const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1; // Ganti 'lastMonth' jadi 'prevMonth'
-    const prevMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear; // Ganti 'lastMonthYear' jadi 'prevMonthYear'
-    const startLastMonth = new Date(
-      Date.UTC(prevMonthYear, prevMonth, 1, 0, 0, 0, 0)
-    );
+    // Bulan lalu (lokal)
+    const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+    const prevMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+    const startLastMonth = new Date(prevMonthYear, prevMonth, 1, 0, 0, 0, 0);
     const endLastMonth = new Date(
-      Date.UTC(currentYear, currentMonth, 0, 23, 59, 59, 999)
+      currentYear,
+      currentMonth,
+      0,
+      23,
+      59,
+      59,
+      999
     );
+
+    console.log("DEBUG Simple UTC Dates:", {
+      now: now.toISOString(),
+      startMonth: startMonth.toISOString(),
+      startToday: startToday.toISOString(),
+      startYear: startYear.toISOString(),
+      startLastMonth: startLastMonth.toISOString(),
+      endLastMonth: endLastMonth.toISOString(),
+    });
+
+    // console.log("Waktu sistem saat ini:", new Date().toISOString());
 
     const [todayAgg, mtdAgg, ytdAgg, lastMonthAgg, yearSummaryAgg] =
       await Promise.all([
@@ -1069,12 +1087,25 @@ export async function getSalesStats(req, res) {
       orderBy: { soDate: "desc" },
     });
 
+    // console.log("DEBUG Today Orders:", todayOrders);
+    // console.log("DEBUG MTD Orders count:", mtdOrders.length);
+    // console.log("DEBUG Today count:", todayOrders.length);
+
     // Handle null results - GUNAKAN VARIABLE YANG KONSISTEN
     const today = num(todayAgg._sum.grandTotal) || 0;
     const mtd = num(mtdAgg._sum.grandTotal) || 0;
     const ytd = num(ytdAgg._sum.grandTotal) || 0;
     const lastMonthTotal = num(lastMonthAgg._sum.grandTotal) || 0; // Ganti 'lastMonth' jadi 'lastMonthTotal'
     const yearSummary = num(yearSummaryAgg._sum.grandTotal) || 0;
+
+    // console.log(
+    //   "Data SalesStats",
+    //   today,
+    //   mtd,
+    //   ytd,
+    //   lastMonthTotal,
+    //   yearSummary
+    // );
 
     res.json({
       today,

@@ -30,6 +30,7 @@ import { addPayment } from "@/lib/action/invoice/invoice";
 import { AddPaymentRequest } from "@/schemas/invoice";
 import { formatCurrencyNumber } from "@/lib/utils";
 import { BankAccount } from "@/schemas/bank";
+import { paymentFormSchema } from "@/lib/validations/invoice";
 
 interface PaymentProcessDialogProps {
     open: boolean;
@@ -72,16 +73,18 @@ export function PaymentProcessDialog({
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [date, setDate] = useState<Date>(new Date());
+    const [formErrors, setFormErrors] = useState<Record<string, string>>({});
     const [formData, setFormData] = useState<PaymentFormData>({
         payDate: new Date(),
-        amount: balanceDue,
-        method: "bank_transfer",
+        amount: Number(balanceDue),
+        method: "TRANSFER",
         bankAccountId: "",
         reference: "",
         notes: "",
         installmentId: "",
         verifiedById: currentUser?.id || undefined,
     });
+    const formSchema = paymentFormSchema(balanceDue);
 
     const paymentMethods = [
         { value: "TRANSFER", label: "Bank Transfer", icon: "🏦" },
@@ -96,7 +99,7 @@ export function PaymentProcessDialog({
         if (open) {
             setFormData(prev => ({
                 ...prev,
-                amount: balanceDue,
+                amount: Number(balanceDue), // ✅
                 payDate: new Date()
             }));
             setDate(new Date());
@@ -117,23 +120,38 @@ export function PaymentProcessDialog({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
+        setFormErrors({}); // Reset error sebelum validasi
+
+        const result = formSchema.safeParse(formData);
+
+        if (!result.success) {
+            // 🔹 Konversi error Zod ke objek { fieldName: "pesan error" }
+            const fieldErrors: Record<string, string> = {};
+            result.error.issues.forEach(issue => {
+                const path = issue.path.join('.'); // misal: "reference", "amount"
+                fieldErrors[path] = issue.message;
+            });
+            setFormErrors(fieldErrors);
+            setLoading(false);
+            return;
+        }
+
 
         try {
-            // Convert to AddPaymentRequest type (Date to string)
             const paymentData: AddPaymentRequest = {
-                payDate: date.toISOString(), // Convert Date to string
-                amount: Number(formData.amount),
-                method: formData.method,
-                bankAccountId: formData.bankAccountId,
-                reference: formData.reference,
-                notes: formData.notes,
-                installmentId: formData.installmentId || undefined,
-                verifiedById: currentUser?.id || undefined
+                payDate: date.toISOString(),
+                amount: result.data.amount, // ✅ Ambil dari data hasil validasi (sudah benar tipenya)
+                method: result.data.method,
+                bankAccountId: result.data.bankAccountId || undefined,
+                reference: result.data.reference,
+                notes: result.data.notes || undefined,
+                installmentId: result.data.installmentId || undefined,
+                verifiedById: currentUser?.id || undefined,
             };
 
             await addPayment(invoiceId, paymentData);
 
-            // Reset form
+            // Reset & tutup
             setFormData({
                 payDate: new Date(),
                 amount: balanceDue,
@@ -142,13 +160,14 @@ export function PaymentProcessDialog({
                 reference: "",
                 notes: "",
                 installmentId: "",
-                verifiedById: currentUser?.id
+                verifiedById: currentUser?.id,
             });
 
             onOpenChange(false);
             router.refresh();
         } catch (error) {
             console.error("Failed to process payment:", error);
+            alert("Gagal memproses pembayaran. Silakan coba lagi."); // 👈 Beri feedback ke user!
         } finally {
             setLoading(false);
         }
@@ -232,12 +251,15 @@ export function PaymentProcessDialog({
                                     type="number"
                                     value={formData.amount}
                                     onChange={(e) => handleInputChange("amount", parseFloat(e.target.value) || 0)}
-                                    className="pl-8"
+                                    className={`pl-8 ${formErrors.amount ? "border-red-500" : ""}`}
                                     max={balanceDue}
                                     step="0.01"
                                     required
                                 />
                             </div>
+                            {formErrors.amount && (
+                                <p className="text-xs text-red-500">{formErrors.amount}</p>
+                            )}
                             <p className="text-xs text-gray-500">
                                 Max: {formatCurrencyNumber(balanceDue)}
                             </p>
@@ -327,8 +349,12 @@ export function PaymentProcessDialog({
                             id="reference"
                             value={formData.reference}
                             onChange={(e) => handleInputChange("reference", e.target.value)}
+                            className={formErrors.reference ? "border-red-500" : ""}
                             placeholder="e.g., TRX-123456, Check #789"
                         />
+                        {formErrors.reference && (
+                            <p className="text-xs text-red-500">{formErrors.reference}</p>
+                        )}
                     </div>
 
                     {/* Notes */}

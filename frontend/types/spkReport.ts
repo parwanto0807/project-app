@@ -67,7 +67,7 @@ export interface SPK {
   salesOrderId: string;
   teamId: string;
   createdById: string;
-
+  progress: number;
   createdBy: {
     id: string;
     namaLengkap: string;
@@ -81,9 +81,9 @@ export interface SPK {
     soNumber: string;
     projectName: string;
     customer: {
-      name: string; // diisi dari customer.name
-      address: string; // ✅ baru
-      branch: string; // ✅ baru
+      name: string;
+      address: string;
+      branch: string;
     };
     project?: {
       id: string;
@@ -110,8 +110,8 @@ export interface SPK {
     teamKaryawan?: {
       teamId: string;
       karyawan?: {
+        id: string;
         namaLengkap: string;
-        email: string;
         jabatan: string;
         departemen: string;
       };
@@ -124,11 +124,10 @@ export interface SPK {
       id: string;
       namaLengkap: string;
       jabatan: string;
-      email: string;
       departemen: string;
       nik: string;
     };
-    salesOrderItem?: {
+    salesOrderItemSPK?: {
       id: string;
       name: string;
       description?: string;

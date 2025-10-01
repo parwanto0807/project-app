@@ -180,9 +180,9 @@ export interface AddPaymentRequest {
   payDate: string; // Change from Date to string
   amount: number;
   method: string;
-  bankAccountId: string;
+  bankAccountId?: string;
   reference: string;
-  notes: string;
+  notes?: string;
   installmentId?: string;
   verifiedById?: string;
 }
