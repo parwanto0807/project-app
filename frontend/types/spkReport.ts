@@ -112,6 +112,7 @@ export interface SPK {
       karyawan?: {
         id: string;
         namaLengkap: string;
+        email: string;
         jabatan: string;
         departemen: string;
       };
@@ -125,6 +126,7 @@ export interface SPK {
       namaLengkap: string;
       jabatan: string;
       departemen: string;
+      email: string;
       nik: string;
     };
     salesOrderItemSPK?: {
