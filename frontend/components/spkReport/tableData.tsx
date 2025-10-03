@@ -1466,7 +1466,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                         <Button
                           type="button"
                           variant="outline"
-                          size="sm"
+                          size="lg"
                           onClick={() => setActiveTab("list")}
                           disabled={uploading}
                           className="text-sm w-full sm:w-auto gap-2 border-border/60 hover:bg-muted/50 transition-all duration-300"
@@ -1485,7 +1485,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                             !formData.items ||
                             formData.progress === (formData.previousProgress ?? 0)
                           }
-                          size="sm"
+                          size="lg"
                           className={cn(
                             "text-sm w-full sm:w-auto gap-2 text-white shadow-lg transition-all duration-300 transform hover:-translate-y-0.5",
                             formData.progress === (formData.previousProgress ?? 0)
