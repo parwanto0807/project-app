@@ -1,7 +1,7 @@
 "use client";
 
 import AdminPanelLayout from "@/components/admin-panel/admin-panel-layout";
-import { BackToDashboardButton } from "@/components/spkReport/backToDashboard";
+import { BackToDashboardButton } from "@/components/backToDashboard";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { useCurrentUser } from "@/hooks/use-current-user";

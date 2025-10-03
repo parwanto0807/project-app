@@ -1,6 +1,7 @@
 "use client";
 
 import AdminPanelLayout from "@/components/admin-panel/admin-panel-layout";
+import { BackToDashboardButton } from "@/components/backToDashboard";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -20,16 +21,17 @@ export default function PicLayout({ children }: { children: React.ReactNode }) {
   if (loading || user?.role !== "pic") return null;
 
   return (
-    <ThemeProvider
-      attribute="class"
-      defaultTheme="system"
-      enableSystem
-      disableTransitionOnChange
-    >
-      <AdminPanelLayout role={user?.role}>
+    <AdminPanelLayout role={user?.role}>
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="system"
+        enableSystem
+        disableTransitionOnChange
+      >
         <Toaster />
         {children}
-      </AdminPanelLayout>
-    </ThemeProvider>
+        <BackToDashboardButton />
+      </ThemeProvider>
+    </AdminPanelLayout>
   );
 }

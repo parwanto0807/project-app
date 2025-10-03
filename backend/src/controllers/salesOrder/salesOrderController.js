@@ -1039,14 +1039,14 @@ export async function getSalesStats(req, res) {
       999
     );
 
-    console.log("DEBUG Simple UTC Dates:", {
-      now: now.toISOString(),
-      startMonth: startMonth.toISOString(),
-      startToday: startToday.toISOString(),
-      startYear: startYear.toISOString(),
-      startLastMonth: startLastMonth.toISOString(),
-      endLastMonth: endLastMonth.toISOString(),
-    });
+    // console.log("DEBUG Simple UTC Dates:", {
+    //   now: now.toISOString(),
+    //   startMonth: startMonth.toISOString(),
+    //   startToday: startToday.toISOString(),
+    //   startYear: startYear.toISOString(),
+    //   startLastMonth: startLastMonth.toISOString(),
+    //   endLastMonth: endLastMonth.toISOString(),
+    // });
 
     // console.log("Waktu sistem saat ini:", new Date().toISOString());
 

@@ -843,7 +843,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                     <div>
                       <CardTitle className="text-lg md:text-xl font-semibold flex items-center gap-2 rounded-xl text-gray-800 dark:text-white ">
                         <FileText className="h-6 w-6 text-indigo-600 dark:text-indigo-400 items-center justify-center" />
-                        {role === 'admin' || role === 'super' || role === 'pic' || role ==='user' ? 'Semua SPK' : 'SPK List'}
+                        {role === 'admin' || role === 'super' || role === 'pic' || role === 'user' ? 'Semua SPK' : 'SPK List'}
                       </CardTitle>
                       <CardDescription className="text-sm text-gray-500 dark:text-gray-400 mt-0 rounded-xl">
                         {role === 'admin' || role === 'super' || role === 'pic' || role === 'user'
@@ -1317,12 +1317,14 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                                 className="py-3"
                               />
 
-                              <div className="grid grid-cols-5 gap-1 text-xs text-muted-foreground">
-                                <span>0%</span>
-                                <span className="text-center">25%</span>
-                                <span className="text-center">50%</span>
-                                <span className="text-center">75%</span>
-                                <span className="text-right">100%</span>
+                              <div className="grid grid-cols-7 gap-1 text-xs text-muted-foreground mt-1">
+                                <span className="text-center">🔸</span>
+                                <span className="text-center">🔸</span>
+                                <span className="text-center">🔸</span>
+                                <span className="text-center">🔸</span>
+                                <span className="text-center">🔸</span>
+                                <span className="text-center">🔸</span>
+                                <span className="text-center">🔸</span>
                               </div>
                             </div>
 

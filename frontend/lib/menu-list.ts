@@ -48,7 +48,7 @@ function isActive(path: string, pathname: string) {
 }
 
 export function getMenuList(pathname: string, role: string) {
-  const basePath = role === "super" ? "/super-admin-area" : "/admin-area";
+  const basePath = role === "super" ? "/super-admin-area" : role === "admin" ? "/admin-area" : "/pic-area";
   const allMenus: MenuGroup[] = [
     {
       groupLabel: "DASHBOARD SUPER ADMIN",
@@ -104,19 +104,19 @@ export function getMenuList(pathname: string, role: string) {
     },
     {
       groupLabel: "SALES",
-      allowedRoles: ["super", "admin"],
+      allowedRoles: ["super", "admin", "pic"],
       menus: [
         {
           label: "Sales Management",
-          href: "/sales",
+          href: "#",
           icon: CreditCardIcon,
-          active: isActive("/sales", pathname),
+          active: isActive("#", pathname),
           submenus: [
             {
               href: `${basePath}/sales/salesOrder`,
               label: "Sales Order",
               active: isActive(`${basePath}/sales/salesOrder`, pathname),
-              disabled: role === "user" || role === "pic",
+              disabled: role === "user",
             },
           ],
         },
@@ -124,19 +124,19 @@ export function getMenuList(pathname: string, role: string) {
     },
     {
       groupLabel: "LOGISTIC",
-      allowedRoles: ["super", "admin"],
+      allowedRoles: ["super", "admin", "pic"],
       menus: [
         {
           label: "Logistic Management",
-          href: "/logistic",
+          href: "#",
           icon: PackageOpen,
-          active: isActive("/logistic", pathname),
+          active: isActive("#", pathname),
           submenus: [
             {
               href: `${basePath}/logistic/spk`,
               label: "Surat Perintah Kerja",
               active: isActive(`${basePath}/logistic/spk`, pathname),
-              disabled: role === "user" || role === "pic",
+              disabled: role === "user",
             },
             {
               href: `${basePath}/logistic/bap`,
@@ -150,19 +150,19 @@ export function getMenuList(pathname: string, role: string) {
     },
     {
       groupLabel: "PRODUCTION",
-      allowedRoles: ["super", "admin"],
+      allowedRoles: ["super", "admin", "pic"],
       menus: [
         {
           label: "Production Management",
-          href: "/logistic",
+          href: "#",
           icon: PackageCheckIcon,
-          active: isActive("/logistic", pathname),
+          active: isActive("#", pathname),
           submenus: [
             {
               href: `${basePath}/logistic/spkReport`,
               label: "SPK Progress",
               active: isActive(`${basePath}/logistic/spkReport`, pathname),
-              disabled: role === "user" || role === "pic",
+              disabled: role === "user",
             },
           ],
         },
