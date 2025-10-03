@@ -745,13 +745,13 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
             <div className="flex flex-col sm:flex-row sm:items-center justify-between">
               <div className="flex items-center gap-3 mb-4 sm:mb-0">
                 <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg">
-                  <TrendingUp className="h-6 w-6 text-white" />
+                  <TrendingUp className="h-5 w-5 md:h-6 md:w-6 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  <h1 className="text-lg md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                     Progress Monitoring SPK
                   </h1>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mt-1">
                     {role === 'admin' || role === 'super' || role === 'pic'
                       ? 'Monitor dan kelola semua SPK yang sedang berjalan'
                       : 'Laporkan progress pekerjaan untuk SPK yang ditugaskan kepada Anda'}
@@ -837,7 +837,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
 
             {/* TAB 1: DAFTAR SPK */}
             <TabsContent value="list" className="animate-fade-in">
-              <Card className="border px-4 border-gray-200/60 dark:border-gray-700/50 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm shadow-sm rounded-xl overflow-hidden transition-all duration-300 hover:shadow-md">
+              <Card className="border px-0 md:px-4 border-gray-200/60 dark:border-gray-700/50 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm shadow-sm rounded-xl overflow-hidden transition-all duration-300 hover:shadow-md">
                 <CardHeader className="pb-0 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 dark:from-gray-800 dark:to-gray-800 border-b border-gray-100 dark:border-gray-700">
                   <div className="flex items-center justify-between">
                     <div>
@@ -981,12 +981,12 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                                 <div className="flex items-start justify-between">
                                   <div className="flex-1 min-w-0 space-y-2">
                                     {/* SPK Number */}
-                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white tracking-tight leading-tight">
+                                    <h3 className="text-xs md:text-lg font-bold text-gray-900 dark:text-white tracking-tight leading-tight">
                                       {spk.spkNumber}
                                     </h3>
 
                                     {/* Client Name */}
-                                    <p className="text-sm font-semibold text-gray-700 dark:text-gray-200 leading-tight">
+                                    <p className="text-xs md:text-sm font-semibold text-gray-700 dark:text-gray-200 leading-tight">
                                       {spk.clientName}
                                     </p>
 
