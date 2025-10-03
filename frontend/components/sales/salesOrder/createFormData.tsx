@@ -12,12 +12,9 @@ import {
   CalendarIcon,
   FileText,
   Hash,
-  // Loader2,
   PlusCircle,
-  // Save,
   Trash2,
   Calculator,
-  // DollarSign,
   Percent,
   Package,
   ChevronsUpDown,
@@ -25,6 +22,7 @@ import {
   Check,
   Loader2,
   Save,
+  EyeOff,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -62,7 +60,6 @@ import {
 } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-// import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
@@ -133,6 +130,11 @@ function getBasePath(role?: string) {
     : "/admin-area/sales/salesOrder"
 }
 
+// Fungsi untuk mengecek apakah role memiliki akses harga
+const hasPriceAccess = (role: string) => {
+  return role === "admin" || role === "super";
+}
+
 export function CreateSalesOrderForm({
   customers,
   role,
@@ -187,7 +189,7 @@ export function CreateSalesOrderForm({
           description: null,
           uom: null,
           qty: 1,
-          unitPrice: 0,
+          unitPrice: 0, // Default 0 diperbolehkan
           discount: 0,
           taxRate: 0,
         },
@@ -273,7 +275,7 @@ export function CreateSalesOrderForm({
   // Fetch products untuk item pertama saat mount
   React.useEffect(() => {
     fetchProductsForItem(0, "PRODUCT");
-  }, [fetchProductsForItem]); // Sekarang fetchProductsForItem stabil karena menggunakan useCallback
+  }, [fetchProductsForItem]);
 
   // Fungsi untuk menghitung total per item
   const calculateItemTotal = (index: number) => {
@@ -311,6 +313,13 @@ export function CreateSalesOrderForm({
   function onSubmit(data: CreateSalesOrderPayload) {
     startTransition(async () => {
       try {
+        // Validasi tambahan: pastikan semua item memiliki unitPrice >= 0
+        const hasInvalidPrice = data.items.some(item => item.unitPrice < 0);
+        if (hasInvalidPrice) {
+          toast.error("Terjadi Kesalahan", { description: "Harga satuan tidak boleh negatif." });
+          return;
+        }
+
         const result = await createSalesOrderAPI(data);
 
         if (result.error) {
@@ -331,6 +340,8 @@ export function CreateSalesOrderForm({
   if (isLoading) {
     return <CreateSalesOrderFormSkeleton />
   }
+
+  const canSeePrice = hasPriceAccess(role);
 
   return (
     <div className="w-full mx-auto space-y-6">
@@ -356,9 +367,9 @@ export function CreateSalesOrderForm({
                 Informasi dasar mengenai sales order
               </CardDescription>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-5">
+            <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-5 bg-gradient-to-r from-primary/5 to-blue-100 dark:from-slate-800 dark:to-slate-900 space-y-3 p-6 m-4 rounded-xl">
               {/* Nomor SO & Tanggal */}
-              <div className="grid grid-cols-1 gap-4 md:col-span-2 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 md:col-span-2 md:grid-cols-2 ">
                 <div>
                   <FormItem>
                     <FormLabel>Nomor Sales Order</FormLabel>
@@ -662,7 +673,7 @@ export function CreateSalesOrderForm({
 
           { /* Bagian Item SO */}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader>
               <div className="flex justify-between items-center">
                 <div>
                   <CardTitle className="text-lg">Items</CardTitle>
@@ -670,9 +681,15 @@ export function CreateSalesOrderForm({
                     Daftar produk atau jasa yang dipesan
                   </CardDescription>
                 </div>
+                {!canSeePrice && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground" hidden>
+                    <EyeOff className="h-4 w-4" />
+                    <span>Informasi harga disembunyikan</span>
+                  </div>
+                )}
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="bg-gradient-to-r from-primary/5 to-blue-100 dark:from-slate-800 dark:to-slate-900 space-y-3 p-4 m-4 rounded-xl">
               {fields.map((row, index) => {
                 const itemType = form.watch(`items.${index}.itemType`);
                 const isProduct = itemType === "PRODUCT";
@@ -937,172 +954,165 @@ export function CreateSalesOrderForm({
                         />
                       </div>
 
-                      <div className="md:col-span-2">
-                        <FormField
-                          control={form.control}
-                          name={`items.${index}.unitPrice`}
-                          render={({ field }) => {
-                            // const formattedPrice =
-                            //   typeof field.value === "number"
-                            //     ? new Intl.NumberFormat("id-ID", {
-                            //       style: "currency",
-                            //       currency: "IDR",
-                            //       minimumFractionDigits: 0,
-                            //     }).format(field.value)
-                            //     : "";
-
-                            return (
-                              <FormItem>
-                                {/* 🔹 Label & Formatted Value */}
-                                <div className="flex items-center justify-between">
-                                  <FormLabel>Harga Satuan</FormLabel>
-                                  <span className="text-sm text-muted-foreground">
-                                    {/* {formattedPrice !== "" ? formattedPrice : "Rp 0"} */}
-                                  </span>
-                                </div>
-
-                                {/* 🔹 Input */}
-                                <FormControl>
-                                  <div className="relative">
-                                    <span
-                                      className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"
-                                      aria-hidden="true"
-                                    >
-                                      Rp
-                                    </span>
-                                    <Input
-                                      type="number"
-                                      step="0.01"
-                                      min="0"
-                                      placeholder="0.00"
-                                      className="pl-10"
-                                      value={field.value}
-                                      onChange={(e) =>
-                                        field.onChange(parseFloat(e.target.value) || 0)
-                                      }
-                                    />
-                                  </div>
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            );
-                          }}
-                        />
-
-                      </div>
-                      <div className="md:col-span-1">
-                        <FormField
-                          control={form.control}
-                          name={`items.${index}.discount`}
-                          render={({ field }) => {
-                            // const discountValue = field.value || 0;
-                            // const unitPrice = form.watch(`items.${index}.unitPrice`) || 0;
-                            // const qty = form.watch(`items.${index}.qty`) || 1;
-
-                            // const totalBeforeDiscount = unitPrice * qty;
-                            // const discountAmount = (discountValue / 100) * totalBeforeDiscount;
-
-                            // const formattedDiscount = new Intl.NumberFormat("id-ID", {
-                            //   style: "currency",
-                            //   currency: "IDR",
-                            //   minimumFractionDigits: 0,
-                            // }).format(discountAmount);
-
-
-                            return (
-                              <FormItem>
-                                {/* 🔹 Label & Formatted Discount Value */}
-                                <div className="flex items-center justify-between">
-                                  <FormLabel className="flex items-center justify-between">
-                                    <span>Diskon (%)</span>
-                                    {/* <span className="text-sm font-normal text-muted-foreground">{formattedDiscount}</span> */}
-                                  </FormLabel>
-                                </div>
-
-                                {/* 🔹 Input */}
-                                <FormControl>
-                                  <div className="relative">
-                                    <Percent className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                      type="number"
-                                      step="0.01"
-                                      min="0"
-                                      max="100"
-                                      placeholder="0.00"
-                                      className="pl-9"
-                                      value={field.value}
-                                      onChange={(e) =>
-                                        field.onChange(parseFloat(e.target.value) || 0)
-                                      }
-                                    />
-                                  </div>
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            );
-                          }}
-                        />
-
-                      </div>
-                      <div className="md:col-span-1">
-                        <FormField
-                          control={form.control}
-                          name={`items.${index}.taxRate`}
-                          render={({ field }) => {
-                            // const taxRate = field.value || 0;
-                            // const unitPrice = form.watch(`items.${index}.unitPrice`) || 0;
-                            // const qty = form.watch(`items.${index}.qty`) || 1;
-                            // const discount = form.watch(`items.${index}.discount`) || 0;
-
-                            // const subtotal = unitPrice * qty;
-                            // const discountAmount = (discount / 100) * subtotal;
-                            // const taxableAmount = subtotal - discountAmount;
-                            // const taxAmount = (taxRate / 100) * taxableAmount;
-
-                            // const formattedTax = new Intl.NumberFormat("id-ID", {
-                            //   style: "currency",
-                            //   currency: "IDR",
-                            //   minimumFractionDigits: 0,
-                            // }).format(taxAmount);
-
-                            return (
-                              <FormItem>
-                                <FormLabel className="flex items-center justify-between">
-                                  <span>Pajak (%)</span>
-                                  {/* <span className="text-sm font-normal text-muted-foreground">{formattedTax}</span> */}
-                                </FormLabel>
-                                <FormControl>
-                                  <div className="relative w-5/6">
-                                    <Percent className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                      type="number"
-                                      step="0.01"
-                                      min="0"
-                                      placeholder="0.00"
-                                      className="pl-9"
-                                      value={field.value}
-                                      onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                                    />
-                                  </div>
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            );
-                          }}
-                        />
-
-                      </div>
-                      <div className="md:col-span-2 pt-0.5 flex flex-col items-center">
-                        <FormLabel className="mb-1 text-center text-green-600 font-bold">
-                          Total
-                        </FormLabel>
-                        <div className="flex items-center h-10 px-3 rounded-md border bg-background font-medium">
-                          <Calculator className="h-4 w-4 mr-2 text-muted-foreground" />
-                          {calculateItemTotal(index)}
+                      {/* Kolom Harga Satuan - Hanya tampil untuk admin dan super */}
+                      {canSeePrice ? (
+                        <>
+                          <div className="md:col-span-2">
+                            <FormField
+                              control={form.control}
+                              name={`items.${index}.unitPrice`}
+                              render={({ field }) => {
+                                return (
+                                  <FormItem>
+                                    <div className="flex items-center justify-between">
+                                      <FormLabel>Harga Satuan</FormLabel>
+                                      <span className="text-sm text-muted-foreground">
+                                        {/* {formattedPrice !== "" ? formattedPrice : "Rp 0"} */}
+                                      </span>
+                                    </div>
+                                    <FormControl>
+                                      <div className="relative">
+                                        <span
+                                          className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"
+                                          aria-hidden="true"
+                                        >
+                                          Rp
+                                        </span>
+                                        <Input
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          placeholder="0.00"
+                                          className="pl-10"
+                                          value={field.value}
+                                          onChange={(e) =>
+                                            field.onChange(parseFloat(e.target.value) || 0)
+                                          }
+                                        />
+                                      </div>
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                );
+                              }}
+                            />
+                          </div>
+                          <div className="md:col-span-1">
+                            <FormField
+                              control={form.control}
+                              name={`items.${index}.discount`}
+                              render={({ field }) => {
+                                return (
+                                  <FormItem>
+                                    <div className="flex items-center justify-between">
+                                      <FormLabel className="flex items-center justify-between">
+                                        <span>Diskon (%)</span>
+                                      </FormLabel>
+                                    </div>
+                                    <FormControl>
+                                      <div className="relative">
+                                        <Percent className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          max="100"
+                                          placeholder="0.00"
+                                          className="pl-9"
+                                          value={field.value}
+                                          onChange={(e) =>
+                                            field.onChange(parseFloat(e.target.value) || 0)
+                                          }
+                                        />
+                                      </div>
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                );
+                              }}
+                            />
+                          </div>
+                          <div className="md:col-span-1">
+                            <FormField
+                              control={form.control}
+                              name={`items.${index}.taxRate`}
+                              render={({ field }) => {
+                                return (
+                                  <FormItem>
+                                    <FormLabel className="flex items-center justify-between">
+                                      <span>Pajak (%)</span>
+                                    </FormLabel>
+                                    <FormControl>
+                                      <div className="relative w-5/6">
+                                        <Percent className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          placeholder="0.00"
+                                          className="pl-9"
+                                          value={field.value}
+                                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                        />
+                                      </div>
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                );
+                              }}
+                            />
+                          </div>
+                          <div className="md:col-span-2 pt-0.5 flex flex-col items-center">
+                            <FormLabel className="mb-1 text-center text-green-600 font-bold">
+                              Total
+                            </FormLabel>
+                            <div className="flex items-center h-10 px-3 rounded-md border bg-background font-medium">
+                              <Calculator className="h-4 w-4 mr-2 text-muted-foreground" />
+                              {calculateItemTotal(index)}
+                            </div>
+                          </div>
+                          <div className="md:col-span-1 md:col-start-15 pt-6">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="text-white-600 hover:text-red-400 shadow-sm transition-colors"
+                              onClick={() => {
+                                remove(index);
+                                removeItemState(index);
+                              }}
+                              disabled={fields.length <= 1}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2 text-red-400" />
+                            </Button>
+                          </div>
+                        </>
+                      ) : (
+                        // Untuk role selain admin/super, sembunyikan kolom harga dan tampilkan placeholder
+                        <div className="md:col-span-6 flex items-center justify-center">
+                          <div className="text-center text-muted-foreground" hidden>
+                            <EyeOff className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm">Informasi harga hanya tersedia untuk admin</p>
+                          </div>
+                          <div className="pt-6">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="text-white-600 hover:text-red-400 shadow-sm transition-colors"
+                              onClick={() => {
+                                remove(index);
+                                removeItemState(index);
+                              }}
+                              disabled={fields.length <= 1}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2 text-red-400" />
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                    </div>
 
+                      )}
+                    </div>
 
                     {/* Quantity, Harga, Diskon, Pajak */}
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
@@ -1128,26 +1138,42 @@ export function CreateSalesOrderForm({
                       </div>
 
                       {/* Delete Button */}
-                      <div className="md:col-span-1 md:col-start-12 pt-5">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="text-white-600 hover:text-red-400 shadow-sm transition-colors"
-                          onClick={() => {
-                            remove(index);
-                            removeItemState(index);
-                          }}
-                          disabled={fields.length <= 1}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2 text-red-400" />
-                          Hapus
-                        </Button>
-                      </div>
-
+                      {/* {canSeePrice ? (
+                        <div className="md:col-span-1 md:col-start-12 pt-5">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="text-white-600 hover:text-red-400 shadow-sm transition-colors"
+                            onClick={() => {
+                              remove(index);
+                              removeItemState(index);
+                            }}
+                            disabled={fields.length <= 1}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2 text-red-400" />
+                            Hapus
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="md:col-span-1 md:col-start-12 pt-5">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="text-white-600 hover:text-red-400 shadow-sm transition-colors"
+                            hidden
+                            onClick={() => {
+                              remove(index);
+                              removeItemState(index);
+                            }}
+                            disabled={fields.length <= 1}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2 text-red-400" />
+                          </Button>
+                        </div>
+                      )} */}
                     </div>
-
-
                   </div>
                 )
               })}
@@ -1174,7 +1200,7 @@ export function CreateSalesOrderForm({
                     name: "",
                     description: "",
                     qty: 1,
-                    unitPrice: 0,
+                    unitPrice: 0, // Tetap set ke 0 meskipun disembunyikan
                     discount: 0,
                     taxRate: 0,
                   });

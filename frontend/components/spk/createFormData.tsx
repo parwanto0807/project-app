@@ -496,7 +496,7 @@ export default function CreateFormSPK({
                                     Detail Tugas
                                 </FormLabel>
                                 {!selectedTeam && (
-                                    <Button type="button" variant="outline" size="sm" onClick={addDetail}>
+                                    <Button type="button" variant="outline" size="sm" onClick={addDetail} hidden>
                                         <Plus className="h-3.5 w-3.5 mr-1" />
                                         Tambah
                                     </Button>
@@ -508,7 +508,7 @@ export default function CreateFormSPK({
                                     <User className="h-8 w-8 mx-auto text-muted-foreground" />
                                     <p className="text-sm text-muted-foreground mt-1">Belum ada detail tugas</p>
                                     {!selectedTeam && (
-                                        <Button type="button" variant="outline" size="sm" className="mt-3" onClick={addDetail}>
+                                        <Button type="button" variant="outline" size="sm" className="mt-3" onClick={addDetail} hidden>
                                             <Plus className="h-3.5 w-3.5 mr-1" />
                                             Tambah Tugas
                                         </Button>

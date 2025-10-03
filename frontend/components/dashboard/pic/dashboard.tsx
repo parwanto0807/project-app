@@ -13,11 +13,15 @@ import {
     ShoppingCart,
     Plus,
     ChevronRight,
+    ChartBarIncreasingIcon,
 } from 'lucide-react';
-import { TeamTable } from './teamTableDashboard';
+import DashboardTeamTable from './teamTableDashboard';
 import { DashboardSalesOrderTable } from './tableDataSO';
 import { SPK } from '@/types/spkReport';
 import DashboardSpkTable from './tableDataSPK';
+import { getAllTeam } from "@/lib/action/master/team/getAllTeam";
+import { SalesOrder } from '@/lib/validations/sales-order';
+import { OrderStatus } from '@/types/salesOrder';
 
 // Tipe data
 interface StatsCard {
@@ -32,6 +36,28 @@ interface StatsCard {
     };
 }
 
+interface Team {
+    id: string;
+    namaTeam: string;
+    deskripsi: string;
+    karyawan: TeamKaryawan[];
+    createdAt: string;
+    updatedAt: string;
+}
+
+interface TeamKaryawan {
+    id: string;
+    karyawanId: string;
+    teamId: string;
+    karyawan: KaryawanDetail;
+}
+
+interface KaryawanDetail {
+    id: string;
+    namaLengkap: string;
+    departemen: string;
+}
+
 interface ApiResponse<T> {
     data?: T;
     count?: number;
@@ -39,31 +65,6 @@ interface ApiResponse<T> {
     message?: string;
 }
 
-const teamData = [
-    {
-        id: '1',
-        name: 'Ahmad Wijaya',
-        role: 'Project Manager',
-        email: 'ahmad.wijaya@company.com',
-        phone: '+62 812-3456-7890',
-        status: 'active' as const,
-    },
-    {
-        id: '2',
-        name: 'Sari Dewi',
-        role: 'Sales Coordinator',
-        email: 'sari.dewi@company.com',
-        status: 'busy' as const,
-    },
-    {
-        id: '3',
-        name: 'Budi Santoso',
-        role: 'Production Supervisor',
-        email: 'budi.santoso@company.com',
-        phone: '+62 813-9876-5432',
-        status: 'active' as const,
-    },
-];
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 const ENDPOINTS = {
     customerCount: `${API_BASE}/api/master/customer/getCustomerCount`,
@@ -73,75 +74,118 @@ const ENDPOINTS = {
     recentSalesOrders: `${API_BASE}/api/salesOrder/getRecentSalesOrders?take=10&order=desc`,
 };
 
-
-const getSalesOrders = async () => {
+const getSalesOrders = async (): Promise<SalesOrder[]> => {
     try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/salesOrder/sales-orders`, {
-            credentials: "include",
-            cache: "no-store"
-        })
-        if (!res.ok) throw new Error('Failed to fetch sales orders')
-        return res.json()
+        const res = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/salesOrder/sales-orders`,
+            {
+                credentials: "include",
+                cache: "no-store",
+            }
+        );
+
+        if (!res.ok) throw new Error("Failed to fetch sales orders");
+
+        const data = await res.json();
+        const allowedStatuses: OrderStatus[] = [
+            "DRAFT",
+            "CONFIRMED",
+            "IN_PROGRESS_SPK",
+            "FULFILLED",
+            "BAST",
+        ];
+
+        const orders: SalesOrder[] = Array.isArray(data) ? data : data.salesOrders ?? [];
+        const filteredOrders = orders.filter((order: SalesOrder) =>
+            allowedStatuses.includes(order.status)
+        );
+
+        return filteredOrders;
     } catch (error) {
-        console.error('Error fetching sales orders:', error)
-        return []
+        console.error("Error fetching sales orders:", error);
+        return [];
     }
-}
+};
 
+// Data fallback untuk stats
+const fallbackStatsData: StatsCard[] = [
+    {
+        title: "Total Produk",
+        value: 0,
+        icon: <Package className="h-5 w-5" />,
+        color: "from-blue-500 to-blue-600",
+        description: "Produk aktif",
+        trend: { value: 0, isPositive: true }
+    },
+    {
+        title: "Total Customer",
+        value: 0,
+        icon: <Users className="h-5 w-5" />,
+        color: "from-green-500 to-green-600",
+        description: "Customer terdaftar",
+        trend: { value: 0, isPositive: true }
+    },
+    {
+        title: "Total SPK",
+        value: 0,
+        icon: <FileText className="h-5 w-5" />,
+        color: "from-purple-500 to-purple-600",
+        description: "Surat Perintah Kerja",
+        trend: { value: 0, isPositive: false }
+    },
+    {
+        title: "Sales Order",
+        value: 0,
+        icon: <ShoppingCart className="h-5 w-5" />,
+        color: "from-orange-500 to-orange-600",
+        description: "Order aktif",
+        trend: { value: 0, isPositive: true }
+    }
+];
 
-const salesOrders = await getSalesOrders()
-
-export default function PICDashboard() {
+export default function PICDashboard({ role }: { role: string }) {
     const [isLoading, setIsLoading] = useState(true);
+    const [isInitialLoad, setIsInitialLoad] = useState(true); // Tambahkan state untuk initial load
     const [activeTable, setActiveTable] = useState<'sales' | 'spk'>('sales');
     const [statsData, setStatsData] = useState<StatsCard[]>([]);
     const [spkData, setSpkData] = useState<SPK[]>([]);
+    const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]); // Pindah ke state
     const [error, setError] = useState<string | null>(null);
+    const [teamData, setTeamData] = useState<Team[]>([]);
+    const user = { role };
 
-    // Load data pada saat komponen mount
+    // Inisialisasi data stats dari awal untuk menghindari flash
     useEffect(() => {
-        fetchDashboardData();
+        setStatsData(fallbackStatsData);
     }, []);
 
     const fetchRecentSPK = async () => {
         try {
-            setIsLoading(true);
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/spk/getAllSPK`);
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch SPK data');
-            }
-
+            if (!response.ok) throw new Error('Failed to fetch SPK data');
             const data = await response.json();
             setSpkData(data);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'An error occurred');
             console.error('Error fetching SPK:', err);
-        } finally {
-            setIsLoading(false);
         }
     };
 
-    useEffect(() => {
-        fetchRecentSPK();
-    }, []);
+    const fetchTeam = async () => {
+        try {
+            const resTeam = await getAllTeam();
+            if (!resTeam?.success) throw new Error('Failed to fetch team data');
+            if (!resTeam.data) throw new Error('No team data received');
+            setTeamData(resTeam.data);
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'An error occurred while fetching team data';
+            setError(errorMessage);
+            console.error('Error Fetching Team:', err);
+        }
+    };
 
-    if (error) {
-        return (
-            <div className="bg-white p-6 rounded-lg shadow">
-                <div className="text-red-600">Error: {error}</div>
-            </div>
-        );
-    }
-
-
-
-    // Fungsi untuk fetch data dari API dengan error handling
     const fetchDashboardData = async () => {
         try {
-            setIsLoading(true);
-
-            // Fetch semua data secara paralel
             const [
                 customerCountRes,
                 productCountRes,
@@ -154,25 +198,18 @@ export default function PICDashboard() {
                 fetch(ENDPOINTS.recentSalesOrders)
             ]);
 
-            // Check jika response ok
-            if (!customerCountRes.ok || !productCountRes.ok ||
-                !salesOrderCountRes.ok || !recentSalesOrdersRes.ok) {
+            if (!customerCountRes.ok || !productCountRes.ok || !salesOrderCountRes.ok || !recentSalesOrdersRes.ok) {
                 throw new Error('Failed to fetch data from one or more endpoints');
             }
 
-            // Parse responses
             const customerCountData: ApiResponse<{ count: number }> = await customerCountRes.json();
             const productCountData: ApiResponse<{ count: number }> = await productCountRes.json();
             const salesOrderCountData: ApiResponse<{ count: number }> = await salesOrderCountRes.json();
 
-            // Extract values dengan safe access
             const customerCount = customerCountData.count || customerCountData.data?.count || 0;
             const productCount = productCountData.count || productCountData.data?.count || 0;
             const salesOrderCount = salesOrderCountData.count || salesOrderCountData.data?.count || 0;
 
-
-
-            // Update stats data dengan data real
             const updatedStatsData: StatsCard[] = [
                 {
                     title: "Total Produk",
@@ -192,7 +229,7 @@ export default function PICDashboard() {
                 },
                 {
                     title: "Total SPK",
-                    value: 18, // Asumsi, perlu endpoint tersendiri
+                    value: 18,
                     icon: <FileText className="h-5 w-5" />,
                     color: "from-purple-500 to-purple-600",
                     description: "Surat Perintah Kerja",
@@ -207,88 +244,94 @@ export default function PICDashboard() {
                     trend: { value: 8, isPositive: true }
                 },
             ];
-            setStatsData(updatedStatsData);
 
+            setStatsData(updatedStatsData);
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
-
-            // Fallback data jika fetch gagal
-            const fallbackStatsData: StatsCard[] = [
-                {
-                    title: "Total Produk",
-                    value: 0,
-                    icon: <Package className="h-5 w-5" />,
-                    color: "from-blue-500 to-blue-600",
-                    description: "Produk aktif",
-                    trend: { value: 0, isPositive: true }
-                },
-                {
-                    title: "Total Customer",
-                    value: 0,
-                    icon: <Users className="h-5 w-5" />,
-                    color: "from-green-500 to-green-600",
-                    description: "Customer terdaftar",
-                    trend: { value: 0, isPositive: true }
-                },
-                {
-                    title: "Total SPK",
-                    value: 0,
-                    icon: <FileText className="h-5 w-5" />,
-                    color: "from-purple-500 to-purple-600",
-                    description: "Surat Perintah Kerja",
-                    trend: { value: 0, isPositive: false }
-                },
-                {
-                    title: "Sales Order",
-                    value: 0,
-                    icon: <ShoppingCart className="h-5 w-5" />,
-                    color: "from-orange-500 to-orange-600",
-                    description: "Order aktif",
-                    trend: { value: 0, isPositive: true }
-                },
-            ];
-
             setStatsData(fallbackStatsData);
-            setSpkData([]);
-        } finally {
-            setIsLoading(false);
         }
     };
 
-    // Data shortcut dengan gradient
+    // Load semua data sekaligus
+    useEffect(() => {
+        const loadAllData = async () => {
+            try {
+                setIsInitialLoad(true);
+                setIsLoading(true);
+
+                // Load sales orders terlebih dahulu
+                const orders = await getSalesOrders();
+                setSalesOrders(orders);
+
+                // Kemudian load data lainnya secara paralel
+                await Promise.all([
+                    fetchDashboardData(),
+                    fetchRecentSPK(),
+                    fetchTeam()
+                ]);
+
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+                setError('Failed to load dashboard data');
+            } finally {
+                // Tambahkan delay minimal untuk menghindari flash
+                setTimeout(() => {
+                    setIsLoading(false);
+                    setIsInitialLoad(false);
+                }, 500);
+            }
+        };
+
+        loadAllData();
+    }, []);
+
+    if (error) {
+        return (
+            <div className="bg-white p-6 rounded-lg shadow">
+                <div className="text-red-600">Error: {error}</div>
+            </div>
+        );
+    }
+
     const shortcuts = [
         {
             title: "Kelola Produk",
             icon: <Package className="h-5 w-5" />,
-            href: "/products",
+            href: "/pic-area/master/products",
             color: "from-blue-500 to-cyan-600",
             bgColor: "bg-gradient-to-br from-blue-50 to-cyan-100 dark:from-blue-950/20 dark:to-cyan-950/20"
         },
         {
             title: "Kelola Customer",
             icon: <Users className="h-5 w-5" />,
-            href: "/customers",
+            href: "/pic-area/master/customers",
             color: "from-orange-500 to-amber-600",
             bgColor: "bg-gradient-to-br from-orange-50 to-amber-100 dark:from-orange-950/20 dark:to-amber-950/20"
         },
         {
             title: "Kelola Sales Order",
             icon: <Plus className="h-5 w-5" />,
-            href: "/sales-order/new",
+            href: "/pic-area/sales/salesOrder",
             color: "from-green-500 to-emerald-600",
             bgColor: "bg-gradient-to-br from-green-50 to-emerald-100 dark:from-green-950/20 dark:to-emerald-950/20"
         },
         {
             title: "Kelola SPK",
             icon: <FileText className="h-5 w-5" />,
-            href: "/spk/new",
+            href: "/pic-area/logistic/spk",
             color: "from-purple-500 to-indigo-600",
             bgColor: "bg-gradient-to-br from-purple-50 to-indigo-100 dark:from-purple-950/20 dark:to-indigo-950/20"
         },
-
+        {
+            title: "Progress SPK",
+            icon: <ChartBarIncreasingIcon className="h-5 w-5" />,
+            href: "/pic-area/logistic/spkReport",
+            color: "from-yellow-500 to-red-600",
+            bgColor: "bg-gradient-to-br from-red-50 to-brown-100 dark:from-red-950/20 dark:to-blue-950/20"
+        },
     ];
 
-    // Komponen skeleton untuk card
+    // Komponen skeleton yang lebih smooth
     const StatsCardSkeleton = () => (
         <div className="w-full h-[150px] sm:h-[160px]">
             <Card className="overflow-hidden relative bg-gradient-to-br from-muted/50 to-muted/30 border-0 shadow-lg w-full h-full">
@@ -312,12 +355,16 @@ export default function PICDashboard() {
         </div>
     );
 
-    // Komponen card statistik dengan animasi
+    // Komponen StatsCard dengan animasi yang lebih konsisten
     const StatsCard = ({ title, value, icon, color, description, trend }: StatsCard) => (
         <motion.div
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: 0.4 }}
+            transition={{
+                duration: 0.5,
+                type: "spring",
+                stiffness: 100
+            }}
             whileHover={{
                 y: -4,
                 scale: 1.01,
@@ -327,10 +374,8 @@ export default function PICDashboard() {
             className="cursor-pointer w-full h-[150px] sm:h-[160px]"
         >
             <Card className="overflow-hidden relative border border-border/50 shadow-sm hover:shadow-lg transition-all duration-300 group w-full h-full flex flex-col">
-                {/* Gradient Overlay on Hover */}
                 <div className={`absolute inset-0 bg-gradient-to-br ${color} opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
 
-                {/* Header: Icon + Trend */}
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 px-4 pt-0">
                     <motion.div
                         className={`p-2 rounded-xl bg-gradient-to-br ${color} text-white shadow-md`}
@@ -350,7 +395,6 @@ export default function PICDashboard() {
                     )}
                 </CardHeader>
 
-                {/* Body: Value + Description */}
                 <CardContent className="px-4 pb-0 pt-0 flex-grow flex flex-col justify-between">
                     <div className='flex flex-row gap-4'>
                         <motion.div
@@ -366,7 +410,6 @@ export default function PICDashboard() {
                         </p>
                     </div>
 
-                    {/* Footer: Title + Chevron */}
                     <motion.div
                         className="flex items-center justify-between mt-1 pt-0 border-t border-border/30"
                         initial={{ opacity: 0 }}
@@ -386,13 +429,13 @@ export default function PICDashboard() {
     return (
         <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 w-full">
             <main className="w-full px-2 sm:px-4 py-4">
-                {/* Stats Cards - Full Width */}
+                {/* Stats Cards */}
                 <motion.div
                     layout
                     className="w-full mb-6"
                 >
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 w-full">
-                        {isLoading
+                        {(isLoading && isInitialLoad)
                             ? Array.from({ length: 4 }).map((_, i) => (
                                 <motion.div
                                     key={i}
@@ -415,17 +458,21 @@ export default function PICDashboard() {
                     </div>
                 </motion.div>
 
-                {/* Shortcuts Grid - Full Width */}
+                {/* Shortcuts Grid */}
                 <motion.div
                     layout
-                    className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-8 w-full"
+                    className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4 mb-8 w-full"
                 >
                     {shortcuts.map((shortcut, index) => (
                         <motion.div
                             key={index}
                             initial={{ opacity: 0, y: 20, scale: 0.9 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
-                            transition={{ delay: 0.3 + index * 0.1 }}
+                            transition={{
+                                delay: 0.3 + index * 0.1,
+                                type: "spring",
+                                stiffness: 100
+                            }}
                             whileHover={{
                                 y: -6,
                                 scale: 1.05,
@@ -458,13 +505,16 @@ export default function PICDashboard() {
                     ))}
                 </motion.div>
 
-                {/* Main Content - Full Width Tables */}
+                {/* Main Content */}
                 <div className="space-y-6 w-full">
-                    {/* Table Tabs - Full Width */}
+                    {/* Table Tabs */}
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        transition={{ delay: 0.4 }}
+                        transition={{
+                            delay: 0.4,
+                            duration: 0.5
+                        }}
                         className="w-full flex justify-center"
                     >
                         <div className="inline-flex rounded-2xl bg-muted/50 p-1 border border-border/50 shadow-lg">
@@ -495,21 +545,25 @@ export default function PICDashboard() {
                         </div>
                     </motion.div>
 
-                    {/* Animated Table Container - Full Width */}
+                    {/* Animated Table Container */}
                     <motion.div
                         key={activeTable}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -20 }}
-                        transition={{ duration: 0.3 }}
+                        transition={{
+                            duration: 0.4,
+                            type: "spring",
+                            stiffness: 200
+                        }}
                         className="w-full"
                     >
                         <AnimatePresence mode="wait">
                             {activeTable === 'sales' ? (
                                 <DashboardSalesOrderTable
                                     salesOrders={salesOrders}
-                                    isLoading={false}
-                                    role="user" // atau "admin" / "super" sesuai kebutuhan
+                                    isLoading={isLoading}
+                                    role="user"
                                     showViewAllButton={true}
                                 />
                             ) : (
@@ -517,25 +571,26 @@ export default function PICDashboard() {
                                     dataSpk={spkData}
                                     isLoading={isLoading}
                                     isDashboard={true}
-                                    role="admin" // atau "super" terg kebutuhan
+                                    role="admin"
                                 />
                             )}
-
                         </AnimatePresence>
                     </motion.div>
 
-                    {/* Team Section - Full Width */}
+                    {/* Team Section */}
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        transition={{ delay: 0.6 }}
+                        transition={{
+                            delay: 0.6,
+                            duration: 0.5
+                        }}
                         className="w-full"
                     >
-                        <TeamTable
-                            data={teamData}
+                        <DashboardTeamTable
+                            teams={teamData}
+                            role={user.role}
                             isLoading={isLoading}
-                            title="Tim PIC"
-                            showActions={true}
                         />
                     </motion.div>
                 </div>

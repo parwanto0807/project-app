@@ -135,7 +135,7 @@ interface SalesOrderTableProps {
 }
 
 // Helper component to render the expanded details of an order
-function SalesOrderDetail({ order }: { order: SalesOrder }) {
+function SalesOrderDetail({ order, role }: { order: SalesOrder, role: string }) {
     const total = order.items.reduce((sum, item) => {
         const itemQty = new Decimal(item.qty.toString())
         const itemPrice = new Decimal(item.unitPrice.toString())
@@ -204,44 +204,48 @@ function SalesOrderDetail({ order }: { order: SalesOrder }) {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-4 md:mb-6">
                 {/* Financial Summary */}
-                <div className="bg-white dark:bg-slate-800 p-3 md:p-4 rounded-lg border">
-                    <h4 className="font-semibold text-sm text-primary mb-2 md:mb-3">
-                        <span className="hidden md:inline">Financial Summary</span>
-                        <span className="md:hidden">Financials</span>
-                    </h4>
-                    <div className="space-y-1 md:space-y-2">
-                        <div className="flex justify-between items-center">
-                            <span className="text-xs md:text-sm text-muted-foreground">Subtotal</span>
-                            <span className="text-xs md:text-sm font-medium">
-                                Rp {formatIDR(total.toNumber())}
-                            </span>
-                        </div>
-                        <div className="flex justify-between items-center border-t pt-1 md:pt-2">
-                            <span className="text-xs md:text-sm font-semibold">Total</span>
-                            <span className="text-sm md:text-lg font-bold text-green-600">
-                                Rp {formatIDR(total.toNumber())}
-                            </span>
+                {(role === "admin" || role === "super") && (
+                    <div className="bg-white dark:bg-slate-800 p-3 md:p-4 rounded-lg border">
+                        <h4 className="font-semibold text-sm text-primary mb-2 md:mb-3">
+                            <span className="hidden md:inline">Financial Summary</span>
+                            <span className="md:hidden">Financials</span>
+                        </h4>
+                        <div className="space-y-1 md:space-y-2">
+                            <div className="flex justify-between items-center">
+                                <span className="text-xs md:text-sm text-muted-foreground">Subtotal</span>
+                                <span className="text-xs md:text-sm font-medium">
+                                    Rp {formatIDR(total.toNumber())}
+                                </span>
+                            </div>
+                            <div className="flex justify-between items-center border-t pt-1 md:pt-2">
+                                <span className="text-xs md:text-sm font-semibold">Total</span>
+                                <span className="text-sm md:text-lg font-bold text-green-600">
+                                    Rp {formatIDR(total.toNumber())}
+                                </span>
+                            </div>
                         </div>
                     </div>
-                </div>
+                )}
 
                 {/* Quick Actions */}
-                <div className="bg-white dark:bg-slate-800 p-3 md:p-4 rounded-lg border">
-                    <h4 className="font-semibold text-sm text-primary mb-2 md:mb-3">
-                        <span className="hidden md:inline">Quick Actions</span>
-                        <span className="md:hidden">Actions</span>
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                        <Button variant="outline" size="sm" className="text-xs h-8">
-                            <FileTextIcon className="h-3 w-3 mr-1" />
-                            Docs
-                        </Button>
-                        <Button variant="outline" size="sm" className="text-xs h-8">
-                            <ReceiptText className="h-3 w-3 mr-1" />
-                            Invoice
-                        </Button>
+                {(role === "admin" || role === "super") && (
+                    <div className="bg-white dark:bg-slate-800 p-3 md:p-4 rounded-lg border">
+                        <h4 className="font-semibold text-sm text-primary mb-2 md:mb-3">
+                            <span className="hidden md:inline">Quick Actions</span>
+                            <span className="md:hidden">Actions</span>
+                        </h4>
+                        <div className="flex flex-wrap gap-2">
+                            <Button variant="outline" size="sm" className="text-xs h-8">
+                                <FileTextIcon className="h-3 w-3 mr-1" />
+                                Docs
+                            </Button>
+                            <Button variant="outline" size="sm" className="text-xs h-8">
+                                <ReceiptText className="h-3 w-3 mr-1" />
+                                Invoice
+                            </Button>
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
 
             {/* Order Items */}
@@ -258,8 +262,13 @@ function SalesOrderDetail({ order }: { order: SalesOrder }) {
                                 <TableRow>
                                     <TableHead className="font-semibold text-xs md:text-sm">Product/Service</TableHead>
                                     <TableHead className="text-right font-semibold text-xs md:text-sm">Qty</TableHead>
-                                    <TableHead className="text-right font-semibold text-xs md:text-sm">Unit Price</TableHead>
-                                    <TableHead className="text-right font-semibold text-xs md:text-sm">Subtotal</TableHead>
+
+                                    {(role === "admin" || role === "super") && (
+                                        <>
+                                            <TableHead className="text-right font-semibold text-xs md:text-sm">Unit Price</TableHead>
+                                            <TableHead className="text-right font-semibold text-xs md:text-sm">Subtotal</TableHead>
+                                        </>
+                                    )}
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -271,43 +280,41 @@ function SalesOrderDetail({ order }: { order: SalesOrder }) {
                                     return (
                                         <TableRow key={item.id} className="hover:bg-muted/30">
                                             <TableCell className="py-2 md:py-3">
-                                                <div>
-                                                    <p className="font-medium text-xs md:text-sm">{item.name}</p>
-                                                    {item.description && (
-                                                        <p className="text-xs text-muted-foreground">
-                                                            {item.description.substring(0, 50)}
-                                                            {item.description.length > 50 ? "..." : ""}
-                                                        </p>
-                                                    )}
-                                                </div>
+                                                <p className="font-medium text-xs md:text-sm">{item.name}</p>
+                                                {item.description && (
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {item.description.substring(0, 50)}{item.description.length > 50 ? "..." : ""}
+                                                    </p>
+                                                )}
                                             </TableCell>
                                             <TableCell className="text-right py-2 md:py-3">
-                                                <div className="flex items-center justify-end gap-1">
-                                                    <span className="text-xs md:text-sm">{item.qty}</span>
-                                                    {item.uom && (
-                                                        <Badge variant="outline" className="text-[10px] md:text-xs">
-                                                            {item.uom}
-                                                        </Badge>
-                                                    )}
-                                                </div>
+                                                {item.qty} {item.uom && <Badge variant="outline" className="ml-1 text-[10px]">{item.uom}</Badge>}
                                             </TableCell>
-                                            <TableCell className="text-right font-medium text-xs md:text-sm py-2 md:py-3">
-                                                Rp {formatIDR(itemPrice.toNumber())}
-                                            </TableCell>
-                                            <TableCell className="text-right font-medium text-green-600 text-xs md:text-sm py-2 md:py-3">
-                                                Rp {formatIDR(subtotal.toNumber())}
-                                            </TableCell>
+
+                                            {(role === "admin" || role === "super") && (
+                                                <>
+                                                    <TableCell className="text-right font-medium text-xs md:text-sm py-2 md:py-3">
+                                                        Rp {formatIDR(itemPrice.toNumber())}
+                                                    </TableCell>
+                                                    <TableCell className="text-right font-medium text-green-600 text-xs md:text-sm py-2 md:py-3">
+                                                        Rp {formatIDR(subtotal.toNumber())}
+                                                    </TableCell>
+                                                </>
+                                            )}
                                         </TableRow>
                                     )
                                 })}
-                                <TableRow className="bg-muted/30">
-                                    <TableCell colSpan={3} className="text-right font-semibold text-xs md:text-sm py-2 md:py-3">
-                                        Total
-                                    </TableCell>
-                                    <TableCell className="text-right font-bold text-sm md:text-lg text-green-600 py-2 md:py-3">
-                                        Rp {formatIDR(total.toNumber())}
-                                    </TableCell>
-                                </TableRow>
+
+                                {(role === "admin" || role === "super") && (
+                                    <TableRow className="bg-muted/30">
+                                        <TableCell colSpan={3} className="text-right font-semibold text-xs md:text-sm py-2 md:py-3">
+                                            Total
+                                        </TableCell>
+                                        <TableCell className="text-right font-bold text-sm md:text-lg text-green-600 py-2 md:py-3">
+                                            Rp {formatIDR(total.toNumber())}
+                                        </TableCell>
+                                    </TableRow>
+                                )}
                             </TableBody>
                         </Table>
                     </div>
@@ -398,7 +405,7 @@ function renderDocumentStatus(documents: { docType: "QUOTATION" | "PO" | "BAP" |
 }
 
 // Komponen ActionsCell terpisah untuk menghindari masalah hook
-function ActionsCell({ order, onDeleteSuccess, role }: { order: SalesOrder; onDeleteSuccess: (orderId: string) => void; role?: { role: string } }) {
+function ActionsCell({ order, onDeleteSuccess, role }: { order: SalesOrder; onDeleteSuccess: (orderId: string) => void; role: string }) {
     const router = useRouter()
     const isMobile = useMediaQuery("(max-width: 768px)")
     const [showDeleteDialog, setShowDeleteDialog] = React.useState(false)
@@ -440,13 +447,11 @@ function ActionsCell({ order, onDeleteSuccess, role }: { order: SalesOrder; onDe
 
     function handleEditOrder(e: React.MouseEvent) {
         e.stopPropagation()
-        router.push(`${getBasePath(role?.role)}/update/${order.id}`)
-        // router.push(`/admin-area/sales/salesOrder/update/${order.id}`)
+        router.push(`${getBasePath(role)}/update/${order.id}`)
     }
 
     function handleViewDetails(e: React.MouseEvent) {
         e.stopPropagation()
-        // console.log("View order details:", order.id)
     }
 
     function handleDeleteClick(e: React.MouseEvent) {
@@ -512,23 +517,7 @@ function ActionsCell({ order, onDeleteSuccess, role }: { order: SalesOrder; onDe
 
                         <DropdownMenuItem
                             onClick={handleDeleteClick}
-                            disabled={[
-                                "INVOICED",
-                                "PAID",
-                                "FULFILLED",
-                                "PARTIALLY_INVOICED",
-                                "PARTIALLY_PAID",
-                            ].includes(order.status)}
-                            className={`cursor-pointer gap-2 text-xs ${[
-                                "INVOICED",
-                                "PAID",
-                                "FULFILLED",
-                                "PARTIALLY_INVOICED",
-                                "PARTIALLY_PAID",
-                            ].includes(order.status)
-                                ? "opacity-50 cursor-not-allowed"
-                                : ""
-                                }`}
+                            disabled={order.status !== "DRAFT"}
                         >
                             <Trash2 className="h-3 w-3" />
                             Delete
@@ -615,25 +604,7 @@ function ActionsCell({ order, onDeleteSuccess, role }: { order: SalesOrder; onDe
 
                     <DropdownMenuItem
                         onClick={handleDeleteClick}
-                        disabled={[
-                            "INVOICED",
-                            "PAID",
-                            "FULFILLED",
-                            "BAST",
-                            "PARTIALLY_INVOICED",
-                            "PARTIALLY_PAID",
-                        ].includes(order.status)}
-                        className={`cursor-pointer gap-2 text-xs ${[
-                            "INVOICED",
-                            "PAID",
-                            "FULFILLED",
-                            "BAST",
-                            "PARTIALLY_INVOICED",
-                            "PARTIALLY_PAID",
-                        ].includes(order.status)
-                            ? "opacity-50 cursor-not-allowed"
-                            : ""
-                            }`}
+                        disabled={order.status !== "DRAFT"}
                     >
                         <Trash2 className="h-3 w-3" />
                         Delete
@@ -676,7 +647,7 @@ function ActionsCell({ order, onDeleteSuccess, role }: { order: SalesOrder; onDe
 }
 
 // Mobile Card View
-function MobileSalesOrderCard({ order, onExpand, onDeleteSuccess }: { order: SalesOrder; onExpand: () => void; onDeleteSuccess: (orderId: string) => void }) {
+function MobileSalesOrderCard({ order, onExpand, onDeleteSuccess, role }: { order: SalesOrder; onExpand: () => void; onDeleteSuccess: (orderId: string) => void, role: string }) {
     const [showDeleteDialog, setShowDeleteDialog] = React.useState(false)
     const [isDeleting, setIsDeleting] = React.useState(false)
     const router = useRouter()
@@ -795,19 +766,23 @@ function MobileSalesOrderCard({ order, onExpand, onDeleteSuccess }: { order: Sal
                     </div>
                 </div>
 
-                <div className="flex items-center justify-between border-t pt-3">
-                    <div>
-                        <p className="text-xs text-muted-foreground">Total Amount</p>
-                        <p className="font-semibold text-green-600">Rp {formattedTotal}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
+                <div className="flex flex-row-reverse items-center justify-between border-t pt-3">
+                    {/* Total Amount hanya untuk admin/super */}
+                    {(role === "admin" || role === "super") && (
+                        <div>
+                            <p className="text-xs text-muted-foreground">Total Amount</p>
+                            <p className="font-semibold text-green-600">Rp {formattedTotal}</p>
+                        </div>
+                    )}
+
+                    <div className="flex flex-row-reverse items-end justify-end gap-2">
                         <Button
                             variant="outline"
                             size="sm"
                             onClick={(e) => {
                                 e.stopPropagation()
-                                onExpand();
-                                toggleExpand();
+                                onExpand()
+                                toggleExpand()
                             }}
                             className="text-xs h-8"
                         >
@@ -823,29 +798,34 @@ function MobileSalesOrderCard({ order, onExpand, onDeleteSuccess }: { order: Sal
                                 </>
                             )}
                         </Button>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleClick}
-                            disabled={isLoading} // Opsional: disable tombol saat loading
-                            className="h-8"
-                        >
-                            {isLoading ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                                <DownloadIcon className="h-4 w-4" />
-                            )}
-                        </Button>
+                        {(role === "admin" || role === "super") && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleClick}
+                                disabled={isLoading}
+                                className="h-8"
+                            >
+                                {isLoading ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <DownloadIcon className="h-4 w-4" />
+                                )}
+                            </Button>
+                        )}
+
                         <Button
                             variant="outline"
                             size="sm"
-                            className="text-xs h-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            className="text-xs h-8 text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer"
                             onClick={handleDeleteClick}
+                            disabled={order.status !== 'DRAFT'}
                         >
                             <Trash2 className="h-3 w-3" />
                         </Button>
                     </div>
                 </div>
+
             </div>
 
             {showDeleteDialog && (
@@ -969,9 +949,12 @@ function usePdfActions() {
 }
 
 function getBasePath(role?: string) {
-    return role === "super"
-        ? "/super-admin-area/sales/salesOrder"
-        : "/admin-area/sales/salesOrder"
+    const paths: Record<string, string> = {
+        super: "/super-admin-area/sales/salesOrder",
+        pic: "/pic-area/sales/salesOrder",
+        admin: "/admin-area/sales/salesOrder",
+    }
+    return paths[role ?? "admin"] || "/admin-area/sales/salesOrder"
 }
 
 
@@ -988,7 +971,6 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
     const handleDelete = onDeleteOrder ?? (() => { });
     const pdfActions = usePdfActions();
     const basePath = getBasePath(role);
-
 
     // Update local state when prop changes
     React.useEffect(() => {
@@ -1021,131 +1003,136 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
         setOrderToDelete(null)
     }
 
-    const columns: ColumnDef<SalesOrder>[] = React.useMemo(() => [
-        {
-            accessorKey: "soNumber",
-            header: ({ column }) => (
-                <DataTableColumnHeader column={column} title="SO Number" />
-            ),
-            cell: ({ row }) => {
-                const order = row.original
-                return (
-                    <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/50">
-                            <FileTextIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        <div>
-                            <p className="font-medium text-base">{order.soNumber}</p>
-                            <p className="text-sm text-muted-foreground">
-                                {format(new Date(order.soDate), "dd MMM yyyy")}
-                            </p>
-                        </div>
-                    </div>
-                )
-            },
-        },
-        {
-            accessorKey: "project.name",
-            header: ({ column }) => (
-                <DataTableColumnHeader column={column} title="Project" />
-            ),
-            cell: ({ row }) => {
-                const order = row.original
-                return (
-                    <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center h-10 w-10 rounded-full bg-red-100 dark:bg-red-900/50">
-                            <FaToolbox className="h-5 w-5 text-red-600 dark:text-red-400" />
-                        </div>
-                        <div>
-                            <p className="font-medium">{order.project?.name || "No Project"}</p>
-                            <p className="text-sm text-muted-foreground">
-                                {order.customer.name} - Cabang : {order.customer.branch ?? "-"}
-                            </p>
-                        </div>
-                    </div>
-                )
-            },
-        },
-        {
-            accessorKey: "status",
-            header: ({ column }) => (
-                <DataTableColumnHeader column={column} title="Status" />
-            ),
-            cell: ({ row }) => {
-                const order = row.original;
-                const docs = Array.isArray(order?.documents) ? order.documents : [];
-                const has = (t: "QUOTATION" | "PO" | "BAP" | "INVOICE" | "PAYMENT_RECEIPT") =>
-                    docs.some((d) => d.docType === t);
-
-                // Override jika ada dokumen tertentu
-                if (has("PAYMENT_RECEIPT")) {
+    const columns: ColumnDef<SalesOrder>[] = React.useMemo(() => {
+        const baseColumns: ColumnDef<SalesOrder>[] = [
+            {
+                accessorKey: "soNumber",
+                header: ({ column }) => (
+                    <DataTableColumnHeader column={column} title="SO Number" />
+                ),
+                cell: ({ row }) => {
+                    const order = row.original
                     return (
-                        <Badge className="bg-green-100 text-green-700 hover:bg-green-200 border-green-200 rounded-md px-2.5 py-0.5">
-                            <CheckCircle2 className="mr-1 h-3 w-3" />
-                            Paid
+                        <div className="flex items-center gap-3">
+                            <div className="flex items-center justify-center h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/50">
+                                <FileTextIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div>
+                                <p className="font-medium text-base">{order.soNumber}</p>
+                                <p className="text-sm text-muted-foreground">
+                                    {format(new Date(order.soDate), "dd MMM yyyy")}
+                                </p>
+                            </div>
+                        </div>
+                    )
+                },
+            },
+            {
+                accessorKey: "project.name",
+                header: ({ column }) => (
+                    <DataTableColumnHeader column={column} title="Project" />
+                ),
+                cell: ({ row }) => {
+                    const order = row.original
+                    return (
+                        <div className="flex items-center gap-3">
+                            <div className="flex items-center justify-center h-10 w-10 rounded-full bg-red-100 dark:bg-red-900/50">
+                                <FaToolbox className="h-5 w-5 text-red-600 dark:text-red-400" />
+                            </div>
+                            <div>
+                                <p className="font-medium">{order.project?.name || "No Project"}</p>
+                                <p className="text-sm text-muted-foreground">
+                                    {order.customer.name} - Cabang : {order.customer.branch ?? "-"}
+                                </p>
+                            </div>
+                        </div>
+                    )
+                },
+            },
+            {
+                accessorKey: "status",
+                header: ({ column }) => (
+                    <DataTableColumnHeader column={column} title="Status" />
+                ),
+                cell: ({ row }) => {
+                    const order = row.original;
+                    const docs = Array.isArray(order?.documents) ? order.documents : [];
+                    const has = (t: "QUOTATION" | "PO" | "BAP" | "INVOICE" | "PAYMENT_RECEIPT") =>
+                        docs.some((d) => d.docType === t);
+
+                    if (has("PAYMENT_RECEIPT")) {
+                        return (
+                            <Badge className="bg-green-100 text-green-700 hover:bg-green-200 border-green-200 rounded-md px-2.5 py-0.5">
+                                <CheckCircle2 className="mr-1 h-3 w-3" />
+                                Paid
+                            </Badge>
+                        );
+                    }
+
+                    if (has("INVOICE")) {
+                        return (
+                            <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200 rounded-md px-2.5 py-0.5">
+                                <ReceiptText className="mr-1 h-3 w-3" />
+                                Invoiced
+                            </Badge>
+                        );
+                    }
+
+                    const status = (order?.status ?? "DRAFT") as OrderStatus;
+                    const config = statusConfig[status] || statusConfig.DRAFT;
+
+                    return (
+                        <Badge className={`capitalize rounded-md px-2.5 py-0.5 ${config.className}`}>
+                            {config.label}
                         </Badge>
                     );
-                }
+                },
+            },
+        ]
 
-                if (has("INVOICE")) {
+        // Kondisional kolom Total hanya untuk admin & super
+        if (role === "admin" || role === "super") {
+            baseColumns.push({
+                id: "total",
+                header: ({ column }) => (
+                    <DataTableColumnHeader column={column} title="Total Amount" />
+                ),
+                cell: ({ row }) => {
+                    const order = row.original
+                    const total = order.items.reduce((sum, item) => {
+                        const itemQty = new Decimal(item.qty ?? 0)
+                        const itemPrice = new Decimal(item.unitPrice ?? 0)
+                        return sum.plus(itemQty.times(itemPrice))
+                    }, new Decimal(0))
+
+                    const formatted = new Intl.NumberFormat("id-ID", {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0,
+                    }).format(total.toNumber())
+
                     return (
-                        <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200 rounded-md px-2.5 py-0.5">
-                            <ReceiptText className="mr-1 h-3 w-3" />
-                            Invoiced
-                        </Badge>
-                    );
-                }
+                        <div className="text-right">
+                            <p className="font-semibold text-green-600">Rp {formatted}</p>
+                            <p className="text-xs text-muted-foreground">
+                                {order.items.length} item{order.items.length !== 1 ? 's' : ''}
+                            </p>
+                        </div>
+                    )
+                },
+            })
+        }
 
-                // Ambil status, fallback ke "DRAFT"
-                const status = (order?.status ?? "DRAFT") as OrderStatus;
-
-                // Ambil konfigurasi berdasarkan status
-                const config = statusConfig[status] || statusConfig.DRAFT;
-
-                return (
-                    <Badge className={`capitalize rounded-md px-2.5 py-0.5 ${config.className}`}>
-                        {config.label}
-                    </Badge>
-                );
-            },
-        },
-        {
-            id: "total",
-            header: ({ column }) => (
-                <DataTableColumnHeader column={column} title="Total Amount" />
-            ),
-            cell: ({ row }) => {
-                const order = row.original
-                const total = order.items.reduce((sum, item) => {
-                    const itemQty = new Decimal(item.qty ?? 0)
-                    const itemPrice = new Decimal(item.unitPrice ?? 0)
-                    return sum.plus(itemQty.times(itemPrice))
-                }, new Decimal(0))
-
-                const formatted = new Intl.NumberFormat("id-ID", {
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 0,
-                }).format(total.toNumber())
-
-                return (
-                    <div className="text-right">
-                        <p className="font-semibold text-green-600">Rp {formatted}</p>
-                        <p className="text-xs text-muted-foreground">
-                            {order.items.length} item{order.items.length !== 1 ? 's' : ''}
-                        </p>
-                    </div>
-                )
-            },
-        },
-        {
+        // Kolom actions tetap ada untuk semua role
+        baseColumns.push({
             id: "actions",
             header: () => <span className="sr-only">Actions</span>,
             cell: ({ row }) => {
-                const order = row.original;
-
+                const order = row.original
                 return (
                     <div className="flex justify-end gap-2">
-                        <ActionsCell order={row.original} onDeleteSuccess={handleDeleteSuccess} />
+                        <ActionsCell order={row.original} onDeleteSuccess={handleDeleteSuccess} role={role} />
+
+                        {/* View/Hide selalu boleh */}
                         <Button
                             variant="outline"
                             size="sm"
@@ -1156,40 +1143,53 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                             {row.getIsExpanded() ? "Hide" : "View"}
                         </Button>
 
-
-                        <Dialog open={pdfActions.pdfDialogOpen} onOpenChange={pdfActions.setPdfDialogOpen}>
-                            <DialogTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => pdfActions.handlePreview(order)}
+                        {/* PDF hanya untuk admin/super */}
+                        {(role === "admin" || role === "super") && (
+                            <>
+                                <Dialog
+                                    open={pdfActions.pdfDialogOpen}
+                                    onOpenChange={pdfActions.setPdfDialogOpen}
                                 >
-                                    <EyeIcon className="h-4 w-4 mr-1" />
-                                    Preview
-                                </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-4xl max-h-[90vh]">
-                                <DialogHeader>
-                                    <DialogTitle>Preview Sales Order - {order.soNumber}</DialogTitle>
-                                </DialogHeader>
-                                {pdfActions.selectedOrder && (
-                                    <SalesOrderPdfPreview formData={pdfActions.selectedOrder} />
-                                )}
-                            </DialogContent>
-                        </Dialog>
+                                    <DialogTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => pdfActions.handlePreview(order)}
+                                        >
+                                            <EyeIcon className="h-4 w-4 mr-1" />
+                                            Preview
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="max-w-4xl max-h-[90vh]">
+                                        <DialogHeader>
+                                            <DialogTitle>
+                                                Preview Sales Order - {order.soNumber}
+                                            </DialogTitle>
+                                        </DialogHeader>
+                                        {pdfActions.selectedOrder && (
+                                            <SalesOrderPdfPreview formData={pdfActions.selectedOrder} />
+                                        )}
+                                    </DialogContent>
+                                </Dialog>
 
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => pdfActions.handleDownloadPdf(order)}
-                        >
-                            <DownloadIcon className="h-4 w-4" />
-                        </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => pdfActions.handleDownloadPdf(order)}
+                                >
+                                    <DownloadIcon className="h-4 w-4" />
+                                </Button>
+                            </>
+                        )}
                     </div>
                 )
             },
-        },
-    ], [handleDeleteSuccess, pdfActions])
+        })
+
+
+        return baseColumns
+    }, [handleDeleteSuccess, pdfActions, role])
+
 
     const filteredSalesOrders = React.useMemo(() => {
         return salesOrders.filter((order) => {
@@ -1302,41 +1302,72 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                                                 order={order}
                                                 onExpand={() => row?.toggleExpanded(!row.getIsExpanded())}
                                                 onDeleteSuccess={handleDeleteSuccess}
+                                                role={role}
                                             />
 
-                                            {/* Tambahkan detailnya di sini */}
+                                            {/* Detail Items di mobile */}
                                             {row?.getIsExpanded() && (
                                                 <div className="p-4 mb-4 bg-white dark:bg-slate-950 border rounded-md text-sm shadow">
                                                     <div className="mt-0 mb-4 md:hidden">
-                                                        <div className="text-sm font-medium mb-2 text-green-600 ">Detail Items:</div>
+                                                        <div className="text-sm font-medium mb-2 text-green-600">
+                                                            Detail Items:
+                                                        </div>
+
                                                         {order.items.map((item, idx) => (
-                                                            <div key={idx} className="mb-3 pb-3 border-b border-gray-100 dark:border-gray-800 last:border-b-0 last:mb-0 last:pb-0">
+                                                            <div
+                                                                key={idx}
+                                                                className="mb-3 pb-3 border-b border-gray-100 dark:border-gray-800 last:border-b-0 last:mb-0 last:pb-0"
+                                                            >
                                                                 <div className="font-medium">{item.name}</div>
                                                                 {item.description && (
                                                                     <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                                                         {item.description}
                                                                     </div>
                                                                 )}
-                                                                <div className="flex justify-between mt-2">
-                                                                    <span>{item.qty} x Rp {item.unitPrice.toLocaleString('id-ID')}</span>
-                                                                    <span className="font-medium">
-                                                                        Rp {(item.qty * item.unitPrice).toLocaleString('id-ID')}
-                                                                    </span>
-                                                                </div>
+
+                                                                {/* Jika admin/super → tampilkan harga */}
+                                                                {(role === "admin" || role === "super") ? (
+                                                                    <div className="flex justify-between mt-2">
+                                                                        <span>
+                                                                            {item.qty} x Rp{" "}
+                                                                            {item.unitPrice.toLocaleString("id-ID")}
+                                                                        </span>
+                                                                        <span className="font-medium">
+                                                                            Rp{" "}
+                                                                            {(item.qty * item.unitPrice).toLocaleString("id-ID")}
+                                                                        </span>
+                                                                    </div>
+                                                                ) : (
+                                                                    // Jika bukan admin/super → hanya qty
+                                                                    <div className="flex justify-between mt-2 text-gray-500 dark:text-gray-400">
+                                                                        <span>Qty: {item.qty}</span>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         ))}
-                                                        <div className="flex justify-between mt-1 pt-1 border-t border-gray-200 dark:border-gray-700 font-bold">
-                                                            <span>Total Amount:</span>
-                                                            <span>
-                                                                Rp {order.items.reduce((sum, item) => sum + (item.qty * item.unitPrice), 0).toLocaleString('id-ID')}
-                                                            </span>
-                                                        </div>
+
+                                                        {/* Total hanya untuk role admin & super */}
+                                                        {(role === "admin" || role === "super") && (
+                                                            <div className="flex justify-between mt-1 pt-1 border-t border-gray-200 dark:border-gray-700 font-bold">
+                                                                <span>Total Amount:</span>
+                                                                <span>
+                                                                    Rp{" "}
+                                                                    {order.items
+                                                                        .reduce(
+                                                                            (sum, item) => sum + item.qty * item.unitPrice,
+                                                                            0
+                                                                        )
+                                                                        .toLocaleString("id-ID")}
+                                                                </span>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             )}
                                         </React.Fragment>
                                     )
                                 })}
+
 
 
                                 {totalPages > 1 && (
@@ -1504,7 +1535,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                                                             colSpan={table.getVisibleLeafColumns().length}
                                                             className="p-0 border-b-2 border-primary/20"
                                                         >
-                                                            <SalesOrderDetail order={row.original} />
+                                                            <SalesOrderDetail order={row.original} role={role} />
                                                         </TableCell>
                                                     </TableRow>
                                                 )}

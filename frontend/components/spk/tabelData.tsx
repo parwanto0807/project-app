@@ -150,9 +150,12 @@ type TabelDataSpkProps = {
 };
 
 function getBasePath(role?: string) {
-    return role === "super"
-        ? "/super-admin-area/logistic/spk"
-        : "/admin-area/logistic/spk";
+    const paths: Record<string, string> = {
+        super: "/super-admin-area/logistic/spk",
+        pic: "/pic-area/logistic/spk",
+        admin: "/admin-area/logistic/spk",
+    }
+    return paths[role ?? "admin"] || "/admin-area/logistic/spk"
 }
 
 export function normalizePdfProps(data: SpkFormValuesPdfProps) {
@@ -523,7 +526,7 @@ export default function TabelDataSpk({
                                             )}
                                         />
                                         <span className="text-xs text-muted-foreground min-w-[3ch] text-right">
-                                            {spk.progress || 0 }%
+                                            {spk.progress || 0}%
                                         </span>
                                     </div>
 
@@ -829,31 +832,32 @@ export default function TabelDataSpk({
                                                             align="end"
                                                             className="w-48 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200"
                                                         >
-                                                            {role === "admin" && (
-                                                                <>
-                                                                    <DropdownMenuItem
-                                                                        className="cursor-pointer gap-2 text-sm text-gray-700 dark:text-gray-300 transition-colors duration-200 hover:bg-gray-100 focus:bg-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700"
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            router.push(`${basePath}/update/${spk.id}`);
-                                                                        }}
-                                                                    >
-                                                                        <Edit className="h-4 w-4 text-blue-400 dark:text-blue-300" />
-                                                                        <span>Edit</span>
-                                                                    </DropdownMenuItem>
-                                                                    <DropdownMenuItem
-                                                                        className="cursor-pointer gap-2 text-sm text-red-600 dark:text-red-400 transition-colors duration-200 hover:bg-red-50 focus:bg-red-50 dark:hover:bg-red-900 dark:focus:bg-red-900"
-                                                                        onClick={(e) => {
-                                                                            e.preventDefault();
-                                                                            e.stopPropagation();
-                                                                            handleDelete(spk.id);
-                                                                        }}
-                                                                    >
-                                                                        <Trash2 className="h-4 w-4" />
-                                                                        <span>Hapus</span>
-                                                                    </DropdownMenuItem>
-                                                                </>
-                                                            )}
+
+                                                            <>
+                                                                <DropdownMenuItem
+                                                                    className="cursor-pointer gap-2 text-sm text-gray-700 dark:text-gray-300 transition-colors duration-200 hover:bg-gray-100 focus:bg-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        router.push(`${basePath}/update/${spk.id}`);
+                                                                    }}
+                                                                >
+                                                                    <Edit className="h-4 w-4 text-blue-400 dark:text-blue-300" />
+                                                                    <span>Edit</span>
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem
+                                                                    className="cursor-pointer gap-2 text-sm text-red-600 dark:text-red-400 transition-colors duration-200 hover:bg-red-50 focus:bg-red-50 dark:hover:bg-red-900 dark:focus:bg-red-900"
+                                                                    onClick={(e) => {
+                                                                        e.preventDefault();
+                                                                        e.stopPropagation();
+                                                                        handleDelete(spk.id);
+                                                                    }}
+                                                                    disabled={spk.progress > 0}
+                                                                >
+                                                                    <Trash2 className="h-4 w-4" />
+                                                                    <span>Hapus</span>
+                                                                </DropdownMenuItem>
+                                                            </>
+
                                                         </DropdownMenuContent>
                                                     </DropdownMenu>
                                                 </div>
@@ -1000,7 +1004,7 @@ export default function TabelDataSpk({
                         </Select>
 
                         {/* Tambah Button */}
-                        <Link href="/admin-area/logistic/spk/create" className="w-full sm:w-auto">
+                        <Link href={`${basePath}/create`} className="w-full sm:w-auto">
                             <Button
                                 className="w-full sm:w-auto bg-gradient-to-r from-cyan-400 to-teal-500 hover:from-cyan-500 hover:to-teal-600 text-white font-medium shadow-md hover:shadow-lg transition-all duration-300 flex items-center gap-2 justify-center"
                                 aria-label="Tambah SPK Baru"
@@ -1028,7 +1032,7 @@ export default function TabelDataSpk({
                 </div>
 
                 {/* Tambah Button */}
-                <Link href="/admin-area/logistic/spk/create" className="w-full">
+                <Link href={`${basePath}/create`} className="w-full">
                     <Button
                         variant="default"
                         className="w-full bg-gray-800 text-white hover:bg-gray-700 px-4 py-3 flex items-center justify-center gap-2"

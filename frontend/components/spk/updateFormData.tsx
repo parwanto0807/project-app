@@ -85,6 +85,7 @@ interface SpkData {
     spkNumber: string;
     spkDate: Date;
     salesOrderId: string | null;
+    progress: number;
     teamId: string | null;
     notes: string | null;
     details: SpkDetail[];
@@ -97,6 +98,16 @@ interface FormUpdateSpkProps {
     salesOrders: SalesOrder[];
     teams: Team[];
     isLoading: boolean;
+    role: string
+}
+
+function getBasePath(role?: string) {
+    const paths: Record<string, string> = {
+        super: "/super-admin-area/sales/salesOrder",
+        pic: "/pic-area/sales/salesOrder",
+        admin: "/admin-area/sales/salesOrder",
+    }
+    return paths[role ?? "admin"] || "/admin-area/sales/salesOrder"
 }
 
 export default function FormUpdateSpk({
@@ -105,11 +116,13 @@ export default function FormUpdateSpk({
     salesOrders,
     teams,
     isLoading,
+    role,
 }: FormUpdateSpkProps) {
     const [selectedSalesOrder, setSelectedSalesOrder] = useState<SalesOrder | null>(null);
     const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
     const router = useRouter();
     const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
 
     // Prepare all karyawan data from teams
     const allKaryawanRaw: Karyawan[] = teams?.flatMap((team) =>
@@ -236,7 +249,7 @@ export default function FormUpdateSpk({
 
             if (res.success) {
                 toast.success("SPK berhasil diperbarui");
-                router.push("/admin-area/logistic/spk");
+                router.push(`${getBasePath(role)}`)
             } else {
                 toast.error(res.message || "Gagal memperbarui SPK");
             }
@@ -394,14 +407,19 @@ export default function FormUpdateSpk({
                             control={form.control}
                             name="salesOrderId"
                             render={({ field }) => (
-                                <FormItem className="bg-gradient-to-r from-primary/5 to-blue-100 dark:from-slate-800 dark:to-slate-900 space-y-3 p-2 rounded-xl">
+                                <FormItem
+                                    className={`bg-gradient-to-r from-primary/5 to-blue-100 dark:from-slate-800 dark:to-slate-900 space-y-3 p-2 rounded-xl ${spk.progress > 0 ? "opacity-60" : ""
+                                        }`}
+                                >
                                     <FormLabel className="flex items-center">
                                         <FileText className="h-4 w-4 mr-2 text-purple-600" />
                                         Sales Order
                                     </FormLabel>
+
                                     <Select
                                         onValueChange={handleSalesOrderChange}
                                         value={field.value || ""}
+                                        disabled={spk.progress > 0}
                                     >
                                         <FormControl>
                                             <SelectTrigger>
@@ -415,7 +433,13 @@ export default function FormUpdateSpk({
                                                         {so.status !== "DRAFT" && (
                                                             <span className="text-amber-600 text-xs font-bold">✅</span>
                                                         )}
-                                                        <span className={so.status !== "DRAFT" ? "text-amber-700 font-medium" : ""}>
+                                                        <span
+                                                            className={
+                                                                so.status !== "DRAFT"
+                                                                    ? "text-amber-700 font-medium"
+                                                                    : ""
+                                                            }
+                                                        >
                                                             {so.soNumber} - {so.customer.name}
                                                         </span>
                                                         <span className="text-muted-foreground text-xs">
@@ -426,6 +450,13 @@ export default function FormUpdateSpk({
                                             ))}
                                         </SelectContent>
                                     </Select>
+
+                                    {spk.progress > 0 && (
+                                        <p className="text-red-600 text-sm mt-2">
+                                            ⚠️ SPK ini sudah ada transaksi laporan, tidak bisa update Sales Order
+                                        </p>
+                                    )}
+
                                     <FormMessage />
                                 </FormItem>
                             )}

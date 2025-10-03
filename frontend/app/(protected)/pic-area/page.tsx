@@ -78,7 +78,7 @@ export default function PicPage() {
           </div>
         </div>
       </div>
-      <PICDashboard />
+      <PICDashboard role={user.role} />
     </PicLayout >
   );
 }

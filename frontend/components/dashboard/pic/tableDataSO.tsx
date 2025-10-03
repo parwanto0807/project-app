@@ -224,7 +224,7 @@ export function DashboardSalesOrderTable({ salesOrders: initialSalesOrders, isLo
     const recentSalesOrders = React.useMemo(() => {
         const sorted = [...initialSalesOrders]
             .sort((a, b) => new Date(b.soDate).getTime() - new Date(a.soDate).getTime())
-            .slice(0, 5);
+            .slice(0, 10);
 
         return sorted.filter((order) => {
             return (
@@ -414,11 +414,11 @@ export function DashboardSalesOrderTable({ salesOrders: initialSalesOrders, isLo
                     <div className="flex items-center justify-between">
                         <CardTitle className="text-lg flex items-center gap-2">
                             <ShoppingCartIcon className="h-5 w-5" />
-                            5 Recent Sales Orders
+                            10 Recent Sales Orders
                         </CardTitle>
                         {showViewAllButton && (
                             <Link href={`${basePath}`} passHref>
-                                <Button variant="outline" size="sm" className="text-xs h-8">
+                                <Button variant="outline" size="sm" className="text-xs h-8" hidden>
                                     View All
                                 </Button>
                             </Link>
@@ -501,7 +501,7 @@ export function DashboardSalesOrderTable({ salesOrders: initialSalesOrders, isLo
                 <div className="flex items-center justify-between">
                     <CardTitle className="text-xl flex items-center gap-2">
                         <ShoppingCartIcon className="h-5 w-5" />
-                        5 Recent Sales Orders
+                        10 Recent Sales Orders
                     </CardTitle>
                     <div className="flex items-center gap-2">
                         <div className="relative">
@@ -515,7 +515,7 @@ export function DashboardSalesOrderTable({ salesOrders: initialSalesOrders, isLo
                         </div>
                         {showViewAllButton && (
                             <Link href={`${basePath}`} passHref>
-                                <Button variant="outline" size="sm" className="h-8">
+                                <Button variant="outline" size="sm" className="h-8" hidden>
                                     View All
                                 </Button>
                             </Link>

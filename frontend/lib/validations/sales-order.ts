@@ -1,11 +1,9 @@
-
 /* ===== Enums (string unions) ===== */
 export type OrderType = "REGULAR" | "SUPPORT";
 export type OrderStatus =
   | "DRAFT"
-  | "SENT"
   | "CONFIRMED"
-  | "IN_PROGRESS"
+  | "IN_PROGRESS_SPK"
   | "FULFILLED"
   | "PARTIALLY_INVOICED"
   | "INVOICED"

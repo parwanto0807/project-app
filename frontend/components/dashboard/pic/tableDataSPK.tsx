@@ -218,7 +218,7 @@ export default function DashboardSpkTable({
                                             variant="outline"
                                             className="font-medium text-xs bg-blue-50 text-blue-700 border-blue-200 mb-1"
                                         >
-                                            {spk.spkNumber}
+                                            {spk.spkNumber} - {spk.team?.namaTeam}
                                         </Badge>
                                         <div>
                                             <span className="text-[10px] text-muted-foreground">
@@ -789,14 +789,14 @@ export default function DashboardSpkTable({
 
     if (isMobile) {
         return (
-            <Card className="border shadow-sm">
+            <Card className="border shadow-sm ">
                 <CardHeader className="flex items-center justify-between pb-3">
                     <CardTitle className="text-lg flex items-center gap-2">
                         <PackageOpen className="h-5 w-5 text-blue-600" />
                         10 Recent SPK
                     </CardTitle>
                     <Link href={`${basePath}`} passHref>
-                        <Button variant="outline" size="sm" className="text-xs h-8">
+                        <Button variant="outline" size="sm" className="text-xs h-8" hidden>
                             View All
                         </Button>
                     </Link>
@@ -809,12 +809,12 @@ export default function DashboardSpkTable({
     }
 
     return (
-        <Card className="border-none shadow-lg">
+        <Card className="border shadow-sm">
             <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                     <CardTitle className="text-xl flex items-center gap-2">
                         <PackageOpen className="h-5 w-5" />
-                        10 Recent SPK
+                        5 Recent SPK
                     </CardTitle>
                     <div className="flex items-center gap-2">
                         <div className="relative">
@@ -827,7 +827,7 @@ export default function DashboardSpkTable({
                             />
                         </div>
                         <Link href={`${basePath}`} passHref>
-                            <Button variant="outline" size="sm" className="h-8">
+                            <Button variant="outline" size="sm" className="h-8" hidden>
                                 View All
                             </Button>
                         </Link>

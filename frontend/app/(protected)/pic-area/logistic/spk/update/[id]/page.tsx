@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -13,15 +12,16 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { Loader2 } from "lucide-react";
 import FormUpdateSpk from "@/components/spk/updateFormData";
 
 // Import fungsi fetch
-import { fetchSpkById } from "@/lib/action/master/spk/spk"; // 👈 Anda harus buat ini
+import { fetchSpkById } from "@/lib/action/master/spk/spk";
 import { fetchAllSalesOrder } from "@/lib/action/sales/salesOrder";
 import { getAllTeam } from "@/lib/action/master/team/getAllTeam";
 import { fetchAllKaryawan } from "@/lib/action/master/karyawan";
 import { SalesOrder } from "@/schemas";
+import { PicLayout } from "@/components/admin-panel/pic-layout";
+import { AdminLoading } from "@/components/admin-loading";
 
 interface Karyawan {
   id: string;
@@ -33,11 +33,11 @@ interface SPK {
   spkNumber: string;
   spkDate: Date;
   salesOrderId: string | null;
+  progress: number;
   teamId: string | null;
   notes: string | null;
   details: SpkDetail[];
   createdById: string;
-  progress: number;
 }
 
 interface SpkDetail {
@@ -47,7 +47,7 @@ interface SpkDetail {
   lokasiUnit: string | null;
 }
 
-export default function UpdateSpkPage() {
+export default function UpdateSpkPagePic() {
   const { user, loading: userLoading } = useCurrentUser();
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -66,13 +66,13 @@ export default function UpdateSpkPage() {
       router.replace("/auth/login");
       return;
     }
-    if (user.role !== "admin") {
+    if (user.role !== "pic") {
       router.replace("/not-authorized");
       return;
     }
 
     if (!spkId) {
-      router.replace("/admin-area/logistic/spk");
+      router.replace("/pic-area/logistic/spk");
       return;
     }
 
@@ -95,7 +95,7 @@ export default function UpdateSpkPage() {
 
       } catch (error) {
         console.error("Error fetching data:", error);
-        router.replace("/admin-area/logistic/spk");
+        router.replace("/pic-area/logistic/spk");
       } finally {
         setIsLoading(false);
       }
@@ -105,15 +105,8 @@ export default function UpdateSpkPage() {
   }, [userLoading, user, router, spkId]);
 
   // Loading akses atau data
-  if (userLoading || !user || user.role !== "admin" || isLoading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="flex items-center gap-3 text-muted-foreground">
-          <Loader2 className="h-5 w-5 animate-spin" aria-label="Loading" />
-          <span>{isLoading ? "Memuat data SPK..." : "Memeriksa akses..."}</span>
-        </div>
-      </div>
-    );
+  if (userLoading || !user || user.role !== "pic" || isLoading) {
+    return <AdminLoading message="Preparing Update SPK..." />;
   }
 
   if (!spk) {
@@ -125,18 +118,18 @@ export default function UpdateSpkPage() {
   }
 
   return (
-    <AdminLayout title={`Edit SPK: ${spk.spkNumber}`} role="admin">
+    <PicLayout title={`Edit SPK: ${spk.spkNumber}`} role="pic">
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
-              <Link href="/admin-area">Dashboard</Link>
+              <Link href="/pic-area">Dashboard</Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
-              <Link href="/admin-area/logistic/spk">SPK List</Link>
+              <Link href="/pic-area/logistic/spk">SPK List</Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
@@ -156,6 +149,6 @@ export default function UpdateSpkPage() {
           role={user.role}
         />
       </div>
-    </AdminLayout>
+    </PicLayout>
   );
 }
