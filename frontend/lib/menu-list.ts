@@ -48,7 +48,12 @@ function isActive(path: string, pathname: string) {
 }
 
 export function getMenuList(pathname: string, role: string) {
-  const basePath = role === "super" ? "/super-admin-area" : role === "admin" ? "/admin-area" : "/pic-area";
+  const basePath =
+    role === "super"
+      ? "/super-admin-area"
+      : role === "admin"
+      ? "/admin-area"
+      : "/pic-area";
   const allMenus: MenuGroup[] = [
     {
       groupLabel: "DASHBOARD SUPER ADMIN",
@@ -117,6 +122,12 @@ export function getMenuList(pathname: string, role: string) {
               label: "Sales Order",
               active: isActive(`${basePath}/sales/salesOrder`, pathname),
               disabled: role === "user",
+            },
+            {
+              href: `${basePath}/sales/quotation`,
+              label: "Quotation",
+              active: isActive(`${basePath}/sales/quotation`, pathname),
+              disabled: role === "user" || role === "pic",
             },
           ],
         },

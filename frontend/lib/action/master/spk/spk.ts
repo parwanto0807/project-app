@@ -39,7 +39,6 @@ export async function fetchAllSpk() {
 }
 
 export async function fetchSpkById(id: string) {
-  console.log("SPK ID", id);
   try {
     const res = await fetch(`${API_URL}/api/spk/getSPKById/${id}`, {
       method: "GET",
@@ -58,7 +57,6 @@ export async function fetchSpkById(id: string) {
 }
 
 export async function fetchSpkByIdBap(id: string) {
-  console.log("SPK ID", id);
   try {
     const res = await fetch(`${API_URL}/api/spk/getReportsBySpkIdBap/${id}`, {
       method: "GET",

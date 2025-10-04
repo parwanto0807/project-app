@@ -380,7 +380,7 @@ export const createTeam = async (req, res) => {
     // ✅ Ambil data dari req.body (bukan formData)
     const { namaTeam, deskripsi = "", karyawanIds = [] } = req.body;
 
-    console.log("Data yang diterima:", { namaTeam, deskripsi, karyawanIds });
+    // console.log("Data yang diterima:", { namaTeam, deskripsi, karyawanIds });
 
     // Validasi
     if (!namaTeam?.trim()) {

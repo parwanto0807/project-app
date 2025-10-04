@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";;
+import { revalidatePath } from "next/cache";
 import {
   Invoice,
   CreateInvoiceRequest,
@@ -12,7 +12,6 @@ import {
   PaginatedInvoices,
   UpdateInvoiceRequest,
 } from "@/schemas/invoice/index";
-
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
@@ -127,10 +126,7 @@ export async function updateInvoice(
   }
 
   try {
-    console.log("🔄 Updating invoice with ID:", id);
-
     const endpoint = `${process.env.NEXT_PUBLIC_API_URL}/api/invoice/updateInvoice/${id}`;
-    console.log("🔍 Using endpoint:", endpoint);
 
     const res = await fetch(endpoint, {
       method: "PUT",
@@ -139,8 +135,6 @@ export async function updateInvoice(
       },
       body: JSON.stringify(payload),
     });
-
-    console.log("📥 Response status:", res.status);
 
     if (!res.ok) {
       const errorText = await res.text();
@@ -181,7 +175,6 @@ export async function updateInvoice(
     }
 
     const data: Invoice = await res.json();
-    console.log("✅ Invoice updated successfully");
     return { success: true, data };
   } catch (error: unknown) {
     console.error("❌ Update invoice error:", error);
@@ -306,8 +299,6 @@ export async function approveInvoice(id: string): Promise<Invoice> {
   try {
     // URL yang benar berdasarkan route backend
     const url = `${API_BASE_URL}/api/invoice/${id}/approve`;
-    console.log("API URL:", url);
-
     const response = await fetch(url, {
       method: "POST",
       headers: {

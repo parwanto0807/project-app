@@ -202,6 +202,7 @@ model Customer {
   // Relations
   projects    Project[]
   salesOrders SalesOrder[]
+  quotations  Quotation[]   
 }
 
 model Project {
@@ -243,6 +244,7 @@ model Product {
 
   // Relasi
   salesOrderItems SalesOrderItem[]
+  QuotationLines  QuotationLine[]
 }
 
 enum ProductType {
@@ -255,6 +257,180 @@ model ProductCategory {
   id       String    @id @default(uuid())
   name     String    @unique
   products Product[]
+}
+
+// ENUM
+enum QuotationStatus {
+  DRAFT
+  SENT
+  REVIEW
+  APPROVED
+  REJECTED
+  EXPIRED
+  CANCELLED
+}
+
+enum LineType {
+  PRODUCT
+  SERVICE
+  FREIGHT
+  OTHER
+}
+
+enum DiscountType {
+  PERCENT
+  AMOUNT
+}
+
+// MODEL
+model Quotation {
+  id              String @id @default(uuid())
+  quotationNumber String @unique // Nomor penawaran
+  version         Int    @default(1)
+
+  // Relasi ke customer
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  currency     String  @default("IDR")
+  exchangeRate Decimal @default(1.0)
+
+  status QuotationStatus @default(DRAFT)
+
+  validFrom  DateTime?
+  validUntil DateTime?
+
+  paymentTermId String?
+  paymentTerm   PaymentTerm? @relation(fields: [paymentTermId], references: [id])
+
+  // Nilai perhitungan
+  subtotal      Decimal      @default(0)
+  discountType  DiscountType @default(PERCENT)
+  discountValue Decimal      @default(0) // bisa % atau amount
+  taxInclusive  Boolean      @default(false)
+  taxTotal      Decimal      @default(0)
+  otherCharges  Decimal      @default(0)
+  total         Decimal      @default(0)
+
+  notes      String?
+  preparedBy String? // user id
+  approvedBy String?
+  approvedAt DateTime?
+
+  // Relasi ke item
+  lines QuotationLine[]
+
+  // Relasi ke history/approval/attachment
+  histories   QuotationHistory[]
+  approvals   QuotationApproval[]
+  attachments QuotationAttachment[]
+  comments    QuotationComment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model QuotationLine {
+  id          String    @id @default(uuid())
+  quotationId String
+  quotation   Quotation @relation(fields: [quotationId], references: [id])
+
+  lineNo   Int
+  lineType LineType @default(PRODUCT)
+
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+
+  description String?
+  qty         Decimal @default(1)
+  uom         String?
+  unitPrice   Decimal @default(0)
+
+  lineDiscountType  DiscountType @default(PERCENT)
+  lineDiscountValue Decimal      @default(0)
+
+  lineSubtotal Decimal @default(0)
+  taxId        String?
+  tax          Tax?    @relation(fields: [taxId], references: [id])
+  taxAmount    Decimal @default(0)
+  lineTotal    Decimal @default(0)
+
+  createdAt DateTime @default(now())
+}
+
+model QuotationHistory {
+  id          String    @id @default(uuid())
+  quotationId String
+  quotation   Quotation @relation(fields: [quotationId], references: [id])
+  version     Int
+  changedBy   String?
+  changeAt    DateTime  @default(now())
+  changeNote  String?
+  payload     Json
+}
+
+model QuotationApproval {
+  id          String          @id @default(uuid())
+  quotationId String
+  quotation   Quotation       @relation(fields: [quotationId], references: [id])
+  approverId  String?
+  sequence    Int             @default(1)
+  status      QuotationStatus @default(REVIEW)
+  notes       String?
+  actedAt     DateTime?
+}
+
+model QuotationAttachment {
+  id          String    @id @default(uuid())
+  quotationId String
+  quotation   Quotation @relation(fields: [quotationId], references: [id])
+  fileName    String
+  filePath    String
+  fileSize    Int?
+  uploadedBy  String?
+  uploadedAt  DateTime  @default(now())
+}
+
+model QuotationComment {
+  id          String    @id @default(uuid())
+  quotationId String
+  quotation   Quotation @relation(fields: [quotationId], references: [id])
+  commentedBy String?
+  comment     String
+  createdAt   DateTime  @default(now())
+}
+
+model Tax {
+  id          String  @id @default(uuid())
+  code        String  @unique // Misal: PPN, VAT10, PPh23
+  name        String // Nama pajak (misal: "PPN 11%", "PPh Pasal 23")
+  description String? // Penjelasan tambahan
+
+  rate        Decimal // Persentase (contoh: 11.00 untuk 11%)
+  isInclusive Boolean @default(false) // true = harga sudah termasuk pajak, false = harga belum termasuk pajak
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relasi ke transaksi
+  quotationItems QuotationLine[] // Pajak di Penawaran Harga
+}
+
+model PaymentTerm {
+  id          String  @id @default(uuid())
+  code        String  @unique // Kode unik (misal: NET30, COD)
+  name        String // Nama syarat pembayaran (misal: "Net 30 Hari", "Cash On Delivery")
+  description String? // Penjelasan tambahan
+
+  dueDays  Int // Jangka waktu pembayaran (contoh: 30 → berarti jatuh tempo 30 hari setelah invoice)
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relasi ke transaksi
+  quotations Quotation[] // Bisa dipakai di Penawaran Harga
 }
 
 // ================== ENUMS ==================

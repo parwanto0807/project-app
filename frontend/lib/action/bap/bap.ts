@@ -102,8 +102,6 @@ export const getAllBAP = async (params?: {
 // Get BAP by ID
 export const getBAPById = async (id: string): Promise<APIResponse<BAP>> => {
   try {
-    console.log("Fetching BAP dengan ID:", id);
-
     if (!id) {
       console.error("BAP ID kosong");
       return {
@@ -194,8 +192,6 @@ export const createBAP = async (
         formData.append("sources", "spk");
       });
 
-      // Debug
-      console.log("Data yang dikirim ke backend:");
       for (const [key, value] of formData.entries()) {
         console.log(key, value instanceof File ? `File: ${value.name}` : value);
       }

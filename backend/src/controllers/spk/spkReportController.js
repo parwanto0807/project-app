@@ -366,7 +366,6 @@ export const deleteReport = async (req, res) => {
       if (fs.existsSync(filePath)) {
         try {
           fs.unlinkSync(filePath);
-          console.log(`✅ File deleted: ${filePath}`);
         } catch (err) {
           console.error(`❌ Gagal hapus file: ${filePath}`, err.message);
         }

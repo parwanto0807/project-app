@@ -487,7 +487,6 @@ export function UpdateBAPForm({
 
                 // Pastikan salesOrders sudah terload
                 if (salesOrders.length === 0) {
-                    console.log("Menunggu salesOrders...");
                     return;
                 }
 

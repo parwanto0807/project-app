@@ -216,7 +216,6 @@ const DashboardUserSPK = ({ dataSpk, role, userId }: FormMonitoringProgressSpkPr
     const [loadingReports, setLoadingReports] = useState(true);
     const router = useRouter();
     const isQuickActionsEnabled = false;
-    console.log("email");
 
     // Fungsi helper untuk format jarak waktu relatif dalam bahasa Indonesia
     const formatDistanceToNow = (date: Date): string => {

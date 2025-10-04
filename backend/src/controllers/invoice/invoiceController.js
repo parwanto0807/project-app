@@ -439,7 +439,7 @@ class InvoiceController {
     try {
       const { id } = req.params;
 
-      console.log("🔄 Approving invoice ID:", id);
+      // console.log("🔄 Approving invoice ID:", id);
 
       if (!id) {
         return res.status(400).json({
@@ -470,7 +470,7 @@ class InvoiceController {
         },
       });
 
-      console.log("✅ Invoice approved:", updatedInvoice.invoiceNumber);
+      // console.log("✅ Invoice approved:", updatedInvoice.invoiceNumber);
 
       return res.json({
         success: true,
@@ -998,16 +998,16 @@ class InvoiceController {
       const collectionRate = paidInvoices / totalInvoices;
 
       // Debug log untuk memastikan data benar
-      console.log("DEBUG Invoice Stats:", {
-        today,
-        mtd,
-        ytd,
-        lastMonth: lastMonthTotal,
-        yearSummary,
-        pendingInvoices,
-        paidInvoices,
-        collectionRate,
-      });
+      // console.log("DEBUG Invoice Stats:", {
+      //   today,
+      //   mtd,
+      //   ytd,
+      //   lastMonth: lastMonthTotal,
+      //   yearSummary,
+      //   pendingInvoices,
+      //   paidInvoices,
+      //   collectionRate,
+      // });
 
       res.json({
         today,

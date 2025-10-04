@@ -156,10 +156,7 @@ export const getReportsBySpkId = async (
     spkId: string,
 ): Promise<{ success: boolean; data: SpkFieldReport[] }> => {
     try {
-        console.log("SPK ID:", spkId);
         const url = `${API_URL}/api/spk/report/getReportsBySpkIdBap/${encodeURIComponent(spkId)}`;
-
-        console.log("[getReportsBySpkId] URL:", url);
 
         const response = await fetch(url, {
             method: "GET",
@@ -168,8 +165,6 @@ export const getReportsBySpkId = async (
             },
         });
 
-        console.log("[getReportsBySpkId] Status:", response.status);
-
         if (!response.ok) {
             const text = await response.text();
             console.error("[getReportsBySpkId] Error response text:", text);
@@ -177,7 +172,6 @@ export const getReportsBySpkId = async (
         }
 
         const json = await response.json();
-        console.log("[getReportsBySpkId] Response JSON:", json);
 
         return json;
     } catch (error) {
@@ -354,16 +348,12 @@ export function CreateBAPForm({
                 setFetchingPhotos(true);
                 try {
                     const spkId = selectedSalesOrder.spk[0].id;
-                    console.log("Fetching photos for SPK:", spkId);
-
                     const result = await getReportsBySpkId(spkId);
-                    console.log("Fetched result:", result);
 
                     if (result.success) {
                         const allPhotos: SpkPhoto[] = result.data.flatMap(
                             (report: SpkFieldReport) => report.photos || []
                         );
-                        console.log("All photos found:", allPhotos);
                         setSpkPhotos(allPhotos);
                     } else {
                         console.warn("No photos found or API returned unsuccessful");
@@ -576,7 +566,6 @@ export function CreateBAPForm({
                                     })}
                                     onChange={(e) => {
                                         const value = e.target.value;
-                                        console.log("📅 Date input changed:", value);
                                         form.setValue("bapDate", value);
                                     }}
                                     className="border-gray-300 focus:ring-blue-500 focus:border-blue-500 py-2"
@@ -595,7 +584,6 @@ export function CreateBAPForm({
                                 <Select
                                     onValueChange={(val) => {
                                         const so = salesOrders.find((s) => s.id === val) || null;
-                                        console.log("Selected SO:", so);
                                         setSelectedSalesOrder(so);
                                         form.setValue("salesOrderId", val);
                                         form.setValue("projectId", so?.projectId || "");

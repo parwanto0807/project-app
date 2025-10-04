@@ -100,13 +100,13 @@ export default function CreateSalesOrderPageAdmin() {
         <BreadcrumbList>
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
-              <Link href="/super-admin-area">Dashboard</Link>
+              <Link href="/admin-area">Dashboard</Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
-              <Link href="/super-admin-area/sales/salesOrder">
+              <Link href="/admin-area/sales/salesOrder">
                 Sales Order List
               </Link>
             </BreadcrumbLink>

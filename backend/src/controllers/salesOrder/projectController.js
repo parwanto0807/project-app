@@ -13,7 +13,6 @@ const trimOrNull = (v) => (typeof v === "string" && v.trim() !== "" ? v.trim() :
  * }
  */
 export const createProject = async (req, res) => {
-  console.log("[createProject] body:", req.body);
   try {
     const { customerId, name, location } = req.body;
 

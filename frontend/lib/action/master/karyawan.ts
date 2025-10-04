@@ -25,8 +25,6 @@ export const fetchKaryawanByEmail = async (email: string) => {
   const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/karyawan/fetchKaryawanByEmail`;
 
   try {
-    console.log('🔍 Mengirim permintaan ke:', apiUrl, 'dengan email:', email);
-
     const response = await fetch(apiUrl, {
       method: "POST",
       headers: {
@@ -36,9 +34,6 @@ export const fetchKaryawanByEmail = async (email: string) => {
       credentials: "include",
       cache: "no-store",
     });
-
-    console.log('📡 Response status:', response.status);
-
     if (!response.ok) {
       const errorText = await response.text();
       console.error('❌ Response error:', errorText);

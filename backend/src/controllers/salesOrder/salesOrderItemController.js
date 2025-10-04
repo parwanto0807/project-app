@@ -4,9 +4,7 @@ import { toNum, calcLineTotal, recalcHeaderTotals } from "../../lib/soUtils.js";
 /** Tambah 1 item ke SO */
 const ALLOWED_ITEM_TYPES = new Set(["PRODUCT", "SERVICE", "CUSTOM"]);
 
-export const addItem = async (req, res) => {
-  console.log("addItem body:", req.body);
-  
+export const addItem = async (req, res) => {  
   try {
     const { soId } = req.params;
     const it = req.body ?? {};

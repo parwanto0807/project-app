@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import {
   Breadcrumb,
@@ -12,37 +12,67 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
-import { fetchAllSalesOrder } from "@/lib/action/sales/salesOrder";
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { LayoutProps } from "@/types/layout";
 import { SalesOrderTable } from "@/components/sales/salesOrder/tabelData";
+import { useSalesOrder } from "@/hooks/use-salesOrder";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { AdminLoading } from "@/components/admin-loading";
 
 export default function SalesOrderPageAdmin() {
-  const [salesOrders, setSalesOrders] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { user, loading: userLoading } = useCurrentUser();
   const router = useRouter();
+  
+  // Use the salesOrder hook
+  const { 
+    data: salesOrderData, 
+    isLoading: isSalesOrderLoading, 
+    error: salesOrderError 
+  } = useSalesOrder();
 
-  // Ubah ini sesuai dengan sistem auth kamu
-  const userRole = "admin"; // bisa ganti dari context / user state
-
+  // Authentication and authorization effect
   useEffect(() => {
-    if (userRole !== "admin") {
-      router.push("/unauthorized");
+    if (userLoading) return;
+    
+    if (!user) {
+      router.replace("/auth/login");
       return;
     }
+    
+    if (user.role !== "admin") {
+      router.replace("/not-authorized");
+      return;
+    }
+  }, [userLoading, user, router]);
 
-    const fetchData = async () => {
-      const result = await fetchAllSalesOrder();
-      setSalesOrders(result.salesOrders);
-      setIsLoading(result.isLoading);
-    };
+  // Show loading while checking authentication or fetching data
+  if (userLoading || (user && user.role !== "admin")) {
+    return <AdminLoading message="Checking authorization..." />;
+  }
 
-    fetchData();
-  }, [router]);
+  // Show loading while fetching sales orders
+  if (isSalesOrderLoading) {
+    return <AdminLoading message="Loading sales orders..." />;
+  }
 
+  // Show error state if there's an error
+  if (salesOrderError) {
+    return (
+      <AdminLayout title="Sales Order Management" role="admin">
+        <div className="p-4">
+          <div className="bg-red-50 border border-red-200 rounded-md p-4">
+            <h3 className="text-red-800 font-medium">Error loading sales orders</h3>
+            <p className="text-red-700 text-sm mt-1">
+              {salesOrderError.message || "Failed to load sales orders"}
+            </p>
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
 
   const layoutProps: LayoutProps = {
-    title: "Sales Management",
+    title: "Sales Order Management",
     role: "admin",
     children: (
       <>
@@ -59,7 +89,7 @@ export default function SalesOrderPageAdmin() {
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
                 <Badge variant="outline">
-                  <BreadcrumbPage>Sales Management</BreadcrumbPage>
+                  <Link href="/admin-area/sales">Sales Management</Link>
                 </Badge>
               </BreadcrumbLink>
             </BreadcrumbItem>
@@ -74,7 +104,11 @@ export default function SalesOrderPageAdmin() {
 
         <div className="h-full w-full">
           <div className="flex-1 space-y-2 p-2 pt-1 md:p-4">
-            <SalesOrderTable salesOrders={salesOrders} isLoading={isLoading} role={userRole} />
+            <SalesOrderTable 
+              salesOrders={salesOrderData?.salesOrders || []} 
+              isLoading={isSalesOrderLoading} 
+              role={user?.role || "admin"} 
+            />
           </div>
         </div>
       </>

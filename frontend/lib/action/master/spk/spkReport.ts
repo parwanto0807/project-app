@@ -79,16 +79,6 @@ export const createReportFormData = ({
 }): FormData => {
   const formData = new FormData();
 
-  console.log("📦 Membuat FormData dengan parameter:", {
-    spkId,
-    karyawanId,
-    type,
-    progress,
-    note,
-    photos,
-    soDetailId,
-  });
-
   // ✅ Wajib: spkId
   formData.append("spkId", spkId);
 
@@ -102,7 +92,6 @@ export const createReportFormData = ({
   // ✅ Opsional: note — hanya jika ada dan bukan kosong
   if (note && note.trim() !== "") {
     formData.append("note", note.trim());
-    console.log("📝 Ditambahkan note:", note.trim());
   }
 
   // ✅ Opsional: photos — hanya jika ada
