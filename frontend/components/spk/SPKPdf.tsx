@@ -649,6 +649,18 @@ export const SPKPDF: React.FC<SPKPDFProps> = ({ data }) => {
                         <Text>3. Operasional Team</Text>
                     </View>
 
+                    <View style={{ width: '45%', alignItems: 'center' }}>
+                        <View style={{ marginBottom: 5 }}>
+                            <Text>.........  /  ....................</Text>
+                        </View>
+
+                        <View style={{ alignItems: 'center' }}>
+                            <Text style={styles.signatureLabel}>Diterima oleh,</Text>
+                            <View style={styles.signatureLine}></View>
+                            <Text style={styles.signatureLabel}>( _____________________ )</Text>
+                        </View>
+                    </View>
+
                     {/* Footer: Tanggal, Lokasi, dan Tanda Tangan di sebelah kanan */}
                     <View style={{ width: '45%', alignItems: 'flex-end' }}>
                         <View style={{ marginBottom: 5 }}>

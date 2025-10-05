@@ -27,6 +27,10 @@ export interface BAPData {
             name: string;
             location: string | null;
         };
+        spk: {
+            spkNumber: string;
+            spkDate: string;
+        }[],
         items?: {
             id: string;
             name: string;
@@ -446,6 +450,7 @@ export function BAPPdfDocument({ bap }: { bap: BAPData }) {
             uom: 'Paket'
         }];
 
+
     // Calculate totals
     // const subtotal = workItems.reduce((sum, item) => sum + (item.total || 0), 0);
     // const discount = workItems.reduce((sum, item) => sum + (item.discount || 0), 0);
@@ -539,6 +544,20 @@ export function BAPPdfDocument({ bap }: { bap: BAPData }) {
                             <Text style={styles.projectLabel}>Nama Proyek</Text>
                             <Text style={styles.projectValue}>{bap.salesOrder.project?.name}</Text>
                         </View>
+                        <View style={styles.projectRow}>
+                            <Text style={styles.projectLabel}>SPK - Tanggal</Text>
+                            <Text style={styles.projectValue}>
+                                {bap.salesOrder.spk && bap.salesOrder.spk.length > 0 ? (
+                                    <>
+                                        {bap.salesOrder.spk[0].spkNumber} - {formatIndonesianDate(bap.salesOrder.spk[0].spkDate)}
+                                    </>
+                                ) : (
+                                    "Tidak ada SPK"
+                                )}
+                            </Text>
+                        </View>
+
+
                         <View style={styles.projectRow}>
                             <Text style={styles.projectLabel}>Lokasi</Text>
                             <Text style={styles.projectValue}>Area Unit Kerja : {bap.salesOrder.project?.location}</Text>
@@ -635,7 +654,7 @@ export function BAPPdfDocument({ bap }: { bap: BAPData }) {
                                         src={getFullImageUrl(photo.photoUrl)}
                                     />
                                     <Text style={styles.photoCaption}>
-                                        {getCategoryLabel(photo.category)} - {photo.caption || `Foto ${index + 1}`}
+                                        {getCategoryLabel(photo.category)} - {`Foto ${index + 1}`}
                                     </Text>
                                 </View>
                             ))}

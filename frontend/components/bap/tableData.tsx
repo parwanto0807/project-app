@@ -90,6 +90,10 @@ export interface BAPData {
             name: string;
             location: string | null;
         };
+        spk: {
+            spkNumber: string;
+            spkDate: string;
+        }[],
         items?: {
             id: string;
             name: string;
@@ -140,7 +144,6 @@ export function BAPDataTable({
     const [isPdfPreviewOpen, setIsPdfPreviewOpen] = useState(false);
     const [selectedBapForDetail, setSelectedBapForDetail] = useState<BAPData | null>(null);
     const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
-
     // Gunakan custom hook untuk delete functionality
     const {
         isDialogOpen,

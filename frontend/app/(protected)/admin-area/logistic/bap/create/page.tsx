@@ -44,6 +44,7 @@ export interface Project {
 
 export interface SPK {
     spkNumber: string;
+    spkDate:string;
     id: string;
 }
 

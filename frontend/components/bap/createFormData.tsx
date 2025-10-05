@@ -59,6 +59,7 @@ export interface Project {
 
 export interface SPK {
     spkNumber: string;
+    spkDate: string;
     id: string;
 }
 
@@ -632,6 +633,31 @@ export function CreateBAPForm({
                                     </Label>
                                     <Input
                                         value={selectedSalesOrder.spk?.[0]?.spkNumber || "Tidak ada SPK"}
+                                        disabled
+                                        className="bg-gray-50 py-2 text-sm"
+                                    />
+                                    {selectedSalesOrder.spk.length === 0 && (
+                                        <p className="text-xs text-red-500 mt-1">
+                                            Sales Order ini tidak memiliki SPK
+                                        </p>
+                                    )}
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label className="flex items-center space-x-2 text-sm">
+                                        <FileText className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                                        <span>SPK Created</span>
+                                    </Label>
+
+                                    <Input
+                                        value={selectedSalesOrder.spk?.[0]?.spkDate
+                                            ? new Date(selectedSalesOrder.spk[0].spkDate).toLocaleDateString("id-ID", {
+                                                day: "2-digit",
+                                                month: "long",
+                                                year: "numeric",
+                                            })
+                                            : "Tidak ada SPK"}
+
                                         disabled
                                         className="bg-gray-50 py-2 text-sm"
                                     />

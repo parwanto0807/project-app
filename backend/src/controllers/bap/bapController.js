@@ -71,6 +71,13 @@ export const getAllBAP = async (req, res) => {
         salesOrder: {
           select: {
             soNumber: true,
+            spk: {
+              select: {
+                spkNumber: true,
+                spkDate: true,
+              },
+              take: 1, // *pastikan ambil 1 SPK jika relasi 1-many
+            },
             customer: {
               select: {
                 name: true,
@@ -91,7 +98,6 @@ export const getAllBAP = async (req, res) => {
     });
 
     const total = await prisma.bAP.count({ where });
-
     res.json({
       data: baps,
       pagination: {

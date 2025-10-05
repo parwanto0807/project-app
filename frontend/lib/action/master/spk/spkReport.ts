@@ -74,7 +74,7 @@ export const createReportFormData = ({
   type: "PROGRESS" | "FINAL";
   progress: number;
   note?: string;
-  photos?: File[];
+  photos?: File[] ;
   soDetailId?: string; // 👈 boleh null/undefined
 }): FormData => {
   const formData = new FormData();

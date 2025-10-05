@@ -153,15 +153,21 @@ interface ReportHistory {
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
 }
 
+interface PhotoWithCategory {
+  file: File;
+  category: "SEBELUM" | "PROSES" | "SESUDAH";
+}
+
 interface ProgressFormData {
   spkId: string;
   note: string;
-  type: 'PROGRESS' | 'FINAL';
+  type: "PROGRESS" | "FINAL";
   progress: number;
   minProgress: number;
-  photos: File[];
   items: string | null;
   previousProgress?: number;
+  photoCategory: "SEBELUM" | "PROSES" | "SESUDAH";
+  photos: PhotoWithCategory[]; // Ubah dari File[] ke PhotoWithCategory[]
 }
 
 interface FormMonitoringProgressSpkProps {
@@ -171,18 +177,6 @@ interface FormMonitoringProgressSpkProps {
   role: string;
   userId: string;
 }
-
-// interface Karyawan {
-//   id: string;
-//   namaLengkap: string;
-//   departemen?: string | null;
-// }
-
-// 👇 PERBAIKI: HAPUS 'success' dan 'message', karena API tidak kirim
-// interface KaryawanResponse {
-//   karyawan: Karyawan[];
-//   isLoading: boolean;
-// }
 
 type ItemProgress = Record<string, number>; // key: soDetailId, value: progress
 type SPKItemProgressMap = Record<string, ItemProgress>; // key: spkNumber
@@ -199,6 +193,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
     minProgress: 0,
     photos: [],
     items: null,
+    photoCategory: "SEBELUM", // nilai default
   });
   const [uploading, setUploading] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('list');
@@ -222,6 +217,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
   const [isDeleting, setIsDeleting] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
   const [previewSpk, setPreviewSpk] = useState<string | undefined>(undefined);
+
 
   // console.log("Data SPK", dataSpk);
   // console.log("Data SO Item", selectedSpk);
@@ -485,37 +481,6 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
     })
   }
 
-
-  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const { files } = e.target
-    if (!files || files.length === 0) return
-
-    const processedPhotos: File[] = []
-
-    for (const file of Array.from(files)) {
-      if (!file.type.startsWith("image/")) continue
-
-      if (file.size > 2 * 1024 * 1024) {
-        // Resize kalau lebih dari 2MB
-        try {
-          const resized = await resizeImage(file)
-          processedPhotos.push(resized)
-        } catch (err) {
-          console.error("Gagal resize:", err)
-        }
-      } else {
-        processedPhotos.push(file)
-      }
-    }
-
-    setFormData((prev) => ({
-      ...prev,
-      photos: [...prev.photos, ...processedPhotos],
-    }))
-
-    e.target.value = ""
-  }
-
   // Hapus foto berdasarkan index
   function removePhoto(index: number) {
     setFormData((prev) => ({
@@ -523,12 +488,61 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
       photos: prev.photos.filter((_, i) => i !== index),
     }))
   }
-  // 👇 SUBMIT LAPORAN
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const { files } = e.target;
+    if (!files || files.length === 0) return;
+
+    const currentCategory = formData.photoCategory;
+    const processedPhotos: PhotoWithCategory[] = [];
+
+    for (const [index, file] of Array.from(files).entries()) {
+      if (!file.type.startsWith("image/")) continue;
+
+      let processedFile = file;
+
+      // 🔧 PERBAIKI: Handle extension yang mungkin undefined
+      const extension = file.name.split('.').pop() || 'jpg'; // Default ke jpg
+      const nameWithoutExtension = file.name.replace(/\.[^/.]+$/, "");
+      const newFileName = `${currentCategory}-${nameWithoutExtension || `Foto${formData.photos.length + index + 1}`}.${extension}`;
+
+      processedFile = new File([file], newFileName, {
+        type: file.type,
+        lastModified: file.lastModified
+      });
+
+      // 🔧 PERBAIKI: Cek size file yang sudah dimodifikasi
+      if (processedFile.size > 2 * 1024 * 1024) {
+        try {
+          const resized = await resizeImage(processedFile);
+          processedFile = resized;
+        } catch (err) {
+          console.error("Gagal resize:", err);
+          continue;
+        }
+      }
+
+      processedPhotos.push({
+        file: processedFile,
+        category: currentCategory
+      });
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      photos: [...prev.photos, ...processedPhotos],
+    }));
+
+    e.target.value = "";
+  }
+
+  // 👇 SUBMIT LAPORAN - TAMBAH VALIDASI FOTO
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setUploading(true);
 
     try {
+      // Validasi dasar
       if (!formData.note) {
         toast.error("Catatan harus diisi", { description: "Silakan isi catatan progress sebelum mengirim laporan." });
         setUploading(false);
@@ -555,6 +569,13 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
         return;
       }
 
+      // 🔧 TAMBAH: Validasi foto maksimal 10
+      if (formData.photos.length > 10) {
+        toast.error("Terlalu banyak foto", { description: "Maksimal 10 foto yang dapat diupload." });
+        setUploading(false);
+        return;
+      }
+
       const originalSpkData = dataSpk.find(spk => spk.id === selectedSpk.id);
 
       if (!originalSpkData) {
@@ -577,6 +598,14 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
         return;
       }
 
+      // 🔧 DEBUG: Cek nama file sebelum submit
+      console.log('Files to be submitted:',
+        formData.photos.map(photo => ({
+          name: photo.file.name,
+          category: photo.category,
+          size: photo.file.size
+        }))
+      );
 
       const reportData = createReportFormData({
         spkId: selectedSpk.id,
@@ -584,17 +613,17 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
         type: formData.type,
         progress: formData.progress,
         note: formData.note,
-        photos: formData.photos,
-        soDetailId: formData.items, // ✅ Ini adalah SPKDetail.id — sesuai model Prisma
+        photos: formData.photos.map(photo => photo.file),
+        soDetailId: formData.items,
       });
 
-      await createSpkFieldReport(reportData); // 👈 Tidak perlu simpan ke variabel kalau tidak dipakai
+      await createSpkFieldReport(reportData);
 
       toast.success("Laporan berhasil dikirim", {
         description: "Progress telah berhasil dicatat dan dilaporkan.",
       });
 
-      // Reset form dan refresh riwayat
+      // Reset form
       setFormData({
         spkId: '',
         note: '',
@@ -603,10 +632,11 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
         type: 'PROGRESS',
         photos: [],
         items: null,
+        photoCategory: 'SEBELUM'
       });
       setActiveTab('list');
       setSelectedSpk(null);
-      fetchReports(); // Refresh riwayat
+      fetchReports();
 
     } catch (error) {
       console.error('❌ Gagal mengirim laporan:', error);
@@ -1342,25 +1372,38 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                           </div>
 
                           {/* Dokumentasi Foto */}
-                          <div className="space-y-3">
-                            <Label className="text-sm font-semibold flex items-center gap-2">
-                              <Camera className="h-4 w-4 text-indigo-600" />
-                              Dokumentasi Foto
-                              <span className="text-xs font-normal text-muted-foreground ml-auto">
-                                {formData.photos.length}/10 foto
-                              </span>
-                            </Label>
+                          <div className="space-y-4">
+                            {/* Dropdown Kategori */}
+                            <div className="flex items-center gap-3 mb-4">
+                              <Label htmlFor="photo-category" className="text-sm font-medium whitespace-nowrap">
+                                Kategori Foto:
+                              </Label>
+                              <select
+                                id="photo-category"
+                                value={formData.photoCategory}
+                                onChange={(e) => setFormData({
+                                  ...formData,
+                                  photoCategory: e.target.value as "SEBELUM" | "PROSES" | "SESUDAH"
+                                })}
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                              >
+                                <option value="SEBELUM">SEBELUM</option>
+                                <option value="PROSES">PROSES</option>
+                                <option value="SESUDAH">SESUDAH</option>
+                              </select>
+                            </div>
 
+                            {/* Grid Foto */}
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 gap-3">
-                              {formData.photos.map((file, index) => (
+                              {formData.photos.map((photo, index) => (
                                 <div
                                   key={index}
                                   className="relative group transform transition-all duration-300 hover:scale-105"
                                 >
                                   <div className="relative h-28 w-full overflow-hidden rounded-xl border-2 border-border/60 group-hover:border-indigo-300 transition-colors">
                                     <Image
-                                      src={URL.createObjectURL(file)}
-                                      alt={`Dokumentasi ${index + 1}`}
+                                      src={URL.createObjectURL(photo.file)}
+                                      alt={`${photo.category} - ${photo.file.name || `Dokumentasi ${index + 1}`}`}
                                       fill
                                       className="object-cover"
                                     />
@@ -1377,7 +1420,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                                   </button>
 
                                   <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs p-1 text-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                    Foto {index + 1}
+                                    {photo.category} - {photo.file.name || `Foto ${index + 1}`}
                                   </div>
                                 </div>
                               ))}
@@ -1413,12 +1456,6 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                                 </div>
                               )}
                             </div>
-
-                            {formData.photos.length >= 10 && (
-                              <div className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/20 p-2 rounded-lg text-center">
-                                ⚠️ Maksimal 10 foto telah tercapai
-                              </div>
-                            )}
                           </div>
                         </div>
                       </div>

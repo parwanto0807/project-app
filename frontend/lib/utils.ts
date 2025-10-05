@@ -38,3 +38,13 @@ export function formatCurrencyNumber(value: number, currency = "IDR") {
     maximumFractionDigits: 2,
   }).format(value);
 }
+
+export const formatIndoDate = (dateString?: string) => {
+  if (!dateString) return "-";
+  const date = new Date(dateString);
+  return date.toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+};

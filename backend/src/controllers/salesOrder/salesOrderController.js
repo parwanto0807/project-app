@@ -76,6 +76,7 @@ export const getAllBap = async (req, res) => {
         spk: {
           select: {
             spkNumber: true,
+            spkDate:true,
             id: true,
           },
         },
