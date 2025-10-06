@@ -48,7 +48,17 @@ import {
     Scale,
     Tag,
     Paperclip,
-    Info,
+    Building,
+    MapPin,
+    Clock,
+    CheckCircle,
+    XCircle,
+    AlertCircle,
+    Send,
+    Copy,
+    BarChart3,
+    CreditCard,
+    FileDigit,
 } from "lucide-react";
 import {
     Dialog,
@@ -111,11 +121,9 @@ export function QuotationTable({
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
     const [currentPage, setCurrentPage] = useState(pagination.page);
     const [selectedQuotation, setSelectedQuotation] = useState<QuotationSummary | null>(null);
-    const [showPdfPreview, setShowPdfPreview] = useState(false);
     const [showPdfDialog, setShowPdfDialog] = useState(false);
-
     const router = useRouter();
-    console.log("Role", role);
+    console.log("role", role)
     // Filter quotations based on search term
     const filteredQuotations = quotations.filter(quotation =>
         quotation.quotationNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -174,10 +182,19 @@ export function QuotationTable({
         }
     };
 
-    // Handle close preview
-    const handleClosePreview = () => {
-        setShowPdfPreview(false);
-        setSelectedQuotation(null);
+    const getStatusIcon = (status: string) => {
+        switch (status) {
+            case 'APPROVED':
+                return <CheckCircle className="h-4 w-4 text-green-600" />;
+            case 'REJECTED':
+                return <XCircle className="h-4 w-4 text-red-600" />;
+            case 'PENDING':
+                return <Clock className="h-4 w-4 text-amber-600" />;
+            case 'EXPIRED':
+                return <AlertCircle className="h-4 w-4 text-gray-600" />;
+            default:
+                return <FileText className="h-4 w-4 text-blue-600" />;
+        }
     };
 
     // Handle buka PDF Dialog
@@ -199,7 +216,6 @@ export function QuotationTable({
     const handleCreateQuotation = () => {
         router.push("/admin-area/sales/quotation/create");
     };
-
 
     const toggleRowExpansion = (quotationId: string) => {
         const newExpanded = new Set(expandedRows);
@@ -263,7 +279,6 @@ export function QuotationTable({
     const endItem = Math.min(currentPage * pagination.limit, pagination.total);
 
     // Expanded Row Content Component
-    // Ganti ExpandedRowContent component dengan yang ini
     const ExpandedRowContent = ({ quotation }: { quotation: QuotationSummary }) => {
         // Format discount display
         const formatDiscount = (type: string, value: number) => {
@@ -284,64 +299,70 @@ export function QuotationTable({
         };
 
         return (
-            <div className="bg-gradient-to-br from-gray-50/80 to-white dark:from-gray-900/80 dark:to-gray-950 p-6 border-t border-gray-200/50 dark:border-gray-700/50">
+            <div className="bg-gradient-to-br from-slate-50/80 to-white dark:from-slate-900/80 dark:to-slate-950 p-6 border-t border-slate-200/50 dark:border-slate-700/50">
                 {/* Basic Information Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                     {/* Customer Information */}
-                    <div className="space-y-3 bg-white/60 dark:bg-gray-800/60 rounded-xl p-4 border border-gray-100 dark:border-gray-700 shadow-sm">
+                    <div className="space-y-3 bg-white/80 dark:bg-slate-800/80 rounded-xl p-4 border border-slate-100 dark:border-slate-700 shadow-sm">
                         <h4 className="font-semibold text-sm flex items-center gap-2 text-blue-600 dark:text-blue-400">
-                            <User className="h-4 w-4" />
-                            Customer Information
+                            <Building className="h-4 w-4" />
+                            Informasi Pelanggan
                         </h4>
                         <div className="space-y-2 text-sm">
                             <div className="flex justify-between">
-                                <span className="text-gray-500">Name:</span>
+                                <span className="text-slate-500">Nama:</span>
                                 <span className="font-medium">{quotation.customer.name}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-gray-500">Code:</span>
-                                <span className="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                                <span className="text-slate-500">Kode:</span>
+                                <span className="font-mono text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded">
                                     {quotation.customer.code}
                                 </span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-gray-500">Email:</span>
-                                <span className="text-blue-600 dark:text-blue-400">{quotation.customer.email}</span>
+                                <span className="text-slate-500">Email:</span>
+                                <span className="text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                                    <Mail className="h-3 w-3" />
+                                    {quotation.customer.email}
+                                </span>
                             </div>
                             <div className="pt-1">
-                                <span className="text-gray-500 block mb-1">Address:</span>
-                                <span className="text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 p-2 rounded block">
-                                    {quotation.customer.address || "No address provided"}
+                                <span className="text-slate-500 mb-1 flex items-center gap-1">
+                                    <MapPin className="h-3 w-3" />
+                                    Alamat:
+                                </span>
+                                <span className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/50 p-2 rounded block">
+                                    {quotation.customer.address || "Alamat tidak tersedia"}
                                 </span>
                             </div>
                         </div>
                     </div>
 
                     {/* Financial Summary */}
-                    <div className="space-y-3 bg-white/60 dark:bg-gray-800/60 rounded-xl p-4 border border-gray-100 dark:border-gray-700 shadow-sm">
+                    <div className="space-y-3 bg-white/80 dark:bg-slate-800/80 rounded-xl p-4 border border-slate-100 dark:border-slate-700 shadow-sm">
                         <h4 className="font-semibold text-sm flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
-                            <DollarSign className="h-4 w-4" />
-                            Financial Summary
+                            <CreditCard className="h-4 w-4" />
+                            Ringkasan Keuangan
                         </h4>
                         <div className="space-y-2 text-sm">
                             <div className="flex justify-between">
-                                <span className="text-gray-500">Subtotal:</span>
+                                <span className="text-slate-500">Subtotal:</span>
                                 <span>{formatCurrency(quotation.subtotal)}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-gray-500">Tax Total:</span>
+                                <span className="text-slate-500">Pajak:</span>
                                 <span className="text-orange-600 dark:text-orange-400">
                                     {formatCurrency(quotation.taxTotal)}
                                 </span>
                             </div>
-                            <div className="flex justify-between pt-2 border-t border-gray-100 dark:border-gray-700">
-                                <span className="text-gray-500 font-medium">Grand Total:</span>
+                            <div className="flex justify-between pt-2 border-t border-slate-100 dark:border-slate-700">
+                                <span className="text-slate-500 font-medium">Total:</span>
                                 <span className="font-bold text-lg text-emerald-600 dark:text-emerald-400">
                                     {formatCurrency(quotation.total)}
                                 </span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-gray-500">Version:</span>
+                                <span className="text-slate-500">Versi:</span>
                                 <span className="font-mono bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded text-xs">
                                     v{quotation.version}
                                 </span>
@@ -350,65 +371,67 @@ export function QuotationTable({
                     </div>
 
                     {/* Dates & Validity */}
-                    <div className="space-y-3 bg-white/60 dark:bg-gray-800/60 rounded-xl p-4 border border-gray-100 dark:border-gray-700 shadow-sm">
+                    <div className="space-y-3 bg-white/80 dark:bg-slate-800/80 rounded-xl p-4 border border-slate-100 dark:border-slate-700 shadow-sm">
                         <h4 className="font-semibold text-sm flex items-center gap-2 text-purple-600 dark:text-purple-400">
                             <Calendar className="h-4 w-4" />
-                            Dates & Validity
+                            Tanggal & Masa Berlaku
                         </h4>
                         <div className="space-y-2 text-sm">
                             <div className="flex justify-between">
-                                <span className="text-gray-500">Created:</span>
+                                <span className="text-slate-500">Dibuat:</span>
                                 <span>{formatDate(quotation.createdAt)}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-gray-500">Updated:</span>
+                                <span className="text-slate-500">Diupdate:</span>
                                 <span>{formatDate(quotation.updatedAt)}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-gray-500">Valid From:</span>
-                                <span className={quotation.validFrom ? "text-green-600 dark:text-green-400" : "text-gray-400"}>
-                                    {quotation.validFrom ? formatDate(quotation.validFrom) : "Immediately"}
+                                <span className="text-slate-500">Berlaku Dari:</span>
+                                <span className={quotation.validFrom ? "text-green-600 dark:text-green-400" : "text-slate-400"}>
+                                    {quotation.validFrom ? formatDate(quotation.validFrom) : "Segera"}
                                 </span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-gray-500">Valid Until:</span>
-                                <span className={quotation.validUntil ? "text-amber-600 dark:text-amber-400" : "text-gray-400"}>
-                                    {quotation.validUntil ? formatDate(quotation.validUntil) : "Not set"}
+                                <span className="text-slate-500">Berlaku Sampai:</span>
+                                <span className={quotation.validUntil ? "text-amber-600 dark:text-amber-400" : "text-slate-400"}>
+                                    {quotation.validUntil ? formatDate(quotation.validUntil) : "Tidak ditetapkan"}
                                 </span>
                             </div>
                         </div>
                     </div>
 
                     {/* Additional Info */}
-                    <div className="space-y-3 bg-white/60 dark:bg-gray-800/60 rounded-xl p-4 border border-gray-100 dark:border-gray-700 shadow-sm">
+                    <div className="space-y-3 bg-white/80 dark:bg-slate-800/80 rounded-xl p-4 border border-slate-100 dark:border-slate-700 shadow-sm">
                         <h4 className="font-semibold text-sm flex items-center gap-2 text-cyan-600 dark:text-cyan-400">
-                            <Info className="h-4 w-4" />
-                            Additional Info
+                            <BarChart3 className="h-4 w-4" />
+                            Informasi Tambahan
                         </h4>
                         <div className="space-y-2 text-sm">
                             <div className="flex justify-between items-center">
-                                <span className="text-gray-500">Status:</span>
-                                <Badge variant={getStatusVariant(quotation.status)} className="ml-2">
+                                <span className="text-slate-500">Status:</span>
+                                <Badge variant={getStatusVariant(quotation.status)} className="ml-2 flex items-center gap-1">
+                                    {getStatusIcon(quotation.status)}
                                     {quotation.status.charAt(0) + quotation.status.slice(1).toLowerCase()}
                                 </Badge>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-gray-500">Total Lines:</span>
-                                <span className="font-medium">
+                                <span className="text-slate-500">Total Item:</span>
+                                <span className="font-medium flex items-center gap-1">
+                                    <List className="h-3 w-3 text-blue-600" />
                                     {quotation.lines?.length || quotation._count?.lines || 0}
                                 </span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-gray-500">Attachments:</span>
+                                <span className="text-slate-500">Lampiran:</span>
                                 <span className="font-medium flex items-center gap-1">
-                                    <Paperclip className="h-3 w-3" />
+                                    <Paperclip className="h-3 w-3 text-amber-600" />
                                     {quotation._count?.attachments || 0}
                                 </span>
                             </div>
                             <div className="pt-1">
-                                <span className="text-gray-500 block mb-1">Notes:</span>
-                                <span className="text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 p-2 rounded block">
-                                    {quotation.notes || "No additional notes"}
+                                <span className="text-slate-500 block mb-1">Catatan:</span>
+                                <span className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/50 p-2 rounded block">
+                                    {quotation.notes || "Tidak ada catatan tambahan"}
                                 </span>
                             </div>
                         </div>
@@ -418,49 +441,49 @@ export function QuotationTable({
                 {/* Line Items Table */}
                 {quotation.lines && quotation.lines.length > 0 ? (
                     <div className="mb-8">
-                        <h4 className="font-semibold text-sm mb-4 flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                        <h4 className="font-semibold text-sm mb-4 flex items-center gap-2 text-slate-700 dark:text-slate-300">
                             <List className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                            Line Items ({quotation.lines.length})
+                            Daftar Item ({quotation.lines.length})
                         </h4>
-                        <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden shadow-sm">
+                        <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm">
                             <table className="w-full text-sm">
-                                <thead className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700">
+                                <thead className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-700">
                                     <tr>
-                                        <th className="text-left p-4 font-medium text-gray-600 dark:text-gray-400">#</th>
-                                        <th className="text-left p-4 font-medium text-gray-600 dark:text-gray-400">Item Description</th>
-                                        <th className="text-right p-4 font-medium text-gray-600 dark:text-gray-400">Qty</th>
-                                        <th className="text-right p-4 font-medium text-gray-600 dark:text-gray-400">Unit Price</th>
-                                        <th className="text-right p-4 font-medium text-gray-600 dark:text-gray-400">Discount</th>
-                                        <th className="text-right p-4 font-medium text-gray-600 dark:text-gray-400">Tax</th>
-                                        <th className="text-right p-4 font-medium text-gray-600 dark:text-gray-400">Line Total</th>
+                                        <th className="text-left p-4 font-medium text-slate-600 dark:text-slate-400">#</th>
+                                        <th className="text-left p-4 font-medium text-slate-600 dark:text-slate-400">Deskripsi Item</th>
+                                        <th className="text-right p-4 font-medium text-slate-600 dark:text-slate-400">Qty</th>
+                                        <th className="text-right p-4 font-medium text-slate-600 dark:text-slate-400">Harga Satuan</th>
+                                        <th className="text-right p-4 font-medium text-slate-600 dark:text-slate-400">Diskon</th>
+                                        <th className="text-right p-4 font-medium text-slate-600 dark:text-slate-400">Pajak</th>
+                                        <th className="text-right p-4 font-medium text-slate-600 dark:text-slate-400">Total</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {quotation.lines.map((line: QuotationLine) => (
-                                        <tr key={line.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-colors">
-                                            <td className="p-4 font-mono text-xs text-gray-500">{line.lineNo}</td>
+                                        <tr key={line.id} className="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors">
+                                            <td className="p-4 font-mono text-xs text-slate-500">{line.lineNo}</td>
                                             <td className="p-4">
                                                 <div>
-                                                    <div className="font-medium text-gray-900 dark:text-gray-100">
+                                                    <div className="font-medium text-slate-900 dark:text-slate-100">
                                                         {getLineDescription(line)}
                                                     </div>
-                                                    <div className="text-xs text-gray-500 space-y-1 mt-2">
+                                                    <div className="text-xs text-slate-500 space-y-1 mt-2">
                                                         {line.product?.code && (
                                                             <div className="flex items-center gap-1">
-                                                                <Tag className="h-3 w-3" />
+                                                                <Tag className="h-3 w-3 text-blue-600" />
                                                                 SKU: {line.product.code}
                                                             </div>
                                                         )}
                                                         {line.uom && (
                                                             <div className="flex items-center gap-1">
-                                                                <Scale className="h-3 w-3" />
-                                                                UOM: {line.uom}
+                                                                <Scale className="h-3 w-3 text-green-600" />
+                                                                Satuan: {line.uom}
                                                             </div>
                                                         )}
                                                         {line.lineType && (
                                                             <div className="flex items-center gap-1">
-                                                                <Type className="h-3 w-3" />
-                                                                Type: {line.lineType}
+                                                                <Type className="h-3 w-3 text-purple-600" />
+                                                                Tipe: {line.lineType}
                                                             </div>
                                                         )}
                                                     </div>
@@ -475,12 +498,12 @@ export function QuotationTable({
                                                             <div className="text-amber-600 dark:text-amber-400">
                                                                 {formatDiscount(line.lineDiscountType, line.lineDiscountValue)}
                                                             </div>
-                                                            <div className="text-xs text-gray-500">
+                                                            <div className="text-xs text-slate-500">
                                                                 {formatCurrency(line.lineSubtotal)}
                                                             </div>
                                                         </>
                                                     ) : (
-                                                        <div className="text-gray-400">-</div>
+                                                        <div className="text-slate-400">-</div>
                                                     )}
                                                 </div>
                                             </td>
@@ -490,19 +513,19 @@ export function QuotationTable({
                                                         {formatCurrency(line.taxAmount)}
                                                     </div>
                                                     {line.tax?.name && (
-                                                        <div className="text-xs text-gray-500">{line.tax.name}</div>
+                                                        <div className="text-xs text-slate-500">{line.tax.name}</div>
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="p-4 text-right font-bold text-gray-900 dark:text-gray-100">
+                                            <td className="p-4 text-right font-bold text-slate-900 dark:text-slate-100">
                                                 {formatCurrency(line.lineTotal)}
                                             </td>
                                         </tr>
                                     ))}
                                 </tbody>
-                                <tfoot className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 border-t-2 border-gray-200 dark:border-gray-600">
+                                <tfoot className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-700 border-t-2 border-slate-200 dark:border-slate-600">
                                     <tr>
-                                        <td colSpan={6} className="p-4 text-right font-medium text-gray-600 dark:text-gray-400">
+                                        <td colSpan={6} className="p-4 text-right font-medium text-slate-600 dark:text-slate-400">
                                             Subtotal:
                                         </td>
                                         <td className="p-4 text-right font-medium">
@@ -510,16 +533,16 @@ export function QuotationTable({
                                         </td>
                                     </tr>
                                     <tr>
-                                        <td colSpan={6} className="p-4 text-right font-medium text-gray-600 dark:text-gray-400">
-                                            Tax Total:
+                                        <td colSpan={6} className="p-4 text-right font-medium text-slate-600 dark:text-slate-400">
+                                            Total Pajak:
                                         </td>
                                         <td className="p-4 text-right font-medium text-orange-600 dark:text-orange-400">
                                             {formatCurrency(quotation.taxTotal)}
                                         </td>
                                     </tr>
-                                    <tr className="border-t border-gray-300 dark:border-gray-500">
-                                        <td colSpan={6} className="p-4 text-right font-bold text-gray-700 dark:text-gray-300">
-                                            Grand Total:
+                                    <tr className="border-t border-slate-300 dark:border-slate-500">
+                                        <td colSpan={6} className="p-4 text-right font-bold text-slate-700 dark:text-slate-300">
+                                            Total Keseluruhan:
                                         </td>
                                         <td className="p-4 text-right font-bold text-lg text-emerald-600 dark:text-emerald-400">
                                             {formatCurrency(quotation.total)}
@@ -530,15 +553,15 @@ export function QuotationTable({
                         </div>
                     </div>
                 ) : (
-                    <div className="mb-8 text-center py-12 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-2xl bg-white/50 dark:bg-gray-800/50">
-                        <Package className="h-16 w-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
-                        <p className="text-gray-500 dark:text-gray-400 text-lg font-medium mb-2">No line items available</p>
-                        <p className="text-sm text-gray-400 dark:text-gray-500">This quotation doesnt contain any items</p>
+                    <div className="mb-8 text-center py-12 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-2xl bg-white/50 dark:bg-slate-800/50">
+                        <Package className="h-16 w-16 mx-auto mb-4 text-slate-300 dark:text-slate-600" />
+                        <p className="text-slate-500 dark:text-slate-400 text-lg font-medium mb-2">Tidak ada item tersedia</p>
+                        <p className="text-sm text-slate-400 dark:text-slate-500">Quotation ini tidak mengandung item apapun</p>
                     </div>
                 )}
 
                 {/* Action Buttons */}
-                <div className="flex flex-wrap gap-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex flex-wrap gap-3 pt-6 border-t border-slate-200 dark:border-slate-700">
                     <Button
                         variant="outline"
                         size="sm"
@@ -546,7 +569,7 @@ export function QuotationTable({
                         onClick={() => handleOpenPdfDialog(quotation)}
                     >
                         <Eye className="h-4 w-4" />
-                        Preview Pdf
+                        Preview PDF
                     </Button>
                     <PDFDownloadLink
                         document={<QuotationPdfDocument quotation={quotation} />}
@@ -561,7 +584,7 @@ export function QuotationTable({
                                 disabled={loading}
                             >
                                 <Download className="h-4 w-4 mr-1" />
-                                {loading ? 'Generating...' : 'PDF'}
+                                {loading ? 'Membuat...' : 'Unduh PDF'}
                             </Button>
                         )}
                     </PDFDownloadLink>
@@ -569,7 +592,6 @@ export function QuotationTable({
                         variant="outline"
                         size="sm"
                         className="flex items-center gap-2 border-amber-200 text-amber-700 hover:bg-amber-50 hover:text-amber-800 dark:border-amber-800 dark:text-amber-300 dark:hover:bg-amber-900/30"
-                    // onClick={() => router.push(`/admin-area/sales/quotation/${quotation.id}/edit`)}
                     >
                         <Edit className="h-4 w-4" />
                         Edit Quotation
@@ -580,15 +602,21 @@ export function QuotationTable({
                         className="flex items-center gap-2 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/30"
                     >
                         <Trash2 className="h-4 w-4" />
-                        Delete
+                        Hapus
                     </Button>
 
                     {/* Contextual Actions */}
                     <div className="flex gap-2 ml-auto">
                         {quotation.status === "DRAFT" && (
                             <Button size="sm" className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white">
-                                <Mail className="h-4 w-4" />
-                                Send to Customer
+                                <Send className="h-4 w-4" />
+                                Kirim ke Pelanggan
+                            </Button>
+                        )}
+                        {quotation.status === "SENT" && (
+                            <Button size="sm" className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white">
+                                <Copy className="h-4 w-4" />
+                                Buat Revisi
                             </Button>
                         )}
                     </div>
@@ -596,175 +624,6 @@ export function QuotationTable({
             </div>
         );
     };
-
-    // Juga perbaiki mobile expanded content - ganti dengan ini:
-    {/* Mobile Cards */ }
-    <div className="md:hidden space-y-4 p-4">
-        {sortedQuotations.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-                <FileText className="h-12 w-12 mx-auto mb-2 text-gray-300" />
-                <p>No quotations found</p>
-                {searchTerm && (
-                    <p className="text-sm">Try adjusting your search terms</p>
-                )}
-            </div>
-        ) : (
-            sortedQuotations.map((quotation) => (
-                <Card key={quotation.id} className="overflow-hidden">
-                    <CardHeader className="pb-3">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <CardTitle className="text-lg">{quotation.quotationNumber}</CardTitle>
-                                <CardDescription>{quotation.customer.name}</CardDescription>
-                            </div>
-                            <Badge variant={getStatusVariant(quotation.status)}>
-                                {quotation.status.charAt(0).toUpperCase() + quotation.status.slice(1).toLowerCase()}
-                            </Badge>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="pb-3">
-                        <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                                <span className="text-gray-500">Amount:</span>
-                                <span className="font-medium">{formatCurrency(quotation.total)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-gray-500">Created:</span>
-                                <span>{formatDate(quotation.createdAt)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-gray-500">Valid Until:</span>
-                                <span>{formatDate(quotation.validUntil ?? "")}</span>
-                            </div>
-                        </div>
-
-                        {/* Expanded Content for Mobile */}
-                        {expandedRows.has(quotation.id) && (
-                            <div className="mt-4 pt-4 border-t space-y-4">
-                                {/* Customer Info */}
-                                <div className="space-y-2">
-                                    <h4 className="font-semibold text-sm flex items-center gap-2">
-                                        <User className="h-4 w-4" />
-                                        Customer
-                                    </h4>
-                                    <div className="space-y-1 text-sm">
-                                        <p><span className="text-gray-500">Email:</span> {quotation.customer.email}</p>
-                                        <p><span className="text-gray-500">Code:</span> {quotation.customer.code}</p>
-                                        <p><span className="text-gray-500">Address:</span> {quotation.customer.address || "N/A"}</p>
-                                    </div>
-                                </div>
-
-                                {/* Financial */}
-                                <div className="space-y-2">
-                                    <h4 className="font-semibold text-sm flex items-center gap-2">
-                                        <DollarSign className="h-4 w-4" />
-                                        Financial
-                                    </h4>
-                                    <div className="space-y-1 text-sm">
-                                        <p><span className="text-gray-500">Subtotal:</span> {formatCurrency(quotation.subtotal)}</p>
-                                        <p><span className="text-gray-500">Tax:</span> {formatCurrency(quotation.taxTotal)}</p>
-                                        <p><span className="text-gray-500">Items:</span> {quotation.lines?.length || quotation._count?.lines || 0}</p>
-                                        <p><span className="text-gray-500">Version:</span> v{quotation.version}</p>
-                                    </div>
-                                </div>
-
-                                {/* Dates */}
-                                <div className="space-y-2">
-                                    <h4 className="font-semibold text-sm flex items-center gap-2">
-                                        <Calendar className="h-4 w-4" />
-                                        Dates
-                                    </h4>
-                                    <div className="space-y-1 text-sm">
-                                        <p><span className="text-gray-500">Valid Until:</span> {quotation.validUntil ? formatDate(quotation.validUntil) : "Not set"}</p>
-                                        <p><span className="text-gray-500">Updated:</span> {formatDate(quotation.updatedAt)}</p>
-                                    </div>
-                                </div>
-
-                                {/* Line Items Summary untuk Mobile */}
-                                {quotation.lines && quotation.lines.length > 0 && (
-                                    <div className="space-y-2">
-                                        <h4 className="font-semibold text-sm flex items-center gap-2">
-                                            <List className="h-4 w-4" />
-                                            Items ({quotation.lines.length})
-                                        </h4>
-                                        <div className="space-y-2 max-h-40 overflow-y-auto">
-                                            {quotation.lines.slice(0, 3).map((line: QuotationLine) => (
-                                                <div key={line.id} className="text-sm p-2 border rounded">
-                                                    <div className="font-medium">
-                                                        {line.lineNo}. {line.product?.name || line.description || `Item ${line.lineNo}`}
-                                                    </div>
-                                                    <div className="flex justify-between text-xs text-gray-500">
-                                                        <span>{line.qty} x {formatCurrency(line.unitPrice)}</span>
-                                                        <span className="font-medium">{formatCurrency(line.lineTotal)}</span>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                            {quotation.lines.length > 3 && (
-                                                <div className="text-center text-xs text-gray-500 py-2">
-                                                    +{quotation.lines.length - 3} more items
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
-
-                                <div className="flex flex-wrap gap-2 pt-2">
-                                    <Button variant="outline" size="sm" className="flex-1 min-w-[120px]">
-                                        <Eye className="h-4 w-4 mr-1" />
-                                        View
-                                    </Button>
-                                    <Button variant="outline" size="sm" className="flex-1 min-w-[120px]">
-                                        <Download className="h-4 w-4 mr-1" />
-                                        PDF
-                                    </Button>
-                                    {quotation.status === "DRAFT" && (
-                                        <Button size="sm" className="flex-1 min-w-[120px]">
-                                            <Mail className="h-4 w-4 mr-1" />
-                                            Send
-                                        </Button>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-                    </CardContent>
-                    <div className="px-4 pb-3 flex justify-between border-t pt-3">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => toggleRowExpansion(quotation.id)}
-                        >
-                            {expandedRows.has(quotation.id) ? "Less" : "More"} Details
-                        </Button>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="sm">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => toggleRowExpansion(quotation.id)}>
-                                    <Eye className="h-4 w-4 mr-2" />
-                                    {expandedRows.has(quotation.id) ? "Hide" : "Show"} Details
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                    <Download className="h-4 w-4 mr-2" />
-                                    Download PDF
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                    <Edit className="h-4 w-4 mr-2" />
-                                    Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="text-red-600">
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Delete
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </div>
-                </Card>
-            ))
-        )}
-    </div>
 
     // Skeleton loader
     if (isLoading) {
@@ -777,13 +636,14 @@ export function QuotationTable({
             <Card>
                 <CardContent className="flex items-center justify-center h-32">
                     <div className="text-center text-red-500">
-                        <p>Failed to load quotations</p>
+                        <AlertCircle className="h-8 w-8 mx-auto mb-2" />
+                        <p>Gagal memuat quotation</p>
                         <Button
                             variant="outline"
                             className="mt-2"
                             onClick={() => window.location.reload()}
                         >
-                            Try Again
+                            Coba Lagi
                         </Button>
                     </div>
                 </CardContent>
@@ -793,59 +653,69 @@ export function QuotationTable({
 
     return (
         <div className="space-y-6">
-            {/* Header dengan Gradient */}
-            <div className="bg-gradient-to-r from-blue-600 to-purple-700 rounded-lg p-4 text-white mt-6">
+            {/* Header dengan Gradient yang Lebih Profesional */}
+            <div className="bg-gradient-to-r from-cyan-600 to-purple-600 p-4 mt-6 rounded-lg text-white shadow-lg transform transition-all duration-300 hover:shadow-xl">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between">
                     <div className="mb-4 md:mb-0">
-                        <h1 className="text-2xl font-bold">Quotation Management</h1>
-                        <p className="text-blue-100 mt-1">
-                            Manage and track all your quotations in one place
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="p-2 bg-white/10 rounded-lg">
+                                <FileDigit className="h-6 w-6 text-blue-300" />
+                            </div>
+                            <h1 className="text-2xl font-bold">Manajemen Quotation</h1>
+                        </div>
+                        <p className="text-slate-200 mt-1 flex items-center gap-2">
+                            <BarChart3 className="h-4 w-4" />
+                            Kelola dan lacak semua quotation Anda di satu tempat
                         </p>
                     </div>
                     <Button
-                        className="bg-white text-blue-700 hover:bg-blue-50 transition-all duration-300 transform hover:scale-105 shadow-lg"
+                        className="bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300 transform hover:scale-105 shadow-lg flex items-center gap-2"
                         onClick={handleCreateQuotation}
                     >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Create Quotation
+                        <Plus className="h-4 w-4" />
+                        Buat Quotation Baru
                     </Button>
                 </div>
             </div>
 
             {/* Search and Filters */}
-            <Card>
-                <CardHeader>
+            <Card className="shadow-sm border-slate-200 dark:border-slate-800">
+                <CardHeader className="pb-4">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div className="relative flex-1 max-w-md">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
                             <Input
-                                placeholder="Search quotations..."
+                                placeholder="Cari quotation..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-10"
+                                className="pl-10 border-slate-300 focus:border-blue-500"
                             />
                         </div>
                         <div className="flex items-center gap-2">
-                            <Button variant="outline" size="sm">
-                                <Filter className="h-4 w-4 mr-2" />
+                            <Button variant="outline" size="sm" className="border-slate-300">
+                                <Filter className="h-4 w-4 mr-2 text-slate-600" />
                                 Filter
                             </Button>
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button variant="outline" size="sm">
-                                        Rows: {pagination.limit}
+                                    <Button variant="outline" size="sm" className="border-slate-300">
+                                        <List className="h-4 w-4 mr-2 text-slate-600" />
+                                        {pagination.limit} per halaman
                                         <ChevronDown className="h-4 w-4 ml-2" />
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent>
-                                    <DropdownMenuItem onClick={() => handleLimitChange(10)}>
-                                        10 per page
+                                    <DropdownMenuItem onClick={() => handleLimitChange(10)} className="flex items-center gap-2">
+                                        <List className="h-4 w-4 text-blue-600" />
+                                        10 per halaman
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleLimitChange(25)}>
-                                        25 per page
+                                    <DropdownMenuItem onClick={() => handleLimitChange(25)} className="flex items-center gap-2">
+                                        <List className="h-4 w-4 text-green-600" />
+                                        25 per halaman
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleLimitChange(50)}>
-                                        50 per page
+                                    <DropdownMenuItem onClick={() => handleLimitChange(50)} className="flex items-center gap-2">
+                                        <List className="h-4 w-4 text-purple-600" />
+                                        50 per halaman
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
@@ -857,86 +727,94 @@ export function QuotationTable({
                 <CardContent className="p-0">
                     <div className="hidden md:block">
                         <Table>
-                            <TableHeader className="border rounde-lg">
-                                <TableRow>
+                            <TableHeader>
+                                <TableRow className="hover:bg-slate-200/50 dark:hover:bg-slate-800 uppercase">
                                     <TableHead className="w-12"></TableHead>
                                     <TableHead
-                                        className="cursor-pointer hover:bg-gray-300 hover:text-black dark:hover:bg-gray-600 dark:hover:text-white transition-colors rounded-lg"
+                                        className="cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors rounded-lg"
                                         onClick={() => handleSort("quotationNumber")}
                                     >
-                                        <div className="flex items-center">
-                                            Quotation #
+                                        <div className="flex items-center gap-2 text-slate-700 dark:text-white font-semibold">
+                                            Nomor Quotation
                                             {sortField === "quotationNumber" && (
                                                 sortOrder === "asc" ?
-                                                    <ChevronUp className="h-4 w-4 ml-1" /> :
-                                                    <ChevronDown className="h-4 w-4 ml-1" />
+                                                    <ChevronUp className="h-4 w-4 ml-1 text-blue-600" /> :
+                                                    <ChevronDown className="h-4 w-4 ml-1 text-blue-600" />
                                             )}
                                         </div>
                                     </TableHead>
                                     <TableHead
-                                        className="cursor-pointer hover:bg-gray-300 hover:text-black dark:hover:bg-gray-600 dark:hover:text-white transition-colors rounded-lg"
+                                        className="cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors rounded-lg"
                                         onClick={() => handleSort("customerName")}
                                     >
-                                        <div className="flex items-center">
-                                            Customer
+                                        <div className="flex items-center gap-2 text-slate-700 dark:text-white font-semibold">
+                                            Pelanggan
                                             {sortField === "customerName" && (
                                                 sortOrder === "asc" ?
-                                                    <ChevronUp className="h-4 w-4 ml-1" /> :
-                                                    <ChevronDown className="h-4 w-4 ml-1" />
+                                                    <ChevronUp className="h-4 w-4 ml-1 text-green-600" /> :
+                                                    <ChevronDown className="h-4 w-4 ml-1 text-green-600" />
                                             )}
                                         </div>
                                     </TableHead>
                                     <TableHead
-                                        className="cursor-pointer hover:bg-gray-300 hover:text-black dark:hover:bg-gray-600 dark:hover:text-white transition-colors rounded-lg"
+                                        className="cursor-pointer hover:bg-slate-200  dark:hover:bg-slate-600 transition-colors rounded-lg"
                                         onClick={() => handleSort("totalAmount")}
                                     >
-                                        <div className="flex items-center">
-                                            Amount
+                                        <div className="flex items-center gap-2 text-slate-700 dark:text-white font-semibold">
+                                            Jumlah
                                             {sortField === "totalAmount" && (
                                                 sortOrder === "asc" ?
-                                                    <ChevronUp className="h-4 w-4 ml-1" /> :
-                                                    <ChevronDown className="h-4 w-4 ml-1" />
+                                                    <ChevronUp className="h-4 w-4 ml-1 text-emerald-600" /> :
+                                                    <ChevronDown className="h-4 w-4 ml-1 text-emerald-600" />
                                             )}
                                         </div>
                                     </TableHead>
                                     <TableHead
-                                        className="cursor-pointer hover:bg-gray-300 hover:text-black dark:hover:bg-gray-600 dark:hover:text-white transition-colors rounded-lg"
+                                        className="cursor-pointer hover:bg-slate-200  dark:hover:bg-slate-600 transition-colors rounded-lg"
                                         onClick={() => handleSort("status")}
                                     >
-                                        <div className="flex items-center">
+                                        <div className="flex items-center gap-2 text-slate-700 dark:text-white font-semibold">
                                             Status
                                             {sortField === "status" && (
                                                 sortOrder === "asc" ?
-                                                    <ChevronUp className="h-4 w-4 ml-1" /> :
-                                                    <ChevronDown className="h-4 w-4 ml-1" />
+                                                    <ChevronUp className="h-4 w-4 ml-1 text-purple-600" /> :
+                                                    <ChevronDown className="h-4 w-4 ml-1 text-purple-600" />
                                             )}
                                         </div>
                                     </TableHead>
                                     <TableHead
-                                        className="cursor-pointer hover:bg-gray-300 hover:text-black dark:hover:bg-gray-600 dark:hover:text-white transition-colors rounded-lg"
+                                        className="cursor-pointer hover:bg-slate-200  dark:hover:bg-slate-600 transition-colors rounded-lg"
                                         onClick={() => handleSort("createdAt")}
                                     >
-                                        <div className="flex items-center">
-                                            Created
+                                        <div className="flex items-center gap-2 text-slate-700 dark:text-white font-semibold">
+                                            Dibuat
                                             {sortField === "createdAt" && (
                                                 sortOrder === "asc" ?
-                                                    <ChevronUp className="h-4 w-4 ml-1" /> :
-                                                    <ChevronDown className="h-4 w-4 ml-1" />
+                                                    <ChevronUp className="h-4 w-4 ml-1 text-orange-600" /> :
+                                                    <ChevronDown className="h-4 w-4 ml-1 text-orange-600" />
                                             )}
                                         </div>
                                     </TableHead>
-                                    <TableHead className="hover:bg-gray-300 hover:text-black dark:hover:bg-gray-600 dark:hover:text-white transition-colors rounded-lg">Valid Until</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
+                                    <TableHead className="text-slate-700 dark:text-white  font-semibold">
+                                        <div className="flex items-center gap-2">
+                                            Berlaku Sampai
+                                        </div>
+                                    </TableHead>
+                                    <TableHead className="text-right text-slate-700 dark:text-white  font-semibold">
+                                        <div className="flex items-center gap-2 justify-end">
+                                            Aksi
+                                        </div>
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {sortedQuotations.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={8} className="text-center py-8 text-gray-500">
-                                            <FileText className="h-12 w-12 mx-auto mb-2 text-gray-300" />
-                                            <p>No quotations found</p>
+                                        <TableCell colSpan={8} className="text-center py-12 text-slate-500">
+                                            <FileText className="h-16 w-16 mx-auto mb-4 text-slate-300" />
+                                            <p className="text-lg font-medium mb-2">Tidak ada quotation ditemukan</p>
                                             {searchTerm && (
-                                                <p className="text-sm">Try adjusting your search terms</p>
+                                                <p className="text-sm">Coba sesuaikan kata pencarian Anda</p>
                                             )}
                                         </TableCell>
                                     </TableRow>
@@ -944,7 +822,7 @@ export function QuotationTable({
                                     sortedQuotations.map((quotation) => (
                                         <React.Fragment key={quotation.id}>
                                             <TableRow
-                                                className="group hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                                                className="group hover:bg-slate-50/80 dark:hover:bg-slate-800 transition-colors cursor-pointer border-b border-slate-100  dark:border-slate-800"
                                                 onClick={() => handleRowClick(quotation.id)}
                                             >
                                                 <TableCell>
@@ -952,57 +830,88 @@ export function QuotationTable({
                                                         variant="ghost"
                                                         size="sm"
                                                         onClick={(e) => handleEyeClick(quotation.id, e)}
-                                                        className="h-8 w-8 p-0"
+                                                        className="h-8 w-8 p-0 hover:bg-slate-200"
                                                     >
                                                         {expandedRows.has(quotation.id) ? (
-                                                            <ChevronUp className="h-4 w-4" />
+                                                            <ChevronUp className="h-4 w-4 text-slate-600" />
                                                         ) : (
-                                                            <ChevronDown className="h-4 w-4" />
+                                                            <ChevronDown className="h-4 w-4 text-slate-600" />
                                                         )}
                                                     </Button>
                                                 </TableCell>
                                                 <TableCell className="font-medium">
-                                                    {quotation.quotationNumber}
+                                                    <div className="flex items-center gap-2">
+                                                        <FileDigit className="h-4 w-4 text-blue-600" />
+                                                        {quotation.quotationNumber}
+                                                    </div>
                                                 </TableCell>
                                                 <TableCell>
                                                     <div>
-                                                        <div className="font-medium">{quotation.customer.name}</div>
-                                                        <div className="text-sm text-gray-500">{quotation.customer.email}</div>
+                                                        <div className="font-medium flex items-center gap-2">
+                                                            <Building className="h-4 w-4 text-green-600" />
+                                                            {quotation.customer.name}
+                                                        </div>
+                                                        <div className="text-sm text-slate-500 flex items-center gap-1">
+                                                            <Mail className="h-3 w-3" />
+                                                            {quotation.customer.email}
+                                                        </div>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="font-medium">
-                                                    {formatCurrency(quotation.total)}
+                                                    <div className="flex items-center gap-2">
+                                                        <CreditCard className="h-4 w-4 text-emerald-600" />
+                                                        {formatCurrency(quotation.total)}
+                                                    </div>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Badge variant={getStatusVariant(quotation.status)}>
+                                                    <Badge variant={getStatusVariant(quotation.status)} className="flex items-center gap-1">
+                                                        {getStatusIcon(quotation.status)}
                                                         {quotation.status.charAt(0).toUpperCase() + quotation.status.slice(1).toLowerCase()}
                                                     </Badge>
                                                 </TableCell>
-                                                <TableCell>{formatDate(quotation.createdAt)}</TableCell>
-                                                <TableCell>{formatDate(quotation.validUntil ?? "")}</TableCell>
                                                 <TableCell>
-                                                    <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        {/* <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={(e) => handleEyeClick(quotation.id, e)}
-                                                            className="h-8 w-8 p-0 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-                                                            title="View Details"
-                                                        >
-                                                            <Eye className="h-4 w-4" />
-                                                        </Button> */}
+                                                    <div className="flex items-center gap-2">
+                                                        <Calendar className="h-4 w-4 text-orange-600" />
+                                                        {formatDate(quotation.createdAt)}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-2">
+                                                        <Clock className="h-4 w-4 text-amber-600" />
+                                                        {formatDate(quotation.validUntil ?? "")}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex justify-end gap-1 opacity-70 group-hover:opacity-100 transition-opacity">
                                                         <Button
                                                             variant="ghost"
                                                             size="sm"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                /* Handle preview PDF */
+                                                                handleOpenPdfDialog(quotation);
                                                             }}
-                                                            className="h-8 w-8 p-0 text-green-600 hover:text-green-800 hover:bg-green-50"
-                                                            title="Download PDF"
+                                                            className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 cursor-pointer border-2 dark:hover:border-blue-600"
+                                                            title="Preview PDF"
                                                         >
-                                                            <Download className="h-4 w-4" />
+                                                            <Eye className="h-4 w-4" />
                                                         </Button>
+                                                        <PDFDownloadLink
+                                                            document={<QuotationPdfDocument quotation={quotation} />}
+                                                            fileName={`quotation-${quotation.quotationNumber}.pdf`}
+                                                        >
+                                                            {({ loading }) => (
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    className="h-8 w-8 p-0 text-green-600 hover:text-green-800 dark:hover:text-green-300 hover:bg-green-50 border-2 dark:hover:border-green-600 cursor-pointer"
+                                                                    title="Download PDF"
+                                                                    disabled={loading}
+                                                                >
+                                                                    <Download className="h-4 w-4" />
+                                                                </Button>
+                                                            )}
+                                                        </PDFDownloadLink>
                                                         <Button
                                                             variant="ghost"
                                                             size="sm"
@@ -1010,7 +919,7 @@ export function QuotationTable({
                                                                 e.stopPropagation();
                                                                 /* Handle edit */
                                                             }}
-                                                            className="h-8 w-8 p-0 text-orange-600 hover:text-orange-800 hover:bg-orange-50"
+                                                            className="h-8 w-8 p-0 text-orange-600 hover:text-orange-800 dark:hover:text-orange-300 hover:bg-orange-50 border-2 dark:hover:border-orange-600 cursor-pointer"
                                                             title="Edit Quotation"
                                                         >
                                                             <Edit className="h-4 w-4" />
@@ -1022,7 +931,7 @@ export function QuotationTable({
                                                                 e.stopPropagation();
                                                                 /* Handle delete */
                                                             }}
-                                                            className="h-8 w-8 p-0 text-red-600 hover:text-red-800 hover:bg-red-50"
+                                                            className="h-8 w-8 p-0 text-red-600 hover:text-red-800 dark:hover:text-red-300 hover:bg-red-50 dark:hover:border-red-600 cursor-pointer border-2"
                                                             title="Delete Quotation"
                                                         >
                                                             <Trash2 className="h-4 w-4" />
@@ -1032,7 +941,7 @@ export function QuotationTable({
                                             </TableRow>
                                             {expandedRows.has(quotation.id) && (
                                                 <TableRow>
-                                                    <TableCell colSpan={8} className="p-0">
+                                                    <TableCell colSpan={8} className="p-0 bg-slate-50/50">
                                                         <ExpandedRowContent quotation={quotation} />
                                                     </TableCell>
                                                 </TableRow>
@@ -1047,72 +956,109 @@ export function QuotationTable({
                     {/* Mobile Cards */}
                     <div className="md:hidden space-y-4 p-4">
                         {sortedQuotations.length === 0 ? (
-                            <div className="text-center py-8 text-gray-500">
-                                <FileText className="h-12 w-12 mx-auto mb-2 text-gray-300" />
-                                <p>No quotations found</p>
+                            <div className="text-center py-8 text-slate-500">
+                                <FileText className="h-12 w-12 mx-auto mb-2 text-slate-300" />
+                                <p>Tidak ada quotation ditemukan</p>
                                 {searchTerm && (
-                                    <p className="text-sm">Try adjusting your search terms</p>
+                                    <p className="text-sm">Coba sesuaikan kata pencarian Anda</p>
                                 )}
                             </div>
                         ) : (
                             sortedQuotations.map((quotation) => (
-                                <Card key={quotation.id} className="overflow-hidden">
-                                    <CardHeader className="pb-3">
+                                <Card key={quotation.id} className="overflow-hidden border-slate-200 shadow-sm">
+                                    <CardHeader className="pb-3 bg-slate-50/50">
                                         <div className="flex justify-between items-start">
                                             <div>
-                                                <CardTitle className="text-lg">{quotation.quotationNumber}</CardTitle>
-                                                <CardDescription>{quotation.customer.name}</CardDescription>
+                                                <CardTitle className="text-lg flex items-center gap-2">
+                                                    <FileDigit className="h-4 w-4 text-blue-600" />
+                                                    {quotation.quotationNumber}
+                                                </CardTitle>
+                                                <CardDescription className="flex items-center gap-2 mt-1">
+                                                    <Building className="h-4 w-4 text-green-600" />
+                                                    {quotation.customer.name}
+                                                </CardDescription>
                                             </div>
-                                            <Badge variant={getStatusVariant(quotation.status)}>
+                                            <Badge variant={getStatusVariant(quotation.status)} className="flex items-center gap-1">
+                                                {getStatusIcon(quotation.status)}
                                                 {quotation.status.charAt(0).toUpperCase() + quotation.status.slice(1).toLowerCase()}
                                             </Badge>
                                         </div>
                                     </CardHeader>
                                     <CardContent className="pb-3">
-                                        <div className="space-y-2 text-sm">
-                                            <div className="flex justify-between">
-                                                <span className="text-gray-500">Amount:</span>
+                                        <div className="space-y-3 text-sm">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-slate-500 flex items-center gap-2">
+                                                    <CreditCard className="h-4 w-4 text-emerald-600" />
+                                                    Jumlah:
+                                                </span>
                                                 <span className="font-medium">{formatCurrency(quotation.total)}</span>
                                             </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-gray-500">Created:</span>
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-slate-500 flex items-center gap-2">
+                                                    <Calendar className="h-4 w-4 text-orange-600" />
+                                                    Dibuat:
+                                                </span>
                                                 <span>{formatDate(quotation.createdAt)}</span>
                                             </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-gray-500">Valid Until:</span>
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-slate-500 flex items-center gap-2">
+                                                    <Clock className="h-4 w-4 text-amber-600" />
+                                                    Berlaku Sampai:
+                                                </span>
                                                 <span>{formatDate(quotation.validUntil ?? "")}</span>
                                             </div>
                                         </div>
 
                                         {/* Expanded Content for Mobile */}
                                         {expandedRows.has(quotation.id) && (
-                                            <div className="mt-4 pt-4 border-t space-y-3">
-                                                <div className="space-y-2">
-                                                    <h4 className="font-semibold text-sm flex items-center gap-2">
-                                                        <User className="h-4 w-4" />
-                                                        Customer
+                                            <div className="mt-4 pt-4 border-t border-slate-200 space-y-4">
+                                                <div className="space-y-3">
+                                                    <h4 className="font-semibold text-sm flex items-center gap-2 text-slate-700">
+                                                        <User className="h-4 w-4 text-blue-600" />
+                                                        Informasi Pelanggan
                                                     </h4>
-                                                    <div className="space-y-1 text-sm">
-                                                        <p><span className="text-gray-500">Email:</span> {quotation.customer.email}</p>
-                                                        <p><span className="text-gray-500">Company:</span> {quotation.customer.address || "N/A"}</p>
+                                                    <div className="space-y-2 text-sm">
+                                                        <div className="flex items-center gap-2">
+                                                            <Mail className="h-4 w-4 text-green-600" />
+                                                            <span className="text-slate-600">{quotation.customer.email}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <MapPin className="h-4 w-4 text-orange-600" />
+                                                            <span className="text-slate-600">{quotation.customer.address || "N/A"}</span>
+                                                        </div>
                                                     </div>
                                                 </div>
 
-                                                <div className="space-y-2">
-                                                    <h4 className="font-semibold text-sm flex items-center gap-2">
-                                                        <DollarSign className="h-4 w-4" />
-                                                        Financial
+                                                <div className="space-y-3">
+                                                    <h4 className="font-semibold text-sm flex items-center gap-2 text-slate-700">
+                                                        <DollarSign className="h-4 w-4 text-emerald-600" />
+                                                        Informasi Keuangan
                                                     </h4>
-                                                    <div className="space-y-1 text-sm">
-                                                        <p><span className="text-gray-500">Subtotal:</span> {formatCurrency(quotation.subtotal || quotation.total)}</p>
-                                                        <p><span className="text-gray-500">Tax:</span> {formatCurrency(quotation.taxTotal || 0)}</p>
+                                                    <div className="space-y-2 text-sm">
+                                                        <div className="flex justify-between">
+                                                            <span className="text-slate-500">Subtotal:</span>
+                                                            <span>{formatCurrency(quotation.subtotal)}</span>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                            <span className="text-slate-500">Pajak:</span>
+                                                            <span className="text-orange-600">{formatCurrency(quotation.taxTotal)}</span>
+                                                        </div>
+                                                        <div className="flex justify-between font-semibold border-t pt-2">
+                                                            <span className="text-slate-700">Total:</span>
+                                                            <span className="text-emerald-600">{formatCurrency(quotation.total)}</span>
+                                                        </div>
                                                     </div>
                                                 </div>
 
-                                                <div className="flex flex-wrap gap-2">
-                                                    <Button variant="outline" size="sm" className="flex-1 min-w-[120px]">
-                                                        <Eye className="h-4 w-4 mr-1" />
-                                                        View
+                                                <div className="flex flex-wrap gap-2 pt-2">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="flex-1 min-w-[120px] flex items-center gap-2"
+                                                        onClick={() => handleOpenPdfDialog(quotation)}
+                                                    >
+                                                        <Eye className="h-4 w-4" />
+                                                        Preview
                                                     </Button>
                                                     <PDFDownloadLink
                                                         document={<QuotationPdfDocument quotation={quotation} />}
@@ -1123,11 +1069,11 @@ export function QuotationTable({
                                                             <Button
                                                                 variant="outline"
                                                                 size="sm"
-                                                                className="flex-1 min-w-[120px]"
+                                                                className="flex-1 min-w-[120px] flex items-center gap-2"
                                                                 disabled={loading}
                                                             >
-                                                                <Download className="h-4 w-4 mr-1" />
-                                                                {loading ? 'Generating...' : 'PDF'}
+                                                                <Download className="h-4 w-4" />
+                                                                {loading ? 'Membuat...' : 'PDF'}
                                                             </Button>
                                                         )}
                                                     </PDFDownloadLink>
@@ -1135,13 +1081,24 @@ export function QuotationTable({
                                             </div>
                                         )}
                                     </CardContent>
-                                    <div className="px-4 pb-3 flex justify-between border-t pt-3">
+                                    <div className="px-4 pb-3 flex justify-between border-t border-slate-200 pt-3">
                                         <Button
                                             variant="outline"
                                             size="sm"
                                             onClick={() => toggleRowExpansion(quotation.id)}
+                                            className="flex items-center gap-2"
                                         >
-                                            {expandedRows.has(quotation.id) ? "Less" : "More"} Details
+                                            {expandedRows.has(quotation.id) ? (
+                                                <>
+                                                    <ChevronUp className="h-4 w-4" />
+                                                    Lebih Sedikit
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <ChevronDown className="h-4 w-4" />
+                                                    Lebih Detail
+                                                </>
+                                            )}
                                         </Button>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
@@ -1150,35 +1107,35 @@ export function QuotationTable({
                                                 </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={() => toggleRowExpansion(quotation.id)}>
-                                                    <Eye className="h-4 w-4 mr-2" />
-                                                    {expandedRows.has(quotation.id) ? "Hide" : "Show"} Details
+                                                <DropdownMenuItem onClick={() => toggleRowExpansion(quotation.id)} className="flex items-center gap-2">
+                                                    <Eye className="h-4 w-4" />
+                                                    {expandedRows.has(quotation.id) ? "Sembunyikan" : "Tampilkan"} Detail
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleOpenPdfDialog(quotation)}>
-                                                    <Eye className="h-4 w-4 mr-2" />
+                                                <DropdownMenuItem onClick={() => handleOpenPdfDialog(quotation)} className="flex items-center gap-2">
+                                                    <Eye className="h-4 w-4 text-blue-600" />
                                                     Preview PDF
                                                 </DropdownMenuItem>
                                                 <DropdownMenuItem asChild>
                                                     <PDFDownloadLink
                                                         document={<QuotationPdfDocument quotation={quotation} />}
                                                         fileName={`quotation-${quotation.quotationNumber}.pdf`}
-                                                        className="flex items-center"
+                                                        className="flex items-center gap-2"
                                                     >
                                                         {({ loading }) => (
-                                                            <>
-                                                                <Download className="h-4 w-4 mr-2" />
-                                                                {loading ? 'Generating...' : 'Download PDF'}
-                                                            </>
+                                                            <div className="flex items-center gap-2">
+                                                                <Download className="h-4 w-4 text-green-600" />
+                                                                {loading ? 'Membuat...' : 'Unduh PDF'}
+                                                            </div>
                                                         )}
                                                     </PDFDownloadLink>
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem>
-                                                    <Edit className="h-4 w-4 mr-2" />
+                                                <DropdownMenuItem className="flex items-center gap-2">
+                                                    <Edit className="h-4 w-4 text-orange-600" />
                                                     Edit
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem className="text-red-600">
-                                                    <Trash2 className="h-4 w-4 mr-2" />
-                                                    Delete
+                                                <DropdownMenuItem className="text-red-600 flex items-center gap-2">
+                                                    <Trash2 className="h-4 w-4" />
+                                                    Hapus
                                                 </DropdownMenuItem>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
@@ -1189,11 +1146,12 @@ export function QuotationTable({
                     </div>
                 </CardContent>
 
-                {/* Pagination - tetap sama */}
+                {/* Pagination */}
                 {sortedQuotations.length > 0 && (
-                    <div className="flex items-center justify-between px-6 py-4 border-t">
-                        <div className="text-sm text-gray-500">
-                            Showing {startItem} to {endItem} of {pagination.total} quotations
+                    <div className="flex items-center justify-between px-6 py-4 border-t bg-slate-50/50 dark:bg-slate-900">
+                        <div className="text-sm text-slate-500 flex items-center gap-2">
+                            <FileText className="h-4 w-4" />
+                            Menampilkan {startItem} sampai {endItem} dari {pagination.total} quotation
                         </div>
                         <div className="flex items-center space-x-2">
                             <Button
@@ -1201,6 +1159,7 @@ export function QuotationTable({
                                 size="sm"
                                 onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                                 disabled={currentPage === 1}
+                                className="border-slate-300"
                             >
                                 <ChevronLeft className="h-4 w-4" />
                             </Button>
@@ -1213,7 +1172,7 @@ export function QuotationTable({
                                             variant={currentPage === page ? "default" : "outline"}
                                             size="sm"
                                             onClick={() => handlePageChange(page)}
-                                            className="h-8 w-8 p-0"
+                                            className="h-8 w-8 p-0 border-slate-300"
                                         >
                                             {page}
                                         </Button>
@@ -1225,6 +1184,7 @@ export function QuotationTable({
                                 size="sm"
                                 onClick={() => handlePageChange(Math.min(pagination.pages, currentPage + 1))}
                                 disabled={currentPage === pagination.pages}
+                                className="border-slate-300"
                             >
                                 <ChevronRight className="h-4 w-4" />
                             </Button>
@@ -1232,46 +1192,14 @@ export function QuotationTable({
                     </div>
                 )}
             </Card>
-            {showPdfPreview && selectedQuotation && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-lg w-full max-w-4xl h-[90vh] flex flex-col">
-                        <div className="flex items-center justify-between p-4 border-b">
-                            <h3 className="text-lg font-semibold">
-                                Preview Quotation - {selectedQuotation.quotationNumber}
-                            </h3>
-                            <div className="flex items-center space-x-2">
-                                <PDFDownloadLink
-                                    document={<QuotationPdfDocument quotation={selectedQuotation} />}
-                                    fileName={`quotation-${selectedQuotation.quotationNumber}.pdf`}
-                                >
-                                    {({ loading }) => (
-                                        <Button size="sm" disabled={loading}>
-                                            <Download className="h-4 w-4 mr-2" />
-                                            {loading ? 'Generating...' : 'Download'}
-                                        </Button>
-                                    )}
-                                </PDFDownloadLink>
-                                <Button variant="outline" size="sm" onClick={handleClosePreview}>
-                                    Tutup
-                                </Button>
-                            </div>
-                        </div>
-                        <div className="flex-1">
-                            <PDFViewer width="100%" height="100%">
-                                <QuotationPdfDocument quotation={selectedQuotation} />
-                            </PDFViewer>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* PDF Dialog */}
             <Dialog open={showPdfDialog} onOpenChange={setShowPdfDialog}>
-                <DialogContent className="max-w-6xl h-[90vh] flex flex-col p-0 ">
+                <DialogContent className="max-w-6xl h-[90vh] flex flex-col p-0">
                     <DialogHeader className="flex-shrink-0 px-6 py-4 border-b mt-8">
                         <div className="flex items-center justify-between">
-                            <DialogTitle className="flex items-center">
-                                <FileText className="h-5 w-5 mr-2 text-green-600" />
+                            <DialogTitle className="flex items-center gap-2">
+                                <FileText className="h-5 w-5 text-green-600" />
                                 <span className="text-sm">
                                     Quotation - {selectedQuotation?.quotationNumber}
                                     {selectedQuotation?.version || 0 > 1 && ` (Revisi ${selectedQuotation?.version})`}
@@ -1284,31 +1212,26 @@ export function QuotationTable({
                                         fileName={`quotation-${selectedQuotation.quotationNumber}.pdf`}
                                     >
                                         {({ loading }) => (
-                                            <Button size="sm" disabled={loading}>
-                                                <Download className="h-4 w-4 mr-2" />
-                                                {loading ? 'Generating...' : 'Download'}
+                                            <Button size="sm" disabled={loading} className="flex items-center gap-2">
+                                                <Download className="h-4 w-4" />
+                                                {loading ? 'Membuat...' : 'Unduh'}
                                             </Button>
                                         )}
                                     </PDFDownloadLink>
                                 )}
-                                {/* <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={handleClosePdfDialog}
-                                    className="h-8 w-8 p-0"
-                                >
-                                    <X className="h-4 w-4" />
-                                </Button> */}
                             </div>
                         </div>
-                        <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600">
-                            <span>
-                                <strong>Customer:</strong> {selectedQuotation?.customer.name}
+                        <div className="flex items-center space-x-4 mt-2 text-sm text-slate-600">
+                            <span className="flex items-center gap-1">
+                                <Building className="h-4 w-4 text-green-600" />
+                                <strong>Pelanggan:</strong> {selectedQuotation?.customer.name}
                             </span>
-                            <span>
+                            <span className="flex items-center gap-1">
+                                <CreditCard className="h-4 w-4 text-emerald-600" />
                                 <strong>Total:</strong> {selectedQuotation ? formatCurrency(selectedQuotation.total) : '-'}
                             </span>
-                            <span>
+                            <span className="flex items-center gap-1">
+                                {selectedQuotation && getStatusIcon(selectedQuotation.status)}
                                 <strong>Status:</strong> {selectedQuotation ? getStatusText(selectedQuotation.status) : '-'}
                             </span>
                         </div>
@@ -1327,29 +1250,32 @@ export function QuotationTable({
     );
 }
 
-// Skeleton Loader Component (diperbarui untuk expanded rows)
+// Skeleton Loader Component yang Diperbarui
 function QuotationTableSkeleton() {
     return (
         <div className="space-y-6">
             {/* Header Skeleton */}
-            <div className="bg-gradient-to-r from-blue-600 to-purple-700 rounded-lg p-6 text-white">
+            <div className="bg-gradient-to-r from-slate-800 to-slate-700 rounded-xl p-6 text-white">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between">
                     <div className="mb-4 md:mb-0">
-                        <Skeleton className="h-8 w-48 bg-blue-500 mb-2" />
-                        <Skeleton className="h-4 w-64 bg-blue-400" />
+                        <div className="flex items-center gap-3 mb-2">
+                            <Skeleton className="h-10 w-10 bg-slate-600 rounded-lg" />
+                            <Skeleton className="h-8 w-48 bg-slate-600" />
+                        </div>
+                        <Skeleton className="h-4 w-64 bg-slate-500" />
                     </div>
-                    <Skeleton className="h-10 w-40 bg-white/20" />
+                    <Skeleton className="h-10 w-40 bg-slate-600" />
                 </div>
             </div>
 
             {/* Table Skeleton */}
-            <Card>
+            <Card className="shadow-sm border-slate-200">
                 <CardHeader>
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                        <Skeleton className="h-10 w-full max-w-md bg-gray-200" />
+                        <Skeleton className="h-10 w-full max-w-md bg-slate-200" />
                         <div className="flex gap-2">
-                            <Skeleton className="h-9 w-20 bg-gray-200" />
-                            <Skeleton className="h-9 w-28 bg-gray-200" />
+                            <Skeleton className="h-9 w-20 bg-slate-200" />
+                            <Skeleton className="h-9 w-28 bg-slate-200" />
                         </div>
                     </div>
                 </CardHeader>
@@ -1361,7 +1287,7 @@ function QuotationTableSkeleton() {
                                 <TableRow>
                                     {[...Array(8)].map((_, i) => (
                                         <TableHead key={i}>
-                                            <Skeleton className="h-4 w-20 bg-gray-200" />
+                                            <Skeleton className="h-4 w-20 bg-slate-200" />
                                         </TableHead>
                                     ))}
                                 </TableRow>
@@ -1372,7 +1298,7 @@ function QuotationTableSkeleton() {
                                         <TableRow key={i}>
                                             {[...Array(8)].map((_, j) => (
                                                 <TableCell key={j}>
-                                                    <Skeleton className="h-4 w-full bg-gray-100" />
+                                                    <Skeleton className="h-4 w-full bg-slate-100" />
                                                 </TableCell>
                                             ))}
                                         </TableRow>
@@ -1383,16 +1309,16 @@ function QuotationTableSkeleton() {
                                                     <div className="grid grid-cols-4 gap-4">
                                                         {[...Array(4)].map((_, k) => (
                                                             <div key={k} className="space-y-2">
-                                                                <Skeleton className="h-4 w-24 bg-gray-200" />
-                                                                <Skeleton className="h-3 w-20 bg-gray-100" />
-                                                                <Skeleton className="h-3 w-20 bg-gray-100" />
-                                                                <Skeleton className="h-3 w-20 bg-gray-100" />
+                                                                <Skeleton className="h-4 w-24 bg-slate-200" />
+                                                                <Skeleton className="h-3 w-20 bg-slate-100" />
+                                                                <Skeleton className="h-3 w-20 bg-slate-100" />
+                                                                <Skeleton className="h-3 w-20 bg-slate-100" />
                                                             </div>
                                                         ))}
                                                     </div>
                                                     <div className="flex gap-2">
                                                         {[...Array(4)].map((_, k) => (
-                                                            <Skeleton key={k} className="h-9 w-24 bg-gray-200" />
+                                                            <Skeleton key={k} className="h-9 w-24 bg-slate-200" />
                                                         ))}
                                                     </div>
                                                 </div>
@@ -1411,32 +1337,32 @@ function QuotationTableSkeleton() {
                                 <CardHeader>
                                     <div className="flex justify-between">
                                         <div className="space-y-2">
-                                            <Skeleton className="h-6 w-32 bg-gray-200" />
-                                            <Skeleton className="h-4 w-24 bg-gray-200" />
+                                            <Skeleton className="h-6 w-32 bg-slate-200" />
+                                            <Skeleton className="h-4 w-24 bg-slate-200" />
                                         </div>
-                                        <Skeleton className="h-6 w-16 bg-gray-200" />
+                                        <Skeleton className="h-6 w-16 bg-slate-200" />
                                     </div>
                                 </CardHeader>
                                 <CardContent className="space-y-2">
                                     {[...Array(3)].map((_, j) => (
                                         <div key={j} className="flex justify-between">
-                                            <Skeleton className="h-4 w-16 bg-gray-200" />
-                                            <Skeleton className="h-4 w-20 bg-gray-200" />
+                                            <Skeleton className="h-4 w-16 bg-slate-200" />
+                                            <Skeleton className="h-4 w-20 bg-slate-200" />
                                         </div>
                                     ))}
                                     {/* Expanded content skeleton for mobile */}
                                     <div className="mt-4 pt-4 space-y-3">
-                                        <Skeleton className="h-4 w-full bg-gray-200" />
-                                        <Skeleton className="h-4 w-3/4 bg-gray-200" />
+                                        <Skeleton className="h-4 w-full bg-slate-200" />
+                                        <Skeleton className="h-4 w-3/4 bg-slate-200" />
                                         <div className="flex gap-2">
-                                            <Skeleton className="h-9 w-20 bg-gray-200" />
-                                            <Skeleton className="h-9 w-20 bg-gray-200" />
+                                            <Skeleton className="h-9 w-20 bg-slate-200" />
+                                            <Skeleton className="h-9 w-20 bg-slate-200" />
                                         </div>
                                     </div>
                                 </CardContent>
                                 <div className="p-4 border-t flex justify-between">
-                                    <Skeleton className="h-9 w-28 bg-gray-200" />
-                                    <Skeleton className="h-9 w-9 bg-gray-200" />
+                                    <Skeleton className="h-9 w-28 bg-slate-200" />
+                                    <Skeleton className="h-9 w-9 bg-slate-200" />
                                 </div>
                             </Card>
                         ))}

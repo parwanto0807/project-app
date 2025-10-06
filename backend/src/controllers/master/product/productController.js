@@ -1,5 +1,6 @@
 import { PrismaClient } from "../../../../prisma/generated/prisma/index.js";
 const prisma = new PrismaClient();
+import { ProductType } from "../../../../prisma/generated/prisma/index.js";
 
 // [GET] /products - Ambil semua produk (opsional: hanya aktif)
 export const getAllProducts = async (req, res) => {
@@ -25,20 +26,30 @@ export const getAllProducts = async (req, res) => {
 export const getAllProductsByType = async (req, res) => {
   try {
     const { activeOnly = "true" } = req.query;
-    const { type } = req.params; // ✅ ambil dari params
+    const { type } = req.params;
 
-    const filter = activeOnly === "false" ? {} : { isActive: true };
+    // safer parsing untuk activeOnly
+    const onlyActive = String(activeOnly).toLowerCase() !== "false";
+
+    // build where object secara deklaratif
+    const where = {};
+    if (onlyActive) where.isActive = true;
 
     if (type) {
-      filter.type = type;
+      const t = type.toUpperCase();
+
+      if (t === "SERVICE") {
+        where.type = ProductType.Jasa; // hanya Jasa
+      } else if (t === "PRODUCT") {
+        where.type = { not: ProductType.Jasa }; // semua selain Jasa
+      }
     }
 
     const products = await prisma.product.findMany({
-      where: filter,
-      include: {
-        category: true,
-      },
+      where,
+      include: { category: true },
       orderBy: { createdAt: "desc" },
+      // pertimbangkan pagination: take, skip
     });
 
     res.json(products);

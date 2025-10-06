@@ -971,6 +971,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
     const handleDelete = onDeleteOrder ?? (() => { });
     const pdfActions = usePdfActions();
     const basePath = getBasePath(role);
+    const router = useRouter()
 
     // Update local state when prop changes
     React.useEffect(() => {
@@ -1137,7 +1138,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                             variant="outline"
                             size="sm"
                             onClick={() => row.toggleExpanded(!row.getIsExpanded())}
-                            className="flex items-center gap-2 cursor-pointer"
+                            className="cursor-pointer hover:bg-cyan-700 hover:text-white dark:hover:bg-cyan-700"
                         >
                             <Eye className="h-4 w-4" />
                             {row.getIsExpanded() ? "Hide" : "View"}
@@ -1155,6 +1156,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                                             variant="outline"
                                             size="sm"
                                             onClick={() => pdfActions.handlePreview(order)}
+                                            className="cursor-pointer hover:bg-cyan-700 hover:text-white dark:hover:bg-cyan-700"
                                         >
                                             <EyeIcon className="h-4 w-4 mr-1" />
                                             Preview
@@ -1176,8 +1178,19 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => pdfActions.handleDownloadPdf(order)}
+                                    className="cursor-pointer border-2 hover:border-cyan-500 hover:text-cyan-400"
                                 >
                                     <DownloadIcon className="h-4 w-4" />
+                                </Button>
+
+                                {/* === Tambahan Create Quotation === */}
+                                <Button
+                                    variant="default"
+                                    size="sm"
+                                    onClick={() => router.push(`/admin-area/sales/quotation/create/${order.id}`)}
+                                    className="cursor-pointer hover:bg-cyan-700 dark:hover:text-white"
+                                >
+                                    + Create Quotation
                                 </Button>
                             </>
                         )}
@@ -1188,7 +1201,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
 
 
         return baseColumns
-    }, [handleDeleteSuccess, pdfActions, role])
+    }, [handleDeleteSuccess, pdfActions, role, router])
 
 
     const filteredSalesOrders = React.useMemo(() => {

@@ -202,7 +202,7 @@ model Customer {
   // Relations
   projects    Project[]
   salesOrders SalesOrder[]
-  quotations  Quotation[]   
+  quotations  Quotation[]
 }
 
 model Project {
@@ -248,9 +248,22 @@ model Product {
 }
 
 enum ProductType {
-  Material
-  Jasa
-  Alat
+  Material // tetap
+  Jasa // tetap
+  Alat // tetap
+
+  FinishedGoods // Barang Jadi
+  SparePart // Suku Cadang
+  Consumable // Bahan Habis Pakai
+  Asset // Aset tetap
+  Rental // Penyewaan
+  Software // Produk digital
+  Packaging // Kemasan
+  MRO // Maintenance, Repair, Operation
+
+  Scrap // Barang bekas sisa produksi / customer
+  Refurbished // Barang bekas diperbaiki agar bisa dipakai
+  Return // Barang retur dari customer
 }
 
 model ProductCategory {

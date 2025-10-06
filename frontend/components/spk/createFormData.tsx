@@ -495,24 +495,24 @@ export default function CreateFormSPK({
                                     <User className="h-4 w-4 mr-2 text-green-600" />
                                     Detail Tugas
                                 </FormLabel>
-                                {!selectedTeam && (
-                                    <Button type="button" variant="outline" size="sm" onClick={addDetail} hidden>
+                                {/* {!selectedTeam && ( */}
+                                    <Button type="button" variant="outline" size="sm" onClick={addDetail}>
                                         <Plus className="h-3.5 w-3.5 mr-1" />
                                         Tambah
                                     </Button>
-                                )}
+                                {/* // )} */}
                             </div>
 
                             {form.watch("details").length === 0 ? (
                                 <div className="text-center py-6 border border-dashed rounded-md bg-muted/40">
                                     <User className="h-8 w-8 mx-auto text-muted-foreground" />
                                     <p className="text-sm text-muted-foreground mt-1">Belum ada detail tugas</p>
-                                    {!selectedTeam && (
-                                        <Button type="button" variant="outline" size="sm" className="mt-3" onClick={addDetail} hidden>
+                                  {/* //  {!selectedTeam && ( */}
+                                        <Button type="button" variant="outline" size="sm" className="mt-3" onClick={addDetail}>
                                             <Plus className="h-3.5 w-3.5 mr-1" />
                                             Tambah Tugas
                                         </Button>
-                                    )}
+                                  {/* //  )} */}
                                 </div>
                             ) : (
                                 <div className="rounded-md border overflow-hidden">

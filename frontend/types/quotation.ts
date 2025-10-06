@@ -11,8 +11,7 @@ export enum QuotationStatus {
 export enum LineType {
   PRODUCT = "PRODUCT",
   SERVICE = "SERVICE",
-  FREIGHT = "FREIGHT",
-  OTHER = "OTHER",
+  CUSTOM = "ALL",
 }
 
 export enum DiscountType {
@@ -182,6 +181,7 @@ export interface Product {
   id: string;
   code: string;
   name: string;
+  type: string;
   description?: string;
   price: number;
   uom?: string;

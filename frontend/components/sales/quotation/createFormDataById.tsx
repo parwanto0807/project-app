@@ -1,7 +1,7 @@
 // components/sales/quotation/createFormData.tsx
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     Plus,
     Trash2,
@@ -15,6 +15,8 @@ import {
     Settings,
     CreditCard,
     DockIcon,
+    CheckCircle,
+    AlertCircle,
 } from 'lucide-react';
 import {
     QuotationStatus,
@@ -53,68 +55,22 @@ interface CreateQuotationFormProps {
     paymentTerms: PaymentTerm[];
     onSubmit: (data: CreateQuotationRequest) => Promise<void>;
     isLoading?: boolean;
+    preSelectedSalesOrderId?: string;
 }
 
-export const CreateQuotationForm: React.FC<CreateQuotationFormProps> = ({
+export const CreateQuotationFormById: React.FC<CreateQuotationFormProps> = ({
     customers,
     products,
     salesOrders,
     taxes,
     paymentTerms,
     onSubmit,
-    isLoading = false
+    isLoading = false,
+    preSelectedSalesOrderId
 }) => {
-    const [selectedSalesOrderId, setSelectedSalesOrderId] = useState<string>('');
+    const [selectedSalesOrderId, setSelectedSalesOrderId] = useState<string>(preSelectedSalesOrderId || '');
+    const [selectedSalesOrder, setSelectedSalesOrder] = useState<SalesOrder | null>(null);
     const router = useRouter();
-
-    // Fungsi handleSalesOrderChange:
-    const handleSalesOrderChange = (salesOrderId: string) => {
-        setSelectedSalesOrderId(salesOrderId);
-
-        if (salesOrderId && salesOrderId !== 'no-sales-order') {
-            const selectedSalesOrder = salesOrders.find(so => so.id === salesOrderId);
-            if (selectedSalesOrder) {
-                // Set customerId dari sales order
-                if (selectedSalesOrder.customerId) {
-                    handleHeaderChange("customerId", selectedSalesOrder.customerId);
-                }
-
-                // Map sales order lines ke quotation lines
-                if (selectedSalesOrder.items) {
-                    const newLines: CreateQuotationLineRequest[] = selectedSalesOrder.items.map(line => ({
-                        lineType: LineType.PRODUCT,
-                        productId: line.productId || '',
-                        description: line.product?.name || line.description || '',
-                        qty: line.qty || 1,
-                        uom: line.uom || '',
-                        unitPrice: line.unitPrice || 0,
-                        lineDiscountType: DiscountType.PERCENT,
-                        lineDiscountValue: 0,
-                        lineSubtotal: 0,
-                        taxId: null,
-                    }));
-                    setLines(newLines);
-                }
-            }
-        } else {
-            // Reset ke line kosong jika tidak ada sales order yang dipilih
-            setLines([{
-                lineType: LineType.PRODUCT,
-                productId: '',
-                description: '',
-                qty: 1,
-                uom: '',
-                unitPrice: 0,
-                lineDiscountType: DiscountType.PERCENT,
-                lineDiscountValue: 0,
-                lineSubtotal: 0,
-                taxId: ''
-            }]);
-
-            // Reset customerId
-            handleHeaderChange("customerId", "");
-        }
-    };
 
     // Helper functions
     const formatDateForInput = (date: Date): string => {
@@ -149,27 +105,117 @@ export const CreateQuotationForm: React.FC<CreateQuotationFormProps> = ({
         };
     });
 
-    const [lines, setLines] = useState<CreateQuotationLineRequest[]>([
-        {
-            lineType: LineType.PRODUCT,
-            productId: '',
-            description: '',
-            qty: 1,
-            uom: '',
-            unitPrice: 0,
-            lineDiscountType: DiscountType.PERCENT,
-            lineDiscountValue: 0,
-            lineSubtotal: 0,
-            taxId: ''
-        }
-    ]);
+    const [lines, setLines] = useState<CreateQuotationLineRequest[]>([]);
 
-    const handleHeaderChange = (field: keyof typeof formData, value: string | number | boolean | null) => {
+    // handleHeaderChange dengan useCallback
+    const handleHeaderChange = useCallback((field: keyof typeof formData, value: string | number | boolean | null) => {
         setFormData(prev => ({
             ...prev,
             [field]: value === null ? '' : value
         }));
-    };
+    }, []);
+
+    // PERBAIKAN: handleSalesOrderChange yang lebih komprehensif
+    const handleSalesOrderChange = useCallback((salesOrderId: string) => {
+        console.log('Sales Order Selected:', salesOrderId);
+        setSelectedSalesOrderId(salesOrderId);
+
+        if (salesOrderId && salesOrderId !== 'no-sales-order') {
+            const selectedSalesOrder = salesOrders.find(so => so.id === salesOrderId);
+            if (selectedSalesOrder) {
+                setSelectedSalesOrder(selectedSalesOrder);
+
+                // PERBAIKAN: Set customerId langsung dari sales order
+                setFormData(prev => ({
+                    ...prev,
+                    customerId: selectedSalesOrder.customerId || prev.customerId,
+                    currency: selectedSalesOrder.currency || prev.currency
+                }));
+
+
+                // Map lines SO ke quotation lines
+                if (selectedSalesOrder.items?.length > 0) {
+                    const newLines: CreateQuotationLineRequest[] = selectedSalesOrder.items
+                        .filter(line => {
+                            return (line.productId && line.productId.trim() !== "")
+                                || (line.description && line.description.trim() !== "");
+                        })
+                        .map((line, index) => {
+                            const productId = line.productId || "";
+                            const productDetail = products.find(p => p.id === productId);
+
+                            return {
+                                lineType: line.itemType === "SERVICE" ? LineType.SERVICE : LineType.PRODUCT,
+                                productId,
+                                description: line.description?.trim() || productDetail?.name || `Item ${index + 1}`,
+                                qty: Number(line.qty) || 1,
+                                uom: line.uom || productDetail?.uom || "pcs",
+                                unitPrice: Number(line.unitPrice) || productDetail?.price || 0,
+                                lineDiscountType: DiscountType.PERCENT,
+                                lineDiscountValue: Number(line.discount) || 0,
+                                lineSubtotal: 0,
+                                taxId: null,
+                            };
+                        });
+                    setLines(newLines);
+                }
+            }
+        } else {
+            setLines([
+                {
+                    lineType: LineType.PRODUCT,
+                    productId: "",
+                    description: "",
+                    qty: 1,
+                    uom: "",
+                    unitPrice: 0,
+                    lineDiscountType: DiscountType.PERCENT,
+                    lineDiscountValue: 0,
+                    lineSubtotal: 0,
+                    taxId: null,
+                },
+            ]);
+
+            setFormData((prev) => ({
+                ...prev,
+                customerId: "",
+                currency: "IDR",
+            }));
+
+            setSelectedSalesOrder(null);
+        }
+    }, [salesOrders, products]);
+
+
+    useEffect(() => {
+        lines.forEach((line, index) => {
+            console.log(`Line ${index}:`, {
+                productId: line.productId,
+                description: line.description,
+                qty: line.qty,
+                unitPrice: line.unitPrice,
+                uom: line.uom
+            });
+        });
+    }, [lines]);
+
+    // PERBAIKAN: useEffect untuk handle pre-selected sales order
+    useEffect(() => {
+        if (preSelectedSalesOrderId) {
+            console.log('Pre-selected Sales Order ID:', preSelectedSalesOrderId);
+            handleSalesOrderChange(preSelectedSalesOrderId);
+        }
+    }, [preSelectedSalesOrderId, handleSalesOrderChange]);
+
+    useEffect(() => {
+        if (selectedSalesOrder?.customer?.id) {
+            setFormData((prev) => ({
+                ...prev,
+                customerId: prev.customerId || selectedSalesOrder.customer.id,
+            }));
+        }
+    }, [selectedSalesOrder]);
+
 
     const handleLineChange = (index: number, field: keyof CreateQuotationLineRequest, value: string | number | LineType | DiscountType | null) => {
         const updatedLines = lines.map((line, i) => {
@@ -370,7 +416,6 @@ export const CreateQuotationForm: React.FC<CreateQuotationFormProps> = ({
             discountValue: Number(formData.discountValue),
             otherCharges: Number(formData.otherCharges),
             exchangeRate: Number(formData.exchangeRate),
-
         };
 
         await onSubmit(submitData);
@@ -394,78 +439,106 @@ export const CreateQuotationForm: React.FC<CreateQuotationFormProps> = ({
         }
     };
 
+    // Tentukan apakah form dalam mode "pre-selected" (dari page dengan preSelectedSalesOrderId)
+    const isPreSelectedMode = !!preSelectedSalesOrderId;
+
     return (
         <div className="max-w-7xl mx-auto p-4 bg-white dark:bg-slate-900 dark:text-white rounded-lg shadow-sm">
-            {/* Header */}
+            {/* Header - PERBAIKAN: Tampilkan Sales Order Number */}
             <div className="border-b border-gray-200 pb-4 mb-6">
                 <div className="flex items-center gap-3 mb-2">
                     <FileText className="w-8 h-8 text-blue-600" />
-                    <h1 className="text-2xl font-bold">Create New Quotation</h1>
+                    <div>
+                        <h1 className="text-2xl font-bold">
+                            {isPreSelectedMode ? 'Create Quotation from Sales Order' : 'Create New Quotation'}
+                        </h1>
+                        {selectedSalesOrder && (
+                            <div className="flex items-center gap-2 mt-1">
+                                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                    Sales Order: {selectedSalesOrder.soNumber || 'No Number'}
+                                </Badge>
+                                {selectedSalesOrder.customer && (
+                                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                        Customer: {selectedSalesOrder.customer.name}
+                                    </Badge>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
-                <p className="text-gray-600">Fill in the details below to create a new quotation from sales order</p>
+                <p className="text-gray-600">
+                    {isPreSelectedMode
+                        ? `Creating quotation from sales order ${selectedSalesOrder?.soNumber || ''}`
+                        : 'Fill in the details below to create a new quotation from sales order'
+                    }
+                </p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Quotation Source Section */}
-                <Card className="bg-gradient-to-r from-primary/5 to-cyan-100 dark:from-slate-800 dark:to-blue-950 border-0">
-                    <CardHeader className="border-b border-cyan-300 dark:border-gray-700 px-4">
-                        <div className="flex items-center gap-3">
-                            <DockIcon className="w-5 h-5 text-orange-600" />
-                            <CardTitle className="text-lg font-semibold">Quotation Source</CardTitle>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="px-6">
-                        <div className="grid grid-cols-1 md:grid-cols-8 space-y-4">
-                            <div className="md:col-span-4 space-y-2">
-                                <Label className="text-sm font-medium text-foreground/80">
-                                    Sales Order <span className="text-red-500">*</span>
-                                </Label>
-                                <Select
-                                    value={selectedSalesOrderId}
-                                    onValueChange={handleSalesOrderChange}
-                                >
-                                    <SelectTrigger className="h-11 bg-background border-border/70 hover:border-border focus:border-primary 
-                   transition-colors shadow-sm dark:bg-background/95 dark:border-muted-foreground/30 
-                   dark:hover:border-muted-foreground/50 dark:focus:border-primary">
-                                        <SelectValue
-                                            placeholder={<span className="text-muted-foreground dark:text-muted-foreground/80">Select Sales Order</span>}
-                                        />
-                                    </SelectTrigger>
-                                    <SelectContent className="border-border/70 shadow-lg dark:border-muted-foreground/30 dark:bg-background/95">
-                                        <SelectItem
-                                            value="no-sales-order"
-                                            className="focus:bg-muted/50 transition-colors dark:focus:bg-muted/70 dark:text-foreground/90"
-                                        >
-                                            <span className="text-muted-foreground dark:text-muted-foreground/80">Select Sales Order</span>
-                                        </SelectItem>
-
-                                        {salesOrders.map((salesOrder) => (
-                                            <SelectItem
-                                                key={salesOrder.id}
-                                                value={salesOrder.id}
-                                                className="focus:bg-muted/50 transition-colors py-3 dark:focus:bg-muted/70 dark:text-foreground/90"
-                                            >
-                                                {/* Mobile: hanya soNumber */}
-                                                <span className="font-medium text-foreground md:hidden dark:text-foreground/90">
-                                                    {salesOrder.soNumber || "No Number"}
-                                                </span>
-
-                                                {/* Desktop: soNumber - Customer */}
-                                                <span className="font-medium text-foreground hidden md:block dark:text-foreground/90">
-                                                    {salesOrder.soNumber || "No Number"} -{" "}
-                                                    {salesOrder.customer?.name || "No Customer"}
-                                                </span>
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <p className="text-sm text-muted-foreground">
-                                    Select a sales order to automatically populate customer and items information
-                                </p>
+                {/* Quotation Source Section - Sembunyikan jika dalam mode pre-selected */}
+                {!isPreSelectedMode && (
+                    <Card className="bg-gradient-to-r from-primary/5 to-cyan-100 dark:from-slate-800 dark:to-blue-950 border-0">
+                        <CardHeader className="border-b border-cyan-300 dark:border-gray-700 px-4">
+                            <div className="flex items-center gap-3">
+                                <DockIcon className="w-5 h-5 text-orange-600" />
+                                <CardTitle className="text-lg font-semibold">Quotation Source</CardTitle>
                             </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                        </CardHeader>
+                        <CardContent className="px-6">
+                            <div className="grid grid-cols-1 md:grid-cols-8 space-y-4">
+                                <div className="md:col-span-4 space-y-2">
+                                    <Label className="text-sm font-medium text-foreground/80">
+                                        Sales Order <span className="text-red-500">*</span>
+                                    </Label>
+                                    <Select
+                                        value={selectedSalesOrderId}
+                                        onValueChange={handleSalesOrderChange}
+                                    >
+                                        <SelectTrigger className="h-11 bg-background border-border/70 hover:border-border focus:border-primary 
+                           transition-colors shadow-sm dark:bg-background/95 dark:border-muted-foreground/30 
+                           dark:hover:border-muted-foreground/50 dark:focus:border-primary">
+                                            <SelectValue
+                                                placeholder={<span className="text-muted-foreground dark:text-muted-foreground/80">Select Sales Order</span>}
+                                            />
+                                        </SelectTrigger>
+                                        <SelectContent className="border-border/70 shadow-lg dark:border-muted-foreground/30 dark:bg-background/95">
+                                            <SelectItem
+                                                value="no-sales-order"
+                                                className="focus:bg-muted/50 transition-colors dark:focus:bg-muted/70 dark:text-foreground/90"
+                                            >
+                                                <span className="text-muted-foreground dark:text-muted-foreground/80">Select Sales Order</span>
+                                            </SelectItem>
+
+                                            {salesOrders.map((salesOrder) => (
+                                                <SelectItem
+                                                    key={salesOrder.id}
+                                                    value={salesOrder.id}
+                                                    className="focus:bg-muted/50 transition-colors py-3 dark:focus:bg-muted/70 dark:text-foreground/90"
+                                                >
+                                                    <div className="flex flex-col">
+                                                        <span className="font-medium text-foreground dark:text-foreground/90">
+                                                            {salesOrder.soNumber || "No Number"} - {salesOrder.customer?.name || "No Customer"}
+                                                        </span>
+                                                        <span className="text-xs text-muted-foreground">
+                                                            Items: {salesOrder.items?.length || 0} |
+                                                            Total: {salesOrder.grandTotal?.toLocaleString('id-ID', {
+                                                                style: 'currency',
+                                                                currency: 'IDR'
+                                                            }) || 'N/A'}
+                                                        </span>
+                                                    </div>
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-sm text-muted-foreground">
+                                        Select a sales order to automatically populate customer and items information
+                                    </p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
 
                 {/* Customer & Basic Info Section */}
                 <Card className="bg-gradient-to-r from-primary/5 to-blue-100 dark:from-slate-800 dark:to-slate-900 border-0">
@@ -485,26 +558,75 @@ export const CreateQuotationForm: React.FC<CreateQuotationFormProps> = ({
                                 <Select
                                     value={formData.customerId}
                                     onValueChange={(value) => handleHeaderChange("customerId", value)}
-                                    disabled={true} // Disabled karena diisi otomatis dari sales order
                                 >
                                     <SelectTrigger className="bg-white dark:bg-gray-800 dark:text-white">
                                         <SelectValue placeholder="Select Customer" />
-                                        {formData.customerId && (
-                                            <span className="text-xs text-muted-foreground ml-2">(Auto-filled from Sales Order)</span>
+                                        {selectedSalesOrder?.customer && formData.customerId === selectedSalesOrder.customer.id && (
+                                            <span className="text-xs text-green-600 ml-2">
+                                                ✓ From Sales Order
+                                            </span>
                                         )}
                                     </SelectTrigger>
-                                    <SelectContent className="bg-white dark:bg-gray-800 dark:text-white">
-                                        {customers.map((customer) => (
-                                            <SelectItem
-                                                key={customer.id}
-                                                value={customer.id}
-                                                className="dark:text-white"
-                                            >
-                                                {customer.code} - {customer.name}
-                                            </SelectItem>
-                                        ))}
+                                    <SelectContent className="bg-white dark:bg-gray-800 dark:text-white max-h-60">
+                                        {/* Recommended Option */}
+                                        {selectedSalesOrder?.customer && (
+                                            <>
+                                                <div className="px-2 py-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20">
+                                                    RECOMMENDED FROM SALES ORDER
+                                                </div>
+                                                <SelectItem
+                                                    value={selectedSalesOrder.customer.id} // PASTIKAN VALUE TIDAK KOSONG
+                                                    className="bg-blue-50 dark:bg-blue-900/20 font-medium border-l-2 border-blue-500"
+                                                >
+                                                    <div className="flex items-center justify-between">
+                                                        <span>
+                                                            {selectedSalesOrder.customer.code} - {selectedSalesOrder.customer.name}
+                                                        </span>
+                                                        <Badge className="bg-blue-500 text-white">Recommended</Badge>
+                                                    </div>
+                                                </SelectItem>
+                                                <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
+                                            </>
+                                        )}
+
+                                        {/* All Customers */}
+                                        <div className="px-2 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-400">
+                                            ALL CUSTOMERS
+                                        </div>
+
+                                        {customers
+                                            .filter(customer =>
+                                                !selectedSalesOrder?.customer ||
+                                                customer.id !== selectedSalesOrder.customer.id
+                                            )
+                                            .map((customer) => (
+                                                <SelectItem
+                                                    key={customer.id}
+                                                    value={customer.id} // PASTIKAN VALUE TIDAK KOSONG
+                                                >
+                                                    {customer.code} - {customer.name}
+                                                </SelectItem>
+                                            ))
+                                        }
                                     </SelectContent>
                                 </Select>
+
+                                {/* Status info */}
+                                {selectedSalesOrder?.customer && (
+                                    <div className="flex items-center gap-2 text-sm">
+                                        {formData.customerId === selectedSalesOrder.customer.id ? (
+                                            <div className="text-green-600 dark:text-green-400 flex items-center gap-1">
+                                                <CheckCircle className="w-4 h-4" />
+                                                Using customer from Sales Order
+                                            </div>
+                                        ) : (
+                                            <div className="text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                                                <AlertCircle className="w-4 h-4" />
+                                                Different customer selected
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Currency */}
@@ -611,220 +733,263 @@ export const CreateQuotationForm: React.FC<CreateQuotationFormProps> = ({
                                 <CardTitle className="text-lg font-semibold">Quotation Items</CardTitle>
                             </div>
                             <div className="text-sm text-muted-foreground">
-                                Items are populated from selected sales order
+                                {isPreSelectedMode && selectedSalesOrder ? (
+                                    `Items from Sales Order ${selectedSalesOrder.soNumber} (${lines.length} items)`
+                                ) : (
+                                    'Items will be populated after selecting sales order'
+                                )}
                             </div>
                         </div>
                     </CardHeader>
                     <CardContent className="px-6 space-y-2">
-                        {lines.map((line, index) => (
-                            <Card key={index} className="border-2">
-                                <CardHeader className="pb-4">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            {getLineTypeIcon(line.lineType)}
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-medium">Item {index + 1}</span>
-                                                {getLineTypeBadge(line.lineType)}
-                                            </div>
+                        {/* PERBAIKAN: Debug info untuk development */}
+                        {/* {process.env.NODE_ENV === 'development' && (
+                            <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mb-4">
+                                <div className="text-sm text-yellow-800">
+                                    <strong>Debug Info:</strong> {lines.length} lines loaded |
+                                    Sales Order: {selectedSalesOrder?.soNumber} |
+                                    Items in SO: {selectedSalesOrder?.items?.length}
+                                    <br />
+                                    <strong>Line Details:</strong>
+                                    {lines.map((line, idx) => (
+                                        <div key={idx} className="ml-4">
+                                            Line {idx + 1}: {line.description || 'No description'} |
+                                            Qty: {line.qty} |
+                                            Price: {line.unitPrice} |
+                                            Product: {line.productId || 'No product'}
                                         </div>
-                                        {/* Tombol hapus dinonaktifkan karena items dari sales order */}
-                                        {lines.length > 1 && (
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => removeLine(index)}
-                                                className="h-8 w-8 text-red-600 hover:bg-red-50"
-                                                disabled={true} // Nonaktifkan hapus item
-                                                title="Items cannot be removed when created from sales order"
-                                            >
-                                                <Trash2 className="w-4 h-4 opacity-50" />
-                                            </Button>
-                                        )}
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <div className="grid grid-cols-1 lg:grid-cols-8 gap-4">
-                                        {/* Line Type - disabled karena dari sales order */}
-                                        <div className="lg:col-span-1 lg:col-start-1 space-y-2">
-                                            <Label>Type</Label>
-                                            <Select
-                                                value={line.lineType}
-                                                onValueChange={(value) => handleLineChange(index, 'lineType', value as LineType)}
-                                                disabled={true}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value={LineType.PRODUCT}>Product</SelectItem>
-                                                    <SelectItem value={LineType.SERVICE}>Service</SelectItem>
-                                                    <SelectItem value={LineType.CUSTOM}>Custom</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )} */}
 
-                                        {/* Product Selection - disabled karena dari sales order */}
-                                        <div className="lg:col-span-3 lg:col-start-2 space-y-2">
-                                            <Label>Product</Label>
-                                            <Select
-                                                value={line.productId || ""}
-                                                onValueChange={(value) => handleProductChange(index, value)}
-                                                disabled={true}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select Product" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="no-product">Select Product</SelectItem>
-                                                    {products.map(product => (
-                                                        <SelectItem key={product.id} value={product.id}>
-                                                            {product.code} - {product.name} (${product.price})
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
+                        {lines.map((line, index) => {
+                            // PERBAIKAN: Pastikan data line valid sebelum render
+                            const safeLine = {
+                                ...line,
+                                description: line.description || `Item ${index + 1}`,
+                                qty: line.qty || 0,
+                                unitPrice: line.unitPrice || 0,
+                                uom: line.uom || 'pcs'
+                            };
 
-                                        {/* Description - disabled karena dari sales order */}
-                                        <div className="lg:col-span-4 lg:col-start-6 space-y-2">
-                                            <Label>Description</Label>
-                                            <Textarea
-                                                value={line.description || ""}
-                                                onChange={(e) => handleLineChange(index, 'description', e.target.value)}
-                                                placeholder="Item description..."
-                                                disabled={true}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-8 lg:grid-cols-8 gap-2">
-                                        {/* Quantity - disabled karena dari sales order */}
-                                        <div className="space-y-2">
-                                            <Label>Quantity</Label>
-                                            <Input
-                                                type="number"
-                                                min="0"
-                                                step="0.01"
-                                                value={line.qty}
-                                                onChange={(e) => handleLineChange(index, 'qty', parseFloat(e.target.value) || 0)}
-                                            // disabled={true}
-                                            />
-                                        </div>
-
-                                        {/* UOM - disabled karena dari sales order */}
-                                        <div className="space-y-2">
-                                            <Label>Unit</Label>
-                                            <Input
-                                                type="text"
-                                                value={line.uom || ""}
-                                                onChange={(e) => handleLineChange(index, 'uom', e.target.value)}
-                                                placeholder="e.g., pcs, kg"
-                                            // disabled={true}
-                                            />
-                                        </div>
-
-                                        {/* Unit Price - disabled karena dari sales order */}
-                                        <div className="md:col-span-2 lg:col-span-2 space-y-2">
-                                            <Label>Unit Price</Label>
-                                            <Input
-                                                type="number"
-                                                min="0"
-                                                step="0.01"
-                                                value={line.unitPrice}
-                                                onChange={(e) => handleLineChange(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                                            // disabled={true}
-                                            />
-                                        </div>
-
-                                        {/* Tax - bisa diubah */}
-                                        <div className="space-y-2">
-                                            <Label>Tax</Label>
-                                            <Select
-                                                value={line.taxId || ""}
-                                                onValueChange={(value) => handleLineChange(index, 'taxId', value === 'no-tax' ? '' : value)}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="No Tax" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="no-tax">No Tax</SelectItem>
-                                                    {taxes.map(tax => (
-                                                        <SelectItem key={tax.id} value={tax.id}>
-                                                            {tax.code} ({tax.rate}%)
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-
-                                        <div className='md:col-span-3 lg:col-span-3 space-y-2'>
-                                            {/* Line Discount - bisa diubah */}
-                                            <div className="grid grid-cols-1 md:grid-cols-1 gap-4 pt-4 border-t">
-                                                <div className="space-y-2">
-                                                    <Label>Discount Type</Label>
-                                                    <RadioGroup
-                                                        value={line.lineDiscountType}
-                                                        onValueChange={(value) => handleLineChange(index, 'lineDiscountType', value as DiscountType)}
-                                                        className="flex gap-6"
-                                                    >
-                                                        <div className="flex items-center space-x-2">
-                                                            <RadioGroupItem value={DiscountType.PERCENT} id={`percent-${index}`} />
-                                                            <Label htmlFor={`percent-${index}`} className="flex items-center cursor-pointer">
-                                                                <Percent className="w-4 h-4 mr-1 text-gray-600" />
-                                                                Percent
-                                                            </Label>
-                                                        </div>
-                                                        <div className="flex items-center space-x-2">
-                                                            <RadioGroupItem value={DiscountType.AMOUNT} id={`amount-${index}`} />
-                                                            <Label htmlFor={`amount-${index}`} className="flex items-center cursor-pointer">
-                                                                <DollarSign className="w-4 h-4 mr-1 text-gray-600" />
-                                                                Amount
-                                                            </Label>
-                                                        </div>
-                                                    </RadioGroup>
+                            return (
+                                <Card key={index} className="border-2">
+                                    <CardHeader className="pb-4">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                {getLineTypeIcon(safeLine.lineType)}
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-medium">Item {index + 1}</span>
+                                                    {getLineTypeBadge(safeLine.lineType)}
+                                                    {/* PERBAIKAN: Tampilkan indicator jika data tidak lengkap */}
+                                                    {(!safeLine.productId || !safeLine.description || safeLine.unitPrice === 0) && (
+                                                        <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200 text-xs">
+                                                            Incomplete
+                                                        </Badge>
+                                                    )}
                                                 </div>
                                             </div>
-                                            <div className="mt-4 space-y-2">
-                                                <Label>Discount Value</Label>
+                                            {lines.length > 1 && (
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => removeLine(index)}
+                                                    className="h-8 w-8 text-red-600 hover:bg-red-50"
+                                                    disabled={isPreSelectedMode}
+                                                    title={isPreSelectedMode ? "Items cannot be removed when created from sales order" : "Remove item"}
+                                                >
+                                                    <Trash2 className={`w-4 h-4 ${isPreSelectedMode ? 'opacity-50' : ''}`} />
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <div className="grid grid-cols-1 lg:grid-cols-8 gap-4">
+                                            {/* Line Type */}
+                                            <div className="lg:col-span-1 lg:col-start-1 space-y-2">
+                                                <Label>Type</Label>
+                                                <Select
+                                                    value={safeLine.lineType}
+                                                    onValueChange={(value) => handleLineChange(index, 'lineType', value as LineType)}
+                                                    disabled={isPreSelectedMode}
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value={LineType.PRODUCT}>Product</SelectItem>
+                                                        <SelectItem value={LineType.SERVICE}>Service</SelectItem>
+                                                        <SelectItem value={LineType.CUSTOM}>Custom</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+
+                                            {/* Product Selection */}
+                                            <div className="lg:col-span-3 lg:col-start-2 space-y-2">
+                                                <Label>Product</Label>
+                                                <Select
+                                                    value={safeLine.productId || ""}
+                                                    onValueChange={(value) => handleProductChange(index, value)}
+                                                    disabled={isPreSelectedMode}
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Select Product" />
+                                                        {safeLine.productId && (
+                                                            <span className="text-xs text-muted-foreground ml-2">
+                                                                {products.find(p => p.id === safeLine.productId)?.code || 'Product'}
+                                                            </span>
+                                                        )}
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="no-product">Select Product</SelectItem>
+                                                        {products.map(product => (
+                                                            <SelectItem key={product.id} value={product.id}>
+                                                                {product.code} - {product.name} (${product.price})
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+
+                                            {/* Description */}
+                                            <div className="lg:col-span-4 lg:col-start-6 space-y-2">
+                                                <Label>Description</Label>
+                                                <Textarea
+                                                    value={safeLine.description || ""}
+                                                    onChange={(e) => handleLineChange(index, 'description', e.target.value)}
+                                                    placeholder="Item description..."
+                                                    disabled={isPreSelectedMode}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-8 lg:grid-cols-8 gap-2">
+                                            {/* Quantity */}
+                                            <div className="space-y-2">
+                                                <Label>Quantity</Label>
                                                 <Input
                                                     type="number"
                                                     min="0"
                                                     step="0.01"
-                                                    value={line.lineDiscountValue}
-                                                    onChange={(e) => handleLineChange(index, 'lineDiscountValue', parseFloat(e.target.value) || 0)}
+                                                    value={safeLine.qty}
+                                                    onChange={(e) => handleLineChange(index, 'qty', parseFloat(e.target.value) || 0)}
                                                 />
                                             </div>
-                                        </div>
-                                    </div>
 
-                                    {/* SubTotal - Hanya untuk tampilan UI */}
-                                    <div className="pt-4 border-t">
-                                        <div className="flex justify-between items-center bg-amber-100 dark:bg-slate-600  px-4 py-3 rounded-lg">
-                                            <Label className="text-base font-semibold">SubTotal Line</Label>
-                                            <div className="text-lg font-bold text-blue-600 dark:text-white">
-                                                {calculateLineSubtotal(line).toLocaleString('id-ID', {
-                                                    style: 'currency',
-                                                    currency: 'IDR',
-                                                    minimumFractionDigits: 2
-                                                })}
+                                            {/* UOM */}
+                                            <div className="space-y-2">
+                                                <Label>Unit</Label>
+                                                <Input
+                                                    type="text"
+                                                    value={safeLine.uom || ""}
+                                                    onChange={(e) => handleLineChange(index, 'uom', e.target.value)}
+                                                    placeholder="e.g., pcs, kg"
+                                                />
+                                            </div>
+
+                                            {/* Unit Price */}
+                                            <div className="md:col-span-2 lg:col-span-2 space-y-2">
+                                                <Label>Unit Price</Label>
+                                                <Input
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.01"
+                                                    value={safeLine.unitPrice}
+                                                    onChange={(e) => handleLineChange(index, 'unitPrice', parseFloat(e.target.value) || 0)}
+                                                />
+                                            </div>
+
+                                            {/* Tax */}
+                                            <div className="space-y-2">
+                                                <Label>Tax</Label>
+                                                <Select
+                                                    value={safeLine.taxId || ""}
+                                                    onValueChange={(value) => handleLineChange(index, 'taxId', value === 'no-tax' ? '' : value)}
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="No Tax" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="no-tax">No Tax</SelectItem>
+                                                        {taxes.map(tax => (
+                                                            <SelectItem key={tax.id} value={tax.id}>
+                                                                {tax.code} ({tax.rate}%)
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+
+                                            <div className='md:col-span-3 lg:col-span-3 space-y-2'>
+                                                {/* Line Discount */}
+                                                <div className="grid grid-cols-1 md:grid-cols-1 gap-4 pt-4 border-t">
+                                                    <div className="space-y-2">
+                                                        <Label>Discount Type</Label>
+                                                        <RadioGroup
+                                                            value={safeLine.lineDiscountType}
+                                                            onValueChange={(value) => handleLineChange(index, 'lineDiscountType', value as DiscountType)}
+                                                            className="flex gap-6"
+                                                        >
+                                                            <div className="flex items-center space-x-2">
+                                                                <RadioGroupItem value={DiscountType.PERCENT} id={`percent-${index}`} />
+                                                                <Label htmlFor={`percent-${index}`} className="flex items-center cursor-pointer">
+                                                                    <Percent className="w-4 h-4 mr-1 text-gray-600" />
+                                                                    Percent
+                                                                </Label>
+                                                            </div>
+                                                            <div className="flex items-center space-x-2">
+                                                                <RadioGroupItem value={DiscountType.AMOUNT} id={`amount-${index}`} />
+                                                                <Label htmlFor={`amount-${index}`} className="flex items-center cursor-pointer">
+                                                                    <DollarSign className="w-4 h-4 mr-1 text-gray-600" />
+                                                                    Amount
+                                                                </Label>
+                                                            </div>
+                                                        </RadioGroup>
+                                                    </div>
+                                                </div>
+                                                <div className="mt-4 space-y-2">
+                                                    <Label>Discount Value</Label>
+                                                    <Input
+                                                        type="number"
+                                                        min="0"
+                                                        step="0.01"
+                                                        value={safeLine.lineDiscountValue}
+                                                        onChange={(e) => handleLineChange(index, 'lineDiscountValue', parseFloat(e.target.value) || 0)}
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
+
+                                        {/* SubTotal */}
+                                        <div className="pt-4 border-t">
+                                            <div className="flex justify-between items-center bg-amber-100 dark:bg-slate-600 px-4 py-3 rounded-lg">
+                                                <Label className="text-base font-semibold">SubTotal Line</Label>
+                                                <div className="text-lg font-bold text-blue-600 dark:text-white">
+                                                    {calculateLineSubtotal(safeLine).toLocaleString('id-ID', {
+                                                        style: 'currency',
+                                                        currency: 'IDR',
+                                                        minimumFractionDigits: 2
+                                                    })}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            );
+                        })}
                     </CardContent>
-                    {/* Tombol Add Item dinonaktifkan */}
+                    {/* Tombol Add Item dinonaktifkan jika dalam mode pre-selected */}
                     <div className='flex justify-end items-end'>
                         <Button
                             type="button"
                             onClick={addLine}
                             className="flex items-center mx-6"
-                            disabled={true}
-                            title="Cannot add new items when created from sales order"
+                            disabled={isPreSelectedMode}
+                            title={isPreSelectedMode ? "Cannot add new items when created from sales order" : "Add new item"}
                         >
-                            <Plus className="w-4 h-4 opacity-50" />
+                            <Plus className={`w-4 h-4 ${isPreSelectedMode ? 'opacity-50' : ''}`} />
                             Add Item
                         </Button>
                     </div>
@@ -1037,7 +1202,7 @@ export const CreateQuotationForm: React.FC<CreateQuotationFormProps> = ({
                         ) : (
                             <>
                                 <FileText className="w-5 h-5" />
-                                Create Quotation from Sales Order
+                                {isPreSelectedMode ? 'Create Quotation' : 'Create Quotation from Sales Order'}
                             </>
                         )}
                     </Button>

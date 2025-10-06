@@ -30,11 +30,11 @@ export async function fetchAllProducts() {
 
 const typeMapping: Record<
   "PRODUCT" | "SERVICE" | "CUSTOM",
-  "Material" | "Jasa" | "Alat"
+  "PRODUCT" | "SERVICE" | "CUSTOM"
 > = {
-  PRODUCT: "Material",
-  SERVICE: "Jasa",
-  CUSTOM: "Alat",
+  PRODUCT: "PRODUCT", // backend balikin semua selain Jasa
+  SERVICE: "SERVICE", // backend balikin hanya Jasa
+  CUSTOM: "CUSTOM", // backend balikin hanya Alat (jika ada)
 };
 
 // Definisikan tipe untuk product
@@ -56,16 +56,8 @@ export async function fetchAllProductsByType(
 
     if (type) {
       const backendType = typeMapping[type];
-
-      if (type === "SERVICE") {
-        // Untuk SERVICE, ambil semua data kemudian filter di frontend
-        url = `${process.env.NEXT_PUBLIC_API_URL}/api/master/product/getAllProducts`;
-      } else {
-        // Untuk PRODUCT dan CUSTOM, gunakan endpoint dengan filter
-        url = `${process.env.NEXT_PUBLIC_API_URL}/api/master/product/getAllProductsByType/${backendType}`;
-      }
+      url = `${process.env.NEXT_PUBLIC_API_URL}/api/master/product/getAllProductsByType/${backendType}`;
     } else {
-      // Jika tidak ada type, ambil semua data
       url = `${process.env.NEXT_PUBLIC_API_URL}/api/master/product/getAllProducts`;
     }
 
@@ -78,16 +70,11 @@ export async function fetchAllProductsByType(
 
     if (!res.ok) throw new Error(`Gagal fetch produk: ${res.status}`);
 
-    let data: Product[] = await res.json();
-
-    // Jika type adalah SERVICE, filter untuk mengecualikan Material
-    if (type === "SERVICE") {
-      data = data.filter((product: Product) => product.type !== "Material");
-    }
+    const data: Product[] = await res.json();
 
     return { products: data || [], isLoading: false };
   } catch (error) {
-    console.error("[fetchAllProducts]", error);
+    console.error("[fetchAllProductsByType]", error);
     return { products: [], isLoading: false };
   }
 }

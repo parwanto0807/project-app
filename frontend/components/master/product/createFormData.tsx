@@ -53,6 +53,7 @@ import * as z from "zod";
 import { ProductRegisterSchema } from "@/schemas";
 import Image from "next/image";
 import { ensureFreshToken } from "@/lib/http";
+import { ProductType } from "@/constans/product-type";
 
 type ProductSchema = z.infer<typeof ProductRegisterSchema>;
 function getBasePath(role?: string) {
@@ -87,6 +88,9 @@ export function CreateProductForm({ role, code }: { role: string; code: string }
         }
     });
 
+    function formatLabel(value: string) {
+        return value.replace(/([A-Z])/g, " $1").trim();
+    }
     async function onSubmit(values: z.infer<typeof ProductRegisterSchema>) {
         setIsSubmitting(true);
         try {
@@ -251,17 +255,18 @@ export function CreateProductForm({ role, code }: { role: string; code: string }
                                                 <Wrench className="w-4 h-4" />
                                                 Product Type
                                             </FormLabel>
-                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <Select onValueChange={field.onChange} value={field.value}>
                                                 <FormControl>
                                                     <SelectTrigger>
                                                         <SelectValue placeholder="Select product type" />
                                                     </SelectTrigger>
                                                 </FormControl>
                                                 <SelectContent>
-                                                    <SelectItem value="Material">Material</SelectItem>
-                                                    <SelectItem value="Jasa">Jasa</SelectItem>
-                                                    <SelectItem value="Alat">Alat</SelectItem>
-
+                                                    {Object.values(ProductType).map((type) => (
+                                                        <SelectItem key={type} value={type}>
+                                                            {formatLabel(type)}
+                                                        </SelectItem>
+                                                    ))}
                                                 </SelectContent>
                                             </Select>
                                             <FormMessage />
