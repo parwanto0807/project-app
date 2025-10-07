@@ -142,6 +142,7 @@ export const CreateQuotationForm: React.FC<CreateQuotationFormProps> = ({
             discountValue: 0,
             taxInclusive: false,
             taxTotal: 0,
+            total:0,
             otherCharges: 0,
             notes: '',
             preparedBy: '',

@@ -89,6 +89,7 @@ export const CreateQuotationFormById: React.FC<CreateQuotationFormProps> = ({
             customerId: '',
             currency: 'IDR',
             exchangeRate: 1,
+            salesOrderId: '',
             status: QuotationStatus.DRAFT,
             validFrom: formatDateForInput(today),
             validUntil: formatDateForInput(nextMonth),
@@ -98,6 +99,7 @@ export const CreateQuotationFormById: React.FC<CreateQuotationFormProps> = ({
             discountValue: 0,
             taxInclusive: false,
             taxTotal: 0,
+            total:0,
             otherCharges: 0,
             notes: '',
             preparedBy: '',
@@ -400,6 +402,9 @@ export const CreateQuotationFormById: React.FC<CreateQuotationFormProps> = ({
         const submitData: CreateQuotationRequest = {
             ...formData,
             validFrom: formData.validFrom || null,
+            salesOrderId: selectedSalesOrderId && selectedSalesOrderId !== '' && selectedSalesOrderId !== 'no-sales-order'
+                ? selectedSalesOrderId
+                : null,
             validUntil: formData.validUntil || null,
             paymentTermId: formData.paymentTermId || null,
             notes: formData.notes || null,

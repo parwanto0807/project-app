@@ -70,6 +70,7 @@ export const quotationLineSchema = z.object({
 export const createQuotationSchema = z.object({
   customerId: z.string().uuid("Invalid customer ID"),
   quotationNumber: z.string().optional(),
+  salesOrderId: z.string().optional(),
   currency: z.string().min(1, "Currency is required").default("IDR"),
   exchangeRate: z
     .number()
@@ -107,9 +108,12 @@ export const createQuotationSchema = z.object({
   autoGenerateNumber: z.boolean().default(true),
 });
 
-export const updateQuotationSchema = createQuotationSchema.partial().extend({
-  version: z.number().int().positive().optional(),
-});
+export const updateQuotationSchema = createQuotationSchema
+  .partial()
+  .extend({
+    customerId: z.string().uuid("Invalid customer ID"), // override supaya tetap wajib
+    version: z.number().int().positive().optional(),
+  });
 
 export const updateQuotationStatusSchema = z.object({
   status: quotationStatusSchema,

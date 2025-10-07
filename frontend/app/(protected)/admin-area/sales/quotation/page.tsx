@@ -14,11 +14,12 @@ import { Badge } from "@/components/ui/badge";
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { LayoutProps } from "@/types/layout";
 import { QuotationTable } from "@/components/sales/quotation/tableData";
-import { useQuotations } from "@/hooks/use-quotation";
+import { useDeleteQuotation, useQuotations } from "@/hooks/use-quotation";
 import { useEffect } from "react";
 import { AdminLoading } from "@/components/admin-loading";
 
 export default function QuotationPageAdmin() {
+  const { mutate: deleteQuotation, isPending } = useDeleteQuotation();
   const router = useRouter();
 
   // Role auth dummy → ganti sesuai auth system kamu
@@ -104,6 +105,14 @@ export default function QuotationPageAdmin() {
               isError={isError}
               role={userRole}
               pagination={pagination}
+              onDelete={(id, options) =>
+                deleteQuotation(id, {
+                  onSuccess: () => {
+                    options?.onSuccess?.();
+                  },
+                })
+              }
+              isDeleting={isPending}
             />
           </div>
         </div>

@@ -76,6 +76,7 @@ export const createQuotation = async (req, res) => {
       currency = "IDR",
       exchangeRate = 1.0,
       status = "DRAFT",
+      salesOrderId,
       validFrom,
       validUntil,
       paymentTermId,
@@ -88,7 +89,6 @@ export const createQuotation = async (req, res) => {
       lines = [],
     } = req.body;
 
-    // Validasi required fields (quotationNumber dihapus)
     if (!customerId) {
       return res.status(400).json({
         error: "customerId diperlukan",
@@ -136,6 +136,7 @@ export const createQuotation = async (req, res) => {
           customerId,
           quotationNumber, // Gunakan auto-generated number
           currency,
+          salesOrderId,
           exchangeRate: parseFloat(exchangeRate),
           status,
           validFrom: validFrom ? new Date(validFrom) : null,
@@ -364,6 +365,7 @@ export const getQuotationById = async (req, res) => {
         comments: {
           orderBy: { createdAt: "desc" },
         },
+        salesOrder: true,
         histories: {
           orderBy: { changeAt: "desc" },
         },
@@ -503,7 +505,7 @@ export const updateQuotation = async (req, res) => {
           version: quotation.version,
           changedBy: preparedBy,
           changeNote: "Quotation updated",
-          payload: quotation,
+          payload: JSON.parse(JSON.stringify(quotation)),
         },
       });
 

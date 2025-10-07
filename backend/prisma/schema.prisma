@@ -325,10 +325,12 @@ model Quotation {
   otherCharges  Decimal      @default(0)
   total         Decimal      @default(0)
 
-  notes      String?
-  preparedBy String? // user id
-  approvedBy String?
-  approvedAt DateTime?
+  notes        String?
+  preparedBy   String? // user id
+  approvedBy   String?
+  approvedAt   DateTime?
+  salesOrderId String?
+  salesOrder   SalesOrder? @relation(fields: [salesOrderId], references: [id])
 
   // Relasi ke item
   lines QuotationLine[]
@@ -511,6 +513,7 @@ model SalesOrder {
   invoices  Invoice[]
   spk       SPK[]
   bap       BAP[]
+  quotation Quotation[]
 
   @@index([customerId, soDate])
   @@index([status])

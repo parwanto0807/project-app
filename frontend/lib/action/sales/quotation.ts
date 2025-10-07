@@ -6,6 +6,7 @@ import {
   Quotation,
   QuotationSummary,
   UploadAttachmentRequest,
+  QuotationApiResponse,
 } from "@/types/quotation";
 import { QuotationStatus } from "@/types/quotation";
 
@@ -17,7 +18,6 @@ const API_BASE_URL =
 // Helper function untuk handle API responses
 // Tambahkan function handleResponse yang lebih robust
 async function handleResponse<T>(response: Response): Promise<T> {
-
   if (!response.ok) {
     let errorMessage = "Request failed";
 
@@ -78,7 +78,6 @@ export async function getQuotations(params?: {
       queryParams.toString() ? `?${queryParams.toString()}` : ""
     }`;
 
-
     const response = await fetch(url, {
       method: "GET",
       headers: {
@@ -89,21 +88,17 @@ export async function getQuotations(params?: {
 
     if (!response.ok) {
       let errorMessage = `HTTP error! status: ${response.status}`;
-
       try {
         const errorData = await response.json();
-        console.error("❌ Error response data:", errorData);
         errorMessage = errorData.error || errorData.message || errorMessage;
       } catch (parseError) {
         console.error("❌ Cannot parse error response:", parseError);
       }
-
       throw new Error(errorMessage);
     }
 
-    // Parse response text first untuk debugging
+    // Debug: Lihat response sebenarnya
     const responseText = await response.text();
-
     let result;
     try {
       result = JSON.parse(responseText);
@@ -112,43 +107,56 @@ export async function getQuotations(params?: {
       throw new Error("Invalid JSON response from server");
     }
 
-    // Check if response has expected structure
-    if (!result || typeof result !== "object") {
-      throw new Error("Invalid response format from server");
-    }
-
-    // Handle different response structures
-    if (result.data !== undefined) {
-      // Jika response sudah dalam format { data: [], pagination: {} }
-      return {
-        data: result.data || [],
-        pagination: result.pagination || {
-          page: 1,
-          limit: 10,
-          total: 0,
-          pages: 0,
-        },
-      };
-    } else if (Array.isArray(result)) {
-      // Jika response langsung array
+    // Handle response berdasarkan struktur sebenarnya
+    if (Array.isArray(result)) {
       return {
         data: result,
         pagination: {
-          page: 1,
-          limit: result.length,
+          page: params?.page || 1,
+          limit: params?.limit || result.length,
           total: result.length,
-          pages: 1,
+          pages: Math.ceil(result.length / (params?.limit || result.length)),
+        },
+      };
+    } else if (result.data !== undefined) {
+      return {
+        data: result.data || [],
+        pagination: result.pagination || {
+          page: params?.page || 1,
+          limit: params?.limit || 10,
+          total: result.total || result.data?.length || 0,
+          pages:
+            result.pages ||
+            Math.ceil(
+              (result.total || result.data?.length || 0) / (params?.limit || 10)
+            ),
+        },
+      };
+    } else if (result.quotations !== undefined) {
+      return {
+        data: result.quotations || [],
+        pagination: result.pagination || {
+          page: params?.page || 1,
+          limit: params?.limit || 10,
+          total: result.total || result.quotations?.length || 0,
+          pages:
+            result.pages ||
+            Math.ceil(
+              (result.total || result.quotations?.length || 0) /
+                (params?.limit || 10)
+            ),
         },
       };
     } else {
-      // Fallback untuk structure lain
       return {
-        data: [],
+        data: result || [],
         pagination: {
-          page: 1,
-          limit: 10,
-          total: 0,
-          pages: 0,
+          page: params?.page || 1,
+          limit: params?.limit || 10,
+          total: Array.isArray(result) ? result.length : 0,
+          pages: Math.ceil(
+            (Array.isArray(result) ? result.length : 0) / (params?.limit || 10)
+          ),
         },
       };
     }
@@ -159,13 +167,15 @@ export async function getQuotations(params?: {
 }
 
 // GET - Get quotation by ID
-export async function getQuotationById(id: string): Promise<Quotation> {
+export async function getQuotationById(
+  id: string
+): Promise<QuotationApiResponse> {
   if (!id) {
     throw new Error("Quotation ID is required");
   }
 
   const response = await fetch(
-    `${API_BASE_URL}/quotations/getQuotationById${id}`,
+    `${API_BASE_URL}/api/quotations/getQuotationById${id}`,
     {
       method: "GET",
       headers: {
@@ -175,14 +185,13 @@ export async function getQuotationById(id: string): Promise<Quotation> {
       cache: "no-store",
     }
   );
-  return handleResponse<Quotation>(response);
+  return handleResponse<QuotationApiResponse>(response);
 }
 
 // POST - Create new quotation
 export async function createQuotation(
   quotationData: CreateQuotationRequest
 ): Promise<Quotation> {
-
   // Validasi input
   if (!quotationData.customerId) {
     throw new Error("Customer ID is required");
@@ -222,7 +231,7 @@ export async function updateQuotation(
   }
 
   const response = await fetch(
-    `${API_BASE_URL}/quotations/updateQuotation${id}`,
+    `${API_BASE_URL}/api/quotations/updateQuotation${id}`,
     {
       method: "PUT",
       headers: {
@@ -244,7 +253,7 @@ export async function deleteQuotation(
   }
 
   const response = await fetch(
-    `${API_BASE_URL}/quotations/deleteQuotation${id}`,
+    `${API_BASE_URL}/api/quotations/deleteQuotation${id}`,
     {
       method: "DELETE",
       headers: {

@@ -545,11 +545,11 @@ export function BAPPdfDocument({ bap }: { bap: BAPData }) {
                             <Text style={styles.projectValue}>{bap.salesOrder.project?.name}</Text>
                         </View>
                         <View style={styles.projectRow}>
-                            <Text style={styles.projectLabel}>SPK - Tanggal</Text>
+                            <Text style={styles.projectLabel}>Tanggal Pengerjaan</Text>
                             <Text style={styles.projectValue}>
                                 {bap.salesOrder.spk && bap.salesOrder.spk.length > 0 ? (
                                     <>
-                                        {bap.salesOrder.spk[0].spkNumber} - {formatIndonesianDate(bap.salesOrder.spk[0].spkDate)}
+                                        {formatIndonesianDate(bap.salesOrder.spk[0].spkDate)} - {bap.salesOrder.spk[0].spkNumber}
                                     </>
                                 ) : (
                                     "Tidak ada SPK"

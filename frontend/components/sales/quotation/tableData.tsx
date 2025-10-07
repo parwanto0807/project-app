@@ -66,6 +66,16 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Quotation, QuotationLine, QuotationSummary } from "@/types/quotation";
@@ -96,6 +106,8 @@ interface QuotationTableProps {
     pagination?: PaginationInfo;
     onPageChange?: (page: number) => void;
     onLimitChange?: (limit: number) => void;
+    onDelete: (id: string, options?: { onSuccess?: () => void }) => void;
+    isDeleting?: boolean; // ← harus boolean, bukan function
 }
 
 type SortField = "quotationNumber" | "customerName" | "totalAmount" | "createdAt" | "status";
@@ -113,7 +125,9 @@ export function QuotationTable({
         pages: 1
     },
     onPageChange,
-    onLimitChange
+    onLimitChange,
+    onDelete,
+    isDeleting,
 }: QuotationTableProps) {
     const [searchTerm, setSearchTerm] = useState("");
     const [sortField, setSortField] = useState<SortField>("createdAt");
@@ -122,6 +136,8 @@ export function QuotationTable({
     const [currentPage, setCurrentPage] = useState(pagination.page);
     const [selectedQuotation, setSelectedQuotation] = useState<QuotationSummary | null>(null);
     const [showPdfDialog, setShowPdfDialog] = useState(false);
+    const [showAlertDialog, setShowAlertDialog] = useState(false);
+
     const router = useRouter();
     console.log("role", role)
     // Filter quotations based on search term
@@ -197,10 +213,22 @@ export function QuotationTable({
         }
     };
 
+    const handleEdit = (e: React.MouseEvent, quotationId: string) => {
+        e.stopPropagation();
+        router.push(`/admin-area/sales/quotation/update/${quotationId}`);
+    };
+
+
     // Handle buka PDF Dialog
     const handleOpenPdfDialog = (quotation: QuotationSummary) => {
         setSelectedQuotation(quotation);
         setShowPdfDialog(true);
+    };
+
+    // Handle buka PDF Dialog
+    const handleOpenAlertDialog = (quotation: QuotationSummary) => {
+        setSelectedQuotation(quotation);
+        setShowAlertDialog(true);
     };
 
     // Handle tutup PDF Dialog
@@ -571,7 +599,7 @@ export function QuotationTable({
                         <Eye className="h-4 w-4" />
                         Preview PDF
                     </Button>
-                    <PDFDownloadLink
+                    {/* <PDFDownloadLink
                         document={<QuotationPdfDocument quotation={quotation} />}
                         fileName={`quotation-${quotation.quotationNumber}.pdf`}
                         className="flex-1 min-w-[120px]"
@@ -587,7 +615,7 @@ export function QuotationTable({
                                 {loading ? 'Membuat...' : 'Unduh PDF'}
                             </Button>
                         )}
-                    </PDFDownloadLink>
+                    </PDFDownloadLink> */}
                     <Button
                         variant="outline"
                         size="sm"
@@ -600,6 +628,11 @@ export function QuotationTable({
                         variant="outline"
                         size="sm"
                         className="flex items-center gap-2 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/30"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenAlertDialog(quotation);
+                        }}
+                        disabled={isDeleting}
                     >
                         <Trash2 className="h-4 w-4" />
                         Hapus
@@ -895,30 +928,10 @@ export function QuotationTable({
                                                         >
                                                             <Eye className="h-4 w-4" />
                                                         </Button>
-                                                        <PDFDownloadLink
-                                                            document={<QuotationPdfDocument quotation={quotation} />}
-                                                            fileName={`quotation-${quotation.quotationNumber}.pdf`}
-                                                        >
-                                                            {({ loading }) => (
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    onClick={(e) => e.stopPropagation()}
-                                                                    className="h-8 w-8 p-0 text-green-600 hover:text-green-800 dark:hover:text-green-300 hover:bg-green-50 border-2 dark:hover:border-green-600 cursor-pointer"
-                                                                    title="Download PDF"
-                                                                    disabled={loading}
-                                                                >
-                                                                    <Download className="h-4 w-4" />
-                                                                </Button>
-                                                            )}
-                                                        </PDFDownloadLink>
                                                         <Button
                                                             variant="ghost"
                                                             size="sm"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                /* Handle edit */
-                                                            }}
+                                                            onClick={(e) => handleEdit(e, quotation.id)}
                                                             className="h-8 w-8 p-0 text-orange-600 hover:text-orange-800 dark:hover:text-orange-300 hover:bg-orange-50 border-2 dark:hover:border-orange-600 cursor-pointer"
                                                             title="Edit Quotation"
                                                         >
@@ -929,13 +942,15 @@ export function QuotationTable({
                                                             size="sm"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                /* Handle delete */
+                                                                handleOpenAlertDialog(quotation); // set quotation yang akan dihapus
                                                             }}
                                                             className="h-8 w-8 p-0 text-red-600 hover:text-red-800 dark:hover:text-red-300 hover:bg-red-50 dark:hover:border-red-600 cursor-pointer border-2"
                                                             title="Delete Quotation"
+                                                            disabled={isDeleting} // disable saat delete
                                                         >
                                                             <Trash2 className="h-4 w-4" />
                                                         </Button>
+
                                                     </div>
                                                 </TableCell>
                                             </TableRow>
@@ -965,15 +980,15 @@ export function QuotationTable({
                             </div>
                         ) : (
                             sortedQuotations.map((quotation) => (
-                                <Card key={quotation.id} className="overflow-hidden border-slate-200 shadow-sm">
-                                    <CardHeader className="pb-3 bg-slate-50/50">
+                                <Card key={quotation.id} className="overflow-hidden border-slate-200 dark:border-slate-800 shadow-sm">
+                                    <CardHeader className="pb-3 bg-slate-50/50 dark:bg-slate-900">
                                         <div className="flex justify-between items-start">
                                             <div>
-                                                <CardTitle className="text-lg flex items-center gap-2">
+                                                <CardTitle className="text-sm flex items-center gap-2">
                                                     <FileDigit className="h-4 w-4 text-blue-600" />
                                                     {quotation.quotationNumber}
                                                 </CardTitle>
-                                                <CardDescription className="flex items-center gap-2 mt-1">
+                                                <CardDescription className="flex text-sm items-center gap-2 mt-1">
                                                     <Building className="h-4 w-4 text-green-600" />
                                                     {quotation.customer.name}
                                                 </CardDescription>
@@ -1060,23 +1075,6 @@ export function QuotationTable({
                                                         <Eye className="h-4 w-4" />
                                                         Preview
                                                     </Button>
-                                                    <PDFDownloadLink
-                                                        document={<QuotationPdfDocument quotation={quotation} />}
-                                                        fileName={`quotation-${quotation.quotationNumber}.pdf`}
-                                                        className="flex-1 min-w-[120px]"
-                                                    >
-                                                        {({ loading }) => (
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                className="flex-1 min-w-[120px] flex items-center gap-2"
-                                                                disabled={loading}
-                                                            >
-                                                                <Download className="h-4 w-4" />
-                                                                {loading ? 'Membuat...' : 'PDF'}
-                                                            </Button>
-                                                        )}
-                                                    </PDFDownloadLink>
                                                 </div>
                                             </div>
                                         )}
@@ -1111,32 +1109,25 @@ export function QuotationTable({
                                                     <Eye className="h-4 w-4" />
                                                     {expandedRows.has(quotation.id) ? "Sembunyikan" : "Tampilkan"} Detail
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleOpenPdfDialog(quotation)} className="flex items-center gap-2">
-                                                    <Eye className="h-4 w-4 text-blue-600" />
-                                                    Preview PDF
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem asChild>
-                                                    <PDFDownloadLink
-                                                        document={<QuotationPdfDocument quotation={quotation} />}
-                                                        fileName={`quotation-${quotation.quotationNumber}.pdf`}
-                                                        className="flex items-center gap-2"
-                                                    >
-                                                        {({ loading }) => (
-                                                            <div className="flex items-center gap-2">
-                                                                <Download className="h-4 w-4 text-green-600" />
-                                                                {loading ? 'Membuat...' : 'Unduh PDF'}
-                                                            </div>
-                                                        )}
-                                                    </PDFDownloadLink>
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem className="flex items-center gap-2">
+                                                <DropdownMenuItem
+                                                    className="flex items-center gap-2"
+                                                    onClick={(e) => handleEdit(e, quotation.id)}
+                                                >
                                                     <Edit className="h-4 w-4 text-orange-600" />
                                                     Edit
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem className="text-red-600 flex items-center gap-2">
+
+                                                <DropdownMenuItem
+                                                    className="text-red-600 flex items-center gap-2"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation(); // tetap hentikan bubbling
+                                                        handleOpenAlertDialog(quotation); // set quotation yang akan dihapus
+                                                    }}
+                                                >
                                                     <Trash2 className="h-4 w-4" />
                                                     Hapus
                                                 </DropdownMenuItem>
+
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </div>
@@ -1246,6 +1237,38 @@ export function QuotationTable({
                     </div>
                 </DialogContent>
             </Dialog>
+
+            <AlertDialog open={showAlertDialog} onOpenChange={setShowAlertDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Hapus Quotation</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Apakah kamu yakin ingin menghapus quotation {selectedQuotation?.quotationNumber}? Tindakan ini tidak bisa dibatalkan.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isDeleting}>Batal</AlertDialogCancel>
+                        <AlertDialogAction
+                            className="bg-red-500 text-white hover:bg-red-600 flex items-center gap-2"
+                            onClick={() =>
+                                onDelete(selectedQuotation?.id ?? "", {
+                                    onSuccess: () => setShowAlertDialog(false),
+                                })
+                            }
+                            disabled={isDeleting}
+                        >
+                            {isDeleting ? (
+                                <>
+                                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                    Menghapus...
+                                </>
+                            ) : (
+                                "Hapus"
+                            )}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

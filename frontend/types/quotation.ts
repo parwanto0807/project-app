@@ -1,3 +1,5 @@
+import { SalesOrder } from "@/schemas";
+
 export enum QuotationStatus {
   DRAFT = "DRAFT",
   SENT = "SENT",
@@ -210,6 +212,7 @@ export interface PaymentTerm {
 // Full Quotation with Relations
 export interface Quotation extends BaseQuotation {
   customer: Customer;
+  salesOrder: SalesOrder;
   paymentTerm?: PaymentTerm | null;
   lines: QuotationLine[];
   histories: QuotationHistory[];
@@ -218,10 +221,15 @@ export interface Quotation extends BaseQuotation {
   comments: QuotationComment[];
 }
 
+export interface QuotationApiResponse {
+    data: Quotation;
+}
+
 // Request/Response Types
 export interface CreateQuotationRequest {
   customerId: string;
   quotationNumber?: string;
+  salesOrderId?: string | null;
   currency?: string;
   exchangeRate?: number;
   status?: QuotationStatus;
@@ -233,6 +241,7 @@ export interface CreateQuotationRequest {
   discountValue?: number;
   taxInclusive?: boolean;
   taxTotal: number;
+  total:number;
   otherCharges?: number;
   notes?: string | null;
   preparedBy?: string | null;
@@ -354,6 +363,7 @@ export interface QuotationFormData {
   notes?: string | null;
   preparedBy?: string | null;
   lines: QuotationLineFormData[];
+  autoGenerateNumber: boolean;
 }
 
 export interface QuotationLineFormData {

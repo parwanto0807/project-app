@@ -636,7 +636,7 @@ export const SPKPDF: React.FC<SPKPDFProps> = ({ data }) => {
                 {/* Lampiran */}
                 <View style={styles.lampiranSection}>
                     <Text style={styles.notesLabel}>Lampiran :</Text>
-                    <Text>1. Laporan Progress Pekerjaan (LPP)</Text>
+                    <Text>1. Laporan Pengeluaran Perjalanan (LPP)</Text>
                 </View>
 
                 {/* Tembusan dan Footer dalam satu baris */}

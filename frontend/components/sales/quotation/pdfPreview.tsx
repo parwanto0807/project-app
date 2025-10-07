@@ -1,6 +1,5 @@
 import { QuotationLine, QuotationSummary } from "@/types/quotation";
 import { Document, Page, Text, View, StyleSheet, Image as PdfImage } from '@react-pdf/renderer';
-import path from 'path';
 
 // Create styles
 const styles = StyleSheet.create({
@@ -188,12 +187,13 @@ const styles = StyleSheet.create({
 });
 
 // Format currency
-const formatCurrency = (amount: number) => {
+const formatCurrency = (amount: number | string) => {
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
     return new Intl.NumberFormat('id-ID', {
         style: 'currency',
         currency: 'IDR',
         minimumFractionDigits: 0,
-    }).format(amount);
+    }).format(numAmount);
 };
 
 // Format date
@@ -250,7 +250,13 @@ const getStatusText = (status: string) => {
 
 // Quotation PDF Component
 const QuotationPdfDocument = ({ quotation }: { quotation: QuotationSummary }) => {
-    const logoPath = path.resolve('/LogoMd.png');
+    // Remove path.resolve and use a direct path or base64 image
+    // Option 1: Use a public URL (if logo is in public folder)
+    const logoPath = '/LogoMd.png'; // Direct path from public folder
+    
+    // Option 2: Use a base64 encoded image (if you have the logo as base64)
+    // const logoBase64 = 'data:image/png;base64,...';
+    
     const {
         quotationNumber,
         version,
@@ -279,7 +285,14 @@ const QuotationPdfDocument = ({ quotation }: { quotation: QuotationSummary }) =>
 
                 {/* Header dengan logo dan info perusahaan */}
                 <View style={styles.headerContainer}>
-                    <PdfImage style={styles.logo} src={logoPath} />
+                    {/* Only render image if path is available */}
+                    {logoPath && (
+                        <PdfImage 
+                            style={styles.logo} 
+                            src={logoPath}
+                            // Add error handling for missing images
+                        />
+                    )}
                     <View style={styles.companyInfo}>
                         <Text style={{ color: '#008000', fontWeight: 'bold', fontSize: 12, marginBottom: 5 }}>
                             PT. RYLIF MIKRO MANDIRI
@@ -301,7 +314,7 @@ const QuotationPdfDocument = ({ quotation }: { quotation: QuotationSummary }) =>
                             <View style={styles.row}>
                                 <Text style={styles.label}>Quotation Number:</Text>
                                 <Text style={[styles.value, { fontWeight: 'bold' }]}>
-                                    {quotationNumber} {version > 1 ? `(Rev. ${version})` : ''}
+                                    {quotationNumber} {version && version > 1 ? `(Rev. ${version})` : ''}
                                 </Text>
                             </View>
                             <View style={styles.row}>
@@ -321,7 +334,7 @@ const QuotationPdfDocument = ({ quotation }: { quotation: QuotationSummary }) =>
                             </View>
                             <View style={styles.row}>
                                 <Text style={styles.label}>Customer Code:</Text>
-                                <Text style={styles.value}>{customer.code}</Text>
+                                <Text style={styles.value}>{customer?.code || '-'}</Text>
                             </View>
                         </View>
                     </View>
@@ -330,10 +343,10 @@ const QuotationPdfDocument = ({ quotation }: { quotation: QuotationSummary }) =>
                         <View style={styles.section}>
                             <Text style={styles.sectionTitle}>QUOTE TO</Text>
                             <Text style={{ fontWeight: 'bold', marginBottom: 3 }}>
-                                {customer.name}
+                                {customer?.name || '-'}
                             </Text>
-                            <Text>{customer.email}</Text>
-                            <Text>{customer.address}</Text>
+                            <Text>{customer?.email || '-'}</Text>
+                            <Text>{customer?.address || '-'}</Text>
                         </View>
                     </View>
                 </View>
@@ -370,7 +383,7 @@ const QuotationPdfDocument = ({ quotation }: { quotation: QuotationSummary }) =>
 
                         {/* Table Rows */}
                         {lines.map((line, index) => (
-                            <View key={line.id} style={styles.tableRow}>
+                            <View key={line.id || index} style={styles.tableRow}>
                                 <Text style={styles.colNo}>{line.lineNo || index + 1}</Text>
                                 <Text style={styles.colDesc}>
                                     {line.product?.name || line.description || 'Product Description'}
@@ -442,7 +455,7 @@ const QuotationPdfDocument = ({ quotation }: { quotation: QuotationSummary }) =>
                         <Text>Diterima Oleh,</Text>
                         <View style={styles.approvalLine} />
                         <Text>Customer</Text>
-                        <Text>{customer.name}</Text>
+                        <Text>{customer?.name || 'Customer'}</Text>
                     </View>
                 </View>
 

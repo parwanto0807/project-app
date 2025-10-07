@@ -19,6 +19,7 @@ import {
   QuotationQueryParams,
   QuotationListResponse,
 } from "@/types/quotation";
+import { useState } from "react";
 
 // GET - All quotations dengan pagination
 export function useQuotations(params?: QuotationQueryParams) {
@@ -88,16 +89,41 @@ export function useCreateQuotation() {
 // PUT - Update quotation
 export function useUpdateQuotation() {
   const queryClient = useQueryClient();
+  const [error, setError] = useState<Error | null>(null);
 
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateQuotationRequest }) =>
-      updateQuotation(id, data),
-    onSuccess: (_, variables) => {
-      // Invalidate both list and specific quotation
+  const mutation = useMutation({
+    mutationFn: async ({
+      id,
+      ...data
+    }: UpdateQuotationRequest & { id: string }) => {
+      try {
+        const result = await updateQuotation(id, data);
+        return result;
+      } catch (err) {
+        console.error("❌ Update failed:", err);
+        setError(err as Error);
+        throw err;
+      }
+    },
+    onSuccess: (data, variables) => {
+      // Invalidate queries
       queryClient.invalidateQueries({ queryKey: ["quotations"] });
       queryClient.invalidateQueries({ queryKey: ["quotation", variables.id] });
+      queryClient.setQueryData(["quotation", variables.id], data);
+
+      setError(null);
+    },
+    onError: (error: Error) => {
+      console.error("💥 Update onError:", error);
+      setError(error);
     },
   });
+
+  return {
+    ...mutation,
+    error,
+    clearError: () => setError(null),
+  };
 }
 
 // DELETE - Delete quotation
