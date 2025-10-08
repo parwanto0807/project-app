@@ -119,7 +119,6 @@ export const CreateQuotationFormById: React.FC<CreateQuotationFormProps> = ({
 
     // PERBAIKAN: handleSalesOrderChange yang lebih komprehensif
     const handleSalesOrderChange = useCallback((salesOrderId: string) => {
-        console.log('Sales Order Selected:', salesOrderId);
         setSelectedSalesOrderId(salesOrderId);
 
         if (salesOrderId && salesOrderId !== 'no-sales-order') {
@@ -204,7 +203,6 @@ export const CreateQuotationFormById: React.FC<CreateQuotationFormProps> = ({
     // PERBAIKAN: useEffect untuk handle pre-selected sales order
     useEffect(() => {
         if (preSelectedSalesOrderId) {
-            console.log('Pre-selected Sales Order ID:', preSelectedSalesOrderId);
             handleSalesOrderChange(preSelectedSalesOrderId);
         }
     }, [preSelectedSalesOrderId, handleSalesOrderChange]);

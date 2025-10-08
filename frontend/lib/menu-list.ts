@@ -155,6 +155,12 @@ export function getMenuList(pathname: string, role: string) {
               active: isActive(`${basePath}/logistic/bap`, pathname),
               disabled: role === "user" || role === "pic",
             },
+            {
+              href: `${basePath}/logistic/rab`,
+              label: "Rancangan Anggaran Biaya",
+              active: isActive(`${basePath}/logistic/rab`, pathname),
+              disabled: role === "user" || role === "pic",
+            },
           ],
         },
       ],

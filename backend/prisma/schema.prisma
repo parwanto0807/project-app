@@ -80,6 +80,7 @@ model User {
   createdBAP       BAP[]           @relation("BAPCreatedBy") // semua BAP yang dibuat user ini
   createdInvoices  Invoice[]       @relation("InvoiceCreatedBy")
   verifiedPayments Payment[]
+  rab              RAB[]
 }
 
 model LoginAttempt {
@@ -214,6 +215,7 @@ model Project {
 
   customer    Customer     @relation(fields: [customerId], references: [id])
   salesOrders SalesOrder[]
+  rab         RAB[]
 }
 
 model Product {
@@ -245,6 +247,77 @@ model Product {
   // Relasi
   salesOrderItems SalesOrderItem[]
   QuotationLines  QuotationLine[]
+  rabDetail       RABDetail[]
+}
+
+model RAB {
+  id          String    @id @default(uuid())
+  projectId   String
+  name        String // Nama RAB atau judul dokumen
+  description String? // Deskripsi tambahan
+  total       Decimal   @default(0) // Total RAB, bisa dihitung dari detail
+  status      RABStatus @default(DRAFT)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relasi
+  project    Project     @relation(fields: [projectId], references: [id])
+  rabDetails RABDetail[]
+
+  // Optional user pembuat
+  createdById String?
+  createdBy   User?   @relation(fields: [createdById], references: [id])
+}
+
+model RABDetail {
+  id          String      @id @default(uuid())
+  rabId       String
+  productId   String? // Bisa null jika item custom/jasa
+  description String // Nama item, misal "Upah Tukang", "Semen", dll.
+  categoryRab CategoryRAB @default(STRUCTURE) // Kategori pekerjaan
+  qty         Decimal
+  unit        String // Contoh: hari, jam, pcs, m2, m3
+  price       Decimal
+  subtotal    Decimal // qty * price
+  costType    CostType    @default(MATERIAL) // Jenis biaya
+  notes       String?
+
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relasi
+  rab     RAB      @relation(fields: [rabId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id])
+
+  @@index([rabId])
+  @@index([categoryRab])
+  @@index([costType])
+}
+
+enum CategoryRAB {
+  PRELIMINARY // Pekerjaan Pendahuluan
+  SITEPREP // Pekerjaan Persiapan
+  STRUCTURE // Pekerjaan Struktur
+  ARCHITECTURE // Pekerjaan Arsitektur
+  MEP // Mechanical, Electrical, Plumbing
+  FINISHING // Pekerjaan Finishing
+  LANDSCAPE // Pekerjaan Landscaping
+  EQUIPMENT // Peralatan dan Perlengkapan
+  OVERHEAD // Biaya Overhead & Profit
+  OTHER // Lain-lain
+}
+
+enum CostType {
+  MATERIAL // Produk / bahan
+  LABOR // Tukang / pekerja / jasa
+  OTHER // Biaya lain-lain, transport, dll
+}
+
+enum RABStatus {
+  DRAFT
+  APPROVED
+  REJECTED
 }
 
 enum ProductType {

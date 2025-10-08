@@ -100,6 +100,7 @@ interface CreateSalesOrderFormProps {
   projects: Project[]
 }
 
+
 // Interface untuk state per item
 interface ItemState {
   selectedApiType: "PRODUCT" | "SERVICE" | "CUSTOM" | undefined;
@@ -251,13 +252,18 @@ export function CreateSalesOrderForm({
   const fetchProductsForItem = React.useCallback(async (index: number, type: "PRODUCT" | "SERVICE" | "CUSTOM" | undefined) => {
     try {
       const accessToken = localStorage.getItem("accessToken");
-      const { products } = await fetchAllProductsByType(accessToken ?? undefined, type);
+      const response = await fetchAllProductsByType(accessToken ?? undefined, type);
+
+      // Cek jika response success dan data tersedia
+      if (!response.success || !response.data) {
+        throw new Error(response.message || "Failed to fetch products");
+      }
 
       setItemsState(prev => {
         const newState = [...prev];
         newState[index] = {
           ...newState[index],
-          productOptions: products.map((p) => ({
+          productOptions: response.data.map((p: ProductOption) => ({
             id: p.id,
             name: p.name,
             description: p.description,
@@ -448,11 +454,15 @@ export function CreateSalesOrderForm({
                             form.setValue("projectId", "");
                             setLoadingProjects(true);
                             try {
-                              const { projects } = await fetchAllProjects({
+                              const response = await fetchAllProjects({
                                 customerId: created.id,
                               });
+                              // Akses data dari response.data, bukan langsung projects
                               setProjectOptions(
-                                projects.map((p) => ({ id: p.id, name: p.name }))
+                                response.data.map((p: { id: string; name: string }) => ({
+                                  id: p.id,
+                                  name: p.name
+                                }))
                               );
                             } finally {
                               setLoadingProjects(false);
@@ -469,11 +479,15 @@ export function CreateSalesOrderForm({
                                 form.setValue("projectId", "");
                                 setLoadingProjects(true);
                                 try {
-                                  const { projects } = await fetchAllProjects({
+                                  const response = await fetchAllProjects({
                                     customerId: id,
                                   });
+                                  // Akses data dari response.data, bukan response.projects
                                   setProjectOptions(
-                                    projects.map((p) => ({ id: p.id, name: p.name }))
+                                    response.data.map((p: { id: string; name: string }) => ({
+                                      id: p.id,
+                                      name: p.name
+                                    }))
                                   );
                                 } finally {
                                   setLoadingProjects(false);

@@ -17,8 +17,9 @@ import bankRoutes from "./routes/master/bank/bankRoutes.js";
 import spkReportRouter from "./routes/spk/spkReportRoutes.js";
 import invoiceRoutes from "./routes/invoice/invoiceRoutes.js";
 import quotationRoutes from "./routes/quotation/quotationRoutes.js";
-import taxRoutes from './routes/quotation/taxRoutes.js';
-import paymentTermRoutes from './routes/quotation/paymentTermRoutes.js'; 
+import taxRoutes from "./routes/quotation/taxRoutes.js";
+import paymentTermRoutes from "./routes/quotation/paymentTermRoutes.js";
+import rabRoutes from "./routes/rab/rabRoutes.js";
 import path from "path";
 
 const app = express();
@@ -102,9 +103,10 @@ app.use("/api/spk", spkRouter);
 app.use("/api/spk/report", spkReportRouter);
 app.use("/api/bap", bapRouter);
 app.use("/api/invoice", invoiceRoutes);
-app.use('/api/quotations', quotationRoutes);
+app.use("/api/quotations", quotationRoutes);
 app.use("/api/master/tax", taxRoutes);
 app.use("/api/master/payment-term", paymentTermRoutes);
+app.use("/api/rabs", rabRoutes);
 
 // Health Check Endpoint
 app.get("/api/health", (req, res) => {

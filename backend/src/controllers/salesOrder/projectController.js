@@ -87,6 +87,12 @@ export const getListProjects = async (req, res) => {
           name: true,
           location: true,
           createdAt: true,
+          customer: { // Tambahkan customer data untuk frontend
+            select: {
+              id: true,
+              name: true,
+            }
+          }
         },
         take,
         skip,
@@ -94,11 +100,24 @@ export const getListProjects = async (req, res) => {
       prisma.project.count({ where }),
     ]);
 
-    res.json({ projects, total });
+    res.json({ 
+      success: true,
+      message: "Data projects berhasil diambil",
+      data: projects, 
+      total,
+      pagination: {
+        take,
+        skip,
+        total
+      }
+    });
   } catch (error) {
     console.error("[listProjects] error:", error);
-    res.status(500).json({ message: "Gagal mengambil data project" });
+    res.status(500).json({ 
+      success: false,
+      message: "Gagal mengambil data project",
+      error: error.message 
+    });
   }
 };
-
 

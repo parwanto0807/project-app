@@ -49,13 +49,17 @@ interface Product {
 
 export async function fetchAllProductsByType(
   accessToken?: string,
-  type?: "PRODUCT" | "SERVICE" | "CUSTOM"
-) {
+  type?: "PRODUCT" | "SERVICE" | "CUSTOM" | "ALL"
+): Promise<{
+  success: boolean;
+  message: string;
+  data: Product[];
+  isLoading: boolean;
+}> {
   try {
     let url: string;
-
-    if (type) {
-      const backendType = typeMapping[type];
+    if (type && type !== "ALL") {
+      const backendType = typeMapping[type] || type;
       url = `${process.env.NEXT_PUBLIC_API_URL}/api/master/product/getAllProductsByType/${backendType}`;
     } else {
       url = `${process.env.NEXT_PUBLIC_API_URL}/api/master/product/getAllProducts`;
@@ -68,14 +72,59 @@ export async function fetchAllProductsByType(
       credentials: "include",
     });
 
-    if (!res.ok) throw new Error(`Gagal fetch produk: ${res.status}`);
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error("[fetchAllProductsByType] Response error text:", errorText);
+      throw new Error(`Gagal fetch produk: ${res.status} - ${errorText}`);
+    }
 
-    const data: Product[] = await res.json();
+    const response = await res.json();
 
-    return { products: data || [], isLoading: false };
+    // Handle berbagai format response
+    let success = true;
+    let message = "Products fetched successfully";
+    let data: Product[] = [];
+
+    // Cek format response
+    if (response.success !== undefined) {
+      // Format baru: { success, message, data }
+      success = response.success;
+      message = response.message || message;
+      data = response.data || [];
+    } else if (Array.isArray(response)) {
+      // Format lama: array langsung
+      data = response;
+    } else if (response.products) {
+      // Format alternatif: { products: [] }
+      data = response.products;
+    } else {
+      // Format tidak dikenali
+      console.warn(
+        "[fetchAllProductsByType] Unknown response format:",
+        response
+      );
+      data = [];
+    }
+
+    if (!success) {
+      throw new Error(message || "Failed to fetch products");
+    }
+
+    return {
+      success: true,
+      message,
+      data,
+      isLoading: false,
+    };
   } catch (error) {
-    console.error("[fetchAllProductsByType]", error);
-    return { products: [], isLoading: false };
+    console.error("[fetchAllProductsByType] Error details:", error);
+    return {
+      success: false,
+      message:
+        error instanceof Error ? error.message : "Failed to fetch products",
+      data: [],
+      isLoading: false,
+    };
   }
 }
 

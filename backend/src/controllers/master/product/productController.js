@@ -42,20 +42,42 @@ export const getAllProductsByType = async (req, res) => {
         where.type = ProductType.Jasa; // hanya Jasa
       } else if (t === "PRODUCT") {
         where.type = { not: ProductType.Jasa }; // semua selain Jasa
+      } else if (t === "ALL") {
+        // Untuk type ALL, tidak ada filter type
       }
     }
 
     const products = await prisma.product.findMany({
       where,
-      include: { category: true },
+      include: {
+        category: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
       orderBy: { createdAt: "desc" },
       // pertimbangkan pagination: take, skip
     });
 
-    res.json(products);
+    res.json({
+      success: true,
+      message: "Data products berhasil diambil",
+      data: products,
+      meta: {
+        type: type || "ALL",
+        activeOnly: onlyActive,
+        total: products.length,
+      },
+    });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Gagal mengambil data produk" });
+    res.status(500).json({
+      success: false,
+      message: "Gagal mengambil data produk",
+      error: error.message,
+    });
   }
 };
 

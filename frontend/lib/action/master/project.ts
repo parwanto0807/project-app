@@ -35,23 +35,40 @@ export async function fetchAllProjects(params: FetchAllProjectsParams = {}) {
       throw new Error(`Gagal fetch proyek: ${res.status}`);
     }
 
-    const data = await res.json(); // { projects, total }
-    const parsed = ApiProjectArraySchema.safeParse(data?.projects ?? data);
+    const response = await res.json(); // Format baru: { success, message, data, total }
+    
+    // Cek success flag dari response baru
+    if (!response.success) {
+      throw new Error(response.message || "Failed to fetch projects");
+    }
+
+    // Parse data dengan schema yang sesuai
+    const parsed = ApiProjectArraySchema.safeParse(response.data ?? []);
 
     if (!parsed.success) {
       console.error("[fetchAllProjects] invalid payload:", parsed.error);
-      return { projects: [], total: 0, isLoading: false };
+      return { 
+        success: false,
+        message: "Invalid project data format",
+        data: [], 
+        total: 0,
+        isLoading: false 
+      };
     }
 
     return {
-      projects: parsed.data,                // sesuai ApiProjectSchema
-      total: Number(data?.total ?? parsed.data.length),
+      success: true,
+      message: response.message || "Projects fetched successfully",
+      data: parsed.data, // sesuai ApiProjectSchema
+      total: Number(response.total ?? response.data?.length ?? 0),
       isLoading: false,
     };
   } catch (error) {
     console.error("[fetchAllProjects]", error);
     return {
-      projects: [],
+      success: false,
+      message: error instanceof Error ? error.message : "Failed to fetch projects",
+      data: [],
       total: 0,
       isLoading: false,
     };
