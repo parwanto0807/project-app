@@ -228,9 +228,10 @@ export function UpdateSalesOrderForm({
 
         try {
             const accessToken = localStorage.getItem("accessToken");
-            const { products } = await fetchAllProductsByType(accessToken ?? undefined, itemType);
+            const response = await fetchAllProductsByType(accessToken ?? undefined, itemType);
 
-            const options = products.map((p: ApiProduct): ProductOption => ({
+            // Based on the error, the response has a 'data' property instead of 'products'
+            const options = response.data.map((p: ApiProduct): ProductOption => ({
                 id: p.id,
                 name: p.name,
                 description: p.description,
@@ -246,16 +247,16 @@ export function UpdateSalesOrderForm({
             console.error(`Failed to fetch products for item ${index}:`, error);
             toast.error(`Gagal memuat data produk untuk item ${index + 1}`);
         }
-    }, []);  // Tambahkan updateItemState sebagai dependency
+    }, []);
 
     // Fetch projects
     React.useEffect(() => {
         (async () => {
             setLoadingProjects(true);
             try {
-                const { projects } = await fetchAllProjects({ customerId: salesOrder.customerId });
+                const response = await fetchAllProjects({ customerId: salesOrder.customerId });
                 setProjectOptions(
-                    projects.map((p: Project) => ({
+                    response.data.map((p: Project) => ({
                         id: p.id,
                         name: p.name,
                     }))
@@ -463,8 +464,15 @@ export function UpdateSalesOrderForm({
                                                             form.setValue("projectId", "");
                                                             setLoadingProjects(true);
                                                             try {
-                                                                const { projects } = await fetchAllProjects({ customerId: id });
-                                                                setProjectOptions(projects.map((p) => ({ id: p.id, name: p.name })));
+                                                                const response = await fetchAllProjects({ customerId: id });
+                                                                // Use response.data instead of response.projects
+                                                                setProjectOptions(response.data.map((p: Project) => ({
+                                                                    id: p.id,
+                                                                    name: p.name
+                                                                })));
+                                                            } catch (error) {
+                                                                console.error("Failed to fetch projects:", error);
+                                                                toast.error("Gagal memuat data proyek");
                                                             } finally {
                                                                 setLoadingProjects(false);
                                                             }
