@@ -265,6 +265,7 @@ export const getQuotations = async (req, res) => {
               code: true,
               email: true, // Tambahkan email
               address: true, // Tambahkan address
+              branch: true,
             },
           },
           paymentTerm: true,

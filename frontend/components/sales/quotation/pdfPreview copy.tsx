@@ -82,13 +82,6 @@ const styles = StyleSheet.create({
         marginBottom: 12,
         fontSize: 10,
         textAlign: 'justify',
-        width: '100%',
-    },
-    textHeaderDH: {
-        marginBottom: 4,
-        fontSize: 10,
-        textAlign: 'justify',
-        width: '100%',
     },
     tableHeader: {
         flexDirection: 'row',
@@ -147,6 +140,13 @@ const styles = StyleSheet.create({
         color: '#008000',
         borderTop: '1pt solid #008000',
         paddingTop: 5,
+    },
+    validitySection: {
+        marginBottom: 10,
+        padding: 8,
+        backgroundColor: '#f9f9f9',
+        border: '1pt solid #e0e0e0',
+        borderRadius: 4,
     },
     footer: {
         marginTop: 30,
@@ -272,6 +272,21 @@ const QuotationPdfDocument = ({ quotation }: { quotation: QuotationSummary }) =>
                 {/* Judul Quotation */}
                 <Text style={styles.quotationTitle}>QUOTATION</Text>
 
+                {/* Masa Berlaku - DIPINDAHKAN KE ATAS */}
+                {(validFrom || validUntil) && (
+                    <View style={styles.validitySection}>
+                        <Text style={styles.sectionTitle}>MASA BERLAKU</Text>
+                        <View style={styles.row}>
+                            <Text style={styles.label}>Tanggal Mulai:</Text>
+                            <Text style={styles.value}>{validFrom ? formatDate(validFrom) : '-'}</Text>
+                        </View>
+                        <View style={styles.row}>
+                            <Text style={styles.label}>Tanggal Berakhir:</Text>
+                            <Text style={styles.value}>{validUntil ? formatDate(validUntil) : '-'}</Text>
+                        </View>
+                    </View>
+                )}
+
                 {/* Informasi Quotation dan Customer */}
                 <View style={styles.infoContainer}>
                     <View style={styles.leftColumn}>
@@ -310,16 +325,10 @@ const QuotationPdfDocument = ({ quotation }: { quotation: QuotationSummary }) =>
                     </View>
                 </View>
 
-                {/* Pembukaan Surat - FULL WIDTH */}
-                <View style={styles.textHeaderDH}>
-                    <Text>
-                        Dengan hormat,
-                    </Text>
-                </View>
+                {/* Pembukaan Surat */}
                 <View style={styles.textHeader}>
-                    <Text>
-                        {'\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0'}
-                        Menindaklanjuti pembahasan sebelumnya, bersama ini kami sampaikan penawaran harga untuk produk/jasa yang dimaksud. Kami berharap penawaran ini dapat memenuhi kebutuhan Bpk./Ibu di {customer?.name || 'perusahaan Anda'}.
+                    <Text style={styles.value}>
+                        Dengan hormat, menindaklanjuti pembahasan sebelumnya, bersama ini kami sampaikan penawaran harga untuk produk/jasa yang dimaksud. Kami berharap penawaran ini dapat memenuhi kebutuhan rekan di {customer?.name || 'perusahaan Anda'}.
                     </Text>
                 </View>
 
@@ -364,22 +373,10 @@ const QuotationPdfDocument = ({ quotation }: { quotation: QuotationSummary }) =>
 
                         {/* Informasi tambahan */}
                         <View style={{ marginTop: 15 }}>
-                            {(validFrom || validUntil) && (
-                                <View style={{ marginTop: 8 }}>
-                                    <Text style={styles.notesText}>
-                                        • Quotation ini berlaku sesuai dengan masa berlaku :
-                                    </Text>
-                                    <Text style={[styles.notesText, { paddingLeft: 6 }]}>
-                                        <Text style={styles.value}>
-                                            Mulai: {validFrom ? formatDate(validFrom) : '-'}{'  '}
-                                        </Text>
-                                        <Text style={styles.value}>
-                                            Berakhir: {validUntil ? formatDate(validUntil) : '-'}
-                                        </Text>
-                                    </Text>
-
-                                </View>
-                            )}
+                            <Text style={styles.notesLabel}>Informasi:</Text>
+                            <Text style={styles.notesText}>
+                                • Quotation ini berlaku sesuai dengan masa berlaku yang tercantum
+                            </Text>
                             <Text style={styles.notesText}>
                                 • Harga belum termasuk PPN kecuali disebutkan lain
                             </Text>

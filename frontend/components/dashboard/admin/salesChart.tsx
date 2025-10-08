@@ -152,7 +152,7 @@ export function SalesChart({ data, loading, onCustomerChange }: SalesChartProps)
     };
 
     return (
-        <div className="w-full bg-white dark:bg-slate-900 rounded-lg shadow-md p-4 md:p-6 relative">
+        <div className="w-full bg-white dark:bg-slate-900 rounded-lg shadow-md p-0 md:p-6 relative">
             {/* Atas: controls + summary */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
                 {/* Kiri: Select + Button */}

@@ -54,8 +54,8 @@ import {
     CheckCircle,
     XCircle,
     AlertCircle,
-    Send,
-    Copy,
+    // Send,
+    // Copy,
     BarChart3,
     CreditCard,
     FileDigit,
@@ -183,20 +183,20 @@ export function QuotationTable({
         return 0;
     });
 
-    const getStatusText = (status: string) => {
-        switch (status) {
-            case 'APPROVED':
-                return 'Disetujui';
-            case 'REJECTED':
-                return 'Ditolak';
-            case 'PENDING':
-                return 'Menunggu';
-            case 'EXPIRED':
-                return 'Kadaluarsa';
-            default:
-                return status;
-        }
-    };
+    // const getStatusText = (status: string) => {
+    //     switch (status) {
+    //         case 'APPROVED':
+    //             return 'Disetujui';
+    //         case 'REJECTED':
+    //             return 'Ditolak';
+    //         case 'PENDING':
+    //             return 'Menunggu';
+    //         case 'EXPIRED':
+    //             return 'Kadaluarsa';
+    //         default:
+    //             return status;
+    //     }
+    // };
 
     const getStatusIcon = (status: string) => {
         switch (status) {
@@ -589,7 +589,7 @@ export function QuotationTable({
                 )}
 
                 {/* Action Buttons */}
-                <div className="flex flex-wrap gap-3 pt-6 border-t border-slate-200 dark:border-slate-700">
+                <div className="flex flex-row-reverse gap-3 pt-6 border-t border-slate-200 dark:border-slate-700">
                     <Button
                         variant="outline"
                         size="sm"
@@ -599,23 +599,6 @@ export function QuotationTable({
                         <Eye className="h-4 w-4" />
                         Preview PDF
                     </Button>
-                    {/* <PDFDownloadLink
-                        document={<QuotationPdfDocument quotation={quotation} />}
-                        fileName={`quotation-${quotation.quotationNumber}.pdf`}
-                        className="flex-1 min-w-[120px]"
-                    >
-                        {({ loading }) => (
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="flex items-center gap-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:border-emerald-800 dark:text-emerald-300 dark:hover:bg-emerald-900/30"
-                                disabled={loading}
-                            >
-                                <Download className="h-4 w-4 mr-1" />
-                                {loading ? 'Membuat...' : 'Unduh PDF'}
-                            </Button>
-                        )}
-                    </PDFDownloadLink> */}
                     <Button
                         variant="outline"
                         size="sm"
@@ -639,7 +622,7 @@ export function QuotationTable({
                     </Button>
 
                     {/* Contextual Actions */}
-                    <div className="flex gap-2 ml-auto">
+                    {/* <div className="flex gap-2 ml-auto">
                         {quotation.status === "DRAFT" && (
                             <Button size="sm" className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white">
                                 <Send className="h-4 w-4" />
@@ -652,7 +635,7 @@ export function QuotationTable({
                                 Buat Revisi
                             </Button>
                         )}
-                    </div>
+                    </div> */}
                 </div>
             </div>
         );
@@ -1211,20 +1194,6 @@ export function QuotationTable({
                                     </PDFDownloadLink>
                                 )}
                             </div>
-                        </div>
-                        <div className="flex items-center space-x-4 mt-2 text-sm text-slate-600">
-                            <span className="flex items-center gap-1">
-                                <Building className="h-4 w-4 text-green-600" />
-                                <strong>Pelanggan:</strong> {selectedQuotation?.customer.name}
-                            </span>
-                            <span className="flex items-center gap-1">
-                                <CreditCard className="h-4 w-4 text-emerald-600" />
-                                <strong>Total:</strong> {selectedQuotation ? formatCurrency(selectedQuotation.total) : '-'}
-                            </span>
-                            <span className="flex items-center gap-1">
-                                {selectedQuotation && getStatusIcon(selectedQuotation.status)}
-                                <strong>Status:</strong> {selectedQuotation ? getStatusText(selectedQuotation.status) : '-'}
-                            </span>
                         </div>
                     </DialogHeader>
 

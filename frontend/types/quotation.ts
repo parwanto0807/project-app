@@ -176,6 +176,7 @@ export interface Customer {
   code: string;
   email?: string;
   phone?: string;
+  branch?: string;
   address?: string;
 }
 
@@ -222,7 +223,7 @@ export interface Quotation extends BaseQuotation {
 }
 
 export interface QuotationApiResponse {
-    data: Quotation;
+  data: Quotation;
 }
 
 // Request/Response Types
@@ -241,7 +242,7 @@ export interface CreateQuotationRequest {
   discountValue?: number;
   taxInclusive?: boolean;
   taxTotal: number;
-  total:number;
+  total: number;
   otherCharges?: number;
   notes?: string | null;
   preparedBy?: string | null;
@@ -308,6 +309,7 @@ export interface QuotationSummary {
     id: string;
     name: string;
     code: string;
+    branch?: string;
     email: string;
     address: string;
   };
