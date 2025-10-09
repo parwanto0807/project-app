@@ -351,13 +351,11 @@ export function RABUpdateForm({ rabData, projects, products, onSubmit, isSubmitt
                                         onValueChange={(value) => handleInputChange("projectId", value)}
                                     >
                                         <SelectTrigger>
-                                            <SelectValue placeholder="Select project">
-                                                {projects.find(p => p.id === formData.projectId)?.name || "Select project"}
-                                            </SelectValue>
+                                            <SelectValue placeholder="Select project" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {projects.map((project) => (
-                                                <SelectItem key={project.id} value={project.id}>
+                                                <SelectItem key={project.id} value={String(project.id)}>
                                                     {project.name} {project.customer && `- ${project.customer.name}`}
                                                 </SelectItem>
                                             ))}
@@ -365,6 +363,7 @@ export function RABUpdateForm({ rabData, projects, products, onSubmit, isSubmitt
                                     </Select>
                                 )}
                             </div>
+
                             <div className="space-y-2">
                                 <Label htmlFor="name">RAB Name *</Label>
                                 <Input
