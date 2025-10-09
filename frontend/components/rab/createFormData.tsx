@@ -490,8 +490,12 @@ export function RABForm({ projects, products, onSubmit, isSubmitting, error, use
                                                                 <SelectValue />
                                                             </SelectTrigger>
                                                             <SelectContent className="border border-cyan-300 dark:border-cyan-800">
-                                                                <SelectItem value="MATERIAL">Material</SelectItem>
-                                                                <SelectItem value="LABOR">Tenaga</SelectItem>
+                                                                <SelectItem value="MATERIAL">Produk / Bahan</SelectItem>
+                                                                <SelectItem value="LABOR">Tenaga Kerja / Jasa</SelectItem>
+                                                                <SelectItem value="EQUIPMENT">Peralatan / Mesin</SelectItem>
+                                                                <SelectItem value="SUBCON">Subkontraktor</SelectItem>
+                                                                <SelectItem value="TRANSPORT">Transportasi / Pengiriman</SelectItem>
+                                                                <SelectItem value="OVERHEAD">Biaya Overhead / Umum</SelectItem>
                                                                 <SelectItem value="OTHER">Lainnya</SelectItem>
                                                             </SelectContent>
                                                         </Select>
@@ -653,8 +657,12 @@ export function RABForm({ projects, products, onSubmit, isSubmitting, error, use
                                                                 <SelectValue />
                                                             </SelectTrigger>
                                                             <SelectContent className="border border-cyan-300 dark:border-cyan-800">
-                                                                <SelectItem value="MATERIAL">Material</SelectItem>
-                                                                <SelectItem value="LABOR">Tenaga</SelectItem>
+                                                                <SelectItem value="MATERIAL">Produk / Bahan</SelectItem>
+                                                                <SelectItem value="LABOR">Tenaga Kerja / Jasa</SelectItem>
+                                                                <SelectItem value="EQUIPMENT">Peralatan / Mesin</SelectItem>
+                                                                <SelectItem value="SUBCON">Subkontraktor</SelectItem>
+                                                                <SelectItem value="TRANSPORT">Transportasi / Pengiriman</SelectItem>
+                                                                <SelectItem value="OVERHEAD">Biaya Overhead / Umum</SelectItem>
                                                                 <SelectItem value="OTHER">Lainnya</SelectItem>
                                                             </SelectContent>
                                                         </Select>

@@ -311,6 +311,10 @@ enum CategoryRAB {
 enum CostType {
   MATERIAL // Produk / bahan
   LABOR // Tukang / pekerja / jasa
+  EQUIPMENT // Peralatan / sewa alat
+  SUBCON // Pekerjaan oleh subkontraktor
+  TRANSPORT // Transportasi / mobilisasi
+  OVERHEAD // Biaya overhead kantor, site, dll
   OTHER // Biaya lain-lain, transport, dll
 }
 

@@ -40,11 +40,6 @@ export default function RABPageAdmin() {
         }
     }, [userRole, router]);
 
-    // const handleCreateRAB = () => {
-    //     router.push("/admin-area/logistic/rab/create");
-    // };
-
-    // Handle loading state
     if (isLoading) {
         return <AdminLoading message="Loading RAB data..." />;
     }

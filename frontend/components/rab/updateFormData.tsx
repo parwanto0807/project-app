@@ -57,14 +57,14 @@ export function RABUpdateForm({ rabData, projects, products, onSubmit, isSubmitt
     const bottomRef = useRef<HTMLDivElement>(null);
 
 
-    useEffect(() => {
-        if (rabData && projects.length > 0) {
-            setFormData((prev) => ({
-                ...prev,
-                projectId: rabData.data.projectId, // isi dari DB
-            }));
-        }
-    }, [rabData, projects]);
+    // useEffect(() => {
+    //     if (rabData && projects.length > 0) {
+    //         setFormData((prev) => ({
+    //             ...prev,
+    //             projectId: rabData.data.projectId, // isi dari DB
+    //         }));
+    //     }
+    // }, [rabData, projects]);
 
     useEffect(() => {
         if (!formData.projectId && projects.length > 0) {
@@ -546,8 +546,12 @@ export function RABUpdateForm({ rabData, projects, products, onSubmit, isSubmitt
                                                                 <SelectValue />
                                                             </SelectTrigger>
                                                             <SelectContent className="border border-cyan-300 dark:border-cyan-800">
-                                                                <SelectItem value="MATERIAL">Material</SelectItem>
-                                                                <SelectItem value="LABOR">Tenaga</SelectItem>
+                                                                <SelectItem value="MATERIAL">Produk / Bahan</SelectItem>
+                                                                <SelectItem value="LABOR">Tenaga Kerja / Jasa</SelectItem>
+                                                                <SelectItem value="EQUIPMENT">Peralatan / Mesin</SelectItem>
+                                                                <SelectItem value="SUBCON">Subkontraktor</SelectItem>
+                                                                <SelectItem value="TRANSPORT">Transportasi / Pengiriman</SelectItem>
+                                                                <SelectItem value="OVERHEAD">Biaya Overhead / Umum</SelectItem>
                                                                 <SelectItem value="OTHER">Lainnya</SelectItem>
                                                             </SelectContent>
                                                         </Select>
@@ -709,8 +713,12 @@ export function RABUpdateForm({ rabData, projects, products, onSubmit, isSubmitt
                                                                 <SelectValue />
                                                             </SelectTrigger>
                                                             <SelectContent className="border border-cyan-300 dark:border-cyan-800">
-                                                                <SelectItem value="MATERIAL">Material</SelectItem>
-                                                                <SelectItem value="LABOR">Tenaga</SelectItem>
+                                                                <SelectItem value="MATERIAL">Produk / Bahan</SelectItem>
+                                                                <SelectItem value="LABOR">Tenaga Kerja / Jasa</SelectItem>
+                                                                <SelectItem value="EQUIPMENT">Peralatan / Mesin</SelectItem>
+                                                                <SelectItem value="SUBCON">Subkontraktor</SelectItem>
+                                                                <SelectItem value="TRANSPORT">Transportasi / Pengiriman</SelectItem>
+                                                                <SelectItem value="OVERHEAD">Biaya Overhead / Umum</SelectItem>
                                                                 <SelectItem value="OTHER">Lainnya</SelectItem>
                                                             </SelectContent>
                                                         </Select>

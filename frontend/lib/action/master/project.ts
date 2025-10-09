@@ -11,10 +11,6 @@ type FetchAllProjectsParams = {
   skip?: number; // default 0
 };
 
-/**
- * Ambil daftar projects dari backend
- * GET /api/master/project/list?customerId=&q=&take=&skip=
- */
 export async function fetchAllProjects(params: FetchAllProjectsParams = {}) {
   const { customerId, q, take = 100, skip = 0 } = params;
   try {
@@ -25,18 +21,21 @@ export async function fetchAllProjects(params: FetchAllProjectsParams = {}) {
     qs.set("take", String(take));
     qs.set("skip", String(skip));
 
-    const res = await fetch(`${base}/api/salesOrder/project/getListProjects?${qs.toString()}`, {
-      method: "GET",
-      credentials: "include",
-      cache: "no-store",
-    });
+    const res = await fetch(
+      `${base}/api/salesOrder/project/getListProjects?${qs.toString()}`,
+      {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      }
+    );
 
     if (!res.ok) {
       throw new Error(`Gagal fetch proyek: ${res.status}`);
     }
 
     const response = await res.json(); // Format baru: { success, message, data, total }
-    
+
     // Cek success flag dari response baru
     if (!response.success) {
       throw new Error(response.message || "Failed to fetch projects");
@@ -47,12 +46,12 @@ export async function fetchAllProjects(params: FetchAllProjectsParams = {}) {
 
     if (!parsed.success) {
       console.error("[fetchAllProjects] invalid payload:", parsed.error);
-      return { 
+      return {
         success: false,
         message: "Invalid project data format",
-        data: [], 
+        data: [],
         total: 0,
-        isLoading: false 
+        isLoading: false,
       };
     }
 
@@ -67,7 +66,8 @@ export async function fetchAllProjects(params: FetchAllProjectsParams = {}) {
     console.error("[fetchAllProjects]", error);
     return {
       success: false,
-      message: error instanceof Error ? error.message : "Failed to fetch projects",
+      message:
+        error instanceof Error ? error.message : "Failed to fetch projects",
       data: [],
       total: 0,
       isLoading: false,

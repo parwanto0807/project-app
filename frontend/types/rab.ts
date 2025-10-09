@@ -1,4 +1,12 @@
-export type CostType = "MATERIAL" | "LABOR" | "OTHER";
+export type CostType =
+  | "MATERIAL"   // Produk / bahan bangunan
+  | "LABOR"      // Tukang / pekerja / jasa
+  | "EQUIPMENT"  // Peralatan / sewa alat
+  | "SUBCON"     // Pekerjaan subkontraktor
+  | "TRANSPORT"  // Mobilisasi / transportasi
+  | "OVERHEAD"   // Biaya overhead proyek
+  | "OTHER";     // Biaya lain-lain / tak terduga
+
 
 export type RABStatus = "DRAFT" | "APPROVED" | "REJECTED";
 

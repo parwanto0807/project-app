@@ -35,7 +35,6 @@ import {
     FileText,
     Edit,
     Trash2,
-    Eye,
     Download,
     Search,
     Building,
@@ -48,13 +47,34 @@ import {
     DollarSign,
     Package,
     HardHat,
-    AlertCircle
+    AlertCircle,
+    Truck,
+    Wrench
 } from "lucide-react";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "../ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { FaToolbox } from "react-icons/fa";
 import { useRouter } from "next/navigation";
+import { FaBuilding, FaToolbox } from "react-icons/fa";
+import RABPdfDialog from "./rabPdfDialog";
+
+export type CostBreakdown = {
+    MATERIAL?: number;
+    LABOR?: number;
+    EQUIPMENT?: number;
+    SUBCON?: number;
+    TRANSPORT?: number;
+    OVERHEAD?: number;
+    OTHER?: number;
+};
+
+
 
 interface RABTableProps {
     rabs: RAB[];
@@ -151,13 +171,39 @@ function RABDetail({ rab }: { rab: RAB }) {
 
     const getCostTypeIcon = (costType: string) => {
         const icons: Record<string, React.ReactNode> = {
-            MATERIAL: <Package className="h-4 w-4 text-blue-600" />,
-            LABOR: <HardHat className="h-4 w-4 text-green-600" />,
-            EQUIPMENT: <FaToolbox className="h-4 w-4 text-orange-600" />,
-            OTHER: <DollarSign className="h-4 w-4 text-purple-600" />
+            MATERIAL: <Package className="h-4 w-4 text-blue-600" />,     // Material / Bahan
+            LABOR: <HardHat className="h-4 w-4 text-green-600" />,        // Tenaga kerja
+            EQUIPMENT: <FaToolbox className="h-4 w-4 text-orange-600" />, // Peralatan
+            SUBCON: <FaBuilding className="h-4 w-4 text-pink-600" />,     // Subkontraktor
+            TRANSPORT: <Truck className="h-4 w-4 text-indigo-600" />,     // Transportasi
+            OVERHEAD: <Wrench className="h-4 w-4 text-yellow-600" />,     // Overhead / umum
+            OTHER: <DollarSign className="h-4 w-4 text-purple-600" />     // Lainnya
         };
+
         return icons[costType] || <DollarSign className="h-4 w-4 text-gray-600" />;
     };
+
+    const getCostTypeLabel = (type: string): string => {
+        switch (type) {
+            case "MATERIAL":
+                return "Produk / Bahan";
+            case "LABOR":
+                return "Tenaga Kerja / Jasa";
+            case "EQUIPMENT":
+                return "Peralatan / Mesin";
+            case "SUBCON":
+                return "Subkontraktor";
+            case "TRANSPORT":
+                return "Transportasi / Pengiriman";
+            case "OVERHEAD":
+                return "Biaya Overhead / Umum";
+            case "OTHER":
+                return "Biaya Lain-lain";
+            default:
+                return type.toLowerCase();
+        }
+    };
+
 
     const getCategoryColor = (category: string) => {
         const colors: Record<string, string> = {
@@ -241,13 +287,18 @@ function RABDetail({ rab }: { rab: RAB }) {
                         </h4>
                     </div>
                     <div className="space-y-3 pl-4 ">
-                        {Object.entries(costBreakdown).map(([type, amount]) => (
+                        {Object.entries(costBreakdown as CostBreakdown).map(([type, amount]) => (
                             <div key={type} className="flex justify-between items-center border-b">
                                 <div className="flex items-center gap-2">
                                     {getCostTypeIcon(type)}
-                                    <span className="text-sm font-medium text-slate-600 dark:text-slate-400 capitalize">
-                                        {type.toLowerCase()}
-                                    </span>
+                                    <div className="flex flex-col">
+                                        <span className="text-sm font-medium text-slate-600 dark:text-slate-400 capitalize">
+                                            {type.toLowerCase()} {/* MATERIAL, LABOR, OTHER */}
+                                        </span>
+                                        <span className="text-xs text-slate-500 dark:text-slate-500">
+                                            {getCostTypeLabel(type)} {/* Keterangan detail */}
+                                        </span>
+                                    </div>
                                 </div>
                                 <span className="font-semibold text-slate-900 dark:text-slate-100">
                                     {rabActions.formatCurrency(amount)}
@@ -417,7 +468,6 @@ function RABDetail({ rab }: { rab: RAB }) {
 // Mobile Card Component
 function RABMobileCard({
     rab,
-    onView,
     onEdit,
     onDelete,
     onExport,
@@ -523,15 +573,6 @@ function RABMobileCard({
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => onView(rab.id)}
-                            className="h-8 text-xs"
-                        >
-                            <Eye className="h-3 w-3 mr-1" />
-                            View
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
                             onClick={() => onExport(rab)}
                             className="h-8 text-xs"
                         >
@@ -606,6 +647,8 @@ export function RABTable({
     const [expandedRow, setExpandedRow] = useState<string | null>(null);
     const isMobile = useMediaQuery("(max-width: 768px)");
     const router = useRouter();
+    const [dialogOpen, setDialogOpen] = useState(false);
+    const [selectedRAB, setSelectedRAB] = useState<RAB | null>(null);
 
     console.log("Role", role)
 
@@ -642,9 +685,9 @@ export function RABTable({
             });
         }
     };
-
     const handleExport = (rab: RAB) => {
-        console.log("Export RAB:", rab.id);
+        setSelectedRAB(rab);
+        setDialogOpen(true);
     };
 
     const toggleExpand = (id: string) => {
@@ -795,7 +838,8 @@ export function RABTable({
                             }
                         </p>
                         {rabs.length === 0 && (
-                            <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
+                            <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white"
+                                onClick={handleCreateRAB}>
                                 <Plus className="mr-2 h-5 w-5" />
                                 Create First RAB
                             </Button>
@@ -922,75 +966,69 @@ export function RABTable({
                                                     </TableCell>
                                                     <TableCell className="text-right">
                                                         <div className="flex items-center justify-end gap-2">
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleView(rab.id);
-                                                                }}
-                                                                className="h-8 hover:bg-blue-50 hover:text-blue-600"
-                                                            >
-                                                                <Eye className="h-4 w-4" />
-                                                            </Button>
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleEdit(rab.id);
-                                                                }}
-                                                                className="h-8 hover:bg-green-50 hover:text-green-600"
-                                                            >
-                                                                <Edit className="h-4 w-4" />
-                                                            </Button>
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleExport(rab);
-                                                                }}
-                                                                className="h-8 hover:bg-orange-50 hover:text-orange-600"
-                                                            >
-                                                                <Download className="h-4 w-4" />
-                                                            </Button>
-                                                            <DropdownMenu>
-                                                                <DropdownMenuTrigger asChild>
-                                                                    <Button
-                                                                        variant="outline"
-                                                                        size="sm"
-                                                                        className="h-8 w-8 p-0 hover:bg-slate-100"
-                                                                        onClick={(e) => e.stopPropagation()}
-                                                                    >
-                                                                        <MoreHorizontal className="h-4 w-4" />
-                                                                    </Button>
-                                                                </DropdownMenuTrigger>
-                                                                <DropdownMenuContent align="end">
-                                                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                                    <DropdownMenuItem onClick={() => handleView(rab.id)}>
-                                                                        <Eye className="h-4 w-4 mr-2" />
-                                                                        View Details
-                                                                    </DropdownMenuItem>
-                                                                    <DropdownMenuItem onClick={() => handleEdit(rab.id)}>
-                                                                        <Edit className="h-4 w-4 mr-2" />
-                                                                        Edit
-                                                                    </DropdownMenuItem>
-                                                                    <DropdownMenuItem onClick={() => handleExport(rab)}>
-                                                                        <Download className="h-4 w-4 mr-2" />
-                                                                        Export PDF
-                                                                    </DropdownMenuItem>
-                                                                    <DropdownMenuSeparator />
-                                                                    <DropdownMenuItem
-                                                                        onClick={() => handleDelete(rab.id)}
-                                                                        className="text-red-600"
-                                                                        disabled={isDeleting}
-                                                                    >
-                                                                        <Trash2 className="h-4 w-4 mr-2" />
-                                                                        {isDeleting ? "Deleting..." : "Delete"}
-                                                                    </DropdownMenuItem>
-                                                                </DropdownMenuContent>
-                                                            </DropdownMenu>
+                                                            <TooltipProvider>
+                                                                {/* Edit */}
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <Button
+                                                                            variant="outline"
+                                                                            size="sm"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                handleEdit(rab.id);
+                                                                            }}
+                                                                            className="h-8 text-green-600 hover:bg-green-50 hover:text-green-700 hover:border-green-700 
+                     dark:text-green-400 dark:hover:bg-green-950 dark:hover:text-green-300 dark:hover:border-green-300
+                     cursor-pointer transition-colors"
+                                                                        >
+                                                                            <Edit className="h-4 w-4 text-green-600 dark:text-green-400" />
+                                                                        </Button>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent>Edit RAB</TooltipContent>
+                                                                </Tooltip>
+
+                                                                {/* Export */}
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <Button
+                                                                            variant="outline"
+                                                                            size="sm"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                handleExport(rab);
+                                                                            }}
+                                                                            className="h-8 text-orange-600 hover:bg-orange-50 hover:text-orange-700 hover:border-orange-700 
+                     dark:text-orange-400 dark:hover:bg-orange-950 dark:hover:text-orange-300 dark:hover:border-orange-300
+                     cursor-pointer transition-colors"
+                                                                        >
+                                                                            <Download className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                                                                        </Button>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent>Preview PDF</TooltipContent>
+                                                                </Tooltip>
+
+                                                                {/* Delete */}
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <Button
+                                                                            variant="outline"
+                                                                            size="sm"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                handleDelete(rab.id);
+                                                                            }}
+                                                                            disabled={isDeleting}
+                                                                            className="h-8 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-700 
+                     dark:text-red-400 dark:hover:bg-red-950 dark:hover:text-red-300 dark:hover:border-red-300
+                     cursor-pointer transition-colors"
+                                                                        >
+                                                                            <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
+                                                                            {isDeleting ? "Deleting..." : ""}
+                                                                        </Button>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent>Delete RAB</TooltipContent>
+                                                                </Tooltip>
+                                                            </TooltipProvider>
                                                         </div>
                                                     </TableCell>
                                                 </TableRow>
@@ -1006,6 +1044,13 @@ export function RABTable({
                                     })}
                                 </TableBody>
                             </Table>
+                            {selectedRAB && (
+                                <RABPdfDialog
+                                    open={dialogOpen}
+                                    onOpenChange={setDialogOpen}
+                                    rab={selectedRAB}
+                                />
+                            )}
                         </div>
 
                         {/* Pagination */}

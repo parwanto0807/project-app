@@ -8,7 +8,7 @@ const rabDetailSchema = z.object({
   qty: z.number().positive("Quantity must be positive"),
   unit: z.string().min(1, "Unit is required"),
   price: z.number().positive("Price must be positive"),
-  costType: z.enum(["MATERIAL", "LABOR", "OTHER"]).default("MATERIAL"),
+  costType: z.enum(["MATERIAL", "LABOR","EQUIPMENT","SUBCON","TRANSPORT","OVERHEAD", "OTHER"]).default("MATERIAL"),
   notes: z.string().optional().nullable(),
 });
 
@@ -87,7 +87,7 @@ const rabSchema = z.object({
         qty: z.number().min(0.01, "Quantity must be greater than 0"),
         unit: z.string().min(1, "Unit is required"),
         price: z.number().min(0, "Price must be greater than or equal to 0"),
-        costType: z.enum(["MATERIAL", "LABOR", "OTHER"]),
+        costType: z.enum(["MATERIAL", "LABOR","EQUIPMENT","SUBCON","TRANSPORT","OVERHEAD", "OTHER"]),
         notes: z.string().optional().nullable(),
       })
     )

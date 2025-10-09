@@ -1,6 +1,14 @@
 import { z } from "zod";
 
-export const costTypeSchema = z.enum(["MATERIAL", "LABOR", "OTHER"]);
+export const costTypeSchema = z.enum([
+  "MATERIAL",   // Produk / bahan
+  "LABOR",      // Tukang / pekerja / jasa
+  "EQUIPMENT",  // Peralatan / sewa alat
+  "SUBCON",     // Pekerjaan subkontraktor
+  "TRANSPORT",  // Mobilisasi / transportasi
+  "OVERHEAD",   // Biaya overhead proyek
+  "OTHER"       // Biaya lain-lain
+]);
 
 // schema/rab/index.ts
 export const categoryRabSchema = z.enum([

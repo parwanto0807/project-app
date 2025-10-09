@@ -62,15 +62,24 @@ export function getStatusText(status: string): string {
 export function getCostTypeText(costType: string): string {
   switch (costType) {
     case "MATERIAL":
-      return "Material";
+      return "Material / Bahan";
     case "LABOR":
-      return "Tenaga Kerja";
+      return "Tenaga Kerja / Jasa";
+    case "EQUIPMENT":
+      return "Peralatan / Sewa Alat";
+    case "SUBCON":
+      return "Subkontraktor";
+    case "TRANSPORT":
+      return "Transportasi / Mobilisasi";
+    case "OVERHEAD":
+      return "Biaya Overhead";
     case "OTHER":
       return "Lainnya";
     default:
       return costType;
   }
 }
+
 
 // Validate RAB data before submission
 export function validateRABData(data: RABCreateInput): {
