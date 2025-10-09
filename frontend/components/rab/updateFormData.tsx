@@ -56,7 +56,7 @@ export function RABUpdateForm({ rabData, projects, products, onSubmit, isSubmitt
     // Ref untuk scroll ke bawah
     const bottomRef = useRef<HTMLDivElement>(null);
 
-    // Misalnya fetch data edit form
+
     useEffect(() => {
         if (rabData && projects.length > 0) {
             setFormData((prev) => ({
@@ -65,6 +65,12 @@ export function RABUpdateForm({ rabData, projects, products, onSubmit, isSubmitt
             }));
         }
     }, [rabData, projects]);
+
+    useEffect(() => {
+        if (!formData.projectId && projects.length > 0) {
+            setFormData(prev => ({ ...prev, projectId: String(projects[0].id) }));
+        }
+    }, [projects, formData.projectId]);
 
     // Load data RAB ke form ketika rabData tersedia
     useEffect(() => {
@@ -315,6 +321,11 @@ export function RABUpdateForm({ rabData, projects, products, onSubmit, isSubmitt
         }
     };
 
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => setMounted(true), []);
+
+    if (!mounted) return null; // hindari render di SSR
+
     return (
         <div className="w-full mx-auto p-4 bg-white dark:bg-slate-900 dark:text-white rounded-lg shadow-sm">
             {/* Header */}
@@ -351,26 +362,22 @@ export function RABUpdateForm({ rabData, projects, products, onSubmit, isSubmitt
                                 <Label htmlFor="project">Project *</Label>
                                 {projects.length > 0 && (
                                     <Select
-                                        value={formData.projectId}
+                                        value={formData.projectId || ""}
                                         onValueChange={(value) => handleInputChange("projectId", value)}
                                     >
                                         <SelectTrigger>
                                             <SelectValue placeholder="Select project" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {projects.map((project) => {
-                                                console.log("Project item:", { id: project.id, idType: typeof project.id });
-                                                return (
-                                                    <SelectItem key={project.id} value={String(project.id)}>
-                                                        {project.name} {project.customer && `- ${project.customer.name}`}
-                                                    </SelectItem>
-                                                );
-                                            })}
+                                            {projects.map((project) => (
+                                                <SelectItem key={project.id} value={String(project.id)}>
+                                                    {project.name} {project.customer && `- ${project.customer.name}`}
+                                                </SelectItem>
+                                            ))}
                                         </SelectContent>
                                     </Select>
                                 )}
                             </div>
-
                             <div className="space-y-2">
                                 <Label htmlFor="name">RAB Name *</Label>
                                 <Input
