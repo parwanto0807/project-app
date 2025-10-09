@@ -93,11 +93,15 @@ export function RABUpdateForm({ rabData, projects, products, onSubmit, isSubmitt
 
     // Handle form input changes
     const handleInputChange = (field: string, value: string) => {
-        setFormData(prev => ({
-            ...prev,
-            [field]: value
-        }));
+        setFormData(prev => {
+            const updated = {
+                ...prev,
+                [field]: value
+            };
+            return updated;
+        });
     };
+
 
     // Handler yang lebih type-safe
     const handleDetailChange = {
@@ -354,11 +358,14 @@ export function RABUpdateForm({ rabData, projects, products, onSubmit, isSubmitt
                                             <SelectValue placeholder="Select project" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {projects.map((project) => (
-                                                <SelectItem key={project.id} value={String(project.id)}>
-                                                    {project.name} {project.customer && `- ${project.customer.name}`}
-                                                </SelectItem>
-                                            ))}
+                                            {projects.map((project) => {
+                                                console.log("Project item:", { id: project.id, idType: typeof project.id });
+                                                return (
+                                                    <SelectItem key={project.id} value={String(project.id)}>
+                                                        {project.name} {project.customer && `- ${project.customer.name}`}
+                                                    </SelectItem>
+                                                );
+                                            })}
                                         </SelectContent>
                                     </Select>
                                 )}
