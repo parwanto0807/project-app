@@ -279,7 +279,7 @@ export async function updatePurchaseRequestStatus(
 
     const updateData = {
       ...validatedData,
-      ...(validatedData.status === "UNDER_REVIEW" && {
+      ...(validatedData.status === "REVISION_NEEDED" && {
         reviewedDate: new Date(),
       }),
       ...(validatedData.status === "APPROVED" && {

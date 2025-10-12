@@ -307,7 +307,7 @@ export default function UpdatePRPageAdmin() {
                         <BreadcrumbItem>
                             <BreadcrumbLink asChild>
                                 <Badge variant="outline">
-                                    <Link href="/admin-area/logistic/pr">Procurement</Link>
+                                    <Link href="/admin-area/logistic/pr">Purchase Request List</Link>
                                 </Badge>
                             </BreadcrumbLink>
                         </BreadcrumbItem>

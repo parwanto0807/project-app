@@ -1111,6 +1111,7 @@ enum BudgetStatus {
 
 enum PurchaseRequestStatus {
   DRAFT
+  REVISION_NEEDED
   SUBMITTED
   APPROVED
   REJECTED

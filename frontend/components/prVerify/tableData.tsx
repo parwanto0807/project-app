@@ -23,21 +23,21 @@ import {
 import {
     FileText,
     Search,
-    Plus,
-    Edit,
-    Trash2,
+    Filter,
+    X,
     Calendar,
     Building,
     User,
-    Filter,
-    X,
-    ChevronDown,
-    ChevronRight
+    CheckCircle,
+    AlertCircle,
+    ThumbsUp,
+    ThumbsDown,
+    Clock,
 } from "lucide-react";
 import { PurchaseRequest, PurchaseRequestFilters } from "@/types/pr";
 import { PaginationInfo } from "@/types/pr";
-import { useRouter } from "next/navigation";
-import SimplePurchaseRequestPdfDialog from "./prPdfDialog";
+import SimplePurchaseRequestPdfDialog from "../pr/prPdfDialog"
+import { PurchaseRequestSheet } from "./statusActions";
 
 interface PurchaseRequestTableProps {
     purchaseRequests: PurchaseRequest[];
@@ -54,6 +54,7 @@ interface PurchaseRequestTableProps {
     onProjectFilterChange: (projectId: string) => void;
     onDateFilterChange: (dateFrom?: Date, dateTo?: Date) => void;
     onClearFilters: () => void;
+    onStatusUpdate: (id: string, status: PurchaseRequest['status']) => void;
     currentSearch?: string;
     currentStatus?: PurchaseRequestFilters['status'];
     currentProjectId?: string;
@@ -62,15 +63,18 @@ interface PurchaseRequestTableProps {
 }
 
 // Update status colors dan labels sesuai model baru
+// Tambahkan di bagian styles/constants Anda
 const statusColors = {
     DRAFT: "bg-gray-100 text-gray-800 border-gray-300",
-    REVISION_NEEDED: "bg-yellow-100 text-yellow-800 border-yellow-300",
-    SUBMITTED: "bg-blue-100 text-blue-800 border-blue-300",
-    APPROVED: "bg-green-100 text-green-800 border-green-300",
-    REJECTED: "bg-red-100 text-red-800 border-red-300",
-    COMPLETED: "bg-orange-100 text-orange-800 border-orange-300",
-};
+    SUBMITTED: "bg-blue-50 text-blue-700 border-blue-200",
+    APPROVED: "bg-green-50 text-green-700 border-green-200",
+    REJECTED: "bg-red-50 text-red-700 border-red-200",
+    REVISION_NEEDED: "bg-yellow-50 text-yellow-700 border-yellow-200",
+    COMPLETED: "bg-purple-50 text-purple-700 border-purple-200",
+    IN_PROGRESS: "bg-orange-50 text-orange-700 border-orange-200"
+} as const;
 
+// Atau versi dengan gradient subtle
 const statusLabels = {
     DRAFT: "Draft",
     REVISION_NEEDED: "Revision Needed",
@@ -78,6 +82,15 @@ const statusLabels = {
     APPROVED: "Approved",
     REJECTED: "Rejected",
     COMPLETED: "Completed",
+};
+
+const statusIcons = {
+    DRAFT: Clock,
+    REVISION_NEEDED: AlertCircle,
+    SUBMITTED: CheckCircle,
+    APPROVED: ThumbsUp,
+    REJECTED: ThumbsDown,
+    COMPLETED: CheckCircle,
 };
 
 const PdfIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -102,14 +115,12 @@ const PdfIcon = (props: React.SVGProps<SVGSVGElement>) => (
     </svg>
 );
 
-export function PurchaseRequestTable({
+export function PurchaseRequestVerifyTable({
     purchaseRequests,
     isLoading,
     isError,
     role,
     pagination,
-    onDelete,
-    isDeleting,
     onPageChange,
     onLimitChange,
     onSearchChange,
@@ -117,6 +128,7 @@ export function PurchaseRequestTable({
     onProjectFilterChange,
     onDateFilterChange,
     onClearFilters,
+    onStatusUpdate,
     currentSearch = "",
     currentStatus,
     currentProjectId,
@@ -127,10 +139,10 @@ export function PurchaseRequestTable({
     const [showFilters, setShowFilters] = useState(false);
     const [localDateFrom, setLocalDateFrom] = useState<string>(currentDateFrom?.toISOString().split('T')[0] || "");
     const [localDateTo, setLocalDateTo] = useState<string>(currentDateTo?.toISOString().split('T')[0] || "");
-    const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
     const [selectedPurchaseRequest, setSelectedPurchaseRequest] = useState<PurchaseRequest | null>(null);
+    const [detailSheetOpen, setDetailSheetOpen] = useState(false);
     const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
-    const router = useRouter();
+
 
     const handleSearchSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -154,14 +166,14 @@ export function PurchaseRequestTable({
         onDateFilterChange(undefined, undefined);
     };
 
-    const toggleRowExpansion = (prId: string) => {
-        const newExpanded = new Set(expandedRows);
-        if (newExpanded.has(prId)) {
-            newExpanded.delete(prId);
-        } else {
-            newExpanded.add(prId);
-        }
-        setExpandedRows(newExpanded);
+    const handleViewDetail = (pr: PurchaseRequest) => {
+        setSelectedPurchaseRequest(pr);
+        setDetailSheetOpen(true);
+    };
+
+    const handleStatusUpdate = (id: string, status: PurchaseRequest['status']) => {
+        onStatusUpdate(id, status);
+        setDetailSheetOpen(false);
     };
 
     const formatCurrency = (amount: number) => {
@@ -191,23 +203,9 @@ export function PurchaseRequestTable({
         }
     };
 
-    const handleEdit = (purchaseRequest: PurchaseRequest) => {
-        console.log("Edit purchase request:", purchaseRequest.id);
-        router.push(`/admin-area/logistic/pr/update/${purchaseRequest.id}`);
-    };
-
     const handleViewPdf = (pr: PurchaseRequest) => {
         setSelectedPurchaseRequest(pr);
         setPdfDialogOpen(true);
-    };
-
-    const handleViewDetail = (pr: PurchaseRequest) => {
-        setPdfDialogOpen(false);
-        handleViewPdf(pr);
-    };
-
-    const handleNewRequest = () => {
-        router.push("/admin-area/logistic/pr/create");
     };
 
     const totalPages = Math.ceil(pagination.total / pagination.limit);
@@ -240,20 +238,13 @@ export function PurchaseRequestTable({
             <div className="bg-gradient-to-r from-blue-600 to-purple-700 text-white p-4 sm:p-6 rounded-lg">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
                     <div>
-                        <h1 className="text-xl sm:text-2xl font-bold">Purchase Requests</h1>
+                        <h1 className="text-xl sm:text-2xl font-bold">Verify Purchase Requests</h1>
                         <p className="text-blue-100 mt-1 text-sm sm:text-base">
                             {role === "admin"
                                 ? "Manage and track all purchase requests"
                                 : "View and manage your purchase requests"}
                         </p>
                     </div>
-                    <Button
-                        className="bg-white text-blue-700 hover:bg-blue-50 font-semibold text-sm sm:text-base"
-                        onClick={handleNewRequest}
-                    >
-                        <Plus className="w-4 h-4 mr-2" />
-                        New Request
-                    </Button>
                 </div>
             </div>
 
@@ -379,7 +370,6 @@ export function PurchaseRequestTable({
                         <Table>
                             <TableHeader>
                                 <TableRow className="bg-muted/50">
-                                    <TableHead className="w-12"></TableHead>
                                     <TableHead className="font-semibold">PR Number</TableHead>
                                     <TableHead className="font-semibold">Project</TableHead>
                                     <TableHead className="font-semibold">SPK</TableHead>
@@ -394,9 +384,6 @@ export function PurchaseRequestTable({
                                 {isLoading ? (
                                     Array.from({ length: 5 }).map((_, index) => (
                                         <TableRow key={`skeleton-${index}`}>
-                                            <TableCell>
-                                                <div className="h-4 bg-muted rounded w-4 animate-pulse" />
-                                            </TableCell>
                                             <TableCell>
                                                 <div className="h-4 bg-muted rounded w-24 animate-pulse" />
                                             </TableCell>
@@ -420,30 +407,28 @@ export function PurchaseRequestTable({
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex justify-end gap-2">
-                                                    <div className="h-8 bg-muted rounded w-8 animate-pulse" />
-                                                    <div className="h-8 bg-muted rounded w-8 animate-pulse" />
-                                                    <div className="h-8 bg-muted rounded w-8 animate-pulse" />
+                                                    <div className="h-8 bg-muted rounded w-20 animate-pulse" />
+                                                    <div className="h-8 bg-muted rounded w-20 animate-pulse" />
                                                 </div>
                                             </TableCell>
                                         </TableRow>
                                     ))
                                 ) : purchaseRequests.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={9} className="text-center py-8">
+                                        <TableCell colSpan={8} className="text-center py-8">
                                             <div className="flex flex-col items-center justify-center text-muted-foreground">
                                                 <FileText className="h-12 w-12 mb-4 text-gray-300" />
                                                 <p className="text-lg font-medium">No purchase requests found</p>
                                                 <p className="text-sm mt-1">
                                                     {currentSearch || currentStatus || currentProjectId || currentDateFrom
                                                         ? "Try adjusting your search or filters"
-                                                        : "Get started by creating a new purchase request"}
+                                                        : "No purchase requests available"}
                                                 </p>
                                             </div>
                                         </TableCell>
                                     </TableRow>
                                 ) : (
                                     purchaseRequests.map((pr) => {
-                                        const isExpanded = expandedRows.has(pr.id);
                                         const cleanNumber = (value: string | number | null | undefined): number => {
                                             if (typeof value === "string") {
                                                 return Number(value.replace(/\D/g, "")) || 0;
@@ -456,157 +441,75 @@ export function PurchaseRequestTable({
                                             0
                                         ) ?? 0;
 
+                                        const StatusIcon = statusIcons[pr.status];
+
                                         return (
-                                            <Fragment key={pr.id}>
-                                                <TableRow
-                                                    className="hover:bg-muted/50 transition-colors cursor-pointer"
-                                                    onClick={() => toggleRowExpansion(pr.id)}
-                                                >
-                                                    <TableCell>
+                                            <TableRow
+                                                key={pr.id}
+                                                className="hover:bg-muted/50 transition-colors"
+                                            >
+                                                <TableCell className="font-medium">
+                                                    <div className="flex items-center gap-2">
+                                                        <FileText className="h-4 w-4 text-blue-500" />
+                                                        {pr.nomorPr}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-2">
+                                                        <Building className="h-4 w-4 text-green-500" />
+                                                        <span className="text-wrap">
+                                                            {pr.project?.name || pr.projectId}
+                                                        </span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="text-sm text-muted-foreground">
+                                                        {pr.spk?.spkNumber || pr.spkId}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-2">
+                                                        <User className="h-4 w-4 text-purple-500" />
+                                                        {pr.karyawan?.namaLengkap || pr.karyawanId}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-2">
+                                                        <Calendar className="h-4 w-4 text-orange-500" />
+                                                        {formatDate(pr.tanggalPr)}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="font-semibold">
+                                                    {formatCurrency(totalAmount)}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={`${statusColors[pr.status]} border font-medium text-xs flex items-center gap-1`}
+                                                    >
+                                                        <StatusIcon className="h-3 w-3" />
+                                                        {statusLabels[pr.status]}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex justify-end gap-2">
                                                         <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className="h-6 w-6 p-0"
+                                                            onClick={() => handleViewPdf(pr)}
+                                                            className="flex items-center gap-1 text-red-600 hover:text-red-800 border px-2 py-1 cursor-pointer rounded text-sm bg-slate-300 hover:bg-white"
                                                         >
-                                                            {isExpanded ? (
-                                                                <ChevronDown className="h-4 w-4" />
-                                                            ) : (
-                                                                <ChevronRight className="h-4 w-4" />
-                                                            )}
+                                                            <PdfIcon className="w-4 h-4" />
+                                                            Preview PDF
                                                         </Button>
-                                                    </TableCell>
-                                                    <TableCell className="font-medium">
-                                                        <div className="flex items-center gap-2">
-                                                            <FileText className="h-4 w-4 text-blue-500" />
-                                                            {pr.nomorPr}
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className="flex items-center gap-2">
-                                                            <Building className="h-4 w-4 text-green-500" />
-                                                            <span className="text-wrap">
-                                                                {pr.project?.name || pr.projectId}
-                                                            </span>
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className="text-sm text-muted-foreground">
-                                                            {pr.spk?.spkNumber || pr.spkId}
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className="flex items-center gap-2">
-                                                            <User className="h-4 w-4 text-purple-500" />
-                                                            {pr.karyawan?.namaLengkap || pr.karyawanId}
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className="flex items-center gap-2">
-                                                            <Calendar className="h-4 w-4 text-orange-500" />
-                                                            {formatDate(pr.tanggalPr)}
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell className="font-semibold">
-                                                        {formatCurrency(totalAmount)}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Badge
-                                                            variant="outline"
-                                                            className={`${statusColors[pr.status]} border font-medium text-xs`}
+                                                        <Button
+                                                            onClick={() => handleViewDetail(pr)}
+                                                            className="flex items-center gap-1 bg-blue-600 text-white hover:bg-blue-700 border px-2 py-1 cursor-pointer rounded text-sm"
                                                         >
-                                                            {statusLabels[pr.status]}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                                                            <Button
-                                                                onClick={() => handleViewPdf(pr)}
-                                                                className="flex items-center gap-1 text-red-600 hover:text-red-800 border px-2 py-1 cursor-pointer rounded text-sm bg-slate-300 hover:bg-white"
-                                                            >
-                                                                <PdfIcon className="w-5 h-5" />
-                                                                Preview Pdf
-                                                            </Button>
-                                                            {role === "admin" && (
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    onClick={() => handleEdit(pr)}
-                                                                    disabled={!(pr.status === "DRAFT" || pr.status === "REVISION_NEEDED")}
-                                                                    className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                                    title="Edit"
-                                                                >
-                                                                    <Edit className="h-4 w-4" />
-                                                                </Button>
-                                                            )}
-
-                                                            {role === "admin" && (
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    onClick={() => onDelete(pr.id)}
-                                                                    disabled={isDeleting || !(pr.status === "DRAFT" || pr.status === "REVISION_NEEDED")}
-                                                                    className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                                    title="Delete"
-                                                                >
-                                                                    <Trash2 className="h-4 w-4" />
-                                                                </Button>
-                                                            )}
-
-
-                                                        </div>
-                                                    </TableCell>
-                                                </TableRow>
-                                                {isExpanded && (
-                                                    <TableRow key={`${pr.id}-details`}>
-                                                        <TableCell colSpan={9} className="bg-muted/30 p-4">
-                                                            <div className="mt-0 ml-10">
-                                                                <h4 className="font-semibold mb-3 text-sm text-muted-foreground">
-                                                                    Items ({pr.details?.length || 0})
-                                                                </h4>
-
-                                                                <div className="rounded-lg border overflow-hidden">
-                                                                    {/* Header */}
-                                                                    <div className="grid grid-cols-5 bg-slate-300 dark:bg-slate-600 text-xs font-semibold px-4 py-2 dark:text-white uppercase">
-                                                                        <div>No</div>
-                                                                        <div>Item</div>
-                                                                        <div className="text-center">Qty</div>
-                                                                        <div className="text-right">Unit Price</div>
-                                                                        <div className="text-right">Total</div>
-                                                                    </div>
-
-                                                                    {/* Body */}
-                                                                    {pr.details && pr.details.length > 0 ? (
-                                                                        <div className="divide-y max-h-56 overflow-y-auto">
-                                                                            {pr.details.map((detail, index) => (
-                                                                                <div
-                                                                                    key={detail.id}
-                                                                                    className="grid grid-cols-5 px-4 py-2 text-sm items-center hover:bg-muted/30"
-                                                                                >
-                                                                                    <div className="text-xs font-medium">{index + 1}</div>
-                                                                                    <div className="truncate">{detail.catatanItem || "Unnamed Item"}</div>
-                                                                                    <div className="text-center">
-                                                                                        {detail.jumlah} {detail.satuan}
-                                                                                    </div>
-                                                                                    <div className="text-right">
-                                                                                        {formatCurrency(detail.estimasiHargaSatuan)}
-                                                                                    </div>
-                                                                                    <div className="text-right font-semibold text-green-600">
-                                                                                        {formatCurrency(detail.estimasiTotalHarga)}
-                                                                                    </div>
-                                                                                </div>
-                                                                            ))}
-                                                                        </div>
-                                                                    ) : (
-                                                                        <div className="p-4 text-center text-sm text-muted-foreground">
-                                                                            No items available
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                )}
-                                            </Fragment>
+                                                            <CheckCircle className="w-4 h-4" />
+                                                            Verify
+                                                        </Button>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
                                         );
                                     })
                                 )}
@@ -614,7 +517,7 @@ export function PurchaseRequestTable({
                         </Table>
                     </div>
 
-                    {/* Mobile Card View - IMPROVED */}
+                    {/* Mobile Card View */}
                     <div className="lg:hidden space-y-3">
                         {isLoading ? (
                             Array.from({ length: 5 }).map((_, index) => (
@@ -636,17 +539,18 @@ export function PurchaseRequestTable({
                                         <p className="text-xs sm:text-sm mt-1">
                                             {currentSearch || currentStatus || currentProjectId || currentDateFrom
                                                 ? "Try adjusting your search or filters"
-                                                : "Get started by creating a new purchase request"}
+                                                : "No purchase requests available"}
                                         </p>
                                     </div>
                                 </CardContent>
                             </Card>
                         ) : (
                             purchaseRequests.map((pr) => {
-                                const isExpanded = expandedRows.has(pr.id);
                                 const totalAmount = pr.details?.reduce((sum, detail) =>
                                     sum + Number(detail.estimasiTotalHarga || 0), 0
                                 ) || 0;
+
+                                const StatusIcon = statusIcons[pr.status];
 
                                 return (
                                     <Card
@@ -657,29 +561,16 @@ export function PurchaseRequestTable({
                                             {/* Header */}
                                             <div className="flex justify-between items-start gap-2">
                                                 <div className="flex items-center gap-1 flex-1 min-w-0">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="h-5 w-5 p-0 flex-shrink-0"
-                                                        onClick={() => toggleRowExpansion(pr.id)}
-                                                    >
-                                                        {isExpanded ? (
-                                                            <ChevronDown className="h-3 w-3" />
-                                                        ) : (
-                                                            <ChevronRight className="h-3 w-3" />
-                                                        )}
-                                                    </Button>
-                                                    <div className="flex items-center gap-1 min-w-0 flex-1">
-                                                        <FileText className="h-3 w-3 text-blue-500 flex-shrink-0" />
-                                                        <span className="font-semibold text-sm truncate">
-                                                            {pr.nomorPr}
-                                                        </span>
-                                                    </div>
+                                                    <FileText className="h-3 w-3 text-blue-500 flex-shrink-0" />
+                                                    <span className="font-semibold text-sm truncate">
+                                                        {pr.nomorPr}
+                                                    </span>
                                                 </div>
                                                 <Badge
                                                     variant="outline"
-                                                    className={`${statusColors[pr.status]} border font-medium text-xs px-1 py-0`}
+                                                    className={`${statusColors[pr.status]} border font-medium text-xs px-1 py-0 flex items-center gap-1`}
                                                 >
+                                                    <StatusIcon className="h-2 w-2" />
                                                     {statusLabels[pr.status]}
                                                 </Badge>
                                             </div>
@@ -731,39 +622,6 @@ export function PurchaseRequestTable({
                                                 </p>
                                             </div>
 
-                                            {/* Expanded Details */}
-                                            {isExpanded && (
-                                                <div className="border-t pt-2 space-y-2">
-                                                    <div>
-                                                        <h4 className="font-semibold mb-1 text-xs">Description</h4>
-                                                        <p className="text-xs">{pr.nomorPr || '-'}</p>
-                                                    </div>
-                                                    <div>
-                                                        <h4 className="font-semibold mb-1 text-xs">Items ({pr.details?.length || 0})</h4>
-                                                        <div className="space-y-1 max-h-32 overflow-y-auto">
-                                                            {pr.details?.map((detail, index) => (
-                                                                <div key={detail.id} className="flex justify-between text-xs border-b pb-1">
-                                                                    <div className="flex-1 min-w-0 pr-2">
-                                                                        <span className="font-medium truncate block">
-                                                                            {index + 1}. {detail.catatanItem}
-                                                                        </span>
-                                                                        <div className="text-muted-foreground text-xs">
-                                                                            Qty: {detail.jumlah} {detail.satuan}
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="text-right flex-shrink-0">
-                                                                        <div className="text-xs">{formatCurrency(detail.estimasiHargaSatuan)}</div>
-                                                                        <div className="text-muted-foreground text-xs">
-                                                                            Total: {formatCurrency(detail.estimasiTotalHarga)}
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            )) || <div className="text-xs text-muted-foreground">No items</div>}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            )}
-
                                             {/* Actions - Compact */}
                                             <div className="flex justify-end gap-1 pt-2 border-t">
                                                 <Button
@@ -773,31 +631,13 @@ export function PurchaseRequestTable({
                                                     <PdfIcon className="w-3 h-3" />
                                                     PDF
                                                 </Button>
-                                                {role === "admin" && (
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() => handleEdit(pr)}
-                                                        disabled={!(pr.status === "DRAFT" || pr.status === "REVISION_NEEDED")}
-                                                        className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                        title="Edit"
-                                                    >
-                                                        <Edit className="h-4 w-4" />
-                                                    </Button>
-                                                )}
-
-                                                {role === "admin" && (
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() => onDelete(pr.id)}
-                                                        disabled={isDeleting || !(pr.status === "DRAFT" || pr.status === "REVISION_NEEDED")}
-                                                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                        title="Delete"
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                )}
+                                                <Button
+                                                    onClick={() => handleViewDetail(pr)}
+                                                    className="flex items-center gap-1 bg-blue-600 text-white hover:bg-blue-700 border px-2 py-1 rounded text-xs h-7"
+                                                >
+                                                    <CheckCircle className="w-3 h-3" />
+                                                    Verify
+                                                </Button>
                                             </div>
                                         </CardContent>
                                     </Card>
@@ -892,11 +732,18 @@ export function PurchaseRequestTable({
                     )}
                 </CardContent>
             </Card>
+
+            <PurchaseRequestSheet
+                detailSheetOpen={detailSheetOpen}
+                setDetailSheetOpen={setDetailSheetOpen}
+                selectedPurchaseRequest={selectedPurchaseRequest}
+                onStatusUpdate={handleStatusUpdate}
+            />
+
             <SimplePurchaseRequestPdfDialog
                 purchaseRequest={selectedPurchaseRequest}
                 open={pdfDialogOpen}
                 onOpenChange={setPdfDialogOpen}
-                onViewDetail={handleViewDetail}
             />
         </>
     );

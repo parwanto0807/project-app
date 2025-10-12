@@ -14,18 +14,18 @@ export interface PurchaseRequest {
   nomorPr: string; // Ganti prNumber menjadi nomorPr
   projectId: string;
   spkId: string; // Tambahkan spkId
-  spkIds:string;
+  spkIds: string;
   karyawanId: string; // Tambahkan karyawanId (requestedBy)
   tanggalPr: Date; // Ganti requestedDate menjadi tanggalPr
   keterangan?: string; // Ganti description/remarks menjadi keterangan
-  status: 
+  status:
     | "DRAFT"
-    | "SUBMITTED" 
-    | "UNDER_REVIEW"
+    | "REVISION_NEEDED"
+    | "SUBMITTED"
     | "APPROVED"
     | "REJECTED"
-    | "CANCELLED"; // Sesuaikan dengan enum di Prisma
-  
+    | "COMPLETED"; // Sesuaikan dengan enum di Prisma
+
   // Relasi (optional untuk response)
   project?: {
     id: string;
@@ -39,7 +39,7 @@ export interface PurchaseRequest {
     id: string;
     namaLengkap: string;
   };
-  details: PurchaseRequestDetail[]; 
+  details: PurchaseRequestDetail[];
   createdAt: Date;
   updatedAt: Date;
 }

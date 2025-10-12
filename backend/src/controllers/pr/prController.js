@@ -283,15 +283,19 @@ export class PurchaseRequestController {
       }
 
       // Validasi status untuk update
-      if (existingPR.status !== "DRAFT") {
+      if (!["DRAFT", "REVISION_NEEDED"].includes(existingPR.status)) {
         return res.status(400).json({
           success: false,
-          message: "Only DRAFT Purchase Request can be updated",
+          message:
+            "Only DRAFT or REVISION_NEEDED Purchase Request can be updated",
         });
       }
-
       const updateData = { ...validatedData };
       delete updateData.details;
+
+      if (existingPR.status === "REVISION_NEEDED") {
+        updateData.status = "DRAFT";
+      }
 
       const transaction = await prisma.$transaction(async (tx) => {
         // Update header PR
@@ -402,9 +406,10 @@ export class PurchaseRequestController {
       // Validasi transisi status
       const validTransitions = {
         DRAFT: ["SUBMITTED"],
-        SUBMITTED: ["APPROVED", "REJECTED"],
-        APPROVED: ["COMPLETED"],
-        REJECTED: ["DRAFT"],
+        SUBMITTED: ["APPROVED", "REJECTED"], // REMOVE REVISION_NEEDED sementara
+        APPROVED: ["COMPLETED", "REVISION_NEEDED"],
+        REJECTED: ["SUBMITTED"],
+        REVISION_NEEDED: ["SUBMITTED", "DRAFT"],
         COMPLETED: [],
       };
 

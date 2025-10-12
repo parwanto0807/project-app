@@ -583,7 +583,7 @@ export function TabelUpdatePR({
                                             <TableHeader className="bg-muted/50">
                                                 <TableRow>
                                                     <TableHead className="w-[25%]">Product</TableHead>
-                                                    <TableHead>Project Budget</TableHead>
+                                                    <TableHead></TableHead>
                                                     <TableHead>Qty</TableHead>
                                                     <TableHead>Unit</TableHead>
                                                     <TableHead>Unit Cost</TableHead>
@@ -621,6 +621,7 @@ export function TabelUpdatePR({
                                                                 onChange={(e) => updateItem(item.tempId, "projectBudgetId", e.target.value)}
                                                                 placeholder="Project Budget ID"
                                                                 className={cn(errors[`projectBudgetId-${index}`] && "border-red-500")}
+                                                                hidden
                                                             />
                                                             {errors[`projectBudgetId-${index}`] && (
                                                                 <p className="text-xs text-red-500 mt-1">{errors[`projectBudgetId-${index}`]}</p>

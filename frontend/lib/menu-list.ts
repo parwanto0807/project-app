@@ -207,6 +207,12 @@ export function getMenuList(pathname: string, role: string) {
               active: isActive(`${basePath}/finance/invoice`, pathname),
               disabled: role === "user" || role === "pic",
             },
+            {
+              href: `${basePath}/finance/prVerify`,
+              label: "Verifikasi Purchase Request (PR)",
+              active: isActive(`${basePath}/finance/prVerify`, pathname),
+              disabled: role === "user" || role === "pic",
+            },
           ],
         },
       ],

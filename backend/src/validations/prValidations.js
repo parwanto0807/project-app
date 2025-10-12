@@ -33,7 +33,14 @@ export const createPurchaseRequestSchema = z.object({
 export const updatePurchaseRequestSchema = z.object({
   keterangan: z.string().max(500).optional().nullable(),
   status: z
-    .enum(["DRAFT", "SUBMITTED", "APPROVED", "REJECTED", "COMPLETED"])
+    .enum([
+      "DRAFT",
+      "REVISION_NEEDED",
+      "SUBMITTED",
+      "APPROVED",
+      "REJECTED",
+      "COMPLETED",
+    ])
     .or(z.literal("ALL"))
     .optional(),
   details: z
@@ -53,7 +60,14 @@ export const updatePurchaseRequestSchema = z.object({
 });
 
 export const updateStatusSchema = z.object({
-  status: z.enum(["DRAFT", "SUBMITTED", "APPROVED", "REJECTED", "COMPLETED"]),
+  status: z.enum([
+    "DRAFT",
+    "REVISION_NEEDED",
+    "SUBMITTED",
+    "APPROVED",
+    "REJECTED",
+    "COMPLETED",
+  ]),
   catatan: z.string().max(500).optional().nullable(),
 });
 
@@ -65,7 +79,7 @@ export const queryParamsSchema = z.object({
   page: z.string().regex(/^\d+$/).transform(Number).default("1"),
   limit: z.string().regex(/^\d+$/).transform(Number).default("10"),
   status: z
-    .enum(["DRAFT", "SUBMITTED", "APPROVED", "REJECTED", "COMPLETED"])
+    .enum(["DRAFT", "REVISION_NEEDED", "SUBMITTED", "APPROVED", "REJECTED", "COMPLETED"])
     .optional(),
   projectId: uuidSchema.optional(),
   startDate: z.string().datetime().optional(),
