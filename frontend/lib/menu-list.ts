@@ -150,6 +150,12 @@ export function getMenuList(pathname: string, role: string) {
               disabled: role === "user",
             },
             {
+              href: `${basePath}/logistic/pr`,
+              label: "Purchase Request",
+              active: isActive(`${basePath}/logistic/pr`, pathname),
+              disabled: role === "user",
+            },
+            {
               href: `${basePath}/logistic/bap`,
               label: "Berita Acara Pekerjaan",
               active: isActive(`${basePath}/logistic/bap`, pathname),
@@ -311,6 +317,11 @@ export function getMenuList(pathname: string, role: string) {
               href: "/admin-area/master/team",
               label: "Data Team",
               active: isActive("/admin-area/master/team", pathname),
+            },
+            {
+              href: "/admin-area/master/coa",
+              label: "Chart Of Account",
+              active: isActive("/admin-area/master/coa", pathname),
             },
           ],
         },

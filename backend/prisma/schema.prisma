@@ -156,10 +156,13 @@ model Karyawan {
   // Relasi ke penggajian
   gaji             Gaji[]
   spkDetail        SPKDetail[]
-  spk              SPK[]            @relation("SPKCreatedBy")
+  spk              SPK[]             @relation("SPKCreatedBy")
   spkFieldReport   SPKFieldReport[]
-  approvedBAP      BAP[]            @relation("BAPApprovedBy") // semua BAP yang di-approve user ini
-  approvedInvoices Invoice[]        @relation("InvoiceApprovedBy")
+  approvedBAP      BAP[]             @relation("BAPApprovedBy") // semua BAP yang di-approve user ini
+  approvedInvoices Invoice[]         @relation("InvoiceApprovedBy")
+  purchaseOrder    PurchaseOrder[]
+  purchaseRequest  PurchaseRequest[]
+  uangMuka         UangMuka[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -213,9 +216,15 @@ model Project {
   location   String?
   createdAt  DateTime @default(now())
 
-  customer    Customer     @relation(fields: [customerId], references: [id])
-  salesOrders SalesOrder[]
-  rab         RAB[]
+  customer        Customer          @relation(fields: [customerId], references: [id])
+  salesOrders     SalesOrder[]
+  rab             RAB[]
+  // --- Relasi Tambahan Sesuai Pembahasan Kita ---
+  spks            SPK[] // <-- Proyek ini memiliki banyak SPK
+  budgets         ProjectBudget[] // <-- Anggaran untuk proyek ini
+  expenses        ProjectExpense[] // <-- Semua biaya tercatat di proyek ini
+  purchaseOrder   PurchaseOrder[]
+  purchaseRequest PurchaseRequest[]
 }
 
 model Product {
@@ -244,10 +253,28 @@ model Product {
   categoryId String?
   category   ProductCategory? @relation(fields: [categoryId], references: [id])
 
+  // =============================================================
+  // RELASI KE COA DITAMBAHKAN DI SINI
+  // =============================================================
+
+  // Akun untuk mencatat PENDAPATAN saat produk ini dijual
+  revenueAccountId String?
+  revenueAccount   ChartOfAccounts? @relation("ProductRevenue", fields: [revenueAccountId], references: [id])
+
+  // Akun untuk mencatat HARGA POKOK (HPP) saat produk ini dijual
+  cogsAccountId String? // COGS = Cost of Goods Sold
+  cogsAccount   ChartOfAccounts? @relation("ProductCogs", fields: [cogsAccountId], references: [id])
+
+  // Akun untuk mencatat nilai PERSEDIAAN (ASET) saat produk ini dibeli
+  inventoryAccountId String?
+  inventoryAccount   ChartOfAccounts? @relation("ProductInventory", fields: [inventoryAccountId], references: [id])
+
   // Relasi
-  salesOrderItems SalesOrderItem[]
-  QuotationLines  QuotationLine[]
-  rabDetail       RABDetail[]
+  salesOrderItems           SalesOrderItem[]
+  QuotationLines            QuotationLine[]
+  rabDetail                 RABDetail[]
+  purchaseRequestDetail     PurchaseRequestDetail[]
+  rincianPertanggungJawaban RincianPertanggungjawaban[]
 }
 
 model RAB {
@@ -674,14 +701,24 @@ model SPK {
   teamId String?
   team   Team?   @relation(fields: [teamId], references: [id])
 
+  // --- Relasi Langsung ke Project Ditambahkan ---
+  projectId String? // <-- Kunci utama, agar SPK tahu 'payung'-nya
+  project   Project? @relation(fields: [projectId], references: [id])
+
   // Detail SPK
-  details        SPKDetail[]
-  spkFieldReport SPKFieldReport[]
-  spkStatus      Boolean          @default(false)
-  spkStatusClose Boolean          @default(false)
+  details         SPKDetail[]
+  spkFieldReport  SPKFieldReport[]
+  budget          ProjectBudget[]
+  expense         ProjectExpense[]
+  purchaseOrder   PurchaseOrder[]
+  purchaseRequest PurchaseRequest[]
+  uangMuka        UangMuka[]
+
+  spkStatus      Boolean  @default(false)
+  spkStatusClose Boolean  @default(false)
   notes          String?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 model SPKDetail {
@@ -1050,4 +1087,628 @@ model InvoiceTax {
 
   @@index([invoiceId])
   @@index([taxCode])
+}
+
+///   AKUNTANSI MODEL ////
+
+enum ExpenseStatus {
+  DRAFT // Baru dibuat oleh tim, belum final
+  PENDING_APPROVAL // Sudah diajukan dan menunggu persetujuan manajer
+  APPROVED // Disetujui, siap untuk diproses pembayaran oleh tim keuangan
+  REJECTED // Ditolak, perlu ada revisi atau dibatalkan
+  PAID // Sudah dibayarkan/diganti oleh tim keuangan
+  CANCELLED // Dibatalkan oleh pengaju sebelum diproses
+}
+
+enum BudgetStatus {
+  DRAFT // Masih dalam tahap perencanaan, belum diajukan
+  PROPOSED // Diajukan untuk persetujuan
+  APPROVED // Disetujui, dana siap dialokasikan
+  ACTIVE // Anggaran aktif dan dana sudah bisa digunakan untuk pengeluaran
+  CLOSED // Anggaran sudah selesai digunakan atau ditutup secara manual
+  CANCELLED // Dibatalkan
+}
+
+enum PurchaseRequestStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
+// Model Inti 1: Purchase Request (Header)
+model PurchaseRequest {
+  id         String                @id @default(uuid())
+  nomorPr    String                @unique
+  tanggalPr  DateTime              @default(now())
+  keterangan String?
+  status     PurchaseRequestStatus @default(DRAFT)
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // Relasi ke Karyawan yang mengajukan
+  karyawanId String
+  karyawan   Karyawan @relation(fields: [karyawanId], references: [id])
+
+  // Relasi ke SPK tujuan
+  spkId String
+  spk   SPK    @relation(fields: [spkId], references: [id])
+
+  // Relasi ke detail permintaan
+  details  PurchaseRequestDetail[]
+  uangMuka UangMuka[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Model Inti 2: Purchase Request Detail (Line Items)
+model PurchaseRequestDetail {
+  id String @id @default(uuid())
+
+  // Relasi ke header PR
+  purchaseRequestId String
+  purchaseRequest   PurchaseRequest @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
+
+  // Relasi ke produk yang diminta
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  // Relasi ke budget yang akan dipakai
+  projectBudgetId String?
+  projectBudget   ProjectBudget? @relation(fields: [projectBudgetId], references: [id])
+
+  jumlah                    Decimal                     @db.Decimal(10, 2)
+  satuan                    String
+  estimasiHargaSatuan       Decimal                     @db.Decimal(19, 2)
+  estimasiTotalHarga        Decimal                     @db.Decimal(19, 2)
+  catatanItem               String?
+  rincianPertanggungjawaban RincianPertanggungjawaban[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// File: schema.prisma
+
+// ENUM untuk status Uang Muka
+enum UangMukaStatus {
+  PENDING // Pengajuan baru, menunggu pencairan
+  DISBURSED // Dana sudah dicairkan/diberikan
+  SETTLED // Sudah dipertanggungjawabkan
+  REJECTED // Pengajuan ditolak
+}
+
+// 1. MODEL POKOK: UANG MUKA / CASH ADVANCE
+// Mencatat setiap transaksi uang muka yang keluar
+model UangMuka {
+  id               String         @id @default(uuid())
+  nomor            String         @unique // e.g., "CA-2025-001"
+  tanggalPengajuan DateTime       @default(now())
+  tanggalPencairan DateTime?
+  jumlah           Decimal        @db.Decimal(19, 2)
+  keterangan       String?
+  status           UangMukaStatus @default(PENDING)
+
+  // Relasi ke PR sebagai justifikasi
+  purchaseRequestId String?          @unique
+  purchaseRequest   PurchaseRequest? @relation(fields: [purchaseRequestId], references: [id])
+
+  // Relasi ke Karyawan yang menerima dana
+  karyawanId String
+  karyawan   Karyawan @relation(fields: [karyawanId], references: [id])
+
+  // Relasi ke SPK untuk tracking per proyek
+  spkId String
+  spk   SPK    @relation(fields: [spkId], references: [id])
+
+  // Relasi ke dokumen pertanggungjawaban yang menutup uang muka ini
+  pertanggungjawaban Pertanggungjawaban?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// 2. MODEL PERTANGGUNGJAWABAN (SETTLEMENT HEADER)
+// Dokumen untuk melaporkan penggunaan Uang Muka
+model Pertanggungjawaban {
+  id                   String   @id @default(uuid())
+  nomor                String   @unique // e.g., "PJ-2025-001"
+  tanggal              DateTime @default(now())
+  totalBiaya           Decimal  @db.Decimal(19, 2)
+  sisaUangDikembalikan Decimal  @db.Decimal(19, 2)
+  keterangan           String?
+
+  // Relasi one-to-one ke Uang Muka yang ditutup
+  uangMukaId String   @unique
+  uangMuka   UangMuka @relation(fields: [uangMukaId], references: [id])
+
+  // Relasi ke detail-detail biayanya
+  details RincianPertanggungjawaban[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// 3. MODEL RINCIAN PERTANGGUNGJAWABAN (SETTLEMENT DETAIL)
+// Setiap baris/nota/kuitansi dari pengeluaran
+model RincianPertanggungjawaban {
+  id String @id @default(uuid())
+
+  // Relasi ke dokumen header pertanggungjawaban
+  pertanggungjawabanId String
+  pertanggungjawaban   Pertanggungjawaban @relation(fields: [pertanggungjawabanId], references: [id], onDelete: Cascade)
+
+  tanggalTransaksi DateTime
+  keterangan       String // e.g., "Pembelian ATK di Toko ABC"
+  jumlah           Decimal  @db.Decimal(19, 2)
+  nomorBukti       String? // Nomor nota/kuitansi
+
+  // Opsional tapi sangat direkomendasikan:
+  // Relasi ke item PR asli untuk audit trail
+  purchaseRequestDetailId String?
+  purchaseRequestDetail   PurchaseRequestDetail? @relation(fields: [purchaseRequestDetailId], references: [id], onDelete: SetNull)
+
+  // Relasi ke produk/jasa untuk kategorisasi biaya
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// 1. MODEL UNTUK ANGGARAN / DANA PROYEK
+model ProjectBudget {
+  id          String       @id @default(uuid())
+  description String // Contoh: "Dana Talangan Tahap 1", "Anggaran Material"
+  amount      Decimal      @db.Decimal(18, 2) // Jumlah dana yang disetujui
+  issueDate   DateTime // Tanggal dana diberikan/dialokasikan
+  status      BudgetStatus @default(DRAFT)
+  projectId   String
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  spkId     String?
+  spk       SPK?                    @relation(fields: [spkId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  prDetails PurchaseRequestDetail[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+}
+
+// 2. MODEL PROJECT EXPENSE (DIPERBARUI)
+model ProjectExpense {
+  id          String        @id @default(uuid())
+  expenseDate DateTime
+  description String
+  amount      Decimal       @db.Decimal(18, 2)
+  receiptUrl  String?
+  status      ExpenseStatus @default(DRAFT)
+
+  projectId         String
+  project           Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  spkId             String?
+  spk               SPK?    @relation(fields: [spkId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  paidFromAccountId String
+  expenseAccountId  String
+
+  journalEntryId String?       @unique
+  journalEntry   JournalEntry? @relation(fields: [journalEntryId], references: [id])
+
+  supplierId String?
+  supplier   Supplier? @relation(fields: [supplierId], references: [id])
+
+  paidFromAccount ChartOfAccounts @relation("PaidFromCOA", fields: [paidFromAccountId], references: [id])
+  expenseAccount  ChartOfAccounts @relation("ExpenseCOA", fields: [expenseAccountId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([expenseDate])
+  @@index([spkId])
+}
+
+// ENUM BARU UNTUK KONTROL AKUNTANSI
+enum CoaType {
+  ASET
+  LIABILITAS
+  EKUITAS
+  PENDAPATAN
+  HPP
+  BEBAN
+}
+
+enum CoaNormalBalance {
+  DEBIT
+  CREDIT
+}
+
+enum CoaPostingType {
+  HEADER // Akun induk untuk grouping, tidak bisa untuk transaksi
+  POSTING // Akun detail yang bisa menerima transaksi/jurnal
+}
+
+enum CoaCashflowType {
+  OPERATING // Aktivitas Operasi
+  INVESTING // Aktivitas Investasi
+  FINANCING // Aktivitas Pendanaan
+  NONE // Tidak masuk laporan arus kas
+}
+
+enum CoaStatus {
+  ACTIVE
+  INACTIVE
+  LOCKED // Dikunci, tidak bisa digunakan sementara (misal: saat audit)
+}
+
+// MODEL BARU UNTUK PAJAK
+model TaxRate {
+  id          String            @id @default(uuid())
+  name        String            @unique // misal: PPN, PPh 23
+  rate        Decimal // Tarif dalam persen, misal: 11 untuk 11%
+  isActive    Boolean           @default(true)
+  coaAccounts ChartOfAccounts[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+// MODEL COA YANG DIPERBARUI DAN LENGKAP
+model ChartOfAccounts {
+  id              String            @id @default(uuid())
+  code            String            @unique
+  name            String
+  description     String?
+  type            CoaType
+  normalBalance   CoaNormalBalance // Saldo normal akun (Debit/Kredit)
+  postingType     CoaPostingType    @default(POSTING) // Tipe akun (Header/Posting)
+  cashflowType    CoaCashflowType   @default(NONE) // Kategori Laporan Arus Kas
+  status          CoaStatus         @default(ACTIVE)
+  isReconcilable  Boolean           @default(false) // True jika akun ini perlu direkonsiliasi (misal: Bank)
+  defaultCurrency String            @default("IDR")
+  parentId        String?
+  parent          ChartOfAccounts?  @relation("CoaHierarchy", fields: [parentId], references: [id])
+  children        ChartOfAccounts[] @relation("CoaHierarchy")
+
+  taxRateId String? // Relasi ke tarif pajak default
+  taxRate   TaxRate? @relation(fields: [taxRateId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  productsAsRevenue   Product[]          @relation("ProductRevenue")
+  productsAsCogs      Product[]          @relation("ProductCogs")
+  productsAsInventory Product[]          @relation("ProductInventory")
+  journalLines        JournalEntryLine[]
+  paidFromAccount     ProjectExpense[]   @relation("PaidFromCOA")
+  expenseAccount      ProjectExpense[]   @relation("ExpenseCOA")
+  paymentVoucher      PaymentVoucher[]
+}
+
+// 2. BUKU JURNAL / BUKU BESAR (MODEL BARU YANG PENTING)
+model JournalEntry {
+  id               String             @id @default(uuid())
+  transactionDate  DateTime // Tanggal transaksi
+  description      String // "Penjualan dari Invoice #INV-001", "Biaya material Proyek A"
+  sourceDocument   String? // Misal: "Invoice" atau "ProjectExpense"
+  sourceDocumentId String? // ID dari Invoice atau ProjectExpense tersebut
+  lines            JournalEntryLine[]
+  supplierInvoice  Supplier[]
+  paymentVoucher   PaymentVoucher[]
+  sipplierInvoice  SupplierInvoice[]
+
+  projectExpense ProjectExpense?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([transactionDate])
+  @@index([sourceDocument, sourceDocumentId])
+}
+
+// 3. DETAIL JURNAL (DEBIT & KREDIT)
+model JournalEntryLine {
+  id             String  @id @default(uuid())
+  journalEntryId String
+  coaId          String // ID Akun dari ChartOfAccounts
+  debit          Decimal @default(0) @db.Decimal(18, 2)
+  credit         Decimal @default(0) @db.Decimal(18, 2)
+  description    String?
+
+  account ChartOfAccounts @relation(fields: [coaId], references: [id])
+  parent  JournalEntry    @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+
+  @@index([journalEntryId])
+  @@index([coaId])
+}
+
+// ==========================================================
+//               MODUL MANAJEMEN SUPPLIER (VENDOR)
+// ==========================================================
+
+// ENUM untuk status Supplier
+enum SupplierStatus {
+  ACTIVE // Supplier aktif dan bisa digunakan untuk transaksi
+  INACTIVE // Supplier tidak aktif, tidak muncul di pilihan transaksi baru
+  BLACKLISTED // Diblokir, tidak bisa digunakan sama sekali
+}
+
+// Model Utama Supplier
+model Supplier {
+  id     String         @id @default(uuid())
+  code   String         @unique // Kode unik internal untuk supplier, misal: SUP-0001
+  name   String // Nama resmi perusahaan supplier
+  status SupplierStatus @default(ACTIVE)
+
+  // --- Informasi Kontak & Alamat ---
+  email           String? @unique
+  phone           String?
+  website         String?
+  // Catatan: Alamat idealnya dibuat model terpisah jika butuh struktur detail (jalan, kota, dll)
+  // Untuk kesederhanaan, di sini menggunakan Text
+  billingAddress  String?
+  shippingAddress String?
+
+  // --- Informasi Keuangan & Pajak ---
+  npwp      String? @unique // Nomor Pokok Wajib Pajak
+  isTaxable Boolean @default(false) // Apakah supplier ini PKP (Pengusaha Kena Pajak)
+
+  // Relasi ke Termin Pembayaran Default
+  termOfPaymentId String?
+  termOfPayment   TermOfPayment? @relation(fields: [termOfPaymentId], references: [id])
+
+  // --- Relasi ke Model Lain ---
+  // One-to-Many: Satu supplier bisa punya banyak kontak dan rekening bank
+  contacts     SupplierContact[]
+  bankAccounts SupplierBankAccount[]
+
+  // Relasi ke Kategori Supplier
+  supplierCategoryId String?
+  supplierCategory   SupplierCategory? @relation(fields: [supplierCategoryId], references: [id])
+
+  // --- Relasi ke Modul Transaksional (Akan dibuat nanti) ---
+  // Menunjukkan integrasi ke modul lain
+  projectExpenses  ProjectExpense[] // Pengeluaran Proyek yang dibayarkan ke vendor ini
+  purchaseOrders   PurchaseOrder[] // Semua Purchase Order untuk supplier ini
+  supplierInvoices SupplierInvoice[] // Semua tagihan dari supplier ini
+  payments         PaymentVoucher[] // Semua pembayaran ke supplier ini
+  journalEntry     JournalEntry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+  @@index([status])
+}
+
+// Model untuk menyimpan multiple kontak per supplier
+model SupplierContact {
+  id        String  @id @default(uuid())
+  name      String
+  position  String? // Jabatan, misal: "Sales Manager"
+  email     String?
+  phone     String?
+  isPrimary Boolean @default(false) // Menandakan kontak utama
+
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([supplierId])
+}
+
+// Model untuk menyimpan multiple rekening bank per supplier
+model SupplierBankAccount {
+  id                String  @id @default(uuid())
+  bankName          String // Nama Bank (BCA, Mandiri, dll)
+  accountHolderName String // Nama Pemilik Rekening
+  accountNumber     String // Nomor Rekening
+  branch            String? // Cabang Bank
+  isPrimary         Boolean @default(false)
+
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([supplierId])
+}
+
+// ==========================================================
+//               MASTER DATA PENDUKUNG
+// ==========================================================
+
+// Master Data untuk Kategori Supplier
+model SupplierCategory {
+  id          String     @id @default(uuid())
+  name        String     @unique // Contoh: "Supplier Material", "Subkontraktor", "Jasa"
+  description String?
+  suppliers   Supplier[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Master Data untuk Termin Pembayaran (Term of Payment)
+model TermOfPayment {
+  id          String     @id @default(uuid())
+  name        String     @unique // Contoh: "Cash On Delivery", "Net 30", "Net 60"
+  days        Int        @default(0) // Jumlah hari jatuh tempo. 0 untuk COD.
+  description String?
+  suppliers   Supplier[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==========================================================
+//               ENUMS UNTUK MODUL PENGADAAN & UTANG
+// ==========================================================
+
+enum PurchaseOrderStatus {
+  DRAFT // Masih dalam persiapan, belum diajukan
+  PENDING_APPROVAL // Diajukan dan menunggu persetujuan
+  APPROVED // Disetujui, siap dikirim ke supplier
+  REJECTED // Ditolak
+  SENT // Sudah dikirim ke supplier
+  PARTIALLY_RECEIVED // Sebagian barang/jasa sudah diterima
+  FULLY_RECEIVED // Semua barang/jasa sudah diterima, PO selesai
+  CANCELLED // Dibatalkan
+}
+
+enum SupplierInvoiceStatus {
+  DRAFT // Baru dibuat, belum divalidasi
+  PENDING_APPROVAL // Menunggu persetujuan untuk dibayar
+  AWAITING_PAYMENT // Disetujui dan menunggu pembayaran
+  PARTIALLY_PAID // Sudah dibayar sebagian
+  FULLY_PAID // Lunas
+  OVERDUE // Lewat jatuh tempo
+  CANCELLED // Dibatalkan
+}
+
+enum SupplierPaymentMethod {
+  BANK_TRANSFER
+  CASH
+  CHEQUE
+  VIRTUAL_ACCOUNT
+}
+
+// ==========================================================
+//               1. MODUL PEMBELIAN (PURCHASE ORDER)
+// ==========================================================
+
+model PurchaseOrder {
+  id                   String              @id @default(uuid())
+  poNumber             String              @unique // Nomor PO internal, misal: PO/2025/10/001
+  orderDate            DateTime
+  expectedDeliveryDate DateTime?
+  status               PurchaseOrderStatus @default(DRAFT)
+
+  // --- Relasi ---
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
+  projectId  String?
+  project    Project? @relation(fields: [projectId], references: [id])
+  spkId      String?
+  spk        SPK?     @relation(fields: [spkId], references: [id])
+
+  orderedById String // ID Karyawan/User yang membuat PO
+  orderedBy   Karyawan @relation(fields: [orderedById], references: [id])
+
+  // --- Finansial ---
+  subtotal     Decimal @default(0) @db.Decimal(18, 2)
+  taxAmount    Decimal @default(0) @db.Decimal(18, 2)
+  shippingCost Decimal @default(0) @db.Decimal(18, 2)
+  totalAmount  Decimal @default(0) @db.Decimal(18, 2)
+
+  // --- Lain-lain ---
+  notes           String? // Catatan untuk supplier
+  shippingAddress String?
+
+  // --- Relasi Balik ---
+  lines            PurchaseOrderLine[]
+  supplierInvoices SupplierInvoice[] // Satu PO bisa jadi memiliki beberapa tagihan
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PurchaseOrderLine {
+  id          String  @id @default(uuid())
+  description String // Deskripsi barang/jasa
+  quantity    Decimal @db.Decimal(18, 4)
+  unitPrice   Decimal @db.Decimal(18, 2)
+  taxRate     Decimal @default(0) @db.Decimal(5, 2) // Tarif pajak dalam persen, misal: 11.00
+  totalAmount Decimal @db.Decimal(18, 2)
+
+  poId          String
+  purchaseOrder PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+
+  // productId    String?  // Opsional: jika terhubung ke modul Master Barang/Produk
+  // product      Product? @relation(fields: [productId], references: [id])
+}
+
+// ==========================================================
+//               2. MODUL TAGIHAN SUPPLIER (ACCOUNTS PAYABLE)
+// ==========================================================
+
+model SupplierInvoice {
+  id            String                @id @default(uuid())
+  invoiceNumber String // Nomor tagihan DARI supplier
+  invoiceDate   DateTime
+  dueDate       DateTime // Tanggal jatuh tempo
+  status        SupplierInvoiceStatus @default(DRAFT)
+
+  // --- Relasi ---
+  supplierId      String
+  supplier        Supplier       @relation(fields: [supplierId], references: [id])
+  purchaseOrderId String? // Bisa jadi tagihan tidak berasal dari PO
+  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+
+  // --- Finansial ---
+  subtotal    Decimal @db.Decimal(18, 2)
+  taxAmount   Decimal @default(0) @db.Decimal(18, 2)
+  totalAmount Decimal @db.Decimal(18, 2)
+  amountPaid  Decimal @default(0) @db.Decimal(18, 2) // Jumlah yang sudah terbayar
+
+  // --- Integrasi Akuntansi ---
+  journalEntryId String?       @unique
+  journalEntry   JournalEntry? @relation(fields: [journalEntryId], references: [id])
+
+  // --- Relasi Balik ---
+  paymentAllocations PaymentAllocation[] // Tagihan ini bisa dibayar oleh beberapa pembayaran
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([supplierId, invoiceNumber]) // Nomor invoice harus unik per supplier
+}
+
+// ==========================================================
+//               3. MODUL PEMBAYARAN UTANG
+// ==========================================================
+
+model PaymentVoucher {
+  id            String                @id @default(uuid())
+  voucherNumber String                @unique // Nomor voucher pembayaran internal
+  paymentDate   DateTime
+  paymentMethod SupplierPaymentMethod
+  amount        Decimal               @db.Decimal(18, 2)
+  notes         String?
+
+  // --- Relasi ---
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
+
+  // --- Integrasi Akuntansi ---
+  paidFromAccountId String // Akun Kas/Bank yang digunakan untuk membayar
+  paidFromAccount   ChartOfAccounts @relation(fields: [paidFromAccountId], references: [id])
+  journalEntryId    String?         @unique
+  journalEntry      JournalEntry?   @relation(fields: [journalEntryId], references: [id])
+
+  // --- Relasi Balik ---
+  allocations PaymentAllocation[] // Pembayaran ini bisa dialokasikan ke beberapa tagihan
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+}
+
+// Model PENGHUBUNG (Join Table) untuk relasi Many-to-Many
+// antara Pembayaran dan Tagihan
+model PaymentAllocation {
+  id              String  @id @default(uuid())
+  amountAllocated Decimal @db.Decimal(18, 2) // Jumlah yang dialokasikan dari pembayaran ini ke tagihan ini
+
+  paymentVoucherId String
+  paymentVoucher   PaymentVoucher @relation(fields: [paymentVoucherId], references: [id])
+
+  supplierInvoiceId String
+  supplierInvoice   SupplierInvoice @relation(fields: [supplierInvoiceId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([paymentVoucherId, supplierInvoiceId])
 }

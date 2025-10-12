@@ -20,6 +20,9 @@ import quotationRoutes from "./routes/quotation/quotationRoutes.js";
 import taxRoutes from "./routes/quotation/taxRoutes.js";
 import paymentTermRoutes from "./routes/quotation/paymentTermRoutes.js";
 import rabRoutes from "./routes/rab/rabRoutes.js";
+import coaRoutes from "./routes/coa/coaRouters.js";
+import prRoutes from "./routes/pr/prRouters.js";
+
 import path from "path";
 
 const app = express();
@@ -107,6 +110,8 @@ app.use("/api/quotations", quotationRoutes);
 app.use("/api/master/tax", taxRoutes);
 app.use("/api/master/payment-term", paymentTermRoutes);
 app.use("/api/rabs", rabRoutes);
+app.use("/api/coa", coaRoutes);
+app.use("/api/pr", prRoutes);
 
 // Health Check Endpoint
 app.get("/api/health", (req, res) => {
