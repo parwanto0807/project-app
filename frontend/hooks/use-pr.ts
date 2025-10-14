@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   PurchaseRequest,
@@ -62,6 +62,23 @@ interface UsePurchaseRequestReturn {
   clearCurrentPurchaseRequest: () => void;
   refetch: () => Promise<void>;
 }
+
+export const useApprovedPurchaseRequests = () => {
+  const { purchaseRequests, loading, fetchAllPurchaseRequests } =
+    usePurchaseRequest();
+
+  useEffect(() => {
+    fetchAllPurchaseRequests({
+      status: "APPROVED",
+      limit: 100,
+    });
+  }, [fetchAllPurchaseRequests]);
+
+  return {
+    approvedPurchaseRequests: purchaseRequests || [],
+    loading,
+  };
+};
 
 // Hook untuk operasi CRUD lengkap
 export function usePurchaseRequest(): UsePurchaseRequestReturn {

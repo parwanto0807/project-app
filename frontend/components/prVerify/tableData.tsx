@@ -143,6 +143,7 @@ export function PurchaseRequestVerifyTable({
     const [detailSheetOpen, setDetailSheetOpen] = useState(false);
     const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
 
+    // console.log("DATA PR", purchaseRequests)
 
     const handleSearchSubmit = (e: React.FormEvent) => {
         e.preventDefault();

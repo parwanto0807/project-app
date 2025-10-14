@@ -523,9 +523,9 @@ export function TabelInputPR({
                                     Purchase Items
                                     <Badge variant="secondary" className="ml-2">{items.length}</Badge>
                                 </CardTitle>
-                                <Button type="button" onClick={addItem} variant="outline" size="sm" className="gap-1">
+                                {/* <Button type="button" onClick={addItem} variant="outline" size="sm" className="gap-1">
                                     <Plus className="h-4 w-4" /> Add Item
-                                </Button>
+                                </Button> */}
                             </CardHeader>
                             <CardContent>
                                 {errors.items && <p className="text-sm text-red-500 mb-4">{errors.items}</p>}
@@ -628,15 +628,53 @@ export function TabelInputPR({
                                                 ))}
                                             </TableBody>
                                         </Table>
+                                        <div className="flex items-end justify-end right-0 p-4">
+                                            <Button
+                                                type="button"
+                                                onClick={addItem}
+                                                size="sm"
+                                                // 1. Hapus variant="outline" agar menjadi solid
+                                                // 2. Tambahkan bayangan (shadow) dan efek transisi
+                                                className="gap-1 shadow-md hover:shadow-lg hover:scale-105 transition-all"
+                                            >
+                                                <Plus className="h-4 w-4" />
+                                                Add Item
+                                            </Button>
+                                        </div>
                                     </div>
                                 ) : (
-                                    <div className="text-center py-12 border-2 border-dashed rounded-lg">
-                                        <ShoppingCart className="h-12 w-12 mx-auto text-muted-foreground" />
-                                        <p className="mt-4 text-muted-foreground">No items added yet.</p>
+                                    <div className="text-center py-12 px-6 border-2 border-dashed rounded-lg">
+                                        <div className="space-y-4 flex flex-col items-center">
+
+                                            {/* 1. Icon dengan background agar lebih menonjol */}
+                                            <div className=" p-4 rounded-full">
+                                                <ShoppingCart className="h-12 w-12 text-slate-500" />
+                                            </div>
+
+                                            {/* 2. Judul yang lebih jelas dan tebal */}
+                                            <h3 className="text-xl font-semibold">
+                                                Daftar Item Masih Kosong
+                                            </h3>
+
+                                            {/* 3. Teks deskripsi yang memandu pengguna */}
+                                            <p className="text-muted-foreground max-w-xs mx-auto">
+                                                Mulailah dengan menambahkan item pertama Anda ke dalam daftar permintaan pembelian.
+                                            </p>
+
+                                            {/* 4. Tombol Call-to-Action (CTA) utama */}
+                                            <Button
+                                                onClick={addItem}
+                                                className="gap-2 mt-2"
+                                            >
+                                                <Plus className="h-4 w-4" />
+                                                Tambah Item Pertama
+                                            </Button>
+                                        </div>
                                     </div>
                                 )}
                             </CardContent>
                         </Card>
+
                     </div>
 
                     {/* Right Column: Summary & Actions */}
@@ -923,7 +961,7 @@ export function TabelInputPR({
                         </Card>
                     </div>
                 </div>
-            </form>
-        </div>
+            </form >
+        </div >
     );
 }

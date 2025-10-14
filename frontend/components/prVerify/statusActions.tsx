@@ -14,6 +14,7 @@ import {
     ThumbsDown,
     X
 } from "lucide-react";
+import { useEffect, useRef } from "react";
 
 // Import type dari @/types/pr
 import { PurchaseRequest } from "@/types/pr";
@@ -118,12 +119,12 @@ const statusLabels = {
 };
 
 const premiumStatusColors = {
-    DRAFT: "bg-gray-100 text-gray-800 border-gray-300",
-    SUBMITTED: "bg-blue-100 text-blue-800 border-blue-300",
-    APPROVED: "bg-green-100 text-green-800 border-green-300",
-    REJECTED: "bg-red-100 text-red-800 border-red-300",
-    REVISION_NEEDED: "bg-yellow-100 text-yellow-800 border-yellow-300",
-    COMPLETED: "bg-orange-100 text-orange-800 border-orange-300",
+    DRAFT: "bg-gray-200 text-gray-900 border-gray-400 font-bold",
+    SUBMITTED: "bg-blue-200 text-blue-900 border-blue-500 font-bold",
+    APPROVED: "bg-green-200 text-green-900 border-green-500 font-bold",
+    REJECTED: "bg-red-200 text-red-900 border-red-500 font-bold",
+    REVISION_NEEDED: "bg-yellow-200 text-yellow-900 border-yellow-500 font-bold",
+    COMPLETED: "bg-orange-200 text-orange-900 border-orange-500 font-bold",
 };
 
 // Helper functions
@@ -158,6 +159,7 @@ export function PurchaseRequestSheet({
     selectedPurchaseRequest,
     onStatusUpdate
 }: PurchaseRequestSheetProps) {
+    const contentRef = useRef<HTMLDivElement>(null);
 
     const handleStatusUpdateFromActions = (status: PurchaseRequestStatus) => {
         if (selectedPurchaseRequest) {
@@ -165,15 +167,22 @@ export function PurchaseRequestSheet({
         }
     };
 
+    // Reset scroll ketika sheet dibuka
+    useEffect(() => {
+        if (detailSheetOpen && contentRef.current) {
+            contentRef.current.scrollTop = 0;
+        }
+    }, [detailSheetOpen, selectedPurchaseRequest]);
+
     return (
         <Sheet open={detailSheetOpen} onOpenChange={setDetailSheetOpen}>
             <SheetContent
                 side="bottom"
-                className="sm:max-w-4xl lg:max-w-5xl ml-auto rounded-t-2xl min-h-[90vh] rounded-b-none sm:mb-4 w-full sm:w-auto sm:mr-36 dark:bg-slate-800 md:px-2"
+                className="overflow-y-auto sm:max-w-4xl lg:max-w-5xl ml-auto rounded-t-2xl rounded-b-none sm:mb-4 w-full sm:w-auto sm:mr-36 dark:bg-slate-800 md:px-2 max-h-[95vh]"
             >
-                <div className="flex flex-col h-full px-4 sm:px-6">
+                <div className="flex flex-col h-full px-2 sm:px-2">
                     {/* Header dengan close button mobile-friendly */}
-                    <SheetHeader className="border-b pb-4">
+                    <SheetHeader className="border-b pb-4 flex-shrink-0">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3 flex-1 min-w-0">
                                 <div className="p-2 bg-blue-50 rounded-lg flex-shrink-0">
@@ -231,8 +240,12 @@ export function PurchaseRequestSheet({
                         </div>
                     </SheetHeader>
 
-                    {selectedPurchaseRequest ? (
-                        <div className="flex-1 overflow-y-auto py-4 sm:py-6">
+                    {/* Main Content Area dengan Scroll */}
+                    <div 
+                        ref={contentRef}
+                        className="flex-1 overflow-y-auto py-4 sm:py-6 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400"
+                    >
+                        {selectedPurchaseRequest ? (
                             <div className="space-y-4 sm:space-y-6">
                                 {/* Header Card dengan layout mobile-friendly */}
                                 <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 shadow-sm">
@@ -263,6 +276,12 @@ export function PurchaseRequestSheet({
                                                         <p className="text-xs text-gray-500 font-medium">SPK Number</p>
                                                         <p className="text-sm font-semibold text-gray-900 truncate">
                                                             {selectedPurchaseRequest.spk?.spkNumber || selectedPurchaseRequest.spkId}
+                                                        </p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-xs text-gray-500 font-medium">Keterangan</p>
+                                                        <p className="text-sm font-semibold text-gray-900">
+                                                            {selectedPurchaseRequest.keterangan}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -368,9 +387,9 @@ export function PurchaseRequestSheet({
                                                         Items List
                                                     </div>
 
-                                                    {/* Table Body */}
+                                                    {/* Table Body dengan Scroll */}
                                                     {selectedPurchaseRequest.details && selectedPurchaseRequest.details.length > 0 ? (
-                                                        <div className="max-h-72 overflow-y-auto">
+                                                        <div className="max-h-72 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
                                                             {selectedPurchaseRequest.details.map((detail, index) => (
                                                                 <div
                                                                     key={detail.id}
@@ -441,22 +460,22 @@ export function PurchaseRequestSheet({
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    ) : (
-                        <div className="flex-1 flex items-center justify-center py-8 sm:py-12">
-                            <div className="text-center">
-                                <FileText className="h-12 w-12 sm:h-16 sm:w-16 text-gray-300 mx-auto mb-4" />
-                                <p className="text-gray-500 font-medium text-sm sm:text-base">No purchase request selected</p>
-                                <p className="text-xs sm:text-sm text-gray-400 mt-1">
-                                    Please select a purchase request to view details
-                                </p>
+                        ) : (
+                            <div className="flex-1 flex items-center justify-center py-8 sm:py-12">
+                                <div className="text-center">
+                                    <FileText className="h-12 w-12 sm:h-16 sm:w-16 text-gray-300 mx-auto mb-4" />
+                                    <p className="text-gray-500 font-medium text-sm sm:text-base">No purchase request selected</p>
+                                    <p className="text-xs sm:text-sm text-gray-400 mt-1">
+                                        Please select a purchase request to view details
+                                    </p>
+                                </div>
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
 
                     {/* Action Buttons - Sticky di bagian bawah untuk mobile */}
                     {selectedPurchaseRequest && (
-                        <div className="border-t bg-white py-4 dark:py-4 sticky bottom-0 -mx-4 sm:-mx-6 px-4 sm:px-6 pb-4 sm:pb-0 -mb-4 sm:mb-0 rounded-lg">
+                        <div className="border-t bg-white py-4 dark:py-4 sticky bottom-0 -mx-4 sm:-mx-6 px-4 sm:px-6 pb-4 sm:pb-0 -mb-4 sm:mb-0 rounded-lg mt-auto flex-shrink-0">
                             <StatusActions
                                 currentStatus={selectedPurchaseRequest.status}
                                 onStatusUpdate={handleStatusUpdateFromActions}

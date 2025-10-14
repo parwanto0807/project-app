@@ -213,6 +213,12 @@ export function getMenuList(pathname: string, role: string) {
               active: isActive(`${basePath}/finance/prVerify`, pathname),
               disabled: role === "user" || role === "pic",
             },
+                        {
+              href: `${basePath}/finance/prApprove`,
+              label: "Request Approval",
+              active: isActive(`${basePath}/finance/prApprove`, pathname),
+              disabled: role === "user" || role === "pic",
+            },
           ],
         },
       ],

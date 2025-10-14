@@ -76,7 +76,6 @@ export interface PurchaseRequestFilters {
   dateTo?: Date;
   karyawanId?: string; // Ganti requestedBy menjadi karyawanId
   spkId?: string; // Tambahkan filter spkId
-  // Tambahkan properti untuk pagination dan search
   page?: number;
   limit?: number;
   search?: string;

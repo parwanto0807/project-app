@@ -22,6 +22,7 @@ import paymentTermRoutes from "./routes/quotation/paymentTermRoutes.js";
 import rabRoutes from "./routes/rab/rabRoutes.js";
 import coaRoutes from "./routes/coa/coaRouters.js";
 import prRoutes from "./routes/pr/prRouters.js";
+import umRoutes from "./routes/um/umRouters.js";
 
 import path from "path";
 
@@ -112,6 +113,7 @@ app.use("/api/master/payment-term", paymentTermRoutes);
 app.use("/api/rabs", rabRoutes);
 app.use("/api/coa", coaRoutes);
 app.use("/api/pr", prRoutes);
+app.use("/api/um", umRoutes);
 
 // Health Check Endpoint
 app.get("/api/health", (req, res) => {

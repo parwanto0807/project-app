@@ -1182,19 +1182,31 @@ enum UangMukaStatus {
   REJECTED // Pengajuan ditolak
 }
 
+enum MetodePembayaran {
+  CASH
+  BANK_TRANSFER
+  E_WALLET
+}
+
 // 1. MODEL POKOK: UANG MUKA / CASH ADVANCE
-// Mencatat setiap transaksi uang muka yang keluar
 model UangMuka {
-  id               String         @id @default(uuid())
-  nomor            String         @unique // e.g., "CA-2025-001"
-  tanggalPengajuan DateTime       @default(now())
-  tanggalPencairan DateTime?
-  jumlah           Decimal        @db.Decimal(19, 2)
-  keterangan       String?
-  status           UangMukaStatus @default(PENDING)
+  id                String         @id @default(uuid())
+  nomor             String         @unique
+  tanggalPengajuan  DateTime       @default(now())
+  tanggalPencairan  DateTime?
+  jumlah            Decimal        @db.Decimal(19, 2)
+  keterangan        String?
+  status            UangMukaStatus @default(PENDING)
+  buktiPencairanUrl String?
+
+  // -- FIELD TAMBAHAN YANG DIUSULKAN --
+  metodePencairan     MetodePembayaran? // Nullable, karena baru diisi saat pencairan
+  namaBankTujuan      String? // e.g., "BCA"
+  nomorRekeningTujuan String? // e.g., "8812345678"
+  namaEwalletTujuan   String? // e.g., "GoPay" atau "OVO"
 
   // Relasi ke PR sebagai justifikasi
-  purchaseRequestId String?          @unique
+  purchaseRequestId String?
   purchaseRequest   PurchaseRequest? @relation(fields: [purchaseRequestId], references: [id])
 
   // Relasi ke Karyawan yang menerima dana

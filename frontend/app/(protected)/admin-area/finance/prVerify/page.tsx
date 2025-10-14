@@ -113,10 +113,10 @@ export default function PurchaseRequestPageAdmin() {
         try {
             // Tampilkan loading toast
             const toastId = toast.loading(`Updating status to ${status}...`);
-            
+
             // Sesuai dengan signature fungsi: updatePurchaseRequestStatus(id: string, data: UpdatePurchaseRequestStatusData)
             await updatePurchaseRequestStatus(id, { status });
-            
+
             // Update toast menjadi success
             toast.success(`Purchase request status updated to ${status}`, {
                 id: toastId
