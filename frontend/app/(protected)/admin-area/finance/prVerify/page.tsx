@@ -18,7 +18,7 @@ import { LayoutProps } from "@/types/layout";
 import { PurchaseRequestVerifyTable } from "@/components/prVerify/tableData";
 import { usePurchaseRequest } from "@/hooks/use-pr";
 import { AdminLoading } from "@/components/admin-loading";
-import { PurchaseRequestFilters, PurchaseRequest } from "@/types/pr";
+import { PurchaseRequestFilters, PurchaseRequest, PaginationInfo } from "@/types/pr";
 
 export default function PurchaseRequestPageAdmin() {
     const [filters, setFilters] = useState<PurchaseRequestFilters>({
@@ -39,6 +39,7 @@ export default function PurchaseRequestPageAdmin() {
     // ✅ Panggil hook dengan filters
     const {
         purchaseRequests,
+        pagination,
         loading,
         error,
         fetchAllPurchaseRequests,
@@ -161,13 +162,19 @@ export default function PurchaseRequestPageAdmin() {
     }
 
     // Buat pagination info default
-    const defaultPagination = {
-        page: filters.page || 1,
-        limit: filters.limit || 10,
-        total: purchaseRequests.length,
-        totalPages: Math.ceil(purchaseRequests.length / (filters.limit || 10))
-    };
-
+    const tablePagination: PaginationInfo = pagination
+        ? {
+            page: pagination.page ?? filters.page ?? 1,   // fallback ke 1
+            limit: pagination.limit ?? filters.limit ?? 10, // fallback ke 10
+            totalCount: pagination.totalCount ?? 0,
+            totalPages: pagination.totalPages ?? 1,
+        }
+        : {
+            page: filters.page ?? 1,
+            limit: filters.limit ?? 10,
+            totalCount: 0,
+            totalPages: 1,
+        };
     const layoutProps: LayoutProps = {
         title: "Purchase Request Management",
         role: "admin",
@@ -206,7 +213,7 @@ export default function PurchaseRequestPageAdmin() {
                             isLoading={loading}
                             isError={!!error}
                             role="admin"
-                            pagination={defaultPagination}
+                            pagination={tablePagination}
                             onDelete={handleDelete}
                             isDeleting={loading}
                             onPageChange={handlePageChange}
