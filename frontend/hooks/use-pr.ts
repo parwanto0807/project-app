@@ -6,6 +6,7 @@ import {
   UpdatePurchaseRequestData,
   UpdatePurchaseRequestStatusData,
   PurchaseRequestFilters,
+  PaginationInfo,
 } from "@/types/pr";
 import {
   getAllPurchaseRequests,
@@ -25,7 +26,6 @@ export function usePurchaseRequestsBySpkId(spkId?: string) {
     queryFn: async () => {
       if (!spkId) throw new Error("spkId tidak boleh kosong");
       const data = await getAllPurchaseRequestBySpkId(spkId);
-      console.log("PR data received:", data);
       return data;
     },
     enabled: !!spkId,
@@ -33,9 +33,11 @@ export function usePurchaseRequestsBySpkId(spkId?: string) {
     retry: 2, // Retry 2 kali jika gagal
   });
 }
+
 interface UsePurchaseRequestReturn {
   // State
   purchaseRequests: PurchaseRequest[];
+  pagination: PaginationInfo | null;
   currentPurchaseRequest: PurchaseRequest | null;
   loading: boolean;
   error: string | null;
@@ -86,15 +88,18 @@ export function usePurchaseRequest(): UsePurchaseRequestReturn {
 
   // Query untuk semua purchase requests dengan filter
   const {
-    data: purchaseRequests = [],
+    data: purchaseRequestsData = { data: [], pagination: null },
     error: queryError,
     isLoading: loading,
     refetch: refetchAll,
-  } = useQuery<PurchaseRequest[], Error>({
+  } = useQuery<{ data: PurchaseRequest[]; pagination: PaginationInfo }, Error>({
     queryKey: ["purchaseRequests", "all"],
     queryFn: () => getAllPurchaseRequests(),
     enabled: false, // Manual fetch
   });
+
+  // Extract data dan pagination
+  const { data: purchaseRequests = [], pagination = null } = purchaseRequestsData;
 
   // Query untuk current purchase request
   const { data: currentPurchaseRequest = null, error: currentError } = useQuery<
@@ -116,9 +121,13 @@ export function usePurchaseRequest(): UsePurchaseRequestReturn {
   >({
     mutationFn: createPurchaseRequestAction,
     onSuccess: (newPR) => {
-      queryClient.setQueryData<PurchaseRequest[]>(
+      // Update all purchase requests list
+      queryClient.setQueryData<{ data: PurchaseRequest[]; pagination: PaginationInfo }>(
         ["purchaseRequests", "all"],
-        (old = []) => [newPR, ...old]
+        (old = { data: [], pagination: { page: 1, limit: 10, totalCount: 0, totalPages: 1 } }) => ({
+          ...old,
+          data: [newPR, ...old.data]
+        })
       );
     },
   });
@@ -131,9 +140,12 @@ export function usePurchaseRequest(): UsePurchaseRequestReturn {
     mutationFn: ({ id, data }) => updatePurchaseRequestAction(id, data),
     onSuccess: (updatedPR) => {
       // Update all purchase requests list
-      queryClient.setQueryData<PurchaseRequest[]>(
+      queryClient.setQueryData<{ data: PurchaseRequest[]; pagination: PaginationInfo }>(
         ["purchaseRequests", "all"],
-        (old = []) => old.map((pr) => (pr.id === updatedPR.id ? updatedPR : pr))
+        (old = { data: [], pagination: { page: 1, limit: 10, totalCount: 0, totalPages: 1 } }) => ({
+          ...old,
+          data: old.data.map((pr) => (pr.id === updatedPR.id ? updatedPR : pr))
+        })
       );
 
       // Update current purchase request if it's the same one
@@ -155,9 +167,12 @@ export function usePurchaseRequest(): UsePurchaseRequestReturn {
     mutationFn: ({ id, data }) => updatePurchaseRequestStatusAction(id, data),
     onSuccess: (updatedPR) => {
       // Update all purchase requests list
-      queryClient.setQueryData<PurchaseRequest[]>(
+      queryClient.setQueryData<{ data: PurchaseRequest[]; pagination: PaginationInfo }>(
         ["purchaseRequests", "all"],
-        (old = []) => old.map((pr) => (pr.id === updatedPR.id ? updatedPR : pr))
+        (old = { data: [], pagination: { page: 1, limit: 10, totalCount: 0, totalPages: 1 } }) => ({
+          ...old,
+          data: old.data.map((pr) => (pr.id === updatedPR.id ? updatedPR : pr))
+        })
       );
 
       // Update current purchase request if it's the same one
@@ -175,9 +190,12 @@ export function usePurchaseRequest(): UsePurchaseRequestReturn {
     mutationFn: deletePurchaseRequestAction,
     onSuccess: (_, id) => {
       // Remove from all purchase requests list
-      queryClient.setQueryData<PurchaseRequest[]>(
+      queryClient.setQueryData<{ data: PurchaseRequest[]; pagination: PaginationInfo }>(
         ["purchaseRequests", "all"],
-        (old = []) => old.filter((pr) => pr.id !== id)
+        (old = { data: [], pagination: { page: 1, limit: 10, totalCount: 0, totalPages: 1 } }) => ({
+          ...old,
+          data: old.data.filter((pr) => pr.id !== id)
+        })
       );
 
       // Clear current purchase request if it's the same one
@@ -201,8 +219,8 @@ export function usePurchaseRequest(): UsePurchaseRequestReturn {
   const fetchAllPurchaseRequests = useCallback(
     async (filters?: PurchaseRequestFilters): Promise<void> => {
       try {
-        const data = await getAllPurchaseRequests(filters);
-        queryClient.setQueryData(["purchaseRequests", "all"], data);
+        const result = await getAllPurchaseRequests(filters);
+        queryClient.setQueryData(["purchaseRequests", "all"], result);
       } catch (err) {
         handleError(err);
       }
@@ -346,6 +364,7 @@ export function usePurchaseRequest(): UsePurchaseRequestReturn {
 
   return {
     purchaseRequests,
+    pagination,
     currentPurchaseRequest,
     loading: isLoading,
     error,
@@ -400,7 +419,7 @@ export function useDeletePurchaseRequest(): UseDeletePurchaseRequestReturn {
 
 // Hook tambahan untuk berbagai use case
 export function usePurchaseRequests(filters?: PurchaseRequestFilters) {
-  return useQuery<PurchaseRequest[], Error>({
+  return useQuery<{ data: PurchaseRequest[]; pagination: PaginationInfo }, Error>({
     queryKey: ["purchaseRequests", "list", filters],
     queryFn: () => getAllPurchaseRequests(filters),
     staleTime: 1000 * 60 * 5, // 5 menit

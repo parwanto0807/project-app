@@ -17,7 +17,7 @@ import { LayoutProps } from "@/types/layout";
 import { PurchaseRequestTable } from "@/components/pr/tableData";
 import { usePurchaseRequest } from "@/hooks/use-pr";
 import { AdminLoading } from "@/components/admin-loading";
-import { PurchaseRequestFilters } from "@/types/pr";
+import { PaginationInfo, PurchaseRequestFilters } from "@/types/pr";
 
 export default function PurchaseRequestPageAdmin() {
     const [filters, setFilters] = useState<PurchaseRequestFilters>({
@@ -38,6 +38,7 @@ export default function PurchaseRequestPageAdmin() {
     // ✅ Panggil hook dengan filters
     const {
         purchaseRequests,
+        pagination, // Ambil pagination dari hook
         loading,
         error,
         fetchAllPurchaseRequests,
@@ -97,6 +98,8 @@ export default function PurchaseRequestPageAdmin() {
             try {
                 await deletePurchaseRequest(id);
                 console.log("Purchase request deleted successfully");
+                // Refresh data setelah delete
+                fetchAllPurchaseRequests(filters);
             } catch (error) {
                 console.error("Failed to delete purchase request:", error);
             }
@@ -133,13 +136,20 @@ export default function PurchaseRequestPageAdmin() {
         );
     }
 
-    // Buat pagination info default
-    const defaultPagination = {
-        page: filters.page || 1,
-        limit: filters.limit || 10,
-        total: purchaseRequests.length,
-        totalPages: Math.ceil(purchaseRequests.length / (filters.limit || 10))
-    };
+    // Buat pagination info dari data yang diterima dari API
+    const tablePagination: PaginationInfo = pagination
+        ? {
+            page: pagination.page ?? filters.page ?? 1,   // fallback ke 1
+            limit: pagination.limit ?? filters.limit ?? 10, // fallback ke 10
+            totalCount: pagination.totalCount ?? 0,
+            totalPages: pagination.totalPages ?? 1,
+        }
+        : {
+            page: filters.page ?? 1,
+            limit: filters.limit ?? 10,
+            totalCount: 0,
+            totalPages: 1,
+        };
 
     const layoutProps: LayoutProps = {
         title: "Purchase Request Management",
@@ -179,7 +189,7 @@ export default function PurchaseRequestPageAdmin() {
                             isLoading={loading}
                             isError={!!error}
                             role="admin"
-                            pagination={defaultPagination}
+                            pagination={tablePagination}
                             onDelete={handleDelete}
                             isDeleting={loading}
                             onPageChange={handlePageChange}

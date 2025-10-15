@@ -210,7 +210,7 @@ export function PurchaseRequestTable({
         router.push("/admin-area/logistic/pr/create");
     };
 
-    const totalPages = Math.ceil(pagination.total / pagination.limit);
+    const totalPages = Math.ceil(pagination.totalCount / pagination.limit);
 
     // Extract unique projects from purchase requests
     const projects = Array.from(new Map(
@@ -831,8 +831,8 @@ export function PurchaseRequestTable({
                             {/* Page info */}
                             <div className="text-xs sm:text-sm text-muted-foreground text-center">
                                 Showing {((pagination.page - 1) * pagination.limit) + 1} to{" "}
-                                {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
-                                {pagination.total} entries
+                                {Math.min(pagination.page * pagination.limit, pagination.totalCount)} of{" "}
+                                {pagination.totalCount} entries
                             </div>
 
                             {/* Pagination controls */}

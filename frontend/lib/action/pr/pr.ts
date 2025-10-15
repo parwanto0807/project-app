@@ -7,6 +7,7 @@ import {
   UpdatePurchaseRequestStatusData,
   PurchaseRequestFilters,
   PurchaseRequestResponse,
+  PaginationInfo,
 } from "@/types/pr";
 import {
   CreatePurchaseRequestSchema,
@@ -22,9 +23,6 @@ async function handleResponse<T>(response: Response): Promise<T> {
 
     if (contentType?.includes("application/json")) {
       const errorData = await response.json().catch(() => null);
-
-      console.log("Error response data:", errorData);
-
       if (errorData) {
         if (typeof errorData.error === "string") {
           throw new Error(errorData.error);
@@ -85,23 +83,27 @@ export async function getAllPurchaseRequestBySpkId(
 
 export async function getAllPurchaseRequests(
   filters?: PurchaseRequestFilters
-): Promise<PurchaseRequest[]> {
+): Promise<{ data: PurchaseRequest[]; pagination: PaginationInfo }> {
   try {
     const queryParams = new URLSearchParams();
 
     if (filters?.projectId) queryParams.append("projectId", filters.projectId);
     if (filters?.status) queryParams.append("status", filters.status);
     if (filters?.dateFrom)
-      queryParams.append("dateFrom", filters.dateFrom.toISOString());
+      queryParams.append(
+        "dateFrom",
+        filters.dateFrom.toISOString().split("T")[0]
+      );
     if (filters?.dateTo)
-      queryParams.append("dateTo", filters.dateTo.toISOString());
+      queryParams.append("dateTo", filters.dateTo.toISOString().split("T")[0]);
     if (filters?.karyawanId)
       queryParams.append("karyawanId", filters.karyawanId);
     if (filters?.spkId) queryParams.append("spkId", filters.spkId);
 
-    // Tambahkan pagination parameters
-    if (filters?.page) queryParams.append("page", filters.page.toString());
-    if (filters?.limit) queryParams.append("limit", filters.limit.toString());
+    // pagination (default fallback)
+    queryParams.append("page", (filters?.page ?? 1).toString());
+    queryParams.append("limit", (filters?.limit ?? 10).toString());
+
     if (filters?.search) queryParams.append("search", filters.search);
 
     const url = `${API_BASE_URL}/api/pr/getAllPurchaseRequests${
@@ -110,14 +112,24 @@ export async function getAllPurchaseRequests(
 
     const response = await fetch(url, {
       method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       cache: "no-store",
     });
 
     const result: PurchaseRequestResponse = await handleResponse(response);
-    return Array.isArray(result.data) ? result.data : [result.data];
+    return {
+      data: Array.isArray(result.data)
+        ? result.data
+        : result.data
+        ? [result.data]
+        : [],
+      pagination: result.pagination ?? {
+        page: filters?.page ?? 1,
+        limit: filters?.limit ?? 10,
+        totalPages: 1,
+        totalCount: 0,
+      },
+    };
   } catch (error) {
     console.error("Error fetching purchase requests:", error);
     throw error;
@@ -197,8 +209,6 @@ export async function createPurchaseRequest(
       totalAmount,
       // Generate nomorPr akan dilakukan di backend
     };
-
-    console.log("Sending purchase request data:", requestData);
 
     const response = await fetch(
       `${API_BASE_URL}/api/pr/createPurchaseRequest`,

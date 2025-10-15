@@ -76,13 +76,14 @@ export const idParamSchema = z.object({
 });
 
 export const queryParamsSchema = z.object({
-  page: z.string().regex(/^\d+$/).transform(Number).default("1"),
-  limit: z.string().regex(/^\d+$/).transform(Number).default("10"),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(10),
   status: z
     .enum(["DRAFT", "REVISION_NEEDED", "SUBMITTED", "APPROVED", "REJECTED", "COMPLETED"])
     .optional(),
-  projectId: uuidSchema.optional(),
-  startDate: z.string().datetime().optional(),
-  endDate: z.string().datetime().optional(),
+  projectId: z.string().uuid().optional(),
+  startDate: z.coerce.date().optional(),
+  endDate: z.coerce.date().optional(),
   search: z.string().optional(),
 });
+

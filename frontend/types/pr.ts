@@ -78,13 +78,15 @@ export interface PurchaseRequestFilters {
   spkId?: string; // Tambahkan filter spkId
   page?: number;
   limit?: number;
+  totalCount?: number;
+  totalPages?:number;
   search?: string;
 }
 
 export interface PaginationInfo {
   page: number;
   limit: number;
-  total: number;
+  totalCount: number;
   totalPages: number;
 }
 

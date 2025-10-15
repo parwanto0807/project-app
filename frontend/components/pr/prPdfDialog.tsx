@@ -2,7 +2,7 @@
 "use client";
 
 import React from "react";
-import { PDFViewer } from "@react-pdf/renderer";
+import { PDFViewer, PDFDownloadLink } from "@react-pdf/renderer";
 import {
   Dialog,
   DialogContent,
@@ -23,7 +23,7 @@ interface SimplePurchaseRequestPdfDialogProps {
 
 const SimplePurchaseRequestPdfDialog: React.FC<
   SimplePurchaseRequestPdfDialogProps
-> = ({ purchaseRequest, open, onOpenChange, onViewDetail }) => {
+> = ({ purchaseRequest, open, onOpenChange }) => {
   if (!purchaseRequest) return null;
 
   return (
@@ -55,11 +55,19 @@ const SimplePurchaseRequestPdfDialog: React.FC<
           >
             Tutup
           </Button>
-          {onViewDetail && (
-            <Button size="sm" onClick={() => onViewDetail(purchaseRequest)}>
-              View Detail
-            </Button>
-          )}
+
+          {/* Unduh PDF */}
+          <PDFDownloadLink
+            document={<PurchaseRequestPdfPreview data={purchaseRequest} />}
+            fileName={`purchase-request-${purchaseRequest.id}.pdf`}
+          >
+            {({ loading }) => (
+              <Button size="sm" variant="default" disabled={loading}>
+                {loading ? "Menyiapkan..." : "Unduh PDF"}
+              </Button>
+            )}
+          </PDFDownloadLink>
+
         </div>
       </DialogContent>
     </Dialog>

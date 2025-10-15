@@ -212,32 +212,32 @@ export function TabelInputPR({
         error: prError
     } = usePurchaseRequestsBySpkId(selectedSpk?.id);
 
-    console.log("Karyawan ID", karyawanData);
-    console.log("Purchase Requests Data:", purchaseRequests);
-    console.log("Selected SPK ID:", selectedSpk?.id);
+    // console.log("Karyawan ID", karyawanData);
+    // console.log("Purchase Requests Data:", purchaseRequests);
+    // console.log("Selected SPK ID:", selectedSpk?.id);
 
     useEffect(() => {
         const fetchKaryawan = async () => {
-            console.log("Fetching karyawan for email:", currentUser?.email);
+            // console.log("Fetching karyawan for email:", currentUser?.email);
 
             if (!currentUser?.email) {
-                console.log("No email found for current user");
+                // console.log("No email found for current user");
                 setLoadingKaryawan(false);
                 return;
             }
 
             try {
                 const response = await fetchKaryawanByEmail(currentUser.email);
-                console.log("Karyawan response received:", response);
+                // console.log("Karyawan response received:", response);
 
                 // Extract user data dari response
                 const karyawan = response.user; // Ambil dari property 'user'
 
                 if (karyawan && karyawan.id) {
                     setKaryawanData(karyawan);
-                    console.log("Karyawan ID set to:", karyawan.id);
+                    // console.log("Karyawan ID set to:", karyawan.id);
                 } else {
-                    console.warn("Karyawan data incomplete or null:", karyawan);
+                    // console.warn("Karyawan data incomplete or null:", karyawan);
                     setKaryawanData(null);
                 }
             } catch (error) {
@@ -252,9 +252,9 @@ export function TabelInputPR({
     }, [currentUser?.email]);
 
     // Debug log ketika karyawanData berubah
-    useEffect(() => {
-        console.log("Karyawan data updated:", karyawanData);
-    }, [karyawanData]);
+    // useEffect(() => {
+    //     console.log("Karyawan data updated:", karyawanData);
+    // }, [karyawanData]);
 
     const handleSpkChange = (spkId: string) => {
         const spk = dataSpk.find(s => s.id === spkId);
@@ -363,7 +363,7 @@ export function TabelInputPR({
             return;
         }
 
-        console.log("Using karyawanId:", finalKaryawanId);
+        // console.log("Using karyawanId:", finalKaryawanId);
 
         try {
             const submitData: CreatePurchaseRequestData = {
@@ -383,7 +383,7 @@ export function TabelInputPR({
                 })),
             };
 
-            console.log("Submitting PR data:", submitData);
+            // console.log("Submitting PR data:", submitData);
             await onSubmit(submitData);
             onSuccess();
         } catch (error) {
@@ -414,16 +414,16 @@ export function TabelInputPR({
     };
 
     return (
-        <div className="w-full mx-auto p-4 sm:p-6 space-y-6">
+        <div className="w-full mx-auto py-4 sm:p-6 space-y-6">
             <div className="bg-gradient-to-r from-blue-600 to-purple-700 rounded-lg p-6 text-white shadow-md">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <div className="p-3 bg-white/20 rounded-lg">
-                            <ShoppingCart className="h-7 w-7" />
+                            <ShoppingCart className="h-4 w-4 md:h-7 md:w-7" />
                         </div>
                         <div>
-                            <h1 className="text-2xl font-bold">Create Purchase Request</h1>
-                            <p className="text-blue-100">
+                            <h1 className="text-base md:text-2xl font-bold">Create Purchase Request</h1>
+                            <p className="text-xs md:text-smtext-blue-100">
                                 Fill in the details below to create a new purchase request.
                             </p>
                         </div>

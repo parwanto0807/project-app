@@ -245,7 +245,7 @@ export default function CreatePRPageAdmin() {
                 </Breadcrumb>
 
                 <div className="h-full w-full">
-                    <div className="flex-1 space-y-2 p-2 pt-1 md:p-4">
+                    <div className="flex-1 space-y-2 py-2 pt-1 md:p-4">
                         {/* Tampilkan submit error jika ada */}
                         {submitError && (
                             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
