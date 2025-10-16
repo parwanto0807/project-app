@@ -8,23 +8,23 @@ import {
   updateLpp,
   deleteLpp,
   addDetail,
-  updateDetail,
-  deleteDetail,
+  // updateDetail,
+  // deleteDetail,
   updateStatus,
-  uploadFoto,
+  // uploadFoto,
   deleteFoto,
 } from "@/lib/action/lpp/action-lpp";
 import {
   CreateLppForm,
   UpdateLppForm,
   Detail,
-  UpdateDetail,
+  // UpdateDetail,
   LppId,
-  DetailId,
+  // DetailId,
   FotoId,
   UpdateStatus,
   LppQueryParams,
-  UploadFotoForm,
+  // UploadFotoForm,
 } from "@/types/types-lpp";
 
 // ✅ GET ALL LPP (list dengan pagination)
@@ -93,27 +93,27 @@ export function useAddDetail() {
 }
 
 // ✅ UPDATE DETAIL
-export function useUpdateDetail() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ ids, detail }: { ids: DetailId; detail: UpdateDetail }) =>
-      updateDetail(ids, detail),
-    onSuccess: (_, { ids }) => {
-      queryClient.invalidateQueries({ queryKey: ["lpp", ids.id] });
-    },
-  });
-}
+// export function useUpdateDetail() {
+//   const queryClient = useQueryClient();
+//   return useMutation({
+//     mutationFn: ({ ids, detail }: { ids: DetailId; detail: UpdateDetail }) =>
+//       updateDetail(ids, detail),
+//     onSuccess: (_, { ids }) => {
+//       queryClient.invalidateQueries({ queryKey: ["lpp", ids.id] });
+//     },
+//   });
+// }
 
-// ✅ DELETE DETAIL
-export function useDeleteDetail() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (ids: DetailId) => deleteDetail(ids),
-    onSuccess: (_, ids) => {
-      queryClient.invalidateQueries({ queryKey: ["lpp", ids.id] });
-    },
-  });
-}
+// // ✅ DELETE DETAIL
+// export function useDeleteDetail() {
+//   const queryClient = useQueryClient();
+//   return useMutation({
+//     mutationFn: (ids: DetailId) => deleteDetail(ids),
+//     onSuccess: (_, ids) => {
+//       queryClient.invalidateQueries({ queryKey: ["lpp", ids.id] });
+//     },
+//   });
+// }
 
 // ✅ UPDATE STATUS
 export function useUpdateStatus() {
@@ -134,23 +134,23 @@ export function useUpdateStatus() {
 }
 
 // ✅ UPLOAD FOTO
-export function useUploadFoto() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      lppId,
-      file,
-      data,
-    }: {
-      lppId: string;
-      file: File;
-      data: UploadFotoForm;
-    }) => uploadFoto(lppId, file, data),
-    onSuccess: (_, { lppId }) => {
-      queryClient.invalidateQueries({ queryKey: ["lpp", lppId] });
-    },
-  });
-}
+// export function useUploadFoto() {
+//   const queryClient = useQueryClient();
+//   return useMutation({
+//     mutationFn: ({
+//       lppId,
+//       file,
+//       data,
+//     }: {
+//       lppId: string;
+//       file: File;
+//       data: UploadFotoForm;
+//     }) => uploadFoto(lppId, file, data),
+//     onSuccess: (_, { lppId }) => {
+//       queryClient.invalidateQueries({ queryKey: ["lpp", lppId] });
+//     },
+//   });
+// }
 
 // ✅ DELETE FOTO
 export function useDeleteFoto() {
