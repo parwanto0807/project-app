@@ -131,8 +131,16 @@ export class PurchaseRequestController {
    */
   async getPurchaseRequestById(req, res) {
     try {
-      const { id } = idParamSchema.parse(req.params);
+      const validationResult = idParamSchema.safeParse(req.params);
 
+      if (!validationResult.success) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid ID format",
+          error: validationResult.error.errors,
+        });
+      }
+      const { id } = validationResult.data;
       const purchaseRequest = await prisma.purchaseRequest.findUnique({
         where: { id },
         include: {
@@ -149,27 +157,18 @@ export class PurchaseRequestController {
           uangMuka: true,
         },
       });
-
       if (!purchaseRequest) {
         return res.status(404).json({
           success: false,
           message: "Purchase Request not found",
         });
       }
-
       res.json({
         success: true,
         data: purchaseRequest,
       });
     } catch (error) {
       console.error("Get PR by ID error:", error);
-      if (error.name === "ZodError") {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid ID format",
-          error: error.errors,
-        });
-      }
       res.status(500).json({
         success: false,
         message: "Internal server error",

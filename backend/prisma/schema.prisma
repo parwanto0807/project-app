@@ -1218,24 +1218,41 @@ model UangMuka {
   spk   SPK    @relation(fields: [spkId], references: [id])
 
   // Relasi ke dokumen pertanggungjawaban yang menutup uang muka ini
-  pertanggungjawaban Pertanggungjawaban?
+  pertanggungjawaban Pertanggungjawaban[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-// 2. MODEL PERTANGGUNGJAWABAN (SETTLEMENT HEADER)
+// Enum untuk mendefinisikan status setiap item rincian
+enum StatusRincianPj {
+  PENDING // Menunggu verifikasi
+  APPROVED // Disetujui
+  REJECTED // Ditolak
+  REVISION // Perlu direvisi
+}
+
+// Enum untuk jenis pembayaran (opsional tapi sangat berguna)
+enum JenisPembayaran {
+  CASH
+  TRANSFER
+  DEBIT
+  CREDIT_CARD
+  QRIS
+}
+
 // Dokumen untuk melaporkan penggunaan Uang Muka
 model Pertanggungjawaban {
-  id                   String   @id @default(uuid())
-  nomor                String   @unique // e.g., "PJ-2025-001"
-  tanggal              DateTime @default(now())
-  totalBiaya           Decimal  @db.Decimal(19, 2)
-  sisaUangDikembalikan Decimal  @db.Decimal(19, 2)
+  id                   String          @id @default(uuid())
+  nomor                String          @unique // e.g., "PJ-2025-001"
+  tanggal              DateTime        @default(now())
+  totalBiaya           Decimal         @db.Decimal(19, 2)
+  sisaUangDikembalikan Decimal         @db.Decimal(19, 2)
   keterangan           String?
+  status               StatusRincianPj @default(PENDING)
 
   // Relasi one-to-one ke Uang Muka yang ditutup
-  uangMukaId String   @unique
+  uangMukaId String
   uangMuka   UangMuka @relation(fields: [uangMukaId], references: [id])
 
   // Relasi ke detail-detail biayanya
@@ -1256,8 +1273,9 @@ model RincianPertanggungjawaban {
 
   tanggalTransaksi DateTime
   keterangan       String // e.g., "Pembelian ATK di Toko ABC"
-  jumlah           Decimal  @db.Decimal(19, 2)
+  jumlah           Decimal         @db.Decimal(19, 2)
   nomorBukti       String? // Nomor nota/kuitansi
+  jenisPembayaran  JenisPembayaran @default(CASH)
 
   // Opsional tapi sangat direkomendasikan:
   // Relasi ke item PR asli untuk audit trail
@@ -1268,8 +1286,23 @@ model RincianPertanggungjawaban {
   productId String
   product   Product @relation(fields: [productId], references: [id])
 
+  fotoBukti FotoBuktiPertanggungjawaban[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model FotoBuktiPertanggungjawaban {
+  id String @id @default(uuid())
+
+  // Relasi ke rincian pertanggungjawaban
+  rincianPjId String
+  rincianPj   RincianPertanggungjawaban @relation(fields: [rincianPjId], references: [id], onDelete: Cascade)
+
+  url        String // URL atau path ke file gambar
+  keterangan String? // Keterangan opsional untuk setiap foto
+
+  createdAt DateTime @default(now())
 }
 
 // 1. MODEL UNTUK ANGGARAN / DANA PROYEK

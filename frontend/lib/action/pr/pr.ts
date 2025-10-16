@@ -165,6 +165,7 @@ export async function getPurchaseRequestsByProject(
 export async function getPurchaseRequestById(
   id: string
 ): Promise<PurchaseRequest> {
+  console.log("ID", id)
   try {
     const response = await fetch(
       `${API_BASE_URL}/api/pr/getPurchaseRequestById/${id}`,
@@ -173,6 +174,7 @@ export async function getPurchaseRequestById(
         headers: {
           "Content-Type": "application/json",
         },
+        credentials:'include',
         cache: "no-store",
       }
     );

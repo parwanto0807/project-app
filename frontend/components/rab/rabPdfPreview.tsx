@@ -10,7 +10,6 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFFFFF',
         padding: 25,
         fontSize: 10,
-        fontFamily: 'Helvetica',
     },
     headerContainer: {
         flexDirection: 'row',

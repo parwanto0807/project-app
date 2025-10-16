@@ -11,20 +11,20 @@ export interface PurchaseRequestDetail {
 
 export interface PurchaseRequest {
   id: string;
-  nomorPr: string; // Ganti prNumber menjadi nomorPr
+  nomorPr: string;
   projectId: string;
-  spkId: string; // Tambahkan spkId
+  spkId: string;
   spkIds: string;
-  karyawanId: string; // Tambahkan karyawanId (requestedBy)
-  tanggalPr: Date; // Ganti requestedDate menjadi tanggalPr
-  keterangan?: string; // Ganti description/remarks menjadi keterangan
+  karyawanId: string;
+  tanggalPr: Date;
+  keterangan?: string;
   status:
     | "DRAFT"
     | "REVISION_NEEDED"
     | "SUBMITTED"
     | "APPROVED"
     | "REJECTED"
-    | "COMPLETED"; // Sesuaikan dengan enum di Prisma
+    | "COMPLETED";
 
   // Relasi (optional untuk response)
   project?: {
@@ -40,6 +40,28 @@ export interface PurchaseRequest {
     namaLengkap: string;
   };
   details: PurchaseRequestDetail[];
+  
+  // TAMBAHKAN UANG MUKA
+  uangMuka?: {
+    id: string;
+    nomor: string;
+    tanggalPengajuan: Date;
+    tanggalPencairan: Date;
+    jumlah: number;
+    keterangan?: string;
+    status: "PENDING" | "APPROVED" | "REJECTED" | "DISBURSED" | "COMPLETED";
+    buktiPencairanUrl?: string;
+    metodePencairan: "CASH" | "TRANSFER" | "DEBIT" | "CREDIT_CARD" | "QRIS";
+    namaBankTujuan?: string;
+    nomorRekeningTujuan?: string;
+    namaEwalletTujuan?: string;
+    purchaseRequestId: string;
+    karyawanId: string;
+    spkId: string;
+    createdAt: Date;
+    updatedAt: Date;
+  }[];
+
   createdAt: Date;
   updatedAt: Date;
 }

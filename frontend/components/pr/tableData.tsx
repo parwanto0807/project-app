@@ -32,7 +32,8 @@ import {
     Filter,
     X,
     ChevronDown,
-    ChevronRight
+    ChevronRight,
+    DockIcon
 } from "lucide-react";
 import { PurchaseRequest, PurchaseRequestFilters } from "@/types/pr";
 import { PaginationInfo } from "@/types/pr";
@@ -195,6 +196,11 @@ export function PurchaseRequestTable({
         console.log("Edit purchase request:", purchaseRequest.id);
         router.push(`/admin-area/logistic/pr/update/${purchaseRequest.id}`);
     };
+
+    const handleCreateLpp = (id: string) => {
+        console.log("ID", id)
+        router.push(`/admin-area/logistic/lpp/create/${id}`)
+    }
 
     const handleViewPdf = (pr: PurchaseRequest) => {
         setSelectedPurchaseRequest(pr);
@@ -525,6 +531,14 @@ export function PurchaseRequestTable({
                                                             >
                                                                 <PdfIcon className="w-5 h-5" />
                                                                 Preview Pdf
+                                                            </Button>
+                                                            <Button
+                                                                onClick={() => handleCreateLpp(pr.id)}
+                                                                disabled={!(pr.status === "COMPLETED")}
+                                                                className="flex items-center gap-1 text-red-600 hover:text-red-800 border px-2 py-1 cursor-pointer rounded text-sm bg-slate-300 hover:bg-white"
+                                                            >
+                                                                <DockIcon className="w-5 h-5" />
+                                                                Create LPP
                                                             </Button>
                                                             {role === "admin" && (
                                                                 <Button
