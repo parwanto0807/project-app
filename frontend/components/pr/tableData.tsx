@@ -385,10 +385,10 @@ export function PurchaseRequestTable({
                         <Table>
                             <TableHeader>
                                 <TableRow className="bg-muted/50">
-                                    <TableHead className="w-12"></TableHead>
+                                    <TableHead className="w-12 text-center">#</TableHead>
                                     <TableHead className="font-semibold">PR Number</TableHead>
-                                    <TableHead className="font-semibold">Project</TableHead>
                                     <TableHead className="font-semibold">SPK</TableHead>
+                                    <TableHead className="font-semibold">Project</TableHead>
                                     <TableHead className="font-semibold">Requested By</TableHead>
                                     <TableHead className="font-semibold">Request Date</TableHead>
                                     <TableHead className="font-semibold">Total Amount</TableHead>
@@ -448,7 +448,7 @@ export function PurchaseRequestTable({
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    purchaseRequests.map((pr) => {
+                                    purchaseRequests.map((pr, index) => {
                                         const isExpanded = expandedRows.has(pr.id);
                                         const cleanNumber = (value: string | number | null | undefined): number => {
                                             if (typeof value === "string") {
@@ -468,18 +468,23 @@ export function PurchaseRequestTable({
                                                     className="hover:bg-muted/50 transition-colors cursor-pointer"
                                                     onClick={() => toggleRowExpansion(pr.id)}
                                                 >
-                                                    <TableCell>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className="h-6 w-6 p-0"
-                                                        >
-                                                            {isExpanded ? (
-                                                                <ChevronDown className="h-4 w-4" />
-                                                            ) : (
-                                                                <ChevronRight className="h-4 w-4" />
-                                                            )}
-                                                        </Button>
+                                                    <TableCell className="text-center">
+                                                        <div className="flex gap-1">
+                                                            <div className="mt-0.5">
+                                                                {index + 1}
+                                                            </div>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="h-6 w-6 p-0"
+                                                            >
+                                                                {isExpanded ? (
+                                                                    <ChevronDown className="h-4 w-4" />
+                                                                ) : (
+                                                                    <ChevronRight className="h-4 w-4" />
+                                                                )}
+                                                            </Button>
+                                                        </div>
                                                     </TableCell>
                                                     <TableCell className="font-medium">
                                                         <div className="flex items-center gap-2">
@@ -488,16 +493,16 @@ export function PurchaseRequestTable({
                                                         </div>
                                                     </TableCell>
                                                     <TableCell>
+                                                        <div className="text-sm text-muted-foreground">
+                                                            {pr.spk?.spkNumber || pr.spkId}
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell>
                                                         <div className="flex items-center gap-2">
                                                             <Building className="h-4 w-4 text-green-500" />
                                                             <span className="text-wrap">
                                                                 {pr.project?.name || pr.projectId}
                                                             </span>
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className="text-sm text-muted-foreground">
-                                                            {pr.spk?.spkNumber || pr.spkId}
                                                         </div>
                                                     </TableCell>
                                                     <TableCell>

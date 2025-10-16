@@ -717,7 +717,7 @@ export default function TabelDataSpk({
                                                     <span className="text-muted-foreground">-</span>
                                                 )}
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell >
                                                 {spk.team ? (
                                                     <div className="flex items-center">
                                                         <Users className="h-4 w-4 mr-1 text-blue-600" />
@@ -726,7 +726,7 @@ export default function TabelDataSpk({
                                                         </Badge>
                                                     </div>
                                                 ) : spk.details && spk.details.length > 0 ? (
-                                                    <div className="flex flex-wrap gap-1">
+                                                    <div className="flex gap-2">
                                                         <User className="h-4 w-4 text-green-600" />
                                                         {spk.details.slice(0, 2).map((detail, i) => (
                                                             <Badge

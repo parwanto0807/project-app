@@ -31,7 +31,8 @@ import {
     Edit,
     Trash2,
     RefreshCw,
-    Plus
+    Plus,
+    ChevronRight
 } from "lucide-react";
 import type { UangMuka, UangMukaQueryInput, PaginationInfo, MetodePembayaran } from "@/types/typesUm";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
@@ -501,7 +502,11 @@ export function PrApprovalTable({
                             <table className="w-full">
                                 <thead>
                                     <tr className="bg-muted/50 dark:bg-muted/20 border-b">
-                                        <th className="p-3 text-left font-semibold text-sm">Nomor</th>
+                                        <th className="p-3 text-left font-semibold text-sm">No</th>
+                                        <th className="p-3 text-left font-semibold text-sm">Req. Approval Number</th>
+                                        <th className="p-3 text-left font-semibold text-sm">PR Number</th>
+                                        <th className="p-3 text-left font-semibold text-sm">SPK Number</th>
+                                        <th className="p-3 text-left font-semibold text-sm">Sales Order Number</th>
                                         <th className="p-3 text-left font-semibold text-sm">Project</th>
                                         <th className="p-3 text-left font-semibold text-sm">Karyawan</th>
                                         <th className="p-3 text-left font-semibold text-sm">Tanggal</th>
@@ -511,7 +516,7 @@ export function PrApprovalTable({
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {uangMukaList.map((item) => {
+                                    {uangMukaList.map((item, index) => {
                                         const status = statusConfig[item.status as keyof typeof statusConfig];
                                         const StatusIcon = status?.icon || FileText;
 
@@ -519,8 +524,34 @@ export function PrApprovalTable({
                                             <tr key={item.id} className="border-b hover:bg-muted/50 dark:hover:bg-muted/20 transition-colors">
                                                 <td className="p-3">
                                                     <div className="flex items-center gap-2">
+                                                        <span className="font-medium text-sm">{index + 1}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="p-3">
+                                                    <div className="flex items-center gap-2">
                                                         <FileText className="h-3 w-3 text-blue-500" />
                                                         <span className="font-medium text-sm">{item.nomor}</span>
+                                                        <ChevronRight className="h-4 w-4 text-blue-500"  />
+                                                    </div>
+                                                </td>
+                                                                                                <td className="p-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <FileText className="h-3 w-3 text-blue-500" />
+                                                        <span className="text-sm text-gray-500">{item.purchaseRequest?.nomorPr}</span>
+                                                        <ChevronRight className="h-4 w-4 text-blue-500"  />
+                                                    </div>
+                                                </td>
+                                                <td className="p-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <FileText className="h-3 w-3 text-blue-500" />
+                                                        <span className="text-sm text-gray-500">{item.spk?.spkNumber}</span>
+                                                        <ChevronRight className="h-4 w-4 text-blue-500"  />
+                                                    </div>
+                                                </td>
+                                                <td className="p-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <FileText className="h-3 w-3 text-blue-500" />
+                                                        <span className="text-sm text-gray-500">{item.spk?.salesOrder.soNumber}</span>
                                                     </div>
                                                 </td>
                                                 <td className="p-3">

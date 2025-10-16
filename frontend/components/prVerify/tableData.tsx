@@ -65,13 +65,12 @@ interface PurchaseRequestTableProps {
 // Update status colors dan labels sesuai model baru
 // Tambahkan di bagian styles/constants Anda
 const statusColors = {
-    DRAFT: "bg-gray-100 text-gray-800 border-gray-300",
-    SUBMITTED: "bg-blue-50 text-blue-700 border-blue-200",
-    APPROVED: "bg-green-50 text-green-700 border-green-200",
-    REJECTED: "bg-red-50 text-red-700 border-red-200",
-    REVISION_NEEDED: "bg-yellow-50 text-yellow-700 border-yellow-200",
-    COMPLETED: "bg-purple-50 text-purple-700 border-purple-200",
-    IN_PROGRESS: "bg-orange-50 text-orange-700 border-orange-200"
+    DRAFT: "bg-gray-200 text-gray-900 border-gray-400",
+    SUBMITTED: "bg-blue-200 text-blue-900 border-blue-400",
+    APPROVED: "bg-green-200 text-green-900 border-green-400",
+    REJECTED: "bg-red-200 text-red-900 border-red-400",
+    REVISION_NEEDED: "bg-yellow-200 text-yellow-900 border-yellow-400",
+    COMPLETED: "bg-purple-200 text-purple-900 border-purple-400",
 } as const;
 
 // Atau versi dengan gradient subtle
@@ -372,8 +371,8 @@ export function PurchaseRequestVerifyTable({
                             <TableHeader>
                                 <TableRow className="bg-muted/50">
                                     <TableHead className="font-semibold">PR Number</TableHead>
-                                    <TableHead className="font-semibold">Project</TableHead>
                                     <TableHead className="font-semibold">SPK</TableHead>
+                                    <TableHead className="font-semibold">Project</TableHead>
                                     <TableHead className="font-semibold">Requested By</TableHead>
                                     <TableHead className="font-semibold">Request Date</TableHead>
                                     <TableHead className="font-semibold">Total Amount</TableHead>
@@ -456,16 +455,16 @@ export function PurchaseRequestVerifyTable({
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
+                                                    <div className="text-sm text-muted-foreground">
+                                                        {pr.spk?.spkNumber || pr.spkId}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
                                                     <div className="flex items-center gap-2">
                                                         <Building className="h-4 w-4 text-green-500" />
                                                         <span className="text-wrap">
                                                             {pr.project?.name || pr.projectId}
                                                         </span>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="text-sm text-muted-foreground">
-                                                        {pr.spk?.spkNumber || pr.spkId}
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>

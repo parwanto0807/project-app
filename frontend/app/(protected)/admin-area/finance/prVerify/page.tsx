@@ -112,10 +112,20 @@ export default function PurchaseRequestPageAdmin() {
     // Handle status update - disesuaikan dengan signature fungsi yang ada
     const handleStatusUpdate = async (id: string, status: PurchaseRequest['status']) => {
         try {
+            // Cek jika status sudah COMPLETE
+            if (status === "COMPLETED") {
+                // Bisa tampilkan toast kalau mau
+                toast.info(`PR Sudah di Approval. Mengarahkan ke Proses pengajuan biaya...`);
+
+                // Redirect ke halaman create dengan id
+                router.push(`/admin-area/finance/prApprove/create/${id}`);
+                return; // hentikan fungsi agar tidak lanjut update
+            }
+
             // Tampilkan loading toast
             const toastId = toast.loading(`Updating status to ${status}...`);
 
-            // Sesuai dengan signature fungsi: updatePurchaseRequestStatus(id: string, data: UpdatePurchaseRequestStatusData)
+            // Jalankan update status hanya jika bukan COMPLETE
             await updatePurchaseRequestStatus(id, { status });
 
             // Update toast menjadi success
@@ -130,6 +140,7 @@ export default function PurchaseRequestPageAdmin() {
             toast.error(`Failed to update status: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
     };
+
 
     // Handle loading state
     if (loading) {
