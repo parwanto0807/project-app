@@ -34,6 +34,12 @@ import {
     ThumbsDown,
     Clock,
 } from "lucide-react";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { PurchaseRequest, PurchaseRequestFilters } from "@/types/pr";
 import { PaginationInfo } from "@/types/pr";
 import SimplePurchaseRequestPdfDialog from "../pr/prPdfDialog"
@@ -61,6 +67,22 @@ interface PurchaseRequestTableProps {
     currentDateFrom?: Date;
     currentDateTo?: Date;
 }
+
+const statusApproveColors = {
+    PENDING: "bg-yellow-200 text-yellow-900 border-yellow-400",
+    DISBURSED: "bg-blue-200 text-blue-900 border-blue-400",
+    SETTLED: "bg-green-200 text-green-900 border-green-400",
+    REJECTED: "bg-red-200 text-red-900 border-red-400",
+    DEFAULT: "bg-gray-200 text-gray-900 border-gray-400",
+} as const;
+
+export const statusApproveLabels = {
+    PENDING: "Menunggu Pencairan",
+    DISBURSED: "Sudah Dicairkan",
+    SETTLED: "On LPP",
+    REJECTED: "Ditolak",
+    DEFAULT: "On Progress",
+} as const;
 
 // Update status colors dan labels sesuai model baru
 // Tambahkan di bagian styles/constants Anda
@@ -141,8 +163,6 @@ export function PurchaseRequestVerifyTable({
     const [selectedPurchaseRequest, setSelectedPurchaseRequest] = useState<PurchaseRequest | null>(null);
     const [detailSheetOpen, setDetailSheetOpen] = useState(false);
     const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
-
-    // console.log("DATA PR", purchaseRequests)
 
     const handleSearchSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -375,8 +395,11 @@ export function PurchaseRequestVerifyTable({
                                     <TableHead className="font-semibold">Project</TableHead>
                                     <TableHead className="font-semibold">Requested By</TableHead>
                                     <TableHead className="font-semibold">Request Date</TableHead>
-                                    <TableHead className="font-semibold">Total Amount</TableHead>
-                                    <TableHead className="font-semibold">Status</TableHead>
+                                    <TableHead className="font-semibold">Total PR</TableHead>
+                                    <TableHead className="font-semibold">Status PR</TableHead>
+                                    <TableHead className="font-semibold">Acc Finance</TableHead>
+                                    <TableHead className="font-semibold text-center"> % </TableHead>
+                                    <TableHead className="font-semibold">Status Finance</TableHead>
                                     <TableHead className="font-semibold text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -459,12 +482,21 @@ export function PurchaseRequestVerifyTable({
                                                         {pr.spk?.spkNumber || pr.spkId}
                                                     </div>
                                                 </TableCell>
-                                                <TableCell>
+                                                <TableCell className="max-w-[100px]">
                                                     <div className="flex items-center gap-2">
-                                                        <Building className="h-4 w-4 text-green-500" />
-                                                        <span className="text-wrap">
-                                                            {pr.project?.name || pr.projectId}
-                                                        </span>
+                                                        <Building className="h-4 w-4 text-green-500 shrink-0" />
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <span className="truncate text-xs cursor-help">
+                                                                        {pr.project?.name || pr.projectId}
+                                                                    </span>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent side="top" className="max-w-xs">
+                                                                    <p className="text-xs">{pr.project?.name || pr.projectId}</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
@@ -479,7 +511,7 @@ export function PurchaseRequestVerifyTable({
                                                         {formatDate(pr.tanggalPr)}
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="font-semibold">
+                                                <TableCell className="font-semibold text-right">
                                                     {formatCurrency(totalAmount)}
                                                 </TableCell>
                                                 <TableCell>
@@ -489,6 +521,70 @@ export function PurchaseRequestVerifyTable({
                                                     >
                                                         <StatusIcon className="h-3 w-3" />
                                                         {statusLabels[pr.status]}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="font-semibold text-right">
+                                                    {formatCurrency(pr.uangMuka?.[0]?.jumlah ?? 0)}
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    {(() => {
+                                                        const totalAmount =
+                                                            pr.details?.reduce(
+                                                                (sum, d) => sum + Number(d.estimasiTotalHarga ?? 0),
+                                                                0
+                                                            ) ?? 0;
+
+                                                        const totalDisbursed =
+                                                            pr.uangMuka?.reduce((sum, um) => sum + Number(um.jumlah ?? 0), 0) ?? 0;
+
+                                                        // kalau total 0, langsung tampilkan 0%
+                                                        if (totalAmount <= 0) {
+                                                            return (
+                                                                <Badge
+                                                                    variant="outline"
+                                                                    className="bg-gray-200 text-gray-900 border-gray-400 font-medium text-xs"
+                                                                >
+                                                                    0%
+                                                                </Badge>
+                                                            );
+                                                        }
+
+                                                        const percent = (totalDisbursed / totalAmount) * 100;
+
+                                                        // pilih warna sesuai range persentase
+                                                        let colorClass = "bg-red-200 text-red-900 border-red-400";
+                                                        if (percent >= 100) {
+                                                            colorClass = "bg-green-300 text-green-900 border-green-500"; // full hijau kalau sudah lunas
+                                                        } else if (percent >= 75) {
+                                                            colorClass = "bg-green-200 text-green-900 border-green-400";
+                                                        } else if (percent >= 50) {
+                                                            colorClass = "bg-yellow-200 text-yellow-900 border-yellow-400";
+                                                        } else if (percent > 0) {
+                                                            colorClass = "bg-blue-200 text-blue-900 border-blue-400";
+                                                        }
+
+                                                        return (
+                                                            <Badge
+                                                                variant="outline"
+                                                                className={`${colorClass} font-medium text-xs`}
+                                                            >
+                                                                {percent.toFixed(2)}%
+                                                            </Badge>
+                                                        );
+                                                    })()}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={`${statusApproveColors[
+                                                            (pr.uangMuka?.[0]?.status as keyof typeof statusApproveColors) || "DEFAULT"
+                                                        ]
+                                                            } border font-medium text-xs flex items-center gap-1`}
+                                                    >
+                                                        <StatusIcon className="h-3 w-3" />
+                                                        {statusApproveLabels[
+                                                            (pr.uangMuka?.[0]?.status as keyof typeof statusApproveLabels) || "DEFAULT"
+                                                        ]}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>

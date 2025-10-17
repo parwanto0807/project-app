@@ -52,6 +52,7 @@ import Image from 'next/image';
 import { CreateLppForm } from '@/types/types-lpp';
 import { createLppSchema } from '@/schemas/lpp/schemas-lpp';
 import { uploadFoto } from '@/lib/action/lpp/action-lpp';
+import { useRouter } from 'next/navigation';
 
 // Types untuk state file upload
 interface FileWithPreview {
@@ -176,7 +177,7 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
     onBack
 }) => {
     const [fotoBuktiMap, setFotoBuktiMap] = useState<FotoBuktiMap>({});
-
+    const router = useRouter(); 
     const form = useForm<FormValues>({
         resolver: zodResolver(createLppSchema),
         defaultValues: {
@@ -371,7 +372,7 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
                     </div>
 
                     {/* PR Info Card */}
-                    <Card className="max-w-7xl mx-auto shadow-lg border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
+                    <Card className="max-w-7xl mx-auto shadow-lg border-0 bg-gradient-to-r from-primary/5 to-blue-100 dark:from-slate-800 dark:to-slate-900 backdrop-blur-sm">
                         <CardContent className="px-6">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="text-center md:text-left">
@@ -827,11 +828,20 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
                                     </div>
 
                                     {/* Submit Button */}
-                                    <div className="flex justify-end pt-6">
+                                    <div className="flex justify-end pt-6 items-center gap-4">
+                                        <button
+                                            type="button"
+                                            onClick={() => router.back()}
+                                            className="flex items-center gap-2 min-w-[120px] bg-gradient-to-r from-green-500 to-teal-600 hover:from-green-600 hover:to-teal-700 text-white shadow-lg shadow-green-500/25 py-1.5 px-2 text-base font-semibold rounded-lg cursor-pointer"
+                                        >
+                                            <ArrowLeft className="h-4 w-4 text-white" />
+                                            Kembali
+                                        </button>
+
                                         <Button
                                             type="submit"
                                             disabled={isLoading || totalBiaya === 0 || sisaUangDikembalikan < 0}
-                                            className="min-w-[200px] bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-600/25 disabled:opacity-50 disabled:cursor-not-allowed py-3 text-base font-semibold"
+                                            className="min-w-[200px] bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-600/25 disabled:opacity-50 disabled:cursor-not-allowed py-3 text-base font-semibold cursor-pointer"
                                         >
                                             {isLoading ? (
                                                 <div className="flex items-center gap-2">
@@ -841,7 +851,7 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
                                             ) : (
                                                 <div className="flex items-center gap-2">
                                                     <FileCheck className="h-5 w-5" />
-                                                    Buat Pertanggungjawaban
+                                                    Buat LPP
                                                 </div>
                                             )}
                                         </Button>
