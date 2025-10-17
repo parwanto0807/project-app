@@ -570,7 +570,7 @@ export function PurchaseRequestTable({
                                                     <TableCell>
                                                         <Badge
                                                             variant="outline"
-                                                            className={`${statusColors[pr.status]} border font-medium text-xs uppercase`}
+                                                            className={`${statusColors[pr.status]} border font-medium text-xs`}
                                                         >
                                                             {statusLabels[pr.status]}
                                                         </Badge>
