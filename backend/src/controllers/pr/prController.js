@@ -62,7 +62,22 @@ export class PurchaseRequestController {
                 },
               },
             },
-            uangMuka: true,
+            uangMuka: {
+              include: {
+                pertanggungjawaban: {
+                  include: {
+                    details: {
+                      include: {
+                        product: {
+                          select: { id: true, name: true, code: true },
+                        },
+                        fotoBukti: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
           orderBy: { createdAt: "desc" },
           skip,

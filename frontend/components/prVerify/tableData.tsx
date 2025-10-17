@@ -33,6 +33,7 @@ import {
     ThumbsUp,
     ThumbsDown,
     Clock,
+    Eye,
 } from "lucide-react";
 import {
     Tooltip,
@@ -44,6 +45,7 @@ import { PurchaseRequest, PurchaseRequestFilters } from "@/types/pr";
 import { PaginationInfo } from "@/types/pr";
 import SimplePurchaseRequestPdfDialog from "../pr/prPdfDialog"
 import { PurchaseRequestSheet } from "./statusActions";
+import { PurchaseRequestDetailSheet } from "../pr/detailSheetPr";
 
 interface PurchaseRequestTableProps {
     purchaseRequests: PurchaseRequest[];
@@ -163,6 +165,8 @@ export function PurchaseRequestVerifyTable({
     const [selectedPurchaseRequest, setSelectedPurchaseRequest] = useState<PurchaseRequest | null>(null);
     const [detailSheetOpen, setDetailSheetOpen] = useState(false);
     const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
+    const [detailOpen, setDetailOpen] = useState(false);
+    const [selectedPR, setSelectedPR] = useState<PurchaseRequest | null>(null);
 
     const handleSearchSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -400,6 +404,7 @@ export function PurchaseRequestVerifyTable({
                                     <TableHead className="font-semibold">Acc Finance</TableHead>
                                     <TableHead className="font-semibold text-center"> % </TableHead>
                                     <TableHead className="font-semibold">Status Finance</TableHead>
+                                    <TableHead className="font-semibold">Rincian LPP</TableHead>
                                     <TableHead className="font-semibold text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -587,8 +592,30 @@ export function PurchaseRequestVerifyTable({
                                                         ]}
                                                     </Badge>
                                                 </TableCell>
+                                                <TableCell className="font-semibold text-right max-w-[20px]">
+                                                    {pr.uangMuka?.[0]?.pertanggungjawaban?.[0]?.details?.length
+                                                        ? (
+                                                            <Badge variant="outline" className="ml-2">
+                                                                {pr.uangMuka[0].pertanggungjawaban[0].details?.length} rincian LPP
+                                                            </Badge>
+                                                        )
+                                                        : null
+                                                    }
+                                                </TableCell>
                                                 <TableCell>
                                                     <div className="flex justify-end gap-2">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => {
+                                                                setSelectedPR(pr);
+                                                                setDetailOpen(true);
+                                                            }}
+                                                            className="flex items-center gap-1 text-red-600 hover:text-red-800 border px-2 py-1 cursor-pointer rounded text-sm bg-slate-300 dark:bg-slate-300 hover:bg-white dark:hover:bg-white"
+                                                        >
+                                                            <Eye className="w-5 h-5" />
+                                                            Detail
+                                                        </Button>
                                                         <Button
                                                             onClick={() => handleViewPdf(pr)}
                                                             className="flex items-center gap-1 text-red-600 hover:text-red-800 border px-2 py-1 cursor-pointer rounded text-sm bg-slate-300 hover:bg-white"
@@ -840,6 +867,11 @@ export function PurchaseRequestVerifyTable({
                 purchaseRequest={selectedPurchaseRequest}
                 open={pdfDialogOpen}
                 onOpenChange={setPdfDialogOpen}
+            />
+            <PurchaseRequestDetailSheet
+                open={detailOpen}
+                onOpenChange={setDetailOpen}
+                data={selectedPR}
             />
         </>
     );

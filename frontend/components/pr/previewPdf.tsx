@@ -1,5 +1,5 @@
 import { Page, Text, View, Document, StyleSheet, Font, Image as PdfImage } from '@react-pdf/renderer';
-import { PurchaseRequest } from '@/types/pr'; // Sesuaikan path dengan struktur project Anda
+import { PurchaseRequest } from '@/types/pr';
 
 // Register font jika diperlukan
 Font.register({
@@ -181,6 +181,7 @@ const formatCurrency = (amount: number) => {
 
 // Format date
 const formatDate = (date: Date | string): string => {
+    if (!date) return "-";
     const d = new Date(date);
     const day = d.getDate().toString().padStart(2, "0");
 
@@ -204,10 +205,7 @@ const PurchaseRequestPdfPreview = ({ data }: PreviewPdfProps) => {
         (sum, item) => sum + Number(item.estimasiTotalHarga || 0),
         0
     );
-    const formattedTotal = new Intl.NumberFormat("id-ID", {
-        style: "currency",
-        currency: "IDR",
-    }).format(totalEstimasi);
+    const formattedTotal = formatCurrency(totalEstimasi);
 
     return (
         <Document>
@@ -305,6 +303,76 @@ const PurchaseRequestPdfPreview = ({ data }: PreviewPdfProps) => {
                         </View>
                     </View>
                 </View>
+
+                {/* === UANG MUKA === */}
+                {data.uangMuka && data.uangMuka.length > 0 && (
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>Aprroval Purchase Request</Text>
+                        {data.uangMuka.map((um, idx) => (
+                            <View key={um.id || idx} wrap={false} style={{ marginBottom: 8 }}>
+                                <Text style={{ fontSize: 10, fontWeight: 'bold', marginBottom: 3 }}>
+                                    {um.nomor} ({formatDate(um.tanggalPengajuan)})
+                                </Text>
+                                <Text style={{ fontSize: 9 }}>
+                                    Jumlah: {formatCurrency(um.jumlah)} | Status: {um.status}
+                                </Text>
+                                <Text style={{ fontSize: 9 }}>
+                                    Metode: {um.metodePencairan} {um.namaBankTujuan ? `- ${um.namaBankTujuan}/${um.nomorRekeningTujuan}` : ""}
+                                </Text>
+                            </View>
+                        ))}
+                    </View>
+                )}
+
+                {/* === PERTANGGUNGJAWABAN === */}
+                {/* Section Pertanggungjawaban */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Laporan Pengeluaran Perjalanan</Text>
+
+                    {data.uangMuka?.some(um => um.pertanggungjawaban && um.pertanggungjawaban.length > 0) ? (
+                        data.uangMuka.flatMap(um => um.pertanggungjawaban || []).map((ptj, idx) => (
+                            <View key={ptj.id || idx} style={{ marginBottom: 10 }}>
+                                <Text style={{ fontSize: 10, fontWeight: 'bold', marginBottom: 3 }}>
+                                    {ptj.nomor} ({formatDate(ptj.tanggal)})
+                                </Text>
+                                <Text style={{ fontSize: 9 }}>
+                                    Total Biaya: {formatCurrency(ptj.totalBiaya)} | Sisa: {formatCurrency(ptj.sisaUangDikembalikan)}
+                                </Text>
+                                <Text style={{ fontSize: 9 }}>Status: {ptj.status}</Text>
+                                {ptj.keterangan && <Text style={{ fontSize: 9 }}>Keterangan: {ptj.keterangan}</Text>}
+
+                                {/* Detail Rincian */}
+                                {ptj.details && ptj.details.length > 0 && (
+                                    <View style={[styles.table, { marginTop: 5 }]}>
+                                        <View style={styles.tableHeader}>
+                                            <Text style={styles.colNo}>No</Text>
+                                            <Text style={styles.colProduct}>Keterangan</Text>
+                                            <Text style={styles.colQty}>Tanggal</Text>
+                                            <Text style={styles.colUnit}>Jenis</Text>
+                                            <Text style={styles.colPrice}>Jumlah</Text>
+                                            <Text style={styles.colTotal}>No. Bukti</Text>
+                                        </View>
+                                        {ptj.details.map((d, i) => (
+                                            <View key={d.id || i} style={styles.tableRow}>
+                                                <Text style={styles.colNo}>{i + 1}</Text>
+                                                <Text style={styles.colProduct}>{d.keterangan}</Text>
+                                                <Text style={styles.colQty}>{formatDate(d.tanggalTransaksi)}</Text>
+                                                <Text style={styles.colUnit}>{d.jenisPembayaran}</Text>
+                                                <Text style={styles.colPrice}>{formatCurrency(d.jumlah)}</Text>
+                                                <Text style={styles.colTotal}>{d.nomorBukti || "-"}</Text>
+                                            </View>
+                                        ))}
+                                    </View>
+                                )}
+                            </View>
+                        ))
+                    ) : (
+                        <Text style={{ fontSize: 9, fontStyle: "italic", marginTop: 5, color: "#555" }}>
+                            Belum ada Laporan Pengeluaran Perjalanan
+                        </Text>
+                    )}
+                </View>
+
 
                 {/* Footer - Signatures */}
                 <View style={styles.footer}>

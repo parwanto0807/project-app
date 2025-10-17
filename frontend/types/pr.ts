@@ -40,7 +40,7 @@ export interface PurchaseRequest {
     namaLengkap: string;
   };
   details: PurchaseRequestDetail[];
-  
+
   // TAMBAHKAN UANG MUKA
   uangMuka?: {
     id: string;
@@ -60,10 +60,57 @@ export interface PurchaseRequest {
     spkId: string;
     createdAt: Date;
     updatedAt: Date;
+    pertanggungjawaban?: Pertanggungjawaban[];
   }[];
 
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface Pertanggungjawaban {
+  id: string;
+  nomor: string;
+  tanggal: Date;
+  totalBiaya: number;
+  sisaUangDikembalikan: number;
+  keterangan?: string;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "SETTLED";
+
+  uangMukaId: string;
+
+  // Relasi opsional
+  details: RincianPertanggungjawaban[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface RincianPertanggungjawaban {
+  id: string;
+  pertanggungjawabanId: string;
+  tanggalTransaksi: Date;
+  keterangan: string;
+  jumlah: number;
+  nomorBukti?: string;
+  jenisPembayaran: "CASH" | "TRANSFER" | "DEBIT" | "CREDIT_CARD" | "QRIS";
+
+  // Relasi opsional
+  product?: {
+    id: string;
+    name: string;
+    code: string;
+  };
+  // Relasi ke foto bukti
+  fotoBukti: FotoBuktiPertanggungjawaban[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface FotoBuktiPertanggungjawaban {
+  id: string;
+  rincianPjId: string;
+  url: string;
+  keterangan?: string;
+  createdAt: Date;
 }
 
 // Untuk backward compatibility, bisa buat alias
@@ -101,7 +148,7 @@ export interface PurchaseRequestFilters {
   page?: number;
   limit?: number;
   totalCount?: number;
-  totalPages?:number;
+  totalPages?: number;
   search?: string;
 }
 
@@ -127,34 +174,64 @@ export interface PurchaseRequestError {
 
 // Tambahkan interface untuk relasi jika diperlukan
 export interface PurchaseRequestWithRelations extends PurchaseRequest {
-  project: {
+  project?: {
     id: string;
     name: string;
   };
-  spk: {
+  spk?: {
     id: string;
     spkNumber: string;
-    salesOrder: {
+    salesOrder?: {
       soNumber: string;
-      customer: {
+      customer?: {
         name: string;
       };
     };
   };
-  karyawan: {
+  karyawan?: {
     id: string;
     namaLengkap: string;
     jabatan?: string;
   };
   details: (PurchaseRequestDetail & {
-    product: {
+    product?: {
       id: string;
       name: string;
       description?: string;
     };
-    projectBudget: {
+    projectBudget?: {
       id: string;
       namaBudget: string;
     };
   })[];
+  // Override uangMuka jadi versi dengan relasi lengkap
+  uangMuka?: UangMukaWithRelations[];
+}
+
+export interface UangMukaWithRelations extends UangMuka {
+  pertanggungjawaban?: PertanggungjawabanWithDetails[];
+}
+
+// ======================= UANG MUKA ==========================
+export interface UangMuka {
+  id: string;
+  nomor: string;
+  tanggalPengajuan: Date;
+  tanggalPencairan: Date;
+  jumlah: number;
+  keterangan?: string;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "DISBURSED" | "COMPLETED";
+  buktiPencairanUrl?: string;
+  metodePencairan: "CASH" | "TRANSFER" | "DEBIT" | "CREDIT_CARD" | "QRIS";
+  namaBankTujuan?: string;
+  nomorRekeningTujuan?: string;
+  namaEwalletTujuan?: string;
+  purchaseRequestId: string;
+  karyawanId: string;
+  spkId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+export interface PertanggungjawabanWithDetails extends Pertanggungjawaban {
+  details: RincianPertanggungjawaban[];
 }
