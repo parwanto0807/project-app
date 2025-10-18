@@ -349,8 +349,8 @@ const PurchaseRequestPdfPreview = ({ data }: PreviewPdfProps) => {
                                             <Text style={styles.colProduct}>Keterangan</Text>
                                             <Text style={styles.colQty}>Tanggal</Text>
                                             <Text style={styles.colUnit}>Jenis</Text>
-                                            <Text style={styles.colPrice}>Jumlah</Text>
                                             <Text style={styles.colTotal}>No. Bukti</Text>
+                                            <Text style={styles.colPrice}>Total</Text>
                                         </View>
                                         {ptj.details.map((d, i) => (
                                             <View key={d.id || i} style={styles.tableRow}>
@@ -358,10 +358,16 @@ const PurchaseRequestPdfPreview = ({ data }: PreviewPdfProps) => {
                                                 <Text style={styles.colProduct}>{d.keterangan}</Text>
                                                 <Text style={styles.colQty}>{formatDate(d.tanggalTransaksi)}</Text>
                                                 <Text style={styles.colUnit}>{d.jenisPembayaran}</Text>
-                                                <Text style={styles.colPrice}>{formatCurrency(d.jumlah)}</Text>
                                                 <Text style={styles.colTotal}>{d.nomorBukti || "-"}</Text>
+                                                <Text style={styles.colPrice}>{formatCurrency(d.jumlah)}</Text>
                                             </View>
                                         ))}
+                                        <View style={styles.totalSection}>
+                                            <View style={styles.totalRow}>
+                                                <Text style={styles.totalLabel}>Total Realisasi LPP:</Text>
+                                                <Text>{formatCurrency(ptj.totalBiaya)}</Text>
+                                            </View>
+                                        </View>
                                     </View>
                                 )}
                             </View>

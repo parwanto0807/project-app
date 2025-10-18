@@ -50,7 +50,13 @@ export class PurchaseRequestController {
               select: { id: true, namaLengkap: true, jabatan: true },
             },
             spk: {
-              select: { id: true, spkNumber: true },
+              select: {
+                id: true,
+                spkNumber: true,
+                salesOrder: {
+                  select: { soNumber: true },
+                },
+              },
             },
             details: {
               include: {

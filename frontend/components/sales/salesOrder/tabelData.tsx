@@ -15,6 +15,9 @@ import {
     EyeOff,
     Loader2,
     CalendarIcon,
+    TrendingUp,
+    TrendingDown,
+    BarChart2,
 } from "lucide-react"
 import Decimal from "decimal.js"
 import {
@@ -1300,6 +1303,52 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
             });
         }
 
+        if (role === "admin" || role === "super") {
+            // Kolom indikator tren
+            baseColumns.push({
+                id: "trend",
+                header: ({ column }) => ( // <- pastikan column disertakan
+                    <DataTableColumnHeader column={column} title="Trend Biaya" className="text-center" />
+                ),
+                cell: ({ row }) => {
+                    const order = row.original as SalesOrder;
+
+                    const allPJ = order.spk?.flatMap(spk =>
+                        spk.purchaseRequest?.flatMap(pr =>
+                            pr.uangMuka?.flatMap(um => um.pertanggungjawaban ?? []) ?? []
+                        ) ?? []
+                    ) ?? [];
+
+                    if (allPJ.length === 0) return null;
+
+                    const totalBiaya = allPJ.reduce((sum, pj) => sum.plus(new Decimal(pj.totalBiaya ?? 0)), new Decimal(0));
+
+                    const totalSales = order.items.reduce(
+                        (sum, item) => sum.plus(new Decimal(item.qty ?? 0).times(new Decimal(item.unitPrice ?? 0))),
+                        new Decimal(0)
+                    );
+
+                    const ratio = totalBiaya.div(totalSales);
+
+                    let IconComponent = TrendingUp;
+                    let colorClass = "text-green-600";
+                    if (ratio.gt(1)) {
+                        IconComponent = TrendingDown;
+                        colorClass = "text-red-600";
+                    } else if (ratio.gte(0.8)) {
+                        IconComponent = BarChart2;
+                        colorClass = "text-yellow-600";
+                    }
+
+                    return (
+                        <div className="flex justify-center">
+                            <IconComponent size={24} className={colorClass} />
+                        </div>
+                    );
+                },
+            });
+
+        }
 
         // Kolom actions tetap ada untuk semua role
         baseColumns.push({
@@ -1312,7 +1361,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                         <ActionsCell order={row.original} onDeleteSuccess={handleDeleteSuccess} role={role} />
 
                         {/* View/Hide selalu boleh */}
-                        <Button
+                        {/* <Button
                             variant="outline"
                             size="sm"
                             onClick={() => row.toggleExpanded(!row.getIsExpanded())}
@@ -1320,7 +1369,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                         >
                             <Eye className="h-4 w-4" />
                             {row.getIsExpanded() ? "Hide" : "View"}
-                        </Button>
+                        </Button> */}
 
                         {/* PDF hanya untuk admin/super */}
                         {(role === "admin" || role === "super") && (
@@ -1352,14 +1401,14 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                                     </DialogContent>
                                 </Dialog>
 
-                                <Button
+                                {/* <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => pdfActions.handleDownloadPdf(order)}
                                     className="cursor-pointer border-2 hover:border-cyan-500 hover:text-cyan-400"
                                 >
                                     <DownloadIcon className="h-4 w-4" />
-                                </Button>
+                                </Button> */}
 
                                 {/* === Tambahan Create Quotation === */}
                                 <Button

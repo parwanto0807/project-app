@@ -31,9 +31,15 @@ export interface PurchaseRequest {
     id: string;
     name: string;
   };
-  spk?: {
+spk?: {
     id: string;
     spkNumber: string;
+    salesOrder?: {
+      soNumber: string;
+      customer?: {
+        name: string;
+      };
+    };
   };
   karyawan?: {
     id: string;
