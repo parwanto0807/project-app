@@ -1,3 +1,5 @@
+import { PurchaseRequest } from "./pr";
+
 export type OrderType = "REGULAR" | "SUPPORT";
 
 export type OrderStatus =
@@ -86,6 +88,7 @@ export interface SPK {
   salesOrderId: string;
   spkNumber: string;
   date: string;
+  purchaseRequest: PurchaseRequest[];
 }
 
 export interface BAP {

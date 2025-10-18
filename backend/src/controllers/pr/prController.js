@@ -166,12 +166,31 @@ export class PurchaseRequestController {
             include: {
               product: true,
               projectBudget: true,
-              rincianPertanggungjawaban: true,
+              rincianPertanggungjawaban: {
+                include: {
+                  product: true,
+                  fotoBukti: true, // jika ingin foto bukti muncul juga
+                },
+              },
             },
           },
-          uangMuka: true,
+          uangMuka: {
+            include: {
+              pertanggungjawaban: {
+                include: {
+                  details: {
+                    include: {
+                      product: true,
+                      fotoBukti: true, // agar foto bukti rincian muncul juga
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
       });
+
       if (!purchaseRequest) {
         return res.status(404).json({
           success: false,

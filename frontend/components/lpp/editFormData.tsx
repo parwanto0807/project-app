@@ -1,4 +1,7 @@
-import React, { useState } from 'react';
+// components/lpp/editFormData.tsx
+"use client"
+
+import React, { useState, useEffect } from 'react';
 import {
     Card,
     CardContent,
@@ -37,7 +40,9 @@ import {
     Building,
     FileCheck,
     ArrowLeft,
-    X
+    X,
+    Edit,
+    AlertCircle
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
@@ -49,33 +54,39 @@ import {
 import { cn } from '@/lib/utils';
 import { PurchaseRequest } from '@/types/pr';
 import Image from 'next/image';
-import { CreateLppForm } from '@/types/types-lpp';
-import { createLppSchema } from '@/schemas/lpp/schemas-lpp';
-import { uploadFoto } from '@/lib/action/lpp/action-lpp';
+import { UpdateLppForm, ExistingPertanggungjawaban, ExistingPertanggungjawabanDetail, PaymentMethod } from '@/types/types-lpp';
+import { updateLppSchema } from '@/schemas/lpp/schemas-lpp';
 import { useRouter } from 'next/navigation';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { makeImageSrc } from '@/utils/makeImageSrc';
 
 // Types untuk state file upload
 interface FileWithPreview {
     file: File;
-    previewUrl: string;
+    url?: string;
+    previewUrl?: string;
     keterangan?: string;
 }
 
 export interface FotoBuktiMap {
+    [key: string]: FileWithPreview[];
     [key: number]: FileWithPreview[];
 }
 
-// Mapping function untuk konversi data form ke CreateLppForm (TANPA upload foto)
+// Mapping function untuk konversi data form ke UpdateLppForm (TANPA upload foto)
 const mapFormToCreateLpp = (
-    formData: CreateLppForm,
+    formData: UpdateLppForm,
     totalBiaya: number,
     sisaUangDikembalikan: number,
     uangMukaId: string,
-): CreateLppForm => {
+): UpdateLppForm => {
     // Hanya mapping data TANPA upload foto dulu
-    const detailsWithFotoBukti = formData.details.map((rincian) => {
+    const detailsWithFotoBukti = (formData.details ?? []).map((rincian) => {
         return {
-            tanggalTransaksi: new Date(rincian.tanggalTransaksi),
+            id: rincian.id,
+            tanggalTransaksi: rincian.tanggalTransaksi
+                ? new Date(rincian.tanggalTransaksi)
+                : undefined,
             keterangan: rincian.keterangan,
             jumlah: rincian.jumlah,
             nomorBukti: rincian.nomorBukti || '',
@@ -94,7 +105,6 @@ const mapFormToCreateLpp = (
 
     return {
         details: detailsWithFotoBukti,
-        notes: formData.keterangan,
         status: 'PENDING',
         totalBiaya,
         sisaUangDikembalikan,
@@ -103,98 +113,86 @@ const mapFormToCreateLpp = (
     };
 };
 
-// Function untuk upload foto setelah LPP dibuat
-// Di createFormData.tsx - perbaiki function uploadFotoAfterCreate
-export async function uploadFotoAfterCreate(
-    createdDetails: Array<{ id: string }>,
-    fotoBuktiMap: FotoBuktiMap,
-    lppId: string
-): Promise<Array<{ url: string; keterangan: string }>> {
-    console.log("🔍 [DEBUG] uploadFotoAfterCreate called", {
-        createdDetails,
-        fotoBuktiMap,
-        lppId,
-    });
+type FormValues = UpdateLppForm;
 
-    const uploadPromises = createdDetails.map(async (detail, index) => {
-        if (!detail?.id) {
-            console.warn(`❌ Detail di index ${index} tidak memiliki ID, dilewati`);
-            return [];
-        }
-
-        const files = fotoBuktiMap?.[index];
-        if (!files || files.length === 0) {
-            return [];
-        }
-
-        const fotoResults = await Promise.all(
-            files.map(async (fileWithPreview, fileIndex) => {
-                try {
-                    console.log(
-                        `📤 Uploading file ${fileIndex + 1} untuk detail ${detail.id}:`,
-                        fileWithPreview.file.name
-                    );
-
-                    const uploadResult = await uploadFoto(
-                        detail.id,
-                        fileWithPreview.file,
-                        { keterangan: fileWithPreview.keterangan },
-                        lppId
-                    );
-
-                    return {
-                        url: uploadResult.url,
-                        keterangan: fileWithPreview.keterangan || `Bukti ${fileWithPreview.file.name}`,
-                    };
-                } catch (error) {
-                    console.error(`❌ Gagal upload file ${fileIndex + 1} untuk detail ${detail.id}:`, error);
-                    return null;
-                }
-            })
-        );
-
-        return fotoResults.filter((res): res is { url: string; keterangan: string } => !!res);
-    });
-
-    const results = await Promise.all(uploadPromises);
-    return results.flat();
-}
-
-
-type FormValues = CreateLppForm;
-
-interface CreateLppFormInputProps {
+interface EditLppFormProps {
     purchaseRequest: PurchaseRequest;
-    onSubmit: (data: CreateLppForm, fotoBuktiMap: FotoBuktiMap) => Promise<void>;
+    onSubmit: (data: UpdateLppForm, fotoBuktiMap: FotoBuktiMap) => Promise<void>;
     isLoading: boolean;
     onBack?: () => void;
+    initialData?: ExistingPertanggungjawaban; // Data LPP yang sudah ada untuk edit
 }
 
-const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
+const EditLppForm: React.FC<EditLppFormProps> = ({
     purchaseRequest,
     onSubmit,
     isLoading,
-    onBack
+    onBack,
+    initialData
 }) => {
     const [fotoBuktiMap, setFotoBuktiMap] = useState<FotoBuktiMap>({});
-    const router = useRouter(); 
-    const form = useForm<FormValues>({
-        resolver: zodResolver(createLppSchema),
-        defaultValues: {
+    const router = useRouter();
+    const PAYMENT_METHODS = ["CASH", "TRANSFER", "DEBIT", "CREDIT_CARD", "QRIS"] as const;
+
+    console.log("DATA RECEIVED FROM PAGE.TSX", initialData)
+
+    // Prepare initial values dari existing data
+    const getInitialValues = (): UpdateLppForm => {
+        if (initialData && initialData.details) {
+            return {
+                keterangan: initialData.keterangan || '',
+                totalBiaya: Number(initialData.totalBiaya) || 0,
+                sisaUangDikembalikan: Number(initialData.sisaUangDikembalikan) || 0,
+                details: initialData.details.map((detail: ExistingPertanggungjawabanDetail) => ({
+                    id: detail.id, // penting untuk update
+                    tanggalTransaksi: detail.tanggalTransaksi
+                        ? new Date(detail.tanggalTransaksi)
+                        : new Date(),
+                    keterangan: detail.keterangan || '',
+                    jumlah: Number(detail.jumlah) || 0,
+                    nomorBukti: detail.nomorBukti || '',
+                    jenisPembayaran: PAYMENT_METHODS.includes(detail.jenisPembayaran as PaymentMethod)
+                        ? (detail.jenisPembayaran as typeof PAYMENT_METHODS[number])
+                        : "CASH",
+                    productId: detail.productId || '',
+                    purchaseRequestDetailId: detail.purchaseRequestDetailId || undefined,
+                    fotoBukti: (detail.fotoBukti || []).map(f => ({
+                        id: f.id,       // id foto
+                        url: f.url,     // URL/path foto
+                        keterangan: f.keterangan || ''
+                    }))
+                }))
+            };
+        }
+
+        // fallback default
+        return {
             keterangan: '',
+            totalBiaya: 0,
+            sisaUangDikembalikan: 0,
             details: [
                 {
+                    id: undefined, // baru
                     tanggalTransaksi: new Date(),
                     keterangan: '',
                     jumlah: 0,
                     nomorBukti: '',
-                    jenisPembayaran: 'CASH',
+                    jenisPembayaran: "CASH" as const,
                     productId: '',
-                    purchaseRequestDetailId: '',
+                    purchaseRequestDetailId: undefined,
+                    fotoBukti: [{ id: undefined, keterangan: '' }]
                 }
-            ],
-        }
+            ]
+        };
+    };
+
+    const form = useForm<FormValues>({
+        resolver: zodResolver(updateLppSchema),
+        defaultValues: getInitialValues()
     });
+
+    // console.log("📋 [EDIT FORM] Data Received:", purchaseRequest);
+    // console.log("📋 [EDIT FORM] Initial Data:", initialData);
 
     const { fields, append, remove } = useFieldArray({
         control: form.control,
@@ -203,18 +201,42 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
 
     const watchRincianList = form.watch('details');
 
-    const totalBiaya = watchRincianList.reduce((sum, rincian) => sum + (rincian.jumlah || 0), 0);
+    const totalBiaya = (watchRincianList ?? []).reduce(
+        (sum, rincian) => sum + (rincian.jumlah ?? 0),
+        0
+    );
 
     const uangMuka = purchaseRequest.uangMuka && purchaseRequest.uangMuka.length > 0
         ? purchaseRequest.uangMuka[0]
         : null;
 
-    const sisaUangDikembalikan = (uangMuka?.jumlah || 0) - totalBiaya;
+    // Untuk edit, gunakan sisa uang dari existing data atau hitung ulang
+    // const existingSisaUang = Number(purchaseRequest?.uangMuka?.[0]?.pertanggungjawaban?.[0].sisaUangDikembalikan) || 0;
+    const sisaUangDikembalikan = (Number(uangMuka?.jumlah) || 0) - totalBiaya;
 
     const totalBudget = purchaseRequest.details.reduce(
         (sum, detail) => sum + Number(detail.estimasiTotalHarga || 0),
         0
     );
+
+    // Load existing foto bukti jika ada
+    useEffect(() => {
+        if (initialData?.details) {
+            const initialFotoMap: FotoBuktiMap = {};
+            initialData.details.forEach((detail: ExistingPertanggungjawabanDetail, index: number) => {
+                if (detail.fotoBukti && detail.fotoBukti.length > 0) {
+                    // Untuk existing files, kita tidak bisa membuat File objects
+                    // Jadi kita hanya simpan informasi metadata
+                    initialFotoMap[index] = detail.fotoBukti.map((foto) => ({
+                        file: new File([], foto.keterangan || 'Existing file'), // Dummy file
+                        previewUrl: makeImageSrc(foto.url),
+                        keterangan: foto.keterangan
+                    }));
+                }
+            });
+            setFotoBuktiMap(initialFotoMap);
+        }
+    }, [initialData]);
 
     const handleAddRincian = () => {
         append({
@@ -263,7 +285,7 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
         if (newFotoMap[rincianIndex]) {
             // Revoke object URL untuk mencegah memory leaks
             const removedFile = newFotoMap[rincianIndex][fileIndex];
-            if (removedFile.previewUrl) {
+            if (removedFile.previewUrl && removedFile.previewUrl.startsWith('blob:')) {
                 URL.revokeObjectURL(removedFile.previewUrl);
             }
 
@@ -303,8 +325,7 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
     ];
 
     const onSubmitForm = async (data: FormValues) => {
-        console.log("📋 Raw Form Data (before mapping):", data);
-
+        // console.log("📋 DATA SEND", data);
         if (!uangMuka?.id) {
             alert("Purchase Request tidak memiliki Uang Muka yang valid");
             return;
@@ -319,12 +340,12 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
                 uangMuka.id,
             );
 
-            console.log("📤 Final LPP Data:", lppData);
+            // console.log("📤 [EDIT FORM] Final LPP Data:", lppData);
 
             // Kirim data form DAN fotoBuktiMap ke parent component
             await onSubmit(lppData, fotoBuktiMap);
         } catch (error) {
-            console.error("Error in form submission:", error);
+            console.error("❌ [EDIT FORM] Error in form submission:", error);
             alert("Terjadi kesalahan saat menyimpan data. Silakan coba lagi.");
         }
     };
@@ -364,17 +385,26 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
 
                     <div className="text-center pt-0 pb-6">
                         <div className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                            <h1 className="text-4xl font-bold mb-4">Buat LPP </h1>
+                            <h1 className="text-4xl font-bold mb-4">Edit Laporan Pertanggungjawaban</h1>
                             <p className="text-lg text-slate-600 dark:text-slate-300 max-w-2xl mx-auto">
-                                Formulir Laporan Pengeluaran Perjalanan
+                                Perbarui data pertanggungjawaban yang sudah ada
                             </p>
                         </div>
                     </div>
 
+                    {/* Alert untuk Edit Mode */}
+                    <Alert className="bg-blue-50 border-blue-200 mb-6">
+                        <AlertCircle className="h-4 w-4 text-blue-600" />
+                        <AlertDescription className="text-blue-800">
+                            <strong>Mode Edit:</strong> Anda sedang mengedit pertanggungjawaban yang sudah ada.
+                            Perubahan akan memperbarui data yang sudah tersimpan.
+                        </AlertDescription>
+                    </Alert>
+
                     {/* PR Info Card */}
                     <Card className="max-w-7xl mx-auto shadow-lg border-0 bg-gradient-to-r from-primary/5 to-blue-100 dark:from-slate-800 dark:to-slate-900 backdrop-blur-sm">
                         <CardContent className="px-6">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                 <div className="text-center md:text-left">
                                     <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
                                         <FileText className="h-5 w-5 text-blue-600" />
@@ -396,6 +426,18 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
                                     </div>
                                     <p className="text-lg font-bold text-slate-900 dark:text-white">
                                         Rp {Number(totalBudget).toLocaleString("id-ID")}
+                                    </p>
+                                </div>
+
+                                <div className="text-center">
+                                    <div className="flex items-center justify-center gap-2 mb-2">
+                                        <DollarSign className="h-5 w-5 text-green-600" />
+                                        <span className="font-semibold text-slate-700 dark:text-slate-300">
+                                            Sisa Budget
+                                        </span>
+                                    </div>
+                                    <p className="text-lg font-bold text-green-700 dark:text-green-500">
+                                        Rp {Number(purchaseRequest?.uangMuka?.[0]?.pertanggungjawaban?.[0].sisaUangDikembalikan).toLocaleString("id-ID")}
                                     </p>
                                 </div>
 
@@ -426,11 +468,11 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
                                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                                             <div>
                                                 <h3 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                                                    <Receipt className="h-6 w-6 text-blue-600" />
-                                                    Rincian Pengeluaran
+                                                    <Edit className="h-6 w-6 text-blue-600" />
+                                                    Edit Rincian Pengeluaran
                                                 </h3>
                                                 <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                                                    Tambahkan detail pengeluaran untuk setiap transaksi
+                                                    Perbarui detail pengeluaran untuk setiap transaksi
                                                 </p>
                                             </div>
                                         </div>
@@ -616,9 +658,14 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
                                                                                 placeholder="0"
                                                                                 className="pl-10 border-slate-200 dark:border-slate-600"
                                                                                 {...field}
-                                                                                onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                                                                                value={field.value ?? ""}
+                                                                                // pastikan yang dikirim ke form selalu number
+                                                                                onChange={(e) => {
+                                                                                    const val = e.target.value;
+                                                                                    field.onChange(val === "" ? 0 : parseFloat(val)); // tetap number
+                                                                                }}
+                                                                                value={field.value ?? ""} // jangan gabung "Rp" di valuedi value
                                                                             />
+
                                                                         </div>
                                                                     </FormControl>
                                                                     <FormMessage />
@@ -657,7 +704,7 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
                                                             <label htmlFor={`file-upload-${index}`} className="w-full">
                                                                 <div className="flex items-center justify-center gap-2 w-full h-10 px-4 py-2 border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md text-sm cursor-pointer transition-colors">
                                                                     <Upload className="h-4 w-4" />
-                                                                    <span>Upload Foto/Dokumen</span>
+                                                                    <span>Upload Foto/Dokumen Baru</span>
                                                                 </div>
                                                                 <input
                                                                     accept="image/*,.pdf,.doc,.docx"
@@ -686,6 +733,7 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
                                                                                         alt={`Preview ${fileIndex + 1}`}
                                                                                         width={60}
                                                                                         height={60}
+                                                                                        style={{ objectFit: "contain" }}
                                                                                         className="rounded-md object-cover"
                                                                                     />
                                                                                 </div>
@@ -703,7 +751,10 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
                                                                                             {fileWithPreview.file.name}
                                                                                         </p>
                                                                                         <p className="text-xs text-slate-500 dark:text-slate-400">
-                                                                                            {(fileWithPreview.file.size / 1024).toFixed(1)} KB
+                                                                                            {fileWithPreview.file.size > 0 ?
+                                                                                                `${(fileWithPreview.file?.size / 5024).toFixed(1)} KB` :
+                                                                                                'Existing file'
+                                                                                            }
                                                                                         </p>
                                                                                     </div>
                                                                                     <Button
@@ -803,7 +854,7 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
                                                     variant="secondary"
                                                     className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300 px-3 py-1 text-sm font-medium"
                                                 >
-                                                    PENDING
+                                                    {initialData?.status || 'PENDING'}
                                                 </Badge>
                                             </div>
                                         </div>
@@ -850,8 +901,8 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
                                                 </div>
                                             ) : (
                                                 <div className="flex items-center gap-2">
-                                                    <FileCheck className="h-5 w-5" />
-                                                    Buat LPP
+                                                    <Edit className="h-5 w-5" />
+                                                    Perbarui LPP
                                                 </div>
                                             )}
                                         </Button>
@@ -866,4 +917,4 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
     );
 };
 
-export default CreateLppFormInput;
+export default EditLppForm;

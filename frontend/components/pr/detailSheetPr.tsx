@@ -403,20 +403,26 @@ export function PurchaseRequestDetailSheet({
                                                         </div>
 
                                                         {/* Summary Pertanggungjawaban */}
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-3 bg-muted/30 rounded-md">
-                                                            <div className="space-y-1">
-                                                                <div className="flex justify-between text-sm">
+                                                        <div className="grid grid-cols-1 md:grid-cols-1 gap-4 p-3 bg-muted/30 rounded-md">
+                                                            <div className="flex flex-row justify-between uppercase font-bold">
+                                                                {/* Total Biaya Realisasi */}
+                                                                <div className="flex items-center gap-2 text-sm">
                                                                     <span className="text-muted-foreground">Total Biaya Realisasi</span>
-                                                                    <span className="font-semibold">{formatCurrency(pj.totalBiaya)}</span>
+                                                                    <Badge variant="success" className="font-bold text-lg">
+                                                                        {formatCurrency(pj.totalBiaya)}
+                                                                    </Badge>
                                                                 </div>
-                                                                <div className="flex justify-between text-sm">
+
+                                                                {/* Sisa Uang Dikembalikan */}
+                                                                <div className="flex items-center gap-2 text-sm">
                                                                     <span className="text-muted-foreground">Sisa Uang Dikembalikan</span>
-                                                                    <span className="font-semibold text-green-600">
+                                                                    <Badge variant="destructive" className="font-bold text-lg">
                                                                         {formatCurrency(pj.sisaUangDikembalikan)}
-                                                                    </span>
+                                                                    </Badge>
                                                                 </div>
                                                             </div>
                                                         </div>
+
 
                                                         {/* Rincian Biaya */}
                                                         {pj.details && pj.details.length > 0 && (
@@ -429,7 +435,8 @@ export function PurchaseRequestDetailSheet({
                                                                         <div key={detail.id} className="border rounded-md p-3">
                                                                             <div className="flex justify-between items-start mb-2">
                                                                                 <div className="space-y-1 flex-1">
-                                                                                    <p className="font-medium">{detail.keterangan}</p>
+                                                                                    <p className="font-medium">{detail.product?.name}</p>
+
                                                                                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
                                                                                         <span className="flex items-center gap-1">
                                                                                             <Calendar className="h-3 w-3" />
@@ -439,6 +446,7 @@ export function PurchaseRequestDetailSheet({
                                                                                             <CreditCard className="h-3 w-3" />
                                                                                             {detail.jenisPembayaran}
                                                                                         </span>
+                                                                                        <p className="font-medium">Keterangan : {detail.keterangan}</p>
                                                                                     </div>
                                                                                 </div>
                                                                                 <p className="font-semibold text-lg">

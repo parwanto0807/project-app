@@ -230,14 +230,32 @@ export function PurchaseRequestTable({
     };
 
     const handleEdit = (purchaseRequest: PurchaseRequest) => {
-        console.log("Edit purchase request:", purchaseRequest.id);
         router.push(`/admin-area/logistic/pr/update/${purchaseRequest.id}`);
     };
 
     const handleCreateLpp = (id: string) => {
-        console.log("ID", id)
-        router.push(`/admin-area/logistic/lpp/create/${id}`)
+        // Cari purchaseRequest yang sesuai ID
+        const pr = purchaseRequests?.find(pr => pr.id === id);
+
+        if (!pr) {
+            console.warn("Purchase Request tidak ditemukan");
+            return;
+        }
+        // Ambil semua details dari pertanggungjawaban
+        const allDetails = pr.uangMuka?.flatMap(um =>
+            um.pertanggungjawaban?.flatMap(pj =>
+                pj.details ?? []
+            ) ?? []
+        ) ?? [];
+        const hasDetails = allDetails.length;
+        if (hasDetails === 0) {
+            router.push(`/admin-area/logistic/lpp/create/${id}`);
+        } else {
+            router.push(`/admin-area/logistic/lpp/edit/${id}`);
+        }
     }
+
+
 
     const handleViewPdf = (pr: PurchaseRequest) => {
         setSelectedPurchaseRequest(pr);

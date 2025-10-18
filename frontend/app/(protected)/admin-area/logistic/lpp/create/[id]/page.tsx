@@ -67,6 +67,7 @@ export default function CreateLppFromSpkPage() {
     }, [handleFetchPurchaseRequest, id])
 
     const handleSubmit = async (data: CreateLppForm, fotoBuktiMap?: FotoBuktiMap) => {
+        console.log("DATA", data, "FOTO", fotoBuktiMap)
         try {
             setIsSubmitting(true);
 
@@ -74,7 +75,7 @@ export default function CreateLppFromSpkPage() {
             const createResult = await createLpp(data) as {
                 success: boolean;
                 data?: {
-                    id: string; // <-- pastikan backend mengembalikan id LPP
+                    id: string;
                     details: Array<{ id: string }>;
                 };
                 message?: string;
@@ -86,26 +87,31 @@ export default function CreateLppFromSpkPage() {
                 throw new Error("LPP ID tidak tersedia, tidak bisa upload foto");
             }
 
-            // Debug: pastikan semua detail memiliki ID
-            if (createResult.data?.details) {
-                const invalidDetails = createResult.data.details.filter(d => !d.id);
-                if (invalidDetails.length > 0) {
-                    console.error("❌ Ada detail tanpa ID:", invalidDetails);
-                }
-            }
-
             // Step 2: Upload foto per detail jika ada
-            if (fotoBuktiMap && createResult.data?.details) {
+            if (fotoBuktiMap && createResult.data?.details && createResult.data.details.length > 0) {
                 try {
-                    await uploadFotoAfterCreate(createResult.data.details, fotoBuktiMap, lppId);
-                    toast.success("✅ Semua foto berhasil diupload");
+
+                    const uploadResults = await uploadFotoAfterCreate(
+                        createResult.data.details,
+                        fotoBuktiMap,
+                        lppId
+                    );
+
+                    if (uploadResults.length > 0) {
+                        toast.success(`✅ LPP berhasil dibuat dengan ${uploadResults.length} foto`);
+                    } else {
+                        toast.success("✅ LPP berhasil dibuat (tanpa foto)");
+                    }
+
                 } catch (uploadError) {
-                    console.error("⚠️ Beberapa foto gagal diupload:", uploadError);
-                    toast.warning("LPP berhasil dibuat, tetapi beberapa foto gagal diupload. Silakan upload manual nanti.");
+                    console.error("⚠️ Error during foto upload:", uploadError);
+                    toast.warning("LPP berhasil dibuat, tetapi ada masalah saat upload foto");
                 }
+            } else {
+                console.log("⏭️ No foto to upload");
+                toast.success("✅ LPP berhasil dibuat (tanpa foto)");
             }
 
-            toast.success("LPP berhasil dibuat!");
             router.push("/admin-area/logistic/pr");
             router.refresh();
 

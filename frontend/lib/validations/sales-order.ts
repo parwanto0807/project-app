@@ -1,3 +1,5 @@
+import { SPK } from "@/types/salesOrder";
+
 /* ===== Enums (string unions) ===== */
 export type OrderType = "REGULAR" | "SUPPORT";
 export type OrderStatus =
@@ -93,4 +95,5 @@ export interface SalesOrder {
 
   items: SalesOrderItem[];
   documents: SalesOrderDocument[]; // array dokumen terkait (QUOTATION/PO/BAP/INVOICE/PAYMENT_RECEIPT)
+  spk?: SPK[];
 }

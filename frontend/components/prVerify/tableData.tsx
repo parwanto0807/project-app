@@ -167,7 +167,6 @@ export function PurchaseRequestVerifyTable({
     const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
     const [detailOpen, setDetailOpen] = useState(false);
     const [selectedPR, setSelectedPR] = useState<PurchaseRequest | null>(null);
-
     const handleSearchSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         onSearchChange(searchInput);
@@ -404,6 +403,8 @@ export function PurchaseRequestVerifyTable({
                                     <TableHead className="font-semibold">Acc Finance</TableHead>
                                     <TableHead className="font-semibold text-center"> % </TableHead>
                                     <TableHead className="font-semibold">Status Finance</TableHead>
+                                    <TableHead className="font-semibold">Realisasi Biaya</TableHead>
+                                    <TableHead className="font-semibold">Sisa Biaya</TableHead>
                                     <TableHead className="font-semibold">Rincian LPP</TableHead>
                                     <TableHead className="font-semibold text-right">Actions</TableHead>
                                 </TableRow>
@@ -529,8 +530,11 @@ export function PurchaseRequestVerifyTable({
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="font-semibold text-right">
-                                                    {formatCurrency(pr.uangMuka?.[0]?.jumlah ?? 0)}
+                                                    {pr.uangMuka?.[0]?.jumlah && pr.uangMuka[0].jumlah > 0
+                                                        ? formatCurrency(pr.uangMuka[0].jumlah)
+                                                        : null}
                                                 </TableCell>
+
                                                 <TableCell className="text-right">
                                                     {(() => {
                                                         const totalAmount =
@@ -592,6 +596,17 @@ export function PurchaseRequestVerifyTable({
                                                         ]}
                                                     </Badge>
                                                 </TableCell>
+                                                <TableCell className="font-semibold text-right text-green-400">
+                                                    {pr.uangMuka?.[0]?.pertanggungjawaban?.[0]?.totalBiaya
+                                                        ? formatCurrency(pr.uangMuka[0].pertanggungjawaban[0].totalBiaya)
+                                                        : null}
+                                                </TableCell>
+                                                <TableCell className="font-semibold text-right text-red-600">
+                                                    {pr.uangMuka?.[0]?.pertanggungjawaban?.[0]?.sisaUangDikembalikan
+                                                        ? formatCurrency(pr.uangMuka[0].pertanggungjawaban[0].sisaUangDikembalikan)
+                                                        : null}
+                                                </TableCell>
+
                                                 <TableCell className="font-semibold text-right max-w-[20px]">
                                                     {pr.uangMuka?.[0]?.pertanggungjawaban?.[0]?.details?.length
                                                         ? (

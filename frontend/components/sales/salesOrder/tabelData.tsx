@@ -79,6 +79,7 @@ import { pdf } from "@react-pdf/renderer"
 import { SalesOrderPDF } from "./SalesOrderPDF"
 import { OrderStatusEnum } from "@/schemas/index";
 import * as z from "zod";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 
 type OrderStatus = z.infer<typeof OrderStatusEnum>;
@@ -1053,7 +1054,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
             {
                 accessorKey: "status",
                 header: ({ column }) => (
-                    <DataTableColumnHeader column={column} title="Status" />
+                    <DataTableColumnHeader column={column} title="Status" className="text-right" />
                 ),
                 cell: ({ row }) => {
                     const order = row.original;
@@ -1096,7 +1097,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
             baseColumns.push({
                 id: "total",
                 header: ({ column }) => (
-                    <DataTableColumnHeader column={column} title="Total Amount" />
+                    <DataTableColumnHeader column={column} title="Total Amount" className="text-right" />
                 ),
                 cell: ({ row }) => {
                     const order = row.original
@@ -1121,6 +1122,162 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                     )
                 },
             })
+        }
+
+        if (role === "admin" || role === "super") {
+            baseColumns.push({
+                id: "totalPR",
+                header: ({ column }) => (
+                    <DataTableColumnHeader column={column} title="Total PR" className="text-right" />
+                ),
+                cell: ({ row }) => {
+                    const order = row.original as SalesOrder;
+
+                    // Ambil semua details dari semua purchaseRequest di semua SPK
+                    const allDetails = order.spk?.flatMap(spk =>
+                        spk.purchaseRequest?.flatMap(pr => pr.details ?? []) ?? []
+                    ) ?? [];
+
+                    const totalPR = allDetails.reduce((sum, detail) => {
+                        const detailJumlah = new Decimal(detail.estimasiTotalHarga ?? 0);
+                        return sum.plus(detailJumlah);
+                    }, new Decimal(0));
+
+                    // Total sales dari items
+                    const totalSales = order.items.reduce((sum, item) => {
+                        const itemQty = new Decimal(item.qty ?? 0);
+                        const itemPrice = new Decimal(item.unitPrice ?? 0);
+                        return sum.plus(itemQty.times(itemPrice));
+                    }, new Decimal(0));
+
+                    if (totalPR.isZero()) return null;
+
+                    // Tentukan warna berdasarkan margin
+                    let colorClass = "text-green-600"; // default hijau
+                    if (totalPR.gt(totalSales)) {
+                        colorClass = "text-red-600"; // merah jika PR > total sales
+                    } else if (totalPR.div(totalSales).gte(0.8)) {
+                        colorClass = "text-yellow-600"; // kuning jika PR mendekati total sales (80%-100%)
+                    }
+
+                    const formatted = new Intl.NumberFormat("id-ID", {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0,
+                    }).format(totalPR.toNumber());
+
+                    // Hitung persentase margin untuk tooltip
+                    const marginPercent = totalPR.div(totalSales).times(100).toFixed(0);
+
+                    return (
+                        <div className="text-right">
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger>
+                                        <p className={`font-semibold ${colorClass}`}>Rp {formatted}</p>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <span>
+                                            Margin: {marginPercent}% dari total sales.<br />
+                                            Total biaya PR dibanding total Sales Order:<br />
+                                            - 0–70%: Aman (Hijau)<br />
+                                            - 70–90%: Tipis (Kuning)<br />
+                                            - {'>'}100%: Overbudget (Merah)
+                                        </span>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                            {allDetails.length > 0 && (
+                                <p className="text-xs text-muted-foreground">
+                                    {allDetails.length} item{allDetails.length !== 1 ? "s" : ""}
+                                </p>
+                            )}
+                        </div>
+                    );
+                },
+            });
+        }
+
+        if (role === "admin" || role === "super") {
+            baseColumns.push({
+                id: "uangMuka",
+                header: ({ column }) => (
+                    <DataTableColumnHeader column={column} title="ACC Finance" className="text-right" />
+                ),
+                cell: ({ row }) => {
+                    const order = row.original as SalesOrder;
+                    const um = order.spk?.[0]?.purchaseRequest?.[0]?.uangMuka?.[0];
+                    if (!um) return null;
+
+                    const jumlahUM = new Decimal(um.jumlah ?? 0);
+                    const formattedUM = new Intl.NumberFormat("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(jumlahUM.toNumber());
+
+                    return (
+                        <div className="text-right">
+                            <p className="font-semibold text-blue-600">Rp {formattedUM}</p>
+                            <p className="text-xs text-muted-foreground">{um.status}</p>
+                        </div>
+                    );
+                },
+            });
+        }
+
+        if (role === "admin" || role === "super") {
+            baseColumns.push({
+                id: "pertanggungjawaban",
+                header: ({ column }) => (
+                    <DataTableColumnHeader column={column} title="Total LPP" className="text-right" />
+                ),
+                cell: ({ row }) => {
+                    const order = row.original as SalesOrder;
+
+                    // Ambil Pertanggungjawaban pertama dari hierarchy
+                    const pj = order.spk?.[0]?.purchaseRequest?.[0]?.uangMuka?.[0]?.pertanggungjawaban?.[0];
+
+                    if (!pj) return null;
+
+                    const totalBiaya = new Decimal(pj.totalBiaya ?? 0);
+                    const sisaUang = new Decimal(pj.sisaUangDikembalikan ?? 0);
+
+                    // Total sales dari items
+                    const totalSales = order.items.reduce((sum, item) => {
+                        return sum.plus(new Decimal(item.qty ?? 0).times(new Decimal(item.unitPrice ?? 0)));
+                    }, new Decimal(0));
+
+                    // Tentukan warna berdasarkan totalBiaya
+                    let colorClass = "text-green-600";
+                    if (totalBiaya.gt(totalSales)) colorClass = "text-red-600";
+                    else if (totalBiaya.div(totalSales).gte(0.8)) colorClass = "text-yellow-600";
+
+                    const formattedBiaya = new Intl.NumberFormat("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(totalBiaya.toNumber());
+                    const formattedSisa = new Intl.NumberFormat("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(sisaUang.toNumber());
+
+                    const marginPercent = totalBiaya.div(totalSales).times(100).toFixed(0);
+
+                    return (
+                        <div className="text-right space-y-1">
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger>
+                                        <div>
+                                            <p className={`font-semibold ${colorClass} text-right`}>Realisasi Biaya: Rp {formattedBiaya}</p>
+                                            <p className="text-xs text-muted-foreground text-right">Sisa Biaya: Rp {formattedSisa}</p>
+                                        </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <span>
+                                            Margin biaya LPP: {marginPercent}% dari total sales.<br />
+                                            Total biaya dibanding total Sales Order:<br />
+                                            - 0–70%: Aman (Hijau)<br />
+                                            - 70–90%: Tipis (Kuning)<br />
+                                            - {'>'}100%: Overbudget (Merah)
+                                        </span>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        </div>
+                    );
+                },
+            });
         }
 
         // Kolom actions tetap ada untuk semua role

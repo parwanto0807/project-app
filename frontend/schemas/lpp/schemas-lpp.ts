@@ -94,17 +94,46 @@ export const createLppSchema = z.object({
 // === Update LPP ===
 export const updateLppSchema = z
   .object({
-    totalBiaya: decimalSchema.optional(),
+    // Header fields
+    totalBiaya: nonNegativeDecimalSchema.optional(),
     sisaUangDikembalikan: nonNegativeDecimalSchema.optional(),
     keterangan: z.string().max(500).optional().or(z.literal("")),
     status: z.enum(["PENDING", "APPROVED", "REJECTED", "REVISION"]).optional(),
+    uangMukaId: uuidSchema.optional(),
+
+    // Detail opsional (pakai schema item yang sama)
+    details: z
+      .array(
+        z.object({
+          id: uuidSchema.optional(), // untuk update existing detail
+          tanggalTransaksi: z.coerce.date().optional(),
+          keterangan: z.string().max(255).optional(),
+          jumlah: nonNegativeDecimalSchema.optional(),
+          nomorBukti: z.string().max(100).optional().or(z.literal("")),
+          jenisPembayaran: z
+            .enum(["CASH", "TRANSFER", "DEBIT", "CREDIT_CARD", "QRIS"])
+            .optional(),
+          productId: uuidSchema.optional(),
+          purchaseRequestDetailId: uuidSchema.optional(),
+
+          fotoBukti: z
+            .array(
+              z.object({
+                id: uuidSchema.optional(), // foto existing
+                keterangan: z.string().max(255).optional().or(z.literal("")),
+              })
+            )
+            .optional(),
+        })
+      )
+      .optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: "Minimal satu field harus diisi untuk update",
   });
 
 export const detailIdSchema = z.object({
-  id: uuidSchema,
+  detailId: uuidSchema,
 });
 
 export const fotoIdSchema = z.object({

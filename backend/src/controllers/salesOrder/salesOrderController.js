@@ -13,14 +13,28 @@ export const getAll = async (req, res) => {
         items: { include: { product: true } },
         documents: true,
         spk: {
-          select: {
-            spkNumber: true,
-            id: true,
+          include: {
+            purchaseRequest: {
+              select: {
+                id: true, // hanya ambil id
+                nomorPr: true,
+                details: { select: { id:true, estimasiTotalHarga: true } },
+                uangMuka: {
+                  select: {
+                    id: true, // hanya ambil id
+                    nomor: true,
+                    jumlah:true,
+                    pertanggungjawaban: true,
+                  },
+                },
+              },
+            },
           },
         },
       },
       orderBy: { soDate: "desc" },
     });
+
     res.json(salesOrders);
   } catch (error) {
     console.error(error);
@@ -76,7 +90,7 @@ export const getAllBap = async (req, res) => {
         spk: {
           select: {
             spkNumber: true,
-            spkDate:true,
+            spkDate: true,
             id: true,
           },
         },
