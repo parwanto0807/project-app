@@ -1205,16 +1205,30 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                 ),
                 cell: ({ row }) => {
                     const order = row.original as SalesOrder;
-                    const um = order.spk?.[0]?.purchaseRequest?.[0]?.uangMuka?.[0];
-                    if (!um) return null;
 
-                    const jumlahUM = new Decimal(um.jumlah ?? 0);
-                    const formattedUM = new Intl.NumberFormat("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(jumlahUM.toNumber());
+                    // Ambil semua UangMuka dari semua SPK dan PR
+                    const allUangMuka = order.spk?.flatMap(spk =>
+                        spk.purchaseRequest?.flatMap(pr => pr.uangMuka ?? []) ?? []
+                    ) ?? [];
+
+                    if (allUangMuka.length === 0) return null;
+
+                    // Total jumlah Uang Muka
+                    const totalUM = allUangMuka.reduce((sum, um) => {
+                        return sum.plus(new Decimal(um.jumlah ?? 0));
+                    }, new Decimal(0));
+
+                    const formattedUM = new Intl.NumberFormat("id-ID", {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0,
+                    }).format(totalUM.toNumber());
 
                     return (
-                        <div className="text-right">
+                        <div className="text-right space-y-1">
                             <p className="font-semibold text-blue-600">Rp {formattedUM}</p>
-                            <p className="text-xs text-muted-foreground">{um.status}</p>
+                            <p className="text-xs text-muted-foreground">
+                                {allUangMuka.length} item
+                            </p>
                         </div>
                     );
                 },
@@ -1230,18 +1244,24 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                 cell: ({ row }) => {
                     const order = row.original as SalesOrder;
 
-                    // Ambil Pertanggungjawaban pertama dari hierarchy
-                    const pj = order.spk?.[0]?.purchaseRequest?.[0]?.uangMuka?.[0]?.pertanggungjawaban?.[0];
+                    // Ambil semua Pertanggungjawaban dari semua UangMuka di semua PR di semua SPK
+                    const allPJ = order.spk?.flatMap(spk =>
+                        spk.purchaseRequest?.flatMap(pr =>
+                            pr.uangMuka?.flatMap(um => um.pertanggungjawaban ?? []) ?? []
+                        ) ?? []
+                    ) ?? [];
 
-                    if (!pj) return null;
+                    if (allPJ.length === 0) return null;
 
-                    const totalBiaya = new Decimal(pj.totalBiaya ?? 0);
-                    const sisaUang = new Decimal(pj.sisaUangDikembalikan ?? 0);
+                    // Total realisasi biaya & total sisa uang
+                    const totalBiaya = allPJ.reduce((sum, pj) => sum.plus(new Decimal(pj.totalBiaya ?? 0)), new Decimal(0));
+                    const totalSisa = allPJ.reduce((sum, pj) => sum.plus(new Decimal(pj.sisaUangDikembalikan ?? 0)), new Decimal(0));
 
                     // Total sales dari items
-                    const totalSales = order.items.reduce((sum, item) => {
-                        return sum.plus(new Decimal(item.qty ?? 0).times(new Decimal(item.unitPrice ?? 0)));
-                    }, new Decimal(0));
+                    const totalSales = order.items.reduce(
+                        (sum, item) => sum.plus(new Decimal(item.qty ?? 0).times(new Decimal(item.unitPrice ?? 0))),
+                        new Decimal(0)
+                    );
 
                     // Tentukan warna berdasarkan totalBiaya
                     let colorClass = "text-green-600";
@@ -1249,7 +1269,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                     else if (totalBiaya.div(totalSales).gte(0.8)) colorClass = "text-yellow-600";
 
                     const formattedBiaya = new Intl.NumberFormat("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(totalBiaya.toNumber());
-                    const formattedSisa = new Intl.NumberFormat("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(sisaUang.toNumber());
+                    const formattedSisa = new Intl.NumberFormat("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(totalSisa.toNumber());
 
                     const marginPercent = totalBiaya.div(totalSales).times(100).toFixed(0);
 
@@ -1279,6 +1299,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                 },
             });
         }
+
 
         // Kolom actions tetap ada untuk semua role
         baseColumns.push({
