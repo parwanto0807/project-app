@@ -12,7 +12,6 @@ import {
   // deleteDetail,
   updateStatus,
   // uploadFoto,
-  deleteFoto,
 } from "@/lib/action/lpp/action-lpp";
 import {
   CreateLppForm,
@@ -21,7 +20,6 @@ import {
   // UpdateDetail,
   LppId,
   // DetailId,
-  FotoId,
   UpdateStatus,
   LppQueryParams,
   // UploadFotoForm,
@@ -153,12 +151,12 @@ export function useUpdateStatus() {
 // }
 
 // ✅ DELETE FOTO
-export function useDeleteFoto() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (ids: FotoId) => deleteFoto(ids),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["lpp"] });
-    },
-  });
-}
+// export function useDeleteFoto() {
+//   const queryClient = useQueryClient();
+//   return useMutation({
+//     mutationFn: (ids: FotoId) => deleteFoto(ids),
+//     onSuccess: () => {
+//       queryClient.invalidateQueries({ queryKey: ["lpp"] });
+//     },
+//   });
+// }
