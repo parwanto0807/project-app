@@ -1,6 +1,6 @@
-import {prisma} from '../../config/db.js';
+import { prisma } from "../../config/db.js";
+import { Prisma } from "../../../prisma/generated/prisma/index.js";
 import { toNum } from "../../lib/soUtils.js";
-
 
 /** Ambil semua sales order */
 export const getAll = async (req, res) => {
@@ -18,12 +18,12 @@ export const getAll = async (req, res) => {
               select: {
                 id: true, // hanya ambil id
                 nomorPr: true,
-                details: { select: { id:true, estimasiTotalHarga: true } },
+                details: { select: { id: true, estimasiTotalHarga: true } },
                 uangMuka: {
                   select: {
                     id: true, // hanya ambil id
                     nomor: true,
-                    jumlah:true,
+                    jumlah: true,
                     pertanggungjawaban: true,
                   },
                 },

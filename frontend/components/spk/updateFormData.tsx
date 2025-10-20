@@ -103,9 +103,9 @@ interface FormUpdateSpkProps {
 
 function getBasePath(role?: string) {
     const paths: Record<string, string> = {
-        super: "/super-admin-area/sales/salesOrder",
-        pic: "/pic-area/sales/salesOrder",
-        admin: "/admin-area/sales/salesOrder",
+        super: "/super-admin-area/logistic/spk",
+        pic: "/pic-area/logistic/spk",
+        admin: "/admin-area/logistic/spk",
     }
     return paths[role ?? "admin"] || "/admin-area/sales/salesOrder"
 }

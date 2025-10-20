@@ -1,4 +1,4 @@
-// import { prisma } from "../../prisma/generated/prisma/index.js";
+import { Prisma } from "../../prisma/generated/prisma/index.js";
 // import { prisma } from "./prismaClient.js";
 import { prisma } from "../config/db.js";
 
@@ -53,10 +53,10 @@ export async function recalcHeaderTotals(executor, salesOrderId) {
   await client.salesOrder.update({
     where: { id: salesOrderId },
     data: {
-      subtotal: new prisma.Decimal(totals.subtotal),
-      discountTotal: new prisma.Decimal(totals.discountTotal),
-      taxTotal: new prisma.Decimal(totals.taxTotal),
-      grandTotal: new prisma.Decimal(totals.grandTotal),
+      subtotal: new Prisma.Decimal(totals.subtotal),
+      discountTotal: new Prisma.Decimal(totals.discountTotal),
+      taxTotal: new Prisma.Decimal(totals.taxTotal),
+      grandTotal: new Prisma.Decimal(totals.grandTotal),
     },
   });
 

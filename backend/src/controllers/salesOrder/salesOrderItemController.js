@@ -1,4 +1,4 @@
-// import { prisma } from "../../../prisma/generated/prisma/index.js";
+import { Prisma } from "../../../prisma/generated/prisma/index.js";
 import { prisma } from '../../config/db.js';
 
 import { toNum, calcLineTotal, recalcHeaderTotals } from "../../lib/soUtils.js";
@@ -35,7 +35,7 @@ export const addItem = async (req, res) => {
     let { name, uom } = it;
     if (itemType === "PRODUCT" || itemType === "SERVICE") {
       const needSnapshot = !name || !uom;
-      const prod = await prisma.product.findUnique({
+      const prod = await Prisma.product.findUnique({
         where: { id: it.productId },
         select: { id: true, name: true, uom: true },
       });
@@ -90,11 +90,11 @@ export const addItem = async (req, res) => {
           name,
           uom: uom ?? null,
           description: it.description ?? null,
-          qty: new prisma.Decimal(qty),
-          unitPrice: new prisma.Decimal(unitPrice),
-          discount: new prisma.Decimal(discount),
-          taxRate: new prisma.Decimal(taxRate),
-          lineTotal: new prisma.Decimal(lineTotalNum),
+          qty: new Prisma.Decimal(qty),
+          unitPrice: new Prisma.Decimal(unitPrice),
+          discount: new Prisma.Decimal(discount),
+          taxRate: new Prisma.Decimal(taxRate),
+          lineTotal: new Prisma.Decimal(lineTotalNum),
         },
       });
 
@@ -180,11 +180,11 @@ export const updateItem = async (req, res) => {
     const discount = typeof body.discount !== "undefined" ? toNum(body.discount) : Number(existingItem.discount);
     const taxRate = typeof body.taxRate !== "undefined" ? toNum(body.taxRate) : Number(existingItem.taxRate);
 
-    data.qty = new prisma.Decimal(qty);
-    data.unitPrice = new prisma.Decimal(unitPrice);
-    data.discount = new prisma.Decimal(discount);
-    data.taxRate = new prisma.Decimal(taxRate);
-    data.lineTotal = new prisma.Decimal(calcLineTotal(qty, unitPrice, discount, taxRate));
+    data.qty = new Prisma.Decimal(qty);
+    data.unitPrice = new Prisma.Decimal(unitPrice);
+    data.discount = new Prisma.Decimal(discount);
+    data.taxRate = new Prisma.Decimal(taxRate);
+    data.lineTotal = new Prisma.Decimal(calcLineTotal(qty, unitPrice, discount, taxRate));
 
     const updatedSO = await prisma.$transaction(async (tx) => {
       await tx.salesOrderItem.update({ where: { id: itemId }, data });

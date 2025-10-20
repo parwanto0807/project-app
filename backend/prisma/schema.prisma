@@ -14,6 +14,19 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model AuditLog {
+  id        String   @id @default(uuid())
+  model     String
+  action    String
+  data      String
+  before    Json?
+  after     Json?
+  durationMs Int?        // <--- tambahin ini
+  userId    String
+  createdAt DateTime @default(now())
+}
+
+
 model AccountEmail {
   id        String   @id @default(cuid())
   email     String   @unique

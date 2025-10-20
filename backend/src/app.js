@@ -91,7 +91,7 @@ app.use((req, res, next) => {
   next();
 });
 app.use((req, res, next) => {
-  // console.log('[DEBUG] WAKTU:', new Date().toISOString(), req.method, req.url, req.cookies);
+  global.currentUserId = req.user?.id;
   next();
 });
 
