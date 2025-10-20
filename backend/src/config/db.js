@@ -1,19 +1,24 @@
-import { PrismaClient } from '../../prisma/generated/prisma/index.js'; // Adjust the path as necessary
+import { PrismaClient } from "../../prisma/generated/prisma/index.js";
 
-const prisma = new PrismaClient();
+// simpan di globalThis biar tidak dobel saat hot-reload
+const globalForPrisma = globalThis;
 
-// Connect to the PostgreSQL database
-export async function connectDB() {
-    try {
-        // Establish the connection to the database
-        await prisma.$connect();
-        console.log('Connected to PostgreSQL database');
-    } catch (err) {
-        // Log the error and exit the process if the connection fails
-        console.error('Failed to connect to PostgreSQL database', err);
-        process.exit(1); // Exit the application
-    }
+if (!globalForPrisma.prisma) {
+  globalForPrisma.prisma = new PrismaClient({
+    log: ["error", "warn"], // opsional
+  });
 }
 
-// Export the Prisma Client instance to be used elsewhere
+const prisma = globalForPrisma.prisma;
+
+export async function connectDB() {
+  try {
+    await prisma.$connect();
+    console.log("Connected to PostgreSQL database");
+  } catch (err) {
+    console.error("Failed to connect to PostgreSQL database", err);
+    process.exit(1);
+  }
+}
+
 export { prisma };

@@ -1,7 +1,8 @@
-import { PrismaClient } from "../../../../prisma/generated/prisma/index.js";
+// import { PrismaClient } from "../../../../prisma/generated/prisma/index.js";
+import { prisma } from "../../../config/db.js";
 import { getNextKaryawanCode } from "../../../utils/generateCode.js";
 
-const prisma = new PrismaClient();
+// const prisma = new PrismaClient();
 
 export async function getKaryawanCount(req, res) {
   try {
@@ -150,7 +151,6 @@ export const updateKaryawan = async (req, res) => {
       potongan,
       userId,
       teamIds,
-      foto,
       isActive,
     } = req.body;
 
@@ -163,9 +163,14 @@ export const updateKaryawan = async (req, res) => {
       departemen,
       statusKerja,
       tipeKontrak,
-      foto,
       isActive: isActive ?? true,
     };
+
+    // 🖼️ handle file foto
+    if (req.file) {
+      // simpan path atau filename ke DB
+      data.foto = `/images/employee/${req.file.filename}`;
+    }
 
     // normalisasi tanggal
     if (tanggalLahir !== undefined) {

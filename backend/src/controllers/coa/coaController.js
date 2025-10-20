@@ -1,7 +1,8 @@
-import { PrismaClient } from "../../../prisma/generated/prisma/index.js";
+// import { PrismaClient } from "../../../prisma/generated/prisma/index.js";
+import { prisma } from "../../config/db.js";
 import { validationResult } from "express-validator";
 
-const prisma = new PrismaClient();
+// const prisma = new PrismaClient();
 
 // ENUM Definitions (sesuai dengan model Prisma)
 const CoaType = {

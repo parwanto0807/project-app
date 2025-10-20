@@ -1,7 +1,7 @@
-import { PrismaClient } from "../../prisma/generated/prisma/index.js";
+// import { PrismaClient } from "../../prisma/generated/prisma/index.js";
+// const prisma = new PrismaClient();
 
-const prisma = new PrismaClient();
-
+import { prisma} from '../config/db.js';
 /**
  * Generate nomor LPP otomatis dengan format: PJ-YYYY-XXX
  */

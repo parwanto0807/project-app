@@ -465,7 +465,7 @@ export default function UpdateEmployeeForm({ employee, role, id }: { employee: s
                                 />
 
                                 <FormField name="userId" control={form.control} render={({ field }) => (
-                                    <FormItem><FormLabel>User ID (untuk login)</FormLabel><FormControl><Input placeholder="ID unik pengguna" {...field} value={field.value ?? ""} disabled/></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>User ID (untuk login)</FormLabel><FormControl><Input placeholder="ID unik pengguna" {...field} value={field.value ?? ""} disabled /></FormControl><FormMessage /></FormItem>
                                 )} />
                                 <FormField name="isActive" control={form.control} render={({ field }) => (
                                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 mt-4 md:mt-0">
@@ -494,25 +494,22 @@ export default function UpdateEmployeeForm({ employee, role, id }: { employee: s
                                                 <div className="flex flex-col items-center gap-2">
                                                     <div className="relative w-32 h-32 border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center overflow-hidden bg-gray-100">
                                                         {filePreview ? (
-                                                            <div className="relative w-full h-full">
-                                                                <Image
-                                                                    src={`/api/proxy/${filePreview}`} // sekarang sudah pasti tanpa double slash
-                                                                    alt="Preview foto karyawan"
-                                                                    fill
-                                                                    className="object-cover"
-                                                                    unoptimized
-                                                                    onError={() => {
-                                                                        console.error("Gagal load:", filePreview);
-                                                                    }}
-                                                                />
-                                                            </div>
+                                                            <Image
+                                                                src={filePreview} // langsung pakai base64 / URL.createObjectURL(file)
+                                                                alt="Preview foto karyawan"
+                                                                fill
+                                                                className="object-cover"
+                                                                unoptimized
+                                                                onError={() => {
+                                                                    console.error("Gagal load:", filePreview);
+                                                                }}
+                                                            />
                                                         ) : (
                                                             <div className="flex flex-col items-center justify-center text-gray-400">
                                                                 <Camera className="h-8 w-8 mb-1" />
                                                                 <span className="text-xs">No Image</span>
                                                             </div>
                                                         )}
-
                                                     </div>
                                                     {value instanceof File && (
                                                         <span className="text-sm text-muted-foreground text-center max-w-32 truncate">
@@ -528,7 +525,7 @@ export default function UpdateEmployeeForm({ employee, role, id }: { employee: s
                                                         className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md cursor-pointer hover:bg-primary/90 transition-colors"
                                                     >
                                                         <Upload className="h-4 w-4" />
-                                                        <span>{filePreview ? 'Ganti Foto' : 'Pilih Foto'}</span>
+                                                        <span>{filePreview ? "Ganti Foto" : "Pilih Foto"}</span>
                                                         <Input
                                                             id="file-upload"
                                                             type="file"
@@ -545,8 +542,8 @@ export default function UpdateEmployeeForm({ employee, role, id }: { employee: s
                                                             variant="outline"
                                                             size="sm"
                                                             onClick={() => {
-                                                                onChange(undefined); // Gunakan undefined bukan null
-                                                                setFilePreview(null);
+                                                                onChange(undefined); // reset form value
+                                                                setFilePreview(null); // reset preview
                                                             }}
                                                             className="flex items-center gap-2"
                                                         >
@@ -566,6 +563,7 @@ export default function UpdateEmployeeForm({ employee, role, id }: { employee: s
                                     </FormItem>
                                 )}
                             />
+
                         </div>
 
                         <CardFooter className="flex flex-col sm:flex-row justify-between gap-3 p-0 pt-6">

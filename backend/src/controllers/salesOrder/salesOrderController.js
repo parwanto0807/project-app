@@ -1,6 +1,6 @@
-import { Prisma } from "../../../prisma/generated/prisma/index.js";
-import { prisma } from "../../lib/prismaClient.js";
+import {prisma} from '../../config/db.js';
 import { toNum } from "../../lib/soUtils.js";
+
 
 /** Ambil semua sales order */
 export const getAll = async (req, res) => {

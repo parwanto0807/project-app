@@ -1,9 +1,10 @@
 import jwt from "jsonwebtoken";
 import cookie from "cookie";
 import checkIfNewDevice from "../utils/cekNewDevices.js";
-import { PrismaClient } from "../../prisma/generated/prisma/index.js";
+// import { PrismaClient } from "../../prisma/generated/prisma/index.js";
+// const prisma = new PrismaClient();
 
-const prisma = new PrismaClient();
+import { prisma } from "../config/db.js";
 
 async function verifySessionToken(req, res, next) {
   try {

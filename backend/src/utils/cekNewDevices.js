@@ -1,6 +1,7 @@
-import { PrismaClient } from '../../prisma/generated/prisma/index.js';
-const prisma = new PrismaClient();
+// import { PrismaClient } from '../../prisma/generated/prisma/index.js';
+// const prisma = new PrismaClient();
 
+import { prisma} from '../config/db.js';
 
 export default async function checkIfNewDevice(userId, deviceId) {
   // Cek di database trustedDevices apakah deviceId sudah pernah disimpan

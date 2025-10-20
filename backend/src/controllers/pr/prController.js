@@ -1,4 +1,7 @@
-import { PrismaClient } from "../../../prisma/generated/prisma/index.js";
+// import { PrismaClient } from "../../../prisma/generated/prisma/index.js";
+// const prisma = new PrismaClient();
+
+import { prisma } from "../../config/db.js";
 import {
   createPurchaseRequestSchema,
   updatePurchaseRequestSchema,
@@ -8,7 +11,7 @@ import {
 } from "../../validations/prValidations.js";
 import { generatePRNumber } from "../../utils/prGenerateNumber.js";
 
-const prisma = new PrismaClient();
+
 
 export class PurchaseRequestController {
   /**

@@ -1,6 +1,8 @@
 // lib/generateCode.js
-import { PrismaClient } from "../../prisma/generated/prisma/index.js";
-const prisma = new PrismaClient();
+// import { PrismaClient } from "../../prisma/generated/prisma/index.js";
+// const prisma = new PrismaClient();
+
+import { prisma} from '../config/db.js';
 
 const pad = (n, len = 5) => String(n).padStart(len, "0");
 const padSpk = (n, len = 5) => String(n).padStart(len, "0");

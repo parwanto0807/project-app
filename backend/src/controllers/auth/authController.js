@@ -1,4 +1,6 @@
-import { PrismaClient } from "../../../prisma/generated/prisma/index.js";
+// import { PrismaClient } from "../../../prisma/generated/prisma/index.js";
+import { prisma } from "../../config/db.js";
+
 import axios from "axios";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
@@ -18,7 +20,7 @@ import {
   MFA_TEMP_SECRET,
 } from "../../config/env.js";
 
-const prisma = new PrismaClient();
+// const prisma = new PrismaClient();
 
 const generateAccessToken = (user) => {
   return jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, {

@@ -1,9 +1,8 @@
-import { PrismaClient } from "../../../prisma/generated/prisma/index.js";
-import path from "path";
+// import { PrismaClient } from "../../../prisma/generated/prisma/index.js";
+// import path from "path";
+import { prisma } from "../../config/db.js";
 import fs from "fs";
 import { generateQuotationNumber } from "../../utils/generateQuotaion.js";
-
-const prisma = new PrismaClient();
 
 // Helper function untuk menghitung total quotation
 const calculateQuotationTotals = (

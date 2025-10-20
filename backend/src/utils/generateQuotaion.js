@@ -1,6 +1,6 @@
-import { PrismaClient } from "../../prisma/generated/prisma/index.js";
-
-const prisma = new PrismaClient();
+// import { PrismaClient } from "../../prisma/generated/prisma/index.js";
+// const prisma = new PrismaClient();
+import { prisma} from '../config/db.js';
 
 /**
  * Generate quotation number dengan format: 00001/QUOT-RYLIF/X/2025

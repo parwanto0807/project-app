@@ -271,7 +271,7 @@ export default function DashboardAwalSalesOrder() {
         const tahun = date.getFullYear()
         return `${bulan} ${tahun}`
     }
-    console.log("Data Sales Stats", salesStats);
+    // console.log("Data Sales Stats", salesStats);
 
     const lastMonth = new Date()
     lastMonth.setMonth(lastMonth.getMonth() - 1)
@@ -440,9 +440,6 @@ export default function DashboardAwalSalesOrder() {
 
         const thisMonth = Number(invoiceStats.totalThisMonth ?? 0);
         const lastMonth = Number(invoiceStats.totalLastMonth ?? 0);
-
-        console.log("Data Calculate", thisMonth, lastMonth);
-
         if (!isFinite(thisMonth) || !isFinite(lastMonth) || lastMonth <= 0) return 0;
         return ((thisMonth - lastMonth) / lastMonth) * 100;
     };

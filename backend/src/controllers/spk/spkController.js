@@ -1,7 +1,8 @@
-import { PrismaClient } from "../../../prisma/generated/prisma/index.js";
+// import { PrismaClient } from "../../../prisma/generated/prisma/index.js";
+import { prisma } from "../../config/db.js";
 import { getNextSpkCode } from "../../utils/generateCode.js";
 
-const prisma = new PrismaClient();
+// const prisma = new PrismaClient();
 
 export const getSpkByEmail = async (req, res) => {
   const { email } = req.query;

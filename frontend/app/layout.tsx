@@ -6,7 +6,11 @@ import { cookies } from "next/headers"; // Untuk mengambil cookie dari request s
 export const metadata: Metadata = {
   title: "ProyekID",
   description: "A Trusted Platform for Construction Project Orders.",
-  manifest: "/manifest.json",
+  icons: {
+    icon: "/favicon.ico",         // default favicon
+    shortcut: "/favicon-16x16.png",
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export const viewport = {

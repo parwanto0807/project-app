@@ -189,12 +189,6 @@ export default function UpdateQuotationPageAdmin({
                     <BreadcrumbSeparator />
                     <BreadcrumbItem>
                         <BreadcrumbLink asChild>
-                            <Link href="/admin-area/sales">Sales Management</Link>
-                        </BreadcrumbLink>
-                    </BreadcrumbItem>
-                    <BreadcrumbSeparator />
-                    <BreadcrumbItem>
-                        <BreadcrumbLink asChild>
                             <Link href="/admin-area/sales/quotation">Quotation List</Link>
                         </BreadcrumbLink>
                     </BreadcrumbItem>

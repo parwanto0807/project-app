@@ -1,6 +1,8 @@
 // src/controllers/master/project/projectController.js
-import { PrismaClient } from "../../../prisma/generated/prisma/index.js";
-const prisma = new PrismaClient();
+// import { PrismaClient } from "../../../prisma/generated/prisma/index.js";
+// const prisma = new PrismaClient();
+
+import { prisma } from '../../config/db.js';
 
 const trimOrNull = (v) => (typeof v === "string" && v.trim() !== "" ? v.trim() : null);
 

@@ -1,9 +1,10 @@
 // /backend/controllers/spkReportController.js
-import { PrismaClient } from "../../../prisma/generated/prisma/index.js";
+// import { PrismaClient } from "../../../prisma/generated/prisma/index.js";
+import { prisma } from "../../config/db.js";
 import fs from "fs";
 import path from "path";
 
-const prisma = new PrismaClient();
+// const prisma = new PrismaClient();
 
 // 💡 Membuat laporan lapangan (Progress atau Final)
 export const createSpkFieldReport = async (req, res) => {

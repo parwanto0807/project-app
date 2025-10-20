@@ -89,7 +89,7 @@ export default function SalesOrderPageAdmin() {
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
                 <Badge variant="outline">
-                  <Link href="/admin-area/sales">Sales Management</Link>
+                  Sales Management
                 </Badge>
               </BreadcrumbLink>
             </BreadcrumbItem>

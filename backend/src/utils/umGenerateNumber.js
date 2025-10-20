@@ -1,5 +1,6 @@
-import { PrismaClient } from "../../prisma/generated/prisma/index.js";
-const prisma = new PrismaClient();
+// import { PrismaClient } from "../../prisma/generated/prisma/index.js";
+// const prisma = new PrismaClient();
+import { prisma} from '../config/db.js';
 
 /**
  * Generate nomor uang muka otomatis dengan format: AR-FNC-XXXXX-MM-YYYY

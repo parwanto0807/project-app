@@ -1,7 +1,9 @@
-import { PrismaClient } from "../../../prisma/generated/prisma/index.js";
-import path from "path";
+// import { PrismaClient } from "../../../prisma/generated/prisma/index.js";
+// import path from "path";
 
-const prisma = new PrismaClient();
+// const prisma = new PrismaClient();
+
+import { prisma } from "../../config/db.js";
 
 // Generate BAP number (contoh: 00001/BAP-RYLIF/IX/2025)
 export const generateBAPNumber = async () => {

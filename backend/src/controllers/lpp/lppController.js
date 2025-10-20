@@ -1,7 +1,7 @@
-import { PrismaClient } from "../../../prisma/generated/prisma/index.js";
+// import { PrismaClient } from "../../../prisma/generated/prisma/index.js";
+import { prisma } from "../../config/db.js";
 import path from "path";
 import fs from "fs/promises";
-import { generateNomorLpp } from "../../utils/lppGenerateNumber.js";
 import {
   createLppValidation,
   updateLppValidation,
@@ -18,46 +18,46 @@ import {
   duplicateLppValidation,
 } from "../../validations/lppValidation.js";
 
-const prisma = new PrismaClient();
+// const prisma = new PrismaClient();
 
-// Helper function untuk validasi dengan Zod
-const validateWithZod = (schema, data) => {
-  const result = schema.safeParse(data);
-  if (!result.success) {
-    const errorMessage = result.error.errors
-      .map((err) => {
-        const field = err.path.length ? err.path.join(".") : "<root>";
-        return `${field}: ${err.message}`;
-      })
-      .join(", ");
-    throw new Error(errorMessage);
-  }
-  return result.data;
-};
+// // Helper function untuk validasi dengan Zod
+// const validateWithZod = (schema, data) => {
+//   const result = schema.safeParse(data);
+//   if (!result.success) {
+//     const errorMessage = result.error.errors
+//       .map((err) => {
+//         const field = err.path.length ? err.path.join(".") : "<root>";
+//         return `${field}: ${err.message}`;
+//       })
+//       .join(", ");
+//     throw new Error(errorMessage);
+//   }
+//   return result.data;
+// };
 
-// Helper function untuk handle error
-const handleError = (error, res) => {
-  console.error("Error:", error);
+// // Helper function untuk handle error
+// const handleError = (error, res) => {
+//   console.error("Error:", error);
 
-  if (error.message.includes("not found")) {
-    return res.status(404).json({
-      success: false,
-      message: error.message,
-    });
-  }
+//   if (error.message.includes("not found")) {
+//     return res.status(404).json({
+//       success: false,
+//       message: error.message,
+//     });
+//   }
 
-  if (error.message.includes("already exists")) {
-    return res.status(409).json({
-      success: false,
-      message: error.message,
-    });
-  }
+//   if (error.message.includes("already exists")) {
+//     return res.status(409).json({
+//       success: false,
+//       message: error.message,
+//     });
+//   }
 
-  return res.status(400).json({
-    success: false,
-    message: error.message || "Bad Request",
-  });
-};
+//   return res.status(400).json({
+//     success: false,
+//     message: error.message || "Bad Request",
+//   });
+// };
 
 export const lppController = {
   // CREATE - Membuat LPP baru

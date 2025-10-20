@@ -1,5 +1,7 @@
-import { PrismaClient } from "../../../../prisma/generated/prisma/index.js";
-const prisma = new PrismaClient();
+// import { PrismaClient } from "../../../../prisma/generated/prisma/index.js";
+// const prisma = new PrismaClient();
+
+import { prisma } from "../../../config/db.js";
 import { ProductType } from "../../../../prisma/generated/prisma/index.js";
 
 // [GET] /products - Ambil semua produk (opsional: hanya aktif)

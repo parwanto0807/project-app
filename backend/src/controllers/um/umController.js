@@ -1,4 +1,5 @@
-import { PrismaClient } from "../../../prisma/generated/prisma/index.js";
+// import { PrismaClient } from "../../../prisma/generated/prisma/index.js";
+import { prisma } from "../../config/db.js";
 import { generateUangMukaNumber } from "../../utils/umGenerateNumber.js";
 import { UangMukaStatus } from "../../../prisma/generated/prisma/client.js";
 import {
@@ -11,7 +12,7 @@ import {
 import fs from "fs";
 import { deleteFinanceFile } from "../../utils/deleteFileImage.js";
 
-const prisma = new PrismaClient();
+// const prisma = new PrismaClient();
 
 export const uangMukaController = {
   async getAllUangMuka(req, res, next) {
