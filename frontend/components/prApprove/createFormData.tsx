@@ -40,6 +40,7 @@ import {
 import { PurchaseRequest } from "@/types/pr";
 import Image from "next/image";
 import { CreateUangMukaInput } from "@/types/typesUm";
+import { SourceProductType } from "@/schemas/pr";
 
 interface BackendValidationError {
     field?: string;    // Backend mungkin menggunakan 'field'
@@ -122,11 +123,42 @@ export function PrCreateForm({
     }, [selectedPurchaseRequest, approvedPurchaseRequests]);
 
     // Calculate total amount helper function
-    const calculateTotalAmount = (pr: PurchaseRequest): number => {
-        if (!pr.details) return 0;
-        return pr.details.reduce((sum, detail) => {
-            return sum + Number(detail.estimasiTotalHarga || 0);
-        }, 0);
+    const calculateTotalAmount = (pr: PurchaseRequest) => {
+        if (!pr.details) return {
+            totalBiaya: 0,
+            totalHPP: 0,
+            grandTotal: 0,
+        };
+
+        const biayaTypes: SourceProductType[] = [
+            SourceProductType.PEMBELIAN_BARANG,
+            SourceProductType.JASA_PEMBELIAN,
+            SourceProductType.OPERATIONAL,
+        ];
+
+        const hppTypes: SourceProductType[] = [
+            SourceProductType.PENGAMBILAN_STOK,
+            SourceProductType.JASA_INTERNAL,
+        ];
+
+        let totalBiaya = 0;
+        let totalHPP = 0;
+
+        for (const detail of pr.details) {
+            const estimasiTotalHarga = Number(detail.estimasiTotalHarga || 0);
+
+            if (detail.sourceProduct && biayaTypes.includes(detail.sourceProduct as SourceProductType)) {
+                totalBiaya += estimasiTotalHarga;
+            } else if (detail.sourceProduct && hppTypes.includes(detail.sourceProduct as SourceProductType)) {
+                totalHPP += estimasiTotalHarga;
+            }
+        }
+
+        return {
+            totalBiaya,
+            totalHPP,
+            grandTotal: totalBiaya + totalHPP,
+        };
     };
 
     // Handle PR selection change
@@ -138,7 +170,7 @@ export function PrCreateForm({
             form.setValue("purchaseRequestId", prId);
             form.setValue("spkId", selectedPR.spk?.id || "");
             form.setValue("karyawanId", selectedPR.karyawan?.id || "");
-            form.setValue("jumlah", calculateTotalAmount(selectedPR) || 0);
+            form.setValue("jumlah", calculateTotalAmount(selectedPR).totalBiaya || 0);
 
             const currentKeterangan = form.getValues("keterangan") || "";
             if (!currentKeterangan || currentKeterangan === "") {
@@ -413,7 +445,7 @@ export function PrCreateForm({
                                                             <div className="flex items-center space-x-2">
                                                                 <span>Total:</span>
                                                                 <span className="font-medium truncate">
-                                                                    {formatCurrency(calculateTotalAmount(pr))}
+                                                                    {formatCurrency(calculateTotalAmount(pr).totalBiaya)}
                                                                 </span>
                                                             </div>
                                                         </div>
@@ -455,7 +487,7 @@ export function PrCreateForm({
                                     <div className="flex items-center justify-between pt-1 border-t border-blue-200">
                                         <span className="font-bold ">Total Amount:</span>
                                         <span className="font-bold">
-                                            {formatCurrency(calculateTotalAmount(selectedPRData))}
+                                            {formatCurrency(calculateTotalAmount(selectedPRData).totalBiaya)}
                                         </span>
                                     </div>
                                 </div>

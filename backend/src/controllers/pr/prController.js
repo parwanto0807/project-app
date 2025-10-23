@@ -11,8 +11,6 @@ import {
 } from "../../validations/prValidations.js";
 import { generatePRNumber } from "../../utils/prGenerateNumber.js";
 
-
-
 export class PurchaseRequestController {
   /**
    * Get all Purchase Requests dengan pagination dan filter
@@ -235,6 +233,7 @@ export class PurchaseRequestController {
         projectBudgetId: detail.projectBudgetId,
         jumlah: parseFloat(detail.jumlah),
         satuan: detail.satuan,
+        sourceProduct: detail.sourceProduct,
         estimasiHargaSatuan: parseFloat(detail.estimasiHargaSatuan),
         estimasiTotalHarga:
           parseFloat(detail.jumlah) * parseFloat(detail.estimasiHargaSatuan),
@@ -370,6 +369,7 @@ export class PurchaseRequestController {
             productId: detail.productId,
             projectBudgetId: detail.projectBudgetId,
             jumlah: parseFloat(detail.jumlah),
+            sourceProduct: detail.sourceProduct,
             satuan: detail.satuan,
             estimasiHargaSatuan: parseFloat(detail.estimasiHargaSatuan),
             estimasiTotalHarga:

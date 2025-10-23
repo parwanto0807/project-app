@@ -19,6 +19,7 @@ import {
   type LucideIcon,
   PackageCheckIcon,
   Wallet2,
+  Banknote,
 } from "lucide-react";
 
 interface Submenu {
@@ -192,13 +193,33 @@ export function getMenuList(pathname: string, role: string) {
       ],
     },
     {
+      groupLabel: "ACCOUNTING",
+      allowedRoles: ["super", "admin"],
+      menus: [
+        {
+          label: "Accounting Management",
+          href: "/accounting",
+          icon: Wallet2,
+          active: isActive("/accounting", pathname),
+          submenus: [
+            {
+              href: `${basePath}/accounting/prVerify`,
+              label: "Verifikasi Purchase Request (PR)",
+              active: isActive(`${basePath}/accounting/prVerify`, pathname),
+              disabled: role === "user" || role === "pic",
+            },
+          ],
+        },
+      ],
+    },
+    {
       groupLabel: "FINANCE",
       allowedRoles: ["super", "admin"],
       menus: [
         {
           label: "Finance Management",
           href: "/finance",
-          icon: Wallet2,
+          icon: Banknote,
           active: isActive("/finance", pathname),
           submenus: [
             {
@@ -208,12 +229,6 @@ export function getMenuList(pathname: string, role: string) {
               disabled: role === "user" || role === "pic",
             },
             {
-              href: `${basePath}/finance/prVerify`,
-              label: "Verifikasi Purchase Request (PR)",
-              active: isActive(`${basePath}/finance/prVerify`, pathname),
-              disabled: role === "user" || role === "pic",
-            },
-                        {
               href: `${basePath}/finance/prApprove`,
               label: "Request Approval",
               active: isActive(`${basePath}/finance/prApprove`, pathname),

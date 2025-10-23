@@ -28,6 +28,7 @@ export async function createTeam(
       `${process.env.NEXT_PUBLIC_API_URL}/api/team/createTeam`,
       {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },

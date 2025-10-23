@@ -69,6 +69,7 @@ export async function getAllPurchaseRequestBySpkId(
       headers: {
         "Content-Type": "application/json",
       },
+      credentials: "include",
       cache: "no-store",
       body: JSON.stringify({ spkId }),
     });
@@ -112,6 +113,7 @@ export async function getAllPurchaseRequests(
 
     const response = await fetch(url, {
       method: "GET",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       cache: "no-store",
     });
@@ -144,6 +146,7 @@ export async function getPurchaseRequestsByProject(
       `${API_BASE_URL}/api/pr/getPurchaseRequestsByProject/${projectId}`,
       {
         method: "GET",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -165,7 +168,7 @@ export async function getPurchaseRequestsByProject(
 export async function getPurchaseRequestById(
   id: string
 ): Promise<PurchaseRequest> {
-  console.log("ID", id)
+  console.log("ID", id);
   try {
     const response = await fetch(
       `${API_BASE_URL}/api/pr/getPurchaseRequestById/${id}`,
@@ -174,7 +177,7 @@ export async function getPurchaseRequestById(
         headers: {
           "Content-Type": "application/json",
         },
-        credentials:'include',
+        credentials: "include",
         cache: "no-store",
       }
     );
@@ -216,6 +219,7 @@ export async function createPurchaseRequest(
       `${API_BASE_URL}/api/pr/createPurchaseRequest`,
       {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -267,6 +271,7 @@ export async function updatePurchaseRequest(
       `${API_BASE_URL}/api/pr/updatePurchaseRequest/${id}`,
       {
         method: "PUT",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -303,6 +308,7 @@ export async function updatePurchaseRequestStatus(
       `${API_BASE_URL}/api/pr/updatePurchaseRequestStatus/${id}/status`,
       {
         method: "PUT",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -324,6 +330,7 @@ export async function deletePurchaseRequest(id: string): Promise<void> {
       `${API_BASE_URL}/api/pr/deletePurchaseRequest/${id}`,
       {
         method: "DELETE",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -353,6 +360,7 @@ export async function getPurchaseRequestsBySPK(
       `${API_BASE_URL}/api/pr/getPurchaseRequestsBySPK/${spkId}`,
       {
         method: "GET",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -377,6 +385,7 @@ export async function getPurchaseRequestsByKaryawan(
       `${API_BASE_URL}/api/pr/getPurchaseRequestsByKaryawan/${karyawanId}`,
       {
         method: "GET",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },

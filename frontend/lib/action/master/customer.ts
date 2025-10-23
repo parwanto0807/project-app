@@ -7,6 +7,7 @@ export async function fetchAllCustomers() {
       {
         method: "GET",
         credentials: "include",
+        headers: { "Content-Type": "application/json" },
         cache: "no-store",
       }
     );

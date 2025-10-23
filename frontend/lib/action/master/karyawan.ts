@@ -207,6 +207,7 @@ export async function checkAccountEmail(
   try {
     const response = await fetch(`${BASE_URL}/api/karyawan/checkAccountEmail`, {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email }),
     });
@@ -234,6 +235,7 @@ export async function createAccountEmail(
 ): Promise<AccountEmail | null> {
   const response = await fetch(`${BASE_URL}/api/karyawan/createAccountEmail`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email }),
   });

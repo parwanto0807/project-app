@@ -112,6 +112,7 @@ export async function createSalesOrderAPI(payload: z.infer<typeof formSchema>) {
         "Content-Type": "application/json",
         Cookie: cookieHeader,
       },
+      credentials:'include',
       body: JSON.stringify({
         ...validated.data,
         soNumber: await generateNewSoNumber(),
@@ -153,6 +154,7 @@ export async function updateSalesOrderAPI(
           Cookie: cookieHeader,
         },
         body: JSON.stringify(validated.data),
+        credentials:'include',
         cache: "no-store",
       }
     );

@@ -60,6 +60,7 @@ export async function getAllUangMuka(
         headers: {
           "Content-Type": "application/json",
         },
+        credentials:'include',
       }
     );
 
@@ -82,6 +83,7 @@ export async function getUangMukaById(id: string): Promise<UangMukaResponse> {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials:'include',
       }
     );
 
@@ -193,6 +195,7 @@ export async function updateUangMuka(
       headers: {
         "Content-Type": "application/json",
       },
+      credentials:'include',
       body: JSON.stringify(data),
     });
 
@@ -295,6 +298,7 @@ export async function deleteUangMuka(id: string): Promise<UangMukaResponse> {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials:'include',
       }
     );
 
@@ -332,6 +336,7 @@ export async function getUangMukaByKaryawan(
         headers: {
           "Content-Type": "application/json",
         },
+        credentials:'include',
       }
     );
 
@@ -364,6 +369,7 @@ export async function getUangMukaStatistics(): Promise<{
       headers: {
         "Content-Type": "application/json",
       },
+      credentials:'include',
     });
 
     if (response.ok) {
@@ -452,6 +458,7 @@ export async function exportUangMuka(
       `${API_BASE_URL}/uang-muka/export?${queryParams}`,
       {
         method: "GET",
+        credentials:'include',
       }
     );
 

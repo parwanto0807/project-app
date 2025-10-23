@@ -11,6 +11,15 @@ const uuidSchema = z.string().uuid({
   message: "Must be a valid UUID",
 });
 
+// Enum untuk sourceProduct (sesuai Prisma)
+const sourceProductEnum = z.enum([
+  "PEMBELIAN_BARANG",
+  "PENGAMBILAN_STOK",
+  "OPERATIONAL",
+  "JASA_PEMBELIAN",
+  "JASA_INTERNAL",
+]);
+
 export const createPurchaseRequestSchema = z.object({
   projectId: uuidSchema,
   karyawanId: z.string().min(1, "Karyawan ID is required"),
@@ -25,6 +34,7 @@ export const createPurchaseRequestSchema = z.object({
         satuan: z.string().max(20),
         estimasiHargaSatuan: decimalSchema,
         catatanItem: z.string().max(200).optional().nullable(),
+        sourceProduct: sourceProductEnum.optional().nullable(), // ✅ ditambahkan
       })
     )
     .min(1, "At least one detail item is required"),
@@ -53,6 +63,7 @@ export const updatePurchaseRequestSchema = z.object({
         satuan: z.string().max(20),
         estimasiHargaSatuan: decimalSchema,
         catatanItem: z.string().max(200).optional().nullable(),
+        sourceProduct: sourceProductEnum.optional().nullable(), // ✅ ditambahkan
       })
     )
     .min(1, "At least one detail item is required")
@@ -79,11 +90,17 @@ export const queryParamsSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(10),
   status: z
-    .enum(["DRAFT", "REVISION_NEEDED", "SUBMITTED", "APPROVED", "REJECTED", "COMPLETED"])
+    .enum([
+      "DRAFT",
+      "REVISION_NEEDED",
+      "SUBMITTED",
+      "APPROVED",
+      "REJECTED",
+      "COMPLETED",
+    ])
     .optional(),
   projectId: z.string().uuid().optional(),
   startDate: z.coerce.date().optional(),
   endDate: z.coerce.date().optional(),
   search: z.string().optional(),
 });
-

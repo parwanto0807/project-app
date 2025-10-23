@@ -1,3 +1,10 @@
+export type SourceProductType =
+  | "PEMBELIAN_BARANG"
+  | "PENGAMBILAN_STOK"
+  | "OPERATIONAL"
+  | "JASA_PEMBELIAN"
+  | "JASA_INTERNAL";
+
 export interface PurchaseRequestDetail {
   id?: string;
   productId: string;
@@ -7,6 +14,7 @@ export interface PurchaseRequestDetail {
   estimasiHargaSatuan: number;
   estimasiTotalHarga: number;
   catatanItem?: string;
+  sourceProduct?: SourceProductType | null; // ✅ Tambahan baru
 }
 
 export interface PurchaseRequest {
@@ -26,12 +34,12 @@ export interface PurchaseRequest {
     | "REJECTED"
     | "COMPLETED";
 
-  // Relasi (optional untuk response)
+  // Relasi opsional
   project?: {
     id: string;
     name: string;
   };
-spk?: {
+  spk?: {
     id: string;
     spkNumber: string;
     salesOrder?: {
@@ -45,9 +53,10 @@ spk?: {
     id: string;
     namaLengkap: string;
   };
+
   details: PurchaseRequestDetail[];
 
-  // TAMBAHKAN UANG MUKA
+  // Relasi uang muka (opsional)
   uangMuka?: {
     id: string;
     nomor: string;
@@ -81,10 +90,7 @@ export interface Pertanggungjawaban {
   sisaUangDikembalikan: number;
   keterangan?: string;
   status: "PENDING" | "APPROVED" | "REJECTED" | "SETTLED";
-
   uangMukaId: string;
-
-  // Relasi opsional
   details: RincianPertanggungjawaban[];
   createdAt: Date;
   updatedAt: Date;
@@ -98,14 +104,11 @@ export interface RincianPertanggungjawaban {
   jumlah: number;
   nomorBukti?: string;
   jenisPembayaran: "CASH" | "TRANSFER" | "DEBIT" | "CREDIT_CARD" | "QRIS";
-
-  // Relasi opsional
   product?: {
     id: string;
     name: string;
     code: string;
   };
-  // Relasi ke foto bukti
   fotoBukti: FotoBuktiPertanggungjawaban[];
   createdAt: Date;
   updatedAt: Date;
@@ -119,22 +122,22 @@ export interface FotoBuktiPertanggungjawaban {
   createdAt: Date;
 }
 
-// Untuk backward compatibility, bisa buat alias
+// Untuk backward compatibility
 export type PurchaseRequestItem = PurchaseRequestDetail;
 
 export interface CreatePurchaseRequestData {
   projectId: string;
   spkId: string;
-  karyawanId: string; // Wajib sesuai model
+  karyawanId: string;
   tanggalPr: Date;
   keterangan?: string;
-  details: Omit<PurchaseRequestDetail, "id" | "estimasiTotalHarga">[]; // Ganti items menjadi details
+  details: Omit<PurchaseRequestDetail, "id" | "estimasiTotalHarga">[]; // ✅ sudah termasuk sourceProduct
 }
 
 export interface UpdatePurchaseRequestData {
   tanggalPr?: Date;
   keterangan?: string;
-  details?: Omit<PurchaseRequestDetail, "id" | "estimasiTotalHarga">[]; // Ganti items menjadi details
+  details?: Omit<PurchaseRequestDetail, "id" | "estimasiTotalHarga">[]; // ✅ sudah termasuk sourceProduct
 }
 
 export interface UpdatePurchaseRequestStatusData {
@@ -149,8 +152,8 @@ export interface PurchaseRequestFilters {
   status?: PurchaseRequest["status"];
   dateFrom?: Date;
   dateTo?: Date;
-  karyawanId?: string; // Ganti requestedBy menjadi karyawanId
-  spkId?: string; // Tambahkan filter spkId
+  karyawanId?: string;
+  spkId?: string;
   page?: number;
   limit?: number;
   totalCount?: number;
@@ -178,7 +181,8 @@ export interface PurchaseRequestError {
   details?: unknown;
 }
 
-// Tambahkan interface untuk relasi jika diperlukan
+// ============== Relasi Lengkap ==============
+
 export interface PurchaseRequestWithRelations extends PurchaseRequest {
   project?: {
     id: string;
@@ -210,15 +214,9 @@ export interface PurchaseRequestWithRelations extends PurchaseRequest {
       namaBudget: string;
     };
   })[];
-  // Override uangMuka jadi versi dengan relasi lengkap
   uangMuka?: UangMukaWithRelations[];
 }
 
-export interface UangMukaWithRelations extends UangMuka {
-  pertanggungjawaban?: PertanggungjawabanWithDetails[];
-}
-
-// ======================= UANG MUKA ==========================
 export interface UangMuka {
   id: string;
   nomor: string;
@@ -238,6 +236,11 @@ export interface UangMuka {
   createdAt: Date;
   updatedAt: Date;
 }
+
+export interface UangMukaWithRelations extends UangMuka {
+  pertanggungjawaban?: PertanggungjawabanWithDetails[];
+}
+
 export interface PertanggungjawabanWithDetails extends Pertanggungjawaban {
   details: RincianPertanggungjawaban[];
 }

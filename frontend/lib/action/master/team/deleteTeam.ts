@@ -10,6 +10,7 @@ export async function deleteTeam(id: string) {
   try {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/team/deleteTeam/${id}`, {
       method: 'DELETE',
+      credentials: "include",
       headers: {
         'Content-Type': 'application/json',
       },

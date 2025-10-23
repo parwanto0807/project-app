@@ -39,6 +39,15 @@ import { PurchaseRequestWithRelations } from "@/types/pr";
 import { makeImageSrc } from "@/utils/makeImageSrc";
 import Image from "next/image";
 
+// Enum untuk Source Product Type
+enum SourceProductType {
+    PEMBELIAN_BARANG = "PEMBELIAN_BARANG", // Barang baru yang dibeli dari vendor
+    PENGAMBILAN_STOK = "PENGAMBILAN_STOK", // Barang yang diambil dari gudang
+    OPERATIONAL = "OPERATIONAL", // Operasional
+    JASA_PEMBELIAN = "JASA_PEMBELIAN", // Jasa eksternal (dari vendor)
+    JASA_INTERNAL = "JASA_INTERNAL" // Jasa internal (tanpa biaya tambahan)
+}
+
 interface PurchaseRequestDetailSheetProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -69,6 +78,18 @@ const formatDate = (date: string | Date) => {
         month: "long",
         year: "numeric",
     });
+};
+
+// --- Helper untuk mendapatkan label source product ---
+const getSourceProductLabel = (source: SourceProductType): string => {
+    const sourceLabels = {
+        [SourceProductType.PEMBELIAN_BARANG]: "Pembelian Barang",
+        [SourceProductType.PENGAMBILAN_STOK]: "Pengambilan Stok",
+        [SourceProductType.OPERATIONAL]: "Operasional",
+        [SourceProductType.JASA_PEMBELIAN]: "Jasa Pembelian",
+        [SourceProductType.JASA_INTERNAL]: "Jasa Internal",
+    };
+    return sourceLabels[source] || source;
 };
 
 // --- Komponen Info Item ---
@@ -173,6 +194,40 @@ export function PurchaseRequestDetailSheet({
 }: PurchaseRequestDetailSheetProps) {
     if (!data) return null;
 
+    // Perhitungan summary berdasarkan source product
+    const calculateSummary = () => {
+        let totalBiaya = 0; // Total pengajuan biaya (PEMBELIAN_BARANG, OPERATIONAL, JASA_PEMBELIAN)
+        let totalHPP = 0;   // Total biaya tidak diajukan (PENGAMBILAN_STOK, JASA_INTERNAL)
+
+        data.details.forEach((item) => {
+            const subtotal = Number(item.estimasiTotalHarga || 0);
+
+            switch (item.sourceProduct) {
+                case SourceProductType.PEMBELIAN_BARANG:
+                case SourceProductType.OPERATIONAL:
+                case SourceProductType.JASA_PEMBELIAN:
+                    totalBiaya += subtotal;
+                    break;
+                case SourceProductType.PENGAMBILAN_STOK:
+                case SourceProductType.JASA_INTERNAL:
+                    totalHPP += subtotal;
+                    break;
+                default:
+                    // Default ke totalBiaya jika sourceProduct tidak dikenali
+                    totalBiaya += subtotal;
+            }
+        });
+
+        const grandTotal = totalBiaya + totalHPP;
+
+        return {
+            totalBiaya,
+            totalHPP,
+            grandTotal
+        };
+    };
+
+    const { totalBiaya, totalHPP, grandTotal } = calculateSummary();
     const totalEstimasi = data.details.reduce(
         (sum, item) => sum + Number(item.estimasiTotalHarga || 0),
         0
@@ -296,10 +351,11 @@ export function PurchaseRequestDetailSheet({
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead className="w-[40%]">Produk / Item</TableHead>
-                                            <TableHead className="text-center w-[15%]">Kuantitas</TableHead>
-                                            <TableHead className="text-right w-[20%]">Harga Satuan</TableHead>
-                                            <TableHead className="text-right w-[25%]">Subtotal</TableHead>
+                                            <TableHead className="w-[30%]">Produk / Item</TableHead>
+                                            <TableHead className="w-[15%]">Source</TableHead>
+                                            <TableHead className="text-center w-[10%]">Kuantitas</TableHead>
+                                            <TableHead className="text-right w-[15%]">Harga Satuan</TableHead>
+                                            <TableHead className="text-right w-[15%]">Subtotal</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -312,6 +368,20 @@ export function PurchaseRequestDetailSheet({
                                                             {item.catatanItem}
                                                         </div>
                                                     )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={
+                                                            item.sourceProduct === SourceProductType.PEMBELIAN_BARANG ||
+                                                                item.sourceProduct === SourceProductType.OPERATIONAL ||
+                                                                item.sourceProduct === SourceProductType.JASA_PEMBELIAN
+                                                                ? "bg-blue-50 text-blue-700 border-blue-200"
+                                                                : "bg-green-50 text-green-700 border-green-200"
+                                                        }
+                                                    >
+                                                        {getSourceProductLabel(item.sourceProduct as SourceProductType)}
+                                                    </Badge>
                                                 </TableCell>
                                                 <TableCell className="text-center font-medium">
                                                     {`${item.jumlah} ${item.satuan}`}
@@ -327,6 +397,32 @@ export function PurchaseRequestDetailSheet({
                                     </TableBody>
                                 </Table>
                             </div>
+
+                            {/* Summary Section */}
+                            <div className="mt-4 border-t pt-3 space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                    <span className="font-medium">💰 Total Pengajuan Biaya :</span>
+                                    <span className="font-semibold">
+                                        Rp. {formatCurrency(totalBiaya)}
+                                    </span>
+                                </div>
+
+                                <div className="flex justify-between">
+                                    <span className="font-medium">🏭 Total Biaya tidak diajukan :</span>
+                                    <span className="font-semibold">
+                                        Rp. {formatCurrency(totalHPP)}
+                                    </span>
+                                </div>
+
+                                <div className="flex justify-between border-t pt-2 text-base">
+                                    <span className="font-bold">🧾 Grand Total HPP :</span>
+                                    <span className="font-bold">
+                                        Rp. {formatCurrency(grandTotal)}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Total Estimasi Legacy (untuk kompatibilitas) */}
                             <div className="mt-4 flex justify-end border-t pt-4">
                                 <div className="text-right space-y-1">
                                     <p className="text-sm text-muted-foreground">Total Estimasi</p>
@@ -422,7 +518,6 @@ export function PurchaseRequestDetailSheet({
                                                                 </div>
                                                             </div>
                                                         </div>
-
 
                                                         {/* Rincian Biaya */}
                                                         {pj.details && pj.details.length > 0 && (

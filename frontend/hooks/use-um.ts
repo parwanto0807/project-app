@@ -16,6 +16,7 @@ import type {
   UangMukaQueryInput,
   UangMukaResponse,
 } from "@/types/typesUm";
+import { toast } from "sonner";
 
 // ========================
 // QUERY KEYS
@@ -101,15 +102,42 @@ export function useCreateUangMuka() {
     mutationFn: createUangMuka,
     onSuccess: (data) => {
       if (data.success) {
-        // Invalidate semua list queries
-        queryClient.invalidateQueries({
-          queryKey: uangMukaKeys.lists(),
-        });
-        // Invalidate statistics
-        queryClient.invalidateQueries({
-          queryKey: uangMukaKeys.statistics(),
-        });
+        // ✅ Refresh daftar uang muka & statistik
+        queryClient.invalidateQueries({ queryKey: uangMukaKeys.lists() });
+        queryClient.invalidateQueries({ queryKey: uangMukaKeys.statistics() });
+
+        toast.success("Uang Muka berhasil dibuat!");
+      } else {
+        // Backend mengembalikan success: false
+        toast.error(data.message || "Gagal membuat Uang Muka.");
       }
+    },
+    onError: (unknownError: unknown) => {
+      let message = "Terjadi kesalahan saat membuat Uang Muka.";
+
+      if (unknownError instanceof Error) {
+        message = unknownError.message;
+      } else if (typeof unknownError === "string") {
+        try {
+          const parsed = JSON.parse(unknownError);
+          if (typeof parsed.message === "string") {
+            message = parsed.message;
+          }
+        } catch {
+          message = unknownError;
+        }
+      } else if (
+        typeof unknownError === "object" &&
+        unknownError !== null &&
+        "response" in unknownError &&
+        typeof (unknownError as { response?: { data?: { message?: string } } })
+          .response?.data?.message === "string"
+      ) {
+        message = (unknownError as { response: { data: { message: string } } })
+          .response.data.message;
+      }
+
+      toast.error(message);
     },
   });
 }

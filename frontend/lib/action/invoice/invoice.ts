@@ -45,8 +45,8 @@ export async function getInvoices(
     `${API_BASE_URL}/api/invoice/getInvoices?${params.toString()}`,
     {
       method: "GET",
-      headers: { "Content-Type": "application/json" },
       credentials: "include",
+      headers: { "Content-Type": "application/json" },
     }
   );
   if (!response.ok) {
@@ -77,6 +77,7 @@ export async function getInvoiceByID(
       `${process.env.NEXT_PUBLIC_API_URL}/api/invoice/getInvoiceById/${id}`,
       {
         method: "GET",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -130,6 +131,7 @@ export async function updateInvoice(
 
     const res = await fetch(endpoint, {
       method: "PUT",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
       },

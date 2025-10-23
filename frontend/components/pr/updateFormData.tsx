@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -59,6 +59,8 @@ import { Separator } from "../ui/separator";
 import { formatCurrency } from "@/lib/action/rab/rab-utils";
 import { fetchKaryawanByEmail } from "@/lib/action/master/karyawan";
 import { usePurchaseRequestsBySpkId } from "@/hooks/use-pr";
+import { SourceProductType } from "@/schemas/pr";
+
 
 interface Product {
     id: string;
@@ -178,12 +180,13 @@ interface TabelUpdatePRProps {
     existingData?: PurchaseRequest;
 }
 
-// Update FormItem sesuai dengan PurchaseRequestDetail
+// Update FormItem dengan menambahkan sourceProduct
 interface FormItem extends Omit<PurchaseRequestDetail, "id" | "estimasiTotalHarga"> {
     tempId: string;
     // Field sementara untuk kompatibilitas UI
     itemName?: string;
     urgencyLevel?: "low" | "medium" | "high";
+    sourceProduct?: SourceProductType; // Field baru untuk source product
 }
 
 export function TabelUpdatePR({
@@ -220,7 +223,6 @@ export function TabelUpdatePR({
     // Initialize form dengan existing data
     useEffect(() => {
         if (existingData) {
-
             // Set form data
             setFormData({
                 projectId: existingData.projectId || "",
@@ -241,6 +243,7 @@ export function TabelUpdatePR({
                     catatanItem: detail.catatanItem || "",
                     itemName: products.find(p => p.id === detail.productId)?.name || "",
                     urgencyLevel: "medium",
+                    sourceProduct: detail.sourceProduct as SourceProductType || SourceProductType.PEMBELIAN_BARANG,
                 }));
                 setItems(initialItems);
             }
@@ -285,11 +288,6 @@ export function TabelUpdatePR({
         fetchKaryawan();
     }, [currentUser?.email]);
 
-    // Debug log ketika karyawanData berubah
-    // useEffect(() => {
-    //     console.log("Karyawan data updated:", karyawanData);
-    // }, [karyawanData]);
-
     const handleSpkChange = (spkId: string) => {
         const spk = dataSpk.find(s => s.id === spkId);
 
@@ -329,6 +327,7 @@ export function TabelUpdatePR({
             catatanItem: "", // Ganti dari description/specifications
             itemName: "",
             urgencyLevel: "medium",
+            sourceProduct: SourceProductType.PEMBELIAN_BARANG, // Default value
         };
         setItems((prev) => [...prev, newItem]);
     }, []);
@@ -338,7 +337,7 @@ export function TabelUpdatePR({
     }, []);
 
     const updateItem = useCallback(
-        (tempId: string, field: keyof FormItem, value: string | number) => {
+        (tempId: string, field: keyof FormItem, value: string | number | SourceProductType) => {
             setItems((prev) =>
                 prev.map((item) => {
                     if (item.tempId === tempId) {
@@ -361,11 +360,41 @@ export function TabelUpdatePR({
         [products]
     );
 
-    const calculateTotalAmount = useCallback(() => {
-        return items.reduce((total, item) => {
-            return total + item.jumlah * item.estimasiHargaSatuan;
-        }, 0);
+
+    const { totalBiaya, totalHPP, grandTotal } = useMemo(() => {
+        const biayaTypes: SourceProductType[] = [
+            SourceProductType.PEMBELIAN_BARANG,
+            SourceProductType.JASA_PEMBELIAN,
+            SourceProductType.OPERATIONAL,
+        ];
+
+        const hppTypes: SourceProductType[] = [
+            SourceProductType.PENGAMBILAN_STOK,
+            SourceProductType.JASA_INTERNAL,
+        ];
+
+        let totalBiaya = 0;
+        let totalHPP = 0;
+
+        for (const item of items) {
+            const jumlah = Number(item.jumlah) || 0;
+            const harga = Number(item.estimasiHargaSatuan) || 0;
+            const nominal = jumlah * harga;
+
+            if (item.sourceProduct && biayaTypes.includes(item.sourceProduct)) {
+                totalBiaya += nominal;
+            } else if (item.sourceProduct && hppTypes.includes(item.sourceProduct)) {
+                totalHPP += nominal;
+            }
+        }
+
+        return {
+            totalBiaya,
+            totalHPP,
+            grandTotal: totalBiaya + totalHPP,
+        };
     }, [items]);
+
 
     const validateForm = useCallback((): boolean => {
         const newErrors: Record<string, string> = {};
@@ -379,6 +408,7 @@ export function TabelUpdatePR({
             if (item.jumlah <= 0) newErrors[`quantity-${index}`] = "Qty > 0";
             if (item.estimasiHargaSatuan < 0) newErrors[`estimatedUnitCost-${index}`] = "Cost >= 0";
             if (!item.satuan.trim()) newErrors[`unit-${index}`] = "Unit required";
+            if (!item.sourceProduct) newErrors[`sourceProduct-${index}`] = "Source is required";
         });
 
         setErrors(newErrors);
@@ -412,6 +442,7 @@ export function TabelUpdatePR({
                     estimasiHargaSatuan: item.estimasiHargaSatuan,
                     estimasiTotalHarga: item.jumlah * item.estimasiHargaSatuan,
                     catatanItem: item.catatanItem || "",
+                    sourceProduct: item.sourceProduct || SourceProductType.PEMBELIAN_BARANG,
                 })),
             };
 
@@ -421,8 +452,6 @@ export function TabelUpdatePR({
             console.error("Failed to update purchase request:", error);
         }
     };
-
-    const totalAmount = calculateTotalAmount();
 
     // Fungsi untuk mendapatkan status badge
     const getStatusBadge = (status: string) => {
@@ -442,6 +471,18 @@ export function TabelUpdatePR({
                 {config.label}
             </Badge>
         );
+    };
+
+    // Fungsi untuk mendapatkan label source product
+    const getSourceProductLabel = (source: SourceProductType): string => {
+        const sourceLabels = {
+            [SourceProductType.PEMBELIAN_BARANG]: "Pembelian Barang",
+            [SourceProductType.PENGAMBILAN_STOK]: "Pengambilan Stok",
+            [SourceProductType.OPERATIONAL]: "Operasional",
+            [SourceProductType.JASA_PEMBELIAN]: "Jasa Pembelian",
+            [SourceProductType.JASA_INTERNAL]: "Jasa Internal",
+        };
+        return sourceLabels[source] || source;
     };
 
     return (
@@ -571,9 +612,6 @@ export function TabelUpdatePR({
                                     Purchase Items
                                     <Badge variant="secondary" className="ml-2">{items.length}</Badge>
                                 </CardTitle>
-                                {/* <Button type="button" onClick={addItem} variant="outline" size="sm" className="gap-1">
-                                    <Plus className="h-4 w-4" /> Add Item
-                                </Button> */}
                             </CardHeader>
                             <CardContent>
                                 {errors.items && <p className="text-sm text-red-500 mb-4">{errors.items}</p>}
@@ -583,17 +621,18 @@ export function TabelUpdatePR({
                                             <TableHeader className="bg-muted/50">
                                                 <TableRow>
                                                     <TableHead className="w-[25%]">Product</TableHead>
-                                                    <TableHead></TableHead>
-                                                    <TableHead>Qty</TableHead>
-                                                    <TableHead>Unit</TableHead>
-                                                    <TableHead>Unit Cost</TableHead>
-                                                    <TableHead>Total</TableHead>
-                                                    <TableHead className="w-[50px]"></TableHead>
+                                                    <TableHead className="w-[15%]">Source</TableHead>
+                                                    <TableHead className="w-[10%]">Qty</TableHead>
+                                                    <TableHead className="w-[15%]">Unit</TableHead>
+                                                    <TableHead className="w-[15%]">Unit Cost</TableHead>
+                                                    <TableHead className="w-[15%]">Total</TableHead>
+                                                    <TableHead className="w-[5%]"></TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
                                                 {items.map((item, index) => (
                                                     <TableRow key={item.tempId}>
+                                                        {/* Product */}
                                                         <TableCell className="align-top">
                                                             <Select
                                                                 value={item.productId}
@@ -615,17 +654,25 @@ export function TabelUpdatePR({
                                                             )}
                                                         </TableCell>
 
+                                                        {/* Source */}
                                                         <TableCell className="align-top">
-                                                            <Input
-                                                                value={item.projectBudgetId}
-                                                                onChange={(e) => updateItem(item.tempId, "projectBudgetId", e.target.value)}
-                                                                placeholder="Project Budget ID"
-                                                                className={cn(errors[`projectBudgetId-${index}`] && "border-red-500")}
-                                                                hidden
-                                                            />
-                                                            {errors[`projectBudgetId-${index}`] && (
-                                                                <p className="text-xs text-red-500 mt-1">{errors[`projectBudgetId-${index}`]}</p>
-                                                            )}
+                                                            <Select
+                                                                value={item.sourceProduct || SourceProductType.PEMBELIAN_BARANG}
+                                                                onValueChange={(value: SourceProductType) =>
+                                                                    updateItem(item.tempId, "sourceProduct", value)
+                                                                }
+                                                            >
+                                                                <SelectTrigger className="w-full">
+                                                                    <SelectValue placeholder="Pilih sumber produk" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value={SourceProductType.PEMBELIAN_BARANG}>Pembelian Barang</SelectItem>
+                                                                    <SelectItem value={SourceProductType.PENGAMBILAN_STOK}>Pengambilan Stok</SelectItem>
+                                                                    <SelectItem value={SourceProductType.OPERATIONAL}>Operasional</SelectItem>
+                                                                    <SelectItem value={SourceProductType.JASA_PEMBELIAN}>Jasa Pembelian</SelectItem>
+                                                                    <SelectItem value={SourceProductType.JASA_INTERNAL}>Jasa Internal</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
                                                         </TableCell>
 
                                                         <TableCell className="align-top">
@@ -681,8 +728,6 @@ export function TabelUpdatePR({
                                                 type="button"
                                                 onClick={addItem}
                                                 size="sm"
-                                                // 1. Hapus variant="outline" agar menjadi solid
-                                                // 2. Tambahkan bayangan (shadow) dan efek transisi
                                                 className="gap-1 shadow-md hover:shadow-lg hover:scale-105 transition-all cursor-pointer"
                                             >
                                                 <Plus className="h-4 w-4" />
@@ -693,23 +738,15 @@ export function TabelUpdatePR({
                                 ) : (
                                     <div className="text-center py-12 px-6 border-2 border-dashed rounded-lg">
                                         <div className="space-y-4 flex flex-col items-center">
-
-                                            {/* 1. Icon dengan background agar lebih menonjol */}
                                             <div className=" p-4 rounded-full">
                                                 <ShoppingCart className="h-12 w-12 text-slate-500" />
                                             </div>
-
-                                            {/* 2. Judul yang lebih jelas dan tebal */}
                                             <h3 className="text-xl font-semibold">
                                                 Daftar Item Masih Kosong
                                             </h3>
-
-                                            {/* 3. Teks deskripsi yang memandu pengguna */}
                                             <p className="text-muted-foreground max-w-xs mx-auto">
                                                 Mulailah dengan menambahkan item pertama Anda ke dalam daftar permintaan pembelian.
                                             </p>
-
-                                            {/* 4. Tombol Call-to-Action (CTA) utama */}
                                             <Button
                                                 onClick={addItem}
                                                 className="gap-2 mt-2"
@@ -872,45 +909,74 @@ export function TabelUpdatePR({
                                                     return (
                                                         <div key={pr.id} className="border rounded-lg hover:bg-muted/30 transition-colors">
                                                             {/* Header - Always Visible */}
-                                                            <div className="p-4">
-                                                                <div className="flex items-center justify-between">
+                                                            <div className="p-4 rounded-lg border bg-card shadow-sm">
+                                                                {/* Header */}
+                                                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
                                                                     <div className="flex items-center gap-3">
-                                                                        <div className={cn(
-                                                                            "font-semibold",
-                                                                            pr.id === existingData?.id ? "text-green-600" : "text-blue-600"
-                                                                        )}>
+                                                                        <div
+                                                                            className={cn(
+                                                                                "font-semibold text-base",
+                                                                                pr.id === existingData?.id ? "text-green-600" : "text-blue-600"
+                                                                            )}
+                                                                        >
                                                                             {pr.nomorPr || `PR-${pr.id.slice(0, 8)}`}
                                                                             {pr.id === existingData?.id && (
-                                                                                <Badge variant="outline" className="ml-2 bg-green-100 text-green-800 text-xs">
+                                                                                <Badge
+                                                                                    variant="outline"
+                                                                                    className="ml-2 bg-green-100 text-green-800 text-xs"
+                                                                                >
                                                                                     Current
                                                                                 </Badge>
                                                                             )}
                                                                         </div>
-                                                                        {getStatusBadge(pr.status || 'draft')}
+                                                                        {getStatusBadge(pr.status || "draft")}
                                                                     </div>
-                                                                    <div className="flex items-center gap-4">
-                                                                        <div className="text-sm text-muted-foreground">
-                                                                            {pr.tanggalPr ? format(new Date(pr.tanggalPr), "dd MMM yyyy") : 'No date'}
-                                                                        </div>
+
+                                                                    <div className="text-sm text-muted-foreground">
+                                                                        {pr.tanggalPr ? format(new Date(pr.tanggalPr), "dd MMM yyyy") : "No date"}
                                                                     </div>
                                                                 </div>
 
-                                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mt-3">
+                                                                {/* Divider */}
+                                                                <div className="border-t my-3" />
+
+                                                                {/* Body */}
+                                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                                                                     <div>
-                                                                        <span className="font-medium">Total Items:</span> {pr.details?.length || 0}
+                                                                        <div className="font-medium text-muted-foreground mb-1">
+                                                                            Total Items
+                                                                        </div>
+                                                                        <div className="text-base font-semibold">{pr.details?.length || 0}</div>
                                                                     </div>
-                                                                    <div>
-                                                                        <span className="font-medium">Total Amount:</span> Rp. {formatCurrency(
-                                                                            pr.details?.reduce((total, detail) =>
-                                                                                total + (detail.jumlah * detail.estimasiHargaSatuan), 0
-                                                                            ) || 0
-                                                                        )}
+
+                                                                    <div className="md:col-span-2 space-y-2">
+                                                                        <div className="flex justify-between">
+                                                                            <span className="font-medium">💰 Total Pengajuan Biaya</span>
+                                                                            <span className="font-semibold text-right">
+                                                                                Rp {formatCurrency(totalBiaya)}
+                                                                            </span>
+                                                                        </div>
+
+                                                                        <div className="flex justify-between">
+                                                                            <span className="font-medium">🏭 Total biaya tidak diajukan</span>
+                                                                            <span className="font-semibold text-right">
+                                                                                Rp {formatCurrency(totalHPP)}
+                                                                            </span>
+                                                                        </div>
+
+                                                                        <div className="border-t pt-2 flex justify-between text-base font-bold">
+                                                                            <span>🧾 Grand Total HPP</span>
+                                                                            <span>Rp {formatCurrency(grandTotal)}</span>
+                                                                        </div>
                                                                     </div>
-                                                                    <div>
-                                                                        <span className="font-medium">Created By:</span> {pr.karyawan?.namaLengkap || 'N/A'}
+
+                                                                    <div className="md:col-span-3 text-sm pt-3 border-t">
+                                                                        <span className="font-medium text-muted-foreground">Created By :</span>{" "}
+                                                                        {pr.karyawan?.namaLengkap || "N/A"}
                                                                     </div>
                                                                 </div>
                                                             </div>
+
 
                                                             {/* Accordion Content untuk semua items PR */}
                                                             {pr.details && pr.details.length > 0 && (
@@ -940,6 +1006,11 @@ export function TabelUpdatePR({
                                                                                                 {detail.catatanItem && detail.productId && (
                                                                                                     <div className="text-xs text-muted-foreground mt-1">
                                                                                                         {detail.catatanItem}
+                                                                                                    </div>
+                                                                                                )}
+                                                                                                {detail.sourceProduct && (
+                                                                                                    <div className="text-xs text-muted-foreground mt-1">
+                                                                                                        Source: {getSourceProductLabel(detail.sourceProduct as SourceProductType)}
                                                                                                     </div>
                                                                                                 )}
                                                                                             </div>
@@ -980,11 +1051,27 @@ export function TabelUpdatePR({
                             )}
                             <Separator />
                             <CardContent>
-                                <div className="flex justify-between items-center text-lg font-bold">
-                                    <span>Total Amount:</span>
-                                    <span className="text-blue-600 text-2xl">
-                                        Rp. {formatCurrency(totalAmount)}
-                                    </span>
+                                <div className="mt-4 border-t pt-3 space-y-2 text-sm">
+                                    <div className="flex justify-between">
+                                        <span className="font-medium">💰 Total Pengajuan Biaya :</span>
+                                        <span className="font-semibold">
+                                            Rp. {formatCurrency(totalBiaya)}
+                                        </span>
+                                    </div>
+
+                                    <div className="flex justify-between">
+                                        <span className="font-medium">🏭 Total biaya tidak diajukan :</span>
+                                        <span className="font-semibold">
+                                            Rp. {formatCurrency(totalHPP)}
+                                        </span>
+                                    </div>
+
+                                    <div className="flex justify-between border-t pt-2 text-base">
+                                        <span className="font-bold">🧾 Grand Total HPP :</span>
+                                        <span className="font-bold">
+                                            Rp. {formatCurrency(grandTotal)}
+                                        </span>
+                                    </div>
                                 </div>
                                 <p className="text-sm text-muted-foreground text-right mt-1">{items.length} items</p>
                             </CardContent>

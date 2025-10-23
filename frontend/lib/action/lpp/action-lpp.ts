@@ -56,6 +56,7 @@ export async function createLpp(data: CreateLppFormWithFiles) {
 
   const res = await fetch(`${API_BASE_URL}/api/lpp/createLpp`, {
     method: "POST",
+    credentials: "include",
     body: formData,
   });
 
@@ -79,6 +80,7 @@ export async function getAllLpp(params?: LppQueryParams) {
 
   const res = await fetch(`${API_BASE_URL}/api/lpp/getAllLpp?${query}`, {
     method: "GET",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     cache: "no-store",
   });
@@ -91,6 +93,7 @@ export async function getLppById(data: LppId) {
   const parsed = lppIdSchema.parse(data);
   const res = await fetch(`${API_BASE_URL}/api/lpp/getLppById/${parsed.id}`, {
     method: "GET",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     cache: "no-store",
   });
@@ -101,6 +104,7 @@ export async function getLppById(data: LppId) {
 export async function updateLpp(lppId: string, data: UpdateLppForm) {
   const response = await fetch(`${API_BASE_URL}/api/lpp/updateLpp/${lppId}`, {
     method: "PUT",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
@@ -116,6 +120,7 @@ export async function deleteLpp(data: LppId) {
   const parsed = lppIdSchema.parse(data);
   const res = await fetch(`${API_BASE_URL}/api/lpp/deleteLpp/${parsed.id}`, {
     method: "DELETE",
+    credentials: "include",
   });
   return handleResponse(res);
 }
@@ -127,6 +132,7 @@ export async function addDetail(lppId: string, detail: Detail) {
 
   const res = await fetch(`${API_BASE_URL}/api/lpp/${parsedId.id}/details`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(parsedDetail),
   });
@@ -141,6 +147,7 @@ export async function updateDetail(detailId: string, detail: UpdateDetail) {
     `${API_BASE_URL}/api/lpp/details/${parsed.detailId}`,
     {
       method: "PUT",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(parsedDetail),
     }
@@ -154,6 +161,7 @@ export async function deleteDetail(detailId: string) {
     `${API_BASE_URL}/api/lpp/details/${parsed.detailId}`,
     {
       method: "DELETE",
+      credentials: "include",
     }
   );
   return handleResponse(res);
@@ -166,6 +174,7 @@ export async function batchUpdateDetails(lppId: string, details: Detail[]) {
     `${API_BASE_URL}/api/lpp/${parsedId.id}/details/batch`,
     {
       method: "PUT",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(details),
     }
@@ -182,6 +191,7 @@ export async function updateStatus(id: string, statusData: UpdateStatus) {
     `${API_BASE_URL}/api/lpp/updateStatus/${parsedId.id}/status`,
     {
       method: "PATCH",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(parsedStatus),
     }
@@ -225,6 +235,7 @@ export async function uploadFoto(
 
     const res = await fetch(url, {
       method: "POST",
+      credentials: "include",
       body: formData,
     });
 
@@ -260,6 +271,7 @@ export async function deleteFoto(fotoId: string) {
     `${API_BASE_URL}/api/lpp/foto-bukti/${parsed.fotoId}`,
     {
       method: "DELETE",
+      credentials: "include",
     }
   );
   return handleResponse(res);
@@ -271,6 +283,7 @@ export async function updateFotoKeterangan(fotoId: string, keterangan: string) {
     `${API_BASE_URL}/api/lpp/foto-bukti/${parsed.fotoId}`,
     {
       method: "PATCH",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ keterangan }),
     }
@@ -283,6 +296,7 @@ export async function duplicateLpp(lppId: string) {
   const parsed = lppIdSchema.parse({ id: lppId });
   const res = await fetch(`${API_BASE_URL}/api/lpp/${parsed.id}/duplicate`, {
     method: "POST",
+    credentials: "include",
   });
   return handleResponse(res);
 }
@@ -299,6 +313,7 @@ export async function exportLppToExcel(lppId: string) {
   const parsed = lppIdSchema.parse({ id: lppId });
   const res = await fetch(`${API_BASE_URL}/api/lpp/${parsed.id}/export/excel`, {
     method: "GET",
+    credentials: "include",
   });
   return res.blob();
 }

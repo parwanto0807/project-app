@@ -50,6 +50,7 @@ const fetchAPI = async (url: string, options: RequestInit = {}) => {
 
   const defaultOptions: RequestInit = {
     ...options,
+    credentials: "include",
     headers: defaultHeaders,
     cache: "no-store",
   };
@@ -198,6 +199,7 @@ export const createBAP = async (
 
       res = await fetch(`${API_BASE_URL}/api/bap/createBAP`, {
         method: "POST",
+        credentials: "include",
         body: formData,
       });
     } else {
@@ -214,6 +216,7 @@ export const createBAP = async (
 
       res = await fetch(`${API_BASE_URL}/api/bap/createBAP`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(spkData),
       });
@@ -239,6 +242,7 @@ export const updateBAP = async (id: string, input: BAPUpdateInput) => {
 
     const data = await fetchAPI(`/api/bap/updateBAP/${id}`, {
       method: "PUT",
+      credentials: "include",
       body: JSON.stringify(validatedInput),
     });
 
@@ -269,6 +273,7 @@ export const deleteBAP = async (id: string) => {
   try {
     const data = await fetchAPI(`/api/bap/deleteBAP/${id}`, {
       method: "DELETE",
+      credentials: "include",
     });
 
     return {
@@ -293,6 +298,7 @@ export const approveBAP = async (id: string) => {
   try {
     const data = await fetchAPI(`/approveBAP/${id}/approve`, {
       method: "PATCH",
+      credentials: "include",
     });
 
     const validatedData = BAPSchema.parse(data);
@@ -322,6 +328,7 @@ export const uploadBAPPhoto = async (file: File) => {
     // Ganti dengan endpoint upload yang sesuai
     const response = await fetch(`${API_BASE_URL}/api/bap/uploadBAPPhoto`, {
       method: "POST",
+      credentials: "include",
       body: formData,
     });
 

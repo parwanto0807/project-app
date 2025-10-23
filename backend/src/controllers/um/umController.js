@@ -240,7 +240,7 @@ export const uangMukaController = {
     }
   },
 
-async createUangMuka(req, res, next) {
+  async createUangMuka(req, res, next) {
     try {
       // Handle file upload jika ada
       let buktiPencairanUrl = null;
@@ -329,7 +329,7 @@ async createUangMuka(req, res, next) {
         }
         return res.status(400).json({
           success: false,
-          message: "Purchase request ini sudah memiliki uang muka",
+          message: "Biaya Purchase request ini sudah diajukan ",
         });
       }
 

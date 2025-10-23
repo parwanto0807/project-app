@@ -26,7 +26,7 @@ export async function createPaymentTerm(
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      credentials: 'include',
+      credentials: "include",
       body: JSON.stringify(data),
     }
   );
@@ -42,6 +42,7 @@ export async function updatePaymentTerm(
     `${process.env.NEXT_PUBLIC_API_URL}/api/master/payment-term/${id}`,
     {
       method: "PUT",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     }
@@ -56,6 +57,7 @@ export async function deletePaymentTerm(
   const res = await fetch(
     `${process.env.NEXT_PUBLIC_API_URL}/api/master/payment-term/${id}`,
     {
+      credentials: "include",
       method: "DELETE",
     }
   );

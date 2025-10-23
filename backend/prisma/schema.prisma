@@ -15,17 +15,20 @@ datasource db {
 }
 
 model AuditLog {
-  id        String   @id @default(uuid())
-  model     String
-  action    String
-  data      String
-  before    Json?
-  after     Json?
-  durationMs Int?        // <--- tambahin ini
-  userId    String
-  createdAt DateTime @default(now())
-}
+  id         String   @id @default(uuid())
+  model      String // Nama model yang diubah (contoh: "User", "Product")
+  action     String // Aksi: "create", "update", "delete"
+  data       String // Data yang dikirim (JSON string)
+  before     Json? // Data sebelum perubahan
+  after      Json? // Data setelah perubahan
+  durationMs Int? // Durasi operasi dalam milliseconds
+  userId     String // ID user yang melakukan aksi
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  timestamp  DateTime @default(now())
+  createdAt  DateTime @default(now())
 
+  @@map("audit_logs")
+}
 
 model AccountEmail {
   id        String   @id @default(cuid())
@@ -94,6 +97,7 @@ model User {
   createdInvoices  Invoice[]       @relation("InvoiceCreatedBy")
   verifiedPayments Payment[]
   rab              RAB[]
+  auditLogs        AuditLog[]
 }
 
 model LoginAttempt {
@@ -1158,6 +1162,14 @@ model PurchaseRequest {
   updatedAt DateTime @updatedAt
 }
 
+enum SourceProductType {
+  PEMBELIAN_BARANG // Barang baru yang dibeli dari vendor
+  PENGAMBILAN_STOK // Barang yang diambil dari gudang
+  OPERATIONAL // Operasional
+  JASA_PEMBELIAN // Jasa eksternal (dari vendor)
+  JASA_INTERNAL // Jasa internal (tanpa biaya tambahan)
+}
+
 // Model Inti 2: Purchase Request Detail (Line Items)
 model PurchaseRequestDetail {
   id String @id @default(uuid())
@@ -1167,8 +1179,9 @@ model PurchaseRequestDetail {
   purchaseRequest   PurchaseRequest @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
 
   // Relasi ke produk yang diminta
-  productId String
-  product   Product @relation(fields: [productId], references: [id])
+  productId     String
+  product       Product            @relation(fields: [productId], references: [id])
+  sourceProduct SourceProductType? // Opsional: sumber produk jika dari vendor tertentu
 
   // Relasi ke budget yang akan dipakai
   projectBudgetId String?

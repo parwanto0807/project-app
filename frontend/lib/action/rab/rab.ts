@@ -15,6 +15,7 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}) {
 
   const response = await fetch(url, {
     ...options,
+    credentials: "include", // ✅ INI HARUS ADA
     headers: {
       "Content-Type": "application/json",
       ...options.headers,
@@ -87,6 +88,7 @@ export async function createRAB(data: RABCreateInput): Promise<RABResponse> {
     const response = await fetchAPI("/api/rabs", {
       method: "POST",
       body: JSON.stringify(data),
+      credentials: "include",
     });
 
     const result = await handleResponse<RABResponse>(response);
@@ -105,7 +107,7 @@ export async function updateRAB(data: RABUpdateInput): Promise<RABResponse> {
   const response = await fetchAPI(`/api/rabs/${id}`, {
     method: "PUT",
     body: JSON.stringify(updateData),
-    credentials:'include',
+    credentials: "include",
   });
 
   const result = await handleResponse<RABResponse>(response);
@@ -123,6 +125,7 @@ export async function updateRABStatus(
   const response = await fetchAPI(`/api/rabs/${id}/status`, {
     method: "PATCH",
     body: JSON.stringify(status),
+    credentials: "include",
   });
 
   const result = await handleResponse<RABResponse>(response);
@@ -138,6 +141,7 @@ export async function deleteRAB(
 ): Promise<{ success: boolean; message: string }> {
   const response = await fetchAPI(`/api/rabs/${id}`, {
     method: "DELETE",
+    credentials: "include",
   });
 
   const result = await handleResponse<{ success: boolean; message: string }>(

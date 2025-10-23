@@ -1,5 +1,9 @@
 // lib/action/master/spk/spkReport.ts
-import { SpkFieldReport, SpkFieldReportPhoto, ReportHistory } from "@/types/spkReport";
+import {
+  SpkFieldReport,
+  SpkFieldReportPhoto,
+  ReportHistory,
+} from "@/types/spkReport";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -23,6 +27,7 @@ export const createSpkFieldReport = async (
       `${API_BASE_URL}/api/spk/report/createSpkFieldReport`,
       {
         method: "POST",
+        credentials: "include",
         body: formData, // FormData sudah termasuk file dan fields
       }
     );
@@ -48,6 +53,7 @@ export const addPhotosToReport = async (
       `${API_BASE_URL}/api/spk/report/addPhotosToReport/${reportId}/photos`,
       {
         method: "POST",
+        credentials: "include",
         body: formData,
       }
     );
@@ -74,7 +80,7 @@ export const createReportFormData = ({
   type: "PROGRESS" | "FINAL";
   progress: number;
   note?: string;
-  photos?: File[] ;
+  photos?: File[];
   soDetailId?: string; // 👈 boleh null/undefined
 }): FormData => {
   const formData = new FormData();
@@ -149,6 +155,7 @@ export const getReportsBySpkId = async (
       `${API_BASE_URL}/api/spk/report/getReportsBySpkId/${spkId}`,
       {
         method: "GET",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -171,6 +178,7 @@ export const getReportById = async (
       `${API_BASE_URL}/api/spk/report/getReportById/${reportId}`,
       {
         method: "GET",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -194,6 +202,7 @@ export const updateReportStatus = async (
       `${API_BASE_URL}/api/spk/report/updateReportStatus/${reportId}/status`,
       {
         method: "PUT",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -217,6 +226,7 @@ export const deleteReport = async (
       `${API_BASE_URL}/api/spk/report/deleteReport/${reportId}`,
       {
         method: "DELETE",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -233,8 +243,8 @@ export const deleteReport = async (
 // Pastikan interface ini ada
 
 export interface FetchReportsFilters {
-  date?: 'all' | 'today' | 'thisWeek' | 'thisMonth';
-  status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'all';
+  date?: "all" | "today" | "thisWeek" | "thisMonth";
+  status?: "PENDING" | "APPROVED" | "REJECTED" | "all";
   spkId?: string;
   karyawanId?: string;
 }
@@ -244,24 +254,30 @@ export interface FetchReportsFilters {
  * @param filters - Filter pencarian
  * @returns Promise<ReportHistory[]>
  */
-export async function fetchSPKReports(filters: FetchReportsFilters = {}): Promise<ReportHistory[]> {
+export async function fetchSPKReports(
+  filters: FetchReportsFilters = {}
+): Promise<ReportHistory[]> {
   const params = new URLSearchParams();
 
-  if (filters.date && filters.date !== 'all') params.append('date', filters.date);
-  if (filters.status && filters.status !== 'all') params.append('status', filters.status);
-  if (filters.spkId) params.append('spkId', filters.spkId);
-  if (filters.karyawanId) params.append('karyawanId', filters.karyawanId);
+  if (filters.date && filters.date !== "all")
+    params.append("date", filters.date);
+  if (filters.status && filters.status !== "all")
+    params.append("status", filters.status);
+  if (filters.spkId) params.append("spkId", filters.spkId);
+  if (filters.karyawanId) params.append("karyawanId", filters.karyawanId);
 
   const url = `${API_BASE_URL}/api/spk/report/getSPKFieldReports?${params.toString()}`;
   const res = await fetch(url, {
-    method: 'GET',
-    credentials: 'include', // Kirim cookie/session
-    cache: 'no-store',     // Jangan cache, karena data real-time
+    method: "GET",
+    credentials: "include", // Kirim cookie/session
+    cache: "no-store", // Jangan cache, karena data real-time
   });
 
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.error || `HTTP ${res.status}: Gagal mengambil laporan`);
+    throw new Error(
+      errorData.error || `HTTP ${res.status}: Gagal mengambil laporan`
+    );
   }
 
   return res.json();

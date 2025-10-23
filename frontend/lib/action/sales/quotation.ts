@@ -83,6 +83,7 @@ export async function getQuotations(params?: {
       headers: {
         "Content-Type": "application/json",
       },
+      credentials: "include",
       cache: "no-store",
     });
 
@@ -209,6 +210,7 @@ export async function createQuotation(
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify(quotationData),
       }
     );
@@ -237,6 +239,7 @@ export async function updateQuotation(
       headers: {
         "Content-Type": "application/json",
       },
+      credentials: "include",
       body: JSON.stringify(quotationData),
     }
   );
@@ -259,6 +262,7 @@ export async function deleteQuotation(
       headers: {
         "Content-Type": "application/json",
       },
+      credentials: "include",
     }
   );
 
@@ -281,6 +285,7 @@ export async function updateQuotationStatus(
       headers: {
         "Content-Type": "application/json",
       },
+      credentials: "include",
       body: JSON.stringify(statusData),
     }
   );
@@ -302,6 +307,7 @@ export async function uploadAttachment(
     {
       method: "POST",
       body: formData,
+      credentials: "include",
       // Note: Don't set Content-Type header for FormData, browser will set it automatically
     }
   );
@@ -325,6 +331,7 @@ export async function deleteAttachment(
       headers: {
         "Content-Type": "application/json",
       },
+      credentials: "include",
     }
   );
 
@@ -347,6 +354,7 @@ export async function addComment(
       headers: {
         "Content-Type": "application/json",
       },
+      credentials: "include",
       body: JSON.stringify(commentData),
     }
   );
@@ -365,6 +373,7 @@ export async function downloadQuotationPDF(id: string): Promise<Blob> {
     headers: {
       "Content-Type": "application/pdf",
     },
+    credentials: "include",
   });
 
   if (!response.ok) {

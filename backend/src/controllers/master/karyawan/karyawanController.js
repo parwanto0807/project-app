@@ -340,7 +340,7 @@ export const getAllTeam = async (req, res) => {
       include: { karyawan: { include: { karyawan: true } } },
     });
     res.json(teams);
-    console.log(teams);
+    // console.log(teams);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Gagal mengambil data team" });

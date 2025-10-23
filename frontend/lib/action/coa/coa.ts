@@ -50,6 +50,7 @@ export const coaApi = {
 
       const response = await fetch(`${API_BASE}/api/coa/getAllCOA?${params}`, {
         method: "GET",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -77,7 +78,7 @@ export const coaApi = {
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: 'include',
+        credentials: "include",
       });
 
       return await handleResponse<CoaResponse>(response);
@@ -96,6 +97,7 @@ export const coaApi = {
 
       const response = await fetch(`${API_BASE}/hierarchy?${params}`, {
         method: "GET",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -150,7 +152,7 @@ export const coaApi = {
         headers: {
           "Content-Type": "application/json",
         },
-        credentials:'include',
+        credentials: "include",
         body: JSON.stringify(data),
       });
 
@@ -171,6 +173,7 @@ export const coaApi = {
 
       const response = await fetch(`${API_BASE}/api/coa/deleteCOA${id}`, {
         method: "DELETE",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -195,6 +198,7 @@ export const coaApi = {
 
       const response = await fetch(`${API_BASE}/${id}/deactivate`, {
         method: "PATCH",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -217,6 +221,7 @@ export const coaApi = {
 
       const response = await fetch(`${API_BASE}/${id}/activate`, {
         method: "PATCH",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },

@@ -19,6 +19,15 @@ import { useEffect, useRef } from "react";
 // Import type dari @/types/pr
 import { PurchaseRequest } from "@/types/pr";
 
+// Enum untuk Source Product Type
+enum SourceProductType {
+    PEMBELIAN_BARANG = "PEMBELIAN_BARANG",
+    PENGAMBILAN_STOK = "PENGAMBILAN_STOK",
+    OPERATIONAL = "OPERATIONAL",
+    JASA_PEMBELIAN = "JASA_PEMBELIAN",
+    JASA_INTERNAL = "JASA_INTERNAL"
+}
+
 // Definisikan type untuk status berdasarkan type yang sudah ada
 type PurchaseRequestStatus = PurchaseRequest['status'];
 
@@ -145,6 +154,18 @@ const formatCurrency = (amount: number) => {
     }).format(amount);
 };
 
+// Helper untuk mendapatkan label source product
+const getSourceProductLabel = (source: SourceProductType): string => {
+    const sourceLabels = {
+        [SourceProductType.PEMBELIAN_BARANG]: "Pembelian Barang",
+        [SourceProductType.PENGAMBILAN_STOK]: "Pengambilan Stok",
+        [SourceProductType.OPERATIONAL]: "Operasional",
+        [SourceProductType.JASA_PEMBELIAN]: "Jasa Pembelian",
+        [SourceProductType.JASA_INTERNAL]: "Jasa Internal",
+    };
+    return sourceLabels[source] || source;
+};
+
 // Props untuk komponen utama
 interface PurchaseRequestSheetProps {
     detailSheetOpen: boolean;
@@ -161,6 +182,42 @@ export function PurchaseRequestSheet({
 }: PurchaseRequestSheetProps) {
     const contentRef = useRef<HTMLDivElement>(null);
 
+    // Fungsi untuk menghitung Total Pengajuan Biaya berdasarkan source product
+    // Fungsi untuk menghitung summary
+    const calculateSummary = () => {
+        if (!selectedPurchaseRequest?.details) {
+            return { totalBiaya: 0, totalHPP: 0, grandTotal: 0 };
+        }
+
+        let totalBiaya = 0;
+        let totalHPP = 0;
+
+        selectedPurchaseRequest.details.forEach((detail) => {
+            const subtotal = Number(detail.estimasiTotalHarga || 0);
+
+            switch (detail.sourceProduct) {
+                case SourceProductType.PEMBELIAN_BARANG:
+                case SourceProductType.OPERATIONAL:
+                case SourceProductType.JASA_PEMBELIAN:
+                    totalBiaya += subtotal;
+                    break;
+                case SourceProductType.PENGAMBILAN_STOK:
+                case SourceProductType.JASA_INTERNAL:
+                    totalHPP += subtotal;
+                    break;
+                default:
+                    totalBiaya += subtotal;
+            }
+        });
+
+        const grandTotal = totalBiaya + totalHPP;
+
+        return { totalBiaya, totalHPP, grandTotal };
+    };
+
+    // Gunakan di dalam komponen
+    const { totalBiaya, totalHPP, grandTotal } = calculateSummary();
+
     const handleStatusUpdateFromActions = (status: PurchaseRequestStatus) => {
         if (selectedPurchaseRequest) {
             onStatusUpdate(selectedPurchaseRequest.id, status);
@@ -173,6 +230,7 @@ export function PurchaseRequestSheet({
             contentRef.current.scrollTop = 0;
         }
     }, [detailSheetOpen, selectedPurchaseRequest]);
+
 
     return (
         <Sheet open={detailSheetOpen} onOpenChange={setDetailSheetOpen}>
@@ -241,7 +299,7 @@ export function PurchaseRequestSheet({
                     </SheetHeader>
 
                     {/* Main Content Area dengan Scroll */}
-                    <div 
+                    <div
                         ref={contentRef}
                         className="flex-1 overflow-y-auto py-4 sm:py-6 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400"
                     >
@@ -288,11 +346,9 @@ export function PurchaseRequestSheet({
                                             </div>
                                             <div className="bg-white rounded-xl p-3 sm:p-4 shadow-sm border flex-shrink-0 w-full sm:w-auto">
                                                 <div className="text-center">
-                                                    <p className="text-xs text-gray-500 font-medium mb-2">Total Amount</p>
+                                                    <p className="text-xs text-gray-500 font-medium mb-2">Total Pengajuan Biaya</p>
                                                     <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-green-600 mb-1">
-                                                        {formatCurrency(selectedPurchaseRequest.details?.reduce((sum, detail) =>
-                                                            sum + Number(detail.estimasiTotalHarga || 0), 0
-                                                        ) || 0)}
+                                                        {formatCurrency(totalBiaya)}
                                                     </p>
                                                     <p className="text-xs text-gray-500">
                                                         {selectedPurchaseRequest.details?.length || 0} items
@@ -376,10 +432,11 @@ export function PurchaseRequestSheet({
                                                     {/* Table Header - Desktop */}
                                                     <div className="hidden sm:grid sm:grid-cols-12 bg-gray-50 text-xs font-semibold px-4 py-3 text-gray-700 border-b border-gray-200">
                                                         <div className="col-span-1 text-center">No</div>
-                                                        <div className="col-span-4 pl-2">Item Description</div>
+                                                        <div className="col-span-3 pl-2">Item Description</div>
+                                                        <div className="col-span-2 text-center">Source</div>
                                                         <div className="col-span-2 text-center">Quantity</div>
                                                         <div className="col-span-2 text-right pr-4">Unit Price</div>
-                                                        <div className="col-span-3 text-right pr-4">Total</div>
+                                                        <div className="col-span-2 text-right pr-4">Total</div>
                                                     </div>
 
                                                     {/* Mobile Table Header */}
@@ -389,62 +446,116 @@ export function PurchaseRequestSheet({
 
                                                     {/* Table Body dengan Scroll */}
                                                     {selectedPurchaseRequest.details && selectedPurchaseRequest.details.length > 0 ? (
-                                                        <div className="max-h-72 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-                                                            {selectedPurchaseRequest.details.map((detail, index) => (
-                                                                <div
-                                                                    key={detail.id}
-                                                                    className="border-b border-gray-100 last:border-b-0"
-                                                                >
-                                                                    {/* Mobile View */}
-                                                                    <div className="sm:hidden p-3 hover:bg-gray-50/50 transition-colors">
-                                                                        <div className="flex justify-between items-start mb-2">
-                                                                            <div className="flex items-center gap-2">
-                                                                                <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                                                                                    {index + 1}
-                                                                                </span>
-                                                                                <span className="font-medium text-gray-900 text-xs line-clamp-2">
-                                                                                    {detail.catatanItem || "Unnamed Item"}
-                                                                                </span>
-                                                                            </div>
-                                                                        </div>
-                                                                        <div className="flex justify-between items-center">
-                                                                            <div className="text-xs text-gray-700">
-                                                                                <span className="font-semibold">{detail.jumlah}</span>
-                                                                                <span className="text-gray-500 ml-1">{detail.satuan}</span>
-                                                                            </div>
-                                                                            <div className="text-right">
-                                                                                <div className="text-xs text-gray-700">
-                                                                                    {formatCurrency(detail.estimasiHargaSatuan)}
-                                                                                </div>
-                                                                                <div className="text-xs font-semibold text-green-600">
-                                                                                    {formatCurrency(detail.estimasiTotalHarga)}
+                                                        <>
+                                                            <div className="max-h-72 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+                                                                {selectedPurchaseRequest.details.map((detail, index) => (
+                                                                    <div
+                                                                        key={detail.id}
+                                                                        className="border-b border-gray-100 last:border-b-0"
+                                                                    >
+                                                                        {/* Mobile View */}
+                                                                        <div className="sm:hidden p-3 hover:bg-gray-50/50 transition-colors">
+                                                                            <div className="flex justify-between items-start mb-2">
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                                                                                        {index + 1}
+                                                                                    </span>
+                                                                                    <span className="font-medium text-gray-900 text-xs line-clamp-2">
+                                                                                        {detail.catatanItem || "Unnamed Item"}
+                                                                                    </span>
                                                                                 </div>
                                                                             </div>
+                                                                            <div className="space-y-2">
+                                                                                <div className="flex justify-between">
+                                                                                    <span className="text-xs text-gray-500">Source</span>
+                                                                                    <Badge
+                                                                                        variant="outline"
+                                                                                        className="text-xs"
+                                                                                    >
+                                                                                        {getSourceProductLabel(detail.sourceProduct as SourceProductType)}
+                                                                                    </Badge>
+                                                                                </div>
+                                                                                <div className="flex justify-between items-center">
+                                                                                    <div className="text-xs text-gray-700">
+                                                                                        <span className="font-semibold">{detail.jumlah}</span>
+                                                                                        <span className="text-gray-500 ml-1">{detail.satuan}</span>
+                                                                                    </div>
+                                                                                    <div className="text-right">
+                                                                                        <div className="text-xs text-gray-700">
+                                                                                            {formatCurrency(detail.estimasiHargaSatuan)}
+                                                                                        </div>
+                                                                                        <div className="text-xs font-semibold text-green-600">
+                                                                                            {formatCurrency(detail.estimasiTotalHarga)}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
                                                                         </div>
-                                                                    </div>
 
-                                                                    {/* Desktop View - Fixed */}
-                                                                    <div className="hidden sm:grid sm:grid-cols-12 w-full items-center px-4 py-3 hover:bg-gray-50/50 transition-colors">
-                                                                        <div className="col-span-1 text-center text-xs font-medium text-gray-500">
-                                                                            {index + 1}
-                                                                        </div>
-                                                                        <div className="col-span-4 text-sm font-medium text-gray-900 pl-2 pr-2 truncate">
-                                                                            {detail.catatanItem || "Unnamed Item"}
-                                                                        </div>
-                                                                        <div className="col-span-2 text-center text-sm text-gray-700">
-                                                                            <span className="font-semibold">{detail.jumlah}</span>
-                                                                            <span className="text-xs text-gray-500 ml-1">{detail.satuan}</span>
-                                                                        </div>
-                                                                        <div className="col-span-2 text-right text-sm text-gray-700 pr-4">
-                                                                            {formatCurrency(detail.estimasiHargaSatuan)}
-                                                                        </div>
-                                                                        <div className="col-span-3 text-right text-sm font-semibold text-green-600 pr-4">
-                                                                            {formatCurrency(detail.estimasiTotalHarga)}
+                                                                        {/* Desktop View - Fixed */}
+                                                                        <div className="hidden sm:grid sm:grid-cols-12 w-full items-center px-4 py-3 hover:bg-gray-50/50 transition-colors">
+                                                                            <div className="col-span-1 text-center text-xs font-medium text-gray-500">
+                                                                                {index + 1}
+                                                                            </div>
+                                                                            <div className="col-span-3 text-sm font-medium text-gray-900 pl-2 pr-2 truncate">
+                                                                                {detail.catatanItem || "Unnamed Item"}
+                                                                            </div>
+                                                                            <div className="col-span-2 text-center">
+                                                                                <Badge
+                                                                                    variant="outline"
+                                                                                    className={`
+                                        text-xs
+                                        ${detail.sourceProduct === SourceProductType.PEMBELIAN_BARANG ||
+                                                                                            detail.sourceProduct === SourceProductType.OPERATIONAL ||
+                                                                                            detail.sourceProduct === SourceProductType.JASA_PEMBELIAN
+                                                                                            ? "bg-blue-50 text-blue-700 border-blue-200"
+                                                                                            : "bg-green-50 text-green-700 border-green-200"
+                                                                                        }
+                                    `}
+                                                                                >
+                                                                                    {getSourceProductLabel(detail.sourceProduct as SourceProductType)}
+                                                                                </Badge>
+                                                                            </div>
+                                                                            <div className="col-span-2 text-center text-sm text-gray-700">
+                                                                                <span className="font-semibold">{detail.jumlah}</span>
+                                                                                <span className="text-xs text-gray-500 ml-1">{detail.satuan}</span>
+                                                                            </div>
+                                                                            <div className="col-span-2 text-right text-sm text-gray-700 pr-4">
+                                                                                {formatCurrency(detail.estimasiHargaSatuan)}
+                                                                            </div>
+                                                                            <div className="col-span-2 text-right text-sm font-semibold text-green-600 pr-4">
+                                                                                {formatCurrency(detail.estimasiTotalHarga)}
+                                                                            </div>
                                                                         </div>
                                                                     </div>
+                                                                ))}
+                                                            </div>
+
+                                                            {/* Summary Section */}
+                                                            {/* Summary Section */}
+                                                            <div className="mt-4 border-t pt-3 space-y-2 text-sm bg-gray-50/50 p-4">
+                                                                <div className="flex justify-between">
+                                                                    <span className="font-medium">💰 Total Pengajuan Biaya :</span>
+                                                                    <span className="font-semibold">
+                                                                        Rp. {formatCurrency(totalBiaya)}
+                                                                    </span>
                                                                 </div>
-                                                            ))}
-                                                        </div>
+
+                                                                <div className="flex justify-between">
+                                                                    <span className="font-medium">🏭 Total biaya tidak diajukan :</span>
+                                                                    <span className="font-semibold">
+                                                                        Rp. {formatCurrency(totalHPP)}
+                                                                    </span>
+                                                                </div>
+
+                                                                <div className="flex justify-between border-t pt-2 text-base">
+                                                                    <span className="font-bold">🧾 Grand Total HPP :</span>
+                                                                    <span className="font-bold">
+                                                                        Rp. {formatCurrency(grandTotal)}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </>
                                                     ) : (
                                                         <div className="p-6 sm:p-8 text-center">
                                                             <Package className="h-8 w-8 sm:h-12 sm:w-12 text-gray-300 mx-auto mb-3" />

@@ -10,7 +10,10 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 // Get all bank accounts
 export async function getBankAccounts(): Promise<BankAccount[]> {
   try {
-    const res = await fetch(`${API_URL}/api/master/banks/getAllBankAccounts`, { cache: "no-store" });
+    const res = await fetch(`${API_URL}/api/master/banks/getAllBankAccounts`, {
+      credentials: "include",
+      cache: "no-store",
+    });
     if (!res.ok) throw new Error("Gagal fetch bank accounts");
     const data = await res.json();
     return data.data;
@@ -24,6 +27,7 @@ export async function getBankAccounts(): Promise<BankAccount[]> {
 export async function getBankAccountById(id: string): Promise<BankAccount> {
   try {
     const res = await fetch(`${API_URL}/api/banks/${id}`, {
+      credentials: "include",
       cache: "no-store",
     });
     if (!res.ok) throw new Error(`Gagal fetch bank account id=${id}`);
@@ -42,6 +46,7 @@ export async function createBankAccount(
   try {
     const res = await fetch(`${API_URL}/api/banks`, {
       method: "POST",
+      credentials: 'include',
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
@@ -62,6 +67,7 @@ export async function updateBankAccount(
   try {
     const res = await fetch(`${API_URL}/api/banks/${id}`, {
       method: "PUT",
+      credentials: 'include',
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
@@ -77,7 +83,7 @@ export async function updateBankAccount(
 // Delete bank account
 export async function deleteBankAccount(id: string): Promise<void> {
   try {
-    const res = await fetch(`${API_URL}/api/banks/${id}`, { method: "DELETE" });
+    const res = await fetch(`${API_URL}/api/banks/${id}`, { method: "DELETE", credentials: 'include' });
     if (!res.ok) throw new Error(`Gagal delete bank account id=${id}`);
   } catch (error) {
     console.error("deleteBankAccount error:", error);

@@ -16,6 +16,7 @@ export async function updateTeam(id: string, formData: FormData) {
   try {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/team/updateTeam/${id}`, {
       method: 'PUT',
+      credentials: "include",
       headers: {
         'Content-Type': 'application/json',
       },

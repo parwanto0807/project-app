@@ -8,6 +8,7 @@ export async function getTeamById(id: string) {
   try {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/team/getTeamById/${id}`, {
       method: 'GET',
+      credentials: "include",
       headers: {
         'Content-Type': 'application/json',
       },

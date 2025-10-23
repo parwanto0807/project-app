@@ -62,25 +62,41 @@ export default function PRCreatePageAdminApprove() {
             console.log("📤 SubmitData dari form:", {
                 data: submitData.data,
                 file: submitData.file?.name || "Tidak ada file",
-                idFromUrl
+                idFromUrl,
             });
 
             const result = await createUangMuka(submitData);
 
             console.log("✅ Success response:", result);
-            toast.success("Uang Muka created successfully!");
-            router.push("/admin-area/finance/prApprove");
+            // toast.success("Uang Muka berhasil dibuat!");
+            router.push("/admin-area/accounting/prVerify");
+        } catch (unknownError) {
+            console.warn("⚠️ Gagal membuat Uang Muka:", unknownError);
 
-        } catch (error) {
-            console.error("❌ Error creating Uang Muka:", error);
+            let message = "Terjadi kesalahan saat membuat Uang Muka.";
 
-            if (error instanceof Error) {
-                toast.error(error.message || "Failed to create Uang Muka");
-            } else {
-                toast.error("An unexpected error occurred");
+            // Gunakan type guard agar tetap aman dan tidak langgar eslint
+            if (unknownError instanceof Error) {
+                message = unknownError.message;
+            } else if (typeof unknownError === "string") {
+                try {
+                    const parsed = JSON.parse(unknownError);
+                    if (typeof parsed.message === "string") {
+                        message = parsed.message;
+                    }
+                } catch {
+                    message = unknownError;
+                }
+            } else if (
+                typeof unknownError === "object" &&
+                unknownError !== null &&
+                "response" in unknownError &&
+                typeof (unknownError as { response?: { data?: { message?: string } } }).response?.data?.message === "string"
+            ) {
+                message = (unknownError as { response: { data: { message: string } } }).response.data.message;
             }
 
-            throw error;
+            toast.error(message);
         }
     };
 

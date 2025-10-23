@@ -1,8 +1,8 @@
-// hooks/use-current-user.ts (Versi yang Disempurnakan)
-
+// hooks/use-current-user.ts (With Axios Error)
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { AxiosError } from "axios";
 import { api } from "@/lib/http";
 
 export interface User {
@@ -13,23 +13,51 @@ export interface User {
   avatar?: string;
 }
 
+interface ProfileResponse {
+  user: User;
+}
+
 export function useCurrentUser() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
 
     const fetchUser = async () => {
       try {
-        const response = await api.get("/api/auth/user-login/profile");
-        if (isMounted) {
+        // console.log("🔄 [useCurrentUser] Fetching user profile...");
+
+        const response = await api.get<ProfileResponse>(
+          "/api/auth/user-login/profile"
+        );
+
+        // console.log("✅ [useCurrentUser] Response received:", {
+        //   status: response.status,
+        //   hasUser: !!response.data?.user,
+        //   user: response.data?.user
+        // });
+
+        if (isMounted && response.data.user) {
           setUser(response.data.user);
+          setError(null);
         }
-      } catch (error) {
-        console.error("Failed to fetch user profile:", error);
+      } catch (err) {
+        // ✅ Use AxiosError type
+        const error = err as AxiosError<{ error?: string }>;
+
+        console.error("❌ [useCurrentUser] Failed to fetch user profile:", {
+          message: error.message,
+          status: error.response?.status,
+          data: error.response?.data,
+        });
+
         if (isMounted) {
           setUser(null);
+          setError(
+            error.response?.data?.error || error.message || "Unknown error"
+          );
         }
       } finally {
         if (isMounted) {
@@ -45,20 +73,34 @@ export function useCurrentUser() {
     };
   }, []);
 
-  // PERBAIKAN: Gunakan useMemo untuk menstabilkan nilai yang dikembalikan.
-  // Ini memastikan bahwa objek yang sama dikembalikan kecuali jika
-  // nilai user atau loading benar-benar berubah, yang dapat mencegah
-  // render ulang yang tidak perlu di komponen yang menggunakan hook ini.
+  const refresh = async (): Promise<void> => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await api.get<ProfileResponse>(
+        "/api/auth/user-login/profile"
+      );
+      setUser(response.data.user);
+    } catch (err) {
+      const error = err as AxiosError<{ error?: string }>;
+      console.error("Failed to refresh user:", error);
+      setUser(null);
+      setError(error.response?.data?.error || error.message || "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const memoizedValue = useMemo(
     () => ({
       user,
       loading,
+      error,
       setUser,
+      refresh,
     }),
-    [user, loading]
+    [user, loading, error]
   );
-
-  // console.log("User", user);
 
   return memoizedValue;
 }

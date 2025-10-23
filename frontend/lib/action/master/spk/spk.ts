@@ -5,7 +5,10 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 export async function getSpkByEmail(email: string) {
   try {
     const response = await fetch(
-      `${API_URL}/api/spk/getSpkByEmail?email=${encodeURIComponent(email)}`
+      `${API_URL}/api/spk/getSpkByEmail?email=${encodeURIComponent(email)}`,
+      {
+        credentials: "include", // ✅ INI HARUS DITAMBAHKAN
+      }
     );
 
     if (!response.ok) {
@@ -24,6 +27,7 @@ export async function fetchAllSpk() {
   try {
     const res = await fetch(`${API_URL}/api/spk/getAllSPK`, {
       method: "GET",
+      credentials: "include",
       cache: "no-store",
     });
 
@@ -42,6 +46,7 @@ export async function fetchSpkById(id: string) {
   try {
     const res = await fetch(`${API_URL}/api/spk/getSPKById/${id}`, {
       method: "GET",
+      credentials: "include",
       cache: "no-store",
     });
 
@@ -60,6 +65,7 @@ export async function fetchSpkByIdBap(id: string) {
   try {
     const res = await fetch(`${API_URL}/api/spk/getReportsBySpkIdBap/${id}`, {
       method: "GET",
+      credentials: "include",
       cache: "no-store",
     });
 
@@ -78,6 +84,7 @@ export async function createSpk(data: SpkApiPayload) {
   try {
     const res = await fetch(`${API_URL}/api/spk/createSPK`, {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
@@ -98,6 +105,7 @@ export async function updateSpk(id: string, data: SpkApiPayload) {
   try {
     const res = await fetch(`${API_URL}/api/spk/updateSPK${id}`, {
       method: "PUT",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
@@ -118,6 +126,7 @@ export async function deleteSpk(
 ): Promise<{ success: boolean; message?: string }> {
   try {
     const res = await fetch(`${API_URL}/api/spk/deleteSPK/${id}`, {
+      credentials: "include",
       method: "DELETE",
     });
 
