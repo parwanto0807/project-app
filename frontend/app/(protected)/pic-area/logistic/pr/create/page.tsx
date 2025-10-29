@@ -12,7 +12,6 @@ import {
     BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Badge } from "@/components/ui/badge";
-import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { LayoutProps } from "@/types/layout";
 import { TabelInputPR } from "@/components/pr/createFormData";
 import { AdminLoading } from "@/components/admin-loading";
@@ -22,6 +21,7 @@ import { usePurchaseRequest } from "@/hooks/use-pr";
 import { CreatePurchaseRequestData } from "@/types/pr";
 import { fetchAllSpk } from "@/lib/action/master/spk/spk";
 import { toast } from "sonner";
+import { PicLayout } from "@/components/admin-panel/pic-layout";
 
 interface SPK {
     id: string;
@@ -122,11 +122,11 @@ function getBasePath(role?: string) {
         : "/pic-area/logistic/pr"
 }
 
-export default function CreatePRPageAdmin() {
+export default function CreatePRPagePIC() {
     const router = useRouter();
 
     // Dummy auth role → ganti dengan sistem auth kamu
-    const userRole = "admin";
+    const userRole = "pic";
 
     const {
         data: productsData,
@@ -152,7 +152,7 @@ export default function CreatePRPageAdmin() {
 
     // Redirect jika bukan admin
     useEffect(() => {
-        if (userRole !== "admin") {
+        if (userRole !== "pic") {
             router.push("/unauthorized");
         }
         fetchData();
@@ -200,7 +200,7 @@ export default function CreatePRPageAdmin() {
     // Handle error
     if (hasError) {
         return (
-            <AdminLayout title="Create Purchase Request" role="admin">
+            <PicLayout title="Create Purchase Request" role="admin">
                 <div className="flex flex-col items-center justify-center h-64 space-y-4">
                     <div className="text-red-500 text-lg font-semibold">
                         Error loading form data
@@ -215,13 +215,13 @@ export default function CreatePRPageAdmin() {
                         Try Again
                     </button>
                 </div>
-            </AdminLayout>
+            </PicLayout>
         );
     }
 
     const layoutProps: LayoutProps = {
         title: "Create Purchase Request",
-        role: "admin",
+        role: "pic",
         children: (
             <>
                 <Breadcrumb>
@@ -229,7 +229,7 @@ export default function CreatePRPageAdmin() {
                         <BreadcrumbItem>
                             <BreadcrumbLink asChild>
                                 <Badge variant="outline">
-                                    <Link href="/admin-area">Dashboard</Link>
+                                    <Link href="/pic-area">Dashboard</Link>
                                 </Badge>
                             </BreadcrumbLink>
                         </BreadcrumbItem>
@@ -237,7 +237,7 @@ export default function CreatePRPageAdmin() {
                         <BreadcrumbItem>
                             <BreadcrumbLink asChild>
                                 <Badge variant="outline">
-                                    <Link href="/admin-area/logistic/pr">Purchase Request List</Link>
+                                    <Link href="/pic-area/logistic/pr">Purchase Request List</Link>
                                 </Badge>
                             </BreadcrumbLink>
                         </BreadcrumbItem>
@@ -267,7 +267,7 @@ export default function CreatePRPageAdmin() {
                             dataSpk={dataSpk}
                             currentUser={user || undefined}
                             onSubmit={handleCreatePurchaseRequest}
-                            onSuccess={() => router.push("/admin-area/logistic/pr")}
+                            onSuccess={() => router.push("/pic-area/logistic/pr")}
                             submitting={submitting}
                         />
                     </div>
@@ -276,5 +276,5 @@ export default function CreatePRPageAdmin() {
         ),
     };
 
-    return <AdminLayout {...layoutProps} />;
+    return <PicLayout {...layoutProps} />;
 }

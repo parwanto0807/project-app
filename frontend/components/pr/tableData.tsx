@@ -52,7 +52,7 @@ interface PurchaseRequestTableProps {
     purchaseRequests: PurchaseRequest[];
     isLoading: boolean;
     isError: boolean;
-    role: "admin" | "user";
+    role: "super" | "admin" | "pic";
     pagination: PaginationInfo;
     onDelete: (id: string) => void;
     isDeleting: boolean;
@@ -138,6 +138,33 @@ const PdfIcon = (props: React.SVGProps<SVGSVGElement>) => (
     </svg>
 );
 
+function getBasePath(role?: string) {
+    const paths: Record<string, string> = {
+        super: "/super-admin-area/logistic/pr",
+        pic: "/pic-area/logistic/pr",
+        admin: "/admin-area/logistic/pr",
+    }
+    return paths[role ?? "admin"] || "/admin-area/logistic/pr"
+}
+
+function getBaseCreatePath(role?: string) {
+    const paths: Record<string, string> = {
+        super: "/super-admin-area/logistic/lpp/create/",
+        pic: "/pic-area/logistic/lpp/create/",
+        admin: "/admin-area/logistic/lpp/create/",
+    }
+    return paths[role ?? "admin"] || "/admin-area/lpp/create/"
+}
+
+function getBaseEditPath(role?: string) {
+    const paths: Record<string, string> = {
+        super: "/super-admin-area/logistic/lpp/edit/",
+        pic: "/pic-area/logistic/lpp/edit/",
+        admin: "/admin-area/logistic/lpp/edit/",
+    }
+    return paths[role ?? "admin"] || "/admin-area/lpp/edit/"
+}
+
 export function PurchaseRequestTable({
     purchaseRequests,
     isLoading,
@@ -168,6 +195,7 @@ export function PurchaseRequestTable({
     const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
     const [detailOpen, setDetailOpen] = useState(false);
     const [selectedPR, setSelectedPR] = useState<PurchaseRequest | null>(null);
+    const basePath = getBasePath(role);
     const router = useRouter();
     const handleSearchSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -227,10 +255,9 @@ export function PurchaseRequestTable({
             return '-';
         }
     };
-
     const handleEdit = (purchaseRequest: PurchaseRequest) => {
-        router.push(`/admin-area/logistic/pr/update/${purchaseRequest.id}`);
-    };
+        router.push(`${basePath}/update/${purchaseRequest.id}`)
+    }
 
     const handleCreateLpp = (id: string) => {
         // Cari purchaseRequest yang sesuai ID
@@ -240,21 +267,27 @@ export function PurchaseRequestTable({
             console.warn("Purchase Request tidak ditemukan");
             return;
         }
+
         // Ambil semua details dari pertanggungjawaban
         const allDetails = pr.uangMuka?.flatMap(um =>
             um.pertanggungjawaban?.flatMap(pj =>
                 pj.details ?? []
             ) ?? []
         ) ?? [];
+
         const hasDetails = allDetails.length;
+
+        // Dapatkan base path berdasarkan role
+        const userRole = role; // Ganti dengan cara mendapatkan role user yang sesungguhnya
+
         if (hasDetails === 0) {
-            router.push(`/admin-area/logistic/lpp/create/${id}`);
+            const createPath = getBaseCreatePath(userRole);
+            router.push(`${createPath}${id}`);
         } else {
-            router.push(`/admin-area/logistic/lpp/edit/${id}`);
+            const editPath = getBaseEditPath(userRole);
+            router.push(`${editPath}${id}`);
         }
     }
-
-
 
     const handleViewPdf = (pr: PurchaseRequest) => {
         setSelectedPurchaseRequest(pr);
@@ -267,8 +300,8 @@ export function PurchaseRequestTable({
     };
 
     const handleNewRequest = () => {
-        router.push("/admin-area/logistic/pr/create");
-    };
+        router.push(`${basePath}/create`)
+    }
 
     const totalPages = Math.ceil(pagination.totalCount / pagination.limit);
 
@@ -703,7 +736,7 @@ export function PurchaseRequestTable({
                                                                 <DockIcon className="w-5 h-5" />
                                                                 Create LPP
                                                             </Button>
-                                                            {role === "admin" && (
+                                                            {(role === "admin" || role === "pic") && (
                                                                 <Button
                                                                     variant="outline"
                                                                     size="sm"
@@ -716,7 +749,7 @@ export function PurchaseRequestTable({
                                                                 </Button>
                                                             )}
 
-                                                            {role === "admin" && (
+                                                            {(role === "admin" || role === "pic") && (
                                                                 <Button
                                                                     variant="outline"
                                                                     size="sm"

@@ -6,11 +6,19 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 export default function PicLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useCurrentUser();
   const router = useRouter();
+  const [queryClient] = useState(() => new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 60 * 1000, // 1 minute
+      },
+    },
+  }));
 
   useEffect(() => {
     if (!loading && user?.role !== "pic") {
@@ -18,20 +26,28 @@ export default function PicLayout({ children }: { children: React.ReactNode }) {
     }
   }, [user, loading, router]);
 
-  if (loading || user?.role !== "pic") return null;
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (user?.role !== "pic") {
+    return null;
+  }
 
   return (
-    <AdminPanelLayout role={user?.role}>
-      <ThemeProvider
-        attribute="class"
-        defaultTheme="system"
-        enableSystem
-        disableTransitionOnChange
-      >
-        <Toaster />
-        {children}
-        <BackToDashboardButton />
-      </ThemeProvider>
-    </AdminPanelLayout>
+    <QueryClientProvider client={queryClient}>
+      <AdminPanelLayout role={user?.role}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <Toaster />
+          {children}
+          <BackToDashboardButton />
+        </ThemeProvider>
+      </AdminPanelLayout>
+    </QueryClientProvider>
   );
 }

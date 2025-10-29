@@ -1040,7 +1040,6 @@ export async function getSalesStats(req, res) {
     const startMonth = new Date(currentYear, currentMonth, 1, 0, 0, 0, 0);
     const startYear = new Date(currentYear, 0, 1, 0, 0, 0, 0);
 
-    // Bulan lalu (lokal)
     const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
     const prevMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
     const startLastMonth = new Date(prevMonthYear, prevMonth, 1, 0, 0, 0, 0);
@@ -1054,79 +1053,61 @@ export async function getSalesStats(req, res) {
       999
     );
 
-    // console.log("DEBUG Simple UTC Dates:", {
-    //   now: now.toISOString(),
-    //   startMonth: startMonth.toISOString(),
-    //   startToday: startToday.toISOString(),
-    //   startYear: startYear.toISOString(),
-    //   startLastMonth: startLastMonth.toISOString(),
-    //   endLastMonth: endLastMonth.toISOString(),
-    // });
-
-    // console.log("Waktu sistem saat ini:", new Date().toISOString());
+    // Kondisi umum untuk exclude DRAFT
+    const notDraftCondition = {
+      status: { not: "DRAFT" },
+    };
 
     const [todayAgg, mtdAgg, ytdAgg, lastMonthAgg, yearSummaryAgg] =
       await Promise.all([
         prisma.salesOrder.aggregate({
           _sum: { grandTotal: true },
-          where: { soDate: { gte: startToday, lte: now } },
+          where: {
+            ...notDraftCondition,
+            soDate: { gte: startToday, lte: now },
+          },
         }),
         prisma.salesOrder.aggregate({
           _sum: { grandTotal: true },
-          where: { soDate: { gte: startMonth, lte: now } },
+          where: {
+            ...notDraftCondition,
+            soDate: { gte: startMonth, lte: now },
+          },
         }),
         prisma.salesOrder.aggregate({
           _sum: { grandTotal: true },
-          where: { soDate: { gte: startYear, lte: now } },
+          where: {
+            ...notDraftCondition,
+            soDate: { gte: startYear, lte: now },
+          },
         }),
         prisma.salesOrder.aggregate({
           _sum: { grandTotal: true },
-          where: { soDate: { gte: startLastMonth, lte: endLastMonth } },
+          where: {
+            ...notDraftCondition,
+            soDate: { gte: startLastMonth, lte: endLastMonth },
+          },
         }),
         prisma.salesOrder.aggregate({
           _sum: { grandTotal: true },
-          where: { soDate: { gte: startYear, lte: now } },
+          where: {
+            ...notDraftCondition,
+            soDate: { gte: startYear, lte: now },
+          },
         }),
       ]);
 
-    // DEBUG: Check actual data in the ranges
-    const todayOrders = await prisma.salesOrder.findMany({
-      where: { soDate: { gte: startToday, lte: now } },
-      select: { soDate: true, grandTotal: true },
-      orderBy: { soDate: "desc" },
-    });
-
-    const mtdOrders = await prisma.salesOrder.findMany({
-      where: { soDate: { gte: startMonth, lte: now } },
-      select: { soDate: true, grandTotal: true },
-      orderBy: { soDate: "desc" },
-    });
-
-    // console.log("DEBUG Today Orders:", todayOrders);
-    // console.log("DEBUG MTD Orders count:", mtdOrders.length);
-    // console.log("DEBUG Today count:", todayOrders.length);
-
-    // Handle null results - GUNAKAN VARIABLE YANG KONSISTEN
-    const today = num(todayAgg._sum.grandTotal) || 0;
-    const mtd = num(mtdAgg._sum.grandTotal) || 0;
-    const ytd = num(ytdAgg._sum.grandTotal) || 0;
-    const lastMonthTotal = num(lastMonthAgg._sum.grandTotal) || 0; // Ganti 'lastMonth' jadi 'lastMonthTotal'
-    const yearSummary = num(yearSummaryAgg._sum.grandTotal) || 0;
-
-    // console.log(
-    //   "Data SalesStats",
-    //   today,
-    //   mtd,
-    //   ytd,
-    //   lastMonthTotal,
-    //   yearSummary
-    // );
+    const today = Number(todayAgg._sum.grandTotal) || 0;
+    const mtd = Number(mtdAgg._sum.grandTotal) || 0;
+    const ytd = Number(ytdAgg._sum.grandTotal) || 0;
+    const lastMonthTotal = Number(lastMonthAgg._sum.grandTotal) || 0;
+    const yearSummary = Number(yearSummaryAgg._sum.grandTotal) || 0;
 
     res.json({
       today,
       mtd,
       ytd,
-      lastMonth: lastMonthTotal, // Kirim sebagai 'lastMonth' tapi variable lokal beda
+      lastMonth: lastMonthTotal,
       yearSummary,
     });
   } catch (err) {

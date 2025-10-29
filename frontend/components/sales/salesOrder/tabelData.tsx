@@ -18,6 +18,9 @@ import {
     TrendingUp,
     TrendingDown,
     BarChart2,
+    ChevronDown,
+    Filter,
+    X,
 } from "lucide-react"
 import Decimal from "decimal.js"
 import {
@@ -48,6 +51,7 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -976,6 +980,8 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
     const pdfActions = usePdfActions();
     const basePath = getBasePath(role);
     const router = useRouter()
+    const [statusFilter, setStatusFilter] = React.useState<OrderStatus | "ALL">("ALL")
+    const hasActiveFilters = searchTerm || statusFilter !== "ALL"
 
     // Update local state when prop changes
     React.useEffect(() => {
@@ -1441,15 +1447,18 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
 
     const filteredSalesOrders = React.useMemo(() => {
         return salesOrders.filter((order) => {
-            return (
+            const matchesSearch =
                 order.soNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 order.project?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 order.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 order.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 order.customer.branch?.toLowerCase().includes(searchTerm.toLowerCase())
-            )
+
+            const matchesStatus = statusFilter === "ALL" || order.status === statusFilter
+
+            return matchesSearch && matchesStatus
         })
-    }, [salesOrders, searchTerm])
+    }, [salesOrders, searchTerm, statusFilter])
 
     const paginatedOrders = React.useMemo(() => {
         const startIndex = (currentPage - 1) * itemsPerPage
@@ -1473,6 +1482,39 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
         getRowId: (row) => row.id,
     })
 
+    const StatusFilterDropdown = () => (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="flex items-center gap-2">
+                    <Filter className="h-4 w-4" />
+                    {statusFilter === "ALL" ? "All Status" : statusConfig[statusFilter]?.label}
+                    <ChevronDown className="h-4 w-4" />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem
+                    onClick={() => setStatusFilter("ALL")}
+                    className={statusFilter === "ALL" ? "bg-muted" : ""}
+                >
+                    All Status
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {Object.entries(statusConfig).map(([status, config]) => (
+                    <DropdownMenuItem
+                        key={status}
+                        onClick={() => setStatusFilter(status as OrderStatus)}
+                        className={statusFilter === status ? "bg-muted" : ""}
+                    >
+                        <div className="flex items-center gap-2">
+                            <div className={`h-2 w-2 rounded-full ${config.className.split(' ')[0]}`} />
+                            {config.label}
+                        </div>
+                    </DropdownMenuItem>
+                ))}
+            </DropdownMenuContent>
+        </DropdownMenu>
+    )
+
     if (isMobile) {
         return (
             <>
@@ -1493,6 +1535,27 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                         </div>
                     </CardHeader>
                     <div className="flex flex-col space-y-2">
+                        <div className="relative">
+                            <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
+                            <Input
+                                placeholder="Search orders..."
+                                className="w-full pl-9"
+                                value={searchTerm}
+                                onChange={(e) => {
+                                    setSearchTerm(e.target.value)
+                                    setCurrentPage(1)
+                                }}
+                            />
+                        </div>
+                        <div className="flex space-x-2">
+                            <StatusFilterDropdown />
+                            <Link href={`${basePath}/create`} passHref>
+                                <Button className="bg-primary hover:bg-primary/90 flex-1">
+                                    <PlusCircleIcon className="mr-2 h-4 w-4" />
+                                    New Order
+                                </Button>
+                            </Link>
+                        </div>
                         <div className="relative">
                             <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
                             <Input
@@ -1699,6 +1762,45 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                                 Manage and track all sales orders
                             </p>
                         </div>
+                    </div>
+
+                    <div className="flex flex-col space-y-2 sm:flex-row sm:space-x-2 sm:space-y-0">
+                        <div className="flex space-x-2">
+                            <div className="relative">
+                                <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-white" />
+                                <Input
+                                    placeholder="Search orders..."
+                                    className="w-full pl-9 sm:w-64"
+                                    value={searchTerm}
+                                    onChange={(e) => {
+                                        setSearchTerm(e.target.value)
+                                        setCurrentPage(1)
+                                    }}
+                                />
+                            </div>
+                            <StatusFilterDropdown />
+                        </div>
+                        {hasActiveFilters && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                    setSearchTerm("")
+                                    setStatusFilter("ALL")
+                                    setCurrentPage(1)
+                                }}
+                                className="h-9 px-2"
+                            >
+                                <X className="h-4 w-4" />
+                                <span className="sr-only">Reset filters</span>
+                            </Button>
+                        )}
+                        <Link href={`${basePath}/create`} passHref>
+                            <Button className="bg-primary hover:bg-primary/90">
+                                <PlusCircleIcon className="mr-2 h-4 w-4" />
+                                New Order
+                            </Button>
+                        </Link>
                     </div>
                     <div className="flex flex-col space-y-2 sm:flex-row sm:space-x-2 sm:space-y-0">
                         <div className="relative">

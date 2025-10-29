@@ -177,7 +177,7 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
     onBack
 }) => {
     const [fotoBuktiMap, setFotoBuktiMap] = useState<FotoBuktiMap>({});
-    const router = useRouter(); 
+    const router = useRouter();
     const form = useForm<FormValues>({
         resolver: zodResolver(createLppSchema),
         defaultValues: {
@@ -287,11 +287,26 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
     };
 
     const getAvailableProducts = () => {
-        return purchaseRequest.details.map(detail => ({
-            id: detail.productId || detail.productId,
-            name: detail.catatanItem || detail.catatanItem || 'Product tidak ditemukan',
-            prDetailId: detail.id
-        }));
+        const productsMap = new Map();
+
+        purchaseRequest.details.forEach(detail => {
+            if (detail.productId) {
+                // Gunakan productId sebagai key, hindari duplikat
+                if (!productsMap.has(detail.productId)) {
+                    productsMap.set(detail.productId, {
+                        id: detail.productId,
+                        name: detail.catatanItem || 'Product tanpa nama',
+                        prDetailIds: [detail.id] // Kumpulkan semua prDetailIds untuk product yang sama
+                    });
+                } else {
+                    // Jika productId sudah ada, tambahkan prDetailId ke array
+                    const existing = productsMap.get(detail.productId);
+                    existing.prDetailIds.push(detail.id);
+                }
+            }
+        });
+
+        return Array.from(productsMap.values());
     };
 
     const jenisPembayaranOptions = [

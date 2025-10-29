@@ -316,6 +316,13 @@ export default function PICDashboard({ role }: { role: string }) {
             bgColor: "bg-gradient-to-br from-green-50 to-emerald-100 dark:from-green-950/20 dark:to-emerald-950/20"
         },
         {
+            title: "Kelola Purchase Request",
+            icon: <Plus className="h-5 w-5" />,
+            href: "/pic-area/logistic/pr",
+            color: "from-yellow-500 to-green-600",
+            bgColor: "bg-gradient-to-br from-yellow-50 to-green-100 dark:from-yellow-950/20 dark:to-green-950/20"
+        },
+        {
             title: "Kelola SPK",
             icon: <FileText className="h-5 w-5" />,
             href: "/pic-area/logistic/spk",
@@ -461,7 +468,7 @@ export default function PICDashboard({ role }: { role: string }) {
                 {/* Shortcuts Grid */}
                 <motion.div
                     layout
-                    className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4 mb-8 w-full"
+                    className="grid grid-cols-2 md:grid-cols-6 gap-3 sm:gap-4 mb-8 w-full"
                 >
                     {shortcuts.map((shortcut, index) => (
                         <motion.div

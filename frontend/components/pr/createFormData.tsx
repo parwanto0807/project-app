@@ -358,6 +358,57 @@ export function TabelInputPR({
         [products]
     );
 
+    const { totalBiayaRecent, totalHPPRecent, grandTotalRecent } = useMemo(() => {
+        const biayaTypes: string[] = [
+            'PEMBELIAN_BARANG',
+            'JASA_PEMBELIAN',
+            'OPERATIONAL',
+        ];
+
+        const hppTypes: string[] = [
+            'PENGAMBILAN_STOK',
+            'JASA_INTERNAL',
+        ];
+
+        let totalBiayaRecent = 0;
+        let totalHPPRecent = 0;
+
+        // Handle case ketika selectedSpk null
+        if (!selectedSpk) {
+            return {
+                totalBiayaRecent: 0,
+                totalHPPRecent: 0,
+                grandTotalRecent: 0,
+            };
+        }
+
+        // Filter purchase requests hanya untuk SPK yang dipilih
+        const filteredPRs = purchaseRequests?.filter(pr => pr.spkId === selectedSpk.id) || [];
+
+        // Loop melalui semua PR yang sesuai dengan SPK dipilih
+        for (const pr of filteredPRs) {
+            if (pr.details && pr.details.length > 0) {
+                for (const detail of pr.details) {
+                    const jumlah = Number(detail.jumlah) || 0;
+                    const harga = Number(detail.estimasiHargaSatuan) || 0;
+                    const nominal = jumlah * harga;
+
+                    if (detail.sourceProduct && biayaTypes.includes(detail.sourceProduct)) {
+                        totalBiayaRecent += nominal;
+                    } else if (detail.sourceProduct && hppTypes.includes(detail.sourceProduct)) {
+                        totalHPPRecent += nominal;
+                    }
+                }
+            }
+        }
+
+        return {
+            totalBiayaRecent,
+            totalHPPRecent,
+            grandTotalRecent: totalBiayaRecent + totalHPPRecent,
+        };
+    }, [purchaseRequests, selectedSpk]); // Include selectedSpk secara lengkap
+
     const { totalBiaya, totalHPP, grandTotal } = useMemo(() => {
         const biayaTypes: SourceProductType[] = [
             SourceProductType.PEMBELIAN_BARANG,
@@ -942,20 +993,20 @@ export function TabelInputPR({
                                                                         <div className="flex justify-between">
                                                                             <span className="font-medium">💰 Total Pengajuan Biaya</span>
                                                                             <span className="font-semibold text-right">
-                                                                                Rp {formatCurrency(totalBiaya)}
+                                                                                Rp {formatCurrency(totalBiayaRecent)}
                                                                             </span>
                                                                         </div>
 
                                                                         <div className="flex justify-between">
                                                                             <span className="font-medium">🏭 Total biaya tidak diajukan</span>
                                                                             <span className="font-semibold text-right">
-                                                                                Rp {formatCurrency(totalHPP)}
+                                                                                Rp {formatCurrency(totalHPPRecent)}
                                                                             </span>
                                                                         </div>
 
                                                                         <div className="border-t pt-2 flex justify-between text-base font-bold">
                                                                             <span>🧾 Grand Total HPP</span>
-                                                                            <span>Rp {formatCurrency(grandTotal)}</span>
+                                                                            <span>Rp {formatCurrency(grandTotalRecent)}</span>
                                                                         </div>
                                                                     </div>
 
