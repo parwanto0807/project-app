@@ -225,7 +225,7 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
                             </h3>
                             <div className="grid md:grid-cols-2 gap-4">
                                 <FormField name="nik" control={form.control} render={({ field }) => (
-                                    <FormItem><FormLabel>NIK</FormLabel><FormControl><Input placeholder="Contoh: 11223344" {...field} /></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>NIK</FormLabel><FormControl><Input placeholder="NIK Generate Automatic by System" {...field} disabled/></FormControl><FormMessage /></FormItem>
                                 )} />
                                 <FormField name="namaLengkap" control={form.control} render={({ field }) => (
                                     <FormItem><FormLabel>Nama Lengkap</FormLabel><FormControl><Input placeholder="Contoh: Budi Santoso" {...field} /></FormControl><FormMessage /></FormItem>

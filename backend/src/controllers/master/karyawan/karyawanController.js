@@ -25,7 +25,6 @@ export const createKaryawan = async (req, res) => {
     const fotoPath = req.file ? `/images/employee/${req.file.filename}` : null;
 
     const {
-      nik,
       namaLengkap,
       tanggalLahir,
       alamat,
@@ -51,7 +50,7 @@ export const createKaryawan = async (req, res) => {
 
     const karyawan = await prisma.karyawan.create({
       data: {
-        nik: nik || code,
+        nik: code,
         namaLengkap,
         tanggalLahir: tanggalLahir ? new Date(tanggalLahir) : null,
         alamat,
@@ -96,9 +95,8 @@ export const getAllKaryawan = async (req, res) => {
         gaji: true,
         user: true,
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: { nik: "asc" },
     });
-
     res.json(karyawan);
   } catch (error) {
     console.error("[getAllKaryawan] error:", error);
