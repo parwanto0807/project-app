@@ -49,12 +49,8 @@ export async function fetchSpkById(id: string) {
       credentials: "include",
       cache: "no-store",
     });
-
-    if (!res.ok) {
-      throw new Error("Gagal fetch SPK by ID");
-    }
-
-    return await res.json();
+    const data = await res.json();
+    return data;
   } catch (error) {
     console.error("fetchSpkById error:", error);
     throw error;

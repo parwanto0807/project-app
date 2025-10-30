@@ -55,7 +55,7 @@ export const getSpkByEmail = async (req, res) => {
           },
         },
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ spkNumber: "desc" }, { createdAt: "desc" }],
     });
 
     // Kirim response — bisa kosong jika tidak ada SPK
@@ -179,7 +179,7 @@ export const getAllSPK = async (req, res) => {
           },
         },
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: { createdAt: "asc" },
     });
 
     res.json(spkList);
@@ -198,9 +198,27 @@ export const getSPKById = async (req, res) => {
       where: { id },
       include: {
         createdBy: true,
-        salesOrder: true,
+        salesOrder: {
+          include: {
+            customer: {
+              select: {
+                name: true,
+                address: true,
+                branch: true,
+              },
+            },
+            project: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            items: true,
+          },
+        },
         team: true,
         details: {
+          orderBy: { createdAt: "desc" },
           include: {
             karyawan: true,
             salesOrderItem: true,

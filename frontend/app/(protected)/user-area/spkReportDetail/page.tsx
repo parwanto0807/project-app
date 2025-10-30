@@ -18,7 +18,7 @@ import { LayoutProps } from "@/types/layout";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { fetchKaryawanByEmail } from "@/lib/action/master/karyawan";
 import { toast } from "sonner";
-import ModalDetailLaporan from "@/components/spkReport/tableDataDetail";
+import FormMonitoringProgressSpk from "@/components/spkReport/tableDataDetail";
 
 interface SPK {
     id: string;
@@ -194,7 +194,7 @@ export default function SpkReportDetailPageAdmin() {
 
                 <div className="h-full w-full">
                     <div className="flex-1 space-y-4 p-0 pt-6 md:p-4">
-                        <ModalDetailLaporan
+                        <FormMonitoringProgressSpk
                             dataSpk={dataSpk}
                             isLoading={isLoading}
                             userEmail={email}
