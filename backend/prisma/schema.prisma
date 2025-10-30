@@ -79,7 +79,7 @@ model User {
   avatar         String?
   googleId       String?      @unique
   provider       AuthProvider @default(credentials)
-  role           UserRole
+  role           UserRole     @default(user)
   tokenVersion   Int          @default(0)
   lastLoginAt    DateTime?
   failedAttempts Int          @default(0)
