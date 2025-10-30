@@ -1194,13 +1194,18 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
 
                                   const previousProgress = relatedReport?.progress ?? item.progress ?? 0;
 
+                                  let icon = "📈";
+                                  if (previousProgress === 100) icon = "💹";
+                                  else if (previousProgress < 30) icon = "📉";
+
                                   return (
                                     <SelectItem key={item.id} value={String(item.id)} className="text-sm">
-                                      {item.name} - 📈: {previousProgress}%
+                                      {item.name} - {icon}: {previousProgress}%
                                     </SelectItem>
                                   );
                                 })}
                               </SelectContent>
+
 
                             </Select>
 
