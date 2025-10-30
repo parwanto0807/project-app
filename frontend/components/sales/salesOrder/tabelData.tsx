@@ -729,6 +729,10 @@ function MobileSalesOrderCard({ order, onExpand, onDeleteSuccess, role }: { orde
         e.preventDefault()
         setShowDeleteDialog(true)
     }
+    function handleEditOrder(e: React.MouseEvent) {
+        e.stopPropagation()
+        router.push(`${getBasePath(role)}/update/${order.id}`)
+    }
 
     function cancelDelete(e: React.MouseEvent) {
         e.stopPropagation()
@@ -788,44 +792,88 @@ function MobileSalesOrderCard({ order, onExpand, onDeleteSuccess, role }: { orde
                                 onExpand()
                                 toggleExpand()
                             }}
-                            className="text-xs h-8"
+                            className="text-xs h-8 flex items-center gap-1.5 transition-all duration-300 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 dark:hover:from-gray-700 dark:hover:to-gray-600 hover:text-gray-900 dark:hover:text-white hover:border-gray-400 dark:hover:border-gray-500 shadow-sm hover:shadow-lg hover:scale-105"
                         >
                             {isExpanded ? (
                                 <>
-                                    <EyeOff className="h-3 w-3 mr-1" />
-                                    Hide
+                                    <EyeOff className="h-3 w-3" />
+                                    Hide Detail
                                 </>
                             ) : (
                                 <>
-                                    <Eye className="h-3 w-3 mr-1" />
-                                    View
+                                    <Eye className="h-3 w-3" />
+                                    View Detail
                                 </>
                             )}
                         </Button>
+
                         {(role === "admin" || role === "super") && (
                             <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={handleClick}
                                 disabled={isLoading}
-                                className="h-8"
+                                className="h-8 flex items-center gap-1.5 transition-all duration-300 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/30 dark:hover:to-indigo-900/30 hover:shadow-md rounded-md px-3 border border-transparent hover:border-blue-200 dark:hover:border-blue-800"
                             >
                                 {isLoading ? (
                                     <Loader2 className="h-4 w-4 animate-spin" />
                                 ) : (
-                                    <DownloadIcon className="h-4 w-4" />
+                                    <>
+                                        <DownloadIcon className="h-4 w-4" />
+                                        <span className="text-xs">Expor Pdf</span>
+                                    </>
                                 )}
                             </Button>
                         )}
 
+                        {/* DELETE BUTTON */}
                         <Button
                             variant="outline"
                             size="sm"
-                            className="text-xs h-8 text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer"
                             onClick={handleDeleteClick}
-                            disabled={order.status !== 'DRAFT'}
+                            disabled={[
+                                "INVOICED",
+                                "PAID",
+                                "PARTIALLY_INVOICED",
+                                "PARTIALLY_PAID",
+                            ].includes(order.status)}
+                            className={`text-xs h-8 flex items-center gap-1 transition-all duration-200
+    ${[
+                                    "INVOICED",
+                                    "PAID",
+                                    "PARTIALLY_INVOICED",
+                                    "PARTIALLY_PAID",
+                                ].includes(order.status)
+                                    ? "border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed"
+                                    : "border-red-200 text-red-600 bg-white hover:bg-red-500 dark:hover:bg-red-500 hover:text-white hover:border-red-500 shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
+                                }`}
                         >
                             <Trash2 className="h-3 w-3" />
+                        </Button>
+
+                        {/* EDIT BUTTON */}
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleEditOrder}
+                            disabled={[
+                                "INVOICED",
+                                "PAID",
+                                "PARTIALLY_INVOICED",
+                                "PARTIALLY_PAID",
+                            ].includes(order.status)}
+                            className={`text-xs h-8 flex items-center gap-1 transition-all duration-200
+    ${[
+                                    "INVOICED",
+                                    "PAID",
+                                    "PARTIALLY_INVOICED",
+                                    "PARTIALLY_PAID",
+                                ].includes(order.status)
+                                    ? "border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed"
+                                    : "border-blue-200 text-blue-600 bg-white hover:bg-gradient-to-r hover:from-blue-500 hover:to-blue-600 hover:text-white hover:border-blue-500 shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
+                                }`}
+                        >
+                            <Edit className="h-3 w-3" />
                         </Button>
                     </div>
                 </div>
@@ -1530,7 +1578,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                             </div>
                         </div>
                     </CardHeader>
-                    <div className="flex flex-col space-y-2">
+                    <div className="flex flex-col space-y-4">
                         <div className="relative">
                             <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
                             <Input
@@ -1543,35 +1591,20 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                                 }}
                             />
                         </div>
-                        <div className="flex space-x-2">
+
+                        {/* posisi kanan */}
+                        <div className="flex space-x-2 justify-end">
                             <StatusFilterDropdown />
                             <Link href={`${basePath}/create`} passHref>
-                                <Button className="bg-primary hover:bg-primary/90 flex-1">
+                                <Button className="bg-primary hover:bg-primary/90">
                                     <PlusCircleIcon className="mr-2 h-4 w-4" />
                                     New Order
                                 </Button>
                             </Link>
                         </div>
-                        {/* <div className="relative">
-                            <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
-                            <Input
-                                placeholder="Search orders..."
-                                className="w-full pl-9"
-                                value={searchTerm}
-                                onChange={(e) => {
-                                    setSearchTerm(e.target.value)
-                                    setCurrentPage(1)
-                                }}
-                            />
-                        </div>
-                        <Link href={`${basePath}/create`} passHref>
-                            <Button className="bg-primary hover:bg-primary/90 w-full">
-                                <PlusCircleIcon className="mr-2 h-4 w-4" />
-                                New Order
-                            </Button>
-                        </Link> */}
                     </div>
-                    <CardContent className="p-1">
+
+                    <CardContent className="px-1">
                         {isLoading ? (
                             <div className="space-y-4">
                                 {[...Array(5)].map((_, i) => (
