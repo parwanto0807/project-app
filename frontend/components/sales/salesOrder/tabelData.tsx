@@ -504,14 +504,12 @@ function ActionsCell({ order, onDeleteSuccess, role }: { order: SalesOrder; onDe
                             disabled={[
                                 "INVOICED",
                                 "PAID",
-                                "FULFILLED",
                                 "PARTIALLY_INVOICED",
                                 "PARTIALLY_PAID",
                             ].includes(order.status)}
                             className={`cursor-pointer gap-2 text-xs ${[
                                 "INVOICED",
                                 "PAID",
-                                "FULFILLED",
                                 "PARTIALLY_INVOICED",
                                 "PARTIALLY_PAID",
                             ].includes(order.status)
@@ -589,7 +587,6 @@ function ActionsCell({ order, onDeleteSuccess, role }: { order: SalesOrder; onDe
                         disabled={[
                             "INVOICED",
                             "PAID",
-                            "FULFILLED",
                             "BAST",
                             "PARTIALLY_INVOICED",
                             "PARTIALLY_PAID",
@@ -597,7 +594,6 @@ function ActionsCell({ order, onDeleteSuccess, role }: { order: SalesOrder; onDe
                         className={`cursor-pointer gap-2 text-xs ${[
                             "INVOICED",
                             "PAID",
-                            "FULFILLED",
                             "BAST",
                             "PARTIALLY_INVOICED",
                             "PARTIALLY_PAID",
@@ -1485,7 +1481,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
     const StatusFilterDropdown = () => (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="flex items-center gap-2">
+                <Button variant="outline" className="flex items-center gap-2 text-white bg-transparent dark:hover:bg-slate-800 hover:bg-slate-100">
                     <Filter className="h-4 w-4" />
                     {statusFilter === "ALL" ? "All Status" : statusConfig[statusFilter]?.label}
                     <ChevronDown className="h-4 w-4" />
@@ -1556,7 +1552,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                                 </Button>
                             </Link>
                         </div>
-                        <div className="relative">
+                        {/* <div className="relative">
                             <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
                             <Input
                                 placeholder="Search orders..."
@@ -1573,7 +1569,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                                 <PlusCircleIcon className="mr-2 h-4 w-4" />
                                 New Order
                             </Button>
-                        </Link>
+                        </Link> */}
                     </div>
                     <CardContent className="p-1">
                         {isLoading ? (
@@ -1782,14 +1778,14 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                         </div>
                         {hasActiveFilters && (
                             <Button
-                                variant="ghost"
+                                variant="outline"
                                 size="sm"
                                 onClick={() => {
                                     setSearchTerm("")
                                     setStatusFilter("ALL")
                                     setCurrentPage(1)
                                 }}
-                                className="h-9 px-2"
+                                className="h-9 px-2 text-black"
                             >
                                 <X className="h-4 w-4" />
                                 <span className="sr-only">Reset filters</span>
@@ -1802,7 +1798,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                             </Button>
                         </Link>
                     </div>
-                    <div className="flex flex-col space-y-2 sm:flex-row sm:space-x-2 sm:space-y-0">
+                    {/* <div className="flex flex-col space-y-2 sm:flex-row sm:space-x-2 sm:space-y-0">
                         <div className="relative">
                             <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-white" />
                             <Input
@@ -1821,7 +1817,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                                 New Order
                             </Button>
                         </Link>
-                    </div>
+                    </div> */}
                 </div>
             </CardHeader>
             <CardContent className="p-2">

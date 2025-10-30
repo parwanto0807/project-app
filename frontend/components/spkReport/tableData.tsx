@@ -730,41 +730,42 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
 
   // Fungsi handleChangeItem
   const handleChangeItem = (itemId: string | null) => {
-    if (!selectedSpk) {
-      console.warn("Data SPK belum tersedia");
-      return;
-    }
+    if (!selectedSpk) return;
+
+    // ✅ Keep itemId as string
+    const selectedItem = itemId
+      ? selectedSpk.items.find(item => String(item.id) === itemId)
+      : null;
 
     if (!itemId) {
       setFormData(prev => ({
         ...prev,
-        items: itemId,
-        progress: selectedItem?.progress ?? 0,
-        minProgress: selectedItem?.progress ?? 0,
-        previousProgress: selectedItem?.progress ?? 0, // ✅ Simpan progress sebelumnya
-        type: (selectedItem?.progress ?? 0) === 100 ? 'FINAL' : 'PROGRESS',
-        note: prev.items !== itemId ? '' : prev.note // Reset note jika ganti item
+        items: null,
+        progress: 0,
+        minProgress: 0,
+        previousProgress: 0,
+        type: 'PROGRESS',
+        note: ''
       }));
       return;
     }
 
-    // ✅ Cari item dari selectedSpk
-    const selectedItem = selectedSpk.items.find(item => item.id === itemId);
+    const relatedReport = reports?.find(
+      report => String(report.soDetailId) === itemId
+    );
 
-    if (selectedItem) {
-      // ✅ Cari progress dari reports berdasarkan item.id
-      const relatedReport = reports?.find(report => report.soDetailId === selectedItem.id);
-      const prevProgress = relatedReport?.progress ?? 0;
+    const prevProgress = relatedReport?.progress ?? selectedItem?.progress ?? 0;
 
-      setFormData(prev => ({
-        ...prev,
-        items: itemId,
-        progress: prevProgress,   // posisi awal = progress terakhir
-        minProgress: prevProgress // simpan batas minimal
-      }));
-    }
+    setFormData(prev => ({
+      ...prev,
+      items: itemId,                               // ✅ tetap string
+      progress: prevProgress,
+      minProgress: prevProgress,
+      previousProgress: prevProgress,
+      type: prevProgress === 100 ? "FINAL" : "PROGRESS",
+      note: prev.items !== itemId ? "" : prev.note  // ✅ tidak error
+    }));
   };
-
 
   return (
     <div className="h-full w-full p-1 md:p-2">
@@ -1185,12 +1186,22 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                                 <SelectValue placeholder="Pilih item pekerjaan..." />
                               </SelectTrigger>
                               <SelectContent>
-                                {selectedSpk?.items.map((item) => (
-                                  <SelectItem key={item.id} value={item.id} className="text-sm">
-                                    {item.name}
-                                  </SelectItem>
-                                ))}
+                                {selectedSpk?.items.map((item) => {
+                                  // cari progress terakhir dari reports
+                                  const relatedReport = reports?.find(
+                                    (r) => String(r.soDetailId) === String(item.id)
+                                  );
+
+                                  const previousProgress = relatedReport?.progress ?? item.progress ?? 0;
+
+                                  return (
+                                    <SelectItem key={item.id} value={String(item.id)} className="text-sm">
+                                      {item.name} - 📈: {previousProgress}%
+                                    </SelectItem>
+                                  );
+                                })}
                               </SelectContent>
+
                             </Select>
 
                             {formData.items && selectedSpk && (

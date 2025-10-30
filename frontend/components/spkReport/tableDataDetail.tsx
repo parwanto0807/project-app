@@ -1132,7 +1132,7 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
                                         <div className="space-y-1.5">
                                             <div>
                                                 <p className="text-xs text-muted-foreground">Nama Item</p>
-                                                <p className="font-semibold text-lg">{selectedReport.itemName}</p>
+                                                <p className="font-semibold text-lg">{selectedReport.itemName} {selectedReport.progress}</p>
                                             </div>
                                             <div>
                                                 <div className="flex items-center justify-between">
