@@ -311,7 +311,14 @@ export function getMenuList(pathname: string, role: string) {
           href: "#",
           icon: FileSearchIcon,
           active: isActive("#", pathname),
-          submenus: [],
+          submenus: [
+            {
+              href: `${basePath}/setting/auditLog/loginLog`,
+              label: "Audit Login",
+              active: isActive(`${basePath}/auditLog/loginLog`, pathname),
+              disabled: role === "admin" || role === "pic" || role === "user",
+            },
+          ],
         },
       ],
     },

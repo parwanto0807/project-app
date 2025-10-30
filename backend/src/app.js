@@ -24,6 +24,7 @@ import coaRoutes from "./routes/coa/coaRouters.js";
 import prRoutes from "./routes/pr/prRouters.js";
 import umRoutes from "./routes/um/umRouters.js";
 import lppRouter from "./routes/lpp/lppRouters.js";
+import sessionRoute from "./routes/auth/sessionRoutes.js";
 
 import path from "path";
 
@@ -97,6 +98,7 @@ app.use((req, res, next) => {
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/sessions", sessionRoute);
 app.use("/api/master/customer", customerRoutes);
 app.use("/api/master/product", productRoutes);
 app.use("/api/master/product/kategory", kategoryRoutes);
@@ -115,7 +117,7 @@ app.use("/api/rabs", rabRoutes);
 app.use("/api/coa", coaRoutes);
 app.use("/api/pr", prRoutes);
 app.use("/api/um", umRoutes);
-app.use('/api/lpp', lppRouter);
+app.use("/api/lpp", lppRouter);
 
 // Health Check Endpoint
 app.get("/api/health", (req, res) => {
