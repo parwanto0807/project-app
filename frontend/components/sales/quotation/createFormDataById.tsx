@@ -99,7 +99,7 @@ export const CreateQuotationFormById: React.FC<CreateQuotationFormProps> = ({
             discountValue: 0,
             taxInclusive: false,
             taxTotal: 0,
-            total:0,
+            total: 0,
             otherCharges: 0,
             notes: '',
             preparedBy: '',
@@ -449,27 +449,36 @@ export const CreateQuotationFormById: React.FC<CreateQuotationFormProps> = ({
         <div className="max-w-7xl mx-auto p-4 bg-white dark:bg-slate-900 dark:text-white rounded-lg shadow-sm">
             {/* Header - PERBAIKAN: Tampilkan Sales Order Number */}
             <div className="border-b border-gray-200 pb-4 mb-6">
-                <div className="flex items-center gap-3 mb-2">
-                    <FileText className="w-8 h-8 text-blue-600" />
-                    <div>
-                        <h1 className="text-2xl font-bold">
-                            {isPreSelectedMode ? 'Create Quotation from Sales Order' : 'Create New Quotation'}
-                        </h1>
-                        {selectedSalesOrder && (
-                            <div className="flex items-center gap-2 mt-1">
-                                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                                    Sales Order: {selectedSalesOrder.soNumber || 'No Number'}
-                                </Badge>
-                                {selectedSalesOrder.customer && (
-                                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                                        Customer: {selectedSalesOrder.customer.name}
-                                    </Badge>
-                                )}
-                            </div>
+                {/* Icon dan Title */}
+                <div className="flex items-center gap-3 mb-3">
+                    <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 flex-shrink-0" />
+                    <h1 className="text-sm sm:text-2xl font-bold uppercase">
+                        {isPreSelectedMode ? 'Create Quotation from Sales Order' : 'Create New Quotation'}
+                    </h1>
+                </div>
+
+                {/* Badges - hanya muncul jika ada selectedSalesOrder */}
+                {selectedSalesOrder && (
+                    <div className="flex flex-wrap gap-2 mb-3">
+                        <Badge
+                            variant="outline"
+                            className="bg-blue-50 text-blue-700 border-blue-200 text-xs sm:text-sm"
+                        >
+                            Sales Order: {selectedSalesOrder.soNumber || 'No Number'}
+                        </Badge>
+                        {selectedSalesOrder.customer && (
+                            <Badge
+                                variant="outline"
+                                className="bg-green-50 text-green-700 border-green-200 text-xs sm:text-sm"
+                            >
+                                Customer: {selectedSalesOrder.customer.name}
+                            </Badge>
                         )}
                     </div>
-                </div>
-                <p className="text-gray-600">
+                )}
+
+                {/* Description */}
+                <p className="text-sm sm:text-base text-gray-600">
                     {isPreSelectedMode
                         ? `Creating quotation from sales order ${selectedSalesOrder?.soNumber || ''}`
                         : 'Fill in the details below to create a new quotation from sales order'
@@ -555,37 +564,53 @@ export const CreateQuotationFormById: React.FC<CreateQuotationFormProps> = ({
                         <div className="grid grid-cols-1 md:grid-cols-6 gap-6">
                             {/* Customer Selection */}
                             <div className="md:col-span-3 space-y-2">
-                                <Label htmlFor="customer">
+                                <Label htmlFor="customer" className="text-sm sm:text-base">
                                     Customer <span className="text-red-500">*</span>
                                 </Label>
+
                                 <Select
                                     value={formData.customerId}
                                     onValueChange={(value) => handleHeaderChange("customerId", value)}
                                 >
-                                    <SelectTrigger className="bg-white dark:bg-gray-800 dark:text-white">
-                                        <SelectValue placeholder="Select Customer" />
-                                        {selectedSalesOrder?.customer && formData.customerId === selectedSalesOrder.customer.id && (
-                                            <span className="text-xs text-green-600 ml-2">
-                                                ✓ From Sales Order
-                                            </span>
-                                        )}
+                                    <SelectTrigger className="bg-white dark:bg-gray-800 dark:text-white w-full min-w-0 h-10 sm:h-12">
+                                        <div className="flex items-center justify-between w-full min-w-0 gap-2">
+                                            <SelectValue
+                                                placeholder="Select Customer"
+                                                className="truncate text-sm sm:text-base"
+                                            />
+                                            <div className="flex items-center flex-shrink-0">
+                                                {selectedSalesOrder?.customer && formData.customerId === selectedSalesOrder.customer.id && (
+                                                    <span className="text-xs text-green-600 dark:text-green-400 whitespace-nowrap px-1">
+                                                        ✓ SO
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
                                     </SelectTrigger>
-                                    <SelectContent className="bg-white dark:bg-gray-800 dark:text-white max-h-60">
+
+                                    <SelectContent
+                                        className="bg-white dark:bg-gray-800 dark:text-white max-h-60 w-[var(--radix-select-trigger-width)] max-w-[calc(100vw-2rem)]"
+                                        position="popper"
+                                        align="start"
+                                        sideOffset={4}
+                                    >
                                         {/* Recommended Option */}
                                         {selectedSalesOrder?.customer && (
                                             <>
-                                                <div className="px-2 py-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20">
-                                                    RECOMMENDED FROM SALES ORDER
+                                                <div className="px-2 py-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 truncate">
+                                                    RECOMMENDED FROM SO
                                                 </div>
                                                 <SelectItem
-                                                    value={selectedSalesOrder.customer.id} // PASTIKAN VALUE TIDAK KOSONG
+                                                    value={selectedSalesOrder.customer.id}
                                                     className="bg-blue-50 dark:bg-blue-900/20 font-medium border-l-2 border-blue-500"
                                                 >
-                                                    <div className="flex items-center justify-between">
-                                                        <span>
-                                                            {selectedSalesOrder.customer.code} - {selectedSalesOrder.customer.name}
+                                                    <div className="flex items-center justify-between w-full min-w-0 gap-1">
+                                                        <span className="truncate text-sm flex-1">
+                                                            {selectedSalesOrder.customer.name}
                                                         </span>
-                                                        <Badge className="bg-blue-500 text-white">Recommended</Badge>
+                                                        <Badge className="bg-blue-500 text-white text-xs px-1 py-0 h-4 whitespace-nowrap flex-shrink-0">
+                                                            Rec
+                                                        </Badge>
                                                     </div>
                                                 </SelectItem>
                                                 <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
@@ -593,7 +618,7 @@ export const CreateQuotationFormById: React.FC<CreateQuotationFormProps> = ({
                                         )}
 
                                         {/* All Customers */}
-                                        <div className="px-2 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-400">
+                                        <div className="px-2 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-400 truncate">
                                             ALL CUSTOMERS
                                         </div>
 
@@ -605,9 +630,12 @@ export const CreateQuotationFormById: React.FC<CreateQuotationFormProps> = ({
                                             .map((customer) => (
                                                 <SelectItem
                                                     key={customer.id}
-                                                    value={customer.id} // PASTIKAN VALUE TIDAK KOSONG
+                                                    value={customer.id}
+                                                    className="text-sm"
                                                 >
-                                                    {customer.code} - {customer.name}
+                                                    <span className="truncate block">
+                                                        {customer.name}
+                                                    </span>
                                                 </SelectItem>
                                             ))
                                         }
@@ -616,16 +644,16 @@ export const CreateQuotationFormById: React.FC<CreateQuotationFormProps> = ({
 
                                 {/* Status info */}
                                 {selectedSalesOrder?.customer && (
-                                    <div className="flex items-center gap-2 text-sm">
+                                    <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
                                         {formData.customerId === selectedSalesOrder.customer.id ? (
-                                            <div className="text-green-600 dark:text-green-400 flex items-center gap-1">
-                                                <CheckCircle className="w-4 h-4" />
-                                                Using customer from Sales Order
+                                            <div className="text-green-600 dark:text-green-400 flex items-center gap-1 w-full min-w-0">
+                                                <CheckCircle className="w-3 h-3 flex-shrink-0" />
+                                                <span className="truncate">Using customer from Sales Order</span>
                                             </div>
                                         ) : (
-                                            <div className="text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                                                <AlertCircle className="w-4 h-4" />
-                                                Different customer selected
+                                            <div className="text-amber-600 dark:text-amber-400 flex items-center gap-1 w-full min-w-0">
+                                                <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                                                <span className="truncate">Different customer selected</span>
                                             </div>
                                         )}
                                     </div>
@@ -729,13 +757,13 @@ export const CreateQuotationFormById: React.FC<CreateQuotationFormProps> = ({
 
                 {/* Quotation Items Section */}
                 <Card className="bg-gradient-to-r from-primary/5 to-blue-100 dark:from-slate-800 dark:to-slate-900 border-0">
-                    <CardHeader className="border-b border-cyan-300 dark:border-gray-700 px-4">
-                        <div className="flex items-center justify-between">
+                    <CardHeader className="border-b border-cyan-300 dark:border-gray-700 px-2">
+                        <div className="items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <Package className="w-5 h-5 text-purple-600" />
-                                <CardTitle className="text-lg font-semibold">Quotation Items</CardTitle>
+                                <CardTitle className="text-sm md:text-lg font-semibold">Quotation Items</CardTitle>
                             </div>
-                            <div className="text-sm text-muted-foreground">
+                            <div className="text-sm text-muted-foreground ml-8">
                                 {isPreSelectedMode && selectedSalesOrder ? (
                                     `Items from Sales Order ${selectedSalesOrder.soNumber} (${lines.length} items)`
                                 ) : (
@@ -744,7 +772,7 @@ export const CreateQuotationFormById: React.FC<CreateQuotationFormProps> = ({
                             </div>
                         </div>
                     </CardHeader>
-                    <CardContent className="px-6 space-y-2">
+                    <CardContent className="px-0 space-y-2">
                         {/* PERBAIKAN: Debug info untuk development */}
                         {/* {process.env.NODE_ENV === 'development' && (
                             <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mb-4">
@@ -778,7 +806,7 @@ export const CreateQuotationFormById: React.FC<CreateQuotationFormProps> = ({
 
                             return (
                                 <Card key={index} className="border-2">
-                                    <CardHeader className="pb-4">
+                                    <CardHeader className="pb-1">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-3">
                                                 {getLineTypeIcon(safeLine.lineType)}
@@ -831,25 +859,49 @@ export const CreateQuotationFormById: React.FC<CreateQuotationFormProps> = ({
 
                                             {/* Product Selection */}
                                             <div className="lg:col-span-3 lg:col-start-2 space-y-2">
-                                                <Label>Product</Label>
+                                                <Label className="text-sm sm:text-base">Product</Label>
                                                 <Select
                                                     value={safeLine.productId || ""}
                                                     onValueChange={(value) => handleProductChange(index, value)}
                                                     disabled={isPreSelectedMode}
                                                 >
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Select Product" />
-                                                        {safeLine.productId && (
-                                                            <span className="text-xs text-muted-foreground ml-2">
-                                                                {products.find(p => p.id === safeLine.productId)?.code || 'Product'}
-                                                            </span>
-                                                        )}
+                                                    <SelectTrigger className="w-full min-w-0 bg-white dark:bg-gray-800">
+                                                        <div className="flex items-center justify-between w-full min-w-0 gap-2">
+                                                            <SelectValue
+                                                                placeholder="Select Product"
+                                                                className="truncate text-sm sm:text-base"
+                                                            />
+                                                            <div className="flex items-center flex-shrink-0">
+                                                                {safeLine.productId && (
+                                                                    <span className="text-xs text-muted-foreground whitespace-nowrap truncate max-w-[80px] sm:max-w-none">
+                                                                        {products.find(p => p.id === safeLine.productId)?.code || 'Product'}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
                                                     </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="no-product">Select Product</SelectItem>
+                                                    <SelectContent
+                                                        className="bg-white dark:bg-gray-800 w-[var(--radix-select-trigger-width)] max-w-[calc(100vw-2rem)]"
+                                                        position="popper"
+                                                        align="start"
+                                                    >
+                                                        <SelectItem value="no-product" className="text-sm">
+                                                            Select Product
+                                                        </SelectItem>
                                                         {products.map(product => (
-                                                            <SelectItem key={product.id} value={product.id}>
-                                                                {product.code} - {product.name} (${product.price})
+                                                            <SelectItem
+                                                                key={product.id}
+                                                                value={product.id}
+                                                                className="text-sm"
+                                                            >
+                                                                <div className="flex items-center justify-between w-full min-w-0 gap-2">
+                                                                    <span className="truncate flex-1">
+                                                                        {product.name}
+                                                                    </span>
+                                                                    <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
+                                                                        ${product.price}
+                                                                    </span>
+                                                                </div>
                                                             </SelectItem>
                                                         ))}
                                                     </SelectContent>

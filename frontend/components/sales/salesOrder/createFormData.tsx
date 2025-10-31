@@ -540,16 +540,23 @@ export function CreateSalesOrderForm({
                     return (
                       <FormItem className="flex flex-col">
                         <FormLabel>Project (Opsional)</FormLabel>
-                        <div className="flex gap-2">
-                          <ProjectCreateDialog
-                            createEndpoint={`${process.env.NEXT_PUBLIC_API_URL}/api/salesOrder/project/create`}
-                            customerId={selectedCustomerId}
-                            onCreated={(created) => {
-                              setProjectOptions((prev) => [created, ...prev]);
-                              form.setValue("projectId", created.id);
-                            }}
-                          />
-                          <FormControl>
+
+                        {/* Container utama dengan layout sejajar */}
+                        <div className="flex flex-row items-start gap-2 w-full">
+                          {/* Dialog untuk membuat project - tetap sejajar */}
+                          <div className="flex-shrink-0">
+                            <ProjectCreateDialog
+                              createEndpoint={`${process.env.NEXT_PUBLIC_API_URL}/api/salesOrder/project/create`}
+                              customerId={selectedCustomerId}
+                              onCreated={(created) => {
+                                setProjectOptions((prev) => [created, ...prev]);
+                                form.setValue("projectId", created.id);
+                              }}
+                            />
+                          </div>
+
+                          {/* Combobox untuk memilih project */}
+                          <FormControl className="flex-1 min-w-0">
                             <div className="relative w-full">
                               <Popover
                                 open={projectSearchOpen}
@@ -560,10 +567,10 @@ export function CreateSalesOrderForm({
                                     variant="outline"
                                     role="combobox"
                                     aria-expanded={projectSearchOpen}
-                                    className="w-full justify-between"
+                                    className="w-full justify-between min-w-0"
                                     disabled={disabled}
                                   >
-                                    <span className="truncate">
+                                    <span className="truncate flex-1 text-left">
                                       {field.value
                                         ? projectOptions.find(
                                           (project) => project.id === field.value
@@ -577,17 +584,25 @@ export function CreateSalesOrderForm({
                                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                   </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-full p-0">
-                                  <Command>
-                                    <div className="flex items-center border-b px-3">
+                                <PopoverContent
+                                  className="w-full p-0"
+                                  align="start"
+                                  style={{
+                                    width: "var(--radix-popover-trigger-width)",
+                                    maxWidth: "calc(100vw - 2rem)"
+                                  }}
+                                >
+                                  <Command className="w-full">
+                                    <div className="flex items-center border-b px-3 w-full">
                                       <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
                                       <CommandInput
                                         placeholder="Cari project..."
                                         value={projectSearchQuery}
                                         onValueChange={setProjectSearchQuery}
+                                        className="flex-1 w-full"
                                       />
                                     </div>
-                                    <CommandList>
+                                    <CommandList className="w-full">
                                       <CommandEmpty>
                                         {!selectedCustomerId ? (
                                           "Customer belum dipilih"
@@ -599,7 +614,7 @@ export function CreateSalesOrderForm({
                                           "Tidak ada project untuk customer ini"
                                         )}
                                       </CommandEmpty>
-                                      <CommandGroup>
+                                      <CommandGroup className="w-full">
                                         {filteredProjects.map((project) => (
                                           <CommandItem
                                             key={project.id}
@@ -609,16 +624,17 @@ export function CreateSalesOrderForm({
                                               setProjectSearchOpen(false);
                                               setProjectSearchQuery("");
                                             }}
+                                            className="truncate w-full"
                                           >
                                             <Check
                                               className={cn(
-                                                "mr-2 h-4 w-4",
+                                                "mr-2 h-4 w-4 flex-shrink-0",
                                                 field.value === project.id
                                                   ? "opacity-100"
                                                   : "opacity-0"
                                               )}
                                             />
-                                            {project.name}
+                                            <span className="truncate">{project.name}</span>
                                           </CommandItem>
                                         ))}
                                       </CommandGroup>
@@ -1070,7 +1086,7 @@ export function CreateSalesOrderForm({
                                       <span>Pajak (%)</span>
                                     </FormLabel>
                                     <FormControl>
-                                      <div className="relative w-5/6">
+                                      <div className="relative">
                                         <Percent className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                         <Input
                                           type="number"

@@ -777,106 +777,124 @@ function MobileSalesOrderCard({ order, onExpand, onDeleteSuccess, role }: { orde
                 <div className="flex flex-row-reverse items-center justify-between border-t pt-3">
                     {/* Total Amount hanya untuk admin/super */}
                     {(role === "admin" || role === "super") && (
-                        <div>
-                            <p className="text-xs text-muted-foreground">Total Amount</p>
+                        <div className="flex flex-row gap-4 mb-2">
+                            <p className="text-xs text-muted-foreground mt-1">Total Amount</p>
                             <p className="font-semibold text-green-600">Rp {formattedTotal}</p>
                         </div>
                     )}
+                </div>
 
-                    <div className="flex flex-row-reverse items-end justify-end gap-2">
+                <div className="flex flex-row-reverse items-end justify-end gap-2">
+                    <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => router.push(`/admin-area/sales/quotation/create/${order.id}`)}
+                        className="cursor-pointer hover:bg-cyan-700 dark:hover:text-white"
+                    >
+                        + PH.
+                    </Button>
+                    <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => router.push(`/admin-area/logistic/spk/create/${order.id}`)}
+                        className="cursor-pointer hover:bg-cyan-700 dark:hover:text-white ml-4"
+                    >
+                        + SPK
+                    </Button>
+
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            onExpand()
+                            toggleExpand()
+                        }}
+                        className="text-xs h-8 flex items-center gap-1.5 transition-all duration-300 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 dark:hover:from-gray-700 dark:hover:to-gray-600 hover:text-gray-900 dark:hover:text-white hover:border-gray-400 dark:hover:border-gray-500 shadow-sm hover:shadow-lg hover:scale-105"
+                    >
+                        {isExpanded ? (
+                            <>
+                                <EyeOff className="h-3 w-3" />
+                                {/* Hide */}
+                            </>
+                        ) : (
+                            <>
+                                <Eye className="h-3 w-3" />
+                                {/* View */}
+                            </>
+                        )}
+                    </Button>
+
+                    {(role === "admin" || role === "super") && (
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={(e) => {
-                                e.stopPropagation()
-                                onExpand()
-                                toggleExpand()
-                            }}
-                            className="text-xs h-8 flex items-center gap-1.5 transition-all duration-300 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 dark:hover:from-gray-700 dark:hover:to-gray-600 hover:text-gray-900 dark:hover:text-white hover:border-gray-400 dark:hover:border-gray-500 shadow-sm hover:shadow-lg hover:scale-105"
+                            onClick={handleClick}
+                            disabled={isLoading}
+                            className="h-8 flex items-center gap-1.5 transition-all duration-300 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/30 dark:hover:to-indigo-900/30 hover:shadow-md rounded-md px-3 border border-gray-300 hover:border-blue-200 dark:hover:border-blue-800"
                         >
-                            {isExpanded ? (
-                                <>
-                                    <EyeOff className="h-3 w-3" />
-                                    Hide Detail
-                                </>
+                            {isLoading ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
                             ) : (
                                 <>
-                                    <Eye className="h-3 w-3" />
-                                    View Detail
+                                    <DownloadIcon className="h-4 w-4" />
+                                    {/* <span className="text-xs">Pdf</span> */}
                                 </>
                             )}
                         </Button>
+                    )}
 
-                        {(role === "admin" || role === "super") && (
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={handleClick}
-                                disabled={isLoading}
-                                className="h-8 flex items-center gap-1.5 transition-all duration-300 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/30 dark:hover:to-indigo-900/30 hover:shadow-md rounded-md px-3 border border-transparent hover:border-blue-200 dark:hover:border-blue-800"
-                            >
-                                {isLoading ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                    <>
-                                        <DownloadIcon className="h-4 w-4" />
-                                        <span className="text-xs">Expor Pdf</span>
-                                    </>
-                                )}
-                            </Button>
-                        )}
-
-                        {/* DELETE BUTTON */}
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleDeleteClick}
-                            disabled={[
+                    {/* DELETE BUTTON */}
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleDeleteClick}
+                        disabled={[
+                            "INVOICED",
+                            "PAID",
+                            "PARTIALLY_INVOICED",
+                            "PARTIALLY_PAID",
+                        ].includes(order.status)}
+                        className={`text-xs h-8 flex items-center gap-1 transition-all duration-200
+    ${[
                                 "INVOICED",
                                 "PAID",
                                 "PARTIALLY_INVOICED",
                                 "PARTIALLY_PAID",
-                            ].includes(order.status)}
-                            className={`text-xs h-8 flex items-center gap-1 transition-all duration-200
-    ${[
-                                    "INVOICED",
-                                    "PAID",
-                                    "PARTIALLY_INVOICED",
-                                    "PARTIALLY_PAID",
-                                ].includes(order.status)
-                                    ? "border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed"
-                                    : "border-red-200 text-red-600 bg-white hover:bg-red-500 dark:hover:bg-red-500 hover:text-white hover:border-red-500 shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
-                                }`}
-                        >
-                            <Trash2 className="h-3 w-3" />
-                        </Button>
+                            ].includes(order.status)
+                                ? "border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed"
+                                : "border-red-200 text-red-600 bg-white hover:bg-red-500 dark:hover:bg-red-500 hover:text-white hover:border-red-500 shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
+                            }`}
+                    >
+                        <Trash2 className="h-3 w-3" />
+                    </Button>
 
-                        {/* EDIT BUTTON */}
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleEditOrder}
-                            disabled={[
+                    {/* EDIT BUTTON */}
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleEditOrder}
+                        disabled={[
+                            "INVOICED",
+                            "PAID",
+                            "PARTIALLY_INVOICED",
+                            "PARTIALLY_PAID",
+                        ].includes(order.status)}
+                        className={`text-xs h-8 flex items-center gap-1 transition-all duration-200
+    ${[
                                 "INVOICED",
                                 "PAID",
                                 "PARTIALLY_INVOICED",
                                 "PARTIALLY_PAID",
-                            ].includes(order.status)}
-                            className={`text-xs h-8 flex items-center gap-1 transition-all duration-200
-    ${[
-                                    "INVOICED",
-                                    "PAID",
-                                    "PARTIALLY_INVOICED",
-                                    "PARTIALLY_PAID",
-                                ].includes(order.status)
-                                    ? "border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed"
-                                    : "border-blue-200 text-blue-600 bg-white hover:bg-gradient-to-r hover:from-blue-500 hover:to-blue-600 hover:text-white hover:border-blue-500 shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
-                                }`}
-                        >
-                            <Edit className="h-3 w-3" />
-                        </Button>
-                    </div>
+                            ].includes(order.status)
+                                ? "border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed"
+                                : "border-blue-200 text-blue-600 bg-white hover:bg-gradient-to-r hover:from-blue-500 hover:to-blue-600 hover:text-white hover:border-blue-500 shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
+                            }`}
+                    >
+                        <Edit className="h-3 w-3" />
+                    </Button>
                 </div>
+
 
             </div>
 

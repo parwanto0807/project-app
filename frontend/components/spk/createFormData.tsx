@@ -56,6 +56,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { SpkApiPayload, SpkFormSchema, SpkFormValues } from "@/schemas/index";
 import { nanoid } from 'nanoid';
+import { Label } from "../ui/label";
 
 interface SalesOrder {
     id: string;
@@ -116,7 +117,7 @@ export default function CreateFormSPK({
     const router = useRouter();
 
     console.log("Role", role);
-    
+
     const allKaryawanRaw: Karyawan[] = teamData?.flatMap((team) =>
         team.karyawan?.map((anggota) => anggota.karyawan) || []
     ) || [];
@@ -273,11 +274,11 @@ export default function CreateFormSPK({
                         <ArrowLeft className="h-4 w-4" />
                     </Button>
                     <div>
-                        <CardTitle className="text-xl flex items-center">
+                        <CardTitle className="text-base md:text-xl flex items-center p-2">
                             <FileDigit className="h-6 w-6 mr-2 text-primary" />
                             Buat SPK Baru
                         </CardTitle>
-                        <CardDescription>
+                        <CardDescription className="text-xs">
                             Isi formulir berikut untuk membuat Surat Perintah Kerja baru
                         </CardDescription>
                     </div>
@@ -365,11 +366,23 @@ export default function CreateFormSPK({
                                         <SelectContent>
                                             {salesOrders.map((so) => (
                                                 <SelectItem key={so.id} value={so.id}>
-                                                    <div className="flex items-center gap-2">
+                                                    {/* Mobile: hanya soNumber */}
+                                                    <span className="flex md:hidden">
+                                                        {so.soNumber}
+                                                    </span>
+
+                                                    {/* Desktop: detail lengkap */}
+                                                    <div className="hidden md:flex items-center gap-2">
                                                         {so.status !== "DRAFT" && (
                                                             <span className="text-amber-600 text-xs font-bold">✅</span>
                                                         )}
-                                                        <span className={so.status !== "DRAFT" ? "text-amber-700 font-medium" : ""}>
+                                                        <span
+                                                            className={
+                                                                so.status !== "DRAFT"
+                                                                    ? "text-amber-700 font-medium"
+                                                                    : ""
+                                                            }
+                                                        >
                                                             {so.soNumber} - {so.customer.name}
                                                         </span>
                                                         <span className="text-muted-foreground text-xs">
@@ -377,6 +390,7 @@ export default function CreateFormSPK({
                                                         </span>
                                                     </div>
                                                 </SelectItem>
+
                                             ))}
                                         </SelectContent>
                                     </Select>
@@ -387,7 +401,7 @@ export default function CreateFormSPK({
 
                         {selectedSalesOrder && (
                             <div className="bg-muted/30 p-4 rounded-md border border-muted">
-                                <h4 className="font-medium mb-4 flex items-center text-lg">
+                                <h4 className="text-sm font-medium mb-4 flex items-center md:text-lg">
                                     <Package className="h-5 w-5 mr-2 text-amber-600" />
                                     Detail Sales Order - {selectedSalesOrder.project.name}
                                 </h4>
@@ -400,7 +414,7 @@ export default function CreateFormSPK({
                                         </span>
                                         <div>
                                             <p className="text-sm text-muted-foreground">Nomor SO</p>
-                                            <p className="font-medium">{selectedSalesOrder.soNumber}</p>
+                                            <p className="text-sm font-medium">{selectedSalesOrder.soNumber}</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center space-x-2">
@@ -409,7 +423,7 @@ export default function CreateFormSPK({
                                         </span>
                                         <div>
                                             <p className="text-sm text-muted-foreground">Customer</p>
-                                            <p className="font-medium">{selectedSalesOrder.customer.name}</p>
+                                            <p className="text-sm font-medium">{selectedSalesOrder.customer.name}</p>
                                             <p className="text-sm text-muted-foreground">Cabang : {selectedSalesOrder?.customer.branch}</p>
                                         </div>
                                     </div>
@@ -495,24 +509,24 @@ export default function CreateFormSPK({
                                     <User className="h-4 w-4 mr-2 text-green-600" />
                                     Detail Tugas
                                 </FormLabel>
-                                {/* {!selectedTeam && ( */}
-                                    <Button type="button" variant="outline" size="sm" onClick={addDetail}>
+                                {!selectedTeam && (
+                                    <Button type="button" variant="outline" size="sm" onClick={addDetail} className={!selectedTeam ? "hidden" : ""}>
                                         <Plus className="h-3.5 w-3.5 mr-1" />
                                         Tambah
                                     </Button>
-                                {/* // )} */}
+                                )}
                             </div>
 
                             {form.watch("details").length === 0 ? (
                                 <div className="text-center py-6 border border-dashed rounded-md bg-muted/40">
                                     <User className="h-8 w-8 mx-auto text-muted-foreground" />
                                     <p className="text-sm text-muted-foreground mt-1">Belum ada detail tugas</p>
-                                  {/* //  {!selectedTeam && ( */}
-                                        <Button type="button" variant="outline" size="sm" className="mt-3" onClick={addDetail}>
+                                    {!selectedTeam && (
+                                        <Button type="button" variant="outline" size="sm" className="mt-3" onClick={addDetail} hidden>
                                             <Plus className="h-3.5 w-3.5 mr-1" />
                                             Tambah Tugas
                                         </Button>
-                                  {/* //  )} */}
+                                    )}
                                 </div>
                             ) : (
                                 <div className="rounded-md border overflow-hidden">
@@ -538,85 +552,41 @@ export default function CreateFormSPK({
                                     {/* Body Tabel */}
                                     <div className="divide-y divide-muted">
                                         {form.watch("details").map((detail, index) => (
-                                            <div key={detail.id} className="grid grid-cols-12 items-center px-3 py-2 text-sm hover:bg-muted/50">
-                                                {/* Karyawan */}
-                                                <div className="col-span-4">
-                                                    <FormField
-                                                        control={form.control}
-                                                        name={`details.${index}.karyawanId`}
-                                                        render={({ field }) => (
-                                                            <FormItem className="w-full">
-                                                                <Select
-                                                                    onValueChange={field.onChange}
-                                                                    value={field.value || ""}
-                                                                >
-                                                                    <SelectTrigger className="w-full h-8 text-xs">
-                                                                        <SelectValue placeholder="Pilih..." />
-                                                                    </SelectTrigger>
-                                                                    <SelectContent>
-                                                                        {allKaryawan.map((karyawan) => (
-                                                                            <SelectItem key={karyawan.id} value={karyawan.id} className="text-xs">
-                                                                                {karyawan.namaLengkap}
-                                                                            </SelectItem>
-                                                                        ))}
-                                                                    </SelectContent>
-                                                                </Select>
-                                                                <FormMessage className="text-[10px]" />
-                                                            </FormItem>
-                                                        )}
-                                                    />
+                                            <div key={detail.id} className="block sm:grid sm:grid-cols-12 gap-3 sm:gap-0 p-3 sm:px-3 sm:py-2 text-sm hover:bg-muted/50">
+                                                {/* Header Mobile dengan tombol hapus */}
+                                                <div className="flex justify-between items-center mb-2 sm:hidden">
+                                                    <span className="text-xs font-medium text-muted-foreground">Item #{index + 1}</span>
+                                                    {!selectedTeam && (
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-6 w-6 p-0 hover:bg-red-50 hover:text-red-600"
+                                                            onClick={() => removeDetail(detail.id)}
+                                                        >
+                                                            <X className="h-3 w-3" />
+                                                        </Button>
+                                                    )}
                                                 </div>
 
-                                                {/* Lokasi */}
-                                                <div className="col-span-3">
-                                                    <FormField
-                                                        control={form.control}
-                                                        name={`details.${index}.lokasiUnit`}
-                                                        render={({ field }) => (
-                                                            <FormItem>
-                                                                <FormControl>
-                                                                    <Input
-                                                                        placeholder="Lokasi..."
-                                                                        {...field}
-                                                                        value={field.value || ""}
-                                                                        className="h-8 text-xs px-2"
-                                                                    />
-                                                                </FormControl>
-                                                                <FormMessage className="text-[10px]" />
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                </div>
-
-                                                {/* Item SO (jika ada) */}
-                                                {selectedSalesOrder && (
-                                                    <div className="col-span-4">
+                                                {/* Grid untuk form fields */}
+                                                <div className="space-y-2 sm:space-y-0 sm:contents">
+                                                    {/* Karyawan */}
+                                                    <div className="sm:col-span-4">
                                                         <FormField
                                                             control={form.control}
-                                                            name={`details.${index}.salesOrderItemId`}
+                                                            name={`details.${index}.karyawanId`}
                                                             render={({ field }) => (
                                                                 <FormItem>
-                                                                    <Select
-                                                                        onValueChange={field.onChange}
-                                                                        value={field.value || ""} // <-- "" = "All Item"
-                                                                    >
+                                                                    <Label className="text-xs hidden sm:block">Karyawan</Label>
+                                                                    <Select onValueChange={field.onChange} value={field.value || ""}>
                                                                         <SelectTrigger className="w-full h-8 text-xs">
-                                                                            {field.value === "__all__" ? (
-                                                                                <span className="text-blue-600 font-medium truncate">
-                                                                                    📦 All Item Sales Order
-                                                                                </span>
-                                                                            ) : (
-                                                                                <SelectValue placeholder="Pilih item SO..." />
-                                                                            )}
+                                                                            <SelectValue placeholder="Pilih karyawan..." />
                                                                         </SelectTrigger>
                                                                         <SelectContent>
-                                                                            {/* Opsi "All Item" — GUNAKAN VALUE KHUSUS, BUKAN STRING KOSONG */}
-                                                                            <SelectItem value="__all__" className="text-xs font-medium text-blue-600">
-                                                                                📦 All Item Sales Order
-                                                                            </SelectItem>
-                                                                            {selectedSalesOrder.items.map((item) => (
-                                                                                <SelectItem key={item.id} value={item.id} className="text-xs">
-                                                                                    {item.product.name} ({item.qty} {item.uom})
+                                                                            {allKaryawan.map((karyawan) => (
+                                                                                <SelectItem key={karyawan.id} value={karyawan.id} className="text-xs">
+                                                                                    {karyawan.namaLengkap}
                                                                                 </SelectItem>
                                                                             ))}
                                                                         </SelectContent>
@@ -626,21 +596,80 @@ export default function CreateFormSPK({
                                                             )}
                                                         />
                                                     </div>
-                                                )}
 
-                                                {/* Tombol Hapus */}
-                                                <div className="col-span-1 flex justify-end">
-                                                    {!selectedTeam && (
-                                                        <Button
-                                                            type="button"
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600"
-                                                            onClick={() => removeDetail(detail.id)}
-                                                        >
-                                                            <X className="h-3.5 w-3.5" />
-                                                        </Button>
+                                                    {/* Lokasi */}
+                                                    <div className="sm:col-span-3">
+                                                        <FormField
+                                                            control={form.control}
+                                                            name={`details.${index}.lokasiUnit`}
+                                                            render={({ field }) => (
+                                                                <FormItem>
+                                                                    <Label className="text-xs hidden sm:block">Lokasi</Label>
+                                                                    <FormControl>
+                                                                        <Input
+                                                                            placeholder="Lokasi unit..."
+                                                                            {...field}
+                                                                            value={field.value || ""}
+                                                                            className="h-8 text-xs"
+                                                                        />
+                                                                    </FormControl>
+                                                                    <FormMessage className="text-[10px]" />
+                                                                </FormItem>
+                                                            )}
+                                                        />
+                                                    </div>
+
+                                                    {/* Item SO */}
+                                                    {selectedSalesOrder && (
+                                                        <div className="sm:col-span-4">
+                                                            <FormField
+                                                                control={form.control}
+                                                                name={`details.${index}.salesOrderItemId`}
+                                                                render={({ field }) => (
+                                                                    <FormItem>
+                                                                        <Label className="text-xs hidden sm:block">Item SO</Label>
+                                                                        <Select onValueChange={field.onChange} value={field.value || ""}>
+                                                                            <SelectTrigger className="w-full h-8 text-xs">
+                                                                                {field.value === "__all__" ? (
+                                                                                    <span className="text-blue-600 font-medium truncate text-xs">
+                                                                                        📦 All Items
+                                                                                    </span>
+                                                                                ) : (
+                                                                                    <SelectValue placeholder="Pilih item..." />
+                                                                                )}
+                                                                            </SelectTrigger>
+                                                                            <SelectContent>
+                                                                                <SelectItem value="__all__" className="text-xs font-medium text-blue-600">
+                                                                                    📦 All Item Sales Order
+                                                                                </SelectItem>
+                                                                                {selectedSalesOrder.items.map((item) => (
+                                                                                    <SelectItem key={item.id} value={item.id} className="text-xs">
+                                                                                        {item.product.name} ({item.qty} {item.uom})
+                                                                                    </SelectItem>
+                                                                                ))}
+                                                                            </SelectContent>
+                                                                        </Select>
+                                                                        <FormMessage className="text-[10px]" />
+                                                                    </FormItem>
+                                                                )}
+                                                            />
+                                                        </div>
                                                     )}
+
+                                                    {/* Tombol Hapus - Desktop */}
+                                                    <div className="hidden sm:flex sm:col-span-1 justify-center items-center">
+                                                        {!selectedTeam && (
+                                                            <Button
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600"
+                                                                onClick={() => removeDetail(detail.id)}
+                                                            >
+                                                                <X className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         ))}
