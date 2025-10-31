@@ -791,15 +791,15 @@ function MobileSalesOrderCard({ order, onExpand, onDeleteSuccess, role }: { orde
                         onClick={() => router.push(`/admin-area/sales/quotation/create/${order.id}`)}
                         className="cursor-pointer hover:bg-cyan-700 dark:hover:text-white"
                     >
-                        + PH.
+                        ➕PH.
                     </Button>
                     <Button
                         variant="default"
                         size="sm"
                         onClick={() => router.push(`/admin-area/logistic/spk/create/${order.id}`)}
-                        className="cursor-pointer hover:bg-cyan-700 dark:hover:text-white ml-4"
+                        className="cursor-pointer hover:bg-cyan-700 dark:hover:text-white"
                     >
-                        + SPK
+                        ➕SPK
                     </Button>
 
                     <Button
