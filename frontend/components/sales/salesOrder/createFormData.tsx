@@ -846,15 +846,18 @@ export function CreateSalesOrderForm({
                                           <Button
                                             variant="outline"
                                             role="combobox"
-                                            className="max-w-4/5 justify-between"
+                                            className="w-full sm:max-w-4/5 overflow-hidden truncate text-left justify-between"
                                           >
-                                            {field.value
-                                              ? optionsForType.find((opt) => opt.id === field.value)?.name
-                                              : `Pilih ${itemType === "PRODUCT" ? "produk" : "service / jasa"}`}
+                                            <span className="truncate block">
+                                              {field.value
+                                                ? optionsForType.find((opt) => opt.id === field.value)?.name
+                                                : `Pilih ${itemType === "PRODUCT" ? "produk" : "service / jasa"}`}
+                                            </span>
                                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                           </Button>
                                         </FormControl>
                                       </PopoverTrigger>
+
                                       <PopoverContent className="w-full p-0">
                                         <Command>
                                           <div className="flex items-center border-b px-3">
