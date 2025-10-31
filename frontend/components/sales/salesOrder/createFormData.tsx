@@ -443,11 +443,13 @@ export function CreateSalesOrderForm({
                   control={form.control}
                   name="customerId"
                   render={({ field }) => (
-                    <FormItem>
+                    // pastikan FormItem punya min-w-0 agar flex children bisa mengecil
+                    <FormItem className="min-w-0">
                       <FormLabel>Customer</FormLabel>
-                      <div className="flex gap-2">
+
+                      {/* Parent flex harus min-w-0 dan w-full */}
+                      <div className="flex gap-2 min-w-0 w-full items-stretch">
                         <CustomerCreateDialog
-                          // ...props CustomerCreateDialog Anda...
                           createEndpoint={`${process.env.NEXT_PUBLIC_API_URL}/api/master/customer/createCustomer`}
                           onCreated={async (created) => {
                             setCustomerOptions((prev) => [created, ...prev]);
@@ -455,9 +457,7 @@ export function CreateSalesOrderForm({
                             form.setValue("projectId", "");
                             setLoadingProjects(true);
                             try {
-                              const response = await fetchAllProjects({
-                                customerId: created.id,
-                              });
+                              const response = await fetchAllProjects({ customerId: created.id });
                               setProjectOptions(
                                 response.data.map((p: { id: string; name: string }) => ({
                                   id: p.id,
@@ -469,12 +469,15 @@ export function CreateSalesOrderForm({
                             }
                           }}
                         />
+
+                        {/* Wrapper yang relative + flex-1 + min-w-0 */}
                         <FormControl>
-                          {/* PERBAIKAN UTAMA DI SINI: 
-              Hapus "w-full" dan biarkan "flex-1" saja.
-            */}
-                          <div className="relative flex-1">
-                            <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <div className="relative flex-1 min-w-0">
+                            {/* Icon absolute di wrapper */}
+                            <Building
+                              className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none"
+                            />
+
                             <Select
                               value={field.value}
                               onValueChange={async (id) => {
@@ -482,9 +485,7 @@ export function CreateSalesOrderForm({
                                 form.setValue("projectId", "");
                                 setLoadingProjects(true);
                                 try {
-                                  const response = await fetchAllProjects({
-                                    customerId: id,
-                                  });
+                                  const response = await fetchAllProjects({ customerId: id });
                                   setProjectOptions(
                                     response.data.map((p: { id: string; name: string }) => ({
                                       id: p.id,
@@ -496,12 +497,12 @@ export function CreateSalesOrderForm({
                                 }
                               }}
                             >
-                              {/* Ini sudah benar */}
-                              <SelectTrigger className="w-full pl-9 overflow-hidden">
-                                <span className="truncate block">
-                                  <SelectValue placeholder="Pilih customer..." />
-                                </span>
+                              {/* Trigger full width; pl-9 untuk ruang icon */}
+                              <SelectTrigger className="w-full pl-9">
+                                {/* SelectValue harus menerima truncate */}
+                                <SelectValue className="block truncate" placeholder="Pilih customer..." />
                               </SelectTrigger>
+
                               <SelectContent>
                                 {customerOptions.map((c) => (
                                   <SelectItem key={c.id} value={c.id}>
@@ -513,11 +514,13 @@ export function CreateSalesOrderForm({
                           </div>
                         </FormControl>
                       </div>
+
                       <FormMessage />
                     </FormItem>
                   )}
                 />
               </div>
+
 
               {/* Project */}
               <div className="md:col-span-2">
@@ -799,7 +802,6 @@ export function CreateSalesOrderForm({
                       </div>
 
                       {/* Pemilihan dari katalog (tampil untuk PRODUCT & SERVICE) */}
-                      {/* Kolom productId / name */}
                       <div className="md:col-span-3">
                         {isCatalogItem ? (
                           // === PRODUCT & SERVICE ===
@@ -814,7 +816,7 @@ export function CreateSalesOrderForm({
                               return (
                                 <FormItem className="w-full">
                                   <FormLabel>{itemType === "PRODUCT" ? "Produk" : "Jasa"}</FormLabel>
-                                  <div className="flex items-center gap-4">
+                                  <div className="flex items-center gap-4 min-w-0 w-full">
                                     {["PRODUCT", "SERVICE"].includes(itemType ?? "") && (
                                       <ProductCreateDialog
                                         createEndpoint={`${process.env.NEXT_PUBLIC_API_URL}/api/master/product/createProduct`}
@@ -846,8 +848,9 @@ export function CreateSalesOrderForm({
                                           <Button
                                             variant="outline"
                                             role="combobox"
-                                            className="w-full sm:max-w-4/5 overflow-hidden truncate text-left justify-between"
+                                            className="flex-1 overflow-hidden truncate text-left justify-between"
                                           >
+
                                             <span className="truncate block">
                                               {field.value
                                                 ? optionsForType.find((opt) => opt.id === field.value)?.name
