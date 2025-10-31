@@ -447,6 +447,7 @@ export function CreateSalesOrderForm({
                       <FormLabel>Customer</FormLabel>
                       <div className="flex gap-2">
                         <CustomerCreateDialog
+                          // ...props CustomerCreateDialog Anda...
                           createEndpoint={`${process.env.NEXT_PUBLIC_API_URL}/api/master/customer/createCustomer`}
                           onCreated={async (created) => {
                             setCustomerOptions((prev) => [created, ...prev]);
@@ -457,11 +458,10 @@ export function CreateSalesOrderForm({
                               const response = await fetchAllProjects({
                                 customerId: created.id,
                               });
-                              // Akses data dari response.data, bukan langsung projects
                               setProjectOptions(
                                 response.data.map((p: { id: string; name: string }) => ({
                                   id: p.id,
-                                  name: p.name
+                                  name: p.name,
                                 }))
                               );
                             } finally {
@@ -470,7 +470,10 @@ export function CreateSalesOrderForm({
                           }}
                         />
                         <FormControl>
-                          <div className="relative w-full">
+                          {/* PERBAIKAN UTAMA DI SINI: 
+              Hapus "w-full" dan biarkan "flex-1" saja.
+            */}
+                          <div className="relative flex-1">
                             <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Select
                               value={field.value}
@@ -482,11 +485,10 @@ export function CreateSalesOrderForm({
                                   const response = await fetchAllProjects({
                                     customerId: id,
                                   });
-                                  // Akses data dari response.data, bukan response.projects
                                   setProjectOptions(
                                     response.data.map((p: { id: string; name: string }) => ({
                                       id: p.id,
-                                      name: p.name
+                                      name: p.name,
                                     }))
                                   );
                                 } finally {
@@ -494,8 +496,11 @@ export function CreateSalesOrderForm({
                                 }
                               }}
                             >
-                              <SelectTrigger className="pl-9">
-                                <SelectValue placeholder="Pilih customer..." />
+                              {/* Ini sudah benar */}
+                              <SelectTrigger className="w-full pl-9 overflow-hidden">
+                                <span className="truncate block">
+                                  <SelectValue placeholder="Pilih customer..." />
+                                </span>
                               </SelectTrigger>
                               <SelectContent>
                                 {customerOptions.map((c) => (
@@ -555,15 +560,17 @@ export function CreateSalesOrderForm({
                                     className="w-full justify-between"
                                     disabled={disabled}
                                   >
-                                    {field.value
-                                      ? projectOptions.find(
-                                        (project) => project.id === field.value
-                                      )?.name
-                                      : !selectedCustomerId
-                                        ? "Pilih customer dulu"
-                                        : loadingProjects
-                                          ? "Memuat project…"
-                                          : "Pilih project..."}
+                                    <span className="truncate">
+                                      {field.value
+                                        ? projectOptions.find(
+                                          (project) => project.id === field.value
+                                        )?.name
+                                        : !selectedCustomerId
+                                          ? "Pilih customer dulu"
+                                          : loadingProjects
+                                            ? "Memuat project…"
+                                            : "Pilih project..."}
+                                    </span>
                                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                   </Button>
                                 </PopoverTrigger>
