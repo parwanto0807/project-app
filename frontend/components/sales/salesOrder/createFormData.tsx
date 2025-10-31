@@ -373,7 +373,7 @@ export function CreateSalesOrderForm({
                 Informasi dasar mengenai sales order
               </CardDescription>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-5 bg-gradient-to-r from-primary/5 to-blue-100 dark:from-slate-800 dark:to-slate-900 space-y-3 p-6 m-4 rounded-xl">
+            <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-5 bg-gradient-to-r from-primary/5 to-blue-100 dark:from-slate-800 dark:to-slate-900 space-y-3 p-2 m-2 rounded-xl">
               {/* Nomor SO & Tanggal */}
               <div className="grid grid-cols-1 gap-4 md:col-span-2 md:grid-cols-2 ">
                 <div>
@@ -713,7 +713,7 @@ export function CreateSalesOrderForm({
                 )}
               </div>
             </CardHeader>
-            <CardContent className="bg-gradient-to-r from-primary/5 to-blue-100 dark:from-slate-800 dark:to-slate-900 space-y-3 p-4 m-4 rounded-xl">
+            <CardContent className="bg-gradient-to-r from-primary/5 to-blue-100 dark:from-slate-800 dark:to-slate-900 space-y-2 p-2 m-0 rounded-xl">
               {fields.map((row, index) => {
                 const itemType = form.watch(`items.${index}.itemType`);
                 const isProduct = itemType === "PRODUCT";
@@ -737,7 +737,7 @@ export function CreateSalesOrderForm({
                 return (
                   <div
                     key={row.id}
-                    className="flex flex-col gap-4 p-4 border rounded-lg bg-muted/30"
+                    className="flex flex-col gap-4 p-2 border rounded-lg bg-muted/30"
                     aria-label={`Item ${index + 1}`}
                   >
                     <div className="grid grid-cols-1 md:grid-cols-14 gap-4">
