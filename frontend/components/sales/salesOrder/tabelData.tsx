@@ -770,7 +770,7 @@ function MobileSalesOrderCard({ order, onExpand, onDeleteSuccess, role }: { orde
                     </div>
                     <div className="flex items-center gap-2">
                         <UserCheck2Icon className="h-4 w-4 text-purple-500" />
-                        <span className="text-xs">{order.customer.name} </span>
+                        <span className="text-xs">{order.customer.name} - {order.customer.branch}</span>
                     </div>
                 </div>
 
