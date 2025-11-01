@@ -775,7 +775,7 @@ const FormMonitoringProgressSpkByID = ({ dataSpk, isLoading, role, userId }: For
                                                                                             <ChevronsRight key={index} className="h-4.5 w-4.5 text-purple-600" />
                                                                                         ))}
 
-                                                                                    <span className="text-sm font-semibold mx-2">{itemName}</span>
+                                                                                    <span className="text-xs md:text-sm font-semibold mx-2">{itemName}</span>
                                                                                     <span className="text-muted-foreground/70">
                                                                                         ({itemGroups[itemName].length} laporan)
                                                                                     </span>
