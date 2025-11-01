@@ -1547,7 +1547,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
     const StatusFilterDropdown = () => (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="flex items-center gap-2 text-white bg-transparent dark:hover:bg-slate-800 hover:bg-slate-100">
+                <Button variant="outline" className="flex items-center gap-2 text-black dark:text-white bg-transparent dark:hover:bg-slate-800 hover:bg-slate-100">
                     <Filter className="h-4 w-4" />
                     {statusFilter === "ALL" ? "All Status" : statusConfig[statusFilter]?.label}
                     <ChevronDown className="h-4 w-4" />

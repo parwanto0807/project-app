@@ -516,7 +516,7 @@ export default function TabelDataSpk({
                                         <Badge variant="secondary" className="font-medium bg-primary/10 text-primary">
                                             #{(currentPage - 1) * itemsPerPage + idx + 1}
                                         </Badge>
-                                        <h3 className="font-bold text-lg text-gray-900 dark:text-white">{spk.spkNumber}</h3>
+                                        <h3 className="font-bold text-xs md:text-lg text-gray-900 dark:text-white">{spk.spkNumber}</h3>
                                     </div>
                                     <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
                                         <Calendar className="h-4 w-4 mr-1" />
@@ -527,41 +527,6 @@ export default function TabelDataSpk({
                                         })}
                                     </div>
                                 </div>
-                                <div className="flex gap-1">
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => toggleRow(spk.id)}
-                                        className="h-8 w-8 p-0 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700"
-                                    >
-                                        {isExpanded ? (
-                                            <ChevronUp className="h-4 w-4" />
-                                        ) : (
-                                            <ChevronDown className="h-4 w-4" />
-                                        )}
-                                    </Button>
-                                    {role === "admin" && (
-                                        <>
-                                            <Link href={`${basePath}/update/${spk.id}`}>
-                                                <Button size="sm" variant="secondary" className="h-8 w-8 p-0 rounded-full">
-                                                    <Edit className="h-4 w-4" />
-                                                </Button>
-                                            </Link>
-                                            <Button
-                                                size="sm"
-                                                variant="destructive"
-                                                className="h-8 w-8 p-0 rounded-full"
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    handleDelete(spk.id);
-                                                }}
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </>
-                                    )}
-                                </div>
                             </div>
 
                             {/* Informasi Utama */}
@@ -569,7 +534,7 @@ export default function TabelDataSpk({
                                 <div className="flex items-center text-sm">
                                     <FileText className="h-4 w-4 mr-2 text-blue-600" />
                                     <span className="font-medium">SO:</span>
-                                    <span className="ml-1 text-gray-700 dark:text-gray-300">{spk.salesOrder?.soNumber || "-"}</span>
+                                    <span className="ml-1 text-xs text-gray-700 dark:text-gray-300">{spk.salesOrder?.soNumber || "-"}</span>
                                 </div>
 
                                 <div className="flex items-center gap-2">
@@ -607,7 +572,7 @@ export default function TabelDataSpk({
 
                                 <div className="flex items-center text-sm">
                                     <User className="h-4 w-4 mr-2 text-purple-600" />
-                                    <span className="font-medium">Pembuat:</span>
+                                    <span className="font-medium">Pemberi Tugas :</span>
                                     <span className="ml-1 text-gray-700 dark:text-gray-300">{spk.createdBy?.namaLengkap || "-"}</span>
                                 </div>
 
@@ -629,25 +594,111 @@ export default function TabelDataSpk({
                                 )}
                             </div>
 
+                            <div className="flex flex-row-reverse gap-2 mt-4">
+                                {/* Toggle Expand Button */}
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => toggleRow(spk.id)}
+                                    className="
+      h-8 w-8 p-0 rounded-full
+      border border-gray-300 dark:border-gray-600
+      bg-white hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700
+      text-gray-700 dark:text-gray-300
+      transition-all duration-200
+      shadow-sm hover:shadow-md
+    "
+                                >
+                                    {isExpanded ? (
+                                        <ChevronUp className="h-4 w-4" />
+                                    ) : (
+                                        <ChevronDown className="h-4 w-4" />
+                                    )}
+                                </Button>
+
+                                {role === "admin" && (
+                                    <>
+                                        {/* Edit Button */}
+                                        <Link href={`${basePath}/update/${spk.id}`}>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="
+            h-8 w-8 p-0 rounded-full
+            border border-blue-300 dark:border-blue-600
+            bg-white hover:bg-blue-50 dark:bg-gray-800 dark:hover:bg-blue-900/20
+            text-blue-600 dark:text-blue-400
+            transition-all duration-200
+            shadow-sm hover:shadow-md
+          "
+                                            >
+                                                <Edit className="h-4 w-4" />
+                                            </Button>
+                                        </Link>
+
+                                        {/* Delete Button */}
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="
+          h-8 w-8 p-0 rounded-full
+          border border-red-300 dark:border-red-600
+          bg-white hover:bg-red-50 dark:bg-gray-800 dark:hover:bg-red-900/20
+          text-red-600 dark:text-red-400
+          transition-all duration-200
+          shadow-sm hover:shadow-md
+        "
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                handleDelete(spk.id);
+                                            }}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </>
+                                )}
+                            </div>
+
                             {/* PDF Actions for Mobile - Tetap seperti semanya */}
                             <div className="flex gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                                 <Button
                                     size="sm"
                                     variant="outline"
-                                    className="flex-1 bg-white hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700"
+                                    className="
+      h-9 px-4 rounded-lg
+      flex items-center gap-2
+      border border-gray-300 dark:border-gray-600
+      text-gray-700 dark:text-gray-300
+      hover:bg-gray-50 dark:hover:bg-gray-800
+      transition-all duration-200
+      flex-1
+    "
                                     onClick={() => pdfActions.handlePreview(spkPdfData)}
                                 >
-                                    <Eye className="h-4 w-4 mr-1" />
-                                    Preview
+                                    <Eye className="h-4 w-4" />
+                                    <span className="text-sm font-medium">
+                                        Preview
+                                    </span>
                                 </Button>
                                 <Button
                                     size="sm"
                                     variant="outline"
-                                    className="flex-1 bg-white hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700"
-                                    onClick={() => pdfActions.handleDownloadPdf(spkPdfData)}
+                                    className="
+      h-9 px-4 rounded-lg
+      flex items-center gap-2
+      border border-blue-300 dark:border-blue-700
+      text-blue-700 dark:text-blue-300
+      hover:bg-blue-50 dark:hover:bg-blue-900/20
+      transition-all duration-200
+      flex-1
+    "
+                                    onClick={() => router.push(`${basePath}/spkReportDetail/${spk.id}`)}
                                 >
-                                    <Download className="h-4 w-4 mr-1" />
-                                    Download
+                                    <BarChart2 className="h-4 w-4" />
+                                    <span className="text-sm font-medium">
+                                        Monitoring Progress
+                                    </span>
                                 </Button>
                             </div>
                         </CardContent>
