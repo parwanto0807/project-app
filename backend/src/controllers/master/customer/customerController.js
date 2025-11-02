@@ -110,7 +110,7 @@ export const updateCustomer = async (req, res) => {
       const target = error.meta.target;
       return res
         .status(400)
-        .json({ message: `Duplicate pada field: ${target}` });
+        .json({ message: `Duplicate pada field : ${target}` });
     }
     res.status(500).json({ message: "Gagal memperbarui customer" });
   }

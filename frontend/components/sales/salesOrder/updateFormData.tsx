@@ -169,7 +169,7 @@ export function UpdateSalesOrderForm({
             notes: salesOrder.notes || null,
             isTaxInclusive: salesOrder.isTaxInclusive || false,
             items: salesOrder.items.map(item => ({
-                id: item.id,
+                id: item.id, // Pastikan ID item juga disertakan
                 itemType: item.itemType || "PRODUCT",
                 productId: item.productId || null,
                 name: item.name || "",
@@ -338,7 +338,14 @@ export function UpdateSalesOrderForm({
                     return;
                 }
 
-                const cleanedData = salesOrderUpdateSchema.parse(data);
+                // Sertakan ID sales order dalam data yang akan dikirim
+                const updateData = {
+                    ...data,
+                    id: salesOrder.id, // Tambahkan ID sales order
+                };
+                console.log("DATA DIKIRIM", data)
+
+                const cleanedData = salesOrderUpdateSchema.parse(updateData);
                 const result = await updateSalesOrderAPI(salesOrder.id, cleanedData);
 
                 if (result.error) {
@@ -668,7 +675,7 @@ export function UpdateSalesOrderForm({
                                     </CardDescription>
                                 </div>
                                 {!canSeePrice && (
-                                    <div className="flex items-center gap-2 text-sm text-muted-foreground" hidden>
+                                    <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground" hidden>
                                         <EyeOff className="h-4 w-4" />
                                         <span>Informasi harga disembunyikan</span>
                                     </div>
@@ -702,6 +709,8 @@ export function UpdateSalesOrderForm({
                                         className="flex flex-col gap-4 p-4 border rounded-lg bg-muted/30"
                                         aria-label={`Item ${index + 1}`}
                                     >
+                                        <input type="hidden" {...form.register(`items.${index}.id`)} />
+
                                         <div className="grid grid-cols-1 md:grid-cols-14 gap-4">
                                             <div className="grid gap-1">
                                                 {/* Label tipe item */}
@@ -710,7 +719,7 @@ export function UpdateSalesOrderForm({
                                                 </span>
                                                 {/* 🔢 Item Number Badge */}
                                                 <span
-                                                    className={`inline-flex h-7 items-center rounded px-3 text-sm font-semibold ${badgeColor}`}
+                                                    className={`inline-flex h-7 items-center rounded px-3 text-xs md:text-sm font-semibold ${badgeColor}`}
                                                 >
                                                     Item {itemNo}
                                                 </span>
@@ -766,7 +775,6 @@ export function UpdateSalesOrderForm({
                                             {/* Pemilihan dari katalog (tampil untuk PRODUCT & SERVICE) */}
                                             <div className="md:col-span-3">
                                                 {isCatalogItem ? (
-                                                    // === PRODUCT & SERVICE ===
                                                     <FormField
                                                         control={form.control}
                                                         name={`items.${index}.productId`}
@@ -778,7 +786,8 @@ export function UpdateSalesOrderForm({
                                                             return (
                                                                 <FormItem className="w-full">
                                                                     <FormLabel>{itemType === "PRODUCT" ? "Produk" : "Jasa"}</FormLabel>
-                                                                    <div className="flex items-center gap-4">
+                                                                    <div className="flex items-center gap-2 w-full">
+
                                                                         {["PRODUCT", "SERVICE"].includes(itemType ?? "") && (
                                                                             <ProductCreateDialog
                                                                                 createEndpoint={`${process.env.NEXT_PUBLIC_API_URL}/api/master/product/createProduct`}
@@ -796,6 +805,7 @@ export function UpdateSalesOrderForm({
                                                                                 }}
                                                                             />
                                                                         )}
+
                                                                         <Popover
                                                                             open={itemState.productSearchOpen}
                                                                             onOpenChange={(open) =>
@@ -810,16 +820,21 @@ export function UpdateSalesOrderForm({
                                                                                     <Button
                                                                                         variant="outline"
                                                                                         role="combobox"
-                                                                                        className="max-w-4/5 justify-between"
+                                                                                        className="w-full justify-between overflow-hidden text-ellipsis whitespace-nowrap"
                                                                                     >
                                                                                         {field.value
-                                                                                            ? optionsForType.find((opt) => opt.id === field.value)?.name
+                                                                                            ? (
+                                                                                                <span className="truncate max-w-[85%]">
+                                                                                                    {optionsForType.find((opt) => opt.id === field.value)?.name}
+                                                                                                </span>
+                                                                                            )
                                                                                             : `Pilih ${itemType === "PRODUCT" ? "produk" : "service / jasa"}`}
                                                                                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                                                                     </Button>
                                                                                 </FormControl>
                                                                             </PopoverTrigger>
-                                                                            <PopoverContent className="w-full p-0">
+
+                                                                            <PopoverContent className="w-[90vw] sm:w-80 p-0">
                                                                                 <Command>
                                                                                     <div className="flex items-center border-b px-3">
                                                                                         <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
@@ -831,11 +846,10 @@ export function UpdateSalesOrderForm({
                                                                                             }
                                                                                         />
                                                                                     </div>
+
                                                                                     <CommandList>
                                                                                         <CommandEmpty>
-                                                                                            {itemState.productSearchQuery
-                                                                                                ? "Tidak ditemukan"
-                                                                                                : "Tidak ada data"}
+                                                                                            {itemState.productSearchQuery ? "Tidak ditemukan" : "Tidak ada data"}
                                                                                         </CommandEmpty>
                                                                                         <CommandGroup>
                                                                                             {filteredOptions.map((opt) => (
@@ -854,12 +868,12 @@ export function UpdateSalesOrderForm({
                                                                                                     <Check
                                                                                                         className={cn(
                                                                                                             "mr-2 h-4 w-4",
-                                                                                                            field.value === opt.id
-                                                                                                                ? "opacity-100"
-                                                                                                                : "opacity-0"
+                                                                                                            field.value === opt.id ? "opacity-100" : "opacity-0"
                                                                                                         )}
                                                                                                     />
-                                                                                                    {opt.name}
+
+                                                                                                    {/* ✅ pastikan nama panjang tidak overflow */}
+                                                                                                    <span className="truncate">{opt.name}</span>
                                                                                                 </CommandItem>
                                                                                             ))}
                                                                                         </CommandGroup>
@@ -867,6 +881,7 @@ export function UpdateSalesOrderForm({
                                                                                 </Command>
                                                                             </PopoverContent>
                                                                         </Popover>
+
                                                                     </div>
                                                                     <FormMessage />
                                                                 </FormItem>
@@ -874,7 +889,6 @@ export function UpdateSalesOrderForm({
                                                         }}
                                                     />
                                                 ) : (
-                                                    // === CUSTOM ===
                                                     <FormField
                                                         control={form.control}
                                                         name={`items.${index}.name`}
@@ -882,7 +896,12 @@ export function UpdateSalesOrderForm({
                                                             <FormItem>
                                                                 <FormLabel>Nama Item</FormLabel>
                                                                 <FormControl>
-                                                                    <Input placeholder="Nama item/jasa..." {...field} value={field.value ?? ""} />
+                                                                    <Input
+                                                                        placeholder="Nama item/jasa..."
+                                                                        {...field}
+                                                                        value={field.value ?? ""}
+                                                                        className="w-full truncate"
+                                                                    />
                                                                 </FormControl>
                                                                 <FormMessage />
                                                             </FormItem>
@@ -890,6 +909,7 @@ export function UpdateSalesOrderForm({
                                                     />
                                                 )}
                                             </div>
+
 
                                             <div className="md:col-span-1 md:col-start-7">
                                                 <FormField
@@ -954,7 +974,7 @@ export function UpdateSalesOrderForm({
                                                                         <FormControl>
                                                                             <div className="relative">
                                                                                 <span
-                                                                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"
+                                                                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-xs md:text-sm text-muted-foreground"
                                                                                     aria-hidden="true"
                                                                                 >
                                                                                     Rp
@@ -1073,7 +1093,7 @@ export function UpdateSalesOrderForm({
                                                 <div className="md:col-span-6 flex items-center justify-center">
                                                     <div className="text-center text-muted-foreground" hidden>
                                                         <EyeOff className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                                        <p className="text-sm">Informasi harga hanya tersedia untuk admin</p>
+                                                        <p className="text-xs md:text-sm">Informasi harga hanya tersedia untuk admin</p>
                                                     </div>
                                                     <div className="pt-6">
                                                         <Button
@@ -1116,30 +1136,12 @@ export function UpdateSalesOrderForm({
                                                     )}
                                                 />
                                             </div>
-
-                                            {/* Delete Button */}
-                                            {/* <div className="md:col-span-1 md:col-start-12 pt-5">
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="text-white-600 hover:text-red-400 shadow-sm transition-colors"
-                                                    onClick={() => {
-                                                        remove(index);
-                                                        removeItemState(index);
-                                                    }}
-                                                    disabled={fields.length <= 1}
-                                                >
-                                                    <Trash2 className="h-4 w-4 mr-2 text-red-400" />
-                                                    Hapus
-                                                </Button>
-                                            </div> */}
                                         </div>
                                     </div>
                                 )
                             })}
                             {form.formState.errors.items?.message && (
-                                <p className="text-sm font-medium text-destructive">
+                                <p className="text-xs md:text-sm font-medium text-destructive">
                                     {form.formState.errors.items.message}
                                 </p>
                             )}

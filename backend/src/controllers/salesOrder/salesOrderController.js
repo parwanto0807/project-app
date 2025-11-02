@@ -453,19 +453,19 @@ export const updateWithItems = async (req, res) => {
       items,
     } = req.body || {};
 
-    // --- guard ---
     if (!id) return res.status(400).json({ message: "Missing SalesOrder id." });
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ message: "Minimal 1 item diperlukan." });
     }
 
-    // helper angka
+    // helper
     const toNum = (v) =>
       v === null || v === undefined || v === "" ? NaN : Number(v);
     const bad = (v) => Number.isNaN(v) || v === null || v === undefined;
 
-    // --- normalisasi items ---
+    // --- NORMALISASI ITEMS ---
     const normalized = [];
+
     for (let idx = 0; idx < items.length; idx++) {
       const it = items[idx] || {};
       const rawType =
@@ -473,24 +473,26 @@ export const updateWithItems = async (req, res) => {
       const itemType =
         rawType === "SERVICE" || rawType === "CUSTOM" ? rawType : "PRODUCT";
 
-      // ✅ PERBAIKAN: PRODUCT & SERVICE ⇒ productId wajib
+      // productId wajib untuk PRODUCT dan SERVICE
       if ((itemType === "PRODUCT" || itemType === "SERVICE") && !it.productId) {
         return res.status(400).json({
           message: `productId wajib untuk item ${itemType}.`,
         });
       }
 
-      // ✅ PERBAIKAN: Snapshot untuk PRODUCT dan SERVICE
       let name = it.name;
       let uom = it.uom ?? null;
+
       if (
         (itemType === "PRODUCT" || itemType === "SERVICE") &&
         (!name || !uom)
       ) {
+        // snapshot nama + uom
         const productOrService = await prisma.product.findUnique({
           where: { id: it.productId },
           select: { name: true, uom: true },
         });
+
         if (!productOrService) {
           return res.status(400).json({
             message: `${
@@ -498,18 +500,17 @@ export const updateWithItems = async (req, res) => {
             } tidak ditemukan: ${it.productId}`,
           });
         }
+
         name = name || productOrService.name;
         uom = uom || productOrService.uom || null;
       }
 
-      // Validasi name wajib untuk semua item
       if (!name || String(name).trim() === "") {
         return res
           .status(400)
           .json({ message: "Nama item (name) tidak boleh kosong." });
       }
 
-      // angka
       const qty = toNum(it.qty);
       const unitPrice = toNum(it.unitPrice);
       const discount = toNum(it.discount ?? 0);
@@ -525,23 +526,21 @@ export const updateWithItems = async (req, res) => {
         return res.status(400).json({ message: "taxRate harus angka 0–100." });
 
       const bruto = qty * unitPrice;
-      if (discount > bruto) {
+      if (discount > bruto)
         return res.status(400).json({
           message: "Discount tidak boleh melebihi (qty × unitPrice).",
         });
-      }
 
-      // roughLine: pakai item.lineNo kalau ada & valid, else idx+1
+      // bukti urutan
       const roughLine =
         Number.isInteger(it.lineNo) && it.lineNo > 0 ? it.lineNo : idx + 1;
 
-      // line total
       const neto = Math.max(bruto - discount, 0);
       const lineTotal = Math.max(neto + (taxRate / 100) * neto, 0);
 
-      // ✅ PERBAIKAN: productId hanya untuk PRODUCT dan SERVICE
       normalized.push({
         _roughLine: roughLine,
+        id: it.id ?? null, // penting: item lama punya id
         itemType,
         productId:
           itemType === "PRODUCT" || itemType === "SERVICE"
@@ -558,26 +557,11 @@ export const updateWithItems = async (req, res) => {
       });
     }
 
-    // urutkan pakai roughLine, lalu tetapkan lineNo final 1..N
-    const preparedForCreate = normalized
-      .sort((a, b) => a._roughLine - b._roughLine)
-      .map((it, i) => ({
-        salesOrderId: id,
-        lineNo: i + 1,
-        itemType: it.itemType,
-        productId: it.productId, // ✅ Sudah benar: PRODUCT/SERVICE punya productId, CUSTOM null
-        name: it.name,
-        uom: it.uom ?? null,
-        description: it.description,
-        qty: new Prisma.Decimal(it.qty),
-        unitPrice: new Prisma.Decimal(it.unitPrice),
-        discount: new Prisma.Decimal(it.discount),
-        taxRate: new Prisma.Decimal(it.taxRate),
-        lineTotal: new Prisma.Decimal(it.lineTotal),
-      }));
+    // urutkan
+    const sorted = normalized.sort((a, b) => a._roughLine - b._roughLine);
 
-    // header totals dari normalized (pakai angka murni biar cepat)
-    const totals = normalized.reduce(
+    // hitung total header
+    const totals = sorted.reduce(
       (acc, it) => {
         const bruto = it.qty * it.unitPrice;
         const neto = Math.max(bruto - it.discount, 0);
@@ -592,26 +576,82 @@ export const updateWithItems = async (req, res) => {
     );
 
     const updated = await prisma.$transaction(async (tx) => {
-      // 1) Update header bila ada field yang dikirim
+      // UPDATE HEADER
       const headerData = {};
       if (soNumber) headerData.soNumber = soNumber;
       if (soDate) headerData.soDate = new Date(soDate);
       if (customerId) headerData.customerId = customerId;
-      // projectId kolom wajib di model, jadi TIDAK boleh disconnect. Update hanya jika ada nilai.
+
+      // projectId wajib di model → update hanya bila ada
       if (projectId) headerData.projectId = projectId;
+
       if (type) headerData.type = type;
       if (status) headerData.status = status;
       if (typeof notes !== "undefined") headerData.notes = notes;
 
       if (Object.keys(headerData).length) {
-        await tx.salesOrder.update({ where: { id }, data: headerData });
+        await tx.salesOrder.update({
+          where: { id },
+          data: headerData,
+        });
       }
 
-      // 2) Ganti semua items → deleteMany + createMany (dengan lineNo)
-      await tx.salesOrderItem.deleteMany({ where: { salesOrderId: id } });
-      await tx.salesOrderItem.createMany({ data: preparedForCreate });
+      // ✅ STANDAR UPDATE ITEMS
+      const keepIds = [];
 
-      // 3) Update totals header
+      for (let i = 0; i < sorted.length; i++) {
+        const it = sorted[i];
+
+        if (it.id) {
+          // --- UPDATE ---
+          await tx.salesOrderItem.update({
+            where: { id: it.id },
+            data: {
+              lineNo: i + 1,
+              itemType: it.itemType,
+              productId: it.productId,
+              name: it.name,
+              uom: it.uom,
+              description: it.description,
+              qty: new Prisma.Decimal(it.qty),
+              unitPrice: new Prisma.Decimal(it.unitPrice),
+              discount: new Prisma.Decimal(it.discount),
+              taxRate: new Prisma.Decimal(it.taxRate),
+              lineTotal: new Prisma.Decimal(it.lineTotal),
+            },
+          });
+          keepIds.push(it.id);
+        } else {
+          // --- CREATE ---
+          const newItem = await tx.salesOrderItem.create({
+            data: {
+              salesOrderId: id,
+              lineNo: i + 1,
+              itemType: it.itemType,
+              productId: it.productId,
+              name: it.name,
+              uom: it.uom,
+              description: it.description,
+              qty: new Prisma.Decimal(it.qty),
+              unitPrice: new Prisma.Decimal(it.unitPrice),
+              discount: new Prisma.Decimal(it.discount),
+              taxRate: new Prisma.Decimal(it.taxRate),
+              lineTotal: new Prisma.Decimal(it.lineTotal),
+            },
+          });
+          keepIds.push(newItem.id);
+        }
+      }
+
+      // ✅ DELETE items lama yang tidak dikirim
+      await tx.salesOrderItem.deleteMany({
+        where: {
+          salesOrderId: id,
+          id: { notIn: keepIds },
+        },
+      });
+
+      // update totals
       await tx.salesOrder.update({
         where: { id },
         data: {
@@ -622,7 +662,7 @@ export const updateWithItems = async (req, res) => {
         },
       });
 
-      // 4) Return SO lengkap; pastikan items diurutkan lineNo
+      // return sales order lengkap
       return tx.salesOrder.findUnique({
         where: { id },
         include: {

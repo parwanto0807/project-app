@@ -171,11 +171,10 @@ const maxDp = (n: number, dp: number) => {
 
 /* BASE: pure object tanpa rules lintas-field */
 export const salesOrderItemBase = z.object({
+  id: z.string().uuid().optional().nullable(),
   itemType: ItemTypeEnum.default("PRODUCT"),
-
   // productId: optional di base; aturan wajib/null di superRefine
   productId: z.string().uuid().optional().nullable(),
-
   name: z.string().trim().min(1, "Nama item wajib diisi."),
   description: z.string().trim().optional().nullable(),
 
