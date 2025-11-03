@@ -327,6 +327,7 @@ export function UpdateSalesOrderForm({
             minimumFractionDigits: 0
         });
     };
+      console.log("DATA FORM", form.formState.errors)
 
     function onSubmit(data: UpdateSalesOrderPayload) {
         startTransition(async () => {
