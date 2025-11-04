@@ -17,7 +17,7 @@ import {
 import { useEffect, useRef } from "react";
 
 // Import type dari @/types/pr
-import { PurchaseRequest } from "@/types/prVerify";
+import { PurchaseRequest, PurchaseRequestDetail } from "@/types/pr";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 
 // Enum untuk Source Product Type
@@ -28,6 +28,16 @@ enum SourceProductType {
     JASA_PEMBELIAN = "JASA_PEMBELIAN",
     JASA_INTERNAL = "JASA_INTERNAL"
 }
+
+type PurchaseRequestDetailWithRelations = PurchaseRequestDetail & {
+    product?: {
+        id: string;
+        name: string;
+        code?: string;
+        description?: string | null;
+    } | null;
+};
+
 
 // Definisikan type untuk status berdasarkan type yang sudah ada
 type PurchaseRequestStatus = PurchaseRequest['status'];
@@ -182,8 +192,6 @@ export function PurchaseRequestSheet({
     onStatusUpdate
 }: PurchaseRequestSheetProps) {
     const contentRef = useRef<HTMLDivElement>(null);
-
-    console.log(selectedPurchaseRequest);
 
     // Fungsi untuk menghitung summary
     const calculateSummary = () => {
@@ -450,7 +458,7 @@ export function PurchaseRequestSheet({
                                                     {selectedPurchaseRequest.details && selectedPurchaseRequest.details.length > 0 ? (
                                                         <>
                                                             <div className="max-h-72 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-                                                                {selectedPurchaseRequest.details.map((detail, index) => (
+                                                                {(selectedPurchaseRequest.details as PurchaseRequestDetailWithRelations[]).map((detail, index) => (
                                                                     <div
                                                                         key={detail.id}
                                                                         className="border-b border-gray-100 last:border-b-0"
@@ -463,7 +471,7 @@ export function PurchaseRequestSheet({
                                                                                         {index + 1}
                                                                                     </span>
                                                                                     <span className="font-medium text-gray-900 text-xs line-clamp-2">
-                                                                                        {detail.product.name || "Unnamed Item"}
+                                                                                        {detail.product?.name || "Unnamed Item"}
                                                                                     </span>
                                                                                 </div>
                                                                             </div>
