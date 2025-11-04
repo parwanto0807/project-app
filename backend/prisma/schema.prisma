@@ -658,7 +658,7 @@ model SalesOrderItem {
   lineTotal   Decimal @default(0) @db.Decimal(18, 2)
 
   salesOrder   SalesOrder       @relation(fields: [salesOrderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  product      Product?         @relation(fields: [productId], references: [id], onDelete: SetNull, onUpdate: Cascade) // ← nullable
+  product      Product?         @relation(fields: [productId], references: [id], onDelete: Restrict, onUpdate: Cascade) // ← nullable
   spkDetail    SPKDetail[]
   fieldReports SPKFieldReport[] @relation("SPKDetailToFieldReport")
 
@@ -747,7 +747,7 @@ model SPKDetail {
   karyawan   Karyawan? @relation(fields: [karyawanId], references: [id])
 
   salesOrderItemId String?
-  salesOrderItem   SalesOrderItem? @relation(fields: [salesOrderItemId], references: [id])
+  salesOrderItem   SalesOrderItem? @relation(fields: [salesOrderItemId], references: [id], onDelete: Restrict)
 
   lokasiUnit String?
 
@@ -782,7 +782,7 @@ model SPKFieldReport {
   updatedAt  DateTime              @updatedAt
 
   soDetailId String?
-  soDetail   SalesOrderItem? @relation("SPKDetailToFieldReport", fields: [soDetailId], references: [id], onDelete: SetNull)
+  soDetail   SalesOrderItem? @relation("SPKDetailToFieldReport", fields: [soDetailId], references: [id], onDelete: Restrict)
 }
 
 model SPKFieldReportPhoto {
