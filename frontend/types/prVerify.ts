@@ -8,6 +8,9 @@ export type SourceProductType =
 export interface PurchaseRequestDetail {
   id?: string;
   productId: string;
+  product: {
+    name: string;
+  };
   projectBudgetId?: string;
   jumlah: number;
   satuan: string;

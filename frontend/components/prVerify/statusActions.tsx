@@ -17,7 +17,7 @@ import {
 import { useEffect, useRef } from "react";
 
 // Import type dari @/types/pr
-import { PurchaseRequest } from "@/types/pr";
+import { PurchaseRequest } from "@/types/prVerify";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 
 // Enum untuk Source Product Type
