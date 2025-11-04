@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
     },
     photoSection: {
         marginTop: 8,
-        padding: 8,
+        padding: 6, // dikurangi dari 8
         backgroundColor: '#f8f9fa',
         borderRadius: 5,
         borderWidth: 1,
@@ -241,43 +241,50 @@ const styles = StyleSheet.create({
         fontSize: 10,
         fontWeight: 'bold',
         color: '#1a4f72',
-        marginBottom: 6,
+        marginBottom: 2,
     },
     photosContainer: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 8,
+        gap: 4,  // Jarak diperkecil
     },
     photoItem: {
         flexDirection: 'column',
         alignItems: 'center',
-        marginBottom: 8,
-        width: '23%',
+        marginBottom: 4,
+        width: '18%',  // 5-6 kolom instead of 4 kolom
     },
     photo: {
-        width: 80,
-        height: 60,
+        width: 120,
+        height: 140,
         borderRadius: 4,
-        marginBottom: 2,
+        marginBottom: 1, // dikurangi dari 2
+        resizeMode: 'cover',
+        borderWidth: 1,
+        borderColor: '#dee2e6',
     },
     photoCaption: {
         fontSize: 7,
         color: '#6c757d',
         textAlign: 'center',
+        lineHeight: 2, // dikurangi dari 9
+        marginBottom: 0, // tambahkan ini
+        padding: 0, // tambahkan ini
     },
     photoIndicator: {
         fontSize: 7,
         color: '#28a745',
         fontWeight: 'bold',
         textAlign: 'center',
-        marginTop: 2,
+        marginTop: 0, // dikurangi dari 2
+        lineHeight: 2,
     },
     noPhotosText: {
         fontSize: 8,
         color: '#6c757d',
         fontStyle: 'italic',
         textAlign: 'center',
-        padding: 10,
+        padding: 8, // dikurangi dari 10
     }
 });
 
@@ -490,25 +497,34 @@ const PdfDocument = ({ reports, itemGroup }: { reports: ReportHistory[], itemGro
                             <Text style={styles.photoSectionTitle}>DOKUMENTASI FOTO - {itemName}</Text>
 
                             {group.some(report => report.photos && report.photos.length > 0) ? (
-                                <View style={styles.photosContainer}>
-                                    {group.map((report) => (
-                                        report.photos && report.photos.map((photo, photoIndex) => (
-                                            <View key={`${report.id}-${photoIndex}`} style={styles.photoItem}>
-                                                <PdfImage
-                                                    style={styles.photo}
-                                                    src={getFullImageUrl(photo)}
-                                                />
-                                                <Text style={styles.photoCaption}>
-                                                    {formatDate(report.reportedAt)}
-                                                </Text>
-                                                <Text style={styles.photoCaption}>
-                                                    {report.note ?
-                                                        `${report.note.substring(0, 20)}${report.note.length > 20 ? '...' : ''}` :
-                                                        report.type}
-                                                </Text>
-                                            </View>
-                                        ))
-                                    ))}
+                                <View>
+                                    <Text style={{ fontSize: 8, marginBottom: 2, color: '#6c757d' }}>
+                                        Total {group.reduce((total, report) => total + (report.photos ? report.photos.length : 0), 0)} foto dokumentasi
+                                    </Text>
+
+                                    <View style={styles.photosContainer}>
+                                        {group.map((report) => (
+                                            report.photos && report.photos.map((photo, photoIndex) => (
+                                                <View key={`${report.id}-${photoIndex}`} style={styles.photoItem}>
+                                                    <PdfImage
+                                                        style={styles.photo}
+                                                        src={getFullImageUrl(photo)}
+                                                    />
+                                                    <Text style={styles.photoCaption}>
+                                                        {formatDate(report.reportedAt)}
+                                                    </Text>
+                                                    <Text style={styles.photoCaption}>
+                                                        {report.note ?
+                                                            `${report.note.substring(0, 20)}${report.note.length > 20 ? '...' : ''}` :
+                                                            report.type}
+                                                    </Text>
+                                                    <Text style={styles.photoIndicator}>
+                                                        Foto {photoIndex + 1}
+                                                    </Text>
+                                                </View>
+                                            ))
+                                        ))}
+                                    </View>
                                 </View>
                             ) : (
                                 <Text style={styles.noPhotosText}>
