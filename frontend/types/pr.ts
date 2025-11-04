@@ -9,6 +9,9 @@ export interface PurchaseRequestDetail {
   id?: string;
   productId: string;
   projectBudgetId?: string;
+  product:{
+    name: string;
+  }
   jumlah: number;
   satuan: string;
   estimasiHargaSatuan: number;

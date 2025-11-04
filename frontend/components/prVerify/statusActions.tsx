@@ -18,6 +18,7 @@ import { useEffect, useRef } from "react";
 
 // Import type dari @/types/pr
 import { PurchaseRequest } from "@/types/pr";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 
 // Enum untuk Source Product Type
 enum SourceProductType {
@@ -182,7 +183,8 @@ export function PurchaseRequestSheet({
 }: PurchaseRequestSheetProps) {
     const contentRef = useRef<HTMLDivElement>(null);
 
-    // Fungsi untuk menghitung Total Pengajuan Biaya berdasarkan source product
+    console.log(selectedPurchaseRequest);
+
     // Fungsi untuk menghitung summary
     const calculateSummary = () => {
         if (!selectedPurchaseRequest?.details) {
@@ -461,7 +463,7 @@ export function PurchaseRequestSheet({
                                                                                         {index + 1}
                                                                                     </span>
                                                                                     <span className="font-medium text-gray-900 text-xs line-clamp-2">
-                                                                                        {detail.catatanItem || "Unnamed Item"}
+                                                                                        {detail.product.name || "Unnamed Item"}
                                                                                     </span>
                                                                                 </div>
                                                                             </div>
@@ -498,7 +500,33 @@ export function PurchaseRequestSheet({
                                                                                 {index + 1}
                                                                             </div>
                                                                             <div className="col-span-3 text-sm font-medium text-gray-900 pl-2 pr-2 truncate">
-                                                                                {detail.catatanItem || "Unnamed Item"}
+                                                                                <TooltipProvider>
+                                                                                    <Tooltip>
+                                                                                        <TooltipTrigger asChild>
+                                                                                            <span className="cursor-default truncate block hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors duration-200">
+                                                                                                {detail.product?.name || "Unnamed Item"}
+                                                                                            </span>
+                                                                                        </TooltipTrigger>
+
+                                                                                        <TooltipContent
+                                                                                            className="
+        rounded-2xl 
+        shadow-xl 
+        bg-gradient-to-br from-emerald-50 to-cyan-50 
+        dark:from-emerald-950/80 dark:to-cyan-950/80 
+        backdrop-blur-xl 
+        border border-white/20 
+        dark:border-emerald-500/20
+        text-[13px]
+        p-3
+      "
+                                                                                        >
+                                                                                            <p className="max-w-xs text-emerald-900 dark:text-emerald-100 font-semibold">
+                                                                                                {detail.product?.name || "Unnamed Item"}
+                                                                                            </p>
+                                                                                        </TooltipContent>
+                                                                                    </Tooltip>
+                                                                                </TooltipProvider>
                                                                             </div>
                                                                             <div className="col-span-2 text-center">
                                                                                 <Badge
@@ -533,7 +561,7 @@ export function PurchaseRequestSheet({
 
                                                             {/* Summary Section */}
                                                             {/* Summary Section */}
-                                                            <div className="mt-4 border-t pt-3 space-y-2 text-sm bg-gray-50/50 p-4">
+                                                            <div className="mt-4 border-t pt-3 space-y-2 text-sm bg-gray-50/50 p-4 text-black">
                                                                 <div className="flex justify-between">
                                                                     <span className="font-medium">💰 Total Pengajuan Biaya :</span>
                                                                     <span className="font-semibold">
