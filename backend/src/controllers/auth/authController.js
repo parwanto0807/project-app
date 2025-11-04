@@ -173,7 +173,7 @@ export const googleLogin = async (req, res) => {
         avatar,
         googleId,
         provider: "google",
-        role: "admin",
+        role: "user",
       },
     });
 
