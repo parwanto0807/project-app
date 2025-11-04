@@ -197,7 +197,7 @@ const FormMonitoringProgressSpkByID = ({ dataSpk, isLoading, role, userId }: For
     const [previewPdfOpen, setPreviewPdfOpen] = useState(false);
     const [selectedItemForPdf, setSelectedItemForPdf] = useState<string>('');
 
-    console.log("User", userId, spkItemProgress);
+    console.log("User", userId, role, spkItemProgress);
 
 
     const totalPages = Math.ceil(reports.length / itemsPerPage);
@@ -335,7 +335,7 @@ const FormMonitoringProgressSpkByID = ({ dataSpk, isLoading, role, userId }: For
     }, [dataSpk]);
 
     const filteredUserSpk = userSpk.filter(spk => {
-        if (role === 'admin' || role === 'super' || role === 'user') return true;
+        if (role === 'admin' || role === 'super' || role === 'pic') return true;
         return spk.id === userId;
     });
 
@@ -370,7 +370,7 @@ const FormMonitoringProgressSpkByID = ({ dataSpk, isLoading, role, userId }: For
             }
 
             // ✅ FILTER di frontend sesuai userEmail (kecuali admin/super)
-            if (role !== "admin" && role !== "super") {
+            if (role !== "admin" && role !== "super" && role !== "pic") {
                 reports = reports.filter(r => r.email === userId);
             }
 
@@ -485,7 +485,7 @@ const FormMonitoringProgressSpkByID = ({ dataSpk, isLoading, role, userId }: For
                 <Clock className="h-12 w-12 text-muted-foreground mb-3 opacity-50" />
                 <h3 className="text-lg font-medium text-muted-foreground">Tidak ada SPK</h3>
                 <p className="text-sm text-muted-foreground/70 mt-1">
-                    {role === 'admin' || role === 'super'
+                    {role === 'admin' || role === 'super' || role === 'pic'
                         ? 'Belum ada SPK yang terdaftar.'
                         : `Tidak ada SPK yang ditugaskan ke ${userId}.`}
                 </p>
@@ -534,7 +534,7 @@ const FormMonitoringProgressSpkByID = ({ dataSpk, isLoading, role, userId }: For
 
                     {/* Subtext */}
                     <p className="text-[10px] md:text-sm text-blue-100 opacity-90 text-center leading-tight">
-                        {role === 'admin' || role === 'super'
+                        {role === 'admin' || role === 'super' || role === 'pic'
                             ? 'Monitor semua SPK yang sedang berjalan'
                             : 'Laporkan progress pekerjaan untuk SPK Anda'}
                     </p>
@@ -772,7 +772,7 @@ const FormMonitoringProgressSpkByID = ({ dataSpk, isLoading, role, userId }: For
                                                     <TableHead className="min-w-[120px]">Progress</TableHead>
                                                     <TableHead className="min-w-[100px]">Approve Admin</TableHead>
                                                     <TableHead className="min-w-[80px]">Foto</TableHead>
-                                                    {role === 'admin' && (
+                                                    {role === 'admin' || role === 'pic' && (
                                                         <TableHead className="min-w-[100px] sticky right-0 bg-gradient-to-r from-purple-50 to-white dark:from-purple-900/30 dark:to-gray-800 z-10">
                                                             Aksi
                                                         </TableHead>
@@ -798,7 +798,7 @@ const FormMonitoringProgressSpkByID = ({ dataSpk, isLoading, role, userId }: For
                                                         <Fragment key={spkNumber}>
                                                             {/* Header Grup SPK */}
                                                             <TableRow className="bg-purple-50 dark:bg-purple-900/20 [&>td]:py-2 [&>td]:px-2 md:[&>td]:py-4">
-                                                                <TableCell colSpan={role === 'admin' ? 7 : 6} className="sticky left-0 z-10 bg-purple-50 dark:bg-purple-900/20">
+                                                                <TableCell colSpan={role === 'admin' || role === 'pic' ? 7 : 6} className="sticky left-0 z-10 bg-purple-50 dark:bg-purple-900/20">
                                                                     <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-2 py-1 md:py-2">
                                                                         {/* Baris 1: SPK Info */}
                                                                         <div className="flex items-center gap-2">
@@ -849,7 +849,7 @@ const FormMonitoringProgressSpkByID = ({ dataSpk, isLoading, role, userId }: For
                                                                             className="bg-blue-50/50 dark:bg-blue-900/10 [&>td]:py-2 [&>td]:px-0 [&>td]:text-xs [&>td]:font-medium"
                                                                         >
                                                                             <TableCell
-                                                                                colSpan={role === 'admin' ? 6 : 5}
+                                                                                colSpan={role === 'admin' || role === 'pic' ? 6 : 5}
                                                                                 className="pl-4 border-l-4 border-blue-500 bg-blue-50/50 dark:bg-blue-900/10"
                                                                             >
                                                                                 <div className="flex flex-col md:flex-row md:items-center md:justify-between">
@@ -1071,7 +1071,7 @@ const FormMonitoringProgressSpkByID = ({ dataSpk, isLoading, role, userId }: For
                                                                                         </Button>
 
                                                                                         {/* Tombol Approve/Reject hanya untuk admin dan hanya di desktop */}
-                                                                                        {role === 'admin' && (
+                                                                                        {['admin', 'pic'].includes(role) && (
                                                                                             <>
                                                                                                 <Button
                                                                                                     variant="outline"
@@ -1100,6 +1100,7 @@ const FormMonitoringProgressSpkByID = ({ dataSpk, isLoading, role, userId }: For
                                                                                                 </Button>
                                                                                             </>
                                                                                         )}
+
                                                                                     </div>
                                                                                 </TableCell>
                                                                             </TableRow>
@@ -1438,7 +1439,7 @@ const FormMonitoringProgressSpkByID = ({ dataSpk, isLoading, role, userId }: For
                                 )}
 
                                 {/* Aksi Admin */}
-                                {role === 'admin' && (
+                                {role === 'admin' || role === 'pic' && (
                                     <Card className="border-border/40 bg-card/80 backdrop-blur-sm">
                                         <CardHeader className="pb-2 md:pb-3">
                                             <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-2">

@@ -324,38 +324,43 @@ export function getMenuList(pathname: string, role: string) {
     },
     {
       groupLabel: "PENGATURAN",
-      allowedRoles: ["admin"],
+      allowedRoles: ["admin", "pic"],
       menus: [
         {
           label: "Master Data",
-          href: "/admin-area/master",
+          href: `${basePath}/master`,
           icon: BriefcaseIcon, // Menggunakan BriefcaseIcon sebagai pengganti
           active: isActive("/admin-area/master", pathname),
           submenus: [
             {
-              href: "/admin-area/master/customers",
+              href: `${basePath}/master/customers`,
               label: "Data Customer",
-              active: isActive("/admin-area/master/customers", pathname),
+              active: isActive(`${basePath}/master/customers`, pathname),
+              disabled: role === "user",
             },
             {
-              href: "/admin-area/master/products",
+              href: `${basePath}/master/products`,
               label: "Data Products",
-              active: isActive("/admin-area/master/products", pathname),
+              active: isActive(`${basePath}/master/products`, pathname),
+              disabled: role === "user",
             },
             {
-              href: "/admin-area/master/karyawan",
+              href: `${basePath}/master/karyawan`,
               label: "Data Employee",
-              active: isActive("/admin-area/master/karyawan", pathname),
+              active: isActive(`${basePath}/master/karyawan`, pathname),
+              disabled: role === "user" || role === "pic",
             },
             {
-              href: "/admin-area/master/team",
+              href: `${basePath}/master/team`,
               label: "Data Team",
-              active: isActive("/admin-area/master/team", pathname),
+              active: isActive(`${basePath}/master/team`, pathname),
+              disabled: role === "user",
             },
             {
-              href: "/admin-area/master/coa",
+              href: `${basePath}/master/coa`,
               label: "Chart Of Account",
-              active: isActive("/admin-area/master/coa", pathname),
+              active: isActive(`${basePath}/master/coa`, pathname),
+              disabled: role === "user" || role === "pic",
             },
           ],
         },
