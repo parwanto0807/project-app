@@ -256,20 +256,25 @@ const styles = StyleSheet.create({
     },
     photo: {
         width: 120,
-        height: 140,
-        borderRadius: 4,
-        marginBottom: 1, // dikurangi dari 2
+        height: 140,  // Sangat compact
+        borderRadius: 2,
+        marginBottom: 0,
         resizeMode: 'cover',
-        borderWidth: 1,
+        borderWidth: 0.5,
         borderColor: '#dee2e6',
     },
     photoCaption: {
         fontSize: 7,
         color: '#6c757d',
         textAlign: 'center',
-        lineHeight: 2, // dikurangi dari 9
-        marginBottom: 0, // tambahkan ini
-        padding: 0, // tambahkan ini
+        lineHeight: 1,
+        marginBottom: 0,
+        padding: 0,
+        flexWrap: 'wrap',
+        width: '100%',
+        // Opsional: batasi max lines
+        numberOfLines: 2, // atau 3
+        ellipsizeMode: 'tail',
     },
     photoIndicator: {
         fontSize: 7,
@@ -483,7 +488,7 @@ const PdfDocument = ({ reports, itemGroup }: { reports: ReportHistory[], itemGro
                                 <View style={styles.tableColPhoto}>
                                     {report.photos && report.photos.length > 0 ? (
                                         <Text style={styles.photoIndicator}>
-                                            📸 {report.photos.length} foto
+                                        {report.photos.length} -  foto
                                         </Text>
                                     ) : (
                                         <Text style={styles.noteText}>-</Text>
@@ -514,13 +519,11 @@ const PdfDocument = ({ reports, itemGroup }: { reports: ReportHistory[], itemGro
                                                         {formatDate(report.reportedAt)}
                                                     </Text>
                                                     <Text style={styles.photoCaption}>
-                                                        {report.note ?
-                                                            `${report.note.substring(0, 20)}${report.note.length > 20 ? '...' : ''}` :
-                                                            report.type}
+                                                        {report.note ? report.note : report.type}
                                                     </Text>
-                                                    <Text style={styles.photoIndicator}>
+                                                    {/* <Text style={styles.photoIndicator}>
                                                         Foto {photoIndex + 1}
-                                                    </Text>
+                                                    </Text> */}
                                                 </View>
                                             ))
                                         ))}
