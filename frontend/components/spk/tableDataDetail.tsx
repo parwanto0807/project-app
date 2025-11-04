@@ -1439,7 +1439,7 @@ const FormMonitoringProgressSpkByID = ({ dataSpk, isLoading, role, userId }: For
                                 )}
 
                                 {/* Aksi Admin */}
-                                {role === 'admin' || role === 'pic' && (
+                                {/* {role === 'admin' || role === 'pic' && ( */}
                                     <Card className="border-border/40 bg-card/80 backdrop-blur-sm">
                                         <CardHeader className="pb-2 md:pb-3">
                                             <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -1557,7 +1557,7 @@ const FormMonitoringProgressSpkByID = ({ dataSpk, isLoading, role, userId }: For
                                             )}
                                         </CardContent>
                                     </Card>
-                                )}
+                                {/* )} */}
                             </div>
 
                             <DialogFooter className="pt-2 mt-1 border-t border-border/40">
