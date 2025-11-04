@@ -24,7 +24,7 @@ import {
 
 const generateAccessToken = (user) => {
   return jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, {
-    expiresIn: "60m",
+    expiresIn: "8h",
   });
 };
 
@@ -737,7 +737,9 @@ export const getProfile = async (req, res) => {
         data: { userId: user.id },
       });
 
-      console.log(`✅ Updated karyawan ${existingKaryawan.id} with userId: ${user.id}`);
+      console.log(
+        `✅ Updated karyawan ${existingKaryawan.id} with userId: ${user.id}`
+      );
 
       // ✅ Asumsi update berhasil → update nilai lokal (aman!)
       existingKaryawan.userId = user.id;
