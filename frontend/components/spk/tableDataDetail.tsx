@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Camera, CheckCircle, Clock, X, Archive, TrendingUp, FileText, Eye, Loader2, Download, ZoomIn, ChevronRight, ChevronLeft, Calendar, ChevronsRight, PackageOpenIcon, Wrench, PenTool, FileSignature, ShieldCheck, Trash2, UserCheck2Icon, Filter, ArrowLeft } from 'lucide-react';
+import { Camera, CheckCircle, Clock, X, Archive, TrendingUp, FileText, Eye, Loader2, Download, ZoomIn, ChevronRight, ChevronLeft, Calendar, ChevronsRight, PackageOpenIcon, Wrench, PenTool, FileSignature, ShieldCheck, Trash2, UserCheck2Icon, Filter, ArrowLeft, FileDown } from 'lucide-react';
 import Image from 'next/image';
 import { deleteReport, fetchSPKReports } from '@/lib/action/master/spk/spkReport';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog';
@@ -17,6 +17,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../u
 import { ScrollArea } from '../ui/scroll-area';
 import { DialogTrigger } from '@radix-ui/react-dialog';
 import PreviewPdf from '../spkReport/previewPdfSpk';
+import PreviewPdfDetail from '../spkReport/previewPdfSpkDetail';
 
 // 👇 DEFINSI TIPE DATA API (TETAP UTUH)
 interface SPKDataApi {
@@ -180,6 +181,7 @@ const FormMonitoringProgressSpkByID = ({ dataSpk, isLoading, role, userId }: For
         status: 'all' as 'all' | 'PENDING' | 'APPROVED' | 'REJECTED',
         spkId: '',
         karyawanId: '',
+        itemId: 'all' as string, // Tambahkan filter item
     });
 
     const [selectedReport, setSelectedReport] = useState<ReportHistory | null>(null);
@@ -192,8 +194,11 @@ const FormMonitoringProgressSpkByID = ({ dataSpk, isLoading, role, userId }: For
     const [isApproving, setIsApproving] = useState(false);
     const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
     const [previewSpk, setPreviewSpk] = useState<string | undefined>(undefined);
+    const [previewPdfOpen, setPreviewPdfOpen] = useState(false);
+    const [selectedItemForPdf, setSelectedItemForPdf] = useState<string>('');
 
     console.log("User", userId, spkItemProgress);
+
 
     const totalPages = Math.ceil(reports.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -334,6 +339,19 @@ const FormMonitoringProgressSpkByID = ({ dataSpk, isLoading, role, userId }: For
         return spk.id === userId;
     });
 
+    // 👇 DAPATKAN ITEMS UNTUK FILTER
+    const getFilterItems = () => {
+        if (!dataSpk || !dataSpk.salesOrder?.items) return [];
+
+        return dataSpk.salesOrder.items.map(item => ({
+            id: item.id,
+            name: item.name,
+            description: item.description
+        }));
+    };
+
+    const filterItems = getFilterItems();
+
     // 👇 FETCH RIWAYAT LAPORAN DARI BACKEND - DIPERBAIKI
     const fetchReports = useCallback(async () => {
         setLoadingReports(true);
@@ -343,8 +361,12 @@ const FormMonitoringProgressSpkByID = ({ dataSpk, isLoading, role, userId }: For
             // ✅ FILTER HANYA UNTUK SPK YANG SEDANG DILIHAT
             if (dataSpk && dataSpk.spkNumber) {
                 const currentSpkNumber = dataSpk.spkNumber;
-
                 reports = reports.filter(r => r.spkNumber === currentSpkNumber);
+            }
+
+            // ✅ FILTER BERDASARKAN ITEM JIKA DIPILIH
+            if (filters.itemId !== 'all') {
+                reports = reports.filter(r => r.soDetailId === filters.itemId);
             }
 
             // ✅ FILTER di frontend sesuai userEmail (kecuali admin/super)
@@ -370,7 +392,7 @@ const FormMonitoringProgressSpkByID = ({ dataSpk, isLoading, role, userId }: For
         } finally {
             setLoadingReports(false);
         }
-    }, [filters, userId, role, dataSpk]); // ✅ TAMBAHKAN dataSpk SEBAGAI DEPENDENCY
+    }, [filters, userId, role, dataSpk]);
 
     useEffect(() => {
         fetchReports();
@@ -407,17 +429,21 @@ const FormMonitoringProgressSpkByID = ({ dataSpk, isLoading, role, userId }: For
         }
     };
 
+
+    // 👇 DOWNLOAD PDF UNTUK ITEM TERTENTU
+    const handleDownloadItemPdf = (itemName: string) => {
+        setSelectedItemForPdf(itemName);
+        setPreviewPdfOpen(true);
+    };
+
     // 👇 DOWNLOAD PDF
     const downloadPDF = () => {
-        // ✅ Langsung gunakan data SPK yang sedang dilihat
         if (!dataSpk) {
             toast.error("Data SPK tidak tersedia");
             return;
         }
 
         setPreviewSpk(dataSpk.spkNumber);
-
-        // Optional: Beri feedback ke user
         toast.success(`Mempersiapkan PDF untuk ${dataSpk.spkNumber}`);
     };
 
@@ -474,16 +500,21 @@ const FormMonitoringProgressSpkByID = ({ dataSpk, isLoading, role, userId }: For
                 <div className="flex flex-col gap-2 bg-gradient-to-r from-blue-600 to-purple-600 p-3 rounded-lg text-white shadow-lg">
                     {/* Bar Atas */}
                     <div className="flex items-center justify-between">
+                        {/* Back Button */}
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleBack}
+                            className="text-white hover:bg-white/20 h-8 w-8 p-0 rounded-full"
+                        >
+                            <ArrowLeft className="h-4 w-4" />
+                        </Button>
 
                         {/* Badge - selalu di center */}
                         <div className="flex-1 flex justify-center">
                             <Badge
                                 variant="secondary"
-                                className=" ml-6
-          px-3 py-1 text-sm font-semibold
-          md:px-5 md:py-2 md:text-base
-          bg-white/20 backdrop-blur-sm border-white/30 text-white
-        "
+                                className="px-3 ml-12 py-1 text-sm font-semibold md:px-5 md:py-2 md:text-base bg-white/20 backdrop-blur-sm border-white/30 text-white"
                             >
                                 {filteredUserSpk[0]?.spkNumber || 'SPK'}
                             </Badge>
@@ -509,13 +540,12 @@ const FormMonitoringProgressSpkByID = ({ dataSpk, isLoading, role, userId }: For
                     </p>
                 </div>
 
-
                 <Card className="border-border/40 bg-card/90 backdrop-blur-sm shadow-md rounded-xl overflow-hidden transition-all duration-300 hover:shadow-lg">
                     {/* Header Card — Judul + Filter */}
                     <CardHeader className="pb-4 pt-3 bg-gradient-to-r from-purple-50 to-white dark:from-purple-900/30 dark:to-gray-800 sticky top-0 z-10">
-                        <div className="flex flex-col md:grid md:grid-cols-1 gap-4">
+                        <div className="flex flex-col md:grid md:grid-cols-12 gap-4">
                             {/* Judul - Mobile Layout */}
-                            <div className='flex md:col-span-1 md:col-start-1 justify-between items-center md:block'>
+                            <div className='flex md:col-span-4 justify-between items-center md:block'>
                                 <div className='flex flex-col'>
                                     <CardTitle className="text-base font-semibold flex items-center gap-2">
                                         <Archive className="h-4 w-4 text-purple-600" />
@@ -553,6 +583,29 @@ const FormMonitoringProgressSpkByID = ({ dataSpk, isLoading, role, userId }: For
                                             </SheetHeader>
                                             <ScrollArea className="h-full mt-4">
                                                 <div className="space-y-4 px-6">
+                                                    {/* Filter Item - Mobile */}
+                                                    <div>
+                                                        <Label className="text-xs font-medium mb-2">Item</Label>
+                                                        <Select
+                                                            value={filters.itemId}
+                                                            onValueChange={(v: string) =>
+                                                                setFilters({ ...filters, itemId: v })
+                                                            }
+                                                        >
+                                                            <SelectTrigger className="h-10 text-xs border-border/60">
+                                                                <SelectValue placeholder="Semua Item" />
+                                                            </SelectTrigger>
+                                                            <SelectContent className="text-xs">
+                                                                <SelectItem value="all">Semua Item</SelectItem>
+                                                                {filterItems.map(item => (
+                                                                    <SelectItem key={item.id} value={item.id}>
+                                                                        {item.name}
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+
                                                     <div>
                                                         <Label className="text-xs font-medium mb-2">Status</Label>
                                                         <Select
@@ -611,8 +664,32 @@ const FormMonitoringProgressSpkByID = ({ dataSpk, isLoading, role, userId }: For
                                 </div>
                             </div>
 
-                            {/* Desktop Filters - Hanya Status dan Periode */}
-                            <div className="hidden md:flex md:col-span-2 md:col-start-3 gap-4 items-center">
+                            {/* Desktop Filters - Status, Periode, dan Item */}
+                            <div className="hidden md:flex md:col-span-8 gap-4 items-center justify-end">
+                                {/* Filter Item */}
+                                <div className='flex gap-2 items-center'>
+                                    <Label className="text-xs font-medium">Item</Label>
+                                    <Select
+                                        value={filters.itemId}
+                                        onValueChange={(v: string) =>
+                                            setFilters({ ...filters, itemId: v })
+                                        }
+                                    >
+                                        <SelectTrigger className="h-10 text-xs border-border/60 w-40">
+                                            <SelectValue placeholder="Semua Item" />
+                                        </SelectTrigger>
+                                        <SelectContent className="text-xs">
+                                            <SelectItem value="all">Semua Item</SelectItem>
+                                            {filterItems.map(item => (
+                                                <SelectItem key={item.id} value={item.id}>
+                                                    {item.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {/* Filter Status */}
                                 <div className='flex gap-2 items-center'>
                                     <Label className="text-xs font-medium">Status</Label>
                                     <Select
@@ -633,6 +710,7 @@ const FormMonitoringProgressSpkByID = ({ dataSpk, isLoading, role, userId }: For
                                     </Select>
                                 </div>
 
+                                {/* Filter Periode */}
                                 <div className='flex gap-2 items-center'>
                                     <Label className="text-xs font-medium">Periode</Label>
                                     <Select value={filters.date} onValueChange={(v: 'all' | 'today' | 'thisWeek' | 'thisMonth') =>
@@ -648,20 +726,21 @@ const FormMonitoringProgressSpkByID = ({ dataSpk, isLoading, role, userId }: For
                                         </SelectContent>
                                     </Select>
                                 </div>
-                            </div>
 
-                            <div className="hidden md:flex md:col-span-2 md:col-start-10 gap-2 items-center">
-                                <Label className="text-xs font-medium">Item Per Page</Label>
-                                <Select value={String(itemsPerPage)} onValueChange={(v) => setItemsPerPage(Number(v))}>
-                                    <SelectTrigger className="h-7 w-20 text-xs">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="5">5</SelectItem>
-                                        <SelectItem value="10">10</SelectItem>
-                                        <SelectItem value="20">20</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                {/* Items Per Page */}
+                                <div className="flex gap-2 items-center">
+                                    <Label className="text-xs font-medium">Item Per Page</Label>
+                                    <Select value={String(itemsPerPage)} onValueChange={(v) => setItemsPerPage(Number(v))}>
+                                        <SelectTrigger className="h-7 w-20 text-xs">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="5">5</SelectItem>
+                                            <SelectItem value="10">10</SelectItem>
+                                            <SelectItem value="20">20</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
                         </div>
                     </CardHeader>
@@ -766,22 +845,57 @@ const FormMonitoringProgressSpkByID = ({ dataSpk, isLoading, role, userId }: For
                                                                 return itemNames.map((itemName) => (
                                                                     <Fragment key={itemName}>
                                                                         {/* ➡️ Header Subgrup Item */}
-                                                                        <TableRow className="bg-blue-50/50 dark:bg-blue-900/10 [&>td]:py-2 [&>td]:px-0 [&>td]:text-xs [&>td]:font-medium">
-                                                                            <TableCell colSpan={role === 'admin' ? 7 : 6} className="pl-4 border-l-4 border-blue-500 bg-blue-50/50 dark:bg-blue-900/10">
-                                                                                <div className="flex items-center gap-0">
-                                                                                    {Array(2)
-                                                                                        .fill(null)
-                                                                                        .map((_, index) => (
-                                                                                            <ChevronsRight key={index} className="h-4.5 w-4.5 text-purple-600" />
-                                                                                        ))}
+                                                                        <TableRow
+                                                                            className="bg-blue-50/50 dark:bg-blue-900/10 [&>td]:py-2 [&>td]:px-0 [&>td]:text-xs [&>td]:font-medium"
+                                                                        >
+                                                                            <TableCell
+                                                                                colSpan={role === 'admin' ? 6 : 5}
+                                                                                className="pl-4 border-l-4 border-blue-500 bg-blue-50/50 dark:bg-blue-900/10"
+                                                                            >
+                                                                                <div className="flex flex-col md:flex-row md:items-center md:justify-between">
 
-                                                                                    <span className="text-xs md:text-sm font-semibold mx-2">{itemName}</span>
-                                                                                    <span className="text-muted-foreground/70">
-                                                                                        ({itemGroups[itemName].length} laporan)
-                                                                                    </span>
+                                                                                    {/* --- TITLE / ITEM NAME --- */}
+                                                                                    <div className="flex items-center gap-0">
+                                                                                        {Array(2)
+                                                                                            .fill(null)
+                                                                                            .map((_, index) => (
+                                                                                                <ChevronsRight
+                                                                                                    key={index}
+                                                                                                    className="h-4.5 w-4.5 text-purple-600"
+                                                                                                />
+                                                                                            ))}
+
+                                                                                        <span className="text-xs md:text-sm font-semibold mx-2">
+                                                                                            {itemName}
+                                                                                        </span>
+
+                                                                                        <span className="text-muted-foreground/70">
+                                                                                            ({itemGroups[itemName].length} laporan)
+                                                                                        </span>
+                                                                                    </div>
+
+                                                                                    {/* --- BUTTON (LEFT on mobile, RIGHT on desktop) --- */}
+                                                                                    <div className="mt-2 md:mt-0 flex justify-start md:justify-end">
+                                                                                        <Button
+                                                                                            onClick={() => handleDownloadItemPdf(itemName)}
+                                                                                            size="sm"
+                                                                                            className="h-8 px-4 text-xs font-semibold bg-gradient-to-r from-slate-100 to-slate-50
+          dark:from-slate-900 dark:to-slate-800 text-black
+          border border-slate-300 dark:border-slate-700
+          rounded-xl shadow-[0_1px_4px_rgba(0,0,0,0.08)]
+          hover:shadow-[0_2px_10px_rgba(0,0,0,0.12)]
+          hover:border-red-400 hover:text-red-600 
+          dark:text-white dark:hover:text-red-400 dark:hover:border-red-500
+          transition-all duration-200 active:scale-95"
+                                                                                        >
+                                                                                            <FileDown className="h-4 w-4 mr-2" />
+                                                                                            Preview PDF
+                                                                                        </Button>
+                                                                                    </div>
                                                                                 </div>
                                                                             </TableCell>
                                                                         </TableRow>
+
 
                                                                         {/* ➡️ Daftar Laporan dalam Subgrup Item */}
                                                                         {itemGroups[itemName].map((report) => (
@@ -1471,6 +1585,15 @@ const FormMonitoringProgressSpkByID = ({ dataSpk, isLoading, role, userId }: For
                     onOpenChange={(open) => !open && setPreviewSpk(undefined)}
                 />
             )}
+
+            {/* Preview PDF Dialog */}
+            <PreviewPdfDetail
+                reports={reports}
+                initialSpk={dataSpk?.spkNumber || ''}
+                initialItemGroup={selectedItemForPdf}
+                open={previewPdfOpen}
+                onOpenChange={setPreviewPdfOpen}
+            />
 
             {/* Style Animasi */}
             <style jsx>{`
