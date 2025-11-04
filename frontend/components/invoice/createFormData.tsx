@@ -404,7 +404,7 @@ export function CreateInvoiceForm({ currentUser, salesOrders, users, banks }: Cr
                                                     <SelectContent>
                                                         {salesOrders.map((so) => (
                                                             <SelectItem key={so.id} value={so.id}>
-                                                                {so.soNumber} - {so.customer.name}
+                                                                {so.soNumber} - {so.customer.name} - {so.customer?.branch}
                                                             </SelectItem>
                                                         ))}
                                                     </SelectContent>
