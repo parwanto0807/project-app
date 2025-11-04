@@ -564,7 +564,7 @@ export function TabelInputPR({
                                         <SelectContent>
                                             {dataSpk.map((spk) => (
                                                 <SelectItem key={spk.id} value={spk.id}>
-                                                    {spk.spkNumber}
+                                                    {spk.spkNumber} - {spk.salesOrder.project?.name} - {spk.salesOrder.customer.branch}
                                                 </SelectItem>
                                             ))}
                                             {dataSpk.length === 0 && <SelectItem value="no-spk" disabled>No SPK available</SelectItem>}
