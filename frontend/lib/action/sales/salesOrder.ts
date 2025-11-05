@@ -224,6 +224,7 @@ export async function fetchAllSalesOrderInvoice() {
     }
 
     const data = await res.json();
+
     return { salesOrders: data || [], isLoading: false };
   } catch (error) {
     console.error("[fetchAllSalesOrder]", error);

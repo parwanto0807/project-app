@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useTransition, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -452,6 +452,7 @@ export function UpdateBAPForm({
     const [bapData, setBapData] = useState<BAPUpdateInput | null>(null);
     const [photosToDelete, setPhotosToDelete] = useState<string[]>([]);
     const [isMobile, setIsMobile] = useState(false);
+    const [hasError, setHasError] = useState(false);
 
     const router = useRouter();
     const form = useForm({
@@ -479,51 +480,76 @@ export function UpdateBAPForm({
         return () => window.removeEventListener("resize", handleResize);
     }, []);
 
+    // PERBAIKAN 1: Gunakan useCallback untuk fungsi yang digunakan dalam useEffect
+    const findSalesOrderById = useCallback((salesOrderId: string): SalesOrder | undefined => {
+        return salesOrders.find(s => s.id === salesOrderId);
+    }, [salesOrders]);
+
     // Fetch BAP data by ID
     useEffect(() => {
+        let isMounted = true;
+
         const fetchBAPData = async () => {
             try {
                 setLoading(true);
+                setHasError(false);
 
-                // Pastikan salesOrders sudah terload
-                if (salesOrders.length === 0) {
-                    return;
+                // Validasi parameter
+                if (!bapDataById) {
+                    throw new Error("BAP ID is required");
                 }
 
                 const result = await getBAPById(bapDataById);
+
+                if (!isMounted) return;
 
                 if (result.success && result.data) {
                     const bap = result.data;
                     setBapData(bap);
 
-                    // Set form values
-                    form.reset({
-                        bapDate: bap.bapDate
-                            ? new Date(bap.bapDate).toISOString().split("T")[0] // ✅ format jadi YYYY-MM-DD
-                            : "",
-                        salesOrderId: bap.salesOrderId,
-                        projectId: bap.projectId,
-                        createdById: bap.createdById,
-                        userId: bap.userId,
-                        status: bap.status,
-                        isApproved: bap.isApproved,
-                        workDescription: bap.workDescription,
-                        location: bap.location,
-                        notes: bap.notes || "",
-                    });
-
-
-                    // Set selected sales order dengan validasi
-                    const so = salesOrders.find(s => s.id === bap.salesOrderId);
-                    if (!so) {
-                        console.warn("Sales order tidak ditemukan:", bap.salesOrderId);
+                    // Format tanggal dengan error handling
+                    let formattedDate = "";
+                    try {
+                        if (bap.bapDate) {
+                            const date = new Date(bap.bapDate);
+                            if (!isNaN(date.getTime())) {
+                                formattedDate = date.toISOString().split("T")[0];
+                            }
+                        }
+                    } catch (dateError) {
+                        console.error("Error formatting date:", dateError);
+                        formattedDate = "";
                     }
-                    setSelectedSalesOrder(so || null);
+
+                    // Reset form dengan data yang valid
+                    const formData = {
+                        bapDate: formattedDate,
+                        salesOrderId: bap.salesOrderId || "",
+                        projectId: bap.projectId || "",
+                        createdById: bap.createdById || currentUser.id,
+                        userId: bap.userId || "",
+                        status: bap.status || "DRAFT",
+                        isApproved: bap.isApproved || false,
+                        workDescription: bap.workDescription || "",
+                        location: bap.location || "",
+                        notes: bap.notes || "",
+                    };
+                    form.reset(formData);
+
+                    // Set selected sales order
+                    if (bap.salesOrderId) {
+                        const so = findSalesOrderById(bap.salesOrderId);
+                        if (so) {
+                            setSelectedSalesOrder(so);
+                        } else {
+                            console.warn("Sales order tidak ditemukan:", bap.salesOrderId);
+                        }
+                    }
 
                     // Set existing photos dengan safe mapping
                     const existingPhotos: BAPPhotoFrontend[] = (bap.photos ?? []).map(photo => ({
                         ...photo,
-                        caption: photo.caption ?? undefined, // 🔑 null → undefined
+                        caption: photo.caption ?? "",
                         source: "existing" as const,
                         isExisting: true,
                         tempId: `existing-${photo.id}`,
@@ -535,40 +561,58 @@ export function UpdateBAPForm({
                     }));
 
                     setBapPhotos(existingPhotos);
+
                 } else {
                     throw new Error(result.error || "Failed to fetch BAP data");
                 }
             } catch (error) {
-                console.error("Error fetching BAP data:", error);
+                if (!isMounted) return;
 
-                // Tampilkan pesan error yang lebih spesifik
+                console.error("Error fetching BAP data:", error);
+                setHasError(true);
+
+                let errorMessage = "Gagal memuat data BAP";
                 if (error instanceof Error) {
-                    toast.error(`Gagal memuat data BAP: ${error.message}`);
-                } else {
-                    toast.error("Gagal memuat data BAP - Error tidak diketahui");
+                    errorMessage += `: ${error.message}`;
                 }
 
-                // Delay redirect untuk memberi waktu toast muncul
+                toast.error(errorMessage);
+
+                // Redirect dengan delay lebih pendek
                 setTimeout(() => {
-                    router.push("/admin-area/logistic/bap");
-                }, 1000);
+                    if (isMounted) {
+                        router.push("/admin-area/logistic/bap");
+                    }
+                }, 2000);
             } finally {
-                setLoading(false);
+                if (isMounted) {
+                    setLoading(false);
+                }
             }
         };
 
-        if (bapDataById && salesOrders.length > 0) {
+        if (bapDataById) {
             fetchBAPData();
+        } else {
+            setLoading(false);
+            setHasError(true);
         }
-    }, [bapDataById, form, salesOrders, router]);
+
+        return () => {
+            isMounted = false;
+        };
+    }, [bapDataById, form, router, currentUser.id, findSalesOrderById]); // PERBAIKAN: Tambahkan findSalesOrderById
 
     // Di useEffect saat fetch SPK reports
     useEffect(() => {
         const fetchSpkReports = async () => {
-            if (selectedSalesOrder && selectedSalesOrder.spk.length > 0) {
+            // PERBAIKAN: Extract ke variable terpisah
+            const firstSpk = selectedSalesOrder?.spk?.[0];
+            const spkId = firstSpk?.id;
+
+            if (spkId) {
                 setFetchingPhotos(true);
                 try {
-                    const spkId = selectedSalesOrder.spk[0].id;
                     const result = await getReportsBySpkId(spkId);
 
                     if (result.success) {
@@ -587,20 +631,24 @@ export function UpdateBAPForm({
                 }
             } else {
                 setSpkPhotos([]);
+                setFetchingPhotos(false);
             }
         };
 
         fetchSpkReports();
-    }, [selectedSalesOrder]);
+    }, [selectedSalesOrder?.spk]);
 
     const { setValue } = form;
 
     useEffect(() => {
-        if (selectedSalesOrder?.project.name) {
-            setValue("workDescription", selectedSalesOrder.project.name);
-        }
-        if (selectedSalesOrder?.customer.address || selectedSalesOrder?.project.location) {
-            setValue("location", selectedSalesOrder.customer.address || selectedSalesOrder.project.location || "");
+        if (selectedSalesOrder) {
+            if (selectedSalesOrder.project?.name) {
+                setValue("workDescription", selectedSalesOrder.project.name);
+            }
+            const location = selectedSalesOrder.customer?.address ||
+                selectedSalesOrder.project?.location ||
+                "";
+            setValue("location", location);
         }
     }, [selectedSalesOrder, setValue]);
 
@@ -673,7 +721,6 @@ export function UpdateBAPForm({
 
             // ✅ Foto baru dari manual upload (perlu di-upload ke server)
             const newPhotos = bapPhotos.filter(photo => photo.file instanceof File);
-            console.log("News Photo", newPhotos);
 
             const uploadPromises = newPhotos.map(async (photo) => {
                 if (photo.file instanceof File) {
@@ -682,7 +729,6 @@ export function UpdateBAPForm({
                     if (!uploadResult.success || !uploadResult.data) {
                         throw new Error(`Failed to upload photo: ${uploadResult.error || 'Unknown error'}`);
                     }
-                    console.log("Photo New Result", uploadResult);
                     return {
                         photoUrl: uploadResult.data.photoUrl,
                         category: photo.category,
@@ -733,7 +779,6 @@ export function UpdateBAPForm({
                 ...spkPhotos,
                 ...uploadedPhotos.filter((p): p is NonNullable<typeof p> => p !== null),
             ];
-            console.log("All photos to submit:", allPhotos);
 
             // Data final untuk update
             const updateInput = {
@@ -741,7 +786,6 @@ export function UpdateBAPForm({
                 photos: allPhotos,
                 photosToDelete, // 🔑 kirim ke backend
             };
-            console.log("Final update input:", updateInput);
 
             const result = await updateBAP(bapDataById, updateInput);
 
@@ -763,23 +807,38 @@ export function UpdateBAPForm({
     // Helper untuk reset form setelah sukses
     const handleSuccess = () => {
         toast.success("BAP berhasil diperbarui!");
-
         startTransition(() => {
             router.push("/admin-area/logistic/bap");
         });
     };
 
-    if (loading) {
-        return <UpdateBAPSkeleton />;
-    }
-
-    if (!bapData) {
+    // PERBAIKAN 5: Tampilkan error state dengan jelas
+    if (hasError) {
         return (
             <div className="max-w-4xl mx-auto px-1 py-4">
                 <Alert variant="destructive">
                     <AlertTitle>Error</AlertTitle>
                     <AlertDescription>
                         Gagal memuat data BAP. Redirecting...
+                    </AlertDescription>
+                </Alert>
+            </div>
+        );
+    }
+
+    // PERBAIKAN 6: Tampilkan skeleton hanya ketika loading dan tidak ada data
+    if (loading && !bapData) {
+        return <UpdateBAPSkeleton />;
+    }
+
+    // PERBAIKAN 7: Jangan render form jika tidak ada data dan ada error
+    if (!bapData && !loading) {
+        return (
+            <div className="max-w-4xl mx-auto px-1 py-4">
+                <Alert variant="destructive">
+                    <AlertTitle>Data Tidak Ditemukan</AlertTitle>
+                    <AlertDescription>
+                        Data BAP tidak ditemukan. Redirecting...
                     </AlertDescription>
                 </Alert>
             </div>
@@ -797,19 +856,19 @@ export function UpdateBAPForm({
                     <h1 className="text-xs md:text-1xl sm:text-2xl font-bold text-foreground">Update BAST</h1>
                     <div className="flex flex-wrap items-center gap-2 mt-1">
                         <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs">
-                            No: {bapData.bapNumber}
+                            No: {bapData?.bapNumber || 'Loading...'}
                         </Badge>
                         <Badge variant="secondary" className={
-                            bapData.status === "APPROVED" ? "bg-green-100 text-green-800" :
-                                bapData.status === "IN_PROGRESS" ? "bg-red-100 text-red-800" :
+                            bapData?.status === "APPROVED" ? "bg-green-100 text-green-800" :
+                                bapData?.status === "IN_PROGRESS" ? "bg-red-100 text-red-800" :
                                     "bg-yellow-100 text-yellow-800"
                         }>
-                            {bapData.status}
+                            {bapData?.status || 'Loading...'}
                         </Badge>
                         <span className="text-xs text-muted-foreground">
-                            Terakhir update: {bapData.updatedAt
+                            Terakhir update: {bapData?.updatedAt
                                 ? new Date(bapData.updatedAt).toLocaleDateString('id-ID')
-                                : 'Belum pernah'}
+                                : 'Loading...'}
                         </span>
                     </div>
                 </div>
