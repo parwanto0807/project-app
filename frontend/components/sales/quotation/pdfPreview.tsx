@@ -236,7 +236,7 @@ const QuotationPdfDocument = ({ quotation }: { quotation: QuotationSummary }) =>
         taxTotal,
         total,
         notes,
-        createdAt,
+        quotationDate,
         updatedAt,
         lines = []
     } = quotation;
@@ -285,7 +285,7 @@ const QuotationPdfDocument = ({ quotation }: { quotation: QuotationSummary }) =>
                             </View>
                             <View style={styles.row}>
                                 <Text style={styles.label}>Quotation Date:</Text>
-                                <Text style={styles.value}>{formatDate(createdAt)}</Text>
+                                <Text style={styles.value}>{formatDate(quotationDate)}</Text>
                             </View>
                             <View style={styles.row}>
                                 <Text style={styles.label}>Revisi:</Text>

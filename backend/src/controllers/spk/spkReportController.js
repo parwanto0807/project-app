@@ -3,6 +3,7 @@
 import { prisma } from "../../config/db.js";
 import fs from "fs";
 import path from "path";
+import { io } from "../../server.js";
 
 // const prisma = new PrismaClient();
 
@@ -182,6 +183,13 @@ export const createSpkFieldReport = async (req, res) => {
           },
         },
       },
+    });
+
+    // ✅ Broadcast ke semua client bahwa ada report baru & SPK berubah
+    io.emit("spkReport:created", {
+      report: populatedReport,
+      spkId,
+      averageProgress,
     });
 
     res.status(201).json({

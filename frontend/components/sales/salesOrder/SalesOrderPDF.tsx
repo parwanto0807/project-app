@@ -450,6 +450,12 @@ export const SalesOrderPDF: React.FC<SalesOrderPDFProps> = ({ data }) => {
                   <Text style={styles.colon}>:</Text>
                   <Text style={styles.fieldValue}>{data.customerPIC || "........"}</Text>
                 </View>
+
+                <View style={styles.fieldRow}>
+                  <Text style={styles.fieldLabel}>NOTE</Text>
+                  <Text style={styles.colon}>:</Text>
+                  <Text style={styles.fieldValue}>{data.notes || "........"}</Text>
+                </View>
               </View>
             </View>
 

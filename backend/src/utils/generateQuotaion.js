@@ -6,13 +6,13 @@ import { prisma} from '../config/db.js';
  * Generate quotation number dengan format: 00001/QUOT-RYLIF/X/2025
  * - 00001: Sequence number (reset setiap tahun)
  * - QUOT-RYLIF: Kode tetap
- * - X: Roman numeral untuk bulan
- * - 2025: Tahun
+ * - X: Roman numeral untuk bulan dari quotationDate
+ * - 2025: Tahun dari quotationDate
  */
-export const generateQuotationNumber = async () => {
-  const currentDate = new Date();
-  const currentYear = currentDate.getFullYear();
-  const currentMonth = currentDate.getMonth() + 1; // 1-12
+export const generateQuotationNumber = async (quotationDate = null) => {
+  const date = quotationDate ? new Date(quotationDate) : new Date();
+  const currentYear = date.getFullYear();
+  const currentMonth = date.getMonth() + 1; // 1-12
 
   // Convert month to Roman numeral
   const monthRoman = convertToRoman(currentMonth);

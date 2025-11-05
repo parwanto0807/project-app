@@ -418,9 +418,10 @@ enum DiscountType {
 
 // MODEL
 model Quotation {
-  id              String @id @default(uuid())
-  quotationNumber String @unique // Nomor penawaran
-  version         Int    @default(1)
+  id              String   @id @default(uuid())
+  quotationNumber String   @unique // Nomor penawaran
+  quotationDate   DateTime @default(now())
+  version         Int      @default(1)
 
   // Relasi ke customer
   customerId String

@@ -1480,6 +1480,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                                 <Button
                                     variant="default"
                                     size="sm"
+                                    disabled={!!order.spk}
                                     onClick={() => router.push(`/admin-area/logistic/spk/create/${order.id}`)}
                                     className="cursor-pointer hover:bg-cyan-700 dark:hover:text-white"
                                 >

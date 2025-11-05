@@ -70,6 +70,7 @@ import { type SalesOrder } from "@/schemas";
 import { ensureFreshToken } from "@/lib/http";
 import { ProductCreateDialog } from "./productDialog";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { ProjectCreateDialog } from "./customerProjectDialogPickers";
 
 type ApiProduct = z.infer<typeof ApiProductSchema>;
 type ProductOption = { id: string; name: string; description?: string; usageUnit?: string | null; };
@@ -151,6 +152,8 @@ export function UpdateSalesOrderForm({
     const scrollToBottom = () => {
         itemsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
+
+    console.log("Customer DATA", customers)
 
     React.useEffect(() => { setCustomerOptions(customers); }, [customers]);
 
@@ -327,7 +330,7 @@ export function UpdateSalesOrderForm({
             minimumFractionDigits: 0
         });
     };
-      console.log("DATA FORM", form.formState.errors)
+    console.log("DATA FORM", form.formState.errors)
 
     function onSubmit(data: UpdateSalesOrderPayload) {
         startTransition(async () => {
@@ -370,7 +373,7 @@ export function UpdateSalesOrderForm({
 
     return (
         <div className="w-full mx-auto space-y-6">
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-3 mt-6">
                 <div className="flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/50">
                     <FileText className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                 </div>
@@ -492,7 +495,7 @@ export function UpdateSalesOrderForm({
                                                         <SelectContent>
                                                             {customerOptions.map((c) => (
                                                                 <SelectItem key={c.id} value={c.id}>
-                                                                    {c.name} {c.branch ? `(${c.branch})` : ""}
+                                                                    {c.branch ? `( ${c.branch} )` : ""}
                                                                 </SelectItem>
                                                             ))}
                                                         </SelectContent>
@@ -523,83 +526,97 @@ export function UpdateSalesOrderForm({
                                         return (
                                             <FormItem className="flex flex-col">
                                                 <FormLabel>Project (Opsional)</FormLabel>
-                                                <FormControl>
-                                                    <div className="relative w-full">
-                                                        <Popover
-                                                            open={projectSearchOpen}
-                                                            onOpenChange={setProjectSearchOpen}
-                                                        >
-                                                            <PopoverTrigger asChild>
-                                                                <Button
-                                                                    variant="outline"
-                                                                    role="combobox"
-                                                                    aria-expanded={projectSearchOpen}
-                                                                    className="w-full justify-between"
-                                                                    disabled={disabled}
-                                                                >
-                                                                    {field.value
-                                                                        ? projectOptions.find(
-                                                                            (project) => project.id === field.value
-                                                                        )?.name
-                                                                        : !selectedCustomerId
-                                                                            ? "Pilih customer dulu"
-                                                                            : loadingProjects
-                                                                                ? "Memuat project…"
-                                                                                : "Pilih project..."}
-                                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                                                </Button>
-                                                            </PopoverTrigger>
-                                                            <PopoverContent className="w-full p-0">
-                                                                <Command>
-                                                                    <div className="flex items-center border-b px-3">
-                                                                        <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                                                                        <CommandInput
-                                                                            placeholder="Cari project..."
-                                                                            value={projectSearchQuery}
-                                                                            onValueChange={setProjectSearchQuery}
-                                                                        />
-                                                                    </div>
-                                                                    <CommandList>
-                                                                        <CommandEmpty>
-                                                                            {!selectedCustomerId ? (
-                                                                                "Customer belum dipilih"
-                                                                            ) : loadingProjects ? (
-                                                                                "Memuat project…"
-                                                                            ) : projectSearchQuery ? (
-                                                                                "Project tidak ditemukan"
-                                                                            ) : (
-                                                                                "Tidak ada project untuk customer ini"
-                                                                            )}
-                                                                        </CommandEmpty>
-                                                                        <CommandGroup>
-                                                                            {filteredProjects.map((project) => (
-                                                                                <CommandItem
-                                                                                    key={project.id}
-                                                                                    value={project.name}
-                                                                                    onSelect={() => {
-                                                                                        form.setValue("projectId", project.id);
-                                                                                        setProjectSearchOpen(false);
-                                                                                        setProjectSearchQuery("");
-                                                                                    }}
-                                                                                >
-                                                                                    <Check
-                                                                                        className={cn(
-                                                                                            "mr-2 h-4 w-4",
-                                                                                            field.value === project.id
-                                                                                                ? "opacity-100"
-                                                                                                : "opacity-0"
-                                                                                        )}
-                                                                                    />
-                                                                                    {project.name}
-                                                                                </CommandItem>
-                                                                            ))}
-                                                                        </CommandGroup>
-                                                                    </CommandList>
-                                                                </Command>
-                                                            </PopoverContent>
-                                                        </Popover>
+
+                                                <div className="flex flex-row items-start gap-2 w-full">
+                                                    {/* Dialog untuk membuat project - tetap sejajar */}
+                                                    <div className="flex-shrink-0">
+                                                        <ProjectCreateDialog
+                                                            createEndpoint={`${process.env.NEXT_PUBLIC_API_URL}/api/salesOrder/project/create`}
+                                                            customerId={selectedCustomerId}
+                                                            onCreated={(created) => {
+                                                                setProjectOptions((prev) => [created, ...prev]);
+                                                                form.setValue("projectId", created.id);
+                                                            }}
+                                                        />
                                                     </div>
-                                                </FormControl>
+                                                    <FormControl>
+                                                        <div className="relative w-full">
+                                                            <Popover
+                                                                open={projectSearchOpen}
+                                                                onOpenChange={setProjectSearchOpen}
+                                                            >
+                                                                <PopoverTrigger asChild>
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        role="combobox"
+                                                                        aria-expanded={projectSearchOpen}
+                                                                        className="w-full justify-between"
+                                                                        disabled={disabled}
+                                                                    >
+                                                                        {field.value
+                                                                            ? projectOptions.find(
+                                                                                (project) => project.id === field.value
+                                                                            )?.name
+                                                                            : !selectedCustomerId
+                                                                                ? "Pilih customer dulu"
+                                                                                : loadingProjects
+                                                                                    ? "Memuat project…"
+                                                                                    : "Pilih project..."}
+                                                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                                    </Button>
+                                                                </PopoverTrigger>
+                                                                <PopoverContent className="w-full p-0">
+                                                                    <Command>
+                                                                        <div className="flex items-center border-b px-3">
+                                                                            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                                                                            <CommandInput
+                                                                                placeholder="Cari project..."
+                                                                                value={projectSearchQuery}
+                                                                                onValueChange={setProjectSearchQuery}
+                                                                            />
+                                                                        </div>
+                                                                        <CommandList>
+                                                                            <CommandEmpty>
+                                                                                {!selectedCustomerId ? (
+                                                                                    "Customer belum dipilih"
+                                                                                ) : loadingProjects ? (
+                                                                                    "Memuat project…"
+                                                                                ) : projectSearchQuery ? (
+                                                                                    "Project tidak ditemukan"
+                                                                                ) : (
+                                                                                    "Tidak ada project untuk customer ini"
+                                                                                )}
+                                                                            </CommandEmpty>
+                                                                            <CommandGroup>
+                                                                                {filteredProjects.map((project) => (
+                                                                                    <CommandItem
+                                                                                        key={project.id}
+                                                                                        value={project.name}
+                                                                                        onSelect={() => {
+                                                                                            form.setValue("projectId", project.id);
+                                                                                            setProjectSearchOpen(false);
+                                                                                            setProjectSearchQuery("");
+                                                                                        }}
+                                                                                    >
+                                                                                        <Check
+                                                                                            className={cn(
+                                                                                                "mr-2 h-4 w-4",
+                                                                                                field.value === project.id
+                                                                                                    ? "opacity-100"
+                                                                                                    : "opacity-0"
+                                                                                            )}
+                                                                                        />
+                                                                                        {project.name}
+                                                                                    </CommandItem>
+                                                                                ))}
+                                                                            </CommandGroup>
+                                                                        </CommandList>
+                                                                    </Command>
+                                                                </PopoverContent>
+                                                            </Popover>
+                                                        </div>
+                                                    </FormControl>
+                                                </div>
                                                 <FormMessage />
                                             </FormItem>
                                         );

@@ -1,4 +1,4 @@
-// components/sales/quotation/createFormData.tsx
+// components/sales/quotation/manualCreateForm.tsx
 "use client";
 
 import React, { useState } from 'react';
@@ -14,7 +14,6 @@ import {
     Truck,
     Settings,
     CreditCard,
-    DockIcon,
 } from 'lucide-react';
 import {
     QuotationStatus,
@@ -42,79 +41,26 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { SalesOrder } from '@/schemas';
 import { useRouter } from 'next/navigation';
 
-interface CreateQuotationFormProps {
+interface ManualCreateQuotationFormProps {
     customers: Customer[];
     products: Product[];
-    salesOrders: SalesOrder[];
     taxes: Tax[];
     paymentTerms: PaymentTerm[];
     onSubmit: (data: CreateQuotationRequest) => Promise<void>;
     isLoading?: boolean;
 }
 
-export const CreateQuotationForm: React.FC<CreateQuotationFormProps> = ({
+export const ManualCreateQuotationForm: React.FC<ManualCreateQuotationFormProps> = ({
     customers,
     products,
-    salesOrders,
     taxes,
     paymentTerms,
     onSubmit,
     isLoading = false
 }) => {
-    const [selectedSalesOrderId, setSelectedSalesOrderId] = useState<string>('');
     const router = useRouter();
-
-    // Fungsi handleSalesOrderChange:
-    const handleSalesOrderChange = (salesOrderId: string) => {
-        setSelectedSalesOrderId(salesOrderId);
-
-        if (salesOrderId && salesOrderId !== 'no-sales-order') {
-            const selectedSalesOrder = salesOrders.find(so => so.id === salesOrderId);
-            if (selectedSalesOrder) {
-                // Set customerId dari sales order
-                if (selectedSalesOrder.customerId) {
-                    handleHeaderChange("customerId", selectedSalesOrder.customerId);
-                }
-
-                // Map sales order lines ke quotation lines
-                if (selectedSalesOrder.items) {
-                    const newLines: CreateQuotationLineRequest[] = selectedSalesOrder.items.map(line => ({
-                        lineType: LineType.PRODUCT,
-                        productId: line.productId || '',
-                        description: line.product?.name || line.description || '',
-                        qty: line.qty || 1,
-                        uom: line.uom || '',
-                        unitPrice: line.unitPrice || 0,
-                        lineDiscountType: DiscountType.PERCENT,
-                        lineDiscountValue: 0,
-                        lineSubtotal: 0,
-                        taxId: null,
-                    }));
-                    setLines(newLines);
-                }
-            }
-        } else {
-            // Reset ke line kosong jika tidak ada sales order yang dipilih
-            setLines([{
-                lineType: LineType.PRODUCT,
-                productId: '',
-                description: '',
-                qty: 1,
-                uom: '',
-                unitPrice: 0,
-                lineDiscountType: DiscountType.PERCENT,
-                lineDiscountValue: 0,
-                lineSubtotal: 0,
-                taxId: ''
-            }]);
-
-            // Reset customerId
-            handleHeaderChange("customerId", "");
-        }
-    };
 
     // Helper functions
     const formatDateForInput = (date: Date): string => {
@@ -131,7 +77,7 @@ export const CreateQuotationForm: React.FC<CreateQuotationFormProps> = ({
 
         return {
             customerId: '',
-            quotationDate: formatDateForInput(today), // Tambahkan quotationDate dengan nilai default hari ini
+            quotationDate: formatDateForInput(today),
             currency: 'IDR',
             exchangeRate: 1,
             status: QuotationStatus.DRAFT,
@@ -309,12 +255,6 @@ export const CreateQuotationForm: React.FC<CreateQuotationFormProps> = ({
             return;
         }
 
-        // Validasi sales order harus dipilih
-        if (!selectedSalesOrderId || selectedSalesOrderId === 'no-sales-order') {
-            alert('Please select a sales order');
-            return;
-        }
-
         // Validasi dasar
         if (!formData.customerId) {
             alert('Please select a customer');
@@ -383,7 +323,7 @@ export const CreateQuotationForm: React.FC<CreateQuotationFormProps> = ({
         // Prepare data untuk submit
         const submitData: CreateQuotationRequest = {
             ...formData,
-            quotationDate: formData.quotationDate, // Pastikan quotationDate termasuk
+            quotationDate: formData.quotationDate,
             validFrom: formData.validFrom || null,
             validUntil: formData.validUntil || null,
             paymentTermId: formData.paymentTermId || null,
@@ -439,73 +379,12 @@ export const CreateQuotationForm: React.FC<CreateQuotationFormProps> = ({
             <div className="border-b border-gray-200 pb-4 mb-6">
                 <div className="flex items-center gap-3 mb-2">
                     <FileText className="w-8 h-8 text-blue-600" />
-                    <h1 className="text-2xl font-bold">Create New Quotation</h1>
+                    <h1 className="text-2xl font-bold">Create Manual Quotation</h1>
                 </div>
-                <p className="text-gray-600">Fill in the details below to create a new quotation from sales order</p>
+                <p className="text-gray-600">Fill in the details below to create a new quotation manually</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Quotation Source Section */}
-                <Card className="bg-gradient-to-r from-primary/5 to-cyan-100 dark:from-slate-800 dark:to-blue-950 border-0">
-                    <CardHeader className="border-b border-cyan-300 dark:border-gray-700 px-4">
-                        <div className="flex items-center gap-3">
-                            <DockIcon className="w-5 h-5 text-orange-600" />
-                            <CardTitle className="text-lg font-semibold">Quotation Source</CardTitle>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="px-6">
-                        <div className="grid grid-cols-1 md:grid-cols-8 space-y-4">
-                            <div className="md:col-span-4 space-y-2">
-                                <Label className="text-sm font-medium text-foreground/80">
-                                    Sales Order <span className="text-red-500">*</span>
-                                </Label>
-                                <Select
-                                    value={selectedSalesOrderId}
-                                    onValueChange={handleSalesOrderChange}
-                                >
-                                    <SelectTrigger className="h-11 bg-background border-border/70 hover:border-border focus:border-primary 
-                   transition-colors shadow-sm dark:bg-background/95 dark:border-muted-foreground/30 
-                   dark:hover:border-muted-foreground/50 dark:focus:border-primary">
-                                        <SelectValue
-                                            placeholder={<span className="text-muted-foreground dark:text-muted-foreground/80">Select Sales Order</span>}
-                                        />
-                                    </SelectTrigger>
-                                    <SelectContent className="border-border/70 shadow-lg dark:border-muted-foreground/30 dark:bg-background/95">
-                                        <SelectItem
-                                            value="no-sales-order"
-                                            className="focus:bg-muted/50 transition-colors dark:focus:bg-muted/70 dark:text-foreground/90"
-                                        >
-                                            <span className="text-muted-foreground dark:text-muted-foreground/80">Select Sales Order</span>
-                                        </SelectItem>
-
-                                        {salesOrders.map((salesOrder) => (
-                                            <SelectItem
-                                                key={salesOrder.id}
-                                                value={salesOrder.id}
-                                                className="focus:bg-muted/50 transition-colors py-3 dark:focus:bg-muted/70 dark:text-foreground/90"
-                                            >
-                                                {/* Mobile: hanya soNumber */}
-                                                <span className="font-medium text-foreground md:hidden dark:text-foreground/90">
-                                                    {salesOrder.soNumber || "No Number"}
-                                                </span>
-
-                                                {/* Desktop: soNumber - Customer */}
-                                                <span className="font-medium text-foreground hidden md:block dark:text-foreground/90">
-                                                    {salesOrder.soNumber || "No Number"} -{" "}
-                                                    {salesOrder.customer?.name || "No Customer"} - {salesOrder.customer?.branch}
-                                                </span>
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <p className="text-sm text-muted-foreground">
-                                    Select a sales order to automatically populate customer and items information
-                                </p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
                 {/* Customer & Basic Info Section */}
                 <Card className="bg-gradient-to-r from-primary/5 to-blue-100 dark:from-slate-800 dark:to-slate-900 border-0">
                     <CardHeader className="border-b border-cyan-300 dark:border-gray-700 px-4">
@@ -524,13 +403,9 @@ export const CreateQuotationForm: React.FC<CreateQuotationFormProps> = ({
                                 <Select
                                     value={formData.customerId}
                                     onValueChange={(value) => handleHeaderChange("customerId", value)}
-                                    disabled={true} // Disabled karena diisi otomatis dari sales order
                                 >
                                     <SelectTrigger className="bg-white dark:bg-gray-800 dark:text-white">
                                         <SelectValue placeholder="Select Customer" />
-                                        {formData.customerId && (
-                                            <span className="text-xs text-muted-foreground ml-2">(Auto-filled from Sales Order)</span>
-                                        )}
                                     </SelectTrigger>
                                     <SelectContent className="bg-white dark:bg-gray-800 dark:text-white">
                                         {customers.map((customer) => (
@@ -547,7 +422,7 @@ export const CreateQuotationForm: React.FC<CreateQuotationFormProps> = ({
                             </div>
 
                             {/* Currency */}
-                            <div className="md:col-span-1 md:col-start-4 space-y-2">
+                            <div className="md:col-span-1 space-y-2">
                                 <Label htmlFor="currency">Currency</Label>
                                 <Select
                                     value={formData.currency}
@@ -565,7 +440,7 @@ export const CreateQuotationForm: React.FC<CreateQuotationFormProps> = ({
                             </div>
 
                             {/* Exchange Rate */}
-                            <div className="md:cols-span-1 md:col-start-5 space-y-2">
+                            <div className="md:col-span-1 space-y-2">
                                 <Label htmlFor="exchangeRate">Exchange Rate</Label>
                                 <Input
                                     id="exchangeRate"
@@ -581,7 +456,7 @@ export const CreateQuotationForm: React.FC<CreateQuotationFormProps> = ({
                             </div>
 
                             {/* Payment Term */}
-                            <div className="md:col-span-1 md:col-start-6 space-y-2">
+                            <div className="md:col-span-1 space-y-2">
                                 <Label htmlFor="paymentTerm">Payment Term</Label>
                                 <Select
                                     value={formData.paymentTermId || ""}
@@ -679,9 +554,15 @@ export const CreateQuotationForm: React.FC<CreateQuotationFormProps> = ({
                                 <Package className="w-5 h-5 text-purple-600" />
                                 <CardTitle className="text-lg font-semibold">Quotation Items</CardTitle>
                             </div>
-                            <div className="text-sm text-muted-foreground">
-                                Items are populated from selected sales order
-                            </div>
+                            <Button
+                                type="button"
+                                onClick={addLine}
+                                className="flex items-center gap-2"
+                                variant="outline"
+                            >
+                                <Plus className="w-4 h-4" />
+                                Add Item
+                            </Button>
                         </div>
                     </CardHeader>
                     <CardContent className="px-6 space-y-2">
@@ -696,7 +577,6 @@ export const CreateQuotationForm: React.FC<CreateQuotationFormProps> = ({
                                                 {getLineTypeBadge(line.lineType)}
                                             </div>
                                         </div>
-                                        {/* Tombol hapus dinonaktifkan karena items dari sales order */}
                                         {lines.length > 1 && (
                                             <Button
                                                 type="button"
@@ -704,23 +584,20 @@ export const CreateQuotationForm: React.FC<CreateQuotationFormProps> = ({
                                                 size="icon"
                                                 onClick={() => removeLine(index)}
                                                 className="h-8 w-8 text-red-600 hover:bg-red-50"
-                                                disabled={true} // Nonaktifkan hapus item
-                                                title="Items cannot be removed when created from sales order"
                                             >
-                                                <Trash2 className="w-4 h-4 opacity-50" />
+                                                <Trash2 className="w-4 h-4" />
                                             </Button>
                                         )}
                                     </div>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
                                     <div className="grid grid-cols-1 lg:grid-cols-8 gap-4">
-                                        {/* Line Type - disabled karena dari sales order */}
-                                        <div className="lg:col-span-1 lg:col-start-1 space-y-2">
+                                        {/* Line Type */}
+                                        <div className="lg:col-span-1 space-y-2">
                                             <Label>Type</Label>
                                             <Select
                                                 value={line.lineType}
                                                 onValueChange={(value) => handleLineChange(index, 'lineType', value as LineType)}
-                                                disabled={true}
                                             >
                                                 <SelectTrigger>
                                                     <SelectValue />
@@ -733,13 +610,12 @@ export const CreateQuotationForm: React.FC<CreateQuotationFormProps> = ({
                                             </Select>
                                         </div>
 
-                                        {/* Product Selection - disabled karena dari sales order */}
-                                        <div className="lg:col-span-3 lg:col-start-2 space-y-2">
+                                        {/* Product Selection */}
+                                        <div className="lg:col-span-3 space-y-2">
                                             <Label>Product</Label>
                                             <Select
                                                 value={line.productId || ""}
                                                 onValueChange={(value) => handleProductChange(index, value)}
-                                                disabled={true}
                                             >
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Select Product" />
@@ -755,20 +631,19 @@ export const CreateQuotationForm: React.FC<CreateQuotationFormProps> = ({
                                             </Select>
                                         </div>
 
-                                        {/* Description - disabled karena dari sales order */}
-                                        <div className="lg:col-span-4 lg:col-start-6 space-y-2">
+                                        {/* Description */}
+                                        <div className="lg:col-span-4 space-y-2">
                                             <Label>Description</Label>
                                             <Textarea
                                                 value={line.description || ""}
                                                 onChange={(e) => handleLineChange(index, 'description', e.target.value)}
                                                 placeholder="Item description..."
-                                                disabled={true}
                                             />
                                         </div>
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-8 lg:grid-cols-8 gap-2">
-                                        {/* Quantity - disabled karena dari sales order */}
+                                        {/* Quantity */}
                                         <div className="space-y-2">
                                             <Label>Quantity</Label>
                                             <Input
@@ -777,11 +652,10 @@ export const CreateQuotationForm: React.FC<CreateQuotationFormProps> = ({
                                                 step="0.01"
                                                 value={line.qty}
                                                 onChange={(e) => handleLineChange(index, 'qty', parseFloat(e.target.value) || 0)}
-                                            // disabled={true}
                                             />
                                         </div>
 
-                                        {/* UOM - disabled karena dari sales order */}
+                                        {/* UOM */}
                                         <div className="space-y-2">
                                             <Label>Unit</Label>
                                             <Input
@@ -789,11 +663,10 @@ export const CreateQuotationForm: React.FC<CreateQuotationFormProps> = ({
                                                 value={line.uom || ""}
                                                 onChange={(e) => handleLineChange(index, 'uom', e.target.value)}
                                                 placeholder="e.g., pcs, kg"
-                                            // disabled={true}
                                             />
                                         </div>
 
-                                        {/* Unit Price - disabled karena dari sales order */}
+                                        {/* Unit Price */}
                                         <div className="md:col-span-2 lg:col-span-2 space-y-2">
                                             <Label>Unit Price</Label>
                                             <Input
@@ -802,11 +675,10 @@ export const CreateQuotationForm: React.FC<CreateQuotationFormProps> = ({
                                                 step="0.01"
                                                 value={line.unitPrice}
                                                 onChange={(e) => handleLineChange(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                                            // disabled={true}
                                             />
                                         </div>
 
-                                        {/* Tax - bisa diubah */}
+                                        {/* Tax */}
                                         <div className="space-y-2">
                                             <Label>Tax</Label>
                                             <Select
@@ -828,7 +700,7 @@ export const CreateQuotationForm: React.FC<CreateQuotationFormProps> = ({
                                         </div>
 
                                         <div className='md:col-span-3 lg:col-span-3 space-y-2'>
-                                            {/* Line Discount - bisa diubah */}
+                                            {/* Line Discount */}
                                             <div className="grid grid-cols-1 md:grid-cols-1 gap-4 pt-4 border-t">
                                                 <div className="space-y-2">
                                                     <Label>Discount Type</Label>
@@ -884,19 +756,6 @@ export const CreateQuotationForm: React.FC<CreateQuotationFormProps> = ({
                             </Card>
                         ))}
                     </CardContent>
-                    {/* Tombol Add Item dinonaktifkan */}
-                    <div className='flex justify-end items-end'>
-                        <Button
-                            type="button"
-                            onClick={addLine}
-                            className="flex items-center mx-6"
-                            disabled={true}
-                            title="Cannot add new items when created from sales order"
-                        >
-                            <Plus className="w-4 h-4 opacity-50" />
-                            Add Item
-                        </Button>
-                    </div>
                 </Card>
 
                 {/* Discount & Charges Section */}
@@ -1095,7 +954,7 @@ export const CreateQuotationForm: React.FC<CreateQuotationFormProps> = ({
                     {/* Tombol Simpan */}
                     <Button
                         type="submit"
-                        disabled={isLoading || !selectedSalesOrderId || selectedSalesOrderId === 'no-sales-order'}
+                        disabled={isLoading}
                         className="min-w-40 flex items-center gap-2"
                     >
                         {isLoading ? (
@@ -1106,7 +965,7 @@ export const CreateQuotationForm: React.FC<CreateQuotationFormProps> = ({
                         ) : (
                             <>
                                 <FileText className="w-5 h-5" />
-                                Create Quotation from Sales Order
+                                Create Manual Quotation
                             </>
                         )}
                     </Button>

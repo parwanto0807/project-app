@@ -71,11 +71,11 @@ export const createQuotation = async (req, res) => {
   try {
     const {
       customerId,
-      // quotationNumber dihapus dari required field, karena akan auto-generate
       currency = "IDR",
       exchangeRate = 1.0,
+      quotationDate,
       status = "DRAFT",
-      salesOrderId,
+      salesOrderId, // Ini yang menyebabkan error
       validFrom,
       validUntil,
       paymentTermId,
@@ -94,8 +94,28 @@ export const createQuotation = async (req, res) => {
       });
     }
 
-    // Generate quotation number otomatis
-    const quotationNumber = await generateQuotationNumber();
+    // Validasi quotationDate
+    if (!quotationDate) {
+      return res.status(400).json({
+        error: "quotationDate diperlukan",
+      });
+    }
+
+    // VALIDASI: Cek jika salesOrderId diberikan, pastikan SalesOrder exists
+    if (salesOrderId) {
+      const existingSalesOrder = await prisma.salesOrder.findUnique({
+        where: { id: salesOrderId },
+      });
+
+      if (!existingSalesOrder) {
+        return res.status(400).json({
+          error: "Sales Order tidak ditemukan",
+        });
+      }
+    }
+
+    // Generate quotation number otomatis BERDASARKAN quotationDate
+    const quotationNumber = await generateQuotationNumber(quotationDate);
 
     // Check if generated quotation number already exists (safety check)
     const existingQuotation = await prisma.quotation.findUnique({
@@ -104,7 +124,7 @@ export const createQuotation = async (req, res) => {
 
     if (existingQuotation) {
       // Jika terjadi collision, generate lagi (sangat jarang terjadi)
-      quotationNumber = await generateQuotationNumber();
+      quotationNumber = await generateQuotationNumber(quotationDate);
 
       // Double check
       const existingQuotation2 = await prisma.quotation.findUnique({
@@ -129,28 +149,36 @@ export const createQuotation = async (req, res) => {
 
     // Create quotation dengan transaction
     const quotation = await prisma.$transaction(async (tx) => {
+      // Prepare data untuk create quotation
+      const quotationData = {
+        customerId,
+        quotationNumber,
+        quotationDate: new Date(quotationDate),
+        currency,
+        exchangeRate: parseFloat(exchangeRate),
+        status,
+        validFrom: validFrom ? new Date(validFrom) : null,
+        validUntil: validUntil ? new Date(validUntil) : null,
+        paymentTermId: paymentTermId || null,
+        discountType,
+        discountValue: parseFloat(discountValue),
+        taxInclusive,
+        otherCharges: parseFloat(otherCharges),
+        notes,
+        preparedBy,
+        subtotal: calculatedTotals.subtotal,
+        taxTotal: calculatedTotals.taxTotal,
+        total: calculatedTotals.total,
+      };
+
+      // Hanya tambahkan salesOrderId jika ada dan valid
+      if (salesOrderId) {
+        quotationData.salesOrderId = salesOrderId;
+      }
+
       // Create quotation
       const newQuotation = await tx.quotation.create({
-        data: {
-          customerId,
-          quotationNumber, // Gunakan auto-generated number
-          currency,
-          salesOrderId,
-          exchangeRate: parseFloat(exchangeRate),
-          status,
-          validFrom: validFrom ? new Date(validFrom) : null,
-          validUntil: validUntil ? new Date(validUntil) : null,
-          paymentTermId: paymentTermId || null,
-          discountType,
-          discountValue: parseFloat(discountValue),
-          taxInclusive,
-          otherCharges: parseFloat(otherCharges),
-          notes,
-          preparedBy,
-          subtotal: calculatedTotals.subtotal,
-          taxTotal: calculatedTotals.taxTotal,
-          total: calculatedTotals.total,
-        },
+        data: quotationData,
       });
 
       // Create quotation lines
@@ -216,6 +244,15 @@ export const createQuotation = async (req, res) => {
     });
   } catch (error) {
     console.error("Error creating quotation:", error);
+
+    // Handle specific error messages
+    if (error.code === "P2003") {
+      return res.status(400).json({
+        error: "Data referensi tidak valid",
+        details: "Sales Order atau Customer tidak ditemukan",
+      });
+    }
+
     res.status(500).json({
       error: "Gagal membuat quotation",
       details: error.message,
@@ -234,6 +271,10 @@ export const getQuotations = async (req, res) => {
       search,
       sortBy = "createdAt",
       sortOrder = "desc",
+      dateFrom,
+      dateUntil,
+      quotationDateFrom, // Tambahkan filter quotationDate
+      quotationDateUntil, // Tambahkan filter quotationDate
     } = req.query;
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -245,10 +286,27 @@ export const getQuotations = async (req, res) => {
     if (status) where.status = status;
     if (customerId) where.customerId = customerId;
 
+    // Filter berdasarkan created/updated date
+    if (dateFrom || dateUntil) {
+      where.createdAt = {};
+      if (dateFrom) where.createdAt.gte = new Date(dateFrom);
+      if (dateUntil) where.createdAt.lte = new Date(dateUntil);
+    }
+
+    // Filter berdasarkan quotationDate
+    if (quotationDateFrom || quotationDateUntil) {
+      where.quotationDate = {};
+      if (quotationDateFrom)
+        where.quotationDate.gte = new Date(quotationDateFrom);
+      if (quotationDateUntil)
+        where.quotationDate.lte = new Date(quotationDateUntil);
+    }
+
     if (search) {
       where.OR = [
         { quotationNumber: { contains: search, mode: "insensitive" } },
         { customer: { name: { contains: search, mode: "insensitive" } } },
+        { customer: { code: { contains: search, mode: "insensitive" } } },
       ];
     }
 
@@ -262,8 +320,8 @@ export const getQuotations = async (req, res) => {
               id: true,
               name: true,
               code: true,
-              email: true, // Tambahkan email
-              address: true, // Tambahkan address
+              email: true,
+              address: true,
               branch: true,
             },
           },
@@ -319,15 +377,14 @@ export const getQuotations = async (req, res) => {
       prisma.quotation.count({ where }),
     ]);
 
-    // console.log("Data quotations:", quotations.length, "items");
-    // console.log(
-    //   "Sample quotation lines:",
-    //   quotations[0]?.lines?.length,
-    //   "lines"
-    // );
+    // Transform data untuk memastikan quotationDate termasuk dalam response
+    const transformedQuotations = quotations.map((quotation) => ({
+      ...quotation,
+      quotationDate: quotation.quotationDate, // Pastikan field ini ada
+    }));
 
     res.json({
-      data: quotations,
+      data: transformedQuotations,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -381,8 +438,14 @@ export const getQuotationById = async (req, res) => {
       });
     }
 
+    // Pastikan quotationDate ada dalam response
+    const quotationWithDate = {
+      ...quotation,
+      quotationDate: quotation.quotationDate, // Explicitly include quotationDate
+    };
+
     res.json({
-      data: quotation,
+      data: quotationWithDate,
     });
   } catch (error) {
     console.error("Error getting quotation:", error);
@@ -399,6 +462,7 @@ export const updateQuotation = async (req, res) => {
     const { id } = req.params;
     const {
       customerId,
+      quotationDate,
       currency,
       exchangeRate,
       status,
@@ -442,30 +506,51 @@ export const updateQuotation = async (req, res) => {
 
     // Update quotation dengan transaction
     const updatedQuotation = await prisma.$transaction(async (tx) => {
-      // Update quotation
+      // Prepare update data - HAPUS customerId dari sini
+      const updateData = {
+        quotationDate: quotationDate ? new Date(quotationDate) : undefined,
+        currency,
+        exchangeRate: exchangeRate ? parseFloat(exchangeRate) : undefined,
+        status,
+        validFrom: validFrom ? new Date(validFrom) : undefined,
+        validUntil: validUntil ? new Date(validUntil) : undefined,
+        discountType,
+        discountValue: discountValue ? parseFloat(discountValue) : undefined,
+        taxInclusive,
+        otherCharges: otherCharges ? parseFloat(otherCharges) : undefined,
+        notes,
+        preparedBy,
+        ...(lines && {
+          subtotal: calculatedTotals.subtotal,
+          taxTotal: calculatedTotals.taxTotal,
+          total: calculatedTotals.total,
+        }),
+        version: existingQuotation.version + 1,
+      };
+
+      // Tambahkan customer relation JIKA customerId diberikan
+      if (customerId) {
+        updateData.customer = {
+          connect: { id: customerId },
+        };
+      }
+
+      // Tambahkan paymentTerm relation JIKA paymentTermId diberikan
+      if (paymentTermId) {
+        updateData.paymentTerm = {
+          connect: { id: paymentTermId },
+        };
+      } else if (paymentTermId === null) {
+        // Jika ingin menghapus paymentTerm
+        updateData.paymentTerm = {
+          disconnect: true,
+        };
+      }
+
+      // Update quotation dengan data yang sudah disiapkan
       const quotation = await tx.quotation.update({
         where: { id },
-        data: {
-          customerId,
-          currency,
-          exchangeRate: exchangeRate ? parseFloat(exchangeRate) : undefined,
-          status,
-          validFrom: validFrom ? new Date(validFrom) : undefined,
-          validUntil: validUntil ? new Date(validUntil) : undefined,
-          paymentTermId,
-          discountType,
-          discountValue: discountValue ? parseFloat(discountValue) : undefined,
-          taxInclusive,
-          otherCharges: otherCharges ? parseFloat(otherCharges) : undefined,
-          notes,
-          preparedBy,
-          ...(lines && {
-            subtotal: calculatedTotals.subtotal,
-            taxTotal: calculatedTotals.taxTotal,
-            total: calculatedTotals.total,
-          }),
-          version: existingQuotation.version + 1,
-        },
+        data: updateData,
       });
 
       // Update lines if provided

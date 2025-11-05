@@ -20,7 +20,7 @@ import { useProducts } from "@/hooks/use-product";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { usePurchaseRequest } from "@/hooks/use-pr";
 import { CreatePurchaseRequestData } from "@/types/pr";
-import { fetchAllSpk } from "@/lib/action/master/spk/spk";
+import { fetchAllSpkPr } from "@/lib/action/master/spk/spk";
 import { toast } from "sonner";
 
 interface SPK {
@@ -160,7 +160,7 @@ export default function CreatePRPageAdmin() {
 
     const fetchData = async () => {
         try {
-            const result = await fetchAllSpk();
+            const result = await fetchAllSpkPr();
             setDataSpk(result);
         } catch (error) {
             console.error("Error fetching SPK data:", error);

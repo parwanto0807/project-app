@@ -59,6 +59,7 @@ interface UpdateQuotationFormProps {
 // Type untuk form data
 interface FormData {
     customerId: string;
+    quotationDate: string;
     quotationNumber: string;
     currency: string;
     exchangeRate: number;
@@ -167,6 +168,7 @@ export const UpdateQuotationForm: React.FC<UpdateQuotationFormProps> = ({
 
             const formattedData: FormData = {
                 customerId: quotationData.customerId || "",
+                quotationDate: formatDate(quotationData.quotationDate ?? null), // Tambahkan quotationDate
                 quotationNumber: quotationData.quotationNumber || "",
                 currency: quotationData.currency || "IDR",
                 exchangeRate: Number(quotationData.exchangeRate) || 1,
@@ -207,15 +209,14 @@ export const UpdateQuotationForm: React.FC<UpdateQuotationFormProps> = ({
         }
     }, [initialData, reset]);
 
-    const formatDateTimeForSchema = (date: string | Date | null): string | null => {
-        if (!date) return null;
+    const formatDateTimeForSchema = (dateString: string): string => {
+        if (!dateString) return new Date().toISOString();
+
         try {
-            const dateObj = new Date(date);
-            if (isNaN(dateObj.getTime())) return null;
-            return dateObj.toISOString();
-        } catch (error) {
-            console.error('Error formatting datetime:', error);
-            return null;
+            const date = new Date(dateString);
+            return isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
+        } catch {
+            return new Date().toISOString();
         }
     };
 
@@ -299,6 +300,9 @@ export const UpdateQuotationForm: React.FC<UpdateQuotationFormProps> = ({
         // Convert FormData ke CreateQuotationRequest
         const submitData: CreateQuotationRequest = {
             ...data,
+            quotationDate: data.quotationDate
+                ? formatDateTimeForSchema(data.quotationDate)
+                : new Date().toISOString(), // Langsung gunakan toISOString()
             paymentTermId: data.paymentTermId || null,
             discountType: data.discountType,
             status: data.status,
@@ -333,6 +337,20 @@ export const UpdateQuotationForm: React.FC<UpdateQuotationFormProps> = ({
     // Helper function untuk calculate form subtotal
     const calculateFormSubtotal = (): number => {
         return calculateSubtotal();
+    };
+
+    const formatDisplayDate = (dateString: string): string => {
+        if (!dateString) return '-';
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('id-ID', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+            });
+        } catch {
+            return '-';
+        }
     };
 
     return (
@@ -519,19 +537,49 @@ export const UpdateQuotationForm: React.FC<UpdateQuotationFormProps> = ({
                     <CardHeader className="border-b border-cyan-300 dark:border-gray-700 px-4">
                         <div className="flex items-center gap-3">
                             <Calendar className="w-5 h-5 text-green-600" />
-                            <CardTitle className="text-lg font-semibold">Validity Period</CardTitle>
+                            <CardTitle className="text-lg font-semibold">Quotation Dates</CardTitle>
                         </div>
                     </CardHeader>
                     <CardContent className="px-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            {/* Quotation Date Field */}
+                            <div className="space-y-2">
+                                <Label htmlFor="quotationDate" className="flex items-center gap-1">
+                                    Quotation Date
+                                    <span className="text-red-500">*</span>
+                                </Label>
+                                <Controller
+                                    name="quotationDate"
+                                    control={control}
+                                    rules={{ required: "Quotation date is required" }}
+                                    defaultValue="" // Tambahkan defaultValue
+                                    render={({ field, fieldState }) => (
+                                        <div>
+                                            <Input
+                                                {...field}
+                                                value={field.value || ""} // Pastikan selalu string
+                                                type="date"
+                                                className={`bg-white dark:bg-gray-800 dark:text-white ${fieldState.error ? "border-red-500" : ""
+                                                    }`}
+                                            />
+                                            {fieldState.error && (
+                                                <p className="text-red-500 text-xs mt-1">{fieldState.error.message}</p>
+                                            )}
+                                        </div>
+                                    )}
+                                />
+                            </div>
+
                             <div className="space-y-2">
                                 <Label htmlFor="validFrom">Valid From</Label>
                                 <Controller
                                     name="validFrom"
                                     control={control}
+                                    defaultValue="" // Tambahkan defaultValue
                                     render={({ field }) => (
                                         <Input
                                             {...field}
+                                            value={field.value || ""} // Pastikan selalu string
                                             type="date"
                                             className="bg-white dark:bg-gray-800 dark:text-white"
                                         />
@@ -544,9 +592,11 @@ export const UpdateQuotationForm: React.FC<UpdateQuotationFormProps> = ({
                                 <Controller
                                     name="validUntil"
                                     control={control}
+                                    defaultValue="" // Tambahkan defaultValue
                                     render={({ field }) => (
                                         <Input
                                             {...field}
+                                            value={field.value || ""} // Pastikan selalu string
                                             type="date"
                                             className="bg-white dark:bg-gray-800 dark:text-white"
                                         />
@@ -554,6 +604,17 @@ export const UpdateQuotationForm: React.FC<UpdateQuotationFormProps> = ({
                                 />
                             </div>
                         </div>
+
+                        {/* Validation summary */}
+                        {watch("quotationDate") && (watch("validFrom") || watch("validUntil")) && (
+                            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md">
+                                <p className="text-sm text-blue-700 dark:text-blue-300">
+                                    Quotation akan diterbitkan pada <strong>{formatDisplayDate(watch("quotationDate"))}</strong>
+                                    {' '}dan berlaku dari <strong>{formatDisplayDate(watch("validFrom"))}</strong> hingga{' '}
+                                    <strong>{formatDisplayDate(watch("validUntil"))}</strong>
+                                </p>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 

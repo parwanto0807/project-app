@@ -59,6 +59,7 @@ import {
     BarChart3,
     CreditCard,
     FileDigit,
+    ClipboardList,
 } from "lucide-react";
 import {
     Dialog,
@@ -241,8 +242,12 @@ export function QuotationTable({
         }
     };
 
-    const handleCreateQuotation = () => {
+    const handleCreateFromSalesOrder = () => {
         router.push("/admin-area/sales/quotation/create");
+    };
+
+    const handleCreateManual = () => {
+        router.push("/admin-area/sales/quotation/create/manual");
     };
 
     const toggleRowExpansion = (quotationId: string) => {
@@ -684,13 +689,40 @@ export function QuotationTable({
                             Kelola dan lacak semua quotation Anda di satu tempat
                         </p>
                     </div>
-                    <Button
-                        className="bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300 transform hover:scale-105 shadow-lg flex items-center gap-2"
-                        onClick={handleCreateQuotation}
-                    >
-                        <Plus className="h-4 w-4" />
-                        Buat Quotation Baru
-                    </Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                className="bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300 transform hover:scale-105 shadow-lg flex items-center gap-2"
+                            >
+                                <Plus className="h-4 w-4" />
+                                Buat Quotation Baru
+                                <ChevronDown className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-64">
+                            <DropdownMenuItem
+                                onClick={handleCreateFromSalesOrder}
+                                className="flex items-center gap-3 cursor-pointer p-3 hover:bg-blue-50"
+                            >
+                                <ClipboardList className="h-4 w-4 text-blue-600" />
+                                <div className="flex flex-col">
+                                    <span className="font-medium">By Sales Order</span>
+                                    <span className="text-sm text-gray-500">Buat quotation dari sales order yang sudah ada</span>
+                                </div>
+                            </DropdownMenuItem>
+
+                            <DropdownMenuItem
+                                onClick={handleCreateManual}
+                                className="flex items-center gap-3 cursor-pointer p-3 hover:bg-green-50"
+                            >
+                                <FileText className="h-4 w-4 text-green-600" />
+                                <div className="flex flex-col">
+                                    <span className="font-medium">Manual</span>
+                                    <span className="text-sm text-gray-500">Buat quotation manual tanpa sales order</span>
+                                </div>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </div>
 
@@ -865,7 +897,7 @@ export function QuotationTable({
                                                     <div>
                                                         <div className="font-medium flex items-center gap-2">
                                                             <Building className="h-4 w-4 text-green-600" />
-                                                            {quotation.customer.name}
+                                                            {quotation.customer.name} - {quotation.customer.branch}
                                                         </div>
                                                         <div className="text-sm text-slate-500 flex items-center gap-1">
                                                             <Mail className="h-3 w-3" />
@@ -888,7 +920,7 @@ export function QuotationTable({
                                                 <TableCell>
                                                     <div className="flex items-center gap-2">
                                                         <Calendar className="h-4 w-4 text-orange-600" />
-                                                        {formatDate(quotation.createdAt)}
+                                                        {formatDate(quotation.quotationDate)}
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>

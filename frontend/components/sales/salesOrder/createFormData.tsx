@@ -508,7 +508,7 @@ export function CreateSalesOrderForm({
                               <SelectContent>
                                 {customerOptions.map((c) => (
                                   <SelectItem key={c.id} value={c.id}>
-                                    {c.name} {c.branch ? `(${c.branch})` : ""}
+                                    {c.branch ? `( ${c.branch} )` : ""} 
                                   </SelectItem>
                                 ))}
                               </SelectContent>

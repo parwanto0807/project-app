@@ -20,6 +20,7 @@ export enum DiscountType {
   PERCENT = "PERCENT",
   AMOUNT = "AMOUNT",
 }
+
 export interface QuotationQueryParams {
   page?: number;
   limit?: number;
@@ -30,6 +31,8 @@ export interface QuotationQueryParams {
   sortOrder?: "asc" | "desc";
   dateFrom?: string;
   dateUntil?: string;
+  quotationDateFrom?: string; // Tambahkan filter untuk quotationDate
+  quotationDateUntil?: string; // Tambahkan filter untuk quotationDate
 }
 
 // Response type untuk getQuotations
@@ -47,6 +50,7 @@ export interface QuotationListResponse {
 export interface QuotationHistoryPayload {
   id: string;
   quotationNumber: string;
+  quotationDate: string; // Tambahkan quotationDate
   version: number;
   customerId: string;
   currency: string;
@@ -84,6 +88,7 @@ export interface QuotationChangePayload {
 export interface BaseQuotation {
   id: string;
   quotationNumber: string;
+  quotationDate: string; // Tambahkan quotationDate
   version: number;
   customerId: string;
   currency: string;
@@ -229,6 +234,7 @@ export interface QuotationApiResponse {
 // Request/Response Types
 export interface CreateQuotationRequest {
   customerId: string;
+  quotationDate: string; // Tambahkan quotationDate
   quotationNumber?: string;
   salesOrderId?: string | null;
   currency?: string;
@@ -291,6 +297,8 @@ export interface QuotationFilter {
   search?: string;
   dateFrom?: string;
   dateUntil?: string;
+  quotationDateFrom?: string; // Tambahkan filter untuk quotationDate
+  quotationDateUntil?: string; // Tambahkan filter untuk quotationDate
 }
 
 export interface QuotationPagination {
@@ -299,10 +307,12 @@ export interface QuotationPagination {
   sortBy?: string;
   sortOrder?: "asc" | "desc";
 }
+
 // Summary Types for Listing
 export interface QuotationSummary {
   id: string;
   quotationNumber: string;
+  quotationDate: string; // Tambahkan quotationDate
   version: number;
   customerId: string;
   customer: {
@@ -349,6 +359,7 @@ export interface QuotationLineCalculation {
 // Form Data Types
 export interface QuotationFormData {
   customerId: string;
+  quotationDate: string; // Tambahkan quotationDate
   currency: string;
   exchangeRate: number;
   status: QuotationStatus;
@@ -411,6 +422,7 @@ export const isQuotationHistoryPayload = (
     typeof payload === "object" &&
     payload !== null &&
     "quotationNumber" in payload &&
+    "quotationDate" in payload && // Tambahkan quotationDate di type guard
     "customerId" in payload &&
     "status" in payload
   );

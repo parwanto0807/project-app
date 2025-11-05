@@ -125,7 +125,7 @@ class InvoiceController {
         });
       }
 
-      const { id } = req.params; // invoiceId dari URL
+      const { id } = req.params;
       const {
         salesOrderId,
         invoiceDate,
@@ -143,6 +143,9 @@ class InvoiceController {
         createdById,
         approvedById,
       } = req.body;
+
+      console.log("SalesOrderId from request:", salesOrderId);
+      console.log("Items to update:", items);
 
       // Hitung ulang total
       const calculatedTotals = this.calculateInvoiceTotals(items);
@@ -171,11 +174,13 @@ class InvoiceController {
 
         // Hapus items lama & buat ulang
         await tx.invoiceItem.deleteMany({ where: { invoiceId: invoice.id } });
-        await tx.invoiceItem.createMany({
+
+        // Create new invoice items
+        const newInvoiceItems = await tx.invoiceItem.createMany({
           data: items.map((item) => ({
             invoiceId: invoice.id,
             soItemId: item.soItemId,
-            itemCode: item.itemCode,
+            itemCode: item.itemCode, // itemCode adalah productId
             name: item.name,
             description: item.description,
             uom: item.uom,
@@ -191,6 +196,108 @@ class InvoiceController {
             netAmount: item.netAmount,
           })),
         });
+
+        // UPDATE SALES ORDER ITEMS - menggunakan itemCode sebagai productId
+        let updatedSalesOrderItemsCount = 0;
+
+        for (const item of items) {
+          console.log("Processing item:", {
+            soItemId: item.soItemId,
+            productId: item.itemCode, // itemCode adalah productId
+            salesOrderId: salesOrderId,
+            hasSoItemId: !!item.soItemId,
+            hasProductId: !!item.itemCode,
+            hasSalesOrderId: !!salesOrderId,
+          });
+
+          // Gunakan itemCode sebagai productId
+          if (item.soItemId && item.itemCode && salesOrderId) {
+            try {
+              // OPTION 1: Update menggunakan soItemId, salesOrderId, dan productId (itemCode)
+              const updateResult = await tx.salesOrderItem.updateMany({
+                where: {
+                  id: item.soItemId,
+                  salesOrderId: salesOrderId,
+                  productId: item.itemCode, // itemCode adalah productId
+                },
+                data: {
+                  qty: item.qty,
+                  unitPrice: item.unitPrice,
+                  discount: item.discount || 0,
+                  taxRate: item.taxRate || 0,
+                  lineTotal: item.lineTotal,
+                },
+              });
+
+              console.log(
+                `Update result for item ${item.soItemId}:`,
+                updateResult
+              );
+              updatedSalesOrderItemsCount += updateResult.count;
+
+              // Jika tidak ada yang terupdate, coba alternatif
+              if (updateResult.count === 0) {
+                console.log(
+                  `No records updated with productId, trying with soItemId only...`
+                );
+
+                // OPTION 2: Fallback - update hanya dengan soItemId
+                const fallbackResult = await tx.salesOrderItem.update({
+                  where: {
+                    id: item.soItemId,
+                  },
+                  data: {
+                    qty: item.qty,
+                    unitPrice: item.unitPrice,
+                    discount: item.discount || 0,
+                    taxRate: item.taxRate || 0,
+                    lineTotal: item.lineTotal,
+                  },
+                });
+                console.log(`Fallback update successful:`, fallbackResult);
+                updatedSalesOrderItemsCount++;
+              }
+            } catch (error) {
+              console.error(
+                `Error updating SalesOrderItem ${item.soItemId}:`,
+                error
+              );
+
+              // OPTION 3: Last resort - update hanya dengan soItemId
+              try {
+                const lastResortResult = await tx.salesOrderItem.update({
+                  where: {
+                    id: item.soItemId,
+                  },
+                  data: {
+                    qty: item.qty,
+                    unitPrice: item.unitPrice,
+                    discount: item.discount || 0,
+                    taxRate: item.taxRate || 0,
+                    lineTotal: item.lineTotal,
+                  },
+                });
+                console.log(`Last resort update successful:`, lastResortResult);
+                updatedSalesOrderItemsCount++;
+              } catch (lastError) {
+                console.error(
+                  `All update attempts failed for item ${item.soItemId}:`,
+                  lastError
+                );
+              }
+            }
+          } else {
+            console.log("Skipping item - missing required fields:", {
+              soItemId: item.soItemId,
+              productId: item.itemCode,
+              salesOrderId: salesOrderId,
+            });
+          }
+        }
+
+        console.log(
+          `Total SalesOrderItems updated: ${updatedSalesOrderItemsCount}`
+        );
 
         // Hapus installments lama & buat ulang jika ada
         await tx.installment.deleteMany({ where: { invoiceId: invoice.id } });
@@ -228,7 +335,7 @@ class InvoiceController {
               id: true,
               soNumber: true,
               customer: { select: { name: true, address: true } },
-              spk: { select: { id: true } }, // array
+              spk: { select: { id: true } },
             },
           },
           createdBy: { select: { name: true, email: true } },
@@ -249,6 +356,7 @@ class InvoiceController {
       });
     }
   }
+
   // Calculate invoice totals from items
   calculateInvoiceTotals(items) {
     let subtotal = 0;
@@ -279,6 +387,7 @@ class InvoiceController {
       balanceDue: grandTotal,
     };
   }
+
   // Create new invoice
   async createInvoice(req, res) {
     try {

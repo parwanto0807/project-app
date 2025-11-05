@@ -29,11 +29,13 @@ interface CustomerForForm {
   id: string;
   name: string;
   address?: string;
+  branch?: string;
 }
 
 interface RawCustomer {
   code: string;
   name: string;
+  branch: string;
   // Index signature untuk properti lain yang mungkin ada
   [key: string]: unknown;
 }
@@ -113,6 +115,7 @@ export default function UpdateSalesOrderPageAdmin() {
             id: customer.id,
             name: customer.name,
             address: customer.address,
+            branch: customer.branch,
           }));
           setCustomers(formattedCustomers);
         }
@@ -126,7 +129,7 @@ export default function UpdateSalesOrderPageAdmin() {
 
   const isLoading = userLoading || loadingData;
   const userProp: { id: string } | undefined =
-  user ? { id: user.id} : undefined;
+    user ? { id: user.id } : undefined;
 
   return (
     // FIX: Menggunakan user?.role untuk prop role

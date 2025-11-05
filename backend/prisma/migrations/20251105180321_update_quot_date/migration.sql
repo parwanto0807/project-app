@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Quotation" ADD COLUMN     "quotationDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;

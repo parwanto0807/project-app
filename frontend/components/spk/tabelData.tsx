@@ -46,6 +46,7 @@ import {
     MapPin,
     Building,
     ClipboardList,
+    UserCircle2Icon,
 } from "lucide-react";
 import React, { useState, useMemo, Fragment } from "react";
 import Link from "next/link";
@@ -818,6 +819,7 @@ export default function TabelDataSpk({
                             <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Nomor SPK</TableHead>
                             <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Tanggal</TableHead>
                             <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Sales Order</TableHead>
+                            <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Customer</TableHead>
                             <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Tim / Karyawan</TableHead>
                             <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Pembuat</TableHead>
                             <TableHead className="w-40 font-semibold text-gray-700 dark:text-gray-300">Progress</TableHead>
@@ -881,6 +883,18 @@ export default function TabelDataSpk({
                                                         <FileText className="h-4 w-4 text-blue-600" />
                                                         <span className="font-medium text-blue-700 dark:text-blue-300">
                                                             {spk.salesOrder.soNumber}
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-gray-400 dark:text-gray-600">-</span>
+                                                )}
+                                            </TableCell>
+                                            <TableCell>
+                                                {spk.salesOrder?.customer.branch ? (
+                                                    <div className="flex items-center space-x-2">
+                                                        <UserCircle2Icon className="h-4 w-4 text-red-600" />
+                                                        <span className="font-medium text-blue-700 dark:text-blue-300">
+                                                            {spk.salesOrder.customer.branch}
                                                         </span>
                                                     </div>
                                                 ) : (

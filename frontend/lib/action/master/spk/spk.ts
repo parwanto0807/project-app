@@ -42,6 +42,25 @@ export async function fetchAllSpk() {
   }
 }
 
+export async function fetchAllSpkPr() {
+  try {
+    const res = await fetch(`${API_URL}/api/spk/getAllSPKPr`, {
+      method: "GET",
+      credentials: "include",
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      throw new Error("Gagal fetch SPK");
+    }
+
+    return await res.json();
+  } catch (error) {
+    console.error("fetchAllSpk error:", error);
+    throw error;
+  }
+}
+
 export async function fetchSpkById(id: string) {
   try {
     const res = await fetch(`${API_URL}/api/spk/getSPKById/${id}`, {

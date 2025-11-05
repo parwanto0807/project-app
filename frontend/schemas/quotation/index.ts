@@ -10,6 +10,7 @@ export const discountTypeSchema = z.nativeEnum(DiscountType);
 export const quotationHistoryPayloadSchema = z.object({
   id: z.string().uuid(),
   quotationNumber: z.string(),
+  quotationDate: z.string().datetime("Quotation date must be a valid date"), // Tambahkan quotationDate
   version: z.number().int().positive(),
   customerId: z.string().uuid(),
   currency: z.string(),
@@ -69,6 +70,7 @@ export const quotationLineSchema = z.object({
 // Main Quotation Schema
 export const createQuotationSchema = z.object({
   customerId: z.string().uuid("Invalid customer ID"),
+  quotationDate: z.string().datetime("Quotation date is required and must be a valid date"), // Tambahkan quotationDate
   quotationNumber: z.string().optional(),
   salesOrderId: z.string().optional(),
   currency: z.string().min(1, "Currency is required").default("IDR"),
@@ -111,7 +113,8 @@ export const createQuotationSchema = z.object({
 export const updateQuotationSchema = createQuotationSchema
   .partial()
   .extend({
-    customerId: z.string().uuid("Invalid customer ID"), // override supaya tetap wajib
+    customerId: z.string().uuid("Invalid customer ID").optional(), // optional untuk update
+    quotationDate: z.string().datetime("Quotation date must be a valid date").optional(), // optional untuk update
     version: z.number().int().positive().optional(),
   });
 
@@ -160,13 +163,15 @@ export const addCommentSchema = z.object({
   commentedBy: z.string().min(1, "Commenter is required"),
 });
 
-// Filter Schema
+// Filter Schema - Tambahkan filter untuk quotationDate
 export const quotationFilterSchema = z.object({
   status: quotationStatusSchema.optional(),
   customerId: z.string().uuid().optional(),
   search: z.string().optional(),
   dateFrom: z.string().datetime().optional(),
   dateUntil: z.string().datetime().optional(),
+  quotationDateFrom: z.string().datetime().optional(), // Tambahkan filter quotationDate
+  quotationDateUntil: z.string().datetime().optional(), // Tambahkan filter quotationDate
 });
 
 // Pagination Schema
@@ -174,7 +179,7 @@ export const quotationPaginationSchema = z.object({
   page: z.number().int().positive().default(1),
   limit: z.number().int().min(1).max(100).default(10),
   sortBy: z
-    .enum(["quotationNumber", "createdAt", "updatedAt", "total", "status"])
+    .enum(["quotationNumber", "createdAt", "updatedAt", "total", "status", "quotationDate"]) // Tambahkan quotationDate di sortBy
     .default("createdAt"),
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
 });
@@ -220,6 +225,7 @@ export const defaultQuotationLine: z.infer<typeof quotationLineSchema> = {
 
 export const defaultQuotationForm: z.infer<typeof createQuotationSchema> = {
   customerId: "",
+  quotationDate: new Date().toISOString(), // Default ke tanggal hari ini
   currency: "IDR",
   exchangeRate: 1.0,
   status: QuotationStatus.DRAFT,

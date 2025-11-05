@@ -87,6 +87,7 @@ export const CreateQuotationFormById: React.FC<CreateQuotationFormProps> = ({
 
         return {
             customerId: '',
+            quotationDate: formatDateForInput(today), // Tambahkan quotationDate dengan nilai default hari ini
             currency: 'IDR',
             exchangeRate: 1,
             salesOrderId: '',
@@ -347,6 +348,12 @@ export const CreateQuotationFormById: React.FC<CreateQuotationFormProps> = ({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
+        // Validasi quotation date harus diisi
+        if (!formData.quotationDate) {
+            alert('Please select a quotation date');
+            return;
+        }
+
         // Validasi sales order harus dipilih
         if (!selectedSalesOrderId || selectedSalesOrderId === 'no-sales-order') {
             alert('Please select a sales order');
@@ -396,13 +403,33 @@ export const CreateQuotationFormById: React.FC<CreateQuotationFormProps> = ({
             return;
         }
 
+        // Validasi tanggal: quotationDate tidak boleh lebih baru dari validUntil
+        if (formData.quotationDate && formData.validUntil) {
+            const quotationDate = new Date(formData.quotationDate);
+            const validUntil = new Date(formData.validUntil);
+
+            if (quotationDate > validUntil) {
+                alert('Quotation date cannot be later than valid until date');
+                return;
+            }
+        }
+
+        // Validasi tanggal: quotationDate tidak boleh lebih lama dari validFrom
+        if (formData.quotationDate && formData.validFrom) {
+            const quotationDate = new Date(formData.quotationDate);
+            const validFrom = new Date(formData.validFrom);
+
+            if (quotationDate < validFrom) {
+                alert('Quotation date cannot be earlier than valid from date');
+                return;
+            }
+        }
+
         // Prepare data untuk submit
         const submitData: CreateQuotationRequest = {
             ...formData,
+            quotationDate: formData.quotationDate, // Pastikan quotationDate termasuk
             validFrom: formData.validFrom || null,
-            salesOrderId: selectedSalesOrderId && selectedSalesOrderId !== '' && selectedSalesOrderId !== 'no-sales-order'
-                ? selectedSalesOrderId
-                : null,
             validUntil: formData.validUntil || null,
             paymentTermId: formData.paymentTermId || null,
             notes: formData.notes || null,
@@ -440,6 +467,15 @@ export const CreateQuotationFormById: React.FC<CreateQuotationFormProps> = ({
             case LineType.CUSTOM: return <Badge variant="secondary" className="bg-orange-100 text-orange-800 border-orange-200">Freight</Badge>;
             default: return <Badge variant="secondary" className="bg-gray-100 text-gray-800 border-gray-200">Other</Badge>;
         }
+    };
+
+    const formatDisplayDate = (dateString: string): string => {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
     };
 
     // Tentukan apakah form dalam mode "pre-selected" (dari page dengan preSelectedSalesOrderId)
@@ -606,7 +642,7 @@ export const CreateQuotationFormById: React.FC<CreateQuotationFormProps> = ({
                                                 >
                                                     <div className="flex items-center justify-between w-full min-w-0 gap-1">
                                                         <span className="truncate text-sm flex-1">
-                                                            {selectedSalesOrder.customer.name}
+                                                            {selectedSalesOrder.customer.name} - {selectedSalesOrder.customer.branch}
                                                         </span>
                                                         <Badge className="bg-blue-500 text-white text-xs px-1 py-0 h-4 whitespace-nowrap flex-shrink-0">
                                                             Rec
@@ -634,7 +670,7 @@ export const CreateQuotationFormById: React.FC<CreateQuotationFormProps> = ({
                                                     className="text-sm"
                                                 >
                                                     <span className="truncate block">
-                                                        {customer.name}
+                                                        {customer.name} - { customer.branch}
                                                     </span>
                                                 </SelectItem>
                                             ))
@@ -725,11 +761,28 @@ export const CreateQuotationFormById: React.FC<CreateQuotationFormProps> = ({
                     <CardHeader className="border-b border-cyan-300 dark:border-gray-700 px-4">
                         <div className="flex items-center gap-3">
                             <Calendar className="w-5 h-5 text-green-600" />
-                            <CardTitle className="text-lg font-semibold">Validity Period</CardTitle>
+                            <CardTitle className="text-lg font-semibold">Quotation Dates</CardTitle>
                         </div>
                     </CardHeader>
                     <CardContent className="px-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            {/* Quotation Date Field */}
+                            <div className="space-y-2">
+                                <Label htmlFor="quotationDate" className="flex items-center gap-1">
+                                    Quotation Date
+                                    <span className="text-red-500">*</span>
+                                </Label>
+                                <Input
+                                    id="quotationDate"
+                                    type="date"
+                                    value={formData.quotationDate || ''}
+                                    onChange={(e) => handleHeaderChange('quotationDate', e.target.value || '')}
+                                    className="bg-white dark:bg-gray-800 dark:text-white"
+                                    required
+                                />
+                                <p className="text-xs text-gray-500">Date when quotation is issued</p>
+                            </div>
+
                             <div className="space-y-2">
                                 <Label htmlFor="validFrom">Valid From</Label>
                                 <Input
@@ -739,6 +792,7 @@ export const CreateQuotationFormById: React.FC<CreateQuotationFormProps> = ({
                                     onChange={(e) => handleHeaderChange('validFrom', e.target.value || '')}
                                     className="bg-white dark:bg-gray-800 dark:text-white"
                                 />
+                                <p className="text-xs text-gray-500">Start date of validity</p>
                             </div>
 
                             <div className="space-y-2">
@@ -750,8 +804,20 @@ export const CreateQuotationFormById: React.FC<CreateQuotationFormProps> = ({
                                     onChange={(e) => handleHeaderChange('validUntil', e.target.value || '')}
                                     className="bg-white dark:bg-gray-800 dark:text-white"
                                 />
+                                <p className="text-xs text-gray-500">End date of validity</p>
                             </div>
                         </div>
+
+                        {/* Validation message */}
+                        {formData.quotationDate && formData.validFrom && formData.validUntil && (
+                            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md">
+                                <p className="text-sm text-blue-700 dark:text-blue-300">
+                                    Quotation akan diterbitkan pada <strong>{formatDisplayDate(formData.quotationDate)}</strong>
+                                    {' '} dan berlaku dari <strong>{formatDisplayDate(formData.validFrom)}</strong> hingga{' '}
+                                    <strong>{formatDisplayDate(formData.validUntil)}</strong>
+                                </p>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 
