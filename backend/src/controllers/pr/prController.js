@@ -448,8 +448,8 @@ export class PurchaseRequestController {
       // Validasi transisi status
       const validTransitions = {
         DRAFT: ["SUBMITTED"],
-        SUBMITTED: ["APPROVED", "REJECTED"], // REMOVE REVISION_NEEDED sementara
-        APPROVED: ["COMPLETED", "REVISION_NEEDED"],
+        SUBMITTED: ["APPROVED", "REJECTED", "REVISION_NEEDED"], // REMOVE REVISION_NEEDED sementara
+        APPROVED: ["COMPLETED"],
         REJECTED: ["SUBMITTED"],
         REVISION_NEEDED: ["SUBMITTED", "DRAFT"],
         COMPLETED: [],

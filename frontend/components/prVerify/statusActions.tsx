@@ -52,8 +52,8 @@ interface StatusActionsProps {
 function StatusActions({ currentStatus, onStatusUpdate }: StatusActionsProps) {
     const validTransitions: Record<PurchaseRequestStatus, PurchaseRequestStatus[]> = {
         DRAFT: ["SUBMITTED"],
-        SUBMITTED: ["APPROVED", "REJECTED"],
-        APPROVED: ["COMPLETED", "REVISION_NEEDED"],
+        SUBMITTED: ["APPROVED", "REJECTED", "REVISION_NEEDED"],
+        APPROVED: ["COMPLETED"],
         REJECTED: ["SUBMITTED"],
         REVISION_NEEDED: ["SUBMITTED"],
         COMPLETED: [],
