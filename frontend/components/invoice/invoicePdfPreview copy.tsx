@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: '#008000',
         marginBottom: 2,
-        // backgroundColor: '#f5f5f5',
+        backgroundColor: '#f5f5f5',
         padding: 0,
     },
     row: {
@@ -82,15 +82,10 @@ const styles = StyleSheet.create({
     },
     tableHeader: {
         flexDirection: 'row',
-        color: '#000000',
+        backgroundColor: '#008000',
+        color: '#FFFFFF',
         padding: 8,
         fontWeight: 'bold',
-        borderTopWidth: 1,       // garis atas
-        borderBottomWidth: 1,    // garis bawah
-        borderLeftWidth: 0,      // hilangkan garis kiri
-        borderRightWidth: 0,     // hilangkan garis kanan
-        borderColor: '#000000',
-        borderStyle: 'solid',
     },
     tableRow: {
         flexDirection: 'row',

@@ -1,33 +1,34 @@
 import { QuotationLine, QuotationSummary } from "@/types/quotation";
-import { Document, Page, Text, View, StyleSheet, Image as PdfImage } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 
 // Create styles
 const styles = StyleSheet.create({
     page: {
-        padding: 25, // Sedikit lebih besar padding untuk ukuran Legal
+        padding: 25,
         fontFamily: 'Helvetica',
         fontSize: 10,
         lineHeight: 1.3,
         backgroundColor: '#FFFFFF',
         position: 'relative',
     },
-    // Header
+    // Header container dengan tinggi 5 cm (sekitar 142 points)
     headerContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
-        marginBottom: 15,
-        borderBottomWidth: 2,
-        borderBottomColor: '#000000',
-        borderBottomStyle: 'solid',
+        marginBottom: 10, // Dikurangi
         paddingBottom: 15,
+        height: 142, // 5 cm ≈ 142 points (1 cm ≈ 28.35 points)
     },
-    logo: {
+    // Elemen header disembunyikan tapi mempertahankan space
+    hiddenHeader: {
+        opacity: 0,
         width: 90,
         height: 40,
         marginRight: 15,
     },
-    companyInfo: {
+    hiddenCompanyInfo: {
+        opacity: 0,
         flex: 1,
         textAlign: 'right',
         fontSize: 8,
@@ -112,7 +113,7 @@ const styles = StyleSheet.create({
     summaryContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 20,
+        marginBottom: 15, // Dikurangi
     },
     notesContainer: {
         width: '55%',
@@ -149,7 +150,7 @@ const styles = StyleSheet.create({
         paddingTop: 5,
     },
     footer: {
-        marginTop: 30,
+        marginTop: 20, // Dikurangi
         paddingTop: 10,
         borderTop: '1pt solid #e0e0e0',
         fontSize: 9,
@@ -165,17 +166,17 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     approvalLine: {
-        marginTop: 60,
+        marginTop: 40, // Dikurangi
         borderTop: '1pt solid #000000',
         paddingTop: 5,
     },
-    // Watermark styles - disesuaikan untuk ukuran Legal
+    // Watermark styles - disesuaikan dengan header 5cm
     watermark: {
         position: 'absolute',
-        top: '50%', // Posisi tengah vertikal
-        left: '50%', // Posisi tengah horizontal
+        top: 'calc(50% + 71px)', // Ditambah setengah dari tinggi header (142/2 = 71)
+        left: '50%',
         transform: 'translate(-50%, -50%) rotate(-35deg)',
-        fontSize: 80, // Lebih besar untuk ukuran Legal
+        fontSize: 80,
         color: 'rgba(0, 128, 0, 0.2)',
         fontWeight: 'bold',
         zIndex: 9999,
@@ -223,8 +224,6 @@ const formatDiscount = (line: QuotationLine) => {
 
 // Quotation PDF Component dengan ukuran Legal
 const QuotationPdfDocument = ({ quotation }: { quotation: QuotationSummary }) => {
-    const logoPath = '/LogoMd.png';
-
     const {
         quotationNumber,
         version,
@@ -243,11 +242,10 @@ const QuotationPdfDocument = ({ quotation }: { quotation: QuotationSummary }) =>
 
     return (
         <Document>
-            {/* Ukuran Legal: 8.5 x 14 inci atau 215.9 x 355.6 mm */}
-            <Page 
-                size="LEGAL" 
+            <Page
+                size="A4"
                 style={styles.page}
-                orientation="portrait" // Portrait orientation untuk Legal
+                orientation="portrait"
             >
                 {/* Watermark untuk status tertentu */}
                 {status === 'EXPIRED' && (
@@ -256,25 +254,20 @@ const QuotationPdfDocument = ({ quotation }: { quotation: QuotationSummary }) =>
                     </View>
                 )}
 
-                {/* Header dengan logo dan info perusahaan */}
+                {/* Header container - space 5 cm untuk header kertas */}
                 <View style={styles.headerContainer}>
-                    {logoPath && (
-                        <PdfImage
-                            style={styles.logo}
-                            src={logoPath}
-                        />
-                    )}
-                    <View style={styles.companyInfo}>
-                        <Text style={{ color: '#008000', fontWeight: 'bold', fontSize: 12, marginBottom: 5 }}>
-                            PT. RYLIF MIKRO MANDIRI
-                        </Text>
+                    {/* Logo - hidden */}
+                    <View style={styles.hiddenHeader} />
+                    {/* Company info - hidden */}
+                    <View style={styles.hiddenCompanyInfo}>
+                        <Text>PT. RYLIF MIKRO MANDIRI</Text>
                         <Text>Office: Jl. Anyar RT. 01/RW. 01, Kampung Pulo, No. 5</Text>
                         <Text>Kemang Pratama, Bekasi Barat, Bekasi - 17144, Indonesia</Text>
                         <Text>Phone: 0857-7414-8874 | Email: rylifmikromandiri@gmail.com</Text>
                     </View>
                 </View>
 
-                {/* Judul Quotation */}
+                {/* Judul Quotation - tetap ditampilkan */}
                 <Text style={styles.quotationTitle}>QUOTATION</Text>
 
                 {/* Informasi Quotation dan Customer */}
@@ -410,7 +403,7 @@ const QuotationPdfDocument = ({ quotation }: { quotation: QuotationSummary }) =>
                     </View>
                 </View>
 
-                {/* Approval Section - lebih banyak ruang untuk Legal */}
+                {/* Approval Section */}
                 <View style={styles.approvalSection}>
                     <View style={styles.approvalBox}>
                         <Text>Disiapkan Oleh,</Text>

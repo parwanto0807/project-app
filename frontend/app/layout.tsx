@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import ClientSessionProvider from "@/components/clientSessionProvider";
-import { cookies } from "next/headers"; // Untuk mengambil cookie dari request server
+import { cookies } from "next/headers";
 
 export const metadata: Metadata = {
   title: "ProyekID",
   description: "A Trusted Platform for Construction Project Orders.",
   icons: {
-    icon: "/favicon.ico",         // default favicon
+    icon: "/favicon.ico",
     shortcut: "/favicon-16x16.png",
     apple: "/apple-touch-icon.png",
   },
@@ -22,8 +22,9 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const cookieStore = await cookies(); // Ambil cookie dari request
-  const accessToken = cookieStore.get("token")?.value || null; // Ambil access token dari cookie
+  // TAMBAHKAN AWAIT di sini
+  const cookieStore = await cookies();
+  const accessToken = cookieStore.get("token")?.value || null;
 
   let user = null;
   if (accessToken) {
@@ -31,9 +32,10 @@ export default async function RootLayout({
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/user-login/profile`, {
         method: "GET",
         headers: {
-          Cookie: `token=${accessToken}`, // Kirim access token ke backend
+          Cookie: `token=${accessToken}`,
         },
         credentials: "include",
+        next: { revalidate: 60 }
       });
 
       if (res.ok) {
@@ -49,9 +51,7 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen overflow-x-hidden">
-        {/* Kirim data user ke ClientSessionProvider */}
         <ClientSessionProvider initialUser={user}>
-          {/* Bungkus aplikasi dengan SocketProvider */}
           {children}
         </ClientSessionProvider>
       </body>

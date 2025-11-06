@@ -166,7 +166,12 @@ export function SalesChart({ data, loading, onCustomerChange }: SalesChartProps)
                             <SelectItem value="all">Semua Customer</SelectItem>
                             {customers.map(customer => (
                                 <SelectItem key={customer.id} value={customer.id}>
-                                    {customer.name} - {customer.branch}
+                                    <span className="hidden md:inline">
+                                        {customer.name} - {customer.branch}
+                                    </span>
+                                    <span className="md:hidden">
+                                        {customer.branch}
+                                    </span>
                                 </SelectItem>
                             ))}
                         </SelectContent>
@@ -352,7 +357,7 @@ export function SalesChart({ data, loading, onCustomerChange }: SalesChartProps)
                     <div className="absolute top-0 bottom-5 left-6 sm:left-10 border-l border-dashed border-slate-400 dark:border-slate-600"></div>
                 </div>
             </div>
-            
+
             {/* Nilai setiap bar/grafik di bawah chart */}
             <div className="flex justify-between px-1 sm:px-2 mt-2">
                 {displayedData.map((item, index) => {

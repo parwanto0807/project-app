@@ -4,7 +4,7 @@ import { Document, Page, Text, View, StyleSheet, Image as PdfImage } from '@reac
 // Create styles
 const styles = StyleSheet.create({
     page: {
-        padding: 20,
+        padding: 25, // Sedikit lebih besar padding untuk ukuran Legal
         fontFamily: 'Helvetica',
         fontSize: 10,
         lineHeight: 1.3,
@@ -169,13 +169,13 @@ const styles = StyleSheet.create({
         borderTop: '1pt solid #000000',
         paddingTop: 5,
     },
-    // Watermark styles
+    // Watermark styles - disesuaikan untuk ukuran Legal
     watermark: {
         position: 'absolute',
-        top: '65%',
-        left: '70%',
+        top: '50%', // Posisi tengah vertikal
+        left: '50%', // Posisi tengah horizontal
         transform: 'translate(-50%, -50%) rotate(-35deg)',
-        fontSize: 60,
+        fontSize: 80, // Lebih besar untuk ukuran Legal
         color: 'rgba(0, 128, 0, 0.2)',
         fontWeight: 'bold',
         zIndex: 9999,
@@ -221,7 +221,7 @@ const formatDiscount = (line: QuotationLine) => {
     return '-';
 };
 
-// Quotation PDF Component
+// Quotation PDF Component dengan ukuran Legal
 const QuotationPdfDocument = ({ quotation }: { quotation: QuotationSummary }) => {
     const logoPath = '/LogoMd.png';
 
@@ -243,7 +243,12 @@ const QuotationPdfDocument = ({ quotation }: { quotation: QuotationSummary }) =>
 
     return (
         <Document>
-            <Page size="A4" style={styles.page}>
+            {/* Ukuran Legal: 8.5 x 14 inci atau 215.9 x 355.6 mm */}
+            <Page 
+                size="LEGAL" 
+                style={styles.page}
+                orientation="portrait" // Portrait orientation untuk Legal
+            >
                 {/* Watermark untuk status tertentu */}
                 {status === 'EXPIRED' && (
                     <View style={styles.watermark} fixed>
@@ -377,7 +382,6 @@ const QuotationPdfDocument = ({ quotation }: { quotation: QuotationSummary }) =>
                                             Berakhir: {validUntil ? formatDate(validUntil) : '-'}
                                         </Text>
                                     </Text>
-
                                 </View>
                             )}
                             <Text style={styles.notesText}>
@@ -406,7 +410,7 @@ const QuotationPdfDocument = ({ quotation }: { quotation: QuotationSummary }) =>
                     </View>
                 </View>
 
-                {/* Approval Section */}
+                {/* Approval Section - lebih banyak ruang untuk Legal */}
                 <View style={styles.approvalSection}>
                     <View style={styles.approvalBox}>
                         <Text>Disiapkan Oleh,</Text>

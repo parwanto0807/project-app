@@ -414,7 +414,12 @@ export const ManualCreateQuotationForm: React.FC<ManualCreateQuotationFormProps>
                                                 value={customer.id}
                                                 className="dark:text-white"
                                             >
-                                                {customer.name} - {customer.branch}
+                                                <span className="hidden md:inline">
+                                                    {customer.name} - {customer.branch}
+                                                </span>
+                                                <span className="md:hidden">
+                                                    {customer.branch}
+                                                </span>
                                             </SelectItem>
                                         ))}
                                     </SelectContent>

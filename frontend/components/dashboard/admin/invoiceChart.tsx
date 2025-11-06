@@ -55,7 +55,7 @@ export function InvoiceChart({ data, loading, onCustomerInvoiceChange }: Invoice
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [customersLoading, setCustomersLoading] = useState(true);
     const chartRef = useRef<HTMLDivElement>(null);
-    
+
     useEffect(() => {
         setIsClient(true);
         fetchCustomers();
@@ -87,7 +87,7 @@ export function InvoiceChart({ data, loading, onCustomerInvoiceChange }: Invoice
 
     // Selalu ambil 6 bulan terakhir
     const displayedData = data.slice(-6);
-    
+
     if (loading || customersLoading) {
         return (
             <div className="h-80 w-full flex items-center justify-center">
@@ -162,17 +162,17 @@ export function InvoiceChart({ data, loading, onCustomerInvoiceChange }: Invoice
 
     const totalData = displayedData.map(item => parseFloat(item.total) || 0);
     const paidTotalData = displayedData.map(item => parseFloat(item.paid_total) || 0);
-    
+
     // Gabungkan semua data untuk normalisasi
     const allValues = [...totalData, ...paidTotalData];
     const maxValue = Math.max(...allValues);
     const minValue = Math.min(...allValues);
-    
+
     // Normalisasi data
-    const normalizedTotalData = totalData.map(value => 
+    const normalizedTotalData = totalData.map(value =>
         ((value - minValue) / (maxValue - minValue || 1)) * 100
     );
-    const normalizedPaidTotalData = paidTotalData.map(value => 
+    const normalizedPaidTotalData = paidTotalData.map(value =>
         ((value - minValue) / (maxValue - minValue || 1)) * 100
     );
 
@@ -199,7 +199,12 @@ export function InvoiceChart({ data, loading, onCustomerInvoiceChange }: Invoice
                             <SelectItem value="all">Semua Customer</SelectItem>
                             {customers.map(customer => (
                                 <SelectItem key={customer.id} value={customer.id}>
-                                    {customer.name} - {customer.branch}
+                                    <span className="hidden md:inline">
+                                        {customer.name} - {customer.branch}
+                                    </span>
+                                    <span className="md:hidden">
+                                        {customer.branch}
+                                    </span>
                                 </SelectItem>
                             ))}
                         </SelectContent>
@@ -266,15 +271,15 @@ export function InvoiceChart({ data, loading, onCustomerInvoiceChange }: Invoice
             {/* Legend */}
             <div className="flex justify-center gap-4 mb-4">
                 <div className="flex items-center gap-2">
-                    <div 
-                        className="w-3 h-3 rounded-sm" 
+                    <div
+                        className="w-3 h-3 rounded-sm"
                         style={{ background: themeColors[theme].total.bar }}
                     ></div>
                     <span className="text-xs font-medium">Total Invoice</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <div 
-                        className="w-3 h-3 rounded-sm" 
+                    <div
+                        className="w-3 h-3 rounded-sm"
                         style={{ background: themeColors[theme].paid_total.bar }}
                     ></div>
                     <span className="text-xs font-medium">Total Paid</span>
@@ -323,8 +328,8 @@ export function InvoiceChart({ data, loading, onCustomerInvoiceChange }: Invoice
                                         className="w-2/5 flex items-end justify-center relative transition-all duration-300 rounded-t-md"
                                         style={{
                                             height: `${totalHeight}%`,
-                                            background: isHovered && hoveredBar === 'total' 
-                                                ? themeColors[theme].total.barHover 
+                                            background: isHovered && hoveredBar === 'total'
+                                                ? themeColors[theme].total.barHover
                                                 : themeColors[theme].total.bar,
                                         }}
                                         onMouseEnter={() => {
@@ -334,9 +339,8 @@ export function InvoiceChart({ data, loading, onCustomerInvoiceChange }: Invoice
                                     >
                                         {chartType === "line" && (
                                             <div
-                                                className={`w-3 h-3 rounded-full transition-all duration-300 ${themeColors[theme].total.dot} ${
-                                                    isHovered && hoveredBar === 'total' ? "scale-150 ring-4" : ""
-                                                }`}
+                                                className={`w-3 h-3 rounded-full transition-all duration-300 ${themeColors[theme].total.dot} ${isHovered && hoveredBar === 'total' ? "scale-150 ring-4" : ""
+                                                    }`}
                                             ></div>
                                         )}
                                     </div>
@@ -346,8 +350,8 @@ export function InvoiceChart({ data, loading, onCustomerInvoiceChange }: Invoice
                                         className="w-2/5 flex items-end justify-center relative transition-all duration-300 rounded-t-md"
                                         style={{
                                             height: `${paidHeight}%`,
-                                            background: isHovered && hoveredBar === 'paid_total' 
-                                                ? themeColors[theme].paid_total.barHover 
+                                            background: isHovered && hoveredBar === 'paid_total'
+                                                ? themeColors[theme].paid_total.barHover
                                                 : themeColors[theme].paid_total.bar,
                                         }}
                                         onMouseEnter={() => {
@@ -357,9 +361,8 @@ export function InvoiceChart({ data, loading, onCustomerInvoiceChange }: Invoice
                                     >
                                         {chartType === "line" && (
                                             <div
-                                                className={`w-3 h-3 rounded-full transition-all duration-300 ${themeColors[theme].paid_total.dot} ${
-                                                    isHovered && hoveredBar === 'paid_total' ? "scale-150 ring-4" : ""
-                                                }`}
+                                                className={`w-3 h-3 rounded-full transition-all duration-300 ${themeColors[theme].paid_total.dot} ${isHovered && hoveredBar === 'paid_total' ? "scale-150 ring-4" : ""
+                                                    }`}
                                             ></div>
                                         )}
                                     </div>
@@ -419,7 +422,7 @@ export function InvoiceChart({ data, loading, onCustomerInvoiceChange }: Invoice
                     ))}
                     <div className="absolute bottom-5 left-6 sm:left-10 right-0 border-t border-dashed border-slate-400 dark:border-slate-600"></div>
                 </div>
-                
+
                 {/* Y-axis labels */}
                 <div className="absolute left-0 top-0 h-full flex flex-col justify-between py-2 text-[10px] sm:text-xs font-bold">
                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-green-500 drop-shadow-sm">
@@ -437,7 +440,7 @@ export function InvoiceChart({ data, loading, onCustomerInvoiceChange }: Invoice
                 {displayedData.map((item, index) => {
                     const totalValue = totalData[index];
                     const paidValue = paidTotalData[index];
-                    
+
                     return (
                         <div
                             key={index}

@@ -651,7 +651,19 @@ function ActionsCell({ order, onDeleteSuccess, role }: { order: SalesOrder; onDe
 }
 
 // Mobile Card View
-function MobileSalesOrderCard({ order, onExpand, onDeleteSuccess, role }: { order: SalesOrder; onExpand: () => void; onDeleteSuccess: (orderId: string) => void, role: string }) {
+function MobileSalesOrderCard({
+    order,
+    onExpand,
+    onDeleteSuccess,
+    role,
+    hasSPK = false
+}: {
+    order: SalesOrder;
+    onExpand: () => void;
+    onDeleteSuccess: (orderId: string) => void;
+    role: string;
+    hasSPK?: boolean; // Tambahkan prop ini
+}) {
     const [showDeleteDialog, setShowDeleteDialog] = React.useState(false)
     const [isDeleting, setIsDeleting] = React.useState(false)
     const router = useRouter()
@@ -686,10 +698,6 @@ function MobileSalesOrderCard({ order, onExpand, onDeleteSuccess, role }: { orde
         minimumFractionDigits: 0,
         maximumFractionDigits: 0,
     }).format(total.toNumber())
-
-    // const docs = Array.isArray(order?.documents) ? order.documents : [];
-    // const hasPaid = docs.some((d) => d.docType === "PAYMENT_RECEIPT");
-    // const hasInvoice = docs.some((d) => d.docType === "INVOICE");
 
     useBodyScrollLock(showDeleteDialog);
 
@@ -756,7 +764,6 @@ function MobileSalesOrderCard({ order, onExpand, onDeleteSuccess, role }: { orde
                     </div>
                     <div className="flex items-center gap-2">
                         <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                        {/* <span className="text-sm text-muted-foreground">Status:</span> */}
                         <Badge className={cn("text-xs rounded-md px-2 py-0.5", config.className)}>
                             {config.label}
                         </Badge>
@@ -773,6 +780,16 @@ function MobileSalesOrderCard({ order, onExpand, onDeleteSuccess, role }: { orde
                         <span className="text-xs">{order.customer.name} - {order.customer.branch}</span>
                     </div>
                 </div>
+
+                {/* Indikator SPK */}
+                {hasSPK && (
+                    <div className="mb-3">
+                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            SPK Sudah Dibuat
+                        </Badge>
+                    </div>
+                )}
 
                 <div className="flex flex-row-reverse items-center justify-between border-t pt-3">
                     {/* Total Amount hanya untuk admin/super */}
@@ -793,13 +810,19 @@ function MobileSalesOrderCard({ order, onExpand, onDeleteSuccess, role }: { orde
                     >
                         PH
                     </Button>
+
+                    {/* Button SPK dengan kondisi disabled jika sudah ada SPK */}
                     <Button
                         variant="default"
                         size="sm"
                         onClick={() => router.push(`/admin-area/logistic/spk/create/${order.id}`)}
-                        className="cursor-pointer hover:bg-cyan-700 dark:hover:text-white"
+                        disabled={hasSPK}
+                        className={`cursor-pointer ${hasSPK
+                                ? "bg-gray-400 cursor-not-allowed"
+                                : "hover:bg-cyan-700 dark:hover:text-white"
+                            }`}
                     >
-                        SPK
+                        {hasSPK ? "SPK ✓" : "SPK"}
                     </Button>
 
                     <Button
@@ -815,12 +838,10 @@ function MobileSalesOrderCard({ order, onExpand, onDeleteSuccess, role }: { orde
                         {isExpanded ? (
                             <>
                                 <EyeOff className="h-3 w-3" />
-                                {/* Hide */}
                             </>
                         ) : (
                             <>
                                 <Eye className="h-3 w-3" />
-                                {/* View */}
                             </>
                         )}
                     </Button>
@@ -838,7 +859,6 @@ function MobileSalesOrderCard({ order, onExpand, onDeleteSuccess, role }: { orde
                             ) : (
                                 <>
                                     <DownloadIcon className="h-4 w-4" />
-                                    {/* <span className="text-xs">Pdf</span> */}
                                 </>
                             )}
                         </Button>
@@ -894,8 +914,6 @@ function MobileSalesOrderCard({ order, onExpand, onDeleteSuccess, role }: { orde
                         <Edit className="h-3 w-3" />
                     </Button>
                 </div>
-
-
             </div>
 
             {showDeleteDialog && (
@@ -1424,20 +1442,12 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
             header: () => <span className="sr-only">Actions</span>,
             cell: ({ row }) => {
                 const order = row.original
+                // Cek apakah order sudah memiliki SPK
+                const hasSPK = order.spk && order.spk.length > 0;
+
                 return (
                     <div className="flex justify-end gap-2">
                         <ActionsCell order={row.original} onDeleteSuccess={handleDeleteSuccess} role={role} />
-
-                        {/* View/Hide selalu boleh */}
-                        {/* <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => row.toggleExpanded(!row.getIsExpanded())}
-                            className="cursor-pointer hover:bg-cyan-700 hover:text-white dark:hover:bg-cyan-700"
-                        >
-                            <Eye className="h-4 w-4" />
-                            {row.getIsExpanded() ? "Hide" : "View"}
-                        </Button> */}
 
                         {/* PDF hanya untuk admin/super */}
                         {(role === "admin" || role === "super") && (
@@ -1469,30 +1479,36 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                                     </DialogContent>
                                 </Dialog>
 
-                                {/* <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => pdfActions.handleDownloadPdf(order)}
-                                    className="cursor-pointer border-2 hover:border-cyan-500 hover:text-cyan-400"
-                                >
-                                    <DownloadIcon className="h-4 w-4" />
-                                </Button> */}
-                                <Button
-                                    variant="default"
-                                    size="sm"
-                                    disabled={!!order.spk}
-                                    onClick={() => router.push(`/admin-area/logistic/spk/create/${order.id}`)}
-                                    className="cursor-pointer hover:bg-cyan-700 dark:hover:text-white"
-                                >
-                                    + SPK
-                                </Button>
+                                {/* Button Create SPK */}
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <span>
+                                                <Button
+                                                    variant="default"
+                                                    size="sm"
+                                                    disabled={hasSPK}
+                                                    onClick={() => router.push(`/admin-area/logistic/spk/create/${order.id}`)}
+                                                    className={hasSPK ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-400 dark:hover:bg-blue-200"}
+                                                >
+                                                    {hasSPK ? "SPK Created" : "+ Create SPK"}
+                                                </Button>
+                                            </span>
+                                        </TooltipTrigger>
+                                        {hasSPK && (
+                                            <TooltipContent>
+                                                SPK untuk Sales Order ini sudah dibuat
+                                            </TooltipContent>
+                                        )}
+                                    </Tooltip>
+                                </TooltipProvider>
 
-                                {/* === Tambahan Create Quotation === */}
+                                {/* Button Create Quotation */}
                                 <Button
                                     variant="default"
                                     size="sm"
                                     onClick={() => router.push(`/admin-area/sales/quotation/create/${order.id}`)}
-                                    className="cursor-pointer hover:bg-cyan-700 dark:hover:text-white"
+                                    className="bg-green-600 hover:bg-green-700 cursor-pointer"
                                 >
                                     + Quotation
                                 </Button>
@@ -1502,7 +1518,6 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                 )
             },
         })
-
 
         return baseColumns
     }, [handleDeleteSuccess, pdfActions, role, router])
@@ -1654,6 +1669,8 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                             <>
                                 {paginatedOrders.map((order) => {
                                     const row = table.getRow(order.id)
+                                    // Cek apakah order sudah memiliki SPK untuk mobile view
+                                    const hasSPK = order.spk && order.spk.length > 0;
 
                                     return (
                                         <React.Fragment key={order.id}>
@@ -1662,6 +1679,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                                                 onExpand={() => row?.toggleExpanded(!row.getIsExpanded())}
                                                 onDeleteSuccess={handleDeleteSuccess}
                                                 role={role}
+                                                hasSPK={hasSPK} // Pass hasSPK ke mobile component
                                             />
 
                                             {/* Detail Items di mobile */}
@@ -1720,14 +1738,48 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                                                                 </span>
                                                             </div>
                                                         )}
+
+                                                        {/* Actions untuk mobile */}
+                                                        {(role === "admin" || role === "super") && (
+                                                            <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                                                                <div className="flex gap-2">
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        size="sm"
+                                                                        onClick={() => pdfActions.handlePreview(order)}
+                                                                        className="flex-1"
+                                                                    >
+                                                                        <EyeIcon className="h-4 w-4 mr-1" />
+                                                                        Preview
+                                                                    </Button>
+                                                                </div>
+                                                                <div className="flex gap-2">
+                                                                    <Button
+                                                                        variant="default"
+                                                                        size="sm"
+                                                                        disabled={hasSPK}
+                                                                        onClick={() => router.push(`/admin-area/logistic/spk/create/${order.id}`)}
+                                                                        className={`flex-1 ${hasSPK ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}
+                                                                    >
+                                                                        {hasSPK ? "SPK Sudah Ada" : "+ Create SPK"}
+                                                                    </Button>
+                                                                    <Button
+                                                                        variant="default"
+                                                                        size="sm"
+                                                                        onClick={() => router.push(`/admin-area/sales/quotation/create/${order.id}`)}
+                                                                        className="flex-1 bg-green-600 hover:bg-green-700"
+                                                                    >
+                                                                        + Quotation
+                                                                    </Button>
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             )}
                                         </React.Fragment>
                                     )
                                 })}
-
-
 
                                 {totalPages > 1 && (
                                     <div className="flex items-center justify-between pt-1 border-t mt-1">
@@ -1850,26 +1902,6 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                             </Button>
                         </Link>
                     </div>
-                    {/* <div className="flex flex-col space-y-2 sm:flex-row sm:space-x-2 sm:space-y-0">
-                        <div className="relative">
-                            <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-white" />
-                            <Input
-                                placeholder="Search orders..."
-                                className="w-full pl-9 sm:w-64"
-                                value={searchTerm}
-                                onChange={(e) => {
-                                    setSearchTerm(e.target.value)
-                                    setCurrentPage(1)
-                                }}
-                            />
-                        </div>
-                        <Link href={`${basePath}/create`} passHref>
-                            <Button className="bg-primary hover:bg-primary/90">
-                                <PlusCircleIcon className="mr-2 h-4 w-4" />
-                                New Order
-                            </Button>
-                        </Link>
-                    </div> */}
                 </div>
             </CardHeader>
             <CardContent className="p-2">

@@ -1,51 +1,51 @@
 import { Invoice } from '@/schemas/invoice';
-import { Document, Page, Text, View, StyleSheet, Image as PdfImage } from '@react-pdf/renderer';
-import path from 'path';
+import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
+// import path from 'path';
 
 // Create styles
 const styles = StyleSheet.create({
     page: {
-        padding: 20,
+        padding: 25,
         fontFamily: 'Helvetica',
         fontSize: 10,
         lineHeight: 1.3,
         backgroundColor: '#FFFFFF',
-        position: 'relative', // Ditambahkan untuk positioning watermark
+        position: 'relative',
     },
-    //Header
+    // Header container dengan tinggi 6 cm (sekitar 170 points)
     headerContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
-        marginBottom: 20,
-        borderBottomWidth: 2,
-        borderBottomColor: '#000000',
-        borderBottomStyle: 'solid',
+        marginBottom: 10, // Dikurangi agar tidak terlalu lebar
         paddingBottom: 15,
+        height: 170, // 6 cm ≈ 170 points (1 cm ≈ 28.35 points)
     },
-    logo: {
+    // Elemen header disembunyikan tapi mempertahankan space
+    hiddenHeader: {
+        opacity: 0,
         width: 90,
         height: 40,
         marginRight: 15,
     },
-    companyInfo: {
+    hiddenCompanyInfo: {
+        opacity: 0,
         flex: 1,
         textAlign: 'right',
         fontSize: 8,
         lineHeight: 1.2,
     },
-
     invoiceTitle: {
         fontSize: 20,
         fontWeight: 'bold',
         color: '#008000',
         textAlign: 'center',
-        marginBottom: 20,
+        marginBottom: 15, // Dikurangi sedikit
     },
     infoContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 20,
+        marginBottom: 15, // Dikurangi
     },
     leftColumn: {
         width: '48%',
@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: '#008000',
         marginBottom: 2,
-        // backgroundColor: '#f5f5f5',
+        backgroundColor: '#f5f5f5',
         padding: 0,
     },
     row: {
@@ -78,19 +78,14 @@ const styles = StyleSheet.create({
     },
     table: {
         width: '100%',
-        marginBottom: 20,
+        marginBottom: 15, // Dikurangi
     },
     tableHeader: {
         flexDirection: 'row',
-        color: '#000000',
+        backgroundColor: '#008000',
+        color: '#FFFFFF',
         padding: 8,
         fontWeight: 'bold',
-        borderTopWidth: 1,       // garis atas
-        borderBottomWidth: 1,    // garis bawah
-        borderLeftWidth: 0,      // hilangkan garis kiri
-        borderRightWidth: 0,     // hilangkan garis kanan
-        borderColor: '#000000',
-        borderStyle: 'solid',
     },
     tableRow: {
         flexDirection: 'row',
@@ -105,16 +100,14 @@ const styles = StyleSheet.create({
     summaryContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 20,
+        marginBottom: 15, // Dikurangi
         zIndex: 1,
     },
     terbilangContainer: {
         width: '55%',
         padding: 8,
-        // backgroundColor: '#f9f9f9',
-        // border: '1pt solid #e0e0e0',
         borderRadius: 4,
-        position: 'relative',   // kalau memang perlu
+        position: 'relative',
         zIndex: 1,
     },
     terbilangLabel: {
@@ -146,10 +139,10 @@ const styles = StyleSheet.create({
         paddingTop: 5,
     },
     notesSection: {
-        marginBottom: 20,
+        marginBottom: 15, // Dikurangi
     },
     footer: {
-        marginTop: 30,
+        marginTop: 20, // Dikurangi
         paddingTop: 10,
         borderTop: '1pt solid #e0e0e0',
         fontSize: 9,
@@ -170,21 +163,21 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     approvalLine: {
-        marginTop: 60,
+        marginTop: 40, // Dikurangi
         borderTop: '1pt solid #000000',
         paddingTop: 5,
     },
-    // Watermark styles
+    // Watermark styles untuk Legal - disesuaikan dengan header 6cm
     watermark: {
         position: 'absolute',
-        top: '65%',
-        left: '70%',
+        top: 'calc(50% + 85px)', // Ditambah setengah dari tinggi header (170/2 = 85)
+        left: '50%',
         transform: 'translate(-50%, -50%) rotate(-35deg)',
-        fontSize: 60,
+        fontSize: 80,
         color: 'rgba(0, 128, 0, 0.2)',
         fontWeight: 'bold',
         zIndex: 9999,
-        pointerEvents: 'none', // Agar tidak mengganggu interaksi
+        pointerEvents: 'none',
     }
 });
 
@@ -255,15 +248,12 @@ const convertToTerbilang = (angka: number): string => {
 
 // Invoice PDF Component
 const InvoicePdfDocument = ({ invoice }: { invoice: Invoice }) => {
-    const logoPath = path.resolve('/LogoMd.png');
     const {
         invoiceNumber,
         invoiceDate,
         dueDate,
         salesOrder,
         notes,
-        // internalNotes,
-        // termsConditions,
         installmentType,
         installments,
         bankAccount,
@@ -275,14 +265,14 @@ const InvoicePdfDocument = ({ invoice }: { invoice: Invoice }) => {
         balanceDue,
         approvalStatus,
         approvedBy,
-        status // Ditambahkan untuk status invoice
+        status
     } = invoice;
 
     const terbilangText = convertToTerbilang(grandTotal);
 
     return (
         <Document>
-            <Page size="A4" style={styles.page}>
+            <Page size="LEGAL" style={styles.page} orientation="portrait">
                 {/* Watermark LUNAS */}
                 {status === 'PAID' && (
                     <View style={styles.watermark} fixed>
@@ -290,13 +280,13 @@ const InvoicePdfDocument = ({ invoice }: { invoice: Invoice }) => {
                     </View>
                 )}
 
-                {/* Header dengan logo dan info perusahaan */}
+                {/* Header container - space 6 cm untuk header kertas */}
                 <View style={styles.headerContainer}>
-                    <PdfImage style={styles.logo} src={logoPath} />
-                    <View style={styles.companyInfo}>
-                        <Text style={{ color: '#008000', fontWeight: 'bold', fontSize: 12, marginBottom: 5 }}>
-                            PT. RYLIF MIKRO MANDIRI
-                        </Text>
+                    {/* Logo - hidden */}
+                    <View style={styles.hiddenHeader} />
+                    {/* Company info - hidden */}
+                    <View style={styles.hiddenCompanyInfo}>
+                        <Text>PT. RYLIF MIKRO MANDIRI</Text>
                         <Text>Office: Jl. Anyar RT. 01/RW. 01, Kampung Pulo, No. 5</Text>
                         <Text>Kemang Pratama, Bekasi Barat, Bekasi - 17144, Indonesia</Text>
                         <Text>Phone: 0857-7414-8874 | Email: rylifmikromandiri@gmail.com</Text>
@@ -327,16 +317,6 @@ const InvoicePdfDocument = ({ invoice }: { invoice: Invoice }) => {
                                 <Text style={styles.label}>SO Number:</Text>
                                 <Text style={styles.value}>{salesOrder?.soNumber}</Text>
                             </View>
-                            {/* Menampilkan status invoice */}
-                            {/* <View style={styles.row}>
-                                <Text style={styles.label}>Status:</Text>
-                                <Text style={[styles.value, {
-                                    color: status === 'PAID' ? '#008000' : '#ff0000',
-                                    fontWeight: 'bold'
-                                }]}>
-                                    {status === 'PAID' ? 'LUNAS' : 'BELUM LUNAS'}
-                                </Text>
-                            </View> */}
                         </View>
                     </View>
 
@@ -444,7 +424,7 @@ const InvoicePdfDocument = ({ invoice }: { invoice: Invoice }) => {
                             <Text style={styles.summaryLabel}>Balance Due:</Text>
                             <Text style={{
                                 fontWeight: 'bold',
-                                color: status === 'PAID' ? '#008000' : '#ff0000' // Hijau jika LUNAS, merah jika belum
+                                color: status === 'PAID' ? '#008000' : '#ff0000'
                             }}>
                                 {formatCurrency((balanceDue))}
                             </Text>
