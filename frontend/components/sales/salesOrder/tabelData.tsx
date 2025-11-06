@@ -585,6 +585,7 @@ function ActionsCell({ order, onDeleteSuccess, role }: { order: SalesOrder; onDe
                     <DropdownMenuItem
                         onClick={handleEditOrder}
                         disabled={[
+                            "FULFILLED",
                             "INVOICED",
                             "PAID",
                             "BAST",
@@ -592,6 +593,7 @@ function ActionsCell({ order, onDeleteSuccess, role }: { order: SalesOrder; onDe
                             "PARTIALLY_PAID",
                         ].includes(order.status)}
                         className={`cursor-pointer gap-2 text-xs ${[
+                            "FULFILLED",
                             "INVOICED",
                             "PAID",
                             "BAST",
@@ -732,9 +734,24 @@ function MobileSalesOrderCard({
         }
     }
 
-    function handleDeleteClick(e: React.MouseEvent) {
+    const isDeleteDisabled = [
+        "INVOICED",
+        "PAID",
+        "PARTIALLY_INVOICED",
+        "PARTIALLY_PAID",
+        "IN_PROGRESS_SPK",
+        "FULFILLED"
+    ].includes(order.status);
+
+    const handleDeleteClick = (e: React.MouseEvent) => {
         e.stopPropagation()
         e.preventDefault()
+
+        // Cek kondisi disabled
+        if (isDeleteDisabled) {
+            return;
+        }
+
         setShowDeleteDialog(true)
     }
     function handleEditOrder(e: React.MouseEvent) {
@@ -818,8 +835,8 @@ function MobileSalesOrderCard({
                         onClick={() => router.push(`/admin-area/logistic/spk/create/${order.id}`)}
                         disabled={hasSPK}
                         className={`cursor-pointer ${hasSPK
-                                ? "bg-gray-400 cursor-not-allowed"
-                                : "hover:bg-cyan-700 dark:hover:text-white"
+                            ? "bg-gray-400 cursor-not-allowed"
+                            : "hover:bg-cyan-700 dark:hover:text-white"
                             }`}
                     >
                         {hasSPK ? "SPK ✓" : "SPK"}
@@ -869,19 +886,9 @@ function MobileSalesOrderCard({
                         variant="outline"
                         size="sm"
                         onClick={handleDeleteClick}
-                        disabled={[
-                            "INVOICED",
-                            "PAID",
-                            "PARTIALLY_INVOICED",
-                            "PARTIALLY_PAID",
-                        ].includes(order.status)}
+                        disabled={isDeleteDisabled}
                         className={`text-xs h-8 flex items-center gap-1 transition-all duration-200
-    ${[
-                                "INVOICED",
-                                "PAID",
-                                "PARTIALLY_INVOICED",
-                                "PARTIALLY_PAID",
-                            ].includes(order.status)
+        ${isDeleteDisabled
                                 ? "border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed"
                                 : "border-red-200 text-red-600 bg-white hover:bg-red-500 dark:hover:bg-red-500 hover:text-white hover:border-red-500 shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
                             }`}
