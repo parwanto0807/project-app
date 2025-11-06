@@ -170,6 +170,41 @@ export function normalizePdfProps(data: SpkFormValuesPdfProps) {
     };
 }
 
+// Helper function dengan type checking
+// Helper function yang menerima Date atau string
+function getTimeAgo(dateInput: Date | string): string {
+    // Konversi ke Date object
+    const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
+
+    // Validasi date
+    if (isNaN(date.getTime())) {
+        return 'Waktu tidak valid';
+    }
+
+    const now = new Date();
+    const diffInMs = now.getTime() - date.getTime();
+    const diffInSeconds = Math.floor(diffInMs / 1000);
+    const diffInMinutes = Math.floor(diffInSeconds / 60);
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    const diffInDays = Math.floor(diffInHours / 24);
+
+    if (diffInSeconds < 60) {
+        return `${diffInSeconds} detik yang lalu`;
+    } else if (diffInMinutes < 60) {
+        return `${diffInMinutes} menit yang lalu`;
+    } else if (diffInHours < 24) {
+        return `${diffInHours} jam yang lalu`;
+    } else if (diffInDays < 7) {
+        return `${diffInDays} hari yang lalu`;
+    } else {
+        return date.toLocaleDateString('id-ID', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric'
+        });
+    }
+}
+
 // Hook untuk mengelola aksi PDF
 function usePdfActions() {
     const [pdfDialogOpen, setPdfDialogOpen] = React.useState(false);
@@ -940,7 +975,17 @@ export default function TabelDataSpk({
                                                 </div>
                                             </TableCell>
                                             <TableCell>
-                                                <ProgressIndicator progress={spk.progress || 0} />
+                                                <div className="flex flex-col space-y-2">
+                                                    {/* Progress Bar */}
+                                                    <ProgressIndicator progress={spk.progress || 0} />
+
+                                                    {/* Timestamp */}
+                                                    {(spk.updatedAt || spk.createdAt) && (
+                                                        <span className="text-[10px] text-muted-foreground">
+                                                            {spk.updatedAt ? 'Diupdate' : 'Dibuat'} {getTimeAgo(spk.updatedAt || spk.createdAt!)}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </TableCell>
                                             <TableCell className="text-center">
                                                 {spk.notes ? (
@@ -1157,18 +1202,28 @@ export default function TabelDataSpk({
                                                                     Detail SPK: <span className="text-blue-600 dark:text-blue-400">{spk.spkNumber}</span>
                                                                 </h4>
                                                             </div>
-                                                            <div className="flex items-center space-x-4">
-                                                                <Badge variant="secondary" className="bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                                                                    Progress: {spk.progress}%
-                                                                </Badge>
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="ghost"
-                                                                    onClick={() => toggleRow(spk.id)}
-                                                                    className="h-8 w-8 p-0 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                                                                >
-                                                                    <ChevronUp className="h-4 w-4" />
-                                                                </Button>
+                                                            <div className="flex items-center justify-between">
+                                                                <div className="flex items-center space-x-4">
+                                                                    <Badge variant="secondary" className="bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                                                                        Progress: {spk.progress}%
+                                                                    </Badge>
+
+                                                                    {/* Timestamp progress update */}
+                                                                    {spk.updatedAt && (
+                                                                        <span className="text-xs text-muted-foreground">
+                                                                            Created {getTimeAgo(spk.updatedAt)}
+                                                                        </span>
+                                                                    )}
+
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="ghost"
+                                                                        onClick={() => toggleRow(spk.id)}
+                                                                        className="h-8 w-8 p-0 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                                                    >
+                                                                        <ChevronUp className="h-4 w-4" />
+                                                                    </Button>
+                                                                </div>
                                                             </div>
                                                         </div>
 
