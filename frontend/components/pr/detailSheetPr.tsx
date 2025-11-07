@@ -34,24 +34,30 @@ import {
     X,
     Download,
     LucideIcon,
+    Send,
+    Loader2,
 } from "lucide-react";
-import { PurchaseRequestWithRelations } from "@/types/pr";
+import { PurchaseRequest, PurchaseRequestWithRelations } from "@/types/pr";
 import { makeImageSrc } from "@/utils/makeImageSrc";
 import Image from "next/image";
 
+// Definisikan type untuk status berdasarkan type yang sudah ada
+type PurchaseRequestStatus = PurchaseRequest['status'];
+
 // Enum untuk Source Product Type
 enum SourceProductType {
-    PEMBELIAN_BARANG = "PEMBELIAN_BARANG", // Barang baru yang dibeli dari vendor
-    PENGAMBILAN_STOK = "PENGAMBILAN_STOK", // Barang yang diambil dari gudang
-    OPERATIONAL = "OPERATIONAL", // Operasional
-    JASA_PEMBELIAN = "JASA_PEMBELIAN", // Jasa eksternal (dari vendor)
-    JASA_INTERNAL = "JASA_INTERNAL" // Jasa internal (tanpa biaya tambahan)
+    PEMBELIAN_BARANG = "PEMBELIAN_BARANG",
+    PENGAMBILAN_STOK = "PENGAMBILAN_STOK",
+    OPERATIONAL = "OPERATIONAL",
+    JASA_PEMBELIAN = "JASA_PEMBELIAN",
+    JASA_INTERNAL = "JASA_INTERNAL"
 }
 
 interface PurchaseRequestDetailSheetProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     data: PurchaseRequestWithRelations | null;
+    onStatusUpdate: (id: string, status: PurchaseRequestStatus) => void;
 }
 
 // --- Helper untuk mapping status ke variant Badge ---
@@ -191,13 +197,16 @@ export function PurchaseRequestDetailSheet({
     open,
     onOpenChange,
     data,
+    onStatusUpdate,
 }: PurchaseRequestDetailSheetProps) {
+    const [isSubmitting, setIsSubmitting] = React.useState(false);
+
     if (!data) return null;
 
     // Perhitungan summary berdasarkan source product
     const calculateSummary = () => {
-        let totalBiaya = 0; // Total pengajuan biaya (PEMBELIAN_BARANG, OPERATIONAL, JASA_PEMBELIAN)
-        let totalHPP = 0;   // Total biaya tidak diajukan (PENGAMBILAN_STOK, JASA_INTERNAL)
+        let totalBiaya = 0;
+        let totalHPP = 0;
 
         data.details.forEach((item) => {
             const subtotal = Number(item.estimasiTotalHarga || 0);
@@ -213,7 +222,6 @@ export function PurchaseRequestDetailSheet({
                     totalHPP += subtotal;
                     break;
                 default:
-                    // Default ke totalBiaya jika sourceProduct tidak dikenali
                     totalBiaya += subtotal;
             }
         });
@@ -232,6 +240,35 @@ export function PurchaseRequestDetailSheet({
         (sum, item) => sum + Number(item.estimasiTotalHarga || 0),
         0
     );
+
+    const handleStatusUpdateFromActions = async (status: PurchaseRequestStatus) => {
+        if (data) {
+            setIsSubmitting(true);
+            try {
+                await onStatusUpdate(data.id, status);
+            } finally {
+                setIsSubmitting(false);
+            }
+        }
+    };
+
+    // Tentukan status target untuk submit button
+    const getSubmitStatus = (): PurchaseRequestStatus => {
+        return "SUBMITTED";
+    };
+
+    // Tentukan label button berdasarkan status saat ini
+    const getSubmitButtonLabel = (): string => {
+        return "Submit PR";
+    };
+
+    // Cek apakah button submit harus ditampilkan
+    const shouldShowSubmitButton = () => {
+        // Hanya tampilkan untuk status yang boleh di-submit
+        // Misalnya: hanya untuk status DRAFT atau PENDING
+        const allowedStatuses = ["DRAFT", "PENDING", "NEW"];
+        return allowedStatuses.includes(data.status);
+    };
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
@@ -576,15 +613,37 @@ export function PurchaseRequestDetailSheet({
                 </div>
 
                 {/* === FOOTER === */}
-                <div className="sticky bottom-0 bg-background border-t p-4">
+                <div className="sticky bottom-0 bg-background border-t p-4 mr-10">
                     <div className="flex justify-end gap-3">
                         <Button
                             variant="outline"
                             onClick={() => onOpenChange(false)}
                             className="min-w-24"
+                            disabled={isSubmitting}
                         >
                             Tutup
                         </Button>
+
+                        {/* Submit Button - hanya tampil untuk status tertentu */}
+                        {shouldShowSubmitButton() && (
+                            <Button
+                                onClick={() => handleStatusUpdateFromActions(getSubmitStatus())}
+                                disabled={isSubmitting}
+                                className="min-w-32 bg-green-600 hover:bg-green-700 text-white font-semibold"
+                            >
+                                {isSubmitting ? (
+                                    <>
+                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                        Submitting...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Send className="h-4 w-4 mr-2" />
+                                        {getSubmitButtonLabel()}
+                                    </>
+                                )}
+                            </Button>
+                        )}
                     </div>
                 </div>
             </SheetContent>

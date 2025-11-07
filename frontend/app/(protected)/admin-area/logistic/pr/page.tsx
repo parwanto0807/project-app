@@ -17,7 +17,8 @@ import { LayoutProps } from "@/types/layout";
 import { PurchaseRequestTable } from "@/components/pr/tableData";
 import { usePurchaseRequest } from "@/hooks/use-pr";
 import { AdminLoading } from "@/components/admin-loading";
-import { PaginationInfo, PurchaseRequestFilters } from "@/types/pr";
+import { PaginationInfo, PurchaseRequest, PurchaseRequestFilters } from "@/types/pr";
+import { toast } from "sonner";
 
 export default function PurchaseRequestPageAdmin() {
     const [filters, setFilters] = useState<PurchaseRequestFilters>({
@@ -42,7 +43,8 @@ export default function PurchaseRequestPageAdmin() {
         loading,
         error,
         fetchAllPurchaseRequests,
-        deletePurchaseRequest
+        deletePurchaseRequest,
+        updatePurchaseRequestStatus,
     } = usePurchaseRequest();
 
     // Fetch data ketika filter berubah
@@ -79,6 +81,38 @@ export default function PurchaseRequestPageAdmin() {
 
     const handleDateFilterChange = (dateFrom?: Date, dateTo?: Date) => {
         setFilters(prev => ({ ...prev, dateFrom, dateTo, page: 1 }));
+    };
+
+    // Handle status update - disesuaikan dengan signature fungsi yang ada
+    const handleStatusUpdate = async (id: string, status: PurchaseRequest['status']) => {
+        try {
+            // Cek jika status sudah COMPLETE
+            if (status === "COMPLETED") {
+                // Bisa tampilkan toast kalau mau
+                toast.info(`PR Sudah di Approval. Mengarahkan ke Proses pengajuan biaya...`);
+
+                // Redirect ke halaman create dengan id
+                router.push(`/admin-area/finance/prApprove/create/${id}`);
+                return; // hentikan fungsi agar tidak lanjut update
+            }
+
+            // Tampilkan loading toast
+            const toastId = toast.loading(`Updating status to ${status}...`);
+
+            // Jalankan update status hanya jika bukan COMPLETE
+            await updatePurchaseRequestStatus(id, { status });
+
+            // Update toast menjadi success
+            toast.success(`Purchase request status updated to ${status}`, {
+                id: toastId
+            });
+
+            // Refresh data setelah update status
+            fetchAllPurchaseRequests(filters);
+        } catch (error) {
+            console.error("Failed to update purchase request status:", error);
+            toast.error(`Failed to update status: ${error instanceof Error ? error.message : "Unknown error"}`);
+        }
     };
 
     const handleClearFilters = () => {
@@ -199,6 +233,7 @@ export default function PurchaseRequestPageAdmin() {
                             onProjectFilterChange={handleProjectFilterChange}
                             onDateFilterChange={handleDateFilterChange}
                             onClearFilters={handleClearFilters}
+                            onStatusUpdate={handleStatusUpdate}
                             currentSearch={filters.search}
                             currentStatus={filters.status}
                             currentProjectId={filters.projectId}

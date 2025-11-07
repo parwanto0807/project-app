@@ -52,6 +52,10 @@ export default function PurchaseRequestPageAdmin() {
         fetchAllPurchaseRequests(filters);
     }, [filters, fetchAllPurchaseRequests]);
 
+    // ✅ Filter purchaseRequests agar tidak menampilkan DRAFT
+    const filteredRequests = purchaseRequests?.filter(pr => pr.status !== "DRAFT") || [];
+
+
     // Redirect jika bukan admin
     useEffect(() => {
         if (userRole !== "admin") {
@@ -220,7 +224,7 @@ export default function PurchaseRequestPageAdmin() {
                 <div className="h-full w-full">
                     <div className="flex-1 space-y-2 p-2 pt-1 md:p-4">
                         <PurchaseRequestVerifyTable
-                            purchaseRequests={purchaseRequests}
+                            purchaseRequests={filteredRequests}
                             isLoading={loading}
                             isError={!!error}
                             role="admin"

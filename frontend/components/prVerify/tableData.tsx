@@ -890,6 +890,7 @@ export function PurchaseRequestVerifyTable({
                 open={detailOpen}
                 onOpenChange={setDetailOpen}
                 data={selectedPR}
+                onStatusUpdate={handleStatusUpdate}
             />
         </>
     );

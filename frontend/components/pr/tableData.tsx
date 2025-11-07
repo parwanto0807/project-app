@@ -62,6 +62,7 @@ interface PurchaseRequestTableProps {
     onStatusFilterChange: (status: PurchaseRequestFilters['status']) => void;
     onProjectFilterChange: (projectId: string) => void;
     onDateFilterChange: (dateFrom?: Date, dateTo?: Date) => void;
+    onStatusUpdate: (id: string, status: PurchaseRequest['status']) => void;
     onClearFilters: () => void;
     currentSearch?: string;
     currentStatus?: PurchaseRequestFilters['status'];
@@ -181,6 +182,7 @@ export function PurchaseRequestTable({
     onDateFilterChange,
     onClearFilters,
     currentSearch = "",
+    onStatusUpdate,
     currentStatus,
     currentProjectId,
     currentDateFrom,
@@ -197,6 +199,7 @@ export function PurchaseRequestTable({
     const [selectedPR, setSelectedPR] = useState<PurchaseRequest | null>(null);
     const basePath = getBasePath(role);
     const router = useRouter();
+
     const handleSearchSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         onSearchChange(searchInput);
@@ -217,6 +220,11 @@ export function PurchaseRequestTable({
         setLocalDateFrom("");
         setLocalDateTo("");
         onDateFilterChange(undefined, undefined);
+    };
+
+    const handleStatusUpdate = (id: string, status: PurchaseRequest['status']) => {
+        onStatusUpdate(id, status);
+        setDetailOpen(false);
     };
 
     const toggleRowExpansion = (prId: string) => {
@@ -1112,6 +1120,7 @@ export function PurchaseRequestTable({
                 open={detailOpen}
                 onOpenChange={setDetailOpen}
                 data={selectedPR}
+                onStatusUpdate={handleStatusUpdate}
             />
         </>
     );
