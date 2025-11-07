@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Breadcrumb,
@@ -18,6 +18,9 @@ import { LayoutProps } from "@/types/layout";
 import TabelDataSpk from "@/components/spk/tabelData";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { toast } from "sonner";
+import ioClient from "socket.io-client";
+
+
 
 // Import tipe SPK dari file yang sesuai atau definisikan ulang
 // Berdasarkan error, SPK memiliki properti: spkNumber, spkDate, salesOrderId, teamId, dan 6 properti lainnya
@@ -103,27 +106,19 @@ interface SPK {
   updatedAt: Date;
 }
 
+const io = ioClient;
+const socket = io(process.env.NEXT_PUBLIC_SOCKET_URL!, {
+  transports: ["websocket"],
+  autoConnect: true,
+});
+
 export default function SpkPageAdmin() {
   const [dataSpk, setDataSpk] = useState<SPK[]>([]);
   const { user, loading: userLoading } = useCurrentUser();
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  useEffect(() => {
-    if (userLoading) return;
-    if (!user) {
-      router.replace("/auth/login");
-      return;
-    }
-    if (user.role !== "admin") {
-      router.replace("/not-authorized");
-      return;
-    }
-
-    fetchData();
-  }, [router, user, userLoading]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setIsLoading(true);
       const result = await fetchAllSpk();
@@ -134,7 +129,43 @@ export default function SpkPageAdmin() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (userLoading) return;
+
+    if (!user) {
+      router.replace("/auth/login");
+      return;
+    }
+
+    if (user.role !== "admin") {
+      router.replace("/not-authorized");
+      return;
+    }
+
+    fetchData();
+  }, [user, userLoading, fetchData, router]);
+
+  // ✅ Realtime Update
+  useEffect(() => {
+    // Log ketika socket berhasil tersambung
+    socket.on("connect", () => {
+      console.log("✅ Socket connected to server");
+    });
+
+    const handler = () => {
+      console.log("Realtime: SPK updated → refresh data");
+      fetchData();
+    };
+
+    socket.on("spk_updated", handler);
+
+    return () => {
+      socket.off("spk_updated", handler);
+    };
+  }, [fetchData]);
+
 
   const handleDeleteSpk = async (spkId: string) => {
     try {

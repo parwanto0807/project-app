@@ -9,7 +9,6 @@ import { io } from "../../server.js";
 
 // 💡 Membuat laporan lapangan (Progress atau Final)
 export const createSpkFieldReport = async (req, res) => {
-  console.log("Body", req.body);
   try {
     const {
       spkId,
@@ -138,7 +137,7 @@ export const createSpkFieldReport = async (req, res) => {
       totalProgress += progressValue;
     }
 
-    console.log(`[DEBUG] Total progress: ${totalProgress}, Count: ${count}`);
+    // console.log(`[DEBUG] Total progress: ${totalProgress}, Count: ${count}`);
     const averageProgress = count > 0 ? Math.round(totalProgress / count) : 0;
 
     // ✅ Update SPK - Pastikan tipe data match
@@ -186,11 +185,7 @@ export const createSpkFieldReport = async (req, res) => {
     });
 
     // ✅ Broadcast ke semua client bahwa ada report baru & SPK berubah
-    io.emit("spkReport:created", {
-      report: populatedReport,
-      spkId,
-      averageProgress,
-    });
+    req.io.emit("spk_updated");
 
     res.status(201).json({
       success: true,
