@@ -1,14 +1,37 @@
-// backend/src/utils/setCookies.js
-export const setTokenCookies = (res, accessToken, refreshToken) => {
-  const isProd = process.env.NODE_ENV === 'production';
-
+export const setTokenCookies = (res, accessToken, refreshToken, sessionToken = null) => {
+  const sevenDays = 7 * 24 * 60 * 60 * 1000;
+  
   const cookieOptions = {
     httpOnly: true,
-    secure: isProd,
-    sameSite: isProd ? 'none' : 'lax',
-    path: '/',
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
   };
 
-  res.cookie('accessToken', accessToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
-  res.cookie('refreshToken', refreshToken, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 });
+  res.cookie("accessToken", accessToken, {
+    ...cookieOptions,
+    maxAge: 15 * 60 * 1000, // 15 minutes
+  });
+
+  res.cookie("refreshToken", refreshToken, {
+    ...cookieOptions,
+    maxAge: sevenDays,
+  });
+
+  if (sessionToken) {
+    res.cookie("session_token", sessionToken, {
+      ...cookieOptions,
+      maxAge: sevenDays,
+    });
+  }
+};
+
+export const clearAuthCookies = (res) => {
+  const cookies = ["accessToken", "refreshToken", "session_token", "trusted_device"];
+  
+  cookies.forEach(cookieName => {
+    res.clearCookie(cookieName, {
+      path: "/",
+    });
+  });
 };

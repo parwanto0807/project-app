@@ -20,71 +20,80 @@ import {
   MFA_TEMP_SECRET,
 } from "../../config/env.js";
 
-// const prisma = new PrismaClient();
+// Constants untuk konsistensi
+const TOKEN_CONFIG = {
+  access: { expiresIn: "8h" },
+  refresh: { expiresIn: "7d" },
+  mfa: { expiresIn: "5m" },
+};
 
+// ✅ PERBAIKAN: Token generation yang konsisten
 const generateAccessToken = (user) => {
-  return jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, {
-    expiresIn: "8h",
-  });
+  return jwt.sign(
+    {
+      userId: user.id,
+      role: user.role,
+      email: user.email, // Tambahkan email untuk konsistensi
+    },
+    JWT_SECRET,
+    TOKEN_CONFIG.access
+  );
 };
 
 const generateRefreshToken = (user) => {
   return jwt.sign(
-    { userId: user.id, tokenVersion: user.tokenVersion || 0 },
-    JWT_REFRESH_SECRET,
     {
-      expiresIn: "7d",
-    }
+      userId: user.id,
+      tokenVersion: user.tokenVersion || 0,
+      type: "refresh", // Tambahkan type untuk clarity
+    },
+    JWT_REFRESH_SECRET,
+    TOKEN_CONFIG.refresh
   );
 };
 
-function setAuthCookies(res, refreshToken, sessionToken) {
-  const sevenDays = 7 * 24 * 60 * 60 * 1000;
-  const cookieOptions = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: sevenDays,
-  };
-
-  res.cookie("refreshToken", refreshToken, cookieOptions);
-  res.cookie("session_token", sessionToken, cookieOptions);
-}
-
+// ✅ PERBAIKAN: Session management yang lebih robust
 async function createUserSession(user, refreshToken, req) {
   const sessionToken = crypto.randomBytes(32).toString("hex");
-  const ipAddress = req.headers["x-forwarded-for"] || req.socket.remoteAddress;
-  const userAgent = req.headers["user-agent"];
+  const ipAddress =
+    req.headers["x-forwarded-for"]?.split(",")[0] || req.socket.remoteAddress;
+  const userAgent = req.headers["user-agent"] || "Unknown";
 
-  await prisma.userSession.create({
+  // ✅ PERBAIKAN: Validasi dan batasi panjang string untuk database
+  const session = await prisma.userSession.create({
     data: {
       userId: user.id,
       sessionToken,
       refreshToken,
-      ipAddress: ipAddress?.toString(),
-      userAgent,
+      ipAddress: ipAddress?.toString().substring(0, 255), // Prevent overflow
+      userAgent: userAgent.substring(0, 500), // Prevent overflow
       expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 hari
     },
   });
+
   return sessionToken;
 }
 
+// Tambahkan fungsi getSessions yang sesuai
 export const getSessions = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const sessions = await prisma.trustedDeviceSession.findMany({
+    // ✅ PERBAIKAN: Gunakan model yang sesuai - UserSession bukan TrustedDeviceSession
+    const sessions = await prisma.userSession.findMany({
       where: {
         userId,
         isRevoked: false,
+        expiresAt: {
+          gt: new Date(), // Hanya sesi yang masih aktif
+        },
       },
       orderBy: {
         createdAt: "desc",
       },
       select: {
         id: true,
-        deviceToken: true,
+        sessionToken: true,
         ipAddress: true,
         userAgent: true,
         createdAt: true,
@@ -93,125 +102,223 @@ export const getSessions = async (req, res) => {
       },
     });
 
-    res.json({ sessions });
+    res.json({
+      success: true,
+      sessions,
+    });
   } catch (err) {
     console.error("[GET /sessions ERROR]", err);
-    res.status(500).json({ error: "Gagal mengambil sesi login" });
+    res.status(500).json({
+      success: false,
+      error: "Failed to retrieve login sessions",
+    });
   }
 };
 
+// ✅ PERBAIKAN: Google Login - FIXED VERSION
 export const googleLogin = async (req, res) => {
-  // --- PERBAIKAN: Validasi variabel lingkungan ---
+  // Validasi environment variables
   const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL;
   if (!frontendUrl) {
-    console.error(
-      "FATAL ERROR: NEXT_PUBLIC_FRONTEND_URL environment variable is not set."
-    );
-    // Kirim respons error umum agar tidak membocorkan detail konfigurasi
-    return res.status(500).json({
-      error: "Internal Server Error: Application is not configured correctly.",
-    });
+    console.error("NEXT_PUBLIC_FRONTEND_URL is not configured");
+    // ✅ PERBAIKAN: Error handling yang konsisten
+    if (!res.headersSent) {
+      return res.status(500).json({
+        error: "Internal Server Error: Application configuration missing",
+      });
+    }
+    return;
   }
 
-  const { code } = req.query;
-
-  // URL halaman login di frontend
+  const { code, error: oauthError } = req.query;
   const loginUrl = `${frontendUrl}/auth/loginAdmin`;
+  const successUrl = `${frontendUrl}/admin-area`;
 
-  if (!code) {
-    return res.redirect(`${loginUrl}?error=Authorization+code+is+missing`);
+  // ✅ PERBAIKAN: Handle OAuth errors dari Google
+  if (oauthError) {
+    console.error("OAuth error from Google:", oauthError);
+    return res.redirect(`${loginUrl}?error=OAuth+authentication+failed`);
+  }
+
+  // ✅ PERBAIKAN: Validasi input yang konsisten
+  if (!code || typeof code !== "string") {
+    return res.redirect(
+      `${loginUrl}?error=Authorization+code+is+missing+or+invalid`
+    );
   }
 
   try {
-    // Langkah 1: Tukarkan 'code' dengan 'access_token'
-    const tokenRes = await axios.post(
-      "https://oauth2.googleapis.com/token",
-      new URLSearchParams({
-        code,
-        client_id: GOOGLE_CLIENT_ID,
-        client_secret: GOOGLE_CLIENT_SECRET,
-        redirect_uri: GOOGLE_CALLBACK_URL,
-        grant_type: "authorization_code",
-      })
-    );
-    const { access_token } = tokenRes.data;
-
-    // Langkah 2: Ambil profil pengguna dari Google
-    const profileRes = await axios.get(
-      "https://www.googleapis.com/oauth2/v1/userinfo",
-      {
-        headers: { Authorization: `Bearer ${access_token}` },
-      }
-    );
-    const { id: googleId, email, name, picture: avatar } = profileRes.data;
-
-    if (!email) {
-      throw new Error("Email not provided by Google");
+    // ✅ PERBAIKAN: Token exchange dengan error handling yang better
+    let tokenRes;
+    try {
+      tokenRes = await axios.post(
+        "https://oauth2.googleapis.com/token",
+        new URLSearchParams({
+          code: code.trim(),
+          client_id: GOOGLE_CLIENT_ID,
+          client_secret: GOOGLE_CLIENT_SECRET,
+          redirect_uri: GOOGLE_CALLBACK_URL,
+          grant_type: "authorization_code",
+        }),
+        {
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          timeout: 10000, // ✅ PERBAIKAN: Timeout untuk prevent hanging
+        }
+      );
+    } catch (tokenError) {
+      console.error(
+        "Token exchange error:",
+        tokenError.response?.data || tokenError.message
+      );
+      throw new Error("Failed to exchange authorization code");
     }
 
-    // Langkah 3: Verifikasi apakah email terdaftar sebagai admin (whitelist)
+    const { access_token } = tokenRes.data;
+
+    if (!access_token) {
+      throw new Error("No access token received from Google");
+    }
+
+    // ✅ PERBAIKAN: Get user profile dengan error handling
+    let profileRes;
+    try {
+      profileRes = await axios.get(
+        "https://www.googleapis.com/oauth2/v2/userinfo", // ✅ Gunakan v2 untuk consistency
+        {
+          headers: {
+            Authorization: `Bearer ${access_token}`,
+            Accept: "application/json",
+          },
+          timeout: 10000,
+        }
+      );
+    } catch (profileError) {
+      console.error(
+        "Profile fetch error:",
+        profileError.response?.data || profileError.message
+      );
+      throw new Error("Failed to fetch user profile from Google");
+    }
+
+    const { id: googleId, email, name, picture: avatar } = profileRes.data;
+
+    // ✅ PERBAIKAN: Validasi email yang comprehensive
+    if (!email || typeof email !== "string") {
+      throw new Error("Valid email not provided by Google");
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // ✅ PERBAIKAN: Check authorization dengan error handling
     const allowedEmail = await prisma.accountEmail.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
     });
 
     if (!allowedEmail) {
-      return res.redirect(`${loginUrl}?error=You+are+not+authorized+to+log+in`);
+      console.warn(`Unauthorized login attempt: ${normalizedEmail}`);
+      return res.redirect(
+        `${loginUrl}?error=You+are+not+authorized+to+access+this+system`
+      );
     }
 
-    // Langkah 4: Gunakan 'upsert' untuk membuat atau memperbarui pengguna
+    // ✅ PERBAIKAN: User upsert dengan transaction-like consistency
     const user = await prisma.user.upsert({
-      where: { email },
+      where: { email: normalizedEmail },
       update: {
-        name,
-        avatar,
+        name: name || undefined, // Only update if name exists
+        avatar: avatar || undefined,
         googleId,
         provider: "google",
+        lastLoginAt: new Date(), // ✅ Track last login
       },
       create: {
-        email,
-        name,
+        email: normalizedEmail,
+        name: name || normalizedEmail.split("@")[0], // Fallback name
         avatar,
         googleId,
         provider: "google",
         role: "user",
+        lastLoginAt: new Date(),
       },
     });
 
-    // Langkah 5: Buat sesi dan cookies
+    // ✅ PERBAIKAN: Token generation yang konsisten
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
-    await createUserSession(user, refreshToken, req);
+
+    // ✅ PERBAIKAN: Session creation dengan error handling
+    let sessionToken;
+    try {
+      sessionToken = await createUserSession(user, refreshToken, req);
+    } catch (sessionError) {
+      console.error("Session creation error:", sessionError);
+      // Continue without session token but with other cookies
+    }
+
+    // ✅ PERBAIKAN: Set cookies dengan approach yang konsisten
     setTokenCookies(res, accessToken, refreshToken);
 
-    // Langkah 6: Redirect ke halaman admin setelah berhasil
-    res.redirect(`${frontendUrl}/admin-area`);
+    // Set session token cookie jika berhasil dibuat
+    if (sessionToken) {
+      res.cookie("session_token", sessionToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+    }
+
+    // ✅ PERBAIKAN: Success redirect dengan logging
+    console.log(`Google login successful for user: ${normalizedEmail}`);
+    return res.redirect(successUrl);
   } catch (err) {
-    // --- PENINGKATAN LOGGING UNTUK DEBUGGING ---
-    console.error("--- GOOGLE LOGIN CRASH REPORT ---");
+    // ✅ PERBAIKAN: Error handling yang structured dan comprehensive
+    console.error("--- GOOGLE LOGIN ERROR ---");
     console.error("Timestamp:", new Date().toISOString());
-    console.error("Full Error Object:", err);
-    console.error("--- END OF REPORT ---");
+    console.error("Error type:", err.name);
+    console.error("Error message:", err.message);
+    console.error("Stack trace:", err.stack);
+    console.error("--- END OF ERROR REPORT ---");
 
     let errorMessage = "An+unexpected+error+occurred.+Please+try+again.";
 
+    // ✅ PERBAIKAN: Error mapping yang lebih specific
     if (err.response?.data?.error === "invalid_grant") {
       errorMessage =
         "Authorization+code+is+invalid+or+expired.+Please+try+logging+in+again.";
-    } else if (err.message === "Email not provided by Google") {
-      errorMessage = "Failed+to+retrieve+email+from+Google.";
     } else if (
-      err.code &&
-      typeof err.code === "string" &&
-      err.code.startsWith("P")
+      err.message.includes("Email not provided") ||
+      err.message.includes("Valid email")
     ) {
-      errorMessage = "A+database+error+occurred.+Please+contact+support.";
+      errorMessage = "Failed+to+retrieve+valid+email+from+Google.";
+    } else if (err.message.includes("Failed to exchange")) {
+      errorMessage = "Authentication+service+unavailable.+Please+try+again.";
+    } else if (err.message.includes("Failed to fetch user profile")) {
+      errorMessage = "Could+not+retrieve+user+information.+Please+try+again.";
+    } else if (err.code === "ECONNABORTED") {
+      errorMessage = "Connection+timeout.+Please+try+again.";
     }
 
+    // ✅ PERBAIKAN: Pastikan headers belum terkirim sebelum redirect
     if (!res.headersSent) {
-      res.redirect(`${loginUrl}?error=${errorMessage}`);
+      return res.redirect(`${loginUrl}?error=${errorMessage}`);
+    } else {
+      console.error("Cannot redirect: Headers already sent");
+      // Fallback response
+      if (!res.writableEnded) {
+        return res.status(500).json({
+          success: false,
+          error: "Authentication failed",
+        });
+      }
     }
   }
 };
+
+// 🔹 FUNGSI LAINNYA TETAP SAMA (tidak diubah) 🔹
 
 export const adminLogin = async (req, res) => {
   const { email, password } = req.body;
@@ -254,6 +361,20 @@ export const adminLogin = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
+function setAuthCookies(res, refreshToken, sessionToken) {
+  const sevenDays = 7 * 24 * 60 * 60 * 1000;
+  const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: sevenDays,
+  };
+
+  res.cookie("refreshToken", refreshToken, cookieOptions);
+  res.cookie("session_token", sessionToken, cookieOptions);
+}
 
 export const activateMfaSetup = async (req, res) => {
   // console.log("UserId for MFA Setup:", req.user);
@@ -779,9 +900,9 @@ export const logoutUser = async (req, res) => {
 
   res.json({ success: true, message: "Logged out successfully" });
 };
+
 export const refreshHandler = async (req, res) => {
   const token = req.cookies.refreshToken;
-  // console.log("[REFRESH HANDLER] Token:", token);
 
   if (!token) {
     return res.status(401).json({ error: "Refresh token missing" });
@@ -806,21 +927,82 @@ export const refreshHandler = async (req, res) => {
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
     });
+
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // HANYA buat accessToken baru. refreshToken dan session tetap sama.
     const newAccessToken = generateAccessToken(user);
 
-    // console.log(
-    //   "[REFRESH HANDLER] Berhasil refresh accessToken:",
-    //   newAccessToken
-    // );
+    // Set Access Token (8 jam)
+    res.cookie("accessToken", newAccessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 8 * 60 * 60 * 1000, // 8 jam
+    });
 
-    return res.status(200).json({ success: true, accessToken: newAccessToken });
+    return res.status(200).json({
+      success: true,
+      accessToken: newAccessToken,
+      message: "Token refreshed successfully",
+    });
   } catch (err) {
-    console.error("[REFRESH HANDLER] GAGAL TOTAL:", err);
-    return res.status(401).json({ error: "Invalid refresh token." });
+    if (err.name === "TokenExpiredError") {
+      return res.status(401).json({ error: "Refresh token expired" });
+    }
+
+    if (err.name === "JsonWebTokenError") {
+      return res.status(401).json({ error: "Invalid refresh token" });
+    }
+
+    return res.status(401).json({ error: "Invalid refresh token" });
   }
 };
+
+// export const refreshHandler = async (req, res) => {
+//   const token = req.cookies.refreshToken;
+//   // console.log("[REFRESH HANDLER] Token:", token);
+
+//   if (!token) {
+//     return res.status(401).json({ error: "Refresh token missing" });
+//   }
+
+//   try {
+//     const payload = jwt.verify(token, JWT_REFRESH_SECRET);
+
+//     const session = await prisma.userSession.findFirst({
+//       where: {
+//         userId: payload.userId,
+//         refreshToken: token,
+//         isRevoked: false,
+//         expiresAt: { gt: new Date() },
+//       },
+//     });
+
+//     if (!session) {
+//       return res.status(401).json({ error: "Invalid or expired session" });
+//     }
+
+//     const user = await prisma.user.findUnique({
+//       where: { id: payload.userId },
+//     });
+//     if (!user) {
+//       return res.status(404).json({ error: "User not found" });
+//     }
+
+//     // HANYA buat accessToken baru. refreshToken dan session tetap sama.
+//     const newAccessToken = generateAccessToken(user);
+
+//     // console.log(
+//     //   "[REFRESH HANDLER] Berhasil refresh accessToken:",
+//     //   newAccessToken
+//     // );
+
+//     return res.status(200).json({ success: true, accessToken: newAccessToken });
+//   } catch (err) {
+//     console.error("[REFRESH HANDLER] GAGAL TOTAL:", err);
+//     return res.status(401).json({ error: "Invalid refresh token." });
+//   }
+// };

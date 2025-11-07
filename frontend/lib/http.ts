@@ -7,63 +7,25 @@ import axios, {
   AxiosHeaders,
 } from "axios";
 
-// ====== state token sederhana (in-memory + optional cookie fallback) ======
-let accessToken: string | null = null;
+// Import dari autoRefresh.ts - gunakan sebagai single source of truth
+import {
+  getAccessToken,
+  setAccessToken,
+  clearRefreshTimer,
+  setRefreshExecutor,
+  forceRefresh,
+  isTokenValid,
+} from "./autoRefresh";
+
+// ====== SINGLE FLIGHT REFRESH STATE ======
 let refreshInFlight: Promise<string> | null = null;
-let refreshTimer: number | undefined;
 
-export const setAccessToken = (t: string | null) => {
-  accessToken = t;
-};
-export const getAccessToken = () => accessToken;
-
-// (opsional) taruh juga di cookie non-HttpOnly untuk fallback reload dev.
-// NOTE: ini tidak disarankan untuk production karena bukan HttpOnly.
-export function initializeTokens(newAccessToken: string) {
-  setAccessToken(newAccessToken);
-  api.defaults.headers.common["Authorization"] = `Bearer ${newAccessToken}`;
-  scheduleProactiveRefresh(newAccessToken);
-  if (typeof window !== "undefined") {
-    localStorage.setItem("accessToken", newAccessToken);
-    document.cookie = `accessToken=${newAccessToken}; Path=/; Max-Age=3600; SameSite=Lax`;
-  }
-}
-
-// ====== util: proactive refresh sebelum expired ======
-function parseExpMs(token: string): number | null {
-  try {
-    const [, payload] = token.split(".");
-    const { exp } = JSON.parse(atob(payload));
-    return typeof exp === "number" ? exp * 1000 : null;
-  } catch {
-    return null;
-  }
-}
-function clearRefreshTimer() {
-  if (refreshTimer) {
-    clearTimeout(refreshTimer);
-    refreshTimer = undefined;
-  }
-}
-
-function scheduleProactiveRefresh(token: string, skewMs = 45_000) {
-  if (typeof window === "undefined") return;
-  clearRefreshTimer();
-  const expMs = parseExpMs(token);
-  if (!expMs) return;
-  const delay = Math.max(expMs - Date.now() - skewMs, 0);
-  refreshTimer = window.setTimeout(() => {
-    void callRefresh(); // fire & forget
-  }, delay);
-}
-
-// ====== axios instances ======
+// ====== AXIOS INSTANCES ======
 export const api: AxiosInstance = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL,
-  withCredentials: true, // perlu untuk refresh yang pakai cookie httpOnly
+  withCredentials: true,
 });
 
-// instance "raw" untuk memanggil refresh agar tidak terjerat interceptor api
 const raw: AxiosInstance = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL,
   withCredentials: true,
@@ -71,37 +33,119 @@ const raw: AxiosInstance = axios.create({
 
 const REFRESH_PATH = "/api/auth/refresh";
 
-// ====== request interceptor: sisipkan Authorization dengan aman ======
-api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  // fallback dari cookie kalau accessToken null (mis. setelah reload)
-  if (!accessToken && typeof window !== "undefined") {
-    const cookieValue = document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("accessToken="))
-      ?.split("=")[1];
-    if (cookieValue) initializeTokens(cookieValue);
-  }
+// ====== SETUP REFRESH EXECUTOR UNTUK AUTOREFRESH ======
+setRefreshExecutor(async (): Promise<string | null> => {
+  // console.log("🔄 Refresh executor called from autoRefresh system");
 
+  try {
+    const response = await raw.post(REFRESH_PATH);
+
+    if (response.data?.success && response.data.accessToken) {
+      const newToken = response.data.accessToken;
+      // console.log("✅ Refresh executor successful");
+      return newToken;
+    }
+
+    throw new Error("Invalid refresh response");
+  } catch (error) {
+    console.error("❌ Refresh executor failed:", error);
+    return null;
+  }
+});
+
+// ====== REQUEST INTERCEPTOR ======
+api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  // Development fallback dari cookie
   const token = getAccessToken();
-  if (token) {
-    if (config.headers instanceof AxiosHeaders) {
-      config.headers.set("Authorization", `Bearer ${token}`);
-    } else {
-      (config.headers as RawAxiosRequestHeaders)["Authorization"] = `Bearer ${token}`;
+  if (
+    !token &&
+    typeof window !== "undefined" &&
+    process.env.NODE_ENV === "development"
+  ) {
+    const cookies = document.cookie.split("; ");
+    const accessTokenCookie = cookies.find((row) =>
+      row.startsWith("accessToken=")
+    );
+    const cookieValue = accessTokenCookie
+      ? accessTokenCookie.split("=")[1]
+      : null;
+
+    if (cookieValue) {
+      // Cek validitas token sebelum menyimpan
+      try {
+        const [, payload] = cookieValue.split(".");
+        const { exp } = JSON.parse(atob(payload));
+        if (exp && exp * 1000 > Date.now()) {
+          setAccessToken(cookieValue);
+        }
+      } catch {
+        // Token invalid, skip
+      }
     }
   }
+
+  // Set authorization header
+  const currentToken = getAccessToken();
+  if (currentToken) {
+    if (config.headers instanceof AxiosHeaders) {
+      config.headers.set("Authorization", `Bearer ${currentToken}`);
+    } else {
+      (config.headers as RawAxiosRequestHeaders)[
+        "Authorization"
+      ] = `Bearer ${currentToken}`;
+    }
+  }
+
   config.withCredentials = true;
   return config;
 });
 
-// ====== refresh single-flight ======
+// ====== SINGLE-FLIGHT REFRESH ======
 const callRefresh = async (): Promise<string> => {
-  const res = await raw.post(REFRESH_PATH); // cookie httpOnly ikut karena withCredentials
-  if (!res.data?.accessToken) throw new Error("Refresh token failed");
-  return res.data.accessToken as string;
+  if (refreshInFlight) {
+    // console.log("🔄 Waiting for existing refresh request");
+    return refreshInFlight;
+  }
+
+  // console.log("🔄 Starting new refresh request");
+  refreshInFlight = raw
+    .post(REFRESH_PATH)
+    .then((response) => {
+      // console.log("📨 Refresh response received:", {
+      //   status: response.status,
+      //   data: response.data,
+      // });
+
+      if (response.data?.success && response.data.accessToken) {
+        const newToken = response.data.accessToken;
+
+        // console.log("✅ New token received from backend");
+
+        // Gunakan autoRefresh system untuk menyimpan token
+        setAccessToken(newToken);
+
+        // Update axios default header
+        api.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
+
+        // console.log("✅ Refresh request successful");
+        return newToken;
+      }
+
+      // console.error("❌ Invalid refresh response format");
+      throw new Error("Invalid refresh response");
+    })
+    .catch((error) => {
+      console.error("❌ Refresh request failed:", error);
+      throw error;
+    })
+    .finally(() => {
+      refreshInFlight = null;
+    });
+
+  return refreshInFlight;
 };
 
-// ====== response interceptor: 401 -> refresh -> retry ======
+// ====== RESPONSE INTERCEPTOR ======
 type RetriableConfig = InternalAxiosRequestConfig & { _retry?: boolean };
 
 api.interceptors.response.use(
@@ -118,7 +162,7 @@ api.interceptors.response.use(
     if (is401 && !isRefreshCall && !originalRequest._retry) {
       originalRequest._retry = true;
 
-      // single-flight: share 1 promise
+      // Single-flight refresh
       if (!refreshInFlight) {
         refreshInFlight = callRefresh().finally(() => {
           refreshInFlight = null;
@@ -127,26 +171,36 @@ api.interceptors.response.use(
 
       try {
         const newAccessToken = await refreshInFlight;
-        // simpan token baru, update default header, jadwalkan proactive refresh
-        initializeTokens(newAccessToken);
 
-        // set header untuk retry request yang gagal
+        // Update request header untuk retry
         if (originalRequest.headers instanceof AxiosHeaders) {
-          originalRequest.headers.set("Authorization", `Bearer ${newAccessToken}`);
+          originalRequest.headers.set(
+            "Authorization",
+            `Bearer ${newAccessToken}`
+          );
         } else {
-          (originalRequest.headers as RawAxiosRequestHeaders)["Authorization"] = `Bearer ${newAccessToken}`;
+          (originalRequest.headers as RawAxiosRequestHeaders)[
+            "Authorization"
+          ] = `Bearer ${newAccessToken}`;
         }
 
+        // console.log("✅ Retrying original request with new token");
         return api(originalRequest);
       } catch (refreshError) {
-        // refresh gagal → bersihkan & arahkan ke login
+        // Refresh gagal → logout
+        // console.error("❌ Refresh failed, redirecting to login");
+
         setAccessToken(null);
         clearRefreshTimer();
         delete api.defaults.headers.common["Authorization"];
-        if (typeof window !== "undefined") {
-          document.cookie = "accessToken=; Path=/; Max-Age=0; SameSite=Lax";
-          window.location.href = "/auth/login";
+
+        if (
+          typeof window !== "undefined" &&
+          !window.location.pathname.includes("/auth/login")
+        ) {
+          window.location.href = "/auth/loginAdmin";
         }
+
         return Promise.reject(refreshError);
       }
     }
@@ -155,40 +209,52 @@ api.interceptors.response.use(
   }
 );
 
-// ====== helper untuk dipanggil saat login/logout ======
+// ====== HELPER FUNCTIONS ======
 export function initializeTokensOnLogin(initialAccess: string) {
-  initializeTokens(initialAccess);
+  setAccessToken(initialAccess);
+  api.defaults.headers.common["Authorization"] = `Bearer ${initialAccess}`;
+
+  // Development cookie fallback (opsional)
+  if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+    document.cookie = `accessToken=${initialAccess}; Path=/; Max-Age=3600; SameSite=Lax`;
+  }
 }
 
 export function clearTokensOnLogout() {
   setAccessToken(null);
   clearRefreshTimer();
   delete api.defaults.headers.common["Authorization"];
+
   if (typeof window !== "undefined") {
     document.cookie = "accessToken=; Path=/; Max-Age=0; SameSite=Lax";
   }
 }
 
-function willExpireSoon(token: string, skewMs = 60_000) {
+// Di function ensureFreshToken - PERBAIKI
+export async function ensureFreshToken(): Promise<boolean> {
   try {
-    const [, p] = token.split(".");
-    const { exp } = JSON.parse(atob(p));
-    const expMs = (exp ?? 0) * 1000;
-    return Date.now() > expMs - skewMs;
-  } catch {
+    const token = getAccessToken();
+
+    // ✅ PERBAIKAN: isTokenValid() tidak butuh parameter
+    if (!token || !isTokenValid()) {
+      // console.log("🔄 Token invalid or missing, attempting refresh");
+      const newToken = await forceRefresh();
+      return !!newToken;
+    }
+
     return true;
+  } catch (error) {
+    console.error("❌ ensureFreshToken failed:", error);
+    return false;
   }
 }
 
-// pakai callRefresh & refreshInFlight yg sudah ada di file-mu
-export async function ensureFreshToken() {
-  const token = getAccessToken();
-  if (!token || willExpireSoon(token)) {
-    // single-flight sama seperti interceptor
-    if (!refreshInFlight) {
-      refreshInFlight = callRefresh().finally(() => (refreshInFlight = null));
-    }
-    const newTok = await refreshInFlight;
-    if (newTok) initializeTokens(newTok);
-  }
-}
+// Utility untuk public APIs (tanpa auth)
+export const publicApi = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL,
+});
+
+publicApi.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  (config as RetriableConfig & { _skipAuth?: boolean })._skipAuth = true;
+  return config;
+});

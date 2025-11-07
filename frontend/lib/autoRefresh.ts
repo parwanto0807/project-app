@@ -10,15 +10,16 @@ let bc: BroadcastChannel | null = null;
 let isRefreshing = false;
 
 // Hanya persist di production untuk keamanan
-const PERSIST_TO_LOCALSTORAGE = 
-  typeof window !== "undefined" && 
+const IS_CLIENT = typeof window !== "undefined";
+const PERSIST_TO_LOCALSTORAGE =
+  IS_CLIENT &&
   !window.location.hostname.includes("localhost") &&
   !window.location.hostname.includes("127.0.0.1");
 const LS_KEY = "access_token";
 
 function startBroadcast() {
-  if (typeof window === "undefined") return;
-  
+  if (!IS_CLIENT) return;
+
   if (!bc) {
     try {
       // Test BroadcastChannel support
@@ -26,7 +27,7 @@ function startBroadcast() {
         setupStorageFallback();
         return;
       }
-      
+
       bc = new BroadcastChannel("auth");
       bc.onmessage = (e) => {
         if (e?.data?.type === "token") {
@@ -40,7 +41,6 @@ function startBroadcast() {
           }
         }
       };
-      
     } catch (error) {
       console.warn("BroadcastChannel failed, using storage fallback:", error);
       setupStorageFallback();
@@ -49,18 +49,18 @@ function startBroadcast() {
 }
 
 function setupStorageFallback() {
-  if (typeof window === "undefined") return;
-  
+  if (!IS_CLIENT) return;
+
   const handleStorageEvent = (e: StorageEvent) => {
     if (e.key === LS_KEY && e.newValue !== e.oldValue) {
-      setAccessToken(e.newValue, { 
-        broadcast: false, 
-        schedule: true, 
-        persist: false // Already in storage
+      setAccessToken(e.newValue, {
+        broadcast: false,
+        schedule: true,
+        persist: false, // Already in storage
       });
     }
   };
-  
+
   window.addEventListener("storage", handleStorageEvent);
 }
 
@@ -106,12 +106,12 @@ function parseJwtExp(token: string): number | null {
       base64.length + ((4 - (base64.length % 4)) % 4),
       "="
     );
-    
+
     const json = JSON.parse(atob(padded));
 
     // Validasi exp exists dan merupakan masa depan
     if (typeof json.exp !== "number") return null;
-    
+
     const now = Math.floor(Date.now() / 1000);
     if (json.exp <= now) {
       console.warn("Token already expired");
@@ -132,13 +132,13 @@ export function setRefreshExecutor(fn: () => Promise<string | null>) {
 }
 
 /** Jadwalkan refresh ~45 detik sebelum expired */
-export function scheduleProactiveRefresh(token: string, skewMs = 45_000) {
-  if (typeof window === "undefined") return;
+export function scheduleProactiveRefresh(token: string, skewMs = 45_000): void {
+  if (!IS_CLIENT) return;
   clearRefreshTimer();
 
   const expSec = parseJwtExp(token);
   if (!expSec) {
-    console.warn("Cannot schedule refresh: invalid token expiration");
+    // console.warn("Cannot schedule refresh: invalid token expiration");
     return;
   }
 
@@ -146,35 +146,42 @@ export function scheduleProactiveRefresh(token: string, skewMs = 45_000) {
   const now = Date.now();
   const delay = Math.max(expMs - now - skewMs, 0);
 
+  // console.log("🔄 [FRONTEND] AutoRefresh Schedule:", {
+  //   tokenLifetime: `${((expMs - now) / 1000).toFixed(0)}s`,
+  //   refreshIn: `${(delay / 1000).toFixed(0)}s`,
+  //   willExpireAt: new Date(expMs).toLocaleTimeString(),
+  //   refreshAt: new Date(now + delay).toLocaleTimeString(),
+  // });
+
   // Jika token sudah expired atau hampir expired
   if (delay === 0 || expMs <= now) {
-    console.warn("Token expired or about to expire, refreshing immediately");
+    // console.warn("Token expired or about to expire, refreshing immediately");
     if (refreshExecutor) {
-      refreshExecutor().catch(error => {
+      refreshExecutor().catch((error) => {
         console.error("Immediate refresh failed:", error);
       });
     }
     return;
   }
 
-  console.log(`Scheduling token refresh in ${Math.round(delay / 1000)} seconds`);
-  
+  // console.log(`⏰ Scheduling token refresh in ${Math.round(delay / 1000)} seconds`);
+
   refreshTimer = window.setTimeout(async () => {
     if (!refreshExecutor) {
-      console.warn("No refresh executor available");
+      // console.warn("No refresh executor available");
       return;
     }
 
     try {
+      // console.log('🔄 Auto-refresh triggered by timer');
       const newToken = await refreshExecutor();
       if (!newToken) {
-        console.warn("Token refresh failed - no new token received");
-        // refresh gagal → biarkan flow 401 di interceptor yang handle
+        // console.warn("Token refresh failed - no new token received");
         return;
       }
-      // token baru akan di-set oleh http.ts lewat setAccessToken
+      // console.log('✅ Auto-refresh successful - token should be set by http.ts');
     } catch (error) {
-      console.error("Token refresh error:", error);
+      console.error("❌ Token refresh error:", error);
     }
   }, delay);
 }
@@ -182,19 +189,28 @@ export function scheduleProactiveRefresh(token: string, skewMs = 45_000) {
 /** Set token ke memori (+ broadcast, + schedule, + optional persist) */
 export function setAccessToken(
   token: string | null,
-  opts: { broadcast?: boolean; schedule?: boolean; persist?: boolean } = { 
-    broadcast: true, schedule: true, persist: PERSIST_TO_LOCALSTORAGE 
+  opts: { broadcast?: boolean; schedule?: boolean; persist?: boolean } = {
+    broadcast: true,
+    schedule: true,
+    persist: PERSIST_TO_LOCALSTORAGE,
   }
-) {
+): void {
   // Prevent race conditions
   if (isRefreshing) {
-    console.warn("Token update in progress, skipping concurrent update");
+    // console.warn("Token update in progress, skipping concurrent update");
     return;
   }
 
   isRefreshing = true;
 
   try {
+    // console.log("🔄 [AUTO-REFRESH] setAccessToken called:", {
+    //   hasNewToken: !!token,
+    //   tokenPreview: token ? `${token.substring(0, 20)}...` : 'null',
+    //   oldTokenExists: !!accessToken,
+    //   options: opts
+    // });
+
     // Validasi token sebelum disimpan
     if (token) {
       const isValid = parseJwtExp(token) !== null;
@@ -208,12 +224,14 @@ export function setAccessToken(
     accessToken = token;
 
     // Only persist if token actually changed
-    if (opts.persist && token !== oldToken) {
+    if (opts.persist && token !== oldToken && IS_CLIENT) {
       try {
         if (token) {
           localStorage.setItem(LS_KEY, token);
+          // console.log('💾 Token persisted to localStorage');
         } else {
           localStorage.removeItem(LS_KEY);
+          // console.log('🗑️ Token removed from localStorage');
         }
       } catch (error) {
         console.warn("Failed to persist token to localStorage:", error);
@@ -224,6 +242,7 @@ export function setAccessToken(
       startBroadcast();
       try {
         bc?.postMessage({ type: "token", token: accessToken });
+        // console.log('📢 Token broadcasted to other tabs');
       } catch (error) {
         console.warn("Failed to broadcast token:", error);
       }
@@ -233,27 +252,35 @@ export function setAccessToken(
       scheduleProactiveRefresh(token);
     } else if (!token) {
       clearRefreshTimer();
+      // console.log('⏹️ Refresh timer cleared (logout)');
     }
 
     if (token !== oldToken) {
       notify(accessToken);
+      // console.log('👂 Notified token listeners');
     }
+
+    // console.log('✅ [AUTO-REFRESH] Token update completed successfully');
+  } catch (error) {
+    console.error("❌ [AUTO-REFRESH] Error in setAccessToken:", error);
   } finally {
     isRefreshing = false;
   }
 }
 
 /** Panggil di _app/layout mount untuk restore token dari storage */
-export function initAuthFromStorage() {
-  if (typeof window === "undefined") return;
-  
+export function initAuthFromStorage(): void {
+  if (!IS_CLIENT) return;
+
   startBroadcast();
-  
+
   if (!PERSIST_TO_LOCALSTORAGE) {
     // Clear any existing token from storage in development
     try {
       localStorage.removeItem(LS_KEY);
-    } catch {}
+    } catch {
+      // Silent catch
+    }
     return;
   }
 
@@ -268,9 +295,9 @@ export function initAuthFromStorage() {
           schedule: true,
           persist: true,
         });
-        console.log("Token restored from storage");
+        // console.log("✅ Token restored from storage");
       } else {
-        console.warn("Removing invalid saved token");
+        // console.warn("Removing invalid saved token");
         localStorage.removeItem(LS_KEY);
       }
     }
@@ -280,7 +307,7 @@ export function initAuthFromStorage() {
 }
 
 /** Cleanup untuk mencegah memory leaks */
-export function cleanup() {
+export function cleanup(): void {
   clearRefreshTimer();
   listeners.clear();
   try {
@@ -297,12 +324,14 @@ export function cleanup() {
 /** Force refresh token */
 export async function forceRefresh(): Promise<string | null> {
   if (!refreshExecutor) {
-    console.warn("No refresh executor available");
+    // console.warn("No refresh executor available");
     return null;
   }
 
   try {
+    // console.log('🔄 Force refresh requested');
     const newToken = await refreshExecutor();
+    // console.log(newToken ? '✅ Force refresh successful' : '❌ Force refresh failed');
     return newToken;
   } catch (error) {
     console.error("Force refresh failed:", error);
@@ -320,4 +349,18 @@ export function isTokenValid(): boolean {
 export function getTokenExpiration(): number | null {
   if (!accessToken) return null;
   return parseJwtExp(accessToken);
+}
+
+/** Debug utility */
+export function debugTokenState(): void {
+  if (!IS_CLIENT) return;
+
+  // console.log('🔍 Token Debug State:', {
+  //   inMemory: accessToken ? `${accessToken.substring(0, 20)}...` : 'null',
+  //   inLocalStorage: localStorage.getItem(LS_KEY) ? 'exists' : 'null',
+  //   isValid: isTokenValid(),
+  //   refreshExecutor: refreshExecutor ? 'set' : 'null',
+  //   refreshTimer: refreshTimer ? 'active' : 'inactive',
+  //   listenersCount: listeners.size
+  // });
 }
