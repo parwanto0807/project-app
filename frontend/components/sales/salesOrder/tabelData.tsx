@@ -1496,7 +1496,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                                                     size="sm"
                                                     disabled={hasSPK}
                                                     onClick={() => router.push(`/admin-area/logistic/spk/create/${order.id}`)}
-                                                    className={hasSPK ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-400 dark:hover:bg-blue-200"}
+                                                    className={hasSPK ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-800 dark:text-white"}
                                                 >
                                                     {hasSPK ? "SPK Created" : "+ Create SPK"}
                                                 </Button>
@@ -1515,7 +1515,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                                     variant="default"
                                     size="sm"
                                     onClick={() => router.push(`/admin-area/sales/quotation/create/${order.id}`)}
-                                    className="bg-green-600 hover:bg-green-700 cursor-pointer"
+                                    className="bg-green-600 hover:bg-green-700 cursor-pointer dark:text-white"
                                 >
                                     + Quotation
                                 </Button>
@@ -1762,14 +1762,20 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                                                                 </div>
                                                                 <div className="flex gap-2">
                                                                     <Button
-                                                                        variant="default"
-                                                                        size="sm"
+                                                                        asChild
                                                                         disabled={hasSPK}
-                                                                        onClick={() => router.push(`/admin-area/logistic/spk/create/${order.id}`)}
-                                                                        className={`flex-1 ${hasSPK ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}
+                                                                        className="flex-1 p-0"
                                                                     >
-                                                                        {hasSPK ? "SPK Sudah Ada" : "+ Create SPK"}
+                                                                        <div
+                                                                            onClick={() => !hasSPK && router.push(`/admin-area/logistic/spk/create/${order.id}`)}
+                                                                            className={`w-full py-1.5 rounded-md text-center
+      ${hasSPK ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 cursor-pointer"}
+    `}
+                                                                        >
+                                                                            {hasSPK ? "SPK Sudah Ada" : "+ Create SPK"}
+                                                                        </div>
                                                                     </Button>
+
                                                                     <Button
                                                                         variant="default"
                                                                         size="sm"

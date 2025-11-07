@@ -390,23 +390,40 @@ export const deleteBAP = async (req, res) => {
 
     const bap = await prisma.bAP.findUnique({
       where: { id },
+      select: {
+        id: true,
+        isApproved: true,
+        salesOrderId: true, // ✅ ambil relasi sales order
+      },
     });
 
     if (!bap) {
       return res.status(404).json({ error: "BAP not found" });
     }
 
-    // Check if BAP is already approved
+    // ✅ Tidak boleh hapus jika sudah approved
     if (bap.isApproved) {
       return res.status(400).json({ error: "Cannot delete approved BAP" });
     }
 
+    // ✅ Hapus BAP
     await prisma.bAP.delete({
       where: { id },
     });
 
-    res.json({ message: "BAP deleted successfully" });
+    // ✅ Update SalesOrder → status menjadi FULFILLED
+    if (bap.salesOrderId) {
+      await prisma.salesOrder.update({
+        where: { id: bap.salesOrderId },
+        data: {
+          status: "FULFILLED",
+        },
+      });
+    }
+
+    res.json({ message: "BAP deleted & SalesOrder updated to FULFILLED" });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: error.message });
   }
 };
