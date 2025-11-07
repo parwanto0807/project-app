@@ -504,12 +504,14 @@ function ActionsCell({ order, onDeleteSuccess, role }: { order: SalesOrder; onDe
                             disabled={[
                                 "INVOICED",
                                 "PAID",
+                                "BAST",
                                 "PARTIALLY_INVOICED",
                                 "PARTIALLY_PAID",
                             ].includes(order.status)}
                             className={`cursor-pointer gap-2 text-xs ${[
                                 "INVOICED",
                                 "PAID",
+                                "BAST",
                                 "PARTIALLY_INVOICED",
                                 "PARTIALLY_PAID",
                             ].includes(order.status)
@@ -585,7 +587,6 @@ function ActionsCell({ order, onDeleteSuccess, role }: { order: SalesOrder; onDe
                     <DropdownMenuItem
                         onClick={handleEditOrder}
                         disabled={[
-                            "FULFILLED",
                             "INVOICED",
                             "PAID",
                             "BAST",
@@ -593,7 +594,6 @@ function ActionsCell({ order, onDeleteSuccess, role }: { order: SalesOrder; onDe
                             "PARTIALLY_PAID",
                         ].includes(order.status)}
                         className={`cursor-pointer gap-2 text-xs ${[
-                            "FULFILLED",
                             "INVOICED",
                             "PAID",
                             "BAST",
