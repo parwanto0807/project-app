@@ -153,8 +153,6 @@ export function UpdateSalesOrderForm({
         itemsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
-    console.log("Customer DATA", customers)
-
     React.useEffect(() => { setCustomerOptions(customers); }, [customers]);
 
     const form = useForm<UpdateSalesOrderPayload>({
@@ -330,7 +328,6 @@ export function UpdateSalesOrderForm({
             minimumFractionDigits: 0
         });
     };
-    console.log("DATA FORM", form.formState.errors)
 
     function onSubmit(data: UpdateSalesOrderPayload) {
         startTransition(async () => {
@@ -347,7 +344,6 @@ export function UpdateSalesOrderForm({
                     ...data,
                     id: salesOrder.id, // Tambahkan ID sales order
                 };
-                console.log("DATA DIKIRIM", data)
 
                 const cleanedData = salesOrderUpdateSchema.parse(updateData);
                 const result = await updateSalesOrderAPI(salesOrder.id, cleanedData);
