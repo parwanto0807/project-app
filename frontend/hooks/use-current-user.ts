@@ -1,7 +1,7 @@
-// hooks/use-current-user.ts (With Axios Error)
+// hooks/use-current-user.ts (Fixed with retry on 401)
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { AxiosError } from "axios";
 import { api } from "@/lib/http";
 
@@ -22,70 +22,73 @@ export function useCurrentUser() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchUser = async () => {
+  const fetchUser = useCallback(
+    async (retry = false): Promise<void> => {
       try {
-        // console.log("🔄 [useCurrentUser] Fetching user profile...");
-
         const response = await api.get<ProfileResponse>(
-          "/api/auth/user-login/profile"
+          "/api/auth/user-login/profile",
+          { withCredentials: true }
         );
 
-        // console.log("✅ [useCurrentUser] Response received:", {
-        //   status: response.status,
-        //   hasUser: !!response.data?.user,
-        //   user: response.data?.user
-        // });
-
-        if (isMounted && response.data.user) {
+        if (response.data?.user) {
           setUser(response.data.user);
           setError(null);
+        } else {
+          setUser(null);
         }
       } catch (err) {
-        // ✅ Use AxiosError type
-        const error = err as AxiosError<{ error?: string }>;
+        const axiosErr = err as AxiosError<{ error?: string }>;
 
-        console.error("❌ [useCurrentUser] Failed to fetch user profile:", {
-          message: error.message,
-          status: error.response?.status,
-          data: error.response?.data,
-        });
-
-        if (isMounted) {
-          setUser(null);
-          setError(
-            error.response?.data?.error || error.message || "Unknown error"
-          );
+        // ✅ Jika 401 pertama kali → tunggu sebentar → retry sekali
+        if (axiosErr.response?.status === 401 && !retry) {
+          await new Promise((r) => setTimeout(r, 250));
+          return fetchUser(true);
         }
+
+        setUser(null);
+        setError(
+          axiosErr.response?.data?.error ||
+            axiosErr.message ||
+            "Unknown error"
+        );
       } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
-    };
+    },
+    []
+  );
 
-    fetchUser();
+  useEffect(() => {
+    setLoading(true);
+    let mounted = true;
+
+    (async () => {
+      if (!mounted) return;
+      await fetchUser();
+    })();
 
     return () => {
-      isMounted = false;
+      mounted = false;
     };
-  }, []);
+  }, [fetchUser]);
 
   const refresh = async (): Promise<void> => {
     setLoading(true);
     setError(null);
     try {
       const response = await api.get<ProfileResponse>(
-        "/api/auth/user-login/profile"
+        "/api/auth/user-login/profile",
+        { withCredentials: true }
       );
       setUser(response.data.user);
     } catch (err) {
-      const error = err as AxiosError<{ error?: string }>;
-      console.error("Failed to refresh user:", error);
+      const axiosErr = err as AxiosError<{ error?: string }>;
       setUser(null);
-      setError(error.response?.data?.error || error.message || "Unknown error");
+      setError(
+        axiosErr.response?.data?.error ||
+          axiosErr.message ||
+          "Unknown error"
+      );
     } finally {
       setLoading(false);
     }

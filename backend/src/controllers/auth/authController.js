@@ -4,7 +4,6 @@ import { prisma } from "../../config/db.js";
 import axios from "axios";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import cookie from "cookie";
 import * as crypto from "crypto";
 import speakeasy from "speakeasy";
 import QRCode from "qrcode";
@@ -29,11 +28,15 @@ const TOKEN_CONFIG = {
 
 // ✅ PERBAIKAN: Token generation yang konsisten
 const generateAccessToken = (user) => {
+  console.log(
+    `[TOKEN] Generating access token with version: ${user.tokenVersion}`
+  );
   return jwt.sign(
     {
       userId: user.id,
       role: user.role,
-      email: user.email, // Tambahkan email untuk konsistensi
+      email: user.email,
+      tokenVersion: user.tokenVersion || 0,
     },
     JWT_SECRET,
     TOKEN_CONFIG.access
@@ -41,78 +44,86 @@ const generateAccessToken = (user) => {
 };
 
 const generateRefreshToken = (user) => {
+  console.log(
+    `[TOKEN] Generating refresh token with version: ${user.tokenVersion}`
+  );
   return jwt.sign(
     {
       userId: user.id,
       tokenVersion: user.tokenVersion || 0,
-      type: "refresh", // Tambahkan type untuk clarity
+      type: "refresh",
     },
     JWT_REFRESH_SECRET,
     TOKEN_CONFIG.refresh
   );
 };
 
-// ✅ PERBAIKAN: Session management yang lebih robust
-async function createUserSession(user, refreshToken, req) {
-  const sessionToken = crypto.randomBytes(32).toString("hex");
+// ✅ PERBAIKAN: Session management dengan urutan YANG BENAR
+async function createUserSession(user, req) {
   const ipAddress =
     req.headers["x-forwarded-for"]?.split(",")[0] || req.socket.remoteAddress;
   const userAgent = req.headers["user-agent"] || "Unknown";
 
-  // ✅ PERBAIKAN: Validasi dan batasi panjang string untuk database
-  const session = await prisma.userSession.create({
+  // ✅ Validasi user data
+  if (!user?.id) {
+    throw new Error("Invalid user data for session creation");
+  }
+
+  console.log(
+    `[SESSION] Before update - User tokenVersion: ${user.tokenVersion}`
+  );
+
+  // ✅ 1. INCREMENT TOKEN VERSION TERLEBIH DAHULU
+  const updatedUser = await prisma.user.update({
+    where: { id: user.id },
     data: {
-      userId: user.id,
-      sessionToken,
-      refreshToken,
-      ipAddress: ipAddress?.toString().substring(0, 255), // Prevent overflow
-      userAgent: userAgent.substring(0, 500), // Prevent overflow
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 hari
+      tokenVersion: { increment: 1 },
+      lastLoginAt: new Date(),
     },
   });
 
-  return sessionToken;
+  console.log(
+    `[SESSION] After update - User tokenVersion: ${updatedUser.tokenVersion}`
+  );
+
+  // ✅ 2. GENERATE TOKENS SETELAH INCREMENT (dengan version yang sudah di-update)
+  const accessToken = generateAccessToken(updatedUser);
+  const refreshToken = generateRefreshToken(updatedUser);
+
+  // ✅ 3. Generate session token
+  const sessionToken = crypto.randomBytes(32).toString("hex");
+
+  // ✅ 4. CREATE SESSION DENGAN TOKENS YANG SUDAH UPDATED
+  await prisma.userSession.create({
+    data: {
+      userId: updatedUser.id,
+      sessionToken,
+      refreshToken,
+      ipAddress: ipAddress?.toString().substring(0, 255) || "Unknown",
+      userAgent: userAgent.substring(0, 500),
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+    },
+  });
+
+  console.log(`[SESSION] Session created successfully for user: ${user.id}`);
+
+  // ✅ Return both tokens
+  return { accessToken, refreshToken };
 }
 
-// Tambahkan fungsi getSessions yang sesuai
-export const getSessions = async (req, res) => {
-  try {
-    const userId = req.user.id;
-
-    // ✅ PERBAIKAN: Gunakan model yang sesuai - UserSession bukan TrustedDeviceSession
-    const sessions = await prisma.userSession.findMany({
-      where: {
-        userId,
-        isRevoked: false,
-        expiresAt: {
-          gt: new Date(), // Hanya sesi yang masih aktif
-        },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-      select: {
-        id: true,
-        sessionToken: true,
-        ipAddress: true,
-        userAgent: true,
-        createdAt: true,
-        expiresAt: true,
-        isRevoked: true,
-      },
-    });
-
-    res.json({
-      success: true,
-      sessions,
-    });
-  } catch (err) {
-    console.error("[GET /sessions ERROR]", err);
-    res.status(500).json({
-      success: false,
-      error: "Failed to retrieve login sessions",
-    });
-  }
+// Constants untuk error messages
+const ERROR_MESSAGES = {
+  INVALID_CODE: "Authorization+code+is+missing+or+invalid",
+  OAUTH_FAILED: "OAuth+authentication+failed",
+  NOT_AUTHORIZED: "You+are+not+authorized+to+access+this+system",
+  INVALID_GRANT:
+    "Authorization+code+is+invalid+or+expired.+Please+try+logging+in+again.",
+  NO_EMAIL: "Failed+to+retrieve+valid+email+from+Google.",
+  EXCHANGE_FAILED: "Authentication+service+unavailable.+Please+try+again.",
+  PROFILE_FETCH_FAILED:
+    "Could+not+retrieve+user+information.+Please+try+again.",
+  CONNECTION_TIMEOUT: "Connection+timeout.+Please+try+again.",
+  INTERNAL_ERROR: "An+unexpected+error+occurred.+Please+try+again.",
 };
 
 // ✅ PERBAIKAN: Google Login - FIXED VERSION
@@ -121,7 +132,6 @@ export const googleLogin = async (req, res) => {
   const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL;
   if (!frontendUrl) {
     console.error("NEXT_PUBLIC_FRONTEND_URL is not configured");
-    // ✅ PERBAIKAN: Error handling yang konsisten
     if (!res.headersSent) {
       return res.status(500).json({
         error: "Internal Server Error: Application configuration missing",
@@ -137,55 +147,92 @@ export const googleLogin = async (req, res) => {
   // ✅ PERBAIKAN: Handle OAuth errors dari Google
   if (oauthError) {
     console.error("OAuth error from Google:", oauthError);
-    return res.redirect(`${loginUrl}?error=OAuth+authentication+failed`);
+    return res.redirect(`${loginUrl}?error=${ERROR_MESSAGES.OAUTH_FAILED}`);
   }
 
   // ✅ PERBAIKAN: Validasi input yang konsisten
   if (!code || typeof code !== "string") {
-    return res.redirect(
-      `${loginUrl}?error=Authorization+code+is+missing+or+invalid`
-    );
+    return res.redirect(`${loginUrl}?error=${ERROR_MESSAGES.INVALID_CODE}`);
   }
+
+  // ✅ PERBAIKAN FIX: Hanya trim, jangan hapus karakter khusus
+  const sanitizedCode = code.trim();
+
+  // ✅ DEBUG: Log code length dan karakter
+  console.log(
+    `[GOOGLE] Auth code received: ${sanitizedCode.length} characters`
+  );
+  console.log(
+    `[GOOGLE] Code starts with: ${sanitizedCode.substring(0, 10)}...`
+  );
 
   try {
     // ✅ PERBAIKAN: Token exchange dengan error handling yang better
     let tokenRes;
     try {
+      const tokenData = new URLSearchParams({
+        code: sanitizedCode,
+        client_id: GOOGLE_CLIENT_ID,
+        client_secret: GOOGLE_CLIENT_SECRET,
+        redirect_uri: GOOGLE_CALLBACK_URL,
+        grant_type: "authorization_code",
+      });
+
+      console.log(
+        `[GOOGLE] Token exchange request for code length: ${sanitizedCode.length}`
+      );
+
       tokenRes = await axios.post(
         "https://oauth2.googleapis.com/token",
-        new URLSearchParams({
-          code: code.trim(),
-          client_id: GOOGLE_CLIENT_ID,
-          client_secret: GOOGLE_CLIENT_SECRET,
-          redirect_uri: GOOGLE_CALLBACK_URL,
-          grant_type: "authorization_code",
-        }),
+        tokenData,
         {
           headers: {
             "Content-Type": "application/x-www-form-urlencoded",
           },
-          timeout: 10000, // ✅ PERBAIKAN: Timeout untuk prevent hanging
+          timeout: 10000,
         }
       );
     } catch (tokenError) {
       console.error(
-        "Token exchange error:",
+        "[GOOGLE] Token exchange error:",
         tokenError.response?.data || tokenError.message
       );
-      throw new Error("Failed to exchange authorization code");
+
+      // ✅ PERBAIKAN: Handle specific Google OAuth errors
+      if (tokenError.response?.data?.error === "invalid_grant") {
+        if (
+          tokenError.response?.data?.error_description?.includes("Malformed")
+        ) {
+          console.error(
+            "[GOOGLE] Malformed auth code - possible sanitization issue"
+          );
+          throw new Error(
+            "Authentication+failed+due+to+invalid+authorization+code"
+          );
+        }
+        throw new Error(ERROR_MESSAGES.INVALID_GRANT);
+      }
+
+      if (tokenError.response?.data?.error === "invalid_request") {
+        throw new Error("Invalid+authentication+request.+Please+try+again.");
+      }
+
+      throw new Error(ERROR_MESSAGES.EXCHANGE_FAILED);
     }
 
-    const { access_token } = tokenRes.data;
+    const { access_token, id_token } = tokenRes.data;
 
     if (!access_token) {
       throw new Error("No access token received from Google");
     }
 
+    console.log("[GOOGLE] Successfully obtained access token from Google");
+
     // ✅ PERBAIKAN: Get user profile dengan error handling
     let profileRes;
     try {
       profileRes = await axios.get(
-        "https://www.googleapis.com/oauth2/v2/userinfo", // ✅ Gunakan v2 untuk consistency
+        "https://www.googleapis.com/oauth2/v2/userinfo",
         {
           headers: {
             Authorization: `Bearer ${access_token}`,
@@ -196,20 +243,22 @@ export const googleLogin = async (req, res) => {
       );
     } catch (profileError) {
       console.error(
-        "Profile fetch error:",
+        "[GOOGLE] Profile fetch error:",
         profileError.response?.data || profileError.message
       );
-      throw new Error("Failed to fetch user profile from Google");
+      throw new Error(ERROR_MESSAGES.PROFILE_FETCH_FAILED);
     }
 
     const { id: googleId, email, name, picture: avatar } = profileRes.data;
 
     // ✅ PERBAIKAN: Validasi email yang comprehensive
-    if (!email || typeof email !== "string") {
-      throw new Error("Valid email not provided by Google");
+    if (!email || typeof email !== "string" || !email.includes("@")) {
+      throw new Error(ERROR_MESSAGES.NO_EMAIL);
     }
 
     const normalizedEmail = email.toLowerCase().trim();
+
+    console.log(`[GOOGLE] Processing Google login for: ${normalizedEmail}`);
 
     // ✅ PERBAIKAN: Check authorization dengan error handling
     const allowedEmail = await prisma.accountEmail.findUnique({
@@ -217,63 +266,61 @@ export const googleLogin = async (req, res) => {
     });
 
     if (!allowedEmail) {
-      console.warn(`Unauthorized login attempt: ${normalizedEmail}`);
-      return res.redirect(
-        `${loginUrl}?error=You+are+not+authorized+to+access+this+system`
-      );
+      console.warn(`[GOOGLE] Unauthorized login attempt: ${normalizedEmail}`);
+      return res.redirect(`${loginUrl}?error=${ERROR_MESSAGES.NOT_AUTHORIZED}`);
     }
 
     // ✅ PERBAIKAN: User upsert dengan transaction-like consistency
     const user = await prisma.user.upsert({
       where: { email: normalizedEmail },
       update: {
-        name: name || undefined, // Only update if name exists
+        name: name || undefined,
         avatar: avatar || undefined,
         googleId,
         provider: "google",
-        lastLoginAt: new Date(), // ✅ Track last login
+        lastLoginAt: new Date(),
       },
       create: {
         email: normalizedEmail,
-        name: name || normalizedEmail.split("@")[0], // Fallback name
+        name: name || normalizedEmail.split("@")[0],
         avatar,
         googleId,
         provider: "google",
         role: "user",
         lastLoginAt: new Date(),
+        tokenVersion: 0,
       },
     });
 
-    // ✅ PERBAIKAN: Token generation yang konsisten
-    const accessToken = generateAccessToken(user);
-    const refreshToken = generateRefreshToken(user);
+    console.log(
+      `[GOOGLE] User ${user.id} current tokenVersion: ${user.tokenVersion}`
+    );
 
-    // ✅ PERBAIKAN: Session creation dengan error handling
-    let sessionToken;
+    // ✅ PERBAIKAN: Session creation dengan urutan YANG BENAR
+    let accessToken, refreshToken;
     try {
-      sessionToken = await createUserSession(user, refreshToken, req);
+      const tokens = await createUserSession(user, req);
+      accessToken = tokens.accessToken;
+      refreshToken = tokens.refreshToken;
+      console.log(
+        "[GOOGLE] Session created successfully with updated token versions"
+      );
     } catch (sessionError) {
-      console.error("Session creation error:", sessionError);
-      // Continue without session token but with other cookies
+      console.error("[GOOGLE] Session creation error:", sessionError);
+      // Fallback: generate tokens dengan version current (bukan incremented)
+      console.warn("[GOOGLE] Using fallback tokens without session");
+      accessToken = generateAccessToken(user);
+      refreshToken = generateRefreshToken(user);
     }
 
-    // ✅ PERBAIKAN: Set cookies dengan approach yang konsisten
+    // ✅ PERBAIKAN: Set cookies dengan tokens yang sudah diperbarui
     setTokenCookies(res, accessToken, refreshToken);
 
-    // Set session token cookie jika berhasil dibuat
-    if (sessionToken) {
-      res.cookie("session_token", sessionToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      });
-    }
-
     // ✅ PERBAIKAN: Success redirect dengan logging
-    console.log(`Google login successful for user: ${normalizedEmail}`);
-    return res.redirect(successUrl);
+    console.log(
+      `[GOOGLE] Google login successful for user: ${normalizedEmail}`
+    );
+    return res.redirect(302, successUrl);
   } catch (err) {
     // ✅ PERBAIKAN: Error handling yang structured dan comprehensive
     console.error("--- GOOGLE LOGIN ERROR ---");
@@ -283,23 +330,25 @@ export const googleLogin = async (req, res) => {
     console.error("Stack trace:", err.stack);
     console.error("--- END OF ERROR REPORT ---");
 
-    let errorMessage = "An+unexpected+error+occurred.+Please+try+again.";
+    let errorMessage = ERROR_MESSAGES.INTERNAL_ERROR;
 
-    // ✅ PERBAIKAN: Error mapping yang lebih specific
-    if (err.response?.data?.error === "invalid_grant") {
-      errorMessage =
-        "Authorization+code+is+invalid+or+expired.+Please+try+logging+in+again.";
-    } else if (
-      err.message.includes("Email not provided") ||
-      err.message.includes("Valid email")
-    ) {
-      errorMessage = "Failed+to+retrieve+valid+email+from+Google.";
-    } else if (err.message.includes("Failed to exchange")) {
-      errorMessage = "Authentication+service+unavailable.+Please+try+again.";
-    } else if (err.message.includes("Failed to fetch user profile")) {
-      errorMessage = "Could+not+retrieve+user+information.+Please+try+again.";
+    // ✅ PERBAIKAN: Error mapping yang lebih specific menggunakan constants
+    if (err.message.includes(ERROR_MESSAGES.INVALID_GRANT)) {
+      errorMessage = ERROR_MESSAGES.INVALID_GRANT;
+    } else if (err.message.includes(ERROR_MESSAGES.NO_EMAIL)) {
+      errorMessage = ERROR_MESSAGES.NO_EMAIL;
+    } else if (err.message.includes(ERROR_MESSAGES.EXCHANGE_FAILED)) {
+      errorMessage = ERROR_MESSAGES.EXCHANGE_FAILED;
+    } else if (err.message.includes(ERROR_MESSAGES.PROFILE_FETCH_FAILED)) {
+      errorMessage = ERROR_MESSAGES.PROFILE_FETCH_FAILED;
     } else if (err.code === "ECONNABORTED") {
-      errorMessage = "Connection+timeout.+Please+try+again.";
+      errorMessage = ERROR_MESSAGES.CONNECTION_TIMEOUT;
+    } else if (
+      err.message.includes("Malformed") ||
+      err.message.includes("invalid+authorization+code")
+    ) {
+      errorMessage =
+        "Authentication+failed+due+to+invalid+authorization+code.+Please+try+again.";
     }
 
     // ✅ PERBAIKAN: Pastikan headers belum terkirim sebelum redirect
@@ -318,6 +367,348 @@ export const googleLogin = async (req, res) => {
   }
 };
 
+// ✅ PERBAIKAN: Session management functions - UPDATED
+export const getSessions = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: "User ID is required",
+      });
+    }
+
+    const sessions = await prisma.userSession.findMany({
+      where: {
+        userId,
+        isRevoked: false,
+        expiresAt: {
+          gt: new Date(),
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      select: {
+        id: true,
+        sessionToken: true,
+        ipAddress: true,
+        userAgent: true,
+        createdAt: true,
+        expiresAt: true,
+        isRevoked: true,
+      },
+    });
+
+    res.json({
+      success: true,
+      sessions: sessions.map((session) => ({
+        ...session,
+        userAgent: session.userAgent || "Unknown",
+        ipAddress: session.ipAddress || "Unknown",
+        // Jangan expose full sessionToken untuk security
+        sessionToken: session.sessionToken
+          ? `${session.sessionToken.substring(0, 8)}...`
+          : null,
+      })),
+    });
+  } catch (err) {
+    console.error("[GET /sessions ERROR]", err);
+    res.status(500).json({
+      success: false,
+      error: "Failed to retrieve login sessions",
+    });
+  }
+};
+
+export const revokeSession = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const userId = req.user.id;
+
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        error: "Session ID is required",
+      });
+    }
+
+    const session = await prisma.userSession.updateMany({
+      where: {
+        id: sessionId,
+        userId: userId,
+      },
+      data: {
+        isRevoked: true,
+        revokedAt: new Date(),
+      },
+    });
+
+    if (session.count === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "Session not found or already revoked",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Session revoked successfully",
+    });
+  } catch (err) {
+    console.error("[DELETE /sessions/:id ERROR]", err);
+    res.status(500).json({
+      success: false,
+      error: "Failed to revoke session",
+    });
+  }
+};
+
+export const revokeAllSessions = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    await prisma.userSession.updateMany({
+      where: {
+        userId: userId,
+        isRevoked: false,
+      },
+      data: {
+        isRevoked: true,
+        revokedAt: new Date(),
+      },
+    });
+
+    // ✅ PERBAIKAN: Increment token version untuk invalidate semua token
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        tokenVersion: { increment: 1 },
+      },
+    });
+
+    res.json({
+      success: true,
+      message: "All sessions revoked successfully",
+    });
+  } catch (err) {
+    console.error("[DELETE /sessions ERROR]", err);
+    res.status(500).json({
+      success: false,
+      error: "Failed to revoke all sessions",
+    });
+  }
+};
+
+// ✅ PERBAIKAN: Fungsi untuk handle token version mismatch
+export const handleTokenVersionMismatch = async (userId) => {
+  try {
+    console.log(`[AUTH] Handling token version mismatch for user: ${userId}`);
+
+    // Revoke all active sessions
+    const revokedSessions = await prisma.userSession.updateMany({
+      where: {
+        userId: userId,
+        isRevoked: false,
+      },
+      data: {
+        isRevoked: true,
+        revokedAt: new Date(),
+      },
+    });
+
+    console.log(`[AUTH] Revoked ${revokedSessions.count} active sessions`);
+
+    // Reset token version ke 0
+    const resetUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        tokenVersion: 0,
+      },
+    });
+
+    console.log(`[AUTH] Token version reset to 0 for user: ${userId}`);
+
+    return resetUser;
+  } catch (error) {
+    console.error("[AUTH] Error handling token version mismatch:", error);
+    throw error;
+  }
+};
+
+// ✅ PERBAIKAN: Fungsi untuk logout user
+export const logoutUser = async (req, res) => {
+  try {
+    console.log("[AUTH] Logout requested");
+
+    // ✅ VALIDASI: Pastikan req.user ada
+    if (!req.user) {
+      console.error("[AUTH] Logout error: req.user is undefined");
+      return res.status(401).json({
+        success: false,
+        error: "Authentication required",
+      });
+    }
+
+    const userId = req.user.id;
+    const sessionId = req.user.sessionId; // Optional: jika ada
+
+    console.log(
+      `[AUTH] Logout for user: ${userId}, session: ${sessionId || "N/A"}`
+    );
+
+    // ✅ Revoke specific session jika sessionId provided
+    if (sessionId) {
+      await prisma.userSession.updateMany({
+        where: {
+          id: sessionId,
+          userId: userId,
+        },
+        data: {
+          isRevoked: true,
+          revokedAt: new Date(),
+        },
+      });
+      console.log(`[AUTH] Session ${sessionId} revoked`);
+    }
+
+    // ✅ Juga revoke current session berdasarkan refresh token di cookies
+    if (req.cookies && req.cookies.refresh_token) {
+      await prisma.userSession.updateMany({
+        where: {
+          refreshToken: req.cookies.refresh_token,
+          userId: userId,
+        },
+        data: {
+          isRevoked: true,
+          revokedAt: new Date(),
+        },
+      });
+      console.log(`[AUTH] Current session revoked for user: ${userId}`);
+    }
+
+    // ✅ Increment token version untuk invalidate semua tokens
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        tokenVersion: { increment: 1 },
+      },
+    });
+
+    console.log(`[AUTH] Token version incremented for user: ${userId}`);
+
+    // ✅ Clear semua cookies
+    const cookiesToClear = [
+      "access_token",
+      "refresh_token",
+      "session_token",
+      "trusted_device",
+    ];
+
+    cookiesToClear.forEach((cookieName) => {
+      res.clearCookie(cookieName, {
+        path: "/",
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+      });
+    });
+
+    console.log(`[AUTH] All cookies cleared for user: ${userId}`);
+
+    res.json({
+      success: true,
+      message: "Logout successful",
+    });
+  } catch (err) {
+    console.error("[AUTH] Logout error:", err);
+    res.status(500).json({
+      success: false,
+      error: "Failed to logout",
+    });
+  }
+};
+
+// ✅ PERBAIKAN: Fungsi untuk logout dari semua devices
+export const logoutAllDevices = async (req, res) => {
+  try {
+    console.log("[AUTH] Logout all devices requested");
+
+    // ✅ VALIDASI: Pastikan req.user ada
+    if (!req.user) {
+      console.error("[AUTH] LogoutAll error: req.user is undefined");
+      return res.status(401).json({
+        success: false,
+        error: "Authentication required",
+      });
+    }
+
+    const userId = req.user.id;
+
+    console.log(`[AUTH] Logout all devices for user: ${userId}`);
+
+    // ✅ Revoke all sessions
+    await prisma.userSession.updateMany({
+      where: {
+        userId: userId,
+        isRevoked: false,
+      },
+      data: {
+        isRevoked: true,
+        revokedAt: new Date(),
+      },
+    });
+
+    // ✅ Increment token version
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        tokenVersion: { increment: 1 },
+      },
+    });
+
+    // ✅ Clear cookies
+    const cookiesToClear = [
+      "access_token",
+      "refresh_token",
+      "session_token",
+      "trusted_device",
+    ];
+
+    cookiesToClear.forEach((cookieName) => {
+      res.clearCookie(cookieName, {
+        path: "/",
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+      });
+    });
+
+    console.log(`[AUTH] Logout all devices completed for user: ${userId}`);
+
+    res.json({
+      success: true,
+      message: "Logged out from all devices successfully",
+    });
+  } catch (err) {
+    console.error("[AUTH] Logout all devices error:", err);
+    res.status(500).json({
+      success: false,
+      error: "Failed to logout from all devices",
+    });
+  }
+};
+
+export default {
+  googleLogin,
+  getSessions,
+  revokeSession,
+  revokeAllSessions,
+  handleTokenVersionMismatch,
+  logoutUser,
+  logoutAllDevices,
+};
 // 🔹 FUNGSI LAINNYA TETAP SAMA (tidak diubah) 🔹
 
 export const adminLogin = async (req, res) => {
@@ -822,11 +1213,31 @@ export const registerAdmin = async (req, res) => {
 
 export const getProfile = async (req, res) => {
   try {
-    const userId = req.user.userId;
+    console.log("[PROFILE] Getting user profile");
 
-    // 1. Ambil data user — minimal field
+    // ✅ VALIDASI: Pastikan req.user dan req.user.id ada
+    if (!req.user) {
+      console.error("[PROFILE] req.user is missing");
+      return res.status(401).json({
+        success: false,
+        error: "Authentication required",
+      });
+    }
+
+    if (!req.user.id) {
+      console.error("[PROFILE] req.user.id is undefined");
+      return res.status(401).json({
+        success: false,
+        error: "Invalid user data",
+      });
+    }
+
+    console.log(`[PROFILE] Looking for user with ID: ${req.user.id}`);
+
     const user = await prisma.user.findUnique({
-      where: { id: userId },
+      where: {
+        id: req.user.id, // ✅ PASTIKAN menggunakan req.user.id
+      },
       select: {
         id: true,
         name: true,
@@ -834,72 +1245,57 @@ export const getProfile = async (req, res) => {
         role: true,
         avatar: true,
         provider: true,
+        mfaEnabled: true,
+        lastLoginAt: true,
+        createdAt: true,
       },
     });
 
     if (!user) {
-      return res.status(404).json({ success: false, error: "User not found" });
-    }
-
-    // 2. Cek karyawan berdasarkan email — HANYA ambil userId (tanpa relasi!)
-    const existingKaryawan = await prisma.karyawan.findUnique({
-      where: { email: user.email },
-      select: {
-        id: true,
-        userId: true, // ← Hanya ini yang penting!
-        // TIDAK ambil user: {...} — hemat query & bandwidth
-      },
-    });
-
-    // 3. Jika ada dan userId null → update
-    if (existingKaryawan && existingKaryawan.userId === null) {
-      await prisma.karyawan.update({
-        where: { id: existingKaryawan.id },
-        data: { userId: user.id },
+      console.error(`[PROFILE] User not found with ID: ${req.user.id}`);
+      return res.status(404).json({
+        success: false,
+        error: "User not found",
       });
-
-      console.log(
-        `✅ Updated karyawan ${existingKaryawan.id} with userId: ${user.id}`
-      );
-
-      // ✅ Asumsi update berhasil → update nilai lokal (aman!)
-      existingKaryawan.userId = user.id;
     }
 
-    // 4. Kirim response — tanpa duplikasi data, tanpa relasi berat
-    return res.status(200).json({
+    console.log(`[PROFILE] Profile found for: ${user.email}`);
+
+    res.json({
       success: true,
       user: {
         ...user,
-        karyawan: existingKaryawan || null, // ← cukup id & userId
+        lastLoginAt: user.lastLoginAt ? user.lastLoginAt.toISOString() : null,
+        createdAt: user.createdAt ? user.createdAt.toISOString() : null,
       },
     });
   } catch (err) {
-    console.error("getProfile error:", err.message);
-    return res
-      .status(500)
-      .json({ success: false, error: "Internal Server Error" });
-  }
-};
-
-export const logoutUser = async (req, res) => {
-  const token = req.cookies.refreshToken;
-  if (token) {
-    // Revoke the session in the database
-    await prisma.userSession.updateMany({
-      where: { refreshToken: token },
-      data: { isRevoked: true },
+    console.error("[PROFILE] Error:", err);
+    res.status(500).json({
+      success: false,
+      error: "Failed to retrieve user profile",
     });
   }
-
-  // Clear all auth-related cookies
-  res.clearCookie("refreshToken", { path: "/" });
-  res.clearCookie("session_token", { path: "/" });
-  // Also clear the frontend cookie if it exists
-  res.clearCookie("accessToken", { path: "/" });
-
-  res.json({ success: true, message: "Logged out successfully" });
 };
+
+// export const logoutUser = async (req, res) => {
+//   const token = req.cookies.refreshToken;
+//   if (token) {
+//     // Revoke the session in the database
+//     await prisma.userSession.updateMany({
+//       where: { refreshToken: token },
+//       data: { isRevoked: true },
+//     });
+//   }
+
+//   // Clear all auth-related cookies
+//   res.clearCookie("refreshToken", { path: "/" });
+//   res.clearCookie("session_token", { path: "/" });
+//   // Also clear the frontend cookie if it exists
+//   res.clearCookie("accessToken", { path: "/" });
+
+//   res.json({ success: true, message: "Logged out successfully" });
+// };
 
 export const refreshHandler = async (req, res) => {
   const token = req.cookies.refreshToken;
@@ -961,48 +1357,253 @@ export const refreshHandler = async (req, res) => {
   }
 };
 
-// export const refreshHandler = async (req, res) => {
-//   const token = req.cookies.refreshToken;
-//   // console.log("[REFRESH HANDLER] Token:", token);
+// ✅ ENDPOINT: /auth/me - untuk kompatibilitas dengan frontend
+export const getCurrentUser = async (req, res) => {
+  try {
+    console.log("[AUTH] Getting current user for /auth/me endpoint");
 
-//   if (!token) {
-//     return res.status(401).json({ error: "Refresh token missing" });
-//   }
+    // VALIDASI: Pastikan req.user dan req.user.id ada
+    if (!req.user) {
+      console.error("[AUTH] /auth/me - req.user is missing");
+      return res.status(401).json({
+        success: false,
+        error: "Authentication required",
+      });
+    }
 
+    if (!req.user.id) {
+      console.error("[AUTH] /auth/me - req.user.id is undefined");
+      return res.status(401).json({
+        success: false,
+        error: "Invalid user data",
+      });
+    }
+
+    console.log(`[AUTH] /auth/me - Looking for user with ID: ${req.user.id}`);
+
+    const user = await prisma.user.findUnique({
+      where: {
+        id: req.user.id,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        avatar: true,
+        provider: true,
+        mfaEnabled: true,
+        lastLoginAt: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user) {
+      console.error(`[AUTH] /auth/me - User not found with ID: ${req.user.id}`);
+      return res.status(404).json({
+        success: false,
+        error: "User not found",
+      });
+    }
+
+    console.log(`[AUTH] /auth/me - User found: ${user.email}`);
+
+    res.json({
+      success: true,
+      user: {
+        ...user,
+        lastLoginAt: user.lastLoginAt ? user.lastLoginAt.toISOString() : null,
+        createdAt: user.createdAt ? user.createdAt.toISOString() : null,
+      },
+    });
+  } catch (err) {
+    console.error("[AUTH] /auth/me - Error:", err);
+    res.status(500).json({
+      success: false,
+      error: "Failed to retrieve current user",
+    });
+  }
+};
+
+// ✅ ENDPOINT: /api/auth/user-login/profile - untuk kompatibilitas dengan use-current-user.ts
+export const getUserLoginProfile = async (req, res) => {
+  try {
+    console.log("[AUTH] Getting user profile for /api/auth/user-login/profile");
+
+    // VALIDASI: Pastikan req.user dan req.user.id ada
+    if (!req.user) {
+      console.error(
+        "[AUTH] /api/auth/user-login/profile - req.user is missing"
+      );
+      return res.status(401).json({
+        success: false,
+        error: "Authentication required",
+      });
+    }
+
+    if (!req.user.id) {
+      console.error(
+        "[AUTH] /api/auth/user-login/profile - req.user.id is undefined"
+      );
+      return res.status(401).json({
+        success: false,
+        error: "Invalid user data",
+      });
+    }
+
+    console.log(
+      `[AUTH] /api/auth/user-login/profile - Looking for user with ID: ${req.user.id}`
+    );
+
+    const user = await prisma.user.findUnique({
+      where: {
+        id: req.user.id,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        avatar: true,
+        provider: true,
+        mfaEnabled: true,
+        lastLoginAt: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user) {
+      console.error(
+        `[AUTH] /api/auth/user-login/profile - User not found with ID: ${req.user.id}`
+      );
+      return res.status(404).json({
+        success: false,
+        error: "User not found",
+      });
+    }
+
+    console.log(
+      `[AUTH] /api/auth/user-login/profile - User found: ${user.email}`
+    );
+
+    res.json({
+      success: true,
+      user: {
+        ...user,
+        lastLoginAt: user.lastLoginAt ? user.lastLoginAt.toISOString() : null,
+        createdAt: user.createdAt ? user.createdAt.toISOString() : null,
+      },
+    });
+  } catch (err) {
+    console.error("[AUTH] /api/auth/user-login/profile - Error:", err);
+    res.status(500).json({
+      success: false,
+      error: "Failed to retrieve user profile",
+    });
+  }
+};
+
+// ✅ Session revocation functions
+// export const revokeSession = async (req, res) => {
 //   try {
-//     const payload = jwt.verify(token, JWT_REFRESH_SECRET);
+//     const { sessionId } = req.params;
+//     const userId = req.user.id;
 
-//     const session = await prisma.userSession.findFirst({
+//     if (!sessionId) {
+//       return res.status(400).json({
+//         success: false,
+//         error: "Session ID is required"
+//       });
+//     }
+
+//     const session = await prisma.userSession.updateMany({
 //       where: {
-//         userId: payload.userId,
-//         refreshToken: token,
-//         isRevoked: false,
-//         expiresAt: { gt: new Date() },
+//         id: sessionId,
+//         userId: userId,
+//       },
+//       data: {
+//         isRevoked: true,
+//         revokedAt: new Date(),
 //       },
 //     });
 
-//     if (!session) {
-//       return res.status(401).json({ error: "Invalid or expired session" });
+//     if (session.count === 0) {
+//       return res.status(404).json({
+//         success: false,
+//         error: "Session not found or already revoked"
+//       });
 //     }
 
-//     const user = await prisma.user.findUnique({
-//       where: { id: payload.userId },
+//     res.json({
+//       success: true,
+//       message: "Session revoked successfully"
 //     });
-//     if (!user) {
-//       return res.status(404).json({ error: "User not found" });
-//     }
-
-//     // HANYA buat accessToken baru. refreshToken dan session tetap sama.
-//     const newAccessToken = generateAccessToken(user);
-
-//     // console.log(
-//     //   "[REFRESH HANDLER] Berhasil refresh accessToken:",
-//     //   newAccessToken
-//     // );
-
-//     return res.status(200).json({ success: true, accessToken: newAccessToken });
 //   } catch (err) {
-//     console.error("[REFRESH HANDLER] GAGAL TOTAL:", err);
-//     return res.status(401).json({ error: "Invalid refresh token." });
+//     console.error("[DELETE /sessions/:id ERROR]", err);
+//     res.status(500).json({
+//       success: false,
+//       error: "Failed to revoke session"
+//     });
+//   }
+// };
+
+// export const revokeAllSessions = async (req, res) => {
+//   try {
+//     const userId = req.user.id;
+
+//     await prisma.userSession.updateMany({
+//       where: {
+//         userId: userId,
+//         isRevoked: false,
+//       },
+//       data: {
+//         isRevoked: true,
+//         revokedAt: new Date(),
+//       },
+//     });
+
+//     // Increment token version untuk invalidate semua token
+//     await prisma.user.update({
+//       where: { id: userId },
+//       data: {
+//         tokenVersion: { increment: 1 },
+//       },
+//     });
+
+//     res.json({
+//       success: true,
+//       message: "All sessions revoked successfully"
+//     });
+//   } catch (err) {
+//     console.error("[DELETE /sessions ERROR]", err);
+//     res.status(500).json({
+//       success: false,
+//       error: "Failed to revoke all sessions"
+//     });
+//   }
+// };
+
+// // ✅ Logout all devices
+// export const logoutAllDevices = async (req, res) => {
+//   try {
+//     const userId = req.user.id;
+
+//     console.log(`[AUTH] Logout all devices requested for user: ${userId}`);
+
+//     // Revoke all sessions dan increment token version
+//     await revokeAllSessions(req, res);
+
+//     // Clear cookies
+//     res.clearCookie('access_token');
+//     res.clearCookie('refresh_token');
+//     res.clearCookie('session_token');
+
+//     // Response sudah dikirim oleh revokeAllSessions
+//   } catch (err) {
+//     console.error("[AUTH] Logout all devices error:", err);
+//     res.status(500).json({
+//       success: false,
+//       error: "Failed to logout from all devices"
+//     });
 //   }
 // };

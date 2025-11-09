@@ -5,7 +5,6 @@ import {
   adminLogin,
   registerAdmin,
   logoutUser,
-  // refreshToken,
   adminLoginRegister,
   registerEmail,
   refreshHandler,
@@ -22,22 +21,23 @@ import {
   authenticateToken,
   verifySessionToken,
   checkMFAStatus,
+  // authenticateUser, // ❌ HAPUS INI - gunakan authenticateToken saja
 } from "../../middleware/authMiddleware.js";
 import pkg from "../../../prisma/generated/prisma/index.js";
 const { prisma } = pkg;
 
 const router = Router();
 
-// 🔐 GET /mfa/status → untuk tahu apakah user perlu MFA
-router.get("/mfa/status",authenticateToken,checkMFAStatus,getMFAStatus);
+// 🔐 MFA ROUTES
+router.get("/mfa/status", authenticateToken, checkMFAStatus, getMFAStatus);
 router.get("/sessions", verifySessionToken, getSessions);
-router.post('/mfa/activate-setup',authenticateToken, activateMfaSetup);
-router.post("/mfa/complete-setup",authenticateToken, completeMfaSetup);
+router.post('/mfa/activate-setup', authenticateToken, activateMfaSetup);
+router.post("/mfa/complete-setup", authenticateToken, completeMfaSetup);
 router.get("/mfa/setup", authenticateToken, setupMFA);
 router.post("/mfa/verify", verifyMFA);
 router.post("/mfa/newVerify", newVerifyMFA);
 
-// 🔐 Google OAuth Redirect
+// 🔐 Google OAuth
 router.get("/google", (req, res) => {
   const redirectUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
   redirectUrl.searchParams.set("client_id", process.env.GOOGLE_CLIENT_ID);
@@ -57,27 +57,26 @@ router.get("/failed", (req, res) => {
   });
 });
 
-//
 // ✍️ USER & ADMIN AUTH ROUTES
-//
-// router.post("/refreshToken", refreshToken);
 router.post("/refresh", refreshHandler);
+
+// ✅ FIXED: Gunakan authenticateToken secara konsisten
 router.get("/user-login/profile", authenticateToken, getProfile);
+
 router.post("/admin/login", adminLogin);
 router.post("/admin/loginAdmin", adminLoginRegister);
 router.post("/admin/register", registerAdmin);
 router.post("/admin/registerEmail", registerEmail);
-router.post("/logout", logoutUser);
 
-//
-// 📦 PROTECTED ROUTES EXAMPLE
-//
+// ✅ FIXED: Gunakan authenticateToken bukan authenticateUser
+router.post("/logout", authenticateToken, logoutUser);
+
+// 📦 PROTECTED ROUTES
 router.get("/sales/sales-order", verifySessionToken, (req, res) => {
   res.json({ message: "Sales order data aman diakses oleh session aktif" });
 });
 
-// 🔓 POST /logout-session → cabut session_token
-//
+// 🔓 SESSION LOGOUT
 router.post("/logout-session", async (req, res) => {
   try {
     const cookies = req.cookies || {};
@@ -101,4 +100,5 @@ router.post("/logout-session", async (req, res) => {
     res.status(500).json({ error: "Gagal logout session" });
   }
 });
+
 export default router;

@@ -100,7 +100,7 @@ export default function ClientSessionProvider({
           try {
             // Fetch user data when token changes
             const res = await axios.get(
-              `${process.env.NEXT_PUBLIC_API_URL}/auth/me`,
+              `${process.env.NEXT_PUBLIC_API_URL}/api/auth/user-login/profile`,
               { 
                 withCredentials: true,
                 timeout: 10000,

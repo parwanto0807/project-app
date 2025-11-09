@@ -210,15 +210,13 @@ api.interceptors.response.use(
 );
 
 // ====== HELPER FUNCTIONS ======
-export function initializeTokensOnLogin(initialAccess: string) {
-  setAccessToken(initialAccess);
-  api.defaults.headers.common["Authorization"] = `Bearer ${initialAccess}`;
+export const initializeTokensOnLogin = async (accessToken: string) => {
+  // Simpan token ke localStorage/sessionStorage
+  localStorage.setItem("access_token", accessToken);
 
-  // Development cookie fallback (opsional)
-  if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
-    document.cookie = `accessToken=${initialAccess}; Path=/; Max-Age=3600; SameSite=Lax`;
-  }
-}
+  // Jika ada operasi async lainnya, tunggu sampai selesai
+  await new Promise((resolve) => setTimeout(resolve, 0)); // placeholder untuk operasi async nyata
+};
 
 export function clearTokensOnLogout() {
   setAccessToken(null);

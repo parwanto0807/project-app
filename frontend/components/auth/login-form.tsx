@@ -56,7 +56,7 @@ const LoginForm = () => {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL;
         const deviceId = generateDeviceId();
 
-        // 1. Login request
+        // ✅ 1. Login request
         const loginRes = await fetch(`${apiUrl}/api/auth/admin/login`, {
           method: "POST",
           headers: {
@@ -68,17 +68,19 @@ const LoginForm = () => {
         });
 
         const loginData = await loginRes.json();
-        // console.log("Login response:", loginData);
-
-        if (loginData.accessToken) {
-          initializeTokensOnLogin(loginData.accessToken);
-        }
 
         if (!loginRes.ok) {
-          throw new Error(loginData.error || "Login failed");
+          return setError(loginData.error || "Login gagal, periksa email & password");
         }
 
-        // 2. Check MFA status (after successful login)
+        if (!loginData.accessToken) {
+          return setError("Login berhasil, tapi token tidak diterima");
+        }
+
+        // ✅ Initialize tokens FIRST dan TUNGGU sampai selesai
+        await initializeTokensOnLogin(loginData.accessToken);
+
+        // ✅ 2. Check MFA status - SETELAH token fully initialized
         const statusRes = await fetch(`${apiUrl}/api/auth/mfa/status`, {
           credentials: "include",
           headers: {
@@ -88,44 +90,43 @@ const LoginForm = () => {
           },
         });
 
+        const statusData = await statusRes.json();
+
         if (!statusRes.ok) {
-          throw new Error("Failed to check MFA status");
+          return setError(statusData.error || "Gagal cek status MFA");
         }
 
-        const statusData = await statusRes.json();
-        // console.log("MFA Status response:", statusData);
-
-        // 3. Handle MFA flow
+        // ✅ 3. Handle MFA flow
         if (statusData.mfaRequired) {
-          // Use token from login response or status response
           const mfaToken = loginData.tempToken || statusData.tempToken;
-
           if (!mfaToken) {
-            throw new Error("MFA required but no token received");
+            return setError("MFA diperlukan tapi token tidak diterima dari server");
           }
-
           sessionStorage.setItem("mfa_temp_token", mfaToken);
-          // console.log("MFA token stored:", mfaToken);
-          // router.push("/auth/mfa");
           setShowMfaDialog(true);
           return;
         }
 
-        // 4. Handle MFA setup for new users
+        // ✅ 4. Handle first-time MFA setup
         if (!statusData.mfaEnabled) {
           setShowMfaDialog(true);
           return;
         }
 
-        // 5. No MFA required - proceed to dashboard
+        // ✅ 5. Redirect to dashboard - PASTIKAN semua operasi sebelumnya selesai
         router.push("/super-admin-area");
 
-      } catch (err) {
+      } catch (err: unknown) {
         console.error("Login error:", err);
-        setError(err instanceof Error ? err.message : "Something went wrong");
+        if (err instanceof TypeError) {
+          setError("Tidak dapat menghubungi server. Cek koneksi atau API URL.");
+          return;
+        }
+        setError(err instanceof Error ? err.message : "Terjadi kesalahan tidak diketahui");
       }
     });
   };
+
 
   const handleMfaDialogSuccess = () => {
     setShowMfaDialog(false);

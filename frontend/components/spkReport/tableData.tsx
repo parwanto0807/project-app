@@ -539,6 +539,9 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
   // 👇 SUBMIT LAPORAN - TAMBAH VALIDASI FOTO
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // ✅ CEGAH DOUBLE SUBMIT
+    if (uploading) return;
     setUploading(true);
 
     try {
@@ -558,6 +561,14 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
       const isValidItem = selectedSpk.items.some(item => item.id === formData.items);
       if (!formData.items || !isValidItem) {
         toast.error("Item yang dipilih tidak valid untuk SPK ini", { description: "Silakan pilih item dari daftar yang tersedia." });
+        setUploading(false);
+        return;
+      }
+
+      if (formData.progress === (formData.previousProgress ?? 0)) {
+        toast.error("Progress belum berubah", {
+          description: "Mohon ubah progress sebelum mengirim laporan."
+        });
         setUploading(false);
         return;
       }
@@ -624,7 +635,8 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
       });
 
       // Reset form
-      setFormData({
+      setFormData(prev => ({
+        ...prev,
         spkId: '',
         note: '',
         progress: 0,
@@ -633,7 +645,8 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
         photos: [],
         items: null,
         photoCategory: 'SEBELUM'
-      });
+      }));
+
       setActiveTab('list');
       setSelectedSpk(null);
       fetchReports();

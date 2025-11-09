@@ -1,37 +1,58 @@
-export const setTokenCookies = (res, accessToken, refreshToken, sessionToken = null) => {
-  const sevenDays = 7 * 24 * 60 * 60 * 1000;
-  
+export const setTokenCookies = (
+  res,
+  accessToken,
+  refreshToken,
+  sessionToken = null
+) => {
+  const isProduction = process.env.NODE_ENV === "production";
+
   const cookieOptions = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    secure: isProduction, // ✅ localhost false
+    sameSite: isProduction ? "none" : "lax", // ✅ localhost "lax"
     path: "/",
   };
 
+  // ✅ hanya tambah domain di production dan TANPA https:// TANPA slash
+  if (isProduction) {
+    cookieOptions.domain = "rylif-app.com";
+  }
+
   res.cookie("accessToken", accessToken, {
     ...cookieOptions,
-    maxAge: 15 * 60 * 1000, // 15 minutes
+    maxAge: 8 * 60 * 60 * 1000,
   });
 
   res.cookie("refreshToken", refreshToken, {
     ...cookieOptions,
-    maxAge: sevenDays,
+    maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 
   if (sessionToken) {
     res.cookie("session_token", sessionToken, {
       ...cookieOptions,
-      maxAge: sevenDays,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
   }
+
+  console.log("✅ Cookies set using:", cookieOptions);
 };
 
 export const clearAuthCookies = (res) => {
-  const cookies = ["accessToken", "refreshToken", "session_token", "trusted_device"];
-  
-  cookies.forEach(cookieName => {
-    res.clearCookie(cookieName, {
-      path: "/",
-    });
+  const isProduction = process.env.NODE_ENV === "production";
+
+  const cookieOptions = {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
+    path: "/",
+  };
+
+  if (isProduction) {
+    cookieOptions.domain = "rylif-app.com";
+  }
+
+  ["accessToken", "refreshToken", "session_token"].forEach((cookieName) => {
+    res.clearCookie(cookieName, cookieOptions);
   });
 };
