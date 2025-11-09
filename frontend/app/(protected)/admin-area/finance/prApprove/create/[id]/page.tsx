@@ -13,7 +13,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { LayoutProps } from "@/types/layout";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { useApprovedPurchaseRequests } from "@/hooks/use-pr";
 import { useEffect } from "react";
 import { AdminLoading } from "@/components/admin-loading";
@@ -21,6 +20,7 @@ import { useCreateUangMuka } from "@/hooks/use-um";
 import { toast } from "sonner";
 import { CreateUangMukaInput } from "@/types/typesUm";
 import { PrCreateFormFrVerify } from "@/components/prApprove/createFormDataFrVerify";
+import { useSession } from "@/components/clientSessionProvider";
 
 interface SubmitDataWithFile {
     data: CreateUangMukaInput;
@@ -32,7 +32,7 @@ export default function PRCreatePageAdminApprove() {
     const params = useParams(); // <-- ambil param dari URL
     const idFromUrl = params?.id as string; // <-- id dari /[id]/page.tsx
 
-    const { user, loading: userLoading } = useCurrentUser();
+    const { user,isLoading: userLoading } = useSession();
     const { approvedPurchaseRequests, loading: prLoading } = useApprovedPurchaseRequests();
 
     const {

@@ -14,7 +14,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { LayoutProps } from "@/types/layout";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { UpdateInvoiceForm } from "@/components/invoice/updateFormData";
 import { fetchAllSalesOrder } from "@/lib/action/sales/salesOrder";
 import { fetchAllKaryawan } from "@/lib/action/master/karyawan";
@@ -25,6 +24,7 @@ import { getBankAccounts } from "@/lib/action/master/bank/bank";
 import { BankAccount } from "@/schemas/bank";
 import { getInvoiceByID } from "@/lib/action/invoice/invoice"; // ✅ Already imported
 import { Invoice } from "@/schemas/invoice";
+import { useSession } from "@/components/clientSessionProvider";
 
 
 // Define types (you can move these to a shared types file if reused)
@@ -70,7 +70,7 @@ export interface SalesOrderItem {
 }
 
 export default function UpdateInvoicePage() {
-  const { user, loading: userLoading } = useCurrentUser();
+  const { user, isLoading: userLoading } = useSession();
   const router = useRouter();
   const params = useParams(); // ✅ Get dynamic route params
 
@@ -82,6 +82,14 @@ export default function UpdateInvoicePage() {
 
   // Extract ID from params (Next.js passes it as string or string[])
   const invoiceId = Array.isArray(params.id) ? params.id[0] : params.id;
+
+  const currentUser = user ? {
+    id: user.id,
+    name: user.name || 'Unknown User'
+  } : {
+    id: 'unknown',
+    name: 'Unknown User'
+  }; // Fallback object, bukan undefined
 
   useEffect(() => {
     if (userLoading) return;
@@ -178,10 +186,7 @@ export default function UpdateInvoicePage() {
         <div className="h-full w-full">
           <div className="flex-1 space-y-2 p-2 pt-1 md:p-4">
             <UpdateInvoiceForm
-              currentUser={{
-                id: user!.id,
-                name: user!.name,
-              }}
+              currentUser={currentUser}
               salesOrders={salesOrders}
               users={users}
               banks={banks}

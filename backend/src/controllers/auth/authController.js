@@ -33,10 +33,11 @@ const generateAccessToken = (user) => {
   );
   return jwt.sign(
     {
-      userId: user.id,
-      role: user.role,
-      email: user.email,
-      tokenVersion: user.tokenVersion || 0,
+    userId: user.id,      // ✅ Untuk kompatibilitas backend lama
+    id: user.id,          // ✅ Untuk konsistensi
+    role: user.role,
+    email: user.email,
+    tokenVersion: user.tokenVersion || 0,
     },
     JWT_SECRET,
     TOKEN_CONFIG.access
@@ -1215,6 +1216,19 @@ export const getProfile = async (req, res) => {
   try {
     console.log("[PROFILE] Getting user profile");
 
+    // ✅ Tangkap token dari header Authorization
+    const authHeader = req.headers["authorization"];
+    let tokenFromHeader = null;
+    if (authHeader && typeof authHeader === "string") {
+      // Format: "Bearer <token>"
+      tokenFromHeader = authHeader.split(" ")[1];
+    }
+    console.log("[PROFILE] Token from header:", tokenFromHeader);
+
+    // ✅ Tangkap token dari cookie (jika menggunakan cookies)
+    const tokenFromCookie = req.cookies?.accessToken || null;
+    console.log("[PROFILE] Token from cookie:", tokenFromCookie);
+
     // ✅ VALIDASI: Pastikan req.user dan req.user.id ada
     if (!req.user) {
       console.error("[PROFILE] req.user is missing");
@@ -1236,7 +1250,7 @@ export const getProfile = async (req, res) => {
 
     const user = await prisma.user.findUnique({
       where: {
-        id: req.user.id, // ✅ PASTIKAN menggunakan req.user.id
+        id: req.user.id,
       },
       select: {
         id: true,
@@ -1357,14 +1371,10 @@ export const refreshHandler = async (req, res) => {
   }
 };
 
-// ✅ ENDPOINT: /auth/me - untuk kompatibilitas dengan frontend
 export const getCurrentUser = async (req, res) => {
   try {
-    console.log("[AUTH] Getting current user for /auth/me endpoint");
-
     // VALIDASI: Pastikan req.user dan req.user.id ada
     if (!req.user) {
-      console.error("[AUTH] /auth/me - req.user is missing");
       return res.status(401).json({
         success: false,
         error: "Authentication required",
@@ -1372,14 +1382,11 @@ export const getCurrentUser = async (req, res) => {
     }
 
     if (!req.user.id) {
-      console.error("[AUTH] /auth/me - req.user.id is undefined");
       return res.status(401).json({
         success: false,
         error: "Invalid user data",
       });
     }
-
-    console.log(`[AUTH] /auth/me - Looking for user with ID: ${req.user.id}`);
 
     const user = await prisma.user.findUnique({
       where: {
@@ -1399,14 +1406,11 @@ export const getCurrentUser = async (req, res) => {
     });
 
     if (!user) {
-      console.error(`[AUTH] /auth/me - User not found with ID: ${req.user.id}`);
       return res.status(404).json({
         success: false,
         error: "User not found",
       });
     }
-
-    console.log(`[AUTH] /auth/me - User found: ${user.email}`);
 
     res.json({
       success: true,
@@ -1417,7 +1421,6 @@ export const getCurrentUser = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("[AUTH] /auth/me - Error:", err);
     res.status(500).json({
       success: false,
       error: "Failed to retrieve current user",

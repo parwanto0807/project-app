@@ -12,13 +12,13 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { toast } from "sonner";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { UpdateProductForm } from "@/components/master/product/updateFormData";
 import { fetchProductById } from "@/lib/action/master/product";
 import { ProductUpdateSchema } from "@/schemas";
 import { z } from "zod";
 import Link from "next/link";
 import { Loader2 } from "lucide-react"; // Import the spinner icon
+import { useSession } from "@/components/clientSessionProvider";
 
 type Product = z.infer<typeof ProductUpdateSchema>;
 
@@ -26,7 +26,7 @@ export default function UpdateProductPage() {
   const params = useParams();
   const id = params?.id as string | undefined;
   const router = useRouter();
-  const { user, loading } = useCurrentUser();
+  const { user, isLoading } = useSession();
 
   const [data, setData] = useState<Product | null>(null);
   const [error, setError] = useState("");
@@ -36,12 +36,12 @@ export default function UpdateProductPage() {
 
   // Redirect if not logged in
   useEffect(() => {
-    if (!loading && !user) {
+    if (!isLoading && !user) {
       router.push("/auth/login");
-    } else if (!loading && user) {
+    } else if (!isLoading && user) {
       setRole(user.role as typeof role);
     }
-  }, [loading, user, router]);
+  }, [isLoading, user, router]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -94,7 +94,7 @@ export default function UpdateProductPage() {
         </BreadcrumbList>
       </Breadcrumb>
 
-      {loading || loadingData ? (
+      {isLoading || loadingData ? (
         <div className="flex flex-col items-center justify-center py-12">
           <div className="relative">
             {/* Spinner with pulse animation */}

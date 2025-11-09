@@ -11,7 +11,6 @@ import {
     BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Badge } from "@/components/ui/badge";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { LayoutProps } from "@/types/layout";
 import { CreateCoaForm } from "@/components/master/coa/cretaeFormData";
@@ -19,24 +18,24 @@ import { useCreateCOA, useCOAs } from "@/hooks/use-coa";
 import { useEffect } from "react";
 import { AdminLoading } from "@/components/admin-loading";
 import { CoaFormData } from "@/schemas/coa";
+import { useSession } from "@/components/clientSessionProvider";
 
 export default function CreateCOAPageAdmin() {
     const { mutate: createCOA, isPending } = useCreateCOA();
     const router = useRouter();
-    const { user, loading } = useCurrentUser();
+    const { user, isLoading } = useSession();
 
     // Redirect jika bukan admin
     useEffect(() => {
-        if (loading) return;
+        if (isLoading) return;
         if (user?.role !== "admin") {
             router.push("/unauthorized");
             return;
         }
-    }, [user, router, loading]);
+    }, [user, router, isLoading]);
 
     const {
         data: coasResponse,
-        isLoading,
     } = useCOAs();
 
     const handleSubmit = (formData: CoaFormData) => {

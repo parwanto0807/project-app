@@ -10,12 +10,6 @@ import {
   getProductCount,
   getAllProductsByType,
 } from "../../../controllers/master/product/productController.js";
-import {
-  authorizeAdmin,
-  authorizeSuperAdmin,
-  authorizeAdminOrSuper,
-  authenticateToken,
-} from "../../../middleware/authMiddleware.js";
 
 // 1. Konfigurasi Multer untuk menyimpan image di /public/images
 const storage = multer.diskStorage({
@@ -30,11 +24,6 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 const router = express.Router();
-
-// 2. Serve folder images (pastikan di app utama, bukan router ini)
-// app.use('/images', express.static(path.join(process.cwd(), 'public/images')));
-
-// router.use("/", authenticateToken);
 
 router.get("/getAllProducts", getAllProducts);
 router.get("/getAllProductsByType/:type", getAllProductsByType);

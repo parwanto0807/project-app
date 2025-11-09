@@ -10,30 +10,30 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { useRouter } from "next/navigation";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { useEffect } from "react";
 import { useAutoLogout } from "@/hooks/use-auto-logout";
 import { Home, LayoutDashboard, UserCircle } from "lucide-react";
 import Link from "next/link";
 import PICDashboard from "@/components/dashboard/pic/dashboard";
 import { AdminLoading } from "@/components/admin-loading";
+import { useSession } from "@/components/clientSessionProvider";
 
 export default function PicPage() {
-  const { user, loading } = useCurrentUser();
+  const { user, isLoading } = useSession();
   const router = useRouter();
 
   useAutoLogout(86400);
 
   useEffect(() => {
-    if (loading) return;
+    if (isLoading) return;
     if (!user) {
       router.push("/auth/login");
     } else if (user.role !== "pic") {
       router.push("/unauthorized");
     }
-  }, [user, loading, router]);
+  }, [user, isLoading, router]);
 
-  if (loading) {
+  if (isLoading) {
     return <AdminLoading message="Preparing Dashboard Overview..." />;
   }
   if (!user || user.role !== "pic") {

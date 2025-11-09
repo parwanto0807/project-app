@@ -4,13 +4,13 @@ import AdminPanelLayout from "@/components/admin-panel/admin-panel-layout";
 import { BackToDashboardButton } from "@/components/backToDashboard";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useSession } from "@/components/clientSessionProvider";
 
 export default function PicLayout({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useCurrentUser();
+  const { user, isLoading } = useSession();
   const router = useRouter();
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
@@ -21,12 +21,12 @@ export default function PicLayout({ children }: { children: React.ReactNode }) {
   }));
 
   useEffect(() => {
-    if (!loading && user?.role !== "pic") {
+    if (!isLoading && user?.role !== "pic") {
       router.push("/unauthorized");
     }
-  }, [user, loading, router]);
+  }, [user, isLoading, router]);
 
-  if (loading) {
+  if (isLoading) {
     return <div>Loading...</div>;
   }
 

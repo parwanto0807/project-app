@@ -12,7 +12,6 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { Loader2 } from "lucide-react";
 import FormUpdateSpk from "@/components/spk/updateFormData";
 
@@ -22,6 +21,7 @@ import { fetchAllSalesOrder } from "@/lib/action/sales/salesOrder";
 import { getAllTeam } from "@/lib/action/master/team/getAllTeam";
 import { fetchAllKaryawan } from "@/lib/action/master/karyawan";
 import { SalesOrder } from "@/schemas";
+import { useSession } from "@/components/clientSessionProvider";
 
 interface Karyawan {
   id: string;
@@ -48,7 +48,7 @@ interface SpkDetail {
 }
 
 export default function UpdateSpkPage() {
-  const { user, loading: userLoading } = useCurrentUser();
+  const { user, isLoading: userLoading } = useSession();
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const spkId = params?.id;

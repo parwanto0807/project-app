@@ -16,9 +16,9 @@ import { fetchAllSpk, deleteSpk } from "@/lib/action/master/spk/spk";
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { LayoutProps } from "@/types/layout";
 import TabelDataSpk from "@/components/spk/tabelData";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { toast } from "sonner";
 import ioClient from "socket.io-client";
+import { useSession } from "@/components/clientSessionProvider";
 
 
 
@@ -114,7 +114,7 @@ const socket = io(process.env.NEXT_PUBLIC_SOCKET_URL!, {
 
 export default function SpkPageAdmin() {
   const [dataSpk, setDataSpk] = useState<SPK[]>([]);
-  const { user, loading: userLoading } = useCurrentUser();
+  const { user, isLoading: userLoading } = useSession();
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 

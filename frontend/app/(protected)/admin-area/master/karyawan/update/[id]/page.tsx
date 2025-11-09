@@ -12,7 +12,6 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { toast } from "sonner";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import UpdateEmployeeForm from "@/components/master/karyawan/updateFormData";
 import { fetchKaryawanById } from "@/lib/action/master/karyawan";
 import { EmployeeUpdateSchema } from "@/schemas";
@@ -21,6 +20,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageLoading } from "@/components/ui/loading";
+import { useSession } from "@/components/clientSessionProvider";
 
 type Employee = z.infer<typeof EmployeeUpdateSchema>;
 
@@ -30,7 +30,7 @@ export default function UpdateEmployeePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const fromPage = searchParams.get('from') || 'list';
-  const { user, loading: userLoading } = useCurrentUser();
+  const { user, isLoading: userLoading } = useSession();
 
   const [data, setData] = useState<Employee | null>(null);
   const [error, setError] = useState("");

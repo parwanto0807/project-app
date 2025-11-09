@@ -16,12 +16,12 @@ import { LayoutProps } from "@/types/layout";
 import { TabelUpdatePR } from "@/components/pr/updateFormData";
 import { AdminLoading } from "@/components/admin-loading";
 import { useProducts } from "@/hooks/use-product";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { usePurchaseRequest, usePurchaseRequestDetail } from "@/hooks/use-pr";
 import { CreatePurchaseRequestData, UpdatePurchaseRequestData } from "@/types/pr";
 import { fetchAllSpk } from "@/lib/action/master/spk/spk";
 import { toast } from "sonner";
 import { PicLayout } from "@/components/admin-panel/pic-layout";
+import { useSession } from "@/components/clientSessionProvider";
 
 interface SPK {
     id: string;
@@ -132,8 +132,8 @@ export default function UpdatePRPagePIC() {
 
     const {
         user,
-        loading: loadingUser,
-    } = useCurrentUser();
+        isLoading: loadingUser,
+    } = useSession();
 
     // Gunakan hook usePurchaseRequest untuk update
     const {
@@ -153,6 +153,18 @@ export default function UpdatePRPagePIC() {
     const [dataSpk, setDataSpk] = useState<SPK[]>([]);
     const [loadingSpk, setLoadingSpk] = useState(true);
     const products = productsData?.products || [];
+
+    const currentUser = user ? {
+        id: user.id,
+        name: user.name || 'Unknown User',
+        email: user.email || '', // Add missing email property
+        role: user.role || 'user' // Add missing role property
+    } : {
+        id: 'unknown',
+        name: 'Unknown User',
+        email: '',
+        role: 'user'
+    };
 
     // Redirect jika bukan admin
     useEffect(() => {
@@ -363,7 +375,7 @@ export default function UpdatePRPagePIC() {
                             <TabelUpdatePR
                                 products={products}
                                 dataSpk={dataSpk}
-                                currentUser={user || undefined}
+                                currentUser={currentUser}
                                 onSubmit={handleUpdatePurchaseRequest}
                                 onSuccess={() => {
                                     toast.success("Purchase Request berhasil diupdate");

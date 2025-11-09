@@ -16,15 +16,15 @@ import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { LayoutProps } from "@/types/layout";
 import { PrApprovalTable } from "@/components/prApprove/tabelData";
 import { useUangMuka, useDeleteUangMuka } from "@/hooks/use-um";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { useEffect, useState } from "react";
 import { AdminLoading } from "@/components/admin-loading";
 import { UangMukaQueryInput } from "@/types/typesUm";
+import { useSession } from "@/components/clientSessionProvider";
 
 export default function UmPageAdmin() {
     const { mutate: deleteUangMuka, isPending: isDeleting } = useDeleteUangMuka();
     const router = useRouter();
-    const { user, loading: userLoading } = useCurrentUser();
+    const { user, isLoading: userLoading } = useSession();
 
     const [filters, setFilters] = useState<UangMukaQueryInput>({
         page: 1,

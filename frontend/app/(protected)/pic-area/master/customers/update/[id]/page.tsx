@@ -5,12 +5,12 @@ import { useParams, useRouter } from "next/navigation";
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { toast } from "sonner";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import UpdateCustomerForm from "@/components/master/customer/updateFormData";
 import { fetchCustomerById } from "@/lib/action/master/customer";
 import { customerUpdateSchema } from "@/schemas";
 import { z } from "zod";
 import Link from "next/link";
+import { useSession } from "@/components/clientSessionProvider";
 
 type Customer = z.infer<typeof customerUpdateSchema>;
 
@@ -18,7 +18,7 @@ export default function UpdateCustomerPageAdmin() {
     const params = useParams();
     const id = params?.id as string | undefined;
     const router = useRouter();
-    const { user, loading } = useCurrentUser();
+    const { user, isLoading } = useSession();
 
     const [data, setData] = useState<Customer | null>(null);
     const [error, setError] = useState("");
@@ -27,12 +27,12 @@ export default function UpdateCustomerPageAdmin() {
 
     // Redirect if not logged in
     useEffect(() => {
-        if (!loading && !user) {
+        if (!isLoading && !user) {
             router.push("/auth/login");
-        } else if (!loading && user) {
+        } else if (!isLoading && user) {
             setRole(user.role as typeof role);
         }
-    }, [loading, user, router]);
+    }, [isLoading, user, router]);
 
     useEffect(() => {
         if (!id) return;
@@ -80,12 +80,12 @@ export default function UpdateCustomerPageAdmin() {
                 </BreadcrumbList>
             </Breadcrumb>
 
-            {loading || loadingData ? (
+            {isLoading || loadingData ? (
                 <p className="text-center text-gray-500">Loading...</p>
             ) : error ? (
                 <p className="text-center text-red-500">{error}</p>
             ) : data ? (
-                <UpdateCustomerForm customer={data} role={role}/>
+                <UpdateCustomerForm customer={data} role={role} />
             ) : (
                 <p className="text-center text-red-500">Data tidak ditemukan.</p>
             )}

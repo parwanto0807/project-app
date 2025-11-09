@@ -166,13 +166,26 @@ function calcLineExclusive(qty, unitPrice, discount, taxRate) {
 
 export const create = async (req, res) => {
   try {
-    if (!req.user || !req.user.userId) {
-      return res
-        .status(401)
-        .json({ message: "Akses tidak sah. Silakan login." });
-    }
-    const userId = req.user.userId;
+    // ✅ Check semua kemungkinan property names
+    const possibleUserId =
+      req.user?.userId ||
+      req.user?.id ||
+      req.user?.user_id ||
+      req.user?.userID ||
+      req.user?.UserID;
 
+    if (!req.user || !possibleUserId) {
+      return res.status(401).json({
+        message: "Akses tidak sah. Silakan login.",
+        debug: {
+          userExists: !!req.user,
+          userIdExists: !!possibleUserId,
+          availableProperties: Object.keys(req.user || {}),
+          userDetails: req.user,
+        },
+      });
+    }
+    const userId = possibleUserId;
     const {
       soNumber,
       soDate,

@@ -14,13 +14,13 @@ import { Badge } from "@/components/ui/badge";
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { LayoutProps } from "@/types/layout";
 import { PrCreateForm } from "@/components/prApprove/createFormData";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { useApprovedPurchaseRequests } from "@/hooks/use-pr";
 import { useEffect } from "react";
 import { AdminLoading } from "@/components/admin-loading";
 import { useCreateUangMuka } from "@/hooks/use-um";
 import { toast } from "sonner";
 import { CreateUangMukaInput } from "@/types/typesUm";
+import { useSession } from "@/components/clientSessionProvider";
 
 interface SubmitDataWithFile {
     data: CreateUangMukaInput;
@@ -29,7 +29,7 @@ interface SubmitDataWithFile {
 
 export default function UMCreatePageAdmin() {
     const router = useRouter();
-    const { user, loading: userLoading } = useCurrentUser();
+    const { user, isLoading: userLoading } = useSession();
     const { approvedPurchaseRequests, loading: prLoading } = useApprovedPurchaseRequests();
 
     const {

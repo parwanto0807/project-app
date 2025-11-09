@@ -11,7 +11,6 @@ import {
     BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Badge } from "@/components/ui/badge";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { LayoutProps } from "@/types/layout";
 import { UpdateCoaForm } from "@/components/master/coa/updateFormData";
@@ -21,6 +20,7 @@ import { AdminLoading } from "@/components/admin-loading";
 import { CoaFormData } from "@/schemas/coa";
 import { use } from "react";
 import { Button } from "@/components/ui/button";
+import { useSession } from "@/components/clientSessionProvider";
 
 interface UpdateCOAPageAdminProps {
     params: Promise<{
@@ -31,19 +31,19 @@ interface UpdateCOAPageAdminProps {
 export default function UpdateCOAPageAdmin({ params }: UpdateCOAPageAdminProps) {
     // Unwrap params dengan React.use()
     const { id } = use(params);
-    
+
     const { mutate: updateCOA, isPending } = useUpdateCOA();
     const router = useRouter();
-    const { user, loading } = useCurrentUser();
+    const { user, isLoading } = useSession();
 
     // Redirect jika bukan admin
     useEffect(() => {
-        if (loading) return;
+        if (isLoading) return;
         if (user?.role !== "admin") {
             router.push("/unauthorized");
             return;
         }
-    }, [user, router, loading]);
+    }, [user, router, isLoading]);
 
     const {
         data: coaResponse,
@@ -77,8 +77,8 @@ export default function UpdateCOAPageAdmin({ params }: UpdateCOAPageAdminProps) 
     // Handle case when COA data is not found
     if (!coaResponse?.data) {
         return (
-            <AdminLayout 
-                title="Update Chart of Account" 
+            <AdminLayout
+                title="Update Chart of Account"
                 role="admin"
             >
                 <div className="flex items-center justify-center h-64">

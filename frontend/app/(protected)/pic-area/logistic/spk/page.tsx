@@ -15,9 +15,9 @@ import { useRouter } from "next/navigation";
 import { fetchAllSpk, deleteSpk } from "@/lib/action/master/spk/spk";
 import { LayoutProps } from "@/types/layout";
 import TabelDataSpk from "@/components/spk/tabelData";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { toast } from "sonner";
 import { PicLayout } from "@/components/admin-panel/pic-layout";
+import { useSession } from "@/components/clientSessionProvider";
 
 // Import tipe SPK dari file yang sesuai atau definisikan ulang
 // Berdasarkan error, SPK memiliki properti: spkNumber, spkDate, salesOrderId, teamId, dan 6 properti lainnya
@@ -105,7 +105,7 @@ interface SPK {
 
 export default function SpkPageAdmin() {
   const [dataSpk, setDataSpk] = useState<SPK[]>([]);
-  const { user, loading: userLoading } = useCurrentUser();
+  const { user, isLoading: userLoading } = useSession();
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 

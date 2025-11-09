@@ -12,13 +12,13 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { fetchAllSalesOrder } from "@/lib/action/sales/salesOrder";
 import { getAllTeam } from "@/lib/action/master/team/getAllTeam";
 import { fetchAllKaryawan } from "@/lib/action/master/karyawan";
 import { AdminLoading } from "@/components/admin-loading";
 import { SalesOrder } from "@/schemas";
 import CreateFormSPKByIdSO from "@/components/spk/createFormDataSO";
+import { useSession } from "@/components/clientSessionProvider";
 
 interface Karyawan {
   id: string;
@@ -30,7 +30,7 @@ export default function CreateSpkPageAdminSO() {
   const { id } = params as { id: string }
 
   const [selectedSalesOrder, setSelectedSalesOrder] = useState<SalesOrder | null>(null)
-  const { user, loading: userLoading } = useCurrentUser();
+  const { user, isLoading: userLoading } = useSession();
   const router = useRouter();
   const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
   const [teams, setTeams] = useState([]);

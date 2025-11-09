@@ -20,7 +20,7 @@ import { fetchAllProjects } from "@/lib/action/master/project";
 import { useCreateRAB } from "@/hooks/use-rab";
 import { RABForm } from "@/components/rab/createFormData";
 import { RABCreateInput } from "@/types/rab";
-import { useCurrentUser } from "@/hooks/use-current-user";
+import { useSession } from "@/components/clientSessionProvider";
 
 interface Product {
     id: string;
@@ -47,7 +47,7 @@ export default function RABCreatePageAdmin() {
     const [products, setProducts] = useState<Product[]>([]);
     const [isLoadingMaster, setIsLoadingMaster] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const { user, loading: userLoading } = useCurrentUser();
+    const { user, isLoading: userLoading } = useSession();
 
     // Role auth dummy
     const userRole = "admin";

@@ -13,13 +13,13 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { fetchAllCustomers } from "@/lib/action/master/customer";
 import { fetchSalesOrderById } from "@/lib/action/sales/salesOrder";
 import { UpdateSalesOrderForm } from "@/components/sales/salesOrder/updateFormData";
 import { fullSalesOrderSchema } from "@/schemas/index";
 import { PicLayout } from "@/components/admin-panel/pic-layout";
 import { AdminLoading } from "@/components/admin-loading";
+import { useSession } from "@/components/clientSessionProvider";
 
 type SalesOrder = z.infer<typeof fullSalesOrderSchema>;
 
@@ -41,7 +41,7 @@ export default function UpdateSalesOrderPageAdmin() {
   const params = useParams();
   const id = params?.id as string | undefined;
   const router = useRouter();
-  const { user, loading: userLoading } = useCurrentUser();
+  const { user, isLoading: userLoading } = useSession();
 
   const [salesOrder, setSalesOrder] = useState<SalesOrder | null>(null);
   const [customers, setCustomers] = useState<CustomerForForm[]>([]);

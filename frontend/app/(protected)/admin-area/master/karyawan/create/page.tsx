@@ -12,18 +12,18 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import CreateEmployeeForm from "@/components/master/karyawan/createFormData";
 import { PageLoading } from "@/components/ui/loading";
+import { useSession } from "@/components/clientSessionProvider";
 
 export default function CreateKaryawanPageAdmin() {
-  const { user, loading } = useCurrentUser();
+  const { user, isLoading } = useSession();
   const router = useRouter();
   const [role, setRole] = useState<"admin" | "super">("admin");
   const [authorized, setAuthorized] = useState(false);
 
   useEffect(() => {
-    if (!loading) {
+    if (!isLoading) {
       if (!user) {
         router.push("/auth/login");
       } else {
@@ -37,10 +37,10 @@ export default function CreateKaryawanPageAdmin() {
         }
       }
     }
-  }, [user, loading, router]);
+  }, [user, isLoading, router]);
 
   // Tampilkan loading halaman penuh selama proses autentikasi
-  if (loading || !authorized) {
+  if (isLoading || !authorized) {
     return (
       <PageLoading
         title="Memverifikasi akses"

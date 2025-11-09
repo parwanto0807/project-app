@@ -3,24 +3,11 @@
 import { z } from "zod";
 import { salesOrderUpdateSchema } from "@/schemas";
 import { cookies } from "next/headers";
+import { getAuthHeaders, getCookieHeader } from "@/lib/cookie-utils";
 
 // form schema utk create/update header+items (tanpa soNumber karena digenerate)
 const formSchema = salesOrderUpdateSchema.omit({ soNumber: true });
 type UpdateSalesOrderPayload = z.infer<typeof formSchema>;
-
-// ===============================================================
-// Helpers
-// ===============================================================
-
-type SimpleCookie = { name: string; value: string };
-
-/** Build Cookie header string dari Next cookies() */
-async function getCookieHeader(): Promise<string> {
-  // ✅ di env kamu, cookies() mengembalikan Promise — Wajib await
-  const store = await cookies();
-  const all = store.getAll() as SimpleCookie[];
-  return all.map((c: SimpleCookie) => `${c.name}=${c.value}`).join("; ");
-}
 
 // bulan -> Romawi (0..11)
 function toRoman(monthIndex: number): string {
@@ -102,33 +89,50 @@ export async function createSalesOrderAPI(payload: z.infer<typeof formSchema>) {
   const validated = formSchema.safeParse(payload);
   if (!validated.success) return { error: "Data tidak valid." };
 
-  const cookieHeader = await getCookieHeader();
+  try {
+    // ✅ GUNAKAN REUSABLE FUNCTION
+    const headers = await getAuthHeaders();
 
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/api/salesOrder/sales-orders/create`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Cookie: cookieHeader,
-      },
-      credentials:'include',
-      body: JSON.stringify({
-        ...validated.data,
-        soNumber: await generateNewSoNumber(),
-      }),
-      cache: "no-store",
+    // ✅ DEBUG: Check jika Authorization header ada
+    if (!headers.Authorization) {
+      return { error: "Access token tidak ditemukan. Silakan login kembali." };
     }
-  );
 
-  if (!res.ok) {
-    const err = await res
-      .json()
-      .catch(() => ({ message: "Gagal membuat Sales Order." }));
-    return { error: err.message || "Terjadi kesalahan pada server." };
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/salesOrder/sales-orders/create`,
+      {
+        method: "POST",
+        headers, // ✅ Gunakan headers yang sudah dipersiapkan
+        body: JSON.stringify({
+          ...validated.data,
+          soNumber: await generateNewSoNumber(),
+        }),
+        cache: "no-store",
+        // ❌ HAPUS credentials: "include" (tidak needed dengan Authorization header)
+      }
+    );
+
+    console.log("📡 [CREATE SO DEBUG] Response status:", res.status);
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      let errorMessage = "Gagal membuat Sales Order.";
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorMessage = errorJson.message || errorMessage;
+      } catch {
+        // Tetap gunakan default message
+      }
+
+      return { error: errorMessage };
+    }
+
+    const data = await res.json();
+    return { success: true, data };
+  } catch (error) {
+    console.error("Error creating sales order:", error);
+    return { error: "Terjadi kesalahan saat membuat Sales Order" };
   }
-  const data = await res.json();
-  return { success: true, data };
 }
 
 // ===============================================================
@@ -143,7 +147,18 @@ export async function updateSalesOrderAPI(
   if (!validated.success) return { error: "Data tidak valid." };
 
   try {
-    const cookieHeader = await getCookieHeader();
+    // 🔑 GUNAKAN AUTHORIZATION HEADER sebagai solusi
+    const cookieStore = await cookies();
+    const accessToken = cookieStore.get("accessToken")?.value;
+
+    console.log(
+      "🔑 [AUTH DEBUG] Access Token:",
+      accessToken ? `${accessToken.substring(0, 20)}...` : "MISSING"
+    );
+
+    if (!accessToken) {
+      return { error: "Access token tidak ditemukan. Silakan login kembali." };
+    }
 
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/salesOrder/sales-orders/update/${id}`,
@@ -151,13 +166,17 @@ export async function updateSalesOrderAPI(
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Cookie: cookieHeader,
+          Authorization: `Bearer ${accessToken}`,
+          // Tetap kirim cookies juga sebagai backup
+          Cookie: await getCookieHeader(),
         },
         body: JSON.stringify(validated.data),
-        credentials:'include',
+        credentials: "include",
         cache: "no-store",
       }
     );
+
+    console.log("📡 [AUTH DEBUG] Response status:", res.status);
 
     if (!res.ok) {
       const err = await res
@@ -276,4 +295,3 @@ export async function fetchSalesOrderById(id: string) {
     throw error;
   }
 }
-

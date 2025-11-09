@@ -14,7 +14,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { LayoutProps } from "@/types/layout";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { CreateInvoiceForm } from "@/components/invoice/createFormData";
 import { fetchAllSalesOrderInvoice } from "@/lib/action/sales/salesOrder";
 import { fetchAllKaryawan } from "@/lib/action/master/karyawan";
@@ -26,6 +25,7 @@ import { BankAccount } from "@/schemas/bank";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useSession } from "@/components/clientSessionProvider";
 
 export interface Customer {
     id: string;
@@ -69,7 +69,7 @@ export interface SalesOrderItem {
 }
 
 export default function CreateInvoicePage() {
-    const { user, loading: userLoading } = useCurrentUser();
+    const { user, isLoading: userLoading } = useSession();
     const router = useRouter();
 
     const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
@@ -77,6 +77,14 @@ export default function CreateInvoicePage() {
     const [isLoading, setIsLoading] = useState(true);
     const [banks, setBanks] = useState<BankAccount[]>([]);
 
+    // ✅ PERBAIKAN: currentUser HARUS ada (required), tidak boleh undefined
+    const currentUser = user ? {
+        id: user.id,
+        name: user.name || 'Unknown User'
+    } : {
+        id: 'unknown',
+        name: 'Unknown User'
+    }; // Fallback object, bukan undefined
 
     useEffect(() => {
         if (userLoading) return;
@@ -96,12 +104,12 @@ export default function CreateInvoicePage() {
                 const [salesOrderRes, usersRes, banksRes] = await Promise.all([
                     fetchAllSalesOrderInvoice(),
                     fetchAllKaryawan(),
-                    getBankAccounts(), // ✅ fetch bank accounts
+                    getBankAccounts(),
                 ]);
 
                 setSalesOrders(salesOrderRes.salesOrders || []);
                 setUsers(usersRes.karyawan || []);
-                setBanks(banksRes || []); // ✅ set state banks
+                setBanks(banksRes || []);
             } catch (err) {
                 console.error("Failed to fetch initial data:", err);
             } finally {
@@ -138,7 +146,7 @@ export default function CreateInvoicePage() {
                         <Button
                             variant="outline"
                             size="lg"
-                            onClick={() => window.history.back()} // kembali ke page sebelumnya
+                            onClick={() => window.history.back()}
                             className="flex items-center gap-2 mx-auto"
                         >
                             ← Kembali
@@ -183,10 +191,7 @@ export default function CreateInvoicePage() {
                 <div className="h-full w-full">
                     <div className="flex-1 space-y-2 p-2 pt-1 md:p-4">
                         <CreateInvoiceForm
-                            currentUser={{
-                                id: user!.id,
-                                name: user!.name,
-                            }}
+                            currentUser={currentUser} // ✅ SEKARANG currentUser SELALU ADA
                             salesOrders={salesOrders}
                             users={users}
                             banks={banks}

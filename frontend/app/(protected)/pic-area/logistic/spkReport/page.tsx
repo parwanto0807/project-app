@@ -14,11 +14,11 @@ import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
 import { fetchAllSpk, getSpkByEmail } from "@/lib/action/master/spk/spk";
 import { LayoutProps } from "@/types/layout";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { fetchKaryawanByEmail } from "@/lib/action/master/karyawan";
 import { toast } from "sonner";
 import FormMonitoringProgressSpk from "@/components/spkReport/tableData";
 import { PicLayout } from "@/components/admin-panel/pic-layout";
+import { useSession } from "@/components/clientSessionProvider";
 
 interface SPK {
     id: string;
@@ -104,7 +104,7 @@ interface SPK {
 }
 
 export default function SpkReportPageAdmin() {
-    const { user, loading: userLoading } = useCurrentUser();
+    const { user, isLoading: userLoading } = useSession();
     const [dataSpk, setDataSpk] = useState<SPK[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();

@@ -10,30 +10,27 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { useRouter } from "next/navigation";
-import { useCurrentUser } from "@/hooks/use-current-user";
+import { useSession } from "@/components/clientSessionProvider"; // ✅ GUNAKAN useSession
 import { useEffect } from "react";
 import { useAutoLogout } from "@/hooks/use-auto-logout";
-import { LoadingScreen } from "@/components/ui/loading-gears";
 import DashboardAwalSalesOrder from "@/components/dashboard/admin/dashboard";
-import { Home, LayoutDashboard, UserCircle} from "lucide-react";
+import { Home, LayoutDashboard, UserCircle } from "lucide-react";
 import Link from "next/link";
 
 export default function DashboardPage() {
-  const { user, loading } = useCurrentUser();
+  const { user, isLoading } = useSession(); // ✅ GUNAKAN useSession
   const router = useRouter();
 
   useAutoLogout(86400);
 
   useEffect(() => {
-    if (loading) return;
+    if (isLoading) return; // ✅ GUNAKAN isLoading
     if (!user) {
       router.push("/auth/login");
     } else if (user.role !== "admin") {
       router.push("/unauthorized");
     }
-  }, [user, loading, router]);
-
-  if (loading) return <LoadingScreen />;
+  }, [user, isLoading, router]); // ✅ GUNAKAN isLoading
 
   if (!user || user.role !== "admin") {
     return null;
@@ -65,9 +62,6 @@ export default function DashboardPage() {
 
         <div className="flex items-start sm:items-center justify-between">
           <div>
-            {/* <h1 className="pl-2 text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight leading-tight">
-              Dashboard Admin
-            </h1> */}
             <p className="pl-2 text-xs sm:text-sm md:text-base text-muted-foreground mt-1 flex items-center gap-1.5 sm:gap-2">
               <UserCircle className="h-4 w-4 text-green-500 sm:h-5 sm:w-5" />
               Selamat datang kembali,&nbsp;

@@ -2,7 +2,6 @@
 
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { useRouter } from "next/navigation";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { useCallback, useEffect, useState } from "react";
 import { useAutoLogout } from "@/hooks/use-auto-logout";
 import { LoadingScreen } from "@/components/ui/loading-gears";
@@ -12,9 +11,10 @@ import { SPK } from "@/types/spkReport";
 import { fetchAllSpk, getSpkByEmail } from "@/lib/action/master/spk/spk";
 import { toast } from "sonner";
 import { fetchKaryawanByEmail } from "@/lib/action/master/karyawan";
+import { useSession } from "@/components/clientSessionProvider";
 
 export default function DashboardPage() {
-  const { user, loading } = useCurrentUser();
+  const { user, isLoading } = useSession();
   const [dataSpk, setDataSpk] = useState<SPK[]>([]);
   const router = useRouter();
   const [dataKarywanByEmail, setDataKarywanByEmail] = useState<string>('');
@@ -58,7 +58,7 @@ export default function DashboardPage() {
   }, [email, role]);
 
   useEffect(() => {
-    if (loading) return;
+    if (isLoading) return;
     if (!user) {
       router.push("/auth/login");
     } else if (user.role !== "user") {
@@ -69,9 +69,9 @@ export default function DashboardPage() {
     } else {
       console.warn("Email tidak tersedia, tidak dapat memuat SPK");
     }
-  }, [user, loading, router, fetchData, email]);
+  }, [user, isLoading, router, fetchData, email]);
 
-  if (loading) return <LoadingScreen />;
+  if (isLoading) return <LoadingScreen />;
 
   if (!user || user.role !== "user") {
     return null;

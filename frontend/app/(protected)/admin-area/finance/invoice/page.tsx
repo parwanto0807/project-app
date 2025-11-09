@@ -13,9 +13,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
+import { useSession } from "@/components/clientSessionProvider";
 import { LayoutProps } from "@/types/layout";
 import { InvoiceDataTable } from "@/components/invoice/tableData";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { getInvoices } from "@/lib/action/invoice/invoice";
 import { Invoice } from "@/schemas/invoice";
 import { getBankAccounts } from "@/lib/action/master/bank/bank";
@@ -24,7 +24,7 @@ import { BankAccount } from "@/schemas/bank";
 export default function InvoicePageAdmin() {
     const [invoiceData, setInvoiceData] = useState<Invoice[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const { user, loading: userLoading } = useCurrentUser();
+    const { user, isLoading: userLoading } = useSession();
     const [banks, setBanks] = useState<BankAccount[]>([]);
     const router = useRouter();
 
@@ -44,14 +44,12 @@ export default function InvoicePageAdmin() {
                 const result = await getInvoices();
                 const resultBank = await getBankAccounts();
 
-                // cek success
                 if (result.success) {
-                    setInvoiceData(result.data); // ambil data invoices
+                    setInvoiceData(result.data);
                     setBanks(resultBank || []);
                 } else {
                     console.error("Failed to fetch Invoice:", result.success);
                 }
-
 
             } catch (error) {
                 console.error("Error fetching Invoice:", error);
@@ -63,7 +61,11 @@ export default function InvoicePageAdmin() {
         fetchDataInvoice();
     }, [router, user, userLoading]);
 
-
+    // ✅ FIX: Handle undefined name dengan fallback
+    const currentUser = user ? {
+        id: user.id,
+        name: user.name || 'Unknown User' // Fallback jika name undefined
+    } : undefined;
 
     const layoutProps: LayoutProps = {
         title: "Finance Management",
@@ -103,7 +105,7 @@ export default function InvoicePageAdmin() {
                             isLoading={isLoading}
                             role={user?.role}
                             banks={banks}
-                            currentUser={user ? { id: user.id, name: user.name } : undefined}
+                            currentUser={currentUser} // ✅ GUNAKAN VARIABLE YANG SUDAH DIFIX
                         />
                     </div>
                 </div>

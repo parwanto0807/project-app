@@ -15,20 +15,19 @@ import { useRouter } from "next/navigation";
 import { fetchAllSalesOrder } from "@/lib/action/sales/salesOrder";
 import { LayoutProps } from "@/types/layout";
 import { SalesOrderTable } from "@/components/sales/salesOrder/tabelData";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { AdminLoading } from "@/components/admin-loading";
 import { PicLayout } from "@/components/admin-panel/pic-layout";
 import { SalesOrder } from "@/schemas";
+import { useSession } from "@/components/clientSessionProvider";
 
 export default function SalesOrderPageAdmin() {
   const [salesOrders, setSalesOrders] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const { user, loading } = useCurrentUser();
+  const { user, isLoading } = useSession();
   const router = useRouter();
   const userRole = user?.role ?? null; // ambil role dari user
 
   useEffect(() => {
-    if (loading) return; // tunggu user selesai diload
+    if (isLoading) return; // tunggu user selesai diload
 
     if (!userRole) {
       router.push("/unauthorized");
@@ -49,18 +48,16 @@ export default function SalesOrderPageAdmin() {
           result.salesOrders?.filter((order: SalesOrder) => allowedStatuses.includes(order.status)) ?? [];
 
         setSalesOrders(filteredOrders);
-        setIsLoading(result.isLoading ?? false);
       } catch (error) {
         console.error("Gagal fetch sales order:", error);
-        setIsLoading(false);
       }
     };
 
     fetchData();
-  }, [router, userRole, loading]);
+  }, [router, userRole, isLoading]);
 
 
-  if (loading) {
+  if (isLoading) {
     return <AdminLoading message="Preparing Sales Order list..." />;
   }
 

@@ -16,12 +16,12 @@ import { LayoutProps } from "@/types/layout";
 import { TabelInputPR } from "@/components/pr/createFormData";
 import { AdminLoading } from "@/components/admin-loading";
 import { useProducts } from "@/hooks/use-product";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { usePurchaseRequest } from "@/hooks/use-pr";
 import { CreatePurchaseRequestData } from "@/types/pr";
 import { fetchAllSpkPr } from "@/lib/action/master/spk/spk";
 import { toast } from "sonner";
 import { PicLayout } from "@/components/admin-panel/pic-layout";
+import { useSession } from "@/components/clientSessionProvider";
 
 interface SPK {
     id: string;
@@ -136,8 +136,8 @@ export default function CreatePRPagePIC() {
 
     const {
         user,
-        loading: loadingUser,
-    } = useCurrentUser();
+        isLoading: loadingUser,
+    } = useSession();
 
     // Gunakan hook usePurchaseRequest yang sudah ada
     const {
@@ -149,6 +149,18 @@ export default function CreatePRPagePIC() {
 
     const [dataSpk, setDataSpk] = useState<SPK[]>([]);
     const products = productsData?.products || [];
+
+    const currentUser = user ? {
+        id: user.id,
+        name: user.name || 'Unknown User',
+        email: user.email || '', // Add missing email property
+        role: user.role || 'user' // Add missing role property
+    } : {
+        id: 'unknown',
+        name: 'Unknown User',
+        email: '',
+        role: 'user'
+    };
 
     // Redirect jika bukan admin
     useEffect(() => {
@@ -265,7 +277,7 @@ export default function CreatePRPagePIC() {
                         <TabelInputPR
                             products={products}
                             dataSpk={dataSpk}
-                            currentUser={user || undefined}
+                            currentUser={currentUser}
                             onSubmit={handleCreatePurchaseRequest}
                             onSuccess={() => router.push("/pic-area/logistic/pr")}
                             submitting={submitting}

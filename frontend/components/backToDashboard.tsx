@@ -5,18 +5,18 @@ import { Home, Loader } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { useCurrentUser } from '@/hooks/use-current-user';
+import { useSession } from './clientSessionProvider';
 
 export function BackToDashboardButton() {
   const pathname = usePathname();
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isVisible, setIsVisible] = useState(false);
-  const { user, loading } = useCurrentUser(); // Sesuai dengan struktur hook Anda
+  const { user, isLoading } = useSession(); // Sesuai dengan struktur hook Anda
 
   // Tentukan dashboard URL berdasarkan role
   const getDashboardUrl = () => {
     if (!user?.role) return '/user-area';
-    
+
     switch (user.role.toLowerCase()) {
       case 'pic':
         return '/pic-area';
@@ -32,20 +32,20 @@ export function BackToDashboardButton() {
 
   // Effect untuk mengatur visibility
   useEffect(() => {
-    if (!loading && user && pathname !== dashboardUrl) {
+    if (!isLoading && user && pathname !== dashboardUrl) {
       setIsVisible(true);
     } else {
       setIsVisible(false);
     }
-  }, [loading, user, pathname, dashboardUrl]);
+  }, [isLoading, user, pathname, dashboardUrl]);
 
   // Jangan render apa-apa jika tidak visible atau di desktop
   if (!isVisible || (typeof window !== 'undefined' && window.innerWidth > 768)) {
     return null;
   }
 
-  // Tampilkan loading state sementara
-  if (loading) {
+  // Tampilkan isLoading state sementara
+  if (isLoading) {
     return (
       <div className="fixed bottom-6 right-6 z-[9999]">
         <div className="w-14 h-14 rounded-full bg-gray-400 flex items-center justify-center shadow-lg text-white">

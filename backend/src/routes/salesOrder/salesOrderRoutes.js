@@ -4,12 +4,13 @@ import express from "express";
 import * as salesOrder from "../../controllers/salesOrder/salesOrderController.js";
 import * as item from "../../controllers/salesOrder/salesOrderItemController.js";
 import * as doc from "../../controllers/salesOrder/salesOrderDocumentController.js";
-import { createProject, getListProjects } from "../../controllers/salesOrder/projectController.js";
+import {
+  createProject,
+  getListProjects,
+} from "../../controllers/salesOrder/projectController.js";
 
 // Middleware
-import {
-  authenticateToken,
-} from "../../middleware/authMiddleware.js";
+import { authenticateToken } from "../../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -29,11 +30,7 @@ router.get("/sales-orders-last", salesOrder.getLastSalesOrder);
 router.get("/getMonthlySales", salesOrder.getMonthlySales);
 
 // Create SO (header + items + (optional) documents)
-router.post(
-  "/sales-orders/create",
-  authenticateToken,
-  salesOrder.create
-);
+router.post("/sales-orders/create", authenticateToken, salesOrder.create);
 
 // Update header SO (tanpa ganti items/documents)
 router.put(
@@ -50,21 +47,13 @@ router.put(
 );
 
 // Hapus SO (cascade hapus items & documents)
-router.delete(
-  "/sales-orders/remove/:id",
-  authenticateToken,
-  salesOrder.remove
-);
+router.delete("/sales-orders/remove/:id", salesOrder.remove);
 
 /* -------------------------------------------
  * SALES ORDER ITEMS (item-level)
  * ----------------------------------------- */
 // Tambah 1 item ke SO
-router.post(
-  "/sales-orders/:soId/items",
-  authenticateToken,
-  item.addItem
-);
+router.post("/sales-orders/:soId/items", authenticateToken, item.addItem);
 
 // Update 1 item di SO
 router.patch(
@@ -110,11 +99,7 @@ router.delete(
 /* -------------------------------------------
  * PROJECTS (opsional)
  * ----------------------------------------- */
-router.post(
-  "/project/create",
-  authenticateToken,
-  createProject
-);
+router.post("/project/create", authenticateToken, createProject);
 router.get("/project/getListProjects", getListProjects);
 router.get("/getRecentSalesOrders", salesOrder.getRecentSalesOrders);
 router.get("/getSalesOrderSummary", salesOrder.getSalesOrderSummary);

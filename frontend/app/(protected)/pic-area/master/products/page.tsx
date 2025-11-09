@@ -15,17 +15,16 @@ import { useRouter } from "next/navigation";
 import { fetchAllProducts } from "@/lib/action/master/product";
 import { LayoutProps } from "@/types/layout";
 import ProductList from "@/components/master/product/tabelData";
-import { useCurrentUser } from "@/hooks/use-current-user" // ✅ import hook
 import { PicLayout } from "@/components/admin-panel/pic-layout";
+import { useSession } from "@/components/clientSessionProvider";
 
 export default function ProductPagePic() {
   const [product, setProduct] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  const { user, loading } = useCurrentUser(); // ✅ ambil user dari hook
+  const { user, isLoading } = useSession(); // ✅ ambil user dari hook
 
   useEffect(() => {
-    if (loading) return; // tunggu data user selesai di-load
+    if (isLoading) return; // tunggu data user selesai di-load
 
     if (user?.role !== "pic") {
       router.push("/unauthorized");
@@ -36,11 +35,10 @@ export default function ProductPagePic() {
       if (typeof window === "undefined") return;
       const result = await fetchAllProducts();
       setProduct(result.products);
-      setIsLoading(result.isLoading);
     };
 
     fetchData();
-  }, [router, user, loading]); // ✅ tambahkan user & loading
+  }, [router, user, isLoading]); // ✅ tambahkan user & isLoading
 
   const layoutProps: LayoutProps = {
     title: "Product Management",

@@ -15,13 +15,13 @@ import { useRouter } from "next/navigation";
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { LayoutProps } from "@/types/layout";
 import { BAPDataTable } from "@/components/bap/tableData";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { getAllBAP } from "@/lib/action/bap/bap";
+import { useSession } from "@/components/clientSessionProvider";
 
 export default function BapPageAdmin() {
   const [bapData, setBapData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { user, loading: userLoading } = useCurrentUser();
+  const { user, isLoading: userLoading } = useSession();
   const router = useRouter();
 
   useEffect(() => {

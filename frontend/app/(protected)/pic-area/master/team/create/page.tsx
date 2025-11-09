@@ -12,18 +12,18 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { PageLoading } from "@/components/ui/loading";
 import CreateTeamForm from "@/components/master/team/createFormData";
+import { useSession } from "@/components/clientSessionProvider";
 
 export default function CreateTeamPageAdmin() {
-  const { user, loading } = useCurrentUser();
+  const { user, isLoading } = useSession();
   const router = useRouter();
   const [role, setRole] = useState<"admin" | "super">("admin");
   const [authorized, setAuthorized] = useState(false);
 
   useEffect(() => {
-    if (!loading) {
+    if (!isLoading) {
       if (!user) {
         router.push("/auth/login");
       } else {
@@ -37,21 +37,21 @@ export default function CreateTeamPageAdmin() {
         }
       }
     }
-  }, [user, loading, router]);
+  }, [user, isLoading, router]);
 
-  // Tampilkan loading halaman penuh selama proses autentikasi
-  if (loading || !authorized) {
+  // Tampilkan isLoading halaman penuh selama proses autentikasi
+  if (isLoading || !authorized) {
     return (
-      <PageLoading 
-        title="Memverifikasi akses" 
-        description="Mohon tunggu sementara kami memeriksa otentikasi Anda" 
+      <PageLoading
+        title="Memverifikasi akses"
+        description="Mohon tunggu sementara kami memeriksa otentikasi Anda"
       />
     );
   }
 
   const getBasePath = () => {
-    return role === "super" 
-      ? "/super-admin-area/master/team" 
+    return role === "super"
+      ? "/super-admin-area/master/team"
       : "/admin-area/master/team";
   };
 
@@ -62,7 +62,7 @@ export default function CreateTeamPageAdmin() {
           <BreadcrumbList>
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link 
+                <Link
                   href={role === "super" ? "/super-admin-area" : "/admin-area"}
                   className="text-sm font-medium hover:text-primary transition-colors"
                 >
@@ -73,7 +73,7 @@ export default function CreateTeamPageAdmin() {
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link 
+                <Link
                   href={getBasePath()}
                   className="text-sm font-medium hover:text-primary transition-colors"
                 >

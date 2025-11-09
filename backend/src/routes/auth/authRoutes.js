@@ -101,4 +101,25 @@ router.post("/logout-session", async (req, res) => {
   }
 });
 
+// routes/auth.js
+router.get('/token', authenticateToken, (req, res) => {
+  // Return user info, bukan token
+  res.json({
+    user: {
+      id: req.user.id,
+      email: req.user.email,
+      role: req.user.role
+    }
+  });
+});
+
+router.post('/refresh', (req, res) => {
+  // Refresh logic yang menggunakan httpOnly cookies
+  const refreshToken = req.cookies.refreshToken;
+  // ... refresh logic
+  // Set new httpOnly cookies
+  setTokenCookies(res, newAccessToken, newRefreshToken);
+  res.json({ success: true });
+});
+
 export default router;

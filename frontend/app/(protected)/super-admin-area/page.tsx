@@ -10,30 +10,30 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { useRouter } from "next/navigation";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { useEffect } from "react";
 import { useAutoLogout } from "@/hooks/use-auto-logout";
 import { LoadingScreen } from "@/components/ui/loading-gears";
 import DashboardAwalSalesOrder from "@/components/dashboard/super-admin/dashboard";
 import { Home, LayoutDashboard, UserCircle } from "lucide-react"; // ✨ Import ikon
 import Link from "next/link";
+import { useSession } from "@/components/clientSessionProvider";
 
 export default function DashboardPage() {
-  const { user, loading } = useCurrentUser();
+  const { user, isLoading } = useSession();
   const router = useRouter();
 
   useAutoLogout(86400);
 
   useEffect(() => {
-    if (loading) return;
+    if (isLoading) return;
     if (!user) {
       router.push("/auth/login");
     } else if (user.role !== "super") {
       router.push("/unauthorized");
     }
-  }, [user, loading, router]);
+  }, [user, isLoading, router]);
 
-  if (loading) return <LoadingScreen />;
+  if (isLoading) return <LoadingScreen />;
 
   if (!user || user.role !== "super") {
     return null; // Tetap null agar tidak ada flash konten sebelum redirect

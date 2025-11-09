@@ -14,13 +14,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { LayoutProps } from "@/types/layout";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { UpdateBAPForm } from "@/components/bap/updateFormData";
 import { fetchAllSalesOrderInvoice } from "@/lib/action/sales/salesOrder";
 import { fetchAllKaryawan } from "@/lib/action/master/karyawan";
 import { getBAPById } from "@/lib/action/bap/bap";
 import { Karyawan } from "@/lib/validations/karyawan";
 import { AdminLoading } from "@/components/admin-loading";
+import { useSession } from "@/components/clientSessionProvider";
 
 export interface Customer {
   id: string;
@@ -107,7 +107,7 @@ export interface BAPPhoto {
 }
 
 export default function CreateBAPPage() {
-  const { user, loading: userLoading } = useCurrentUser();
+  const { user, isLoading: userLoading } = useSession();
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const bapId = params?.id;

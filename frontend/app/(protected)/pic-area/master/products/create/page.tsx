@@ -12,17 +12,17 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { CreateProductForm } from "@/components/master/product/createFormData";
 import { Loader2 } from "lucide-react";
+import { useSession } from "@/components/clientSessionProvider";
 
 export default function CreateProductPagePic() {
-  const { user, loading } = useCurrentUser();
+  const { user, isLoading } = useSession();
   const router = useRouter();
   const [code, setCode] = useState("");
 
   useEffect(() => {
-    if (loading) return;
+    if (isLoading) return;
 
     if (!user) {
       router.replace("/auth/login");
@@ -36,9 +36,9 @@ export default function CreateProductPagePic() {
     fetch("/api/product/generate-code")
       .then((res) => res.json())
       .then((data) => setCode(data.code));
-  }, [loading, user, router]);
+  }, [isLoading, user, router]);
 
-  if (loading || !user || user.role !== "pic") {
+  if (isLoading || !user || user.role !== "pic") {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="flex items-center gap-3 text-muted-foreground">

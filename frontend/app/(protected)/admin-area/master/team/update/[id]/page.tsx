@@ -12,12 +12,12 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { toast } from "sonner";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import UpdateTeamForm from "@/components/master/team/updateFormData";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageLoading } from "@/components/ui/loading";
+import { useSession } from "@/components/clientSessionProvider";
 
 interface Team {
   id: string;
@@ -32,7 +32,7 @@ export default function UpdateTeamPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const fromPage = searchParams.get('from') || 'list';
-  const { user, loading: userLoading } = useCurrentUser();
+  const { user, isLoading: userLoading } = useSession();
 
   const [data, setData] = useState<Team | null>(null);
   const [error, setError] = useState("");

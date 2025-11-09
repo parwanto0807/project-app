@@ -11,7 +11,6 @@ import {
     BreadcrumbPage,
     BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { useCustomers } from "@/hooks/use-customer";
 import { useProducts } from "@/hooks/use-product";
 import { useTaxes } from "@/hooks/use-tax";
@@ -29,6 +28,7 @@ import {
 } from "@/types/quotation";
 import { SalesOrder } from "@/schemas";
 import Link from "next/link";
+import { useSession } from "@/components/clientSessionProvider";
 
 interface UpdateQuotationPageAdminProps {
     params: Promise<{
@@ -42,7 +42,7 @@ export default function UpdateQuotationPageAdmin({
     const [resolvedParams, setResolvedParams] = useState<{ id: string } | null>(
         null
     );
-    const { user, loading: userLoading } = useCurrentUser();
+    const { user, isLoading: userLoading } = useSession();
     const router = useRouter();
 
     // Resolve params promise

@@ -15,15 +15,15 @@ import { Button } from "@/components/ui/button";
 import { useParams, useRouter } from "next/navigation";
 import { fetchSpkById } from "@/lib/action/master/spk/spk";
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { toast } from "sonner";
 import FormMonitoringProgressSpkByID from "@/components/spk/tableDataDetail";
 import { SPKDataApi } from "@/types/spk";
+import { useSession } from "@/components/clientSessionProvider";
 
 export default function SpkReportDetailByIdPageAdmin() {
     const params = useParams<{ id: string }>();
     const spkId = params?.id;
-    const { user, loading: userLoading } = useCurrentUser();
+    const { user, isLoading: userLoading } = useSession();
     const [dataSpk, setDataSpk] = useState<SPKDataApi | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);

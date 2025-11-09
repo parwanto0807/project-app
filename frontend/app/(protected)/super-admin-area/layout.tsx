@@ -1,23 +1,23 @@
 "use client";
 
 import AdminPanelLayout from "@/components/admin-panel/admin-panel-layout";
+import { useSession } from "@/components/clientSessionProvider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 export default function SuperLayout({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useCurrentUser();
+  const { user, isLoading } = useSession();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && user?.role !== "super") {
+    if (!isLoading && user?.role !== "super") {
       router.push("/unauthorized");
     }
-  }, [user, loading, router]);
+  }, [user, isLoading, router]);
 
-  if (loading || user?.role !== "super") return null;
+  if (isLoading || user?.role !== "super") return null;
 
   return (
     <ThemeProvider

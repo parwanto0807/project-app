@@ -14,7 +14,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { LayoutProps } from "@/types/layout";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { CreateBAPForm } from "@/components/bap/createFormData";
 import { fetchAllSalesOrderBap } from "@/lib/action/sales/salesOrder";
 import { fetchAllKaryawan } from "@/lib/action/master/karyawan";
@@ -23,6 +22,7 @@ import { AdminLoading } from "@/components/admin-loading";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useSession } from "@/components/clientSessionProvider";
 
 export interface Customer {
     id: string;
@@ -44,7 +44,7 @@ export interface Project {
 
 export interface SPK {
     spkNumber: string;
-    spkDate:string;
+    spkDate: string;
     id: string;
 }
 
@@ -110,12 +110,22 @@ export interface BAPPhoto {
 }
 
 export default function CreateBAPPage() {
-    const { user, loading: userLoading } = useCurrentUser();
+    const { user, isLoading: userLoading } = useSession();
     const router = useRouter();
 
     const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
     const [users, setUsers] = useState<Karyawan[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+
+
+    const currentUser = user ? {
+        id: user.id,
+        name: user.name || 'Unknown User'
+    } : {
+        id: 'unknown',
+        name: 'Unknown User'
+    }; // Fallback object, bukan undefined
+
 
     useEffect(() => {
         if (userLoading) return;
@@ -220,10 +230,7 @@ export default function CreateBAPPage() {
                 <div className="h-full w-full">
                     <div className="flex-1 space-y-2 p-2 pt-1 md:p-4">
                         <CreateBAPForm
-                            currentUser={{
-                                id: user!.id,
-                                name: user!.name,
-                            }}
+                            currentUser={currentUser}
                             salesOrders={salesOrders}
                             users={users}
                         />

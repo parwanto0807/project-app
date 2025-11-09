@@ -20,9 +20,9 @@ import { fetchAllProductsByType } from "@/lib/action/master/product";
 import { fetchAllProjects } from "@/lib/action/master/project";
 import { useUpdateRAB } from "@/hooks/use-rab";
 import { RABUpdateForm } from "@/components/rab/updateFormData";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { useRAB } from "@/hooks/use-rab";
 import { RABUpdateInput } from "@/types/rab";
+import { useSession } from "@/components/clientSessionProvider";
 
 interface Product {
     id: string;
@@ -68,7 +68,7 @@ export default function RABUpdatePageAdmin({ params }: RABUpdatePageAdminProps) 
     const [products, setProducts] = useState<Product[]>([]);
     const [isLoadingMaster, setIsLoadingMaster] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const { user, loading: userLoading } = useCurrentUser();
+    const { user, isLoading: userLoading } = useSession();
 
     // Role auth dummy
     const userRole = "admin";

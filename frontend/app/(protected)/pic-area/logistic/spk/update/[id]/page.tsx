@@ -11,7 +11,6 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import FormUpdateSpk from "@/components/spk/updateFormData";
 
 // Import fungsi fetch
@@ -22,6 +21,7 @@ import { fetchAllKaryawan } from "@/lib/action/master/karyawan";
 import { SalesOrder } from "@/schemas";
 import { PicLayout } from "@/components/admin-panel/pic-layout";
 import { AdminLoading } from "@/components/admin-loading";
+import { useSession } from "@/components/clientSessionProvider";
 
 interface Karyawan {
   id: string;
@@ -48,7 +48,7 @@ interface SpkDetail {
 }
 
 export default function UpdateSpkPagePic() {
-  const { user, loading: userLoading } = useCurrentUser();
+  const { user, isLoading: userLoading } = useSession();
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const spkId = params?.id;

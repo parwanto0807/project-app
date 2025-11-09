@@ -16,11 +16,11 @@ import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { LayoutProps } from "@/types/layout";
 import { SalesOrderTable } from "@/components/sales/salesOrder/tabelData";
 import { useSalesOrder } from "@/hooks/use-salesOrder";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { AdminLoading } from "@/components/admin-loading";
+import { useSession } from "@/components/clientSessionProvider";
 
 export default function SalesOrderPageAdmin() {
-  const { user, loading: userLoading } = useCurrentUser();
+  const { user, isLoading: userLoading } = useSession();
   const router = useRouter();
   
   // Use the salesOrder hook

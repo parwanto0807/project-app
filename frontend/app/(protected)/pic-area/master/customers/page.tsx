@@ -15,17 +15,16 @@ import { useRouter } from "next/navigation";
 import { CustomersTable } from "@/components/master/customer/tabelData";
 import { fetchAllCustomers } from "@/lib/action/master/customer";
 import { LayoutProps } from "@/types/layout";
-import { useCurrentUser } from "@/hooks/use-current-user"; // ✅ pakai hook auth
 import { PicLayout } from "@/components/admin-panel/pic-layout";
+import { useSession } from "@/components/clientSessionProvider";
 
 export default function CustomerPageAdmin() {
   const [customers, setCustomers] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  const { user, loading } = useCurrentUser(); // ✅ ambil user dari hook
+  const { user, isLoading } = useSession(); // ✅ ambil user dari hook
 
   useEffect(() => {
-    if (loading) return; // tunggu user selesai di-load
+    if (isLoading) return; // tunggu user selesai di-load
 
     if (user?.role !== "pic") {
       router.push("/unauthorized");
@@ -35,11 +34,10 @@ export default function CustomerPageAdmin() {
     const fetchData = async () => {
       const result = await fetchAllCustomers();
       setCustomers(result.customers);
-      setIsLoading(result.isLoading);
     };
 
     fetchData();
-  }, [ router, user, loading]);
+  }, [router, user, isLoading]);
 
   const layoutProps: LayoutProps = {
     title: "Customer Management",

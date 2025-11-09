@@ -11,11 +11,11 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { CreateSalesOrderForm } from "@/components/sales/salesOrder/createFormData";
 import { fetchAllCustomers } from "@/lib/action/master/customer";
 import { AdminLoading } from "@/components/admin-loading";
 import { PicLayout } from "@/components/admin-panel/pic-layout";
+import { useSession } from "@/components/clientSessionProvider";
 
 // 1. Definisikan tipe manual yang dibutuhkan oleh form
 interface CustomerForForm {
@@ -45,7 +45,7 @@ const DUMMY_PROJECTS: Project[] = [
 ];
 
 export default function CreateSalesOrderPageAdmin() {
-  const { user, loading: userLoading } = useCurrentUser();
+  const { user, isLoading: userLoading } = useSession();
   const router = useRouter();
 
   // 3. Gunakan tipe baru tersebut untuk state Anda

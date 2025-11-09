@@ -12,17 +12,17 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import CreateCustomerForm from "@/components/master/customer/createFormData";
+import { useSession } from "@/components/clientSessionProvider";
 
 export default function CreateCustomerPage() {
-  const { user, loading } = useCurrentUser();
+  const { user, isLoading } = useSession();
   const router = useRouter();
   const [role, setRole] = useState<"super" | "admin">("super");
   const [authorized, setAuthorized] = useState(false);
 
   useEffect(() => {
-    if (!loading) {
+    if (!isLoading) {
       if (!user) {
         router.push("/auth/login");
       } else {
@@ -36,9 +36,9 @@ export default function CreateCustomerPage() {
         }
       }
     }
-  }, [user, loading, router]);
+  }, [user, isLoading, router]);
 
-  if (loading || !authorized) {
+  if (isLoading || !authorized) {
     return <p className="text-center">🔄 Loading...</p>;
   }
 

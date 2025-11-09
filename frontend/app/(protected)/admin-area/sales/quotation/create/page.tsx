@@ -12,7 +12,6 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { useCurrentUser } from "@/hooks/use-current-user";
 import { useCustomers } from "@/hooks/use-customer";
 import { useProducts } from "@/hooks/use-product";
 import { useTaxes } from "@/hooks/use-tax";
@@ -23,9 +22,10 @@ import { AdminLoading } from "@/components/admin-loading";
 import { CreateQuotationForm } from "@/components/sales/quotation/createFormData";
 import { Customer, Product, CreateQuotationRequest, Tax, PaymentTerm } from "@/types/quotation";
 import { SalesOrder } from "@/schemas";
+import { useSession } from "@/components/clientSessionProvider";
 
 export default function CreateQuotationPageAdmin() {
-  const { user, loading: userLoading } = useCurrentUser();
+  const { user, isLoading: userLoading } = useSession();
   const router = useRouter();
 
   // Use the mutation hook instead of manual fetch
