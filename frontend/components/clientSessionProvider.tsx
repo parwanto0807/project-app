@@ -1,4 +1,4 @@
-// components/clientSessionProvider.tsx (UPDATED WITH LOADING SCREEN)
+// components/clientSessionProvider.tsx (FIXED - NO ESLINT WARNINGS)
 "use client";
 
 import { createContext, useState, useContext, ReactNode, useEffect, useRef, useCallback } from "react";
@@ -10,7 +10,7 @@ import {
   onTokenChange,
   getAccessToken,
 } from "@/lib/autoRefresh";
-import { LoadingScreen } from "@/components/ui/loading-gears"; // ✅ IMPORT LOADING SCREEN
+import { LoadingScreen } from "@/components/ui/loading-gears";
 
 export interface User {
   id: string;
@@ -132,22 +132,48 @@ export default function ClientSessionProvider({
       }
 
       return null;
-    } catch (error) {
-      console.error("Profile fetch error:", error);
+    } catch {
+      console.error("Profile fetch error");
       return null;
     }
   }, []);
 
-  // ✅ MODIFIED: Gunakan pendekatan yang sama seperti updateSalesOrderAPI
+  // ✅ FIXED: Hanya fetch profile jika ada token yang valid
   const testAllFetchApproaches = useCallback(async (): Promise<void> => {
     if (!isMountedRef.current || hasFetchedRef.current) return;
+
+    // ✅ CHECK: Jika tidak ada token sama sekali, skip fetch dan set loading false
+    const readableToken = getReadableToken();
+    const currentToken = getAccessToken();
+    
+    // Cek manual di cookies juga
+    let cookieToken = null;
+    try {
+      const cookies = document.cookie.split(';');
+      for (const cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'accessToken' && value) {
+          cookieToken = value;
+          break;
+        }
+      }
+    } catch {
+      // Ignore cookie errors
+    }
+
+    const hasAnyValidToken = !!(readableToken || currentToken || cookieToken);
+
+    if (!hasAnyValidToken) {
+      console.log("No valid token found, skipping profile fetch");
+      setUser(null);
+      setIsLoading(false);
+      return;
+    }
 
     hasFetchedRef.current = true;
 
     // APPROACH 1: Gunakan accessTokenReadable dengan Authorization Header
     try {
-      const readableToken = getReadableToken();
-
       if (readableToken) {
         const userData = await fetchProfileWithAuthHeader(readableToken);
         if (userData) {
@@ -163,8 +189,6 @@ export default function ClientSessionProvider({
 
     // APPROACH 2: Gunakan token dari autoRefresh system dengan Authorization Header
     try {
-      const currentToken = getAccessToken();
-
       if (currentToken) {
         const userData = await fetchProfileWithAuthHeader(currentToken);
         if (userData) {
@@ -179,22 +203,11 @@ export default function ClientSessionProvider({
 
     // APPROACH 3: Manual cookie extraction + Authorization Header
     try {
-      const cookies = document.cookie.split(';');
-      let accessToken = null;
-
-      for (const cookie of cookies) {
-        const [name, value] = cookie.trim().split('=');
-        if (name === 'accessToken' && value) {
-          accessToken = value;
-          break;
-        }
-      }
-
-      if (accessToken) {
-        const userData = await fetchProfileWithAuthHeader(accessToken);
+      if (cookieToken) {
+        const userData = await fetchProfileWithAuthHeader(cookieToken);
         if (userData) {
           setUser(userData);
-          setAccessToken(accessToken);
+          setAccessToken(cookieToken);
           setIsLoading(false);
           return;
         }
@@ -221,11 +234,12 @@ export default function ClientSessionProvider({
       }
     } catch {
       // Final fallback - set no user
+      console.log("All profile fetch approaches failed, setting user to null");
       setUser(null);
     }
 
     setIsLoading(false);
-  }, [fetchProfileWithAuthHeader]);
+  }, [fetchProfileWithAuthHeader]); // ✅ FIXED: No missing dependencies
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -301,14 +315,39 @@ export default function ClientSessionProvider({
                   setUser(userData);
                 }
               })
-              .catch(error => {
-                console.error("Failed to refetch profile:", error);
+              .catch(() => {
+                console.error("Failed to refetch profile");
               });
           }
         });
 
-        // Test semua approaches
-        testAllFetchApproaches();
+        // ✅ FIXED: Check tokens inline instead of using separate function
+        const readableTokenCheck = getReadableToken();
+        const currentTokenCheck = getAccessToken();
+        
+        let cookieTokenCheck = null;
+        try {
+          const cookies = document.cookie.split(';');
+          for (const cookie of cookies) {
+            const [name, value] = cookie.trim().split('=');
+            if (name === 'accessToken' && value) {
+              cookieTokenCheck = value;
+              break;
+            }
+          }
+        } catch {
+          // Ignore cookie errors
+        }
+
+        const hasAnyValidToken = !!(readableTokenCheck || currentTokenCheck || cookieTokenCheck);
+
+        if (hasAnyValidToken) {
+          testAllFetchApproaches();
+        } else {
+          // ✅ No tokens found, skip profile fetch and finish loading
+          console.log("No tokens available, skipping initial profile fetch");
+          setIsLoading(false);
+        }
 
       } catch (error) {
         console.error("Auth initialization failed", error);
@@ -323,7 +362,7 @@ export default function ClientSessionProvider({
     return () => {
       isMountedRef.current = false;
     };
-  }, [testAllFetchApproaches, fetchProfileWithAuthHeader]);
+  }, [testAllFetchApproaches, fetchProfileWithAuthHeader]); // ✅ FIXED: No missing dependencies
 
   // ✅ RETURN LOADING SCREEN JIKA MASIH LOADING
   if (isLoading) {
