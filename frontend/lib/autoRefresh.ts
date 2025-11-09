@@ -85,8 +85,7 @@ export function parseJwt(token: string): JwtPayload | null {
     );
 
     return JSON.parse(atob(padded));
-  } catch (error) {
-    console.warn("Failed to parse JWT:", error);
+  } catch {
     return null;
   }
 }
@@ -153,8 +152,7 @@ function startBroadcast() {
           }
         }
       };
-    } catch (error) {
-      console.warn("BroadcastChannel failed, using storage fallback:", error);
+    } catch {
       setupStorageFallback();
     }
   }
@@ -194,7 +192,6 @@ export function setRefreshExecutor(fn: () => Promise<string | null>) {
 
 async function executeRefreshWithBackoff(): Promise<string | null> {
   if (!refreshExecutor) {
-    // console.warn("No refresh executor available");
     return null;
   }
 
@@ -207,7 +204,6 @@ async function executeRefreshWithBackoff(): Promise<string | null> {
     refreshAttempts++;
 
     if (refreshAttempts >= MAX_REFRESH_ATTEMPTS) {
-      // console.error("Max refresh attempts reached, logging out");
       emitAuthEvent("refreshFailed", { error, attempts: refreshAttempts });
       setAccessToken(null, {
         broadcast: true,
@@ -218,7 +214,6 @@ async function executeRefreshWithBackoff(): Promise<string | null> {
     }
 
     const delay = BASE_DELAY * Math.pow(2, refreshAttempts - 1);
-    // console.warn(`Refresh failed, retrying in ${delay}ms (attempt ${refreshAttempts})`);
 
     await new Promise((resolve) => setTimeout(resolve, delay));
     return executeRefreshWithBackoff();
@@ -259,7 +254,6 @@ export function scheduleProactiveRefresh(
 
   const expSec = parseJwtExp(token);
   if (!expSec) {
-    // console.warn("Cannot schedule refresh: invalid token expiration");
     return;
   }
 
@@ -319,7 +313,6 @@ export function setAccessToken(
   }
 ): void {
   if (isRefreshing) {
-    // console.warn("Token update in progress, skipping concurrent update");
     return;
   }
 
@@ -330,7 +323,6 @@ export function setAccessToken(
     if (token) {
       const validation = validateToken(token);
       if (!validation.isValid) {
-        // console.warn("Invalid JWT token, treating as logout:", validation.error);
         token = null;
       }
     }
@@ -346,8 +338,8 @@ export function setAccessToken(
         } else {
           localStorage.removeItem(LS_KEY);
         }
-      } catch (error) {
-        console.warn("Failed to persist token to localStorage:", error);
+      } catch {
+        // Silent catch
       }
     }
 
@@ -355,8 +347,8 @@ export function setAccessToken(
       startBroadcast();
       try {
         bc?.postMessage({ type: "token", token: accessToken });
-      } catch (error) {
-        console.warn("Failed to broadcast token:", error);
+      } catch {
+        // Silent catch
       }
     }
 
@@ -380,7 +372,7 @@ export function setAccessToken(
       }
     }
   } catch (error) {
-    console.error("❌ [AUTO-REFRESH] Error in setAccessToken:", error);
+    console.error("Error in setAccessToken:", error);
   } finally {
     isRefreshing = false;
   }
@@ -413,14 +405,12 @@ export function initAuthFromStorage(): void {
           schedule: true,
           persist: true,
         });
-        // console.log("✅ Token restored from storage");
       } else {
-        console.warn("Removing invalid saved token:", validation.error);
         localStorage.removeItem(LS_KEY);
       }
     }
-  } catch (error) {
-    console.warn("Failed to init auth from storage:", error);
+  } catch {
+    // Silent catch
   }
 }
 
@@ -431,8 +421,8 @@ export function cleanup(): void {
   eventListeners.clear();
   try {
     bc?.close();
-  } catch (error) {
-    console.warn("Error closing BroadcastChannel:", error);
+  } catch {
+    // Silent catch
   }
   bc = null;
   refreshExecutor = null;
@@ -446,9 +436,7 @@ export function cleanup(): void {
 
 /** Force refresh token */
 export async function forceRefresh(): Promise<string | null> {
-  // console.log('🔄 Force refresh requested');
   const result = await refreshToken();
-  // console.log(result ? '✅ Force refresh successful' : '❌ Force refresh failed');
   return result;
 }
 
@@ -532,28 +520,6 @@ export function hasAnyRole(roles: string[]): boolean {
 }
 
 // ==================== DEBUG UTILITIES ====================
-
-/** Debug utility */
-// export function debugTokenState(): void {
-//   if (!IS_CLIENT) return;
-
-//   const health = getTokenHealth();
-//   const claims = getTokenClaims();
-
-//   console.log('🔍 Token Debug State:', {
-//     inMemory: accessToken ? `${accessToken.substring(0, 20)}...` : 'null',
-//     inLocalStorage: localStorage.getItem(LS_KEY) ? 'exists' : 'null',
-//     health,
-//     claims,
-//     refreshExecutor: refreshExecutor ? 'set' : 'null',
-//     refreshQueue: refreshQueue ? 'active' : 'inactive',
-//     refreshTimer: refreshTimer ? 'active' : 'inactive',
-//     tokenListenersCount: tokenListeners.size,
-//     eventListenersCount: Array.from(eventListeners.values()).reduce((acc, set) => acc + set.size, 0),
-//     refreshAttempts,
-//     isRefreshing
-//   });
-// }
 
 /** Reset state untuk testing */
 export function _resetForTesting(): void {
