@@ -16,7 +16,7 @@ import { useParams, useRouter } from "next/navigation";
 import { fetchSpkById } from "@/lib/action/master/spk/spk";
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { toast } from "sonner";
-import FormMonitoringProgressSpkByID from "@/components/spk/tableDataDetail";
+import FormMonitoringProgressSpkByIDAdmin from "@/components/spk/tableDataDetail";
 import { SPKDataApi } from "@/types/spk";
 import { useSession } from "@/components/clientSessionProvider";
 
@@ -33,7 +33,6 @@ export default function SpkReportDetailByIdPageAdmin() {
 
     const fetchData = useCallback(async () => {
         if (!spkId) {
-            console.warn("SPK ID tidak tersedia");
             setError("SPK ID tidak ditemukan");
             setIsLoading(false);
             return;
@@ -42,12 +41,10 @@ export default function SpkReportDetailByIdPageAdmin() {
         try {
             setIsLoading(true);
             setError(null);
-            console.log("🔄 Fetching SPK dengan ID:", spkId);
 
             let result: SPKDataApi | null = null;
             if (role === "admin" || role === 'super') {
                 result = await fetchSpkById(spkId);
-                console.log("✅ Data diterima:", result);
             }
 
             setDataSpk(result);
@@ -76,7 +73,6 @@ export default function SpkReportDetailByIdPageAdmin() {
         if (spkId) {
             fetchData();
         } else {
-            console.warn("SPK tidak tersedia, tidak dapat memuat SPK");
             setError("SPK ID tidak valid");
             setIsLoading(false);
         }
@@ -90,7 +86,7 @@ export default function SpkReportDetailByIdPageAdmin() {
                     <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
                         <h3 className="text-lg font-medium text-red-800 mb-2">Error</h3>
                         <p className="text-red-600 mb-4">{error}</p>
-                        <Button 
+                        <Button
                             onClick={() => router.push('/admin-area/logistic/spk')}
                             variant="outline"
                         >
@@ -134,7 +130,7 @@ export default function SpkReportDetailByIdPageAdmin() {
 
             <div className="h-full w-full">
                 <div className="flex-1 space-y-4 p-0 pt-6 md:p-4">
-                    <FormMonitoringProgressSpkByID
+                    <FormMonitoringProgressSpkByIDAdmin
                         dataSpk={dataSpk}
                         isLoading={isLoading}
                         role={role}

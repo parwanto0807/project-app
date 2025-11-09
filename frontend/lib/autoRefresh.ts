@@ -11,7 +11,7 @@ interface JwtPayload {
 }
 
 type TokenListener = (token: string | null) => void;
-type AuthEvent = 'tokenChanged' | 'refreshSuccess' | 'refreshFailed' | 'logout';
+type AuthEvent = "tokenChanged" | "refreshSuccess" | "refreshFailed" | "logout";
 type AuthEventListener = (data: unknown) => void;
 
 // State management
@@ -44,20 +44,23 @@ const MAX_DELAY = 24 * 60 * 60 * 1000; // 24 hours
 
 // ==================== EVENT SYSTEM ====================
 
-export function onAuthEvent(event: AuthEvent, listener: AuthEventListener): () => void {
+export function onAuthEvent(
+  event: AuthEvent,
+  listener: AuthEventListener
+): () => void {
   if (!eventListeners.has(event)) {
     eventListeners.set(event, new Set());
   }
-  
+
   eventListeners.get(event)!.add(listener);
-  
+
   return () => {
     eventListeners.get(event)?.delete(listener);
   };
 }
 
 function emitAuthEvent(event: AuthEvent, data?: unknown): void {
-  eventListeners.get(event)?.forEach(listener => {
+  eventListeners.get(event)?.forEach((listener) => {
     try {
       listener(data);
     } catch (error) {
@@ -113,16 +116,16 @@ export function validateToken(token: string): {
 
   const now = Math.floor(Date.now() / 1000);
   if (payload.exp <= now) {
-    return { 
-      isValid: false, 
+    return {
+      isValid: false,
       error: "Token expired",
-      expiresAt: new Date(payload.exp * 1000)
+      expiresAt: new Date(payload.exp * 1000),
     };
   }
 
-  return { 
+  return {
     isValid: true,
-    expiresAt: new Date(payload.exp * 1000)
+    expiresAt: new Date(payload.exp * 1000),
   };
 }
 
@@ -191,21 +194,21 @@ export function setRefreshExecutor(fn: () => Promise<string | null>) {
 
 async function executeRefreshWithBackoff(): Promise<string | null> {
   if (!refreshExecutor) {
-    console.warn("No refresh executor available");
+    // console.warn("No refresh executor available");
     return null;
   }
 
   try {
     const newToken = await refreshExecutor();
     refreshAttempts = 0; // Reset on success
-    emitAuthEvent('refreshSuccess', { newToken: !!newToken });
+    emitAuthEvent("refreshSuccess", { newToken: !!newToken });
     return newToken;
   } catch (error) {
     refreshAttempts++;
-    
+
     if (refreshAttempts >= MAX_REFRESH_ATTEMPTS) {
-      console.error("Max refresh attempts reached, logging out");
-      emitAuthEvent('refreshFailed', { error, attempts: refreshAttempts });
+      // console.error("Max refresh attempts reached, logging out");
+      emitAuthEvent("refreshFailed", { error, attempts: refreshAttempts });
       setAccessToken(null, {
         broadcast: true,
         schedule: false,
@@ -215,9 +218,9 @@ async function executeRefreshWithBackoff(): Promise<string | null> {
     }
 
     const delay = BASE_DELAY * Math.pow(2, refreshAttempts - 1);
-    console.warn(`Refresh failed, retrying in ${delay}ms (attempt ${refreshAttempts})`);
-    
-    await new Promise(resolve => setTimeout(resolve, delay));
+    // console.warn(`Refresh failed, retrying in ${delay}ms (attempt ${refreshAttempts})`);
+
+    await new Promise((resolve) => setTimeout(resolve, delay));
     return executeRefreshWithBackoff();
   }
 }
@@ -228,7 +231,7 @@ export async function refreshToken(): Promise<string | null> {
   }
 
   refreshQueue = executeRefreshWithBackoff();
-  
+
   try {
     const result = await refreshQueue;
     return result;
@@ -247,13 +250,16 @@ export function clearRefreshTimer() {
 }
 
 /** Jadwalkan refresh ~45 detik sebelum expired */
-export function scheduleProactiveRefresh(token: string, skewMs = DEFAULT_SKEW_MS): void {
+export function scheduleProactiveRefresh(
+  token: string,
+  skewMs = DEFAULT_SKEW_MS
+): void {
   if (!IS_CLIENT) return;
   clearRefreshTimer();
 
   const expSec = parseJwtExp(token);
   if (!expSec) {
-    console.warn("Cannot schedule refresh: invalid token expiration");
+    // console.warn("Cannot schedule refresh: invalid token expiration");
     return;
   }
 
@@ -313,7 +319,7 @@ export function setAccessToken(
   }
 ): void {
   if (isRefreshing) {
-    console.warn("Token update in progress, skipping concurrent update");
+    // console.warn("Token update in progress, skipping concurrent update");
     return;
   }
 
@@ -324,7 +330,7 @@ export function setAccessToken(
     if (token) {
       const validation = validateToken(token);
       if (!validation.isValid) {
-        console.warn("Invalid JWT token, treating as logout:", validation.error);
+        // console.warn("Invalid JWT token, treating as logout:", validation.error);
         token = null;
       }
     }
@@ -362,18 +368,17 @@ export function setAccessToken(
 
     if (token !== oldToken) {
       notify(accessToken);
-      emitAuthEvent('tokenChanged', { 
-        oldToken: !!oldToken, 
+      emitAuthEvent("tokenChanged", {
+        oldToken: !!oldToken,
         newToken: !!token,
         hadToken: !!oldToken,
-        hasToken: !!token
+        hasToken: !!token,
       });
 
       if (!token && oldToken) {
-        emitAuthEvent('logout');
+        emitAuthEvent("logout");
       }
     }
-
   } catch (error) {
     console.error("❌ [AUTO-REFRESH] Error in setAccessToken:", error);
   } finally {
@@ -408,7 +413,7 @@ export function initAuthFromStorage(): void {
           schedule: true,
           persist: true,
         });
-        console.log("✅ Token restored from storage");
+        // console.log("✅ Token restored from storage");
       } else {
         console.warn("Removing invalid saved token:", validation.error);
         localStorage.removeItem(LS_KEY);
@@ -441,9 +446,9 @@ export function cleanup(): void {
 
 /** Force refresh token */
 export async function forceRefresh(): Promise<string | null> {
-  console.log('🔄 Force refresh requested');
+  // console.log('🔄 Force refresh requested');
   const result = await refreshToken();
-  console.log(result ? '✅ Force refresh successful' : '❌ Force refresh failed');
+  // console.log(result ? '✅ Force refresh successful' : '❌ Force refresh failed');
   return result;
 }
 
@@ -464,40 +469,41 @@ export function getTokenHealth(): {
   isValid: boolean;
   expiresIn: number | null;
   willAutoRefresh: boolean;
-  health: 'healthy' | 'expiring_soon' | 'expired' | 'invalid';
+  health: "healthy" | "expiring_soon" | "expired" | "invalid";
 } {
   if (!accessToken) {
-    return { 
-      isValid: false, 
-      expiresIn: null, 
+    return {
+      isValid: false,
+      expiresIn: null,
       willAutoRefresh: false,
-      health: 'invalid'
+      health: "invalid",
     };
   }
 
   const exp = parseJwtExp(accessToken);
   if (!exp) {
-    return { 
-      isValid: false, 
-      expiresIn: null, 
+    return {
+      isValid: false,
+      expiresIn: null,
       willAutoRefresh: false,
-      health: 'expired'
+      health: "expired",
     };
   }
 
   const now = Math.floor(Date.now() / 1000);
   const expiresIn = exp - now;
-  
-  let health: 'healthy' | 'expiring_soon' | 'expired' | 'invalid';
+
+  let health: "healthy" | "expiring_soon" | "expired" | "invalid";
   if (expiresIn <= 0) {
-    health = 'expired';
-  } else if (expiresIn <= 300) { // 5 minutes
-    health = 'expiring_soon';
+    health = "expired";
+  } else if (expiresIn <= 300) {
+    // 5 minutes
+    health = "expiring_soon";
   } else {
-    health = 'healthy';
+    health = "healthy";
   }
 
-  const willAutoRefresh = expiresIn > (DEFAULT_SKEW_MS / 1000);
+  const willAutoRefresh = expiresIn > DEFAULT_SKEW_MS / 1000;
 
   return {
     isValid: true,
@@ -522,32 +528,32 @@ export function hasRole(role: string): boolean {
 /** Cek jika user memiliki salah satu dari roles yang diberikan */
 export function hasAnyRole(roles: string[]): boolean {
   const claims = getTokenClaims();
-  return roles.some(role => claims?.role === role);
+  return roles.some((role) => claims?.role === role);
 }
 
 // ==================== DEBUG UTILITIES ====================
 
 /** Debug utility */
-export function debugTokenState(): void {
-  if (!IS_CLIENT) return;
+// export function debugTokenState(): void {
+//   if (!IS_CLIENT) return;
 
-  const health = getTokenHealth();
-  const claims = getTokenClaims();
+//   const health = getTokenHealth();
+//   const claims = getTokenClaims();
 
-  console.log('🔍 Token Debug State:', {
-    inMemory: accessToken ? `${accessToken.substring(0, 20)}...` : 'null',
-    inLocalStorage: localStorage.getItem(LS_KEY) ? 'exists' : 'null',
-    health,
-    claims,
-    refreshExecutor: refreshExecutor ? 'set' : 'null',
-    refreshQueue: refreshQueue ? 'active' : 'inactive',
-    refreshTimer: refreshTimer ? 'active' : 'inactive',
-    tokenListenersCount: tokenListeners.size,
-    eventListenersCount: Array.from(eventListeners.values()).reduce((acc, set) => acc + set.size, 0),
-    refreshAttempts,
-    isRefreshing
-  });
-}
+//   console.log('🔍 Token Debug State:', {
+//     inMemory: accessToken ? `${accessToken.substring(0, 20)}...` : 'null',
+//     inLocalStorage: localStorage.getItem(LS_KEY) ? 'exists' : 'null',
+//     health,
+//     claims,
+//     refreshExecutor: refreshExecutor ? 'set' : 'null',
+//     refreshQueue: refreshQueue ? 'active' : 'inactive',
+//     refreshTimer: refreshTimer ? 'active' : 'inactive',
+//     tokenListenersCount: tokenListeners.size,
+//     eventListenersCount: Array.from(eventListeners.values()).reduce((acc, set) => acc + set.size, 0),
+//     refreshAttempts,
+//     isRefreshing
+//   });
+// }
 
 /** Reset state untuk testing */
 export function _resetForTesting(): void {

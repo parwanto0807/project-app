@@ -61,7 +61,7 @@ export default function ClientSessionProvider({
   const getReadableToken = (): string | null => {
     try {
       if (typeof document === 'undefined') return null;
-      
+
       const cookies = document.cookie.split(';');
       for (const cookie of cookies) {
         const [name, value] = cookie.trim().split('=');
@@ -78,15 +78,15 @@ export default function ClientSessionProvider({
   // Function untuk handle response data structure dengan type safety
   const extractUserData = (data: ProfileResponse | User): User | null => {
     try {
-      console.log("📦 Raw profile response:", data);
-      
+      // console.log("📦 Raw profile response:", data);
+
       let userData: Partial<User> = data;
-      
+
       // Handle nested user object
       if (data && typeof data === 'object' && 'user' in data && data.user) {
         userData = data.user;
       }
-      
+
       // Validasi data user
       if (userData && userData.id) {
         const processedUser: User = {
@@ -96,12 +96,12 @@ export default function ClientSessionProvider({
           email: userData.email,
           name: userData.name || userData.username,
         };
-        
-        console.log("✅ Processed user data:", processedUser);
+
+        // console.log("✅ Processed user data:", processedUser);
         return processedUser;
       }
-      
-      console.warn("⚠️ Invalid user data structure:", userData);
+
+      // console.warn("⚠️ Invalid user data structure:", userData);
       return null;
     } catch (error) {
       console.error("❌ Error processing user data:", error);
@@ -112,8 +112,8 @@ export default function ClientSessionProvider({
   // ✅ Function untuk fetch profile menggunakan Authorization Header
   const fetchProfileWithAuthHeader = useCallback(async (token: string): Promise<User | null> => {
     try {
-      console.log("🔑 [PROFILE FETCH] Using Authorization Header with token:", `${token.substring(0, 20)}...`);
-      
+      // console.log("🔑 [PROFILE FETCH] Using Authorization Header with token:", `${token.substring(0, 20)}...`);
+
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/auth/user-login/profile`,
         {
@@ -126,7 +126,7 @@ export default function ClientSessionProvider({
         }
       );
 
-      console.log('📡 [PROFILE FETCH] Response status:', response.status);
+      // console.log('📡 [PROFILE FETCH] Response status:', response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -136,12 +136,12 @@ export default function ClientSessionProvider({
 
       const data: ProfileResponse | User = await response.json();
       const userData = extractUserData(data);
-      
+
       if (userData) {
-        console.log("✅ [PROFILE FETCH] Success with Authorization Header");
+        // console.log("✅ [PROFILE FETCH] Success with Authorization Header");
         return userData;
       }
-      
+
       return null;
     } catch (error) {
       console.error("❌ [PROFILE FETCH] Network error:", error);
@@ -155,19 +155,19 @@ export default function ClientSessionProvider({
 
     hasFetchedRef.current = true;
 
-    console.log("🔄 Testing all fetch approaches...");
+    // console.log("🔄 Testing all fetch approaches...");
 
     // APPROACH 1: Gunakan accessTokenReadable dengan Authorization Header
     try {
-      console.log("🔧 Approach 1: accessTokenReadable + Authorization Header");
+      // console.log("🔧 Approach 1: accessTokenReadable + Authorization Header");
       const readableToken = getReadableToken();
-      
+
       if (readableToken) {
-        console.log("🔑 Found accessTokenReadable, length:", readableToken.length);
-        
+        // console.log("🔑 Found accessTokenReadable, length:", readableToken.length);
+
         const userData = await fetchProfileWithAuthHeader(readableToken);
         if (userData) {
-          console.log("✅ Approach 1 SUCCESS - Profile fetched with Authorization Header");
+          // console.log("✅ Approach 1 SUCCESS - Profile fetched with Authorization Header");
           setUser(userData);
           setAccessToken(readableToken);
           setIsLoading(false);
@@ -182,15 +182,15 @@ export default function ClientSessionProvider({
 
     // APPROACH 2: Gunakan token dari autoRefresh system dengan Authorization Header
     try {
-      console.log("🔧 Approach 2: autoRefresh token + Authorization Header");
+      // console.log("🔧 Approach 2: autoRefresh token + Authorization Header");
       const currentToken = getAccessToken();
-      
+
       if (currentToken) {
-        console.log("🔑 Found token from autoRefresh, length:", currentToken.length);
-        
+        // console.log("🔑 Found token from autoRefresh, length:", currentToken.length);
+
         const userData = await fetchProfileWithAuthHeader(currentToken);
         if (userData) {
-          console.log("✅ Approach 2 SUCCESS - Profile fetched with autoRefresh token");
+          // console.log("✅ Approach 2 SUCCESS - Profile fetched with autoRefresh token");
           setUser(userData);
           setIsLoading(false);
           return;
@@ -204,7 +204,7 @@ export default function ClientSessionProvider({
 
     // APPROACH 3: Manual cookie extraction + Authorization Header
     try {
-      console.log("🔧 Approach 3: Manual cookie + Authorization Header");
+      // console.log("🔧 Approach 3: Manual cookie + Authorization Header");
       const cookies = document.cookie.split(';');
       let accessToken = null;
 
@@ -217,11 +217,11 @@ export default function ClientSessionProvider({
       }
 
       if (accessToken) {
-        console.log("🔑 Found accessToken manually, length:", accessToken.length);
-        
+        // console.log("🔑 Found accessToken manually, length:", accessToken.length);
+
         const userData = await fetchProfileWithAuthHeader(accessToken);
         if (userData) {
-          console.log("✅ Approach 3 SUCCESS - Profile fetched with manual token");
+          // console.log("✅ Approach 3 SUCCESS - Profile fetched with manual token");
           setUser(userData);
           setAccessToken(accessToken);
           setIsLoading(false);
@@ -236,7 +236,7 @@ export default function ClientSessionProvider({
 
     // APPROACH 4: Fallback - withCredentials (jika semua Authorization Header gagal)
     try {
-      console.log("🔧 Approach 4: withCredentials (fallback)");
+      // console.log("🔧 Approach 4: withCredentials (fallback)");
       const res = await axios.get<ProfileResponse | User>(
         `${process.env.NEXT_PUBLIC_API_URL}/api/auth/user-login/profile`,
         {
@@ -244,9 +244,9 @@ export default function ClientSessionProvider({
           timeout: 5000,
         }
       );
-      
-      console.log("✅ Approach 4 SUCCESS - Profile fetched with credentials");
-      
+
+      // console.log("✅ Approach 4 SUCCESS - Profile fetched with credentials");
+
       const userData = extractUserData(res.data);
       if (userData) {
         setUser(userData);
@@ -272,12 +272,12 @@ export default function ClientSessionProvider({
       isInitializingRef.current = true;
 
       try {
-        console.log("🚀 Initializing auth system...");
+        // console.log("🚀 Initializing auth system...");
 
         // Initialize dengan accessTokenReadable jika ada
         const readableToken = getReadableToken();
         if (readableToken) {
-          console.log("🎯 Initializing with accessTokenReadable");
+          // console.log("🎯 Initializing with accessTokenReadable");
           setAccessToken(readableToken);
         }
 
@@ -287,8 +287,8 @@ export default function ClientSessionProvider({
         // Setup refresh executor  
         setRefreshExecutor(async (): Promise<string | null> => {
           try {
-            console.log("🔄 Refreshing token...");
-            
+            // console.log("🔄 Refreshing token...");
+
             const response = await fetch(
               `${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`,
               {
@@ -308,10 +308,10 @@ export default function ClientSessionProvider({
 
             const data = await response.json();
             const newToken = data.token;
-            
+
             if (newToken) {
               setAccessToken(newToken);
-              console.log("✅ Token refreshed successfully");
+              // console.log("✅ Token refreshed successfully");
               return newToken;
             }
             return null;
@@ -327,7 +327,7 @@ export default function ClientSessionProvider({
         onTokenChange((token: string | null) => {
           if (!isMountedRef.current) return;
 
-          console.log("🔑 Token change detected:", !!token);
+          // console.log("🔑 Token change detected:", !!token);
 
           if (!token) {
             setUser(null);
@@ -340,7 +340,7 @@ export default function ClientSessionProvider({
             testAllFetchApproaches();
           } else {
             // Jika token berubah, fetch ulang profile dengan token baru
-            console.log("🔄 Token changed, refetching profile...");
+            // console.log("🔄 Token changed, refetching profile...");
             fetchProfileWithAuthHeader(token)
               .then(userData => {
                 if (userData && isMountedRef.current) {
@@ -355,13 +355,13 @@ export default function ClientSessionProvider({
 
         // Check current token state
         const currentToken = getAccessToken();
-        console.log("🔍 Current token state:", { 
+        console.log("🔍 Current token state:", {
           hasToken: !!currentToken,
-          hasFetched: hasFetchedRef.current 
+          hasFetched: hasFetchedRef.current
         });
 
         // Test semua approaches
-        console.log("🎯 Testing all fetch approaches...");
+        // console.log("🎯 Testing all fetch approaches...");
         testAllFetchApproaches();
 
       } catch (error) {
@@ -380,19 +380,19 @@ export default function ClientSessionProvider({
   }, [testAllFetchApproaches, fetchProfileWithAuthHeader]);
 
   useEffect(() => {
-    console.log("📊 Session State:", {
-      user: user ? `User: ${user.email || user.name || user.id}` : "No user",
-      isLoading
-    });
+    // console.log("📊 Session State:", {
+    //   user: user ? `User: ${user.email || user.name || user.id}` : "No user",
+    //   isLoading
+    // });
   }, [user, isLoading]);
 
   // ✅ RETURN LOADING SCREEN JIKA MASIH LOADING
   if (isLoading) {
-    console.log("🎯 [SESSION PROVIDER] Showing loading screen");
+    // console.log("🎯 [SESSION PROVIDER] Showing loading screen");
     return <LoadingScreen />;
   }
 
-  console.log("🎯 [SESSION PROVIDER] Rendering children");
+  // console.log("🎯 [SESSION PROVIDER] Rendering children");
 
   return (
     <SessionContext.Provider value={{ user, setUser, isLoading }}>

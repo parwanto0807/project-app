@@ -164,7 +164,7 @@ interface FormMonitoringProgressSpkProps {
 type ItemProgress = Record<string, number>; // key: soDetailId, value: progress
 type SPKItemProgressMap = Record<string, ItemProgress>; // key: spkNumber
 
-const FormMonitoringProgressSpkByID = ({ dataSpk, isLoading, role, userId }: FormMonitoringProgressSpkProps) => {
+const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }: FormMonitoringProgressSpkProps) => {
     const [formData, setFormData] = useState<ProgressFormData>({
         spkId: '',
         note: '',
@@ -1685,4 +1685,4 @@ const SkeletonLoader = () => {
     );
 };
 
-export default FormMonitoringProgressSpkByID;
+export default FormMonitoringProgressSpkByIDAdmin;

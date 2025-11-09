@@ -851,12 +851,12 @@ export default function TabelDataSpk({
                     <TableHeader className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
                         <TableRow>
                             <TableHead className="w-12 text-center font-semibold text-gray-700 dark:text-gray-300">#</TableHead>
-                            <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Nomor SPK</TableHead>
-                            <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Tanggal</TableHead>
-                            <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Sales Order</TableHead>
+                            <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Nomor SPK & SO</TableHead>
+                            <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Tanggal SPK</TableHead>
                             <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Customer</TableHead>
                             <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Tim / Karyawan</TableHead>
                             <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Pembuat</TableHead>
+                            <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Project Name</TableHead>
                             <TableHead className="w-40 font-semibold text-gray-700 dark:text-gray-300">Progress</TableHead>
                             <TableHead className="w-32 font-semibold text-gray-700 dark:text-gray-300">Catatan</TableHead>
                             <TableHead className="text-center w-48 font-semibold text-gray-700 dark:text-gray-300">Aksi</TableHead>
@@ -899,9 +899,18 @@ export default function TabelDataSpk({
                                                 {(currentPage - 1) * itemsPerPage + idx + 1}
                                             </TableCell>
                                             <TableCell>
-                                                <div className="flex items-center space-x-2">
-                                                    <Badge variant="outline" className="font-semibold bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800">
+                                                <div className="flex flex-col space-y-1">
+                                                    <Badge
+                                                        variant="outline"
+                                                        className="font-semibold bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200 dark:border-blue-800"
+                                                    >
                                                         {spk.spkNumber}
+                                                    </Badge>
+                                                    <Badge
+                                                        variant="outline"
+                                                        className="font-semibold bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300 border-green-200 dark:border-green-800"
+                                                    >
+                                                        {spk.salesOrder.soNumber}
                                                     </Badge>
                                                 </div>
                                             </TableCell>
@@ -911,18 +920,6 @@ export default function TabelDataSpk({
                                                     month: "short",
                                                     year: "numeric",
                                                 })}
-                                            </TableCell>
-                                            <TableCell>
-                                                {spk.salesOrder?.soNumber ? (
-                                                    <div className="flex items-center space-x-2">
-                                                        <FileText className="h-4 w-4 text-blue-600" />
-                                                        <span className="font-medium text-blue-700 dark:text-blue-300">
-                                                            {spk.salesOrder.soNumber}
-                                                        </span>
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-gray-400 dark:text-gray-600">-</span>
-                                                )}
                                             </TableCell>
                                             <TableCell>
                                                 {spk.salesOrder?.customer.branch ? (
@@ -973,6 +970,18 @@ export default function TabelDataSpk({
                                                     <User className="h-4 w-4 text-purple-600" />
                                                     <span>{spk.createdBy?.namaLengkap || "-"}</span>
                                                 </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                {spk.salesOrder?.soNumber ? (
+                                                    <div className="flex items-center space-x-2">
+                                                        <FileText className="h-4 w-4 text-blue-600" />
+                                                        <span className="font-medium text-blue-700 dark:text-blue-300 text-wrap">
+                                                            {spk.salesOrder.project?.name}
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-gray-400 dark:text-gray-600">-</span>
+                                                )}
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex flex-col space-y-2">
