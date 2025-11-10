@@ -15,7 +15,10 @@ import { Input } from "@/components/ui/input";
 import {
     Select,
     SelectContent,
+    SelectGroup,
     SelectItem,
+    SelectLabel,
+    SelectSeparator,
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
@@ -48,7 +51,7 @@ import {
     ClipboardList,
     UserCircle2Icon,
 } from "lucide-react";
-import React, { useState, useMemo, Fragment } from "react";
+import React, { useState, useMemo, Fragment, useEffect } from "react";
 import Link from "next/link";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
@@ -72,6 +75,7 @@ type SPK = {
     teamId: string;
     createdById: string;
     progress: number;
+    spkStatusClose: boolean;
     createdBy: {
         id: string;
         namaLengkap: string;
@@ -345,9 +349,10 @@ export default function TabelDataSpk({
     onDeleteSpk,
 }: TabelDataSpkProps) {
     const [searchTerm, setSearchTerm] = useState("");
-    const [filterBy, setFilterBy] = useState("all");
+    const [filterBy, setFilterBy] = useState("on-progress");
     const [currentPage, setCurrentPage] = useState(1);
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+    const [availableTeams, setAvailableTeams] = useState<string[]>([]);
     const itemsPerPage = 10;
     const basePath = getBasePath(role);
     const router = useRouter();
@@ -367,6 +372,19 @@ export default function TabelDataSpk({
         }
     };
 
+    // Extract daftar tim unik dari dataSpk
+    useEffect(() => {
+        if (Array.isArray(dataSpk)) {
+            const teams = dataSpk
+                .map(spk => spk.team?.namaTeam)
+                .filter((namaTeam): namaTeam is string =>
+                    namaTeam !== undefined && namaTeam !== null && namaTeam.trim() !== ''
+                );
+            const uniqueTeams = [...new Set(teams)];
+            setAvailableTeams(uniqueTeams);
+        }
+    }, [dataSpk]);
+
     const filteredData = useMemo(() => {
         if (!Array.isArray(dataSpk)) return [];
 
@@ -382,11 +400,15 @@ export default function TabelDataSpk({
                 );
 
             if (filterBy === "all") return matchesSearch;
-            if (filterBy === "with-team" && spk.team) return matchesSearch;
-            if (filterBy === "without-team" && !spk.team) return matchesSearch;
-            return matchesSearch;
+            if (filterBy === "on-progress" && spk.spkStatusClose === false) return matchesSearch;
+            if (filterBy === "without-team" && !spk.team?.namaTeam) return matchesSearch;
+
+            // Filter berdasarkan nama tim spesifik
+            if (availableTeams.includes(filterBy) && spk.team?.namaTeam === filterBy) return matchesSearch;
+
+            return false;
         });
-    }, [dataSpk, searchTerm, filterBy]);
+    }, [dataSpk, searchTerm, filterBy, availableTeams]);
 
     const totalPages = Math.ceil(filteredData.length / itemsPerPage);
     const paginatedData = useMemo(() => {
@@ -1434,7 +1456,7 @@ export default function TabelDataSpk({
                                                 variant="outline"
                                                 onClick={() => {
                                                     setSearchTerm("");
-                                                    setFilterBy("all");
+                                                    setFilterBy("on-progress");
                                                 }}
                                             >
                                                 Reset Pencarian
@@ -1494,9 +1516,18 @@ export default function TabelDataSpk({
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">Semua SPK</SelectItem>
-                                    <SelectItem value="onProgress">Semua On Progress</SelectItem>
-                                    <SelectItem value="with-team">Dengan Tim</SelectItem>
+                                    <SelectItem value="on-progress">On Progress</SelectItem>
                                     <SelectItem value="without-team">Tanpa Tim</SelectItem>
+                                    {/* Tambahkan separator untuk grup tim */}
+                                    <SelectSeparator />
+                                    <SelectGroup>
+                                        <SelectLabel>Pilih Tim</SelectLabel>
+                                        {availableTeams.map(team => (
+                                            <SelectItem key={team} value={team}>
+                                                {team}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectGroup>
                                 </SelectContent>
                             </Select>
 
@@ -1527,13 +1558,23 @@ export default function TabelDataSpk({
                 </div>
                 <div className="flex space-x-3">
                     <Select value={filterBy} onValueChange={setFilterBy}>
-                        <SelectTrigger className="flex-1">
+                        <SelectTrigger className="w-48 bg-white/20 backdrop-blur-sm border-white/30 text-white focus:bg-white/30">
                             <SelectValue placeholder="Filter" />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">Semua SPK</SelectItem>
-                            <SelectItem value="with-team">Dengan Tim</SelectItem>
+                            <SelectItem value="on-progress">On Progress</SelectItem>
                             <SelectItem value="without-team">Tanpa Tim</SelectItem>
+                            {/* Tambahkan separator untuk grup tim */}
+                            <SelectSeparator />
+                            <SelectGroup>
+                                <SelectLabel>Pilih Tim</SelectLabel>
+                                {availableTeams.map(team => (
+                                    <SelectItem key={team} value={team}>
+                                        {team}
+                                    </SelectItem>
+                                ))}
+                            </SelectGroup>
                         </SelectContent>
                     </Select>
                     <Link href={`${basePath}/create`} className="flex-1">

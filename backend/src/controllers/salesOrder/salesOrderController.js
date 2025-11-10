@@ -609,8 +609,39 @@ export const updateWithItems = async (req, res) => {
         });
       }
 
-      // ✅ STANDAR UPDATE ITEMS
+      // ✅ STANDAR UPDATE ITEMS dengan pengecekan referensi
       const keepIds = [];
+
+      // Cek item yang akan dihapus apakah ada referensi di SPKFieldReport
+      const existingItems = await tx.salesOrderItem.findMany({
+        where: { salesOrderId: id },
+        select: { 
+          id: true 
+        },
+      });
+
+      const existingItemIds = existingItems.map(item => item.id);
+      const incomingItemIds = sorted.filter(item => item.id).map(item => item.id);
+      const itemsToDelete = existingItemIds.filter(id => !incomingItemIds.includes(id));
+
+      // Jika ada item yang akan dihapus, cek referensinya
+      if (itemsToDelete.length > 0) {
+        const referencedItems = await tx.sPKFieldReport.findMany({
+          where: {
+            soDetailId: { in: itemsToDelete }
+          },
+          select: {
+            soDetailId: true
+          }
+        });
+
+        const referencedItemIds = [...new Set(referencedItems.map(item => item.soDetailId))];
+        
+        // Jika ada item yang direferensi, batalkan transaksi
+        if (referencedItemIds.length > 0) {
+          throw new Error(`Tidak dapat menghapus item yang sudah digunakan dalam SPK Field Report. Item IDs: ${referencedItemIds.join(', ')}`);
+        }
+      }
 
       for (let i = 0; i < sorted.length; i++) {
         const it = sorted[i];
@@ -656,13 +687,15 @@ export const updateWithItems = async (req, res) => {
         }
       }
 
-      // ✅ DELETE items lama yang tidak dikirim
-      await tx.salesOrderItem.deleteMany({
-        where: {
-          salesOrderId: id,
-          id: { notIn: keepIds },
-        },
-      });
+      // ✅ DELETE items lama yang tidak dikirim HANYA jika tidak ada referensi
+      if (itemsToDelete.length > 0) {
+        await tx.salesOrderItem.deleteMany({
+          where: {
+            salesOrderId: id,
+            id: { in: itemsToDelete },
+          },
+        });
+      }
 
       // update totals
       await tx.salesOrder.update({
@@ -691,9 +724,23 @@ export const updateWithItems = async (req, res) => {
     return res.status(200).json(updated);
   } catch (error) {
     console.error("updateWithItems error:", error);
+    
     if (error?.code === "P2002" && error?.meta?.target?.includes("soNumber")) {
       return res.status(409).json({ message: "Nomor SO sudah digunakan." });
     }
+    
+    if (error?.code === "P2003") {
+      return res.status(409).json({ 
+        message: "Tidak dapat menghapus item yang sudah digunakan dalam SPK Field Report." 
+      });
+    }
+
+    if (error.message?.includes("SPK Field Report")) {
+      return res.status(409).json({ 
+        message: error.message 
+      });
+    }
+
     return res
       .status(500)
       .json({ message: "Gagal memperbarui Sales Order beserta items." });

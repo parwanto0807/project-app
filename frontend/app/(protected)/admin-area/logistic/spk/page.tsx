@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
-import { fetchAllSpk, deleteSpk } from "@/lib/action/master/spk/spk";
+import { fetchAllSpkAdmin, deleteSpk } from "@/lib/action/master/spk/spk";
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { LayoutProps } from "@/types/layout";
 import TabelDataSpk from "@/components/spk/tabelData";
@@ -32,6 +32,7 @@ interface SPK {
   teamId: string;
   createdById: string;
   progress: number;
+  spkStatusClose: boolean;
   createdBy: {
     id: string;
     namaLengkap: string;
@@ -121,7 +122,7 @@ export default function SpkPageAdmin() {
   const fetchData = useCallback(async () => {
     try {
       setIsLoading(true);
-      const result = await fetchAllSpk();
+      const result = await fetchAllSpkAdmin();
       setDataSpk(result);
     } catch (error) {
       console.error("Error fetching SPK data:", error);

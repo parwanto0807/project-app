@@ -43,6 +43,25 @@ export async function fetchAllSpk() {
   }
 }
 
+export async function fetchAllSpkAdmin() {
+  try {
+    const res = await fetch(`${API_URL}/api/spk/getAllSPKAdmin`, {
+      method: "GET",
+      credentials: "include",
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      throw new Error("Gagal fetch SPK");
+    }
+
+    return await res.json();
+  } catch (error) {
+    console.error("fetchAllSpk error:", error);
+    throw error;
+  }
+}
+
 export async function fetchAllSpkPr() {
   try {
     const res = await fetch(`${API_URL}/api/spk/getAllSPKPr`, {
@@ -65,7 +84,7 @@ export async function fetchAllSpkPr() {
 export async function fetchSpkById(id: string) {
   try {
     console.log("🔍 Fetching SPK by ID:", id);
-    
+
     const res = await fetch(`${API_URL}/api/spk/getSPKById/${id}`, {
       method: "GET",
       credentials: "include",
@@ -81,27 +100,29 @@ export async function fetchSpkById(id: string) {
     }
 
     const data = await res.json();
-    
+
     // ✅ DEBUG: Log struktur data
     console.log("📊 Data structure from backend:", {
       type: typeof data,
       isArray: Array.isArray(data),
-      length: Array.isArray(data) ? data.length : 'N/A',
-      data: data
+      length: Array.isArray(data) ? data.length : "N/A",
+      data: data,
     });
 
     // ✅ TEMPORARY FIX: Filter data di frontend
     if (Array.isArray(data)) {
-      console.warn("⚠️ Backend mengembalikan SEMUA SPK, filtering by ID di frontend");
-      
+      console.warn(
+        "⚠️ Backend mengembalikan SEMUA SPK, filtering by ID di frontend"
+      );
+
       // Cari SPK yang sesuai dengan ID
       const filteredSpk = data.find((spk: SPK) => spk.id === id);
-      
+
       if (!filteredSpk) {
         console.error("❌ SPK dengan ID tidak ditemukan dalam array");
         throw new Error(`SPK dengan ID ${id} tidak ditemukan`);
       }
-      
+
       console.log("✅ SPK ditemukan setelah filtering:", filteredSpk.spkNumber);
       return filteredSpk;
     }
@@ -109,7 +130,6 @@ export async function fetchSpkById(id: string) {
     // Jika backend sudah mengembalikan single object
     console.log("✅ Backend mengembalikan single SPK:", data.spkNumber);
     return data;
-
   } catch (error) {
     console.error("❌ fetchSpkById error:", error);
     throw error;

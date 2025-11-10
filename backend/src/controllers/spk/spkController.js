@@ -144,6 +144,47 @@ export const createSPK = async (req, res) => {
   }
 };
 
+export const getAllSPKAdmin = async (req, res) => {
+  try {
+    const spkList = await prisma.sPK.findMany({
+      include: {
+        createdBy: true,
+        salesOrder: {
+          include: {
+            customer: {
+              select: {
+                name: true,
+                address: true,
+                branch: true,
+              },
+            },
+            project: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            items: true,
+          },
+        },
+        team: true,
+        details: {
+          include: {
+            karyawan: true,
+            salesOrderItem: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    res.json(spkList);
+  } catch (error) {
+    console.error("Error getAllSPK:", error);
+    res.status(500).json({ error: "Failed to fetch SPK list" });
+  }
+};
+
 // ✅ GET ALL SPK
 export const getAllSPK = async (req, res) => {
   try {

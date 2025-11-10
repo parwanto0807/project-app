@@ -7,6 +7,7 @@ import {
   updateSPK,
   deleteSPK,
   getSpkByEmail,
+  getAllSPKAdmin,
 } from "../../controllers/spk/spkController.js";
 
 const router = express.Router();
@@ -14,6 +15,7 @@ const router = express.Router();
 // CRUD SPK
 router.post("/createSPK", createSPK);
 router.get("/getAllSPK", getAllSPK);
+router.get("/getAllSPKAdmin", getAllSPKAdmin);
 router.get("/getAllSPKPr", getAllSPKPr);
 router.get("/getSpkByEmail", getSpkByEmail);
 router.get("/getSPKById/:id", getSPKById);
