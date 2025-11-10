@@ -99,7 +99,7 @@ router.delete(
 /* -------------------------------------------
  * PROJECTS (opsional)
  * ----------------------------------------- */
-router.post("/project/create", authenticateToken, createProject);
+router.post("/project/create", createProject);
 router.get("/project/getListProjects", getListProjects);
 router.get("/getRecentSalesOrders", salesOrder.getRecentSalesOrders);
 router.get("/getSalesOrderSummary", salesOrder.getSalesOrderSummary);
