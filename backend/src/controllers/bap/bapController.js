@@ -1,48 +1,25 @@
-// import { PrismaClient } from "../../../prisma/generated/prisma/index.js";
-// import path from "path";
-
-// const prisma = new PrismaClient();
-
 import { prisma } from "../../config/db.js";
+import { getRomanMonth } from "../../utils/generateCode.js";
 
 // Generate BAP number (contoh: 00001/BAP-RYLIF/IX/2025)
-export const generateBAPNumber = async () => {
+export const generateBAPNumber = async (tx = prisma) => {
   const now = new Date();
   const year = now.getFullYear();
-  const month = now.getMonth() + 1; // Januari = 0 → +1
+  const month = now.getMonth() + 1;
+  const romanMonth = getRomanMonth(month);
 
-  // Map bulan ke angka Romawi
-  const romanMonths = [
-    "",
-    "I",
-    "II",
-    "III",
-    "IV",
-    "V",
-    "VI",
-    "VII",
-    "VIII",
-    "IX",
-    "X",
-    "XI",
-    "XII",
-  ];
-  const romanMonth = romanMonths[month];
+  // Nama counter unik per tahun
+  const counterName = `BAP-${year}`;
 
-  // Hitung jumlah BAP tahun ini
-  const count = await prisma.bAP.count({
-    where: {
-      bapDate: {
-        gte: new Date(`${year}-01-01`),
-        lte: new Date(`${year}-12-31`),
-      },
-    },
+  // Upsert counter (buat baru kalau belum ada, tambah 1 kalau sudah ada)
+  const counter = await tx.counter.upsert({
+    where: { name: counterName },
+    create: { name: counterName, lastNumber: 1 },
+    update: { lastNumber: { increment: 1 } },
+    select: { lastNumber: true },
   });
 
-  // Nomor urut 5 digit (reset tiap tahun)
-  const sequence = String(count + 1).padStart(5, "0");
-
-  // Format akhir
+  const sequence = String(counter.lastNumber).padStart(5, "0");
   return `${sequence}/BAP-RYLIF/${romanMonth}/${year}`;
 };
 

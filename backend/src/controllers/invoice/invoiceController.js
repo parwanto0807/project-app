@@ -64,40 +64,32 @@ class InvoiceController {
   constructor() {
     this.createInvoice = this.createInvoice.bind(this);
     this.updateInvoice = this.updateInvoice.bind(this);
-    this.generateInvoiceNumber = this.generateInvoiceNumber.bind(this);
+    this.getNextInvoiceCode = this.getNextInvoiceCode.bind(this);
   }
 
-  async generateInvoiceNumber() {
+  async getNextInvoiceCode(tx = prisma) {
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth() + 1;
-    const romanMonth = this.getRomanMonth(month);
+    const romanMonth = this.getRomanMonth(month); // ✅ pakai this.
 
-    // Cari invoice terakhir tahun ini
-    const lastInvoice = await prisma.invoice.findFirst({
-      where: {
-        invoiceNumber: {
-          contains: `/${year}`,
-        },
-      },
-      orderBy: {
-        invoiceNumber: "desc",
-      },
+    // Nama counter unik per tahun, misalnya: INVOICE-2025
+    const counterName = `INVOICE-${year}`;
+
+    // Gunakan upsert untuk ambil & tambah counter
+    const counter = await tx.counter.upsert({
+      where: { name: counterName },
+      create: { name: counterName, lastNumber: 1 },
+      update: { lastNumber: { increment: 1 } },
+      select: { lastNumber: true },
     });
 
-    let sequence = 1;
-    if (lastInvoice && lastInvoice.invoiceNumber) {
-      const lastNumber = lastInvoice.invoiceNumber.split("/")[0];
-      sequence = parseInt(lastNumber) + 1;
-    }
-
-    const sequenceStr = sequence.toString().padStart(5, "0");
+    const sequenceStr = String(counter.lastNumber).padStart(5, "0");
     return `${sequenceStr}/INV-RYLIF/${romanMonth}/${year}`;
   }
 
-  // Konversi bulan ke angka Romawi
-  getRomanMonth(month) {
-    const romanNumerals = [
+  getRomanMonth = (month) => {
+    const roman = [
       "I",
       "II",
       "III",
@@ -111,8 +103,8 @@ class InvoiceController {
       "XI",
       "XII",
     ];
-    return romanNumerals[month - 1];
-  }
+    return roman[month - 1] || "I";
+  };
 
   async updateInvoice(req, res) {
     try {
@@ -419,7 +411,7 @@ class InvoiceController {
       } = req.body;
 
       // Generate invoice number
-      const invoiceNumber = await this.generateInvoiceNumber();
+      const invoiceNumber = await this.getNextInvoiceCode();
 
       // Calculate totals from items
       const calculatedTotals = this.calculateInvoiceTotals(items);

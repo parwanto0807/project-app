@@ -482,8 +482,7 @@ export function PurchaseRequestTable({
                                 <TableRow className="bg-muted/50">
                                     <TableHead className="w-12 text-center">#</TableHead>
                                     <TableHead className="font-semibold">PR Number</TableHead>
-                                    <TableHead className="font-semibold">SPK & SO</TableHead>
-                                    <TableHead className="font-semibold">Project</TableHead>
+                                    <TableHead className="w-20 font-semibold">Project</TableHead>
                                     <TableHead className="font-semibold">Requested By</TableHead>
                                     <TableHead className="font-semibold">Request Date</TableHead>
                                     <TableHead className="font-semibold">Total Amount</TableHead>
@@ -592,27 +591,27 @@ export function PurchaseRequestTable({
                                                             <FileText className="h-4 w-4 text-blue-500" />
                                                             {pr.nomorPr}
                                                         </div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className="text-xs text-muted-foreground">
+                                                    {/* </TableCell>
+                                                    <TableCell> */}
+                                                        <div className="text-xs ml-6 text-muted-foreground">
                                                             SPK : {pr.spk?.spkNumber || pr.spkId}
                                                         </div>
-                                                        <div className="text-xs text-muted-foreground">
+                                                        <div className="text-xs ml-6 text-muted-foreground">
                                                             SO : {pr.spk?.salesOrder?.soNumber || "-"}
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell className="max-w-[100px]">
+                                                    <TableCell className="max-w-[350px]">
                                                         <div className="flex items-center gap-2">
                                                             <Building className="h-4 w-4 text-green-500 shrink-0" />
                                                             <TooltipProvider>
                                                                 <Tooltip>
                                                                     <TooltipTrigger asChild>
-                                                                        <span className="truncate text-xs cursor-help">
+                                                                        <span className="text-sm font-semibold cursor-help">
                                                                             {pr.project?.name || pr.projectId}
                                                                         </span>
                                                                     </TooltipTrigger>
                                                                     <TooltipContent side="top" className="max-w-xs">
-                                                                        <p className="text-xs">{pr.project?.name || pr.projectId}</p>
+                                                                        <p className="text-xs text-wrap">{pr.project?.name || pr.projectId}</p>
                                                                     </TooltipContent>
                                                                 </Tooltip>
                                                             </TooltipProvider>
@@ -801,7 +800,7 @@ export function PurchaseRequestTable({
                                                                                     className="grid grid-cols-5 px-4 py-2 text-sm items-center hover:bg-muted/30"
                                                                                 >
                                                                                     <div className="text-xs font-medium">{index + 1}</div>
-                                                                                    <div className="truncate">{detail.catatanItem || "Unnamed Item"}</div>
+                                                                                    <div className="truncate">{detail.productId || "Unnamed Item"}</div>
                                                                                     <div className="text-center">
                                                                                         {detail.jumlah} {detail.satuan}
                                                                                     </div>

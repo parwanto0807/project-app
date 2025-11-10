@@ -1494,6 +1494,7 @@ export default function TabelDataSpk({
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="all">Semua SPK</SelectItem>
+                                    <SelectItem value="onProgress">Semua On Progress</SelectItem>
                                     <SelectItem value="with-team">Dengan Tim</SelectItem>
                                     <SelectItem value="without-team">Tanpa Tim</SelectItem>
                                 </SelectContent>

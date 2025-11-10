@@ -497,7 +497,7 @@ export const SalesOrderPDF: React.FC<SalesOrderPDFProps> = ({ data }) => {
                   <View key={globalIndex} style={styles.tableRow}>
                     <Text style={[styles.tableCell, styles.colNo]}>{globalIndex + 1}</Text>
                     <Text style={[styles.tableCell, styles.colDesc]}>{item.name}</Text>
-                    <Text style={[styles.tableCell, styles.colQty]}>{item.qty}</Text>
+                    <Text style={[styles.tableCell, styles.colQty]}>{item.qty} - { item.uom}</Text>
                     <Text style={[styles.tableCell, styles.colPrice]}>{formatCurrency(item.unitPrice)}</Text>
                     <Text style={[styles.tableCell, styles.colTotal]}>
                       {formatCurrency(item.qty * item.unitPrice)}

@@ -40,11 +40,7 @@ router.put(
 );
 
 // Update SO + replace all items (editor tabel)
-router.put(
-  "/sales-orders/:id/with-items",
-  authenticateToken,
-  salesOrder.updateWithItems
-);
+router.put("/sales-orders/:id/with-items", salesOrder.updateWithItems);
 
 // Hapus SO (cascade hapus items & documents)
 router.delete("/sales-orders/remove/:id", salesOrder.remove);
@@ -53,21 +49,13 @@ router.delete("/sales-orders/remove/:id", salesOrder.remove);
  * SALES ORDER ITEMS (item-level)
  * ----------------------------------------- */
 // Tambah 1 item ke SO
-router.post("/sales-orders/:soId/items", authenticateToken, item.addItem);
+router.post("/sales-orders/:soId/items", item.addItem);
 
 // Update 1 item di SO
-router.patch(
-  "/sales-orders/:soId/items/:itemId",
-  authenticateToken,
-  item.updateItem
-);
+router.patch("/sales-orders/:soId/items/:itemId", item.updateItem);
 
 // Hapus 1 item dari SO
-router.delete(
-  "/sales-orders/:soId/items/:itemId",
-  authenticateToken,
-  item.removeItem
-);
+router.delete("/sales-orders/:soId/items/:itemId", item.removeItem);
 
 /* -------------------------------------------
  * SALES ORDER DOCUMENTS (document-level)
@@ -76,25 +64,13 @@ router.delete(
 router.get("/sales-orders/:soId/documents", doc.getBySalesOrderId);
 
 // Tambah dokumen (docType, nomor, tanggal, fileUrl, meta)
-router.post(
-  "/sales-orders/:soId/documents",
-  authenticateToken,
-  doc.addDocument
-);
+router.post("/sales-orders/:soId/documents", doc.addDocument);
 
 // Update 1 dokumen (mis. ganti nomor/tanggal/file/meta)
-router.patch(
-  "/sales-orders/:soId/documents/:docId",
-  authenticateToken,
-  doc.updateDocument
-);
+router.patch("/sales-orders/:soId/documents/:docId", doc.updateDocument);
 
 // Hapus 1 dokumen
-router.delete(
-  "/sales-orders/:soId/documents/:docId",
-  authenticateToken,
-  doc.removeDocument
-);
+router.delete("/sales-orders/:soId/documents/:docId", doc.removeDocument);
 
 /* -------------------------------------------
  * PROJECTS (opsional)

@@ -808,7 +808,7 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
                                                                                 {spk && (
                                                                                     <>
                                                                                         <span className="hidden md:inline text-muted-foreground">—</span>
-                                                                                        <span className="text-xs md:text-sm text-muted-foreground max-w-[120px] md:max-w-none">
+                                                                                        <span className="text-xs md:text-base font-bold max-w-[120px] md:max-w-none">
                                                                                             {spk.clientName}
                                                                                         </span>
                                                                                     </>
@@ -819,7 +819,7 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
                                                                         {/* Baris 2: Project Info */}
                                                                         <div className="flex items-center gap-2 ml-5 md:ml-6">
                                                                             <PackageOpenIcon className="h-3 w-3 md:h-4 md:w-4 text-purple-600 flex-shrink-0" />
-                                                                            <span className="text-xs text-muted-foreground text-wrap max-w-[300px] md:max-w-none">
+                                                                            <span className="text-xs md:text-base font-bold text-wrap max-w-[300px] md:max-w-none">
                                                                                 {userSpk.find((i) => i.spkNumber === spk?.spkNumber)?.projectName ?? "-"}
                                                                             </span>
                                                                         </div>

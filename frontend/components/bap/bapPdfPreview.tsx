@@ -524,7 +524,7 @@ export function BAPPdfDocument({ bap }: { bap: BAPData }) {
                         </View>
                         <View style={styles.partyRow}>
                             <Text style={styles.partyLabel}>Alamat</Text>
-                            <Text style={styles.partyValue}>{bap.salesOrder.customer?.address || '-'}</Text>
+                            <Text style={styles.partyValue}>{bap.salesOrder.customer?.address || '-'} - {bap.salesOrder.customer.branch}</Text>
                         </View>
                     </View>
 
@@ -557,11 +557,11 @@ export function BAPPdfDocument({ bap }: { bap: BAPData }) {
                             </Text>
                         </View>
 
-
+{/* 
                         <View style={styles.projectRow}>
                             <Text style={styles.projectLabel}>Lokasi</Text>
                             <Text style={styles.projectValue}>Area Unit Kerja : {bap.salesOrder.project?.location}</Text>
-                        </View>
+                        </View> */}
                     </View>
                 </View>
 
