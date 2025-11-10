@@ -947,7 +947,7 @@ export default function TabelDataSpk({
                                                 {spk.salesOrder?.customer.branch ? (
                                                     <div className="flex items-center space-x-2">
                                                         <UserCircle2Icon className="h-4 w-4 text-red-600" />
-                                                        <span className="font-medium text-blue-700 dark:text-blue-300 uppercase">
+                                                        <span className="font-bold text-blue-700 dark:text-blue-300 uppercase">
                                                             {spk.salesOrder.customer.branch}
                                                         </span>
                                                     </div>
@@ -997,7 +997,7 @@ export default function TabelDataSpk({
                                                 {spk.salesOrder?.soNumber ? (
                                                     <div className="flex items-center space-x-2">
                                                         <FileText className="h-4 w-4 text-blue-600" />
-                                                        <span className="font-medium text-blue-700 dark:text-blue-300 text-wrap uppercase">
+                                                        <span className="font-bold text-blue-700 dark:text-blue-300 text-wrap uppercase">
                                                             {spk.salesOrder.project?.name}
                                                         </span>
                                                     </div>
