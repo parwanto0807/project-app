@@ -591,7 +591,7 @@ export function PurchaseRequestTable({
                                                             <FileText className="h-4 w-4 text-blue-500" />
                                                             {pr.nomorPr}
                                                         </div>
-                                                    {/* </TableCell>
+                                                        {/* </TableCell>
                                                     <TableCell> */}
                                                         <div className="text-xs ml-6 text-muted-foreground">
                                                             SPK : {pr.spk?.spkNumber || pr.spkId}
@@ -606,7 +606,7 @@ export function PurchaseRequestTable({
                                                             <TooltipProvider>
                                                                 <Tooltip>
                                                                     <TooltipTrigger asChild>
-                                                                        <span className="text-sm font-semibold cursor-help">
+                                                                        <span className="text-sm font-bold uppercase cursor-help truncate block w-full">
                                                                             {pr.project?.name || pr.projectId}
                                                                         </span>
                                                                     </TooltipTrigger>
@@ -640,7 +640,7 @@ export function PurchaseRequestTable({
                                                             {statusLabels[pr.status]}
                                                         </Badge>
                                                     </TableCell>
-                                                    <TableCell className="font-semibold text-right">
+                                                    <TableCell className="font-bold text-right text-lg">
                                                         {formatCurrency(pr.uangMuka?.[0]?.jumlah ?? 0)}
                                                     </TableCell>
                                                     <TableCell className="text-right">

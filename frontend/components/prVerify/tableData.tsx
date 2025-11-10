@@ -491,18 +491,18 @@ export function PurchaseRequestVerifyTable({
                                                         SO : {pr.spk?.salesOrder?.soNumber || "-"}
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="max-w-[100px]">
-                                                    <div className="flex items-center gap-2">
+                                                <TableCell className="max-w-[400px]">
+                                                    <div className="flex items-center gap-2 min-w-0">
                                                         <Building className="h-4 w-4 text-green-500 shrink-0" />
                                                         <TooltipProvider>
                                                             <Tooltip>
                                                                 <TooltipTrigger asChild>
-                                                                    <span className="truncate text-xs cursor-help">
+                                                                    <span className="truncate text-sm cursor-help flex-1 uppercase font-bold">
                                                                         {pr.project?.name || pr.projectId}
                                                                     </span>
                                                                 </TooltipTrigger>
                                                                 <TooltipContent side="top" className="max-w-xs">
-                                                                    <p className="text-xs">{pr.project?.name || pr.projectId}</p>
+                                                                    <p className="text-sm uppercase font-bold">{pr.project?.name || pr.projectId}</p>
                                                                 </TooltipContent>
                                                             </Tooltip>
                                                         </TooltipProvider>
