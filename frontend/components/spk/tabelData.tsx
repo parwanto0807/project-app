@@ -947,7 +947,7 @@ export default function TabelDataSpk({
                                                 {spk.salesOrder?.customer.branch ? (
                                                     <div className="flex items-center space-x-2">
                                                         <UserCircle2Icon className="h-4 w-4 text-red-600" />
-                                                        <span className="font-medium text-blue-700 dark:text-blue-300">
+                                                        <span className="font-medium text-blue-700 dark:text-blue-300 uppercase">
                                                             {spk.salesOrder.customer.branch}
                                                         </span>
                                                     </div>
@@ -988,7 +988,7 @@ export default function TabelDataSpk({
                                                 )}
                                             </TableCell>
                                             <TableCell className="font-medium text-gray-700 dark:text-gray-300">
-                                                <div className="flex items-center space-x-2">
+                                                <div className="flex items-center space-x-2 uppercase">
                                                     <User className="h-4 w-4 text-purple-600" />
                                                     <span>{spk.createdBy?.namaLengkap || "-"}</span>
                                                 </div>
@@ -997,7 +997,7 @@ export default function TabelDataSpk({
                                                 {spk.salesOrder?.soNumber ? (
                                                     <div className="flex items-center space-x-2">
                                                         <FileText className="h-4 w-4 text-blue-600" />
-                                                        <span className="font-medium text-blue-700 dark:text-blue-300 text-wrap">
+                                                        <span className="font-medium text-blue-700 dark:text-blue-300 text-wrap uppercase">
                                                             {spk.salesOrder.project?.name}
                                                         </span>
                                                     </div>
@@ -1012,7 +1012,7 @@ export default function TabelDataSpk({
 
                                                     {/* Timestamp */}
                                                     {(spk.updatedAt || spk.createdAt) && (
-                                                        <span className="text-[10px] text-muted-foreground">
+                                                        <span className="text-[10px] md:text-xs text-muted-foreground">
                                                             {spk.updatedAt ? 'Diupdate' : 'Dibuat'} {getTimeAgo(spk.updatedAt || spk.createdAt!)}
                                                         </span>
                                                     )}
