@@ -197,7 +197,7 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
     const [previewPdfOpen, setPreviewPdfOpen] = useState(false);
     const [selectedItemForPdf, setSelectedItemForPdf] = useState<string>('');
 
-    console.log("User", userId, role, spkItemProgress);
+    console.log("Item Progress", spkItemProgress);
 
 
     const totalPages = Math.ceil(reports.length / itemsPerPage);
@@ -796,6 +796,28 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
 
                                                     return (
                                                         <Fragment key={spkNumber}>
+                                                            <tr className="bg-slate-100/70">
+                                                                <td colSpan={6} className="p-2 text-sm font-semibold">
+                                                                    SPK: {spk?.spkNumber || spkNumber}
+                                                                </td>
+                                                            </tr>
+
+                                                            {spk?.items?.map((item, index) => {
+                                                                // const report = reportsInGroup.find(r => r.id === item.id);
+
+                                                                return (
+                                                                    <tr key={item.id}>
+                                                                        <td className='p-0 text-center'>{index + 1}</td>
+                                                                        <td className="p-2">{item.name}</td>
+                                                                        <td className="p-2">
+                                                                            {item.qty || "0"}
+                                                                        </td>
+                                                                        <td className="p-2">
+                                                                            {item.uom || "0"}
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            })}
                                                             {/* Header Grup SPK */}
                                                             <TableRow className="bg-purple-50 dark:bg-purple-900/20 [&>td]:py-2 [&>td]:px-2 md:[&>td]:py-4">
                                                                 <TableCell colSpan={role === 'admin' || role === 'pic' ? 7 : 6} className="sticky left-0 z-10 bg-purple-50 dark:bg-purple-900/20">
@@ -1440,123 +1462,123 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
 
                                 {/* Aksi Admin */}
                                 {/* {role === 'admin' || role === 'pic' && ( */}
-                                    <Card className="border-border/40 bg-card/80 backdrop-blur-sm">
-                                        <CardHeader className="pb-2 md:pb-3">
-                                            <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-2">
-                                                <ShieldCheck className="h-3.5 w-3.5 md:h-4 md:w-4 text-blue-500" />
-                                                Tindakan Admin
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="flex flex-col sm:flex-row gap-3">
-                                                {/* Tombol Setujui */}
-                                                <Button
-                                                    variant="default"
-                                                    size="lg"
-                                                    className="flex-1 flex items-center justify-center gap-2 text-sm font-medium bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 transition-all hover:shadow-lg active:scale-95 h-12"
-                                                    onClick={async () => {
-                                                        try {
-                                                            setIsApproving(true);
-                                                            await handleApproveReport(selectedReport.id);
-                                                            toast.success("Laporan disetujui");
-                                                            setSelectedReport(null);
-                                                            setModalType(null);
-                                                        } catch (error) {
-                                                            console.error("Gagal menyetujui laporan", error);
-                                                            toast.error("Gagal menyetujui laporan");
-                                                        } finally {
-                                                            setIsApproving(false);
-                                                        }
-                                                    }}
-                                                    disabled={selectedReport.status === 'APPROVED' || isApproving}
-                                                >
-                                                    {isApproving ? (
-                                                        <>
-                                                            <Loader2 className="h-4 w-4 animate-spin py-4" />
-                                                            Menyimpan...
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <CheckCircle className="h-4 w-4 py-4" />
-                                                            Setujui
-                                                        </>
-                                                    )}
-                                                </Button>
+                                <Card className="border-border/40 bg-card/80 backdrop-blur-sm">
+                                    <CardHeader className="pb-2 md:pb-3">
+                                        <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground flex items-center gap-2">
+                                            <ShieldCheck className="h-3.5 w-3.5 md:h-4 md:w-4 text-blue-500" />
+                                            Tindakan Admin
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="flex flex-col sm:flex-row gap-3">
+                                            {/* Tombol Setujui */}
+                                            <Button
+                                                variant="default"
+                                                size="lg"
+                                                className="flex-1 flex items-center justify-center gap-2 text-sm font-medium bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 transition-all hover:shadow-lg active:scale-95 h-12"
+                                                onClick={async () => {
+                                                    try {
+                                                        setIsApproving(true);
+                                                        await handleApproveReport(selectedReport.id);
+                                                        toast.success("Laporan disetujui");
+                                                        setSelectedReport(null);
+                                                        setModalType(null);
+                                                    } catch (error) {
+                                                        console.error("Gagal menyetujui laporan", error);
+                                                        toast.error("Gagal menyetujui laporan");
+                                                    } finally {
+                                                        setIsApproving(false);
+                                                    }
+                                                }}
+                                                disabled={selectedReport.status === 'APPROVED' || isApproving}
+                                            >
+                                                {isApproving ? (
+                                                    <>
+                                                        <Loader2 className="h-4 w-4 animate-spin py-4" />
+                                                        Menyimpan...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <CheckCircle className="h-4 w-4 py-4" />
+                                                        Setujui
+                                                    </>
+                                                )}
+                                            </Button>
 
-                                                {/* Tombol Hapus */}
-                                                <Button
-                                                    variant="destructive"
-                                                    size="lg"
-                                                    className="flex-1 flex items-center justify-center gap-2 text-sm font-medium transition-transform hover:scale-105 active:scale-95 h-12"
-                                                    onClick={async (e) => {
-                                                        e.stopPropagation();
+                                            {/* Tombol Hapus */}
+                                            <Button
+                                                variant="destructive"
+                                                size="lg"
+                                                className="flex-1 flex items-center justify-center gap-2 text-sm font-medium transition-transform hover:scale-105 active:scale-95 h-12"
+                                                onClick={async (e) => {
+                                                    e.stopPropagation();
 
-                                                        // Prompt konfirmasi sebelum menghapus
-                                                        const confirmed = await new Promise((resolve) => {
-                                                            const confirmed = window.confirm(
-                                                                "Apakah Anda yakin ingin menghapus laporan ini?\n\n" +
-                                                                "Tindakan ini tidak dapat dibatalkan dan semua data laporan akan dihapus permanen."
-                                                            );
-                                                            resolve(confirmed);
-                                                        });
+                                                    // Prompt konfirmasi sebelum menghapus
+                                                    const confirmed = await new Promise((resolve) => {
+                                                        const confirmed = window.confirm(
+                                                            "Apakah Anda yakin ingin menghapus laporan ini?\n\n" +
+                                                            "Tindakan ini tidak dapat dibatalkan dan semua data laporan akan dihapus permanen."
+                                                        );
+                                                        resolve(confirmed);
+                                                    });
 
-                                                        if (!confirmed) return;
+                                                    if (!confirmed) return;
 
-                                                        try {
-                                                            setIsDeleting(true);
-                                                            await handleRejectReport(selectedReport.id);
-                                                            toast.success("Laporan berhasil dihapus");
-                                                            setSelectedReport(null);
-                                                            setModalType(null);
-                                                        } catch (error) {
-                                                            console.error("Error saat hapus laporan:", error);
-                                                            toast.error("Gagal menghapus laporan");
-                                                        } finally {
-                                                            setIsDeleting(false);
-                                                        }
-                                                    }}
-                                                    disabled={isDeleting}
-                                                >
-                                                    {isDeleting ? (
-                                                        <>
-                                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                                            Menghapus...
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <Trash2 className="h-4 w-4" />
-                                                            Hapus
-                                                        </>
-                                                    )}
-                                                </Button>
-                                            </div>
+                                                    try {
+                                                        setIsDeleting(true);
+                                                        await handleRejectReport(selectedReport.id);
+                                                        toast.success("Laporan berhasil dihapus");
+                                                        setSelectedReport(null);
+                                                        setModalType(null);
+                                                    } catch (error) {
+                                                        console.error("Error saat hapus laporan:", error);
+                                                        toast.error("Gagal menghapus laporan");
+                                                    } finally {
+                                                        setIsDeleting(false);
+                                                    }
+                                                }}
+                                                disabled={isDeleting}
+                                            >
+                                                {isDeleting ? (
+                                                    <>
+                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                        Menghapus...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Trash2 className="h-4 w-4" />
+                                                        Hapus
+                                                    </>
+                                                )}
+                                            </Button>
+                                        </div>
 
-                                            {/* Status Approval */}
-                                            {selectedReport.status !== 'PENDING' && (
-                                                <div className="mt-4 p-3 bg-muted/30 rounded-lg border border-border/40">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-xs font-medium text-muted-foreground">Status:</span>
-                                                        <Badge
-                                                            variant={selectedReport.status === 'APPROVED' ? 'success' : 'destructive'}
-                                                            className="text-xs font-medium"
-                                                        >
-                                                            {selectedReport.status === 'APPROVED' ? (
-                                                                <>
-                                                                    <CheckCircle className="h-3 w-3 mr-1 inline" />
-                                                                    Disetujui
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <X className="h-3 w-3 inline py-4" />
-                                                                    Ditolak
-                                                                </>
-                                                            )}
-                                                        </Badge>
-                                                    </div>
+                                        {/* Status Approval */}
+                                        {selectedReport.status !== 'PENDING' && (
+                                            <div className="mt-4 p-3 bg-muted/30 rounded-lg border border-border/40">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs font-medium text-muted-foreground">Status:</span>
+                                                    <Badge
+                                                        variant={selectedReport.status === 'APPROVED' ? 'success' : 'destructive'}
+                                                        className="text-xs font-medium"
+                                                    >
+                                                        {selectedReport.status === 'APPROVED' ? (
+                                                            <>
+                                                                <CheckCircle className="h-3 w-3 mr-1 inline" />
+                                                                Disetujui
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <X className="h-3 w-3 inline py-4" />
+                                                                Ditolak
+                                                            </>
+                                                        )}
+                                                    </Badge>
                                                 </div>
-                                            )}
-                                        </CardContent>
-                                    </Card>
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
                                 {/* )} */}
                             </div>
 

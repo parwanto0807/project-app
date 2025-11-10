@@ -800,7 +800,7 @@ export function PurchaseRequestTable({
                                                                                     className="grid grid-cols-5 px-4 py-2 text-sm items-center hover:bg-muted/30"
                                                                                 >
                                                                                     <div className="text-xs font-medium">{index + 1}</div>
-                                                                                    <div className="truncate">{detail.productId || "Unnamed Item"}</div>
+                                                                                    <div className="truncate">{detail.product.name || "Unnamed Item"}</div>
                                                                                     <div className="text-center">
                                                                                         {detail.jumlah} {detail.satuan}
                                                                                     </div>

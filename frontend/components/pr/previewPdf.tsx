@@ -286,7 +286,7 @@ const PurchaseRequestPdfPreview = ({ data }: PreviewPdfProps) => {
                         {data.details.map((item, index) => (
                             <View key={item.id || index} style={styles.tableRow}>
                                 <Text style={styles.colNo}>{index + 1}</Text>
-                                <Text style={styles.colProduct}>{item.catatanItem}</Text>
+                                <Text style={styles.colProduct}>{item.product.name}</Text>
                                 <Text style={styles.colQty}>{item.jumlah}</Text>
                                 <Text style={styles.colUnit}>{item.satuan}</Text>
                                 <Text style={styles.colPrice}>{formatCurrency(item.estimasiHargaSatuan)}</Text>
