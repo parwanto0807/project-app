@@ -41,7 +41,7 @@ import {
     ThumbsDown,
     Eye
 } from "lucide-react";
-import { PurchaseRequest, PurchaseRequestFilters } from "@/types/pr";
+import { PurchaseRequest, PurchaseRequestFilters, PurchaseRequestWithRelations } from "@/types/pr";
 import { PaginationInfo } from "@/types/pr";
 import { useRouter } from "next/navigation";
 import SimplePurchaseRequestPdfDialog from "./prPdfDialog";
@@ -49,7 +49,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/
 import { PurchaseRequestDetailSheet } from "./detailSheetPr";
 
 interface PurchaseRequestTableProps {
-    purchaseRequests: PurchaseRequest[];
+    purchaseRequests: PurchaseRequestWithRelations[];
     isLoading: boolean;
     isError: boolean;
     role: "super" | "admin" | "pic";
@@ -222,7 +222,7 @@ export function PurchaseRequestTable({
         onDateFilterChange(undefined, undefined);
     };
 
-    const handleStatusUpdate = (id: string, status: PurchaseRequest['status']) => {
+    const handleStatusUpdate = (id: string, status: PurchaseRequestWithRelations['status']) => {
         onStatusUpdate(id, status);
         setDetailOpen(false);
     };
@@ -297,12 +297,12 @@ export function PurchaseRequestTable({
         }
     }
 
-    const handleViewPdf = (pr: PurchaseRequest) => {
+    const handleViewPdf = (pr: PurchaseRequestWithRelations) => {
         setSelectedPurchaseRequest(pr);
         setPdfDialogOpen(true);
     };
 
-    const handleViewDetail = (pr: PurchaseRequest) => {
+    const handleViewDetail = (pr: PurchaseRequestWithRelations) => {
         setPdfDialogOpen(false);
         handleViewPdf(pr);
     };
@@ -800,7 +800,7 @@ export function PurchaseRequestTable({
                                                                                     className="grid grid-cols-5 px-4 py-2 text-sm items-center hover:bg-muted/30"
                                                                                 >
                                                                                     <div className="text-xs font-medium">{index + 1}</div>
-                                                                                    <div className="truncate">{detail.product.name || "Unnamed Item"}</div>
+                                                                                    <div className="truncate">{detail.product?.name || "Unnamed Item"}</div>
                                                                                     <div className="text-center">
                                                                                         {detail.jumlah} {detail.satuan}
                                                                                     </div>

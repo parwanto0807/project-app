@@ -1,5 +1,5 @@
 import { Page, Text, View, Document, StyleSheet, Font, Image as PdfImage } from '@react-pdf/renderer';
-import { PurchaseRequest } from '@/types/pr';
+import { PurchaseRequestWithRelations } from '@/types/pr';
 
 // Register font jika diperlukan
 Font.register({
@@ -197,7 +197,7 @@ const formatDate = (date: Date | string): string => {
 };
 
 interface PreviewPdfProps {
-    data: PurchaseRequest;
+    data: PurchaseRequestWithRelations;
 }
 
 const PurchaseRequestPdfPreview = ({ data }: PreviewPdfProps) => {
@@ -286,7 +286,7 @@ const PurchaseRequestPdfPreview = ({ data }: PreviewPdfProps) => {
                         {data.details.map((item, index) => (
                             <View key={item.id || index} style={styles.tableRow}>
                                 <Text style={styles.colNo}>{index + 1}</Text>
-                                <Text style={styles.colProduct}>{item.product.name}</Text>
+                                <Text style={styles.colProduct}>{item.product?.name}</Text>
                                 <Text style={styles.colQty}>{item.jumlah}</Text>
                                 <Text style={styles.colUnit}>{item.satuan}</Text>
                                 <Text style={styles.colPrice}>{formatCurrency(item.estimasiHargaSatuan)}</Text>
