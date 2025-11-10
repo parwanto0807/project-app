@@ -520,7 +520,7 @@ export function PurchaseRequestVerifyTable({
                                                         {formatDate(pr.tanggalPr)}
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="font-semibold text-right">
+                                                <TableCell className="font-bold text-right">
                                                     {formatCurrency(totalAmount)}
                                                 </TableCell>
                                                 <TableCell>
@@ -532,13 +532,13 @@ export function PurchaseRequestVerifyTable({
                                                         {statusLabels[pr.status]}
                                                     </Badge>
                                                 </TableCell>
-                                                <TableCell className="font-semibold text-right">
+                                                <TableCell className="font-bold text-right">
                                                     {pr.uangMuka?.[0]?.jumlah && pr.uangMuka[0].jumlah > 0
                                                         ? formatCurrency(pr.uangMuka[0].jumlah)
                                                         : null}
                                                 </TableCell>
 
-                                                <TableCell className="text-right">
+                                                <TableCell className="text-right font-bold">
                                                     {(() => {
                                                         const totalAmount =
                                                             pr.details?.reduce(
@@ -599,18 +599,18 @@ export function PurchaseRequestVerifyTable({
                                                         ]}
                                                     </Badge>
                                                 </TableCell>
-                                                <TableCell className="font-semibold text-right text-green-400">
+                                                <TableCell className="font-bold text-right text-green-400">
                                                     {pr.uangMuka?.[0]?.pertanggungjawaban?.[0]?.totalBiaya
                                                         ? formatCurrency(pr.uangMuka[0].pertanggungjawaban[0].totalBiaya)
                                                         : null}
                                                 </TableCell>
-                                                <TableCell className="font-semibold text-right text-red-600">
+                                                <TableCell className="font-bold text-right text-red-600">
                                                     {pr.uangMuka?.[0]?.pertanggungjawaban?.[0]?.sisaUangDikembalikan
                                                         ? formatCurrency(pr.uangMuka[0].pertanggungjawaban[0].sisaUangDikembalikan)
                                                         : null}
                                                 </TableCell>
 
-                                                <TableCell className="font-semibold text-right max-w-[20px]">
+                                                <TableCell className="font-bold text-right max-w-[20px]">
                                                     {pr.uangMuka?.[0]?.pertanggungjawaban?.[0]?.details?.length
                                                         ? (
                                                             <Badge variant="outline" className="ml-2">

@@ -1210,7 +1210,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
 
                     return (
                         <div className="text-right">
-                            <p className="font-semibold text-green-600">Rp {formatted}</p>
+                            <p className="font-bold text-green-600">Rp {formatted}</p>
                             <p className="text-xs text-muted-foreground">
                                 {order.items.length} item{order.items.length !== 1 ? 's' : ''}
                             </p>
@@ -1269,7 +1269,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                             <TooltipProvider>
                                 <Tooltip>
                                     <TooltipTrigger>
-                                        <p className={`font-semibold ${colorClass}`}>Rp {formatted}</p>
+                                        <p className={`font-bold ${colorClass}`}>Rp {formatted}</p>
                                     </TooltipTrigger>
                                     <TooltipContent>
                                         <span>
@@ -1321,7 +1321,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
 
                     return (
                         <div className="text-right space-y-1">
-                            <p className="font-semibold text-blue-600">Rp {formattedUM}</p>
+                            <p className="font-bold text-blue-600">Rp {formattedUM}</p>
                             <p className="text-xs text-muted-foreground">
                                 {allUangMuka.length} item
                             </p>
@@ -1375,7 +1375,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                                 <Tooltip>
                                     <TooltipTrigger>
                                         <div>
-                                            <p className={`font-semibold ${colorClass} text-right`}>Realisasi Biaya: Rp {formattedBiaya}</p>
+                                            <p className={`font-bold ${colorClass} text-right`}>Realisasi Biaya: Rp {formattedBiaya}</p>
                                             <p className="text-xs text-muted-foreground text-right">Sisa Biaya: Rp {formattedSisa}</p>
                                         </div>
                                     </TooltipTrigger>
