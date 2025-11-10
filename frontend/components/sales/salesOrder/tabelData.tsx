@@ -1138,7 +1138,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                                 <FaToolbox className="h-5 w-5 text-red-600 dark:text-red-400" />
                             </div>
                             <div>
-                                <p className="font-medium">{order.project?.name || "No Project"}</p>
+                                <p className="font-bold uppercase">{order.project?.name || "No Project"}</p>
                                 <p className="text-sm text-muted-foreground">
                                     {order.customer.name} - Cabang : {order.customer.branch ?? "-"}
                                 </p>
