@@ -987,10 +987,10 @@ export default function TabelDataSpk({
                                                     <span className="text-gray-400 dark:text-gray-600">-</span>
                                                 )}
                                             </TableCell>
-                                            <TableCell className="font-medium text-gray-700 dark:text-gray-300">
-                                                <div className="flex items-center space-x-2 uppercase">
-                                                    <User className="h-4 w-4 text-purple-600" />
-                                                    <span>{spk.createdBy?.namaLengkap || "-"}</span>
+                                            <TableCell className="font-medium text-gray-700 dark:text-gray-300 w-20"> {/* Kurangi dari w-30 ke w-20 */}
+                                                <div className="flex items-center space-x-2">
+                                                    <User className="h-4 w-4 text-purple-600 flex-shrink-0" />
+                                                    <span className="truncate max-w-[100px] uppercase">{spk.createdBy?.namaLengkap || "Name..."}</span>
                                                 </div>
                                             </TableCell>
                                             <TableCell>
