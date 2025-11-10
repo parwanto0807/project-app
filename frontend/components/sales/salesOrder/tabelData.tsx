@@ -1180,7 +1180,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                     const config = statusConfig[status] || statusConfig.DRAFT;
 
                     return (
-                        <Badge className={`capitalize rounded-md px-2.5 py-0.5 ${config.className}`}>
+                        <Badge className={`rounded-md px-3.5 py-1.5 uppercase font-bold ${config.className}`}>
                             {config.label}
                         </Badge>
                     );
