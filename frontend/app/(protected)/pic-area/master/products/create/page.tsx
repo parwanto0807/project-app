@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -15,6 +14,7 @@ import {
 import { CreateProductForm } from "@/components/master/product/createFormData";
 import { Loader2 } from "lucide-react";
 import { useSession } from "@/components/clientSessionProvider";
+import { PicLayout } from "@/components/admin-panel/pic-layout";
 
 export default function CreateProductPagePic() {
   const { user, isLoading } = useSession();
@@ -50,7 +50,7 @@ export default function CreateProductPagePic() {
   }
 
   return (
-    <AdminLayout title="Create Customer" role="pic">
+    <PicLayout title="Create Customer" role="pic">
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -71,6 +71,6 @@ export default function CreateProductPagePic() {
         </BreadcrumbList>
       </Breadcrumb>
       <CreateProductForm role={user.role} code={code} />
-    </AdminLayout>
+    </PicLayout>
   );
 }

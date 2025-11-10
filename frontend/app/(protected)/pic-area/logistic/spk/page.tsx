@@ -29,6 +29,7 @@ interface SPK {
   teamId: string;
   createdById: string;
   progress: number;
+  spkStatusClose: boolean;
   createdBy: {
     id: string;
     namaLengkap: string;

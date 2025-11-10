@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -19,6 +18,7 @@ import { z } from "zod";
 import Link from "next/link";
 import { Loader2 } from "lucide-react"; // Import the spinner icon
 import { useSession } from "@/components/clientSessionProvider";
+import { PicLayout } from "@/components/admin-panel/pic-layout";
 
 type Product = z.infer<typeof ProductUpdateSchema>;
 
@@ -30,7 +30,7 @@ export default function UpdateProductPage() {
 
   const [data, setData] = useState<Product | null>(null);
   const [error, setError] = useState("");
-  const [role, setRole] = useState<"admin">("admin");
+  const [role, setRole] = useState<"pic">("pic");
   const [loadingData, setLoadingData] = useState(false);
   const [accessToken, setAccessToken] = useState<string | undefined>(undefined);
 
@@ -75,16 +75,16 @@ export default function UpdateProductPage() {
   }, [id]);
 
   return (
-    <AdminLayout title="Update Data" role={role}>
+    <PicLayout title="Update Data" role={role}>
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbLink href="/admin-area/master/products">Dashboard</BreadcrumbLink>
+            <BreadcrumbLink href="/pic-area/master/products">Dashboard</BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
-              <Link href="/admin-area/master/products">Product List</Link>
+              <Link href="/pic-area/master/products">Product List</Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
@@ -159,13 +159,13 @@ export default function UpdateProductPage() {
             Data tidak ditemukan. {id ? `(ID: ${id})` : ''}
           </p>
           <button
-            onClick={() => router.push("/super-admin-area/master/products")}
+            onClick={() => router.push("/pic-area/master/products")}
             className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
           >
             Back to Product List
           </button>
         </div>
       )}
-    </AdminLayout>
+    </PicLayout>
   );
 }
