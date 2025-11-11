@@ -36,12 +36,12 @@ let bc: BroadcastChannel | null = null;
 let isRefreshing = false;
 
 // Configuration
-const IS_CLIENT = typeof window !== "undefined";
-const PERSIST_TO_LOCALSTORAGE =
+export const IS_CLIENT = typeof window !== "undefined";
+export const PERSIST_TO_LOCALSTORAGE =
   IS_CLIENT &&
   !window.location.hostname.includes("localhost") &&
   !window.location.hostname.includes("127.0.0.1");
-const LS_KEY = "access_token";
+export const LS_KEY = "access_token";
 
 // Constants
 const MAX_REFRESH_ATTEMPTS = 3;
@@ -68,6 +68,39 @@ export function onAuthEvent(
   return () => {
     eventListeners.get(event)?.delete(listener);
   };
+}
+function setupVisibilityHandler(): void {
+  if (!IS_CLIENT) return;
+
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === "visible") {
+      console.log("🔄 App became visible, checking token health");
+
+      // Tunggu sebentar untuk memastikan tab benar-benar aktif
+      setTimeout(() => {
+        const health = getTokenHealth();
+
+        if (health.health === "expired" || health.health === "expiring_soon") {
+          console.log("⚠️ Token needs refresh after app wake-up");
+          refreshToken().catch((error) => {
+            console.error("❌ Wake-up refresh failed:", error);
+          });
+        } else if (
+          health.health === "healthy" &&
+          health.expiresIn &&
+          health.expiresIn < 300
+        ) {
+          // Jika token masih valid tapi akan segera expired, schedule refresh
+          console.log("⏰ Rescheduling refresh after wake-up");
+          if (accessToken) {
+            scheduleProactiveRefresh(accessToken);
+          }
+        }
+      }, 1000);
+    }
+  };
+
+  document.addEventListener("visibilitychange", handleVisibilityChange);
 }
 
 function emitAuthEvent(event: AuthEvent, data?: unknown): void {
@@ -425,14 +458,25 @@ export function startHealthMonitoring(
       timestamp: new Date().toISOString(),
     });
 
-    // Auto-cleanup expired tokens
-    if (health.health === "expired" && accessToken) {
-      console.warn("🧹 Token expired but still in memory, clearing...");
-      setAccessToken(null, {
-        broadcast: true,
-        schedule: false,
-        persist: true,
-      });
+    // ✅ Enhanced auto-refresh logic
+    if (accessToken) {
+      if (health.health === "expired") {
+        console.warn("🧹 Token expired, attempting refresh...");
+        refreshToken().catch((error) => {
+          console.error("❌ Auto-refresh failed:", error);
+          // Jika refresh gagal, clear token
+          setAccessToken(null, {
+            broadcast: true,
+            schedule: false,
+            persist: true,
+          });
+        });
+      } else if (health.health === "expiring_soon" && !refreshQueue) {
+        console.log("🔄 Token expiring soon, refreshing proactively");
+        refreshToken().catch((error) => {
+          console.error("❌ Proactive refresh failed:", error);
+        });
+      }
     }
 
     // Log health status periodically
@@ -571,6 +615,8 @@ export function initAuthFromStorage(): void {
   console.log("🚀 Initializing auth from storage");
   startBroadcast();
   startHealthMonitoring();
+  setupVisibilityHandler(); // ✅ Tambahkan ini
+  setupPageLoadRecovery(); // ✅ Tambahkan ini
 
   if (!PERSIST_TO_LOCALSTORAGE) {
     try {
@@ -593,6 +639,23 @@ export function initAuthFromStorage(): void {
           persist: true,
         });
         console.log("✅ Token restored from localStorage");
+
+        // ✅ Force health check setelah restore
+        setTimeout(() => {
+          const health = getTokenHealth();
+          if (
+            health.health === "expiring_soon" ||
+            health.health === "expired"
+          ) {
+            console.log("🔄 Token needs immediate refresh after restore");
+            refreshToken().catch((error) => {
+              console.error(
+                "❌ Immediate refresh after restore failed:",
+                error
+              );
+            });
+          }
+        }, 1000);
       } else {
         console.warn("❌ Saved token invalid, removing:", validation.error);
         localStorage.removeItem(LS_KEY);
@@ -625,6 +688,73 @@ export function cleanup(): void {
   refreshAttempts = 0;
   refreshCount = 0;
   lastRefreshTime = null;
+}
+
+function setupPageLoadRecovery(): void {
+  if (!IS_CLIENT) return;
+
+  const handlePageLoad = () => {
+    // Tunggu sampai DOM fully loaded
+    if (document.readyState === "complete") {
+      checkAndRecoverToken();
+    } else {
+      window.addEventListener("load", checkAndRecoverToken);
+    }
+  };
+
+  const checkAndRecoverToken = () => {
+    console.log("🔍 Page loaded, checking token state...");
+
+    setTimeout(() => {
+      const health = getTokenHealth();
+      const hasToken = !!accessToken;
+
+      console.log("📊 Token state on page load:", {
+        hasToken,
+        health: health.health,
+        expiresIn: health.expiresIn,
+      });
+
+      // Jika ada token tapi expired, coba refresh
+      if (hasToken && health.health === "expired") {
+        console.log("🔄 Token expired on page load, attempting recovery...");
+        refreshToken().catch((error) => {
+          console.error("❌ Page load recovery failed:", error);
+        });
+      }
+
+      // Jika tidak ada token di memory tapi ada di localStorage, restore
+      if (!hasToken && PERSIST_TO_LOCALSTORAGE) {
+        try {
+          const saved = localStorage.getItem(LS_KEY);
+          if (saved) {
+            const validation = validateToken(saved);
+            if (validation.isValid) {
+              console.log("🔄 Restoring token from storage on page load");
+              setAccessToken(saved, {
+                broadcast: false,
+                schedule: true,
+                persist: true,
+              });
+            }
+          }
+        } catch (error) {
+          console.error("❌ Error restoring token on page load:", error);
+        }
+      }
+    }, 500);
+  };
+
+  // Jalankan untuk existing page load
+  handlePageLoad();
+
+  // Juga handle future page loads (SPA navigation)
+  if (typeof window !== "undefined") {
+    window.addEventListener("beforeunload", () => {
+      // Reset refresh attempts saat pindah page
+      refreshAttempts = 0;
+    });
+  }
 }
 
 // ==================== UTILITY FUNCTIONS ====================

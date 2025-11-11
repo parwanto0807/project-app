@@ -4,6 +4,7 @@ import { z } from "zod";
 import { salesOrderUpdateSchema } from "@/schemas";
 import { cookies } from "next/headers";
 import { getAuthHeaders, getCookieHeader } from "@/lib/cookie-utils";
+import { apiFetch } from "@/lib/apiFetch";
 
 // form schema utk create/update header+items (tanpa soNumber karena digenerate)
 const formSchema = salesOrderUpdateSchema.omit({ soNumber: true });
@@ -201,28 +202,46 @@ export async function fetchAllSalesOrder() {
   const url = `${base}/api/salesOrder/sales-orders`;
 
   try {
-    const res = await fetch(url, {
+    console.log("📡 Fetching sales orders...");
+
+    const data = await apiFetch(url, {
       method: "GET",
-      headers: { accept: "application/json" },
-      credentials: "include", // kalau butuh cookie auth
-      cache: "no-store",
+      headers: {
+        accept: "application/json",
+      },
     });
 
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new Error(
-        `Failed to fetch: ${res.status} ${res.statusText} | ${text}`
-      );
+    console.log("✅ Sales orders fetched successfully");
+    return {
+      salesOrders: Array.isArray(data) ? data : [],
+      isLoading: false,
+      error: null,
+    };
+  } catch (error) {
+    console.error("[fetchAllSalesOrder] Error:", error);
+
+    // Type assertion untuk unknown
+    const err = error as Error;
+
+    // Classification error types
+    let errorMessage = "Failed to fetch sales orders";
+
+    if (err.message.includes("Unauthorized")) {
+      errorMessage = "Session expired. Please login again.";
+    } else if (
+      err.message.includes("Network") ||
+      err.message.includes("fetch")
+    ) {
+      errorMessage = "Network error. Please check your connection.";
     }
 
-    const data = await res.json();
-    return { salesOrders: data || [], isLoading: false };
-  } catch (error) {
-    console.error("[fetchAllSalesOrder]", error);
-    return { salesOrders: [], isLoading: false };
+    return {
+      salesOrders: [],
+      isLoading: false,
+      error: errorMessage,
+    };
   }
 }
-
 export async function fetchAllSalesOrderInvoice() {
   const base = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
   const url = `${base}/api/salesOrder/sales-orders-invoice`;

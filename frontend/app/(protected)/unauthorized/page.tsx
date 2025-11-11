@@ -106,7 +106,7 @@ export default function UnauthorizedPage() {
           </div>
 
           {/* Help Section */}
-          <div className="mt-6 p-4 bg-slate-50/60 rounded-2xl border border-slate-200/40">
+          {/* <div className="mt-6 p-4 bg-slate-50/60 rounded-2xl border border-slate-200/40">
             <p className="text-sm text-slate-600 mb-2">
               <strong>Tips:</strong> Login ulang dapat menyelesaikan masalah akses jika sesi telah berakhir.
             </p>
@@ -124,7 +124,7 @@ export default function UnauthorizedPage() {
                 Lupa Password?
               </button>
             </div>
-          </div>
+          </div> */}
         </div>
 
         {/* Security Badge */}

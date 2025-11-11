@@ -20,6 +20,9 @@ const roleAccessMap: Record<string, string[]> = {
   "/user-area": ["user", "pic", "admin", "super"],
 };
 
+/**
+ * Mendapatkan role yang diperlukan untuk path tertentu
+ */
 function getRequiredRoles(pathname: string): string[] | null {
   const match = Object.entries(roleAccessMap).find(([prefix]) =>
     pathname.startsWith(prefix)
@@ -28,74 +31,115 @@ function getRequiredRoles(pathname: string): string[] | null {
 }
 
 /**
- * Mengarahkan pengguna ke halaman login dan menyertakan URL tujuan.
+ * Mengarahkan pengguna ke halaman refreshing untuk memperbarui token
  */
-function redirectToLogin(req: NextRequest) {
+function redirectToRefreshing(req: NextRequest, pathname: string, reason?: string): NextResponse {
+  const originalPathWithQuery = pathname + req.nextUrl.search;
+  const refreshingUrl = new URL("/auth/refreshing", req.url);
+  refreshingUrl.searchParams.set("redirect", originalPathWithQuery);
+  
+  if (reason) {
+    refreshingUrl.searchParams.set("reason", reason);
+  }
+
+  console.log(`🔄 Middleware: Redirect to refreshing - ${reason || 'token issue'}`);
+  return NextResponse.redirect(refreshingUrl);
+}
+
+/**
+ * Mengarahkan pengguna ke halaman login
+ */
+function redirectToLogin(req: NextRequest, reason?: string): NextResponse {
   const { pathname, search } = req.nextUrl;
   const originalUrl = `${pathname}${search}`;
 
   const loginUrl = new URL("/auth/login", req.url);
   loginUrl.searchParams.set("redirect", originalUrl);
+  
+  if (reason) {
+    loginUrl.searchParams.set("reason", reason);
+  }
 
   const response = NextResponse.redirect(loginUrl);
-
-  // Bersihkan cookie jika ada token yang tidak valid
+  
+  // Bersihkan cookie accessToken
   response.cookies.delete("accessToken");
-
+  
+  console.log(`🔐 Middleware: Redirect to login - ${reason || 'invalid token'}`);
   return response;
 }
 
-function redirectToRefreshing(req: NextRequest, pathname: string) {
-  // Susun URL tujuan lengkap (path + query)
-  const originalPathWithQuery = pathname + req.nextUrl.search;
-
-  // Buat URL ke halaman FE (same-origin)
-  const refreshingUrl = new URL("/auth/refreshing", req.url);
-  refreshingUrl.searchParams.set("redirect", originalPathWithQuery);
-
-  const res = NextResponse.redirect(refreshingUrl);
-
-  // (Opsional) simpan cadangan tujuan di cookie FE domain yang sama
-  res.cookies.set("original_url", originalPathWithQuery, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax", // FE same-origin → aman pakai lax
-    path: "/",
-    maxAge: 60, // 1 menit
-  });
-
-  return res;
+/**
+ * Redirect pengguna ke home page sesuai role mereka
+ */
+function redirectToRoleHome(req: NextRequest, role: string): NextResponse {
+  const homePath = roleHomeMap[role] || "/";
+  console.log(`🏠 Middleware: Redirecting ${role} to their home: ${homePath}`);
+  return NextResponse.redirect(new URL(homePath, req.url));
 }
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  
+  // Dapatkan role yang diperlukan untuk path ini
   const requiredRoles = getRequiredRoles(pathname);
-  if (!requiredRoles) return NextResponse.next();
+  
+  // Jika tidak ada role requirement, lanjutkan
+  if (!requiredRoles) {
+    return NextResponse.next();
+  }
 
-  // allow refreshing page itself
-  if (pathname.startsWith("/auth/refreshing")) return NextResponse.next();
+  // Allow refreshing page itself untuk menghindari infinite loop
+  if (pathname.startsWith("/auth/refreshing")) {
+    return NextResponse.next();
+  }
 
+  // Dapatkan access token dari cookies
   const accessToken = req.cookies.get("accessToken")?.value;
+
+  // Case 1: Tidak ada token sama sekali
   if (!accessToken) {
-    // ❗️JANGAN langsung ke login: coba refresh dulu
-    return redirectToRefreshing(req, pathname);
+    console.log('❌ Middleware: No access token found in cookies');
+    return redirectToRefreshing(req, pathname, "no_token");
   }
 
   try {
+    // Verifikasi token JWT
     const { payload } = await jwtVerify(accessToken, secret);
     const role = String(payload.role || "");
+    
+    console.log(`🔍 Middleware: Token verified for role: ${role}, accessing: ${pathname}`);
+
+    // Case 2: Role tidak diizinkan mengakses route ini
     if (!requiredRoles.includes(role)) {
-      const to = roleHomeMap[role] || "/";
-      return NextResponse.redirect(new URL(to, req.url));
+      console.log(`🚫 Middleware: Role ${role} not allowed to access ${pathname}. Required: ${requiredRoles.join(', ')}`);
+      return redirectToRoleHome(req, role);
     }
+
+    // Case 3: Token valid dan role diizinkan - lanjutkan
+    console.log(`✅ Middleware: Access granted for ${role} to ${pathname}`);
     return NextResponse.next();
+    
   } catch (err) {
+    // Case 4: Token expired - redirect ke refreshing page
     if (err instanceof joseErrors.JWTExpired) {
-      // biarkan FE interceptor yang refresh
-      return NextResponse.next();
+      console.log('⏰ Middleware: Token expired');
+      return redirectToRefreshing(req, pathname, "token_expired");
     }
-    // token invalid/rusak → ke login
-    return redirectToLogin(req);
+    
+    // Case 5: Token invalid/error lainnya - redirect ke login
+    console.log('❌ Middleware: Token verification failed:', err instanceof Error ? err.message : 'Unknown error');
+    
+    if (err instanceof joseErrors.JWTInvalid) {
+      return redirectToLogin(req, "token_invalid");
+    } else if (err instanceof joseErrors.JWTClaimValidationFailed) {
+      return redirectToLogin(req, "token_claim_invalid");
+    } else if (err instanceof joseErrors.JOSEError) {
+      return redirectToLogin(req, "token_error");
+    }
+    
+    // Unknown errors
+    return redirectToLogin(req, "verification_error");
   }
 }
 
@@ -107,128 +151,3 @@ export const config = {
     "/user-area/:path*",
   ],
 };
-
-// import { NextRequest, NextResponse } from "next/server";
-// import { jwtVerify, errors as joseErrors } from "jose";
-
-// const secret = new TextEncoder().encode(process.env.JWT_SECRET);
-
-// // Role mappings
-// const roleHomeMap: Record<string, string> = {
-//   super: "/super-admin-area",
-//   admin: "/admin-area",
-//   pic: "/pic-area",
-//   warga: "/user-area",
-// };
-
-// const roleAccessMap: Record<string, string[]> = {
-//   "/super-admin-area": ["super"],
-//   "/admin-area": ["super","admin"],
-//   "/pic-area": ["pic", "admin", "super"],
-//   "/user-area": ["warga", "pic", "admin", "super"],
-// };
-
-// function getRequiredRoles(pathname: string): string[] | null {
-//   const match = Object.entries(roleAccessMap).find(([prefix]) =>
-//     pathname.startsWith(prefix)
-//   );
-//   return match ? match[1] : null;
-// }
-
-// function createRefreshRedirect(req: NextRequest, pathname: string) {
-//   const refreshUrl = new URL(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/refresh`);
-//   refreshUrl.searchParams.set("redirect", encodeURIComponent(pathname + req.nextUrl.search));
-
-//   const response = NextResponse.redirect(refreshUrl);
-
-//   // Set backup cookie for redirect URL
-//   response.cookies.set("original_url", pathname + req.nextUrl.search, {
-//     httpOnly: true,
-//     secure: process.env.NODE_ENV === "production",
-//     maxAge: 60, // 1 minute
-//     path: "/",
-//     sameSite: "strict"
-//   });
-
-//   return response;
-// }
-
-// export async function middleware(req: NextRequest) {
-//   const { pathname } = req.nextUrl;
-//   const accessToken = req.cookies.get("accessToken")?.value;
-//   const requiredRoles = getRequiredRoles(pathname);
-
-//   // Skip if route doesn't require authentication
-//   if (!requiredRoles) return NextResponse.next();
-
-//   // Case 1: No access token
-//   if (!accessToken) {
-//     console.warn("⚠️ Missing accessToken, redirecting to refresh");
-
-//     // Pastikan base URL frontend benar
-//     const frontendBaseUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || 'http://localhost:3000';
-
-//     // Buat URL tujuan dengan benar
-//     const destinationUrl = new URL(req.nextUrl.pathname, frontendBaseUrl).toString();
-
-//     // Buat URL refresh token
-//     const refreshUrl = new URL(
-//       '/api/auth/refresh',
-//       process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
-//     );
-
-//     // Set parameter redirect
-//     refreshUrl.searchParams.set('redirect', encodeURIComponent(destinationUrl));
-
-//     const response = NextResponse.redirect(refreshUrl);
-
-//     // Set cookie backup
-//     response.cookies.set('original_url', destinationUrl, {
-//       httpOnly: true,
-//       maxAge: 60,
-//       path: '/'
-//     });
-
-//     return response;
-//   }
-
-//   try {
-//     // Verify token
-//     const { payload } = await jwtVerify(accessToken, secret);
-//     const userRole = payload.role as string;
-
-//     // Check role authorization
-//     if (!requiredRoles.includes(userRole)) {
-//       const redirectTo = roleHomeMap[userRole] || "/";
-//       console.warn(`🚫 Unauthorized role '${userRole}' for '${pathname}'`);
-//       return NextResponse.redirect(new URL(redirectTo, req.url));
-//     }
-
-//     return NextResponse.next();
-//   } catch (error) {
-//     // Case 2: Token expired
-//     if (error instanceof joseErrors.JWTExpired) {
-//       console.warn("🔁 Token expired, redirecting to refresh");
-//       return createRefreshRedirect(req, pathname);
-//     }
-
-//     // Case 3: Other token errors
-//     console.error("❌ Invalid token:", error);
-
-//     // Clear invalid tokens
-//     const response = NextResponse.redirect(new URL("/auth/login", req.url));
-//     response.cookies.delete("accessToken");
-//     response.cookies.delete("refreshToken");
-
-//     return response;
-//   }
-// }
-
-// export const config = {
-//   matcher: [
-//     "/super-admin-area/:path*",
-//     "/admin-area/:path*",
-//     "/pic-area/:path*",
-//     "/user-area/:path*",
-//   ],
-// };

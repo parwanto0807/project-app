@@ -1,3 +1,4 @@
+// app/auth/refreshing/page.tsx
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
@@ -26,11 +27,28 @@ export default function Refreshing() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = useMemo(() => searchParams.get("redirect") || "/", [searchParams]);
+  const reason = useMemo(() => searchParams.get("reason"), [searchParams]);
 
   const [status, setStatus] = useState<UiStatus>("idle");
   const [detailMessage, setDetailMessage] = useState("Menyiapkan sesi Anda…");
   const [attempt, setAttempt] = useState<number>(0);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Set pesan berdasarkan reason dari middleware
+  useEffect(() => {
+    if (reason) {
+      switch (reason) {
+        case "no_token":
+          setDetailMessage("Sesi tidak ditemukan. Memperbarui...");
+          break;
+        case "token_expired":
+          setDetailMessage("Sesi telah kedaluwarsa. Memperbarui...");
+          break;
+        default:
+          setDetailMessage("Memperbarui sesi Anda...");
+      }
+    }
+  }, [reason]);
 
   const executeRefresh = useCallback(async (nextAttempt: number): Promise<void> => {
     if (nextAttempt > MAX_RETRY_ATTEMPTS) {
@@ -41,11 +59,17 @@ export default function Refreshing() {
 
     setAttempt(nextAttempt);
     setStatus("loading");
-    setDetailMessage(
-      nextAttempt === 1
-        ? "Menghubungkan ke server otentikasi…"
-        : `Mencoba lagi (${nextAttempt}/${MAX_RETRY_ATTEMPTS})…`
-    );
+    
+    // Update message based on attempt
+    if (nextAttempt === 1) {
+      setDetailMessage(
+        reason === "token_expired" 
+          ? "Memperbarui sesi yang kedaluwarsa..." 
+          : "Menghubungkan ke server otentikasi…"
+      );
+    } else {
+      setDetailMessage(`Mencoba lagi (${nextAttempt}/${MAX_RETRY_ATTEMPTS})…`);
+    }
 
     abortControllerRef.current?.abort();
     const abortController = new AbortController();
@@ -54,15 +78,12 @@ export default function Refreshing() {
     try {
       console.log("🔄 Attempting token refresh via http.ts API...");
 
-      // ✅ CLEAN SOLUTION: Gunakan api.post langsung dengan config sederhana
       const response = await api.post<RefreshResponse>(
         "/api/auth/refresh",
         {},
         {
           signal: abortController.signal,
           timeout: 10000,
-          // ✅ _skipAuth akan dihandle oleh interceptor di http.ts
-          // Tidak perlu complex config object
         }
       );
 
@@ -107,7 +128,7 @@ export default function Refreshing() {
 
       console.error("❌ Token refresh failed:", errorMessage);
     }
-  }, [redirect, router]);
+  }, [redirect, router, reason]);
 
   const handleRetry = (): void => {
     executeRefresh(attempt + 1);
@@ -144,7 +165,9 @@ export default function Refreshing() {
                 Memperbarui Sesi
               </h1>
               <p className="text-sm text-white/60 mt-0.5">
-                Menjaga Anda tetap masuk dengan aman
+                {reason === "token_expired" 
+                  ? "Memperbarui sesi yang kedaluwarsa" 
+                  : "Menjaga Anda tetap masuk dengan aman"}
               </p>
             </div>
           </div>
@@ -288,7 +311,7 @@ export default function Refreshing() {
           className="text-center mt-6"
         >
           <p className="text-xs text-white/40 max-w-[60ch] mx-auto leading-relaxed">
-            Menggunakan sistem autentikasi terintegrasi dengan http.ts
+            {reason && `Reason: ${reason}`}
           </p>
         </motion.div>
       </motion.div>

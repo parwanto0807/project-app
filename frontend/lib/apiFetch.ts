@@ -1,9 +1,38 @@
 // lib/apiFetch.ts
-import { getAccessToken, refreshToken } from "./autoRefresh";
+import {
+  getAccessToken,
+  IS_CLIENT,
+  LS_KEY,
+  PERSIST_TO_LOCALSTORAGE,
+  refreshToken,
+  setAccessToken,
+  validateToken,
+} from "./autoRefresh";
 // ⬆ gunakan getAccessToken & refreshAccessToken yang sudah kamu pakai di use-current-user
 
 export async function apiFetch(url: string, options: RequestInit = {}) {
-  const token = getAccessToken(); // ambil token sekarang
+  let token = getAccessToken();
+
+  // ✅ Jika tidak ada token tapi ada di localStorage, coba restore
+  if (!token && PERSIST_TO_LOCALSTORAGE && IS_CLIENT) {
+    try {
+      const saved = localStorage.getItem(LS_KEY);
+      if (saved) {
+        const validation = validateToken(saved);
+        if (validation.isValid) {
+          console.log("🔄 Restoring token for API request");
+          setAccessToken(saved, {
+            broadcast: false,
+            schedule: true,
+            persist: true,
+          });
+          token = saved;
+        }
+      }
+    } catch (error) {
+      console.error("❌ Error restoring token for API request:", error);
+    }
+  }
 
   // --- eksekusi request pertama ---
   const res = await fetch(url, {
@@ -18,8 +47,14 @@ export async function apiFetch(url: string, options: RequestInit = {}) {
 
   // ✅ jika token expired → 401
   if (res.status === 401) {
+    console.log("🔄 Token expired, attempting refresh...");
     const newToken = await refreshToken();
-    if (!newToken) throw new Error("Unauthorized");
+
+    if (!newToken) {
+      // Clear semua state jika refresh gagal
+      setAccessToken(null, { broadcast: true, schedule: false, persist: true });
+      throw new Error("Unauthorized");
+    }
 
     // ulang request pakai token baru
     return apiFetch(url, options);
