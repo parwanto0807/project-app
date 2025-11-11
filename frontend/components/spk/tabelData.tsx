@@ -1484,7 +1484,7 @@ export default function TabelDataSpk({
             {/* Header dengan gradient yang lebih modern */}
             <CardHeader className="rounded-xl bg-gradient-to-r from-cyan-600 via-blue-600 to-purple-600 px-6 py-4 text-white relative overflow-hidden">
                 <div className="absolute inset-0 bg-black/10"></div>
-                <div className="relative z-10">
+                <div className="relative z-0">
                     <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
                         <div className="flex items-center space-x-4">
                             <div className="flex items-center justify-center h-14 w-14 rounded-2xl bg-white/20 backdrop-blur-sm border border-white/30">
