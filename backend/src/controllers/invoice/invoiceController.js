@@ -461,6 +461,108 @@ class InvoiceController {
           },
         });
 
+        // UPDATE SALES ORDER ITEMS - menggunakan itemCode sebagai productId
+        let updatedSalesOrderItemsCount = 0;
+
+        for (const item of items) {
+          console.log("Processing item:", {
+            soItemId: item.soItemId,
+            productId: item.itemCode, // itemCode adalah productId
+            salesOrderId: salesOrderId,
+            hasSoItemId: !!item.soItemId,
+            hasProductId: !!item.itemCode,
+            hasSalesOrderId: !!salesOrderId,
+          });
+
+          // Gunakan itemCode sebagai productId
+          if (item.soItemId && item.itemCode && salesOrderId) {
+            try {
+              // OPTION 1: Update menggunakan soItemId, salesOrderId, dan productId (itemCode)
+              const updateResult = await tx.salesOrderItem.updateMany({
+                where: {
+                  id: item.soItemId,
+                  salesOrderId: salesOrderId,
+                  productId: item.itemCode, // itemCode adalah productId
+                },
+                data: {
+                  qty: item.qty,
+                  unitPrice: item.unitPrice,
+                  discount: item.discount || 0,
+                  taxRate: item.taxRate || 0,
+                  lineTotal: item.lineTotal,
+                },
+              });
+
+              console.log(
+                `Update result for item ${item.soItemId}:`,
+                updateResult
+              );
+              updatedSalesOrderItemsCount += updateResult.count;
+
+              // Jika tidak ada yang terupdate, coba alternatif
+              if (updateResult.count === 0) {
+                console.log(
+                  `No records updated with productId, trying with soItemId only...`
+                );
+
+                // OPTION 2: Fallback - update hanya dengan soItemId
+                const fallbackResult = await tx.salesOrderItem.update({
+                  where: {
+                    id: item.soItemId,
+                  },
+                  data: {
+                    qty: item.qty,
+                    unitPrice: item.unitPrice,
+                    discount: item.discount || 0,
+                    taxRate: item.taxRate || 0,
+                    lineTotal: item.lineTotal,
+                  },
+                });
+                console.log(`Fallback update successful:`, fallbackResult);
+                updatedSalesOrderItemsCount++;
+              }
+            } catch (error) {
+              console.error(
+                `Error updating SalesOrderItem ${item.soItemId}:`,
+                error
+              );
+
+              // OPTION 3: Last resort - update hanya dengan soItemId
+              try {
+                const lastResortResult = await tx.salesOrderItem.update({
+                  where: {
+                    id: item.soItemId,
+                  },
+                  data: {
+                    qty: item.qty,
+                    unitPrice: item.unitPrice,
+                    discount: item.discount || 0,
+                    taxRate: item.taxRate || 0,
+                    lineTotal: item.lineTotal,
+                  },
+                });
+                console.log(`Last resort update successful:`, lastResortResult);
+                updatedSalesOrderItemsCount++;
+              } catch (lastError) {
+                console.error(
+                  `All update attempts failed for item ${item.soItemId}:`,
+                  lastError
+                );
+              }
+            }
+          } else {
+            console.log("Skipping item - missing required fields:", {
+              soItemId: item.soItemId,
+              productId: item.itemCode,
+              salesOrderId: salesOrderId,
+            });
+          }
+        }
+
+        console.log(
+          `Total SalesOrderItems updated: ${updatedSalesOrderItemsCount}`
+        );
+
         // Create installments if provided
         if (installments && installments.length > 0) {
           await tx.installment.createMany({
@@ -522,6 +624,7 @@ class InvoiceController {
           data: { status: "INVOICED" },
         });
       }
+
       res.status(201).json({
         success: true,
         message: "Invoice created successfully",
