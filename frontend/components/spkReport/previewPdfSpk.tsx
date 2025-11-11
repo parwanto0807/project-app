@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         backgroundColor: '#1a4f72',
         color: '#fff',
-        paddingVertical: 6,
+        paddingVertical: 2,
         paddingHorizontal: 4,
         fontWeight: 'bold',
     },
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
     },
     tableColMedium: {
         padding: 6,
-        width: '18%',
+        width: '50%',
     },
     tableColPhoto: {
         padding: 6,
@@ -369,11 +369,11 @@ const PdfDocument = ({ reports }: { reports: ReportHistory[] }) => {
 
                 {/* Header Tabel */}
                 <View style={styles.tableHeader}>
-                    <Text style={[styles.tableColMedium, { color: '#fff' }]}>Tanggal & Waktu</Text>
-                    <Text style={[styles.tableCol, { color: '#fff' }]}>Keterangan</Text>
+                    <Text style={[styles.tableColMedium, { color: '#fff' }]}>LIST DOKUMENTASI FOTO</Text>
+                    {/* <Text style={[styles.tableCol, { color: '#fff' }]}>Keterangan</Text>
                     <Text style={[styles.tableColSmall, { color: '#fff' }]}>Progress</Text>
                     <Text style={[styles.tableColSmall, { color: '#fff' }]}>Status Approve Admin</Text>
-                    <Text style={[styles.tableColPhoto, { color: '#fff' }]}>Foto</Text>
+                    <Text style={[styles.tableColPhoto, { color: '#fff' }]}>Foto</Text> */}
                 </View>
 
                 {/* Loop per itemName */}
