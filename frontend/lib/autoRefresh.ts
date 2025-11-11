@@ -35,6 +35,17 @@ const eventListeners = new Map<AuthEvent, Set<AuthEventListener>>();
 let bc: BroadcastChannel | null = null;
 let isRefreshing = false;
 
+let isLoggingOut = false;
+
+export function startLogout() {
+  isLoggingOut = true;
+  cleanup(); // hentikan timer & health monitoring
+}
+
+export function endLogout() {
+  isLoggingOut = false;
+}
+
 // Configuration
 export const IS_CLIENT = typeof window !== "undefined";
 export const PERSIST_TO_LOCALSTORAGE =
@@ -373,17 +384,15 @@ async function executeRefreshWithBackoff(): Promise<string | null> {
 }
 
 export async function refreshToken(): Promise<string | null> {
-  if (refreshQueue) {
-    console.log("📦 Refresh already in progress, returning queue");
-    return refreshQueue;
+  if (isLoggingOut) {
+    console.log("⛔ Skipping refresh: user is logging out");
+    return null;
   }
 
-  console.log("🚀 Starting new refresh operation");
+  if (refreshQueue) return refreshQueue;
   refreshQueue = executeRefreshWithBackoff();
-
   try {
-    const result = await refreshQueue;
-    return result;
+    return await refreshQueue;
   } finally {
     refreshQueue = null;
   }
@@ -528,6 +537,10 @@ export function setAccessToken(
   }
 ): void {
   // ✅ Improved race condition handling
+  if (isLoggingOut && token !== null) {
+    console.log("⛔ Skipping setAccessToken during logout");
+    return;
+  }
   if (isRefreshing && token !== null) {
     console.warn("⏸️ Token update skipped during refresh operation");
     return;

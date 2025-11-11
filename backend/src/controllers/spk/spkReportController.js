@@ -470,7 +470,6 @@ export const getSPKFieldReports = async (req, res) => {
     // Bangun where clause dinamis
     const where = {};
 
-    // Filter tanggal
     if (date === "today") {
       const startOfDay = new Date();
       startOfDay.setHours(0, 0, 0, 0);
@@ -485,29 +484,20 @@ export const getSPKFieldReports = async (req, res) => {
       where.reportedAt = { gte: startOfMonth };
     }
 
-    // Filter status
     if (status && status !== "all") {
       where.status = status;
     }
 
-    // Filter SPK ID
-    if (spkId) {
-      where.spkId = spkId;
-    }
+    if (spkId) where.spkId = spkId;
+    if (karyawanId) where.karyawanId = karyawanId;
 
-    // Filter karyawan ID
-    if (karyawanId) {
-      where.karyawanId = karyawanId;
-    }
-
-    // Query database dengan relasi
     const reports = await prisma.sPKFieldReport.findMany({
       where: {
-        ...where, // spread kondisi dinamis (date, status, spkId, karyawanId)
+        ...where,
         spk: {
           spkStatusClose: false,
-          ...(spkId ? { id: spkId } : {}), // filter SPK ID jika ada
-          ...(req.query.spkNumber ? { spkNumber: req.query.spkNumber } : {}), // filter SPK Number jika ada
+          ...(spkId ? { id: spkId } : {}),
+          ...(req.query.spkNumber ? { spkNumber: req.query.spkNumber } : {}),
         },
       },
       include: {
@@ -517,48 +507,33 @@ export const getSPKFieldReports = async (req, res) => {
             salesOrder: {
               include: {
                 customer: {
-                  // ✅ ambil data customer
-                  select: {
-                    name: true,
-                    address: true,
-                    branch: true,
-                  },
+                  select: { name: true, address: true, branch: true },
                 },
-                project: {
-                  select: {
-                    id: true,
-                    name: true,
-                  },
-                },
+                project: { select: { id: true, name: true } },
+                items: true, // ambil semua items dulu
               },
             },
           },
         },
-
-        karyawan: {
-          select: {
-            namaLengkap: true,
-            email: true,
-          },
-        },
-        soDetail: {
-          select: {
-            name: true,
-          },
-        },
-        photos: {
-          select: {
-            imageUrl: true,
-          },
-        },
+        karyawan: { select: { namaLengkap: true, email: true } },
+        soDetail: { select: { name: true } },
+        photos: { select: { imageUrl: true } },
       },
-      orderBy: {
-        reportedAt: "desc",
-      },
+      orderBy: { reportedAt: "asc" },
     });
 
-    // Mapping ke format frontend: ReportHistory[]
-    const formatted = reports.map((report) => ({
+    // ✅ Sort salesOrder.items per report berdasarkan lineNo ascending
+    const reportsSortedItems = reports.map((report) => {
+      if (report.spk?.salesOrder?.items) {
+        report.spk.salesOrder.items = report.spk.salesOrder.items
+          .slice()
+          .sort((a, b) => (a.lineNo || 0) - (b.lineNo || 0));
+      }
+      return report;
+    });
+
+    // Mapping ke format frontend
+    const formatted = reportsSortedItems.map((report) => ({
       id: report.id,
       spkNumber: report.spk.spkNumber,
       clientName: report.spk.salesOrder.customer.name,
@@ -572,8 +547,10 @@ export const getSPKFieldReports = async (req, res) => {
       karyawanName: report.karyawan.namaLengkap,
       email: report.karyawan.email,
       progress: report.progress || 0,
-      status: report.status, // PENDING, APPROVED, REJECTED
+      status: report.status,
+      items: report.spk.salesOrder.items, // items sudah terurut berdasarkan lineNo
     }));
+
     res.json(formatted);
   } catch (error) {
     console.error("[getSPKFieldReports]", error);

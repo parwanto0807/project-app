@@ -85,7 +85,7 @@ export function UserNav() {
         <LogoutButton>
           <DropdownMenuItem>
             <ExitIcon className="h-4 w-4 mr-2" />
-            Sign out
+            Sign Out
           </DropdownMenuItem>
         </LogoutButton>
       </DropdownMenuContent>

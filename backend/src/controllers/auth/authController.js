@@ -8,6 +8,8 @@ import * as crypto from "crypto";
 import speakeasy from "speakeasy";
 import QRCode from "qrcode";
 import { setTokenCookies } from "../../utils/setCookies.js";
+import { clearAuthCookies } from "../../utils/setCookies.js";
+import { COOKIE_NAMES } from "../../config/cookies.js";
 
 // Asumsi file env.js mengekspor variabel-variabel ini
 import {
@@ -26,6 +28,13 @@ const TOKEN_CONFIG = {
   mfa: { expiresIn: "5m" },
 };
 
+const COOKIE_CONFIG = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+  path: "/",
+};
+
 // ✅ PERBAIKAN: Token generation yang konsisten
 const generateAccessToken = (user) => {
   console.log(
@@ -33,11 +42,11 @@ const generateAccessToken = (user) => {
   );
   return jwt.sign(
     {
-    userId: user.id,      // ✅ Untuk kompatibilitas backend lama
-    id: user.id,          // ✅ Untuk konsistensi
-    role: user.role,
-    email: user.email,
-    tokenVersion: user.tokenVersion || 0,
+      userId: user.id, // ✅ Untuk kompatibilitas backend lama
+      id: user.id, // ✅ Untuk konsistensi
+      role: user.role,
+      email: user.email,
+      tokenVersion: user.tokenVersion || 0,
     },
     JWT_SECRET,
     TOKEN_CONFIG.access
@@ -541,11 +550,7 @@ export const handleTokenVersionMismatch = async (userId) => {
 // ✅ PERBAIKAN: Fungsi untuk logout user
 export const logoutUser = async (req, res) => {
   try {
-    console.log("[AUTH] Logout requested");
-
-    // ✅ VALIDASI: Pastikan req.user ada
     if (!req.user) {
-      console.error("[AUTH] Logout error: req.user is undefined");
       return res.status(401).json({
         success: false,
         error: "Authentication required",
@@ -553,78 +558,47 @@ export const logoutUser = async (req, res) => {
     }
 
     const userId = req.user.id;
-    const sessionId = req.user.sessionId; // Optional: jika ada
+    console.log(`[LOGOUT] Logging out user: ${userId}`);
 
-    console.log(
-      `[AUTH] Logout for user: ${userId}, session: ${sessionId || "N/A"}`
-    );
+    // 1️⃣ DEBUG: Log cookies sebelum clear
+    console.log("📝 Cookies before logout:", req.cookies);
 
-    // ✅ Revoke specific session jika sessionId provided
-    if (sessionId) {
+    // 2️⃣ Revoke current session berdasarkan refreshToken
+    const refreshToken = req.cookies[COOKIE_NAMES.REFRESH_TOKEN];
+    if (refreshToken) {
       await prisma.userSession.updateMany({
         where: {
-          id: sessionId,
+          refreshToken: refreshToken,
           userId: userId,
+          isRevoked: false,
         },
         data: {
           isRevoked: true,
           revokedAt: new Date(),
         },
       });
-      console.log(`[AUTH] Session ${sessionId} revoked`);
+      console.log(`[LOGOUT] Revoked session for user: ${userId}`);
     }
 
-    // ✅ Juga revoke current session berdasarkan refresh token di cookies
-    if (req.cookies && req.cookies.refresh_token) {
-      await prisma.userSession.updateMany({
-        where: {
-          refreshToken: req.cookies.refresh_token,
-          userId: userId,
-        },
-        data: {
-          isRevoked: true,
-          revokedAt: new Date(),
-        },
-      });
-      console.log(`[AUTH] Current session revoked for user: ${userId}`);
-    }
-
-    // ✅ Increment token version untuk invalidate semua tokens
+    // 3️⃣ Increment token version
     await prisma.user.update({
       where: { id: userId },
-      data: {
-        tokenVersion: { increment: 1 },
-      },
+      data: { tokenVersion: { increment: 1 } },
     });
 
-    console.log(`[AUTH] Token version incremented for user: ${userId}`);
+    // 4️⃣ CLEAR COOKIES - GUNAKAN FUNGSI YANG SUDAH DIPERBAIKI
+    clearAuthCookies(res);
 
-    // ✅ Clear semua cookies
-    const cookiesToClear = [
-      "access_token",
-      "refresh_token",
-      "session_token",
-      "trusted_device",
-    ];
-
-    cookiesToClear.forEach((cookieName) => {
-      res.clearCookie(cookieName, {
-        path: "/",
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-      });
-    });
-
-    console.log(`[AUTH] All cookies cleared for user: ${userId}`);
-
-    res.json({
+    // 5️⃣ DEBUG: Response dengan info clear
+    return res.json({
       success: true,
       message: "Logout successful",
+      cookiesCleared: Object.values(COOKIE_NAMES),
+      environment: process.env.NODE_ENV,
     });
   } catch (err) {
-    console.error("[AUTH] Logout error:", err);
-    res.status(500).json({
+    console.error("[LOGOUT] Error:", err);
+    return res.status(500).json({
       success: false,
       error: "Failed to logout",
     });
@@ -634,11 +608,9 @@ export const logoutUser = async (req, res) => {
 // ✅ PERBAIKAN: Fungsi untuk logout dari semua devices
 export const logoutAllDevices = async (req, res) => {
   try {
-    console.log("[AUTH] Logout all devices requested");
+    console.log("[LOGOUT] Logout all devices requested");
 
-    // ✅ VALIDASI: Pastikan req.user ada
     if (!req.user) {
-      console.error("[AUTH] LogoutAll error: req.user is undefined");
       return res.status(401).json({
         success: false,
         error: "Authentication required",
@@ -646,11 +618,10 @@ export const logoutAllDevices = async (req, res) => {
     }
 
     const userId = req.user.id;
+    console.log(`[LOGOUT] Logout all devices for user: ${userId}`);
 
-    console.log(`[AUTH] Logout all devices for user: ${userId}`);
-
-    // ✅ Revoke all sessions
-    await prisma.userSession.updateMany({
+    // 1️⃣ Revoke all sessions
+    const result = await prisma.userSession.updateMany({
       where: {
         userId: userId,
         isRevoked: false,
@@ -660,44 +631,57 @@ export const logoutAllDevices = async (req, res) => {
         revokedAt: new Date(),
       },
     });
+    console.log(`[LOGOUT] Revoked ${result.count} sessions`);
 
-    // ✅ Increment token version
+    // 2️⃣ Increment token version
     await prisma.user.update({
       where: { id: userId },
-      data: {
-        tokenVersion: { increment: 1 },
-      },
+      data: { tokenVersion: { increment: 1 } },
+    });
+    console.log(`[LOGOUT] Token version incremented`);
+
+    // 3️⃣ Clear cookies dengan nama YANG SAMA
+    Object.values(COOKIE_NAMES).forEach((cookieName) => {
+      res.clearCookie(cookieName, COOKIE_CONFIG);
+      console.log(`[LOGOUT] Cleared cookie: ${cookieName}`);
     });
 
-    // ✅ Clear cookies
-    const cookiesToClear = [
-      "access_token",
-      "refresh_token",
-      "session_token",
-      "trusted_device",
-    ];
-
-    cookiesToClear.forEach((cookieName) => {
-      res.clearCookie(cookieName, {
-        path: "/",
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-      });
-    });
-
-    console.log(`[AUTH] Logout all devices completed for user: ${userId}`);
+    console.log(`[LOGOUT] Logout all devices completed for user: ${userId}`);
 
     res.json({
       success: true,
       message: "Logged out from all devices successfully",
+      sessionsRevoked: result.count,
     });
   } catch (err) {
-    console.error("[AUTH] Logout all devices error:", err);
+    console.error("[LOGOUT] Logout all devices error:", err);
     res.status(500).json({
       success: false,
       error: "Failed to logout from all devices",
     });
+  }
+};
+
+// ✅ Debug endpoint untuk check cookies
+export const debugCookies = async (req, res) => {
+  try {
+    const cookies = req.cookies || {};
+    const cookieNames = Object.keys(cookies);
+
+    console.log("[COOKIE_DEBUG] Current cookies:", cookieNames);
+
+    res.json({
+      success: true,
+      cookies: {
+        names: cookieNames,
+        hasAccessToken: !!cookies[COOKIE_NAMES.ACCESS_TOKEN],
+        hasRefreshToken: !!cookies[COOKIE_NAMES.REFRESH_TOKEN],
+        totalCookies: cookieNames.length,
+      },
+    });
+  } catch (err) {
+    console.error("[COOKIE_DEBUG] Error:", err);
+    res.status(500).json({ success: false, error: "Debug failed" });
   }
 };
 

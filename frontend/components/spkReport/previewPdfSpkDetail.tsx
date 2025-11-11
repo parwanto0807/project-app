@@ -344,7 +344,13 @@ const PdfDocument = ({ reports, itemGroup }: { reports: ReportHistory[], itemGro
 
     // Grouping berdasarkan itemName
     const groupedReports = React.useMemo(() => {
-        return filteredReports.reduce((acc, report) => {
+        // 1️⃣ Sort terlebih dahulu berdasarkan reportedAt ascending
+        const sortedReports = [...filteredReports].sort(
+            (a, b) => new Date(a.reportedAt).getTime() - new Date(b.reportedAt).getTime()
+        );
+
+        // 2️⃣ Group berdasarkan itemName
+        const grouped = sortedReports.reduce((acc, report) => {
             const key = report.itemName || 'Unknown Item';
             if (!acc[key]) {
                 acc[key] = [];
@@ -352,7 +358,10 @@ const PdfDocument = ({ reports, itemGroup }: { reports: ReportHistory[], itemGro
             acc[key].push(report);
             return acc;
         }, {} as Record<string, ReportHistory[]>);
+
+        return grouped;
     }, [filteredReports]);
+
 
     // Jika tidak ada laporan
     if (filteredReports.length === 0) {
@@ -379,7 +388,7 @@ const PdfDocument = ({ reports, itemGroup }: { reports: ReportHistory[], itemGro
 
     return (
         <Document>
-            <Page size="A4" orientation="landscape" style={styles.page}>
+            <Page size="A4" orientation="portrait" style={styles.page}>
                 {/* Header */}
                 <View style={styles.headerContainer}>
                     <PdfImage style={styles.logo} src="/Logo.png" />
@@ -488,7 +497,7 @@ const PdfDocument = ({ reports, itemGroup }: { reports: ReportHistory[], itemGro
                                 <View style={styles.tableColPhoto}>
                                     {report.photos && report.photos.length > 0 ? (
                                         <Text style={styles.photoIndicator}>
-                                        {report.photos.length} -  foto
+                                            {report.photos.length} -  foto
                                         </Text>
                                     ) : (
                                         <Text style={styles.noteText}>-</Text>

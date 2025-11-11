@@ -150,6 +150,7 @@ const callRefresh = async (): Promise<string> => {
 
         // Update axios default header
         api.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
+        raw.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
 
         console.log("✅ Refresh request successful");
         return newToken;
@@ -188,7 +189,7 @@ api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as RetriableConfig | undefined;
-    
+
     // ✅ FIX: Skip untuk request tertentu
     if (!error.response || !originalRequest || originalRequest._skipAuth) {
       return Promise.reject(error);
@@ -205,26 +206,30 @@ api.interceptors.response.use(
 
       try {
         const newAccessToken = await callRefresh();
-        
+
         // Update request header untuk retry
         if (originalRequest.headers instanceof AxiosHeaders) {
-          originalRequest.headers.set("Authorization", `Bearer ${newAccessToken}`);
+          originalRequest.headers.set(
+            "Authorization",
+            `Bearer ${newAccessToken}`
+          );
         } else {
-          (originalRequest.headers as RawAxiosRequestHeaders)["Authorization"] = `Bearer ${newAccessToken}`;
+          (originalRequest.headers as RawAxiosRequestHeaders)[
+            "Authorization"
+          ] = `Bearer ${newAccessToken}`;
         }
 
         console.log("✅ Retrying original request with new token");
         return api(originalRequest);
-        
       } catch (refreshError) {
         console.error("❌ Refresh failed, clearing tokens");
-        
+
         // ✅ FIX: Clear tokens dan stop further attempts
         clearTokensOnLogout();
-        
+
         // Jangan redirect otomatis, biarkan component handle
         console.log("🛑 Refresh failed, user should be redirected to login");
-        
+
         return Promise.reject(refreshError);
       }
     }
@@ -273,18 +278,30 @@ export const initializeTokensOnLogin = async (
 export function clearTokensOnLogout(): void {
   console.log("🧹 Clearing tokens on logout");
 
+  // Clear in-memory token
   setAccessToken(null);
-  clearRefreshTimer();
-  cleanup(); // ✅ Cleanup autoRefresh system
 
+  // Stop refresh scheduler
+  clearRefreshTimer();
+  cleanup();
+
+  // Remove default header
   delete api.defaults.headers.common["Authorization"];
 
-  // Clear cookies
+  // ✅ Hapus semua kemungkinan token di browser
   if (typeof window !== "undefined") {
-    document.cookie = "accessToken=; Path=/; Max-Age=0; SameSite=Lax";
-    document.cookie = "refreshToken=; Path=/; Max-Age=0; SameStyle=Lax";
+    const domain = window.location.hostname;
 
-    // Clear localStorage
+    const cookieOptions = `Path=/; Max-Age=0; SameSite=Lax; Secure; Domain=${domain}`;
+
+    document.cookie = `accessToken=; ${cookieOptions}`;
+    document.cookie = `refreshToken=; ${cookieOptions}`;
+
+    // Backup deletion
+    document.cookie = `accessToken=; Path=/; Max-Age=0; SameSite=Lax`;
+    document.cookie = `refreshToken=; Path=/; Max-Age=0; SameSite=Lax`;
+
+    // Local/session storage
     localStorage.removeItem("access_token");
     sessionStorage.removeItem("access_token");
   }

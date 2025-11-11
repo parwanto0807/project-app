@@ -1,10 +1,12 @@
+"use client";
+
 import React, { useState } from 'react';
-import { Document, Page, Text, View, StyleSheet, pdf } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, pdf, Image as PdfImage } from '@react-pdf/renderer';
 import { Button } from '@/components/ui/button';
-import { Download, Printer, } from 'lucide-react';
+import { Download, Printer } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
-
+import { getFullImageUrl } from '@/lib/utils'; // Pastikan import ini ada
 
 // Definisikan tipe data yang sesuai dengan struktur laporan
 interface ReportHistory {
@@ -70,7 +72,7 @@ const styles = StyleSheet.create({
     infoItem: {
         flexDirection: 'column',
         marginBottom: 4,
-        width: '30%', // Lebar disesuaikan untuk landscape
+        width: '30%',
     },
     infoLabel: {
         fontSize: 9,
@@ -83,7 +85,7 @@ const styles = StyleSheet.create({
     },
     emailText: {
         color: "blue",
-        textDecorationLine: "underline", // opsional, biar mirip link
+        textDecorationLine: "underline",
     },
     section: {
         marginBottom: 8,
@@ -153,6 +155,10 @@ const styles = StyleSheet.create({
         padding: 6,
         width: '18%',
     },
+    tableColPhoto: {
+        padding: 6,
+        width: '10%',
+    },
     statusApproved: {
         color: '#28a745',
         fontWeight: 'bold',
@@ -210,14 +216,67 @@ const styles = StyleSheet.create({
         color: '#6c757d',
         marginTop: 3,
         fontSize: 8,
+    },
+    photoSection: {
+        marginTop: 10,
+        padding: 8,
+        backgroundColor: '#f8f9fa',
+        borderRadius: 5,
+        borderWidth: 1,
+        borderColor: '#dee2e6',
+    },
+    photoSectionTitle: {
+        fontSize: 10,
+        fontWeight: 'bold',
+        color: '#1a4f72',
+        marginBottom: 6,
+    },
+    photosContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    photoItem: {
+        flexDirection: 'column',
+        alignItems: 'center',
+        marginBottom: 8,
+        width: '23%', // 4 kolom per baris
+    },
+    photo: {
+        width: 100,
+        height: 80,
+        borderRadius: 4,
+        marginBottom: 4,
+        resizeMode: 'cover',
+        borderWidth: 1,
+        borderColor: '#dee2e6',
+    },
+    photoCaption: {
+        fontSize: 7,
+        color: '#6c757d',
+        textAlign: 'center',
+    },
+    photoIndicator: {
+        fontSize: 8,
+        color: '#28a745',
+        fontWeight: 'bold',
+        textAlign: 'center',
+        marginTop: 2,
+    },
+    noPhotosText: {
+        fontSize: 9,
+        color: '#6c757d',
+        fontStyle: 'italic',
+        textAlign: 'center',
+        padding: 10,
     }
 });
 
 interface PreviewPdfProps {
     reports: ReportHistory[];
-    initialSpk?: string; // SPK awal yang dipilih
-    open?: boolean;      // kontrol buka dialog
-    onOpenChange?: (open: boolean) => void; // callback ke parent
+    initialSpk?: string;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
 }
 
 // Komponen untuk merender PDF
@@ -234,32 +293,36 @@ const PdfDocument = ({ reports }: { reports: ReportHistory[] }) => {
     }
 
     // Fungsi untuk mendapatkan style status berdasarkan kondisi
-    const getStatusStyle = (status: string) => {
-        switch (status) {
-            case 'APPROVED':
-                return styles.statusApproved;
-            case 'PENDING':
-                return styles.statusPending;
-            case 'REJECTED':
-                return styles.statusRejected;
-            default:
-                return {};
-        }
-    };
+    // const getStatusStyle = (status: string) => {
+    //     switch (status) {
+    //         case 'APPROVED':
+    //             return styles.statusApproved;
+    //         case 'PENDING':
+    //             return styles.statusPending;
+    //         case 'REJECTED':
+    //             return styles.statusRejected;
+    //         default:
+    //             return {};
+    //     }
+    // };
 
     // Grouping berdasarkan itemName
-    const groupedReports = reports.reduce((acc, report) => {
-        if (!acc[report.itemName]) {
-            acc[report.itemName] = [];
+    const sortedReports = [...reports].sort(
+        (a, b) => new Date(a.reportedAt).getTime() - new Date(b.reportedAt).getTime()
+    );
+
+    const groupedReports = sortedReports.reduce((acc, report) => {
+        const key = report.itemName || 'Unknown Item';
+        if (!acc[key]) {
+            acc[key] = [];
         }
-        acc[report.itemName].push(report);
+        acc[key].push(report);
         return acc;
     }, {} as Record<string, ReportHistory[]>);
 
     return (
         <Document>
-            {/* PERUBAHAN PENTING: Mengubah size menjadi A4 landscape */}
-            <Page size="A4" orientation="landscape" style={styles.page}>
+            <Page size="A4" orientation="portrait" style={styles.page}>
                 {/* Header */}
                 <View style={styles.header}>
                     <Text style={styles.title}>LAPORAN MONITORING PROGRESS SPK</Text>
@@ -297,34 +360,33 @@ const PdfDocument = ({ reports }: { reports: ReportHistory[] }) => {
                     </View>
                     <View style={styles.clientInfo}>
                         <View style={styles.infoItem}>
-                            <Text style={styles.infoLabel}>DAILAPORKAN OLEH</Text>
+                            <Text style={styles.infoLabel}>DILAPORKAN OLEH</Text>
                             <Text style={styles.infoValue}>{reports[0]?.karyawanName || '-'}</Text>
                             <Text style={[styles.infoValue, styles.emailText]}>{reports[0]?.email}</Text>
                         </View>
                     </View>
                 </View>
 
-                {/* Konten - Grouping berdasarkan item */}
-                {/* Header Tabel (sekali saja di atas) */}
+                {/* Header Tabel */}
                 <View style={styles.tableHeader}>
                     <Text style={[styles.tableColMedium, { color: '#fff' }]}>Tanggal & Waktu</Text>
                     <Text style={[styles.tableCol, { color: '#fff' }]}>Keterangan</Text>
                     <Text style={[styles.tableColSmall, { color: '#fff' }]}>Progress</Text>
                     <Text style={[styles.tableColSmall, { color: '#fff' }]}>Status Approve Admin</Text>
+                    <Text style={[styles.tableColPhoto, { color: '#fff' }]}>Foto</Text>
                 </View>
 
                 {/* Loop per itemName */}
                 {Object.entries(groupedReports).map(([itemName, group], idx) => (
                     <View key={idx} style={styles.section} wrap={false}>
-
                         {/* Header Item Pekerjaan */}
-                        <View style={styles.itemHeader}>
+                        {/* <View style={styles.itemHeader}>
                             <Text style={styles.itemTitle}>{itemName}</Text>
                             <Text style={styles.itemCount}>{group.length} laporan</Text>
-                        </View>
+                        </View> */}
 
                         {/* Isi Tabel per laporan */}
-                        {group.map((report, index) => (
+                        {/* {group.map((report, index) => (
                             <View
                                 key={report.id}
                                 style={[
@@ -369,7 +431,6 @@ const PdfDocument = ({ reports }: { reports: ReportHistory[] }) => {
                                     </View>
                                 </View>
 
-
                                 <Text style={[
                                     styles.tableColSmall,
                                     getStatusStyle(report.status)
@@ -377,11 +438,50 @@ const PdfDocument = ({ reports }: { reports: ReportHistory[] }) => {
                                     {report.status === 'APPROVED' ? 'Disetujui' :
                                         report.status === 'PENDING' ? 'Menunggu' : 'Ditolak'}
                                 </Text>
+
+                                <View style={styles.tableColPhoto}>
+                                    {report.photos && report.photos.length > 0 ? (
+                                        <Text style={styles.photoIndicator}>
+                                            {report.photos.length} foto
+                                        </Text>
+                                    ) : (
+                                        <Text style={styles.noteText}>-</Text>
+                                    )}
+                                </View>
                             </View>
-                        ))}
+                        ))} */}
+
+                        {/* Section Foto di bawah setiap item group */}
+                        <View style={styles.photoSection}>
+                            <Text style={styles.photoSectionTitle}>DOKUMENTASI FOTO - {itemName}</Text>
+                            
+                            {group.some(report => report.photos && report.photos.length > 0) ? (
+                                <View style={styles.photosContainer}>
+                                    {group.map((report) => (
+                                        report.photos && report.photos.map((photo, photoIndex) => (
+                                            <View key={`${report.id}-${photoIndex}`} style={styles.photoItem}>
+                                                <PdfImage
+                                                    style={styles.photo}
+                                                    src={getFullImageUrl(photo)}
+                                                />
+                                                <Text style={styles.photoCaption}>
+                                                    {formatDate(report.reportedAt)}
+                                                </Text>
+                                                <Text style={styles.photoCaption}>
+                                                    {report.note ? report.note : report.type}
+                                                </Text>
+                                            </View>
+                                        ))
+                                    ))}
+                                </View>
+                            ) : (
+                                <Text style={styles.noPhotosText}>
+                                    Tidak ada foto dokumentasi untuk item ini
+                                </Text>
+                            )}
+                        </View>
                     </View>
                 ))}
-
 
                 {/* Footer */}
                 <Text style={styles.footer}>
@@ -399,7 +499,7 @@ const PdfDocument = ({ reports }: { reports: ReportHistory[] }) => {
     );
 };
 
-// Komponen PreviewPdf tetap sama
+// Komponen PreviewPdf
 const PreviewPdf: React.FC<PreviewPdfProps> = ({ reports, initialSpk, open, onOpenChange }) => {
     const [selectedSpk, setSelectedSpk] = useState<string>(initialSpk || "");
     const [isDialogOpen, setIsDialogOpen] = useState(open ?? false);
@@ -434,7 +534,7 @@ const PreviewPdf: React.FC<PreviewPdfProps> = ({ reports, initialSpk, open, onOp
                 setPdfBlobUrl(url);
             });
         } else {
-            setPdfBlobUrl(""); // reset kalau kosong
+            setPdfBlobUrl("");
         }
     }, [selectedReports]);
 
@@ -469,8 +569,6 @@ const PreviewPdf: React.FC<PreviewPdfProps> = ({ reports, initialSpk, open, onOp
         });
     };
 
-
-
     return (
         <Dialog
             open={isDialogOpen}
@@ -479,11 +577,10 @@ const PreviewPdf: React.FC<PreviewPdfProps> = ({ reports, initialSpk, open, onOp
                 onOpenChange?.(val);
             }}
         >
-            <DialogContent className="max-w-6xl h-5/6 flex flex-col"> {/* Lebar dialog ditambah */}
+            <DialogContent className="max-w-6xl h-5/6 flex flex-col">
                 <DialogTitle asChild>
                     <VisuallyHidden>Preview Laporan SPK</VisuallyHidden>
                 </DialogTitle>
-
 
                 <div className="flex flex-col h-full">
                     <div className="flex-1 border rounded-md overflow-hidden">

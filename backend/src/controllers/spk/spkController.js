@@ -151,20 +151,9 @@ export const getAllSPKAdmin = async (req, res) => {
         createdBy: true,
         salesOrder: {
           include: {
-            customer: {
-              select: {
-                name: true,
-                address: true,
-                branch: true,
-              },
-            },
-            project: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-            items: true,
+            customer: { select: { name: true, address: true, branch: true } },
+            project: { select: { id: true, name: true } },
+            items: true, // ambil semua items
           },
         },
         team: true,
@@ -175,10 +164,31 @@ export const getAllSPKAdmin = async (req, res) => {
           },
         },
       },
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: "asc" }, // urutkan SPK
     });
 
-    res.json(spkList);
+    const spkListSorted = spkList.map((spk) => {
+      // ✅ Sort details per SPK berdasarkan createdAt
+      const sortedDetails = spk.details
+        .slice()
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+
+      // ✅ Sort salesOrder.items per SPK berdasarkan lineNo
+      const sortedItems = spk.salesOrder?.items
+        ?.slice()
+        .sort((a, b) => (a.lineNo || 0) - (b.lineNo || 0));
+
+      return {
+        ...spk,
+        details: sortedDetails,
+        salesOrder: {
+          ...spk.salesOrder,
+          items: sortedItems,
+        },
+      };
+    });
+
+    res.json(spkListSorted);
   } catch (error) {
     console.error("Error getAllSPK:", error);
     res.status(500).json({ error: "Failed to fetch SPK list" });
@@ -276,40 +286,33 @@ export const getSPKById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const spk = await prisma.sPK.findUnique({
+    let spk = await prisma.sPK.findUnique({
       where: { id },
       include: {
         createdBy: true,
         salesOrder: {
           include: {
-            customer: {
-              select: {
-                name: true,
-                address: true,
-                branch: true,
-              },
-            },
-            project: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-            items: true,
+            customer: { select: { name: true, address: true, branch: true } },
+            project: { select: { id: true, name: true } },
+            items: true, // ambil semua items dulu
           },
         },
         team: true,
         details: {
-          orderBy: { createdAt: "desc" },
-          include: {
-            karyawan: true,
-            salesOrderItem: true,
-          },
+          include: { karyawan: true, salesOrderItem: true },
         },
       },
     });
 
     if (!spk) return res.status(404).json({ error: "SPK not found" });
+
+    // ✅ Sort salesOrder.items berdasarkan lineNo ascending
+    if (spk.salesOrder?.items) {
+      spk.salesOrder.items = spk.salesOrder.items
+        .slice()
+        .sort((a, b) => (a.lineNo || 0) - (b.lineNo || 0));
+    }
+
     res.json(spk);
   } catch (error) {
     console.error("Error getSPKById:", error);

@@ -244,8 +244,8 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
         const totalDetails = raw.details?.length || 0;
         const completedDetails = raw.details?.filter(d => d.status === 'DONE').length || 0;
         const progress = totalDetails > 0 ? Math.round((completedDetails / totalDetails) * 100) : 0;
-        const teamName = raw.team?.namaTeam || 'Team belum ditentukan'
-        const email = raw.team?.teamKaryawan?.karyawan?.email || ' Email belum ditentukan'
+        const teamName = raw.team?.namaTeam || 'Team belum ditentukan';
+        const email = raw.team?.teamKaryawan?.karyawan?.email || ' Email belum ditentukan';
 
         let status: 'PENDING' | 'PROGRESS' | 'COMPLETED';
         if (progress === 100) status = 'COMPLETED';
@@ -254,7 +254,7 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
 
         const deadline = new Date(raw.spkDate).toISOString();
 
-        const items = raw.salesOrder?.items?.map(itemSales => {
+        let items = raw.salesOrder?.items?.map(itemSales => {
             const relatedDetails = raw.details?.filter(detail => detail.salesOrderItem?.id === itemSales.id) || [];
             const hasDoneDetail = relatedDetails.some(detail => detail.status === 'DONE');
             const itemStatus: 'PENDING' | 'DONE' = hasDoneDetail ? 'DONE' : 'PENDING';
@@ -262,6 +262,7 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
 
             return {
                 id: itemSales.id,
+                lineNo: itemSales.lineNo,
                 name: itemSales.name,
                 description: itemSales.description || undefined,
                 qty: itemSales.qty,
@@ -272,6 +273,9 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
                 projectName: projectName,
             };
         }) || [];
+
+        // ✅ Urutkan items berdasarkan lineNo ascending
+        items = items.sort((a, b) => a.lineNo - b.lineNo);
 
         return [{
             id: raw.id,
@@ -287,6 +291,7 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
             items,
         }];
     };
+
 
     useEffect(() => {
         if (formData.items) {
@@ -801,7 +806,7 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
                                                                     <div className="flex items-center space-x-2">
                                                                         <div className="w-1 h-4 bg-blue-500 rounded"></div>
                                                                         <span className="text-sm font-semibold text-slate-700">
-                                                                            SPK: {spk?.spkNumber || spkNumber} <span className='font-bold ml-2 '>Detail Item :</span> 
+                                                                            SPK: {spk?.spkNumber || spkNumber} <span className='font-bold ml-2 '>Detail Item :</span>
                                                                         </span>
                                                                     </div>
                                                                 </td>
@@ -865,7 +870,15 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
                                                             {/* ✅ Kelompokkan laporan dalam grup ini berdasarkan itemName */}
                                                             {(() => {
                                                                 // Group by itemName
-                                                                const itemGroups = reportsInGroup.reduce<Record<string, typeof reportsInGroup>>(
+                                                                // 1️⃣ Urutkan reportsInGroup berdasarkan reportedAt ascending
+                                                                const sortedReports = [...reportsInGroup].sort((a, b) => {
+                                                                    const aTime = new Date(a.reportedAt).getTime();
+                                                                    const bTime = new Date(b.reportedAt).getTime();
+                                                                    return aTime - bTime; // ascending, ganti bTime - aTime untuk descending
+                                                                });
+
+                                                                // 2️⃣ Group berdasarkan itemName
+                                                                const itemGroups = sortedReports.reduce<Record<string, typeof sortedReports>>(
                                                                     (acc, report) => {
                                                                         const key = report.itemName;
                                                                         if (!acc[key]) acc[key] = [];
