@@ -19,6 +19,28 @@ import { AdminLoading } from "@/components/admin-loading";
 import { PicLayout } from "@/components/admin-panel/pic-layout";
 import { useSession } from "@/components/clientSessionProvider";
 
+interface SalesOrder {
+  id: string;
+  soNumber: string;
+  customer: { id: string, name: string, branch: string }
+  project: { id: string, name: string }
+  items: {
+    id: string;
+    product: { name: string };
+    qty: number;
+    uom: string;
+  }[];
+  status: "DRAFT" |
+  "CONFIRMED" |
+  "IN_PROGRESS_SPK" |
+  "FULFILLED" |
+  "PARTIALLY_INVOICED" |
+  "INVOICED" |
+  "PARTIALLY_PAID" |
+  "PAID" |
+  "CANCELLED";
+}
+
 interface Karyawan {
   id: string;
   namaLengkap: string;
@@ -27,7 +49,7 @@ interface Karyawan {
 export default function CreateSpkPagePic() {
   const { user, isLoading: userLoading } = useSession();
   const router = useRouter();
-  const [salesOrders, setSalesOrders] = useState([]);
+  const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
   const [teams, setTeams] = useState([]);
   const [userCreated, setUserCreated] = useState<Karyawan[]>([]);
   const [isDataLoading, setIsDataLoading] = useState(true);
