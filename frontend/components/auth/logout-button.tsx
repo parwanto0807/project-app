@@ -7,155 +7,189 @@ interface LogoutButtonProps {
   children?: React.ReactNode;
 }
 
-// Global flag untuk mencegah auto-login
+// Global flag untuk mencegah auto-login - EXPORT untuk diakses oleh komponen lain
 export let LOGOUT_IN_PROGRESS = false;
+const BLOCK_DURATION = 30000; // ✅ FIXED: Use const instead of let
 
 export const LogoutButton = ({ children }: LogoutButtonProps) => {
   const { setUser } = useCurrentUser();
   const [isLoading, setIsLoading] = useState(false);
 
-  // Set global flag ketika component mount
+  // Reset global flag ketika component unmount
   useEffect(() => {
     return () => {
-      LOGOUT_IN_PROGRESS = false;
+      // Jangan reset LOGOUT_IN_PROGRESS di sini, biarkan tetap true selama blocking period
     };
   }, []);
 
-  const nuclearCleanup = () => {
-    console.log("🚨 Starting NUCLEAR cleanup...");
+  const comprehensiveCleanup = (): void => {
+    console.log("🧹 Starting comprehensive cleanup...");
     
-    // 1. Set global flag untuk prevent auto-login
+    // 1. Set global flag untuk prevent auto-login - DIPERPANJANG
     LOGOUT_IN_PROGRESS = true;
-    localStorage.setItem("logout_flag", "true");
-    sessionStorage.setItem("logout_flag", "true");
     
-    // 2. Clear ALL storage dengan loop (more thorough than clear())
-    for (let i = localStorage.length - 1; i >= 0; i--) {
-      const key = localStorage.key(i);
-      if (key) localStorage.removeItem(key);
-    }
+    // 2. Set flag di storage juga untuk persist across redirects
+    localStorage.setItem('logout_in_progress', 'true');
+    sessionStorage.setItem('logout_in_progress', 'true');
     
-    for (let i = sessionStorage.length - 1; i >= 0; i--) {
-      const key = sessionStorage.key(i);
-      if (key) sessionStorage.removeItem(key);
-    }
+    // 3. Clear storage items
+    const storageItemsToRemove = [
+      "logout_flag",
+      "user_session",
+      "auth_state", 
+      "current_user",
+      "access_token",
+      "accessToken" // tambahan
+    ];
     
-    // 3. Set logout flags
-    localStorage.setItem("logout_flag", "true");
-    sessionStorage.setItem("logout_flag", "true");
-    
-    // 4. Aggressive cookie removal dengan type annotation
-    const cookieNames: string[] = [];
-    document.cookie.split(";").forEach(cookie => {
-      const name = cookie.split("=")[0].trim();
-      cookieNames.push(name);
+    storageItemsToRemove.forEach(key => {
+      localStorage.removeItem(key);
+      sessionStorage.removeItem(key);
     });
+
+    // 4. ✅ IMPROVED: Cookie removal dengan timing yang benar
+    const cookiesToRemove = [
+      "accessToken",
+      "refreshToken", 
+      "sessionId",
+      "auth_token",
+      "token",
+      "access_token",
+      "refresh_token"
+    ];
+
+    const currentDomain = window.location.hostname;
+    const isLocalhost = currentDomain === 'localhost' || currentDomain === '127.0.0.1';
     
-    // Unique cookie names
-    const uniqueCookies = [...new Set(cookieNames)];
-    
-    uniqueCookies.forEach(name => {
-      if (name) {
-        // Clear dengan berbagai domain dan path
-        const domains = [
-          '',
-          window.location.hostname,
-          `.${window.location.hostname}`,
-          'localhost',
-          '127.0.0.1'
-        ];
+    const domainOptions = isLocalhost ? [''] : ['', currentDomain, `.${currentDomain}`];
+
+    cookiesToRemove.forEach(cookieName => {
+      domainOptions.forEach(domain => {
+        const paths = ['/', '', '/admin', '/api', '/auth'];
         
-        const paths = ['/', '/auth', '/api', '/admin', ''];
-        
-        domains.forEach(domain => {
-          paths.forEach(path => {
-            const domainPart = domain ? `domain=${domain};` : '';
-            const pathPart = path ? `path=${path};` : '';
-            document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; ${domainPart} ${pathPart}`;
-          });
-        });
-      }
-    });
-    
-    // 5. Clear service worker caches
-    if ('caches' in window) {
-      caches.keys().then(cacheNames => {
-        cacheNames.forEach(cacheName => {
-          caches.delete(cacheName);
+        paths.forEach(path => {
+          let cookieString = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT;`;
+          
+          if (domain) cookieString += ` domain=${domain};`;
+          if (path) cookieString += ` path=${path};`;
+          if (window.location.protocol === 'https:') cookieString += ' secure;';
+          cookieString += ' samesite=lax;';
+          
+          document.cookie = cookieString;
         });
       });
-    }
-    
-    // 6. Clear IndexedDB (jika ada)
-    if ('indexedDB' in window) {
-      indexedDB.databases().then(databases => {
-        databases.forEach(db => {
-          if (db.name) indexedDB.deleteDatabase(db.name);
-        });
-      });
-    }
-    
-    console.log("✅ Nuclear cleanup completed");
+    });
+
+    console.log("✅ Cleanup completed");
   };
 
-  const blockAutoLogin = () => {
-    // Tambahkan event listener untuk block requests
+  const setupGlobalBlocking = (): void => {
+    // ✅ BLOCK FETCH
     const originalFetch = window.fetch;
-    window.fetch = function(...args) {
+    window.fetch = function(...args: Parameters<typeof fetch>): Promise<Response> {
       const url = args[0];
       if (typeof url === 'string' && 
-          (url.includes('/auth/') || url.includes('/api/auth') || url.includes('/login')) &&
+          (url.includes('/auth/') || url.includes('/api/auth') || url.includes('/login') ||
+           url.includes('/refresh') || url.includes('/profile')) &&
           LOGOUT_IN_PROGRESS) {
-        console.log(`🚫 Blocked auth request: ${url}`);
+        console.log(`🚫 BLOCKED auth request: ${url}`);
         return Promise.reject(new Error('Auto-login blocked during logout'));
       }
       return originalFetch.apply(this, args);
     };
+
+    // ✅ BLOCK XMLHttpRequest - FIXED: Use rest parameters instead of arguments
+    const originalXHROpen = XMLHttpRequest.prototype.open;
     
-    // Kembalikan setelah 5 detik
+    // ✅ FIXED: Proper type definition tanpa 'any'
+    XMLHttpRequest.prototype.open = function(
+      method: string, 
+      url: string | URL, 
+      async?: boolean, 
+      username?: string | null, 
+      password?: string | null
+    ): void {
+      if (typeof url === 'string' && 
+          (url.includes('/auth/') || url.includes('/api/auth') || url.includes('/login') ||
+           url.includes('/refresh') || url.includes('/profile')) &&
+          LOGOUT_IN_PROGRESS) {
+        console.log(`🚫 BLOCKED XHR request: ${url}`);
+        throw new Error('Auto-login blocked during logout');
+      }
+      
+      // ✅ FIXED: Use rest parameters instead of arguments
+      return originalXHROpen.call(this, method, url, async ?? true, username, password);
+    };
+
+    // ✅ Reset setelah blocking period
     setTimeout(() => {
       window.fetch = originalFetch;
+      XMLHttpRequest.prototype.open = originalXHROpen;
       LOGOUT_IN_PROGRESS = false;
-    }, 5000);
+      localStorage.removeItem('logout_in_progress');
+      sessionStorage.removeItem('logout_in_progress');
+      console.log("🔄 Restored normal HTTP operations");
+    }, BLOCK_DURATION);
   };
 
-  const onClick = async () => {
+  const onClick = async (): Promise<void> => {
     if (isLoading) return;
     
     setIsLoading(true);
-    console.log("🚪 Starting enhanced logout process...");
-    
-    // Block auto-login attempts
-    blockAutoLogin();
+    console.log("🚪 Starting logout process...");
+    console.log("🔍 Current cookies before logout:", document.cookie);
     
     try {
-      // Coba backend logout
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/logout`, {
-        method: "POST",
-        credentials: "include",
-      }).catch(() => {}); // Ignore errors
+      // Setup blocking SEBELUM cleanup
+      setupGlobalBlocking();
+      
+      // Attempt backend logout
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/logout`, {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+        
+        if (response.ok) {
+          console.log("✅ Backend logout successful");
+        } else {
+          console.warn("⚠️ Backend logout returned non-OK status:", response.status);
+        }
+      } catch (error) {
+        console.warn("⚠️ Backend logout failed, continuing with frontend cleanup", error);
+      }
       
     } finally {
-      // CRITICAL: Perform nuclear cleanup
-      nuclearCleanup();
+      // Perform cleanup
+      comprehensiveCleanup();
       
       // Clear user state
-      setUser(null);
+      if (setUser) {
+        setUser(null);
+      }
       
-      // Force hard redirect dengan cache busting
-      const timestamp = Date.now();
+      // ✅ CRITICAL: Hard redirect tanpa cache
       setTimeout(() => {
-        window.location.href = `/auth/login?logout=${timestamp}&nocache=true`;
-      }, 100);
+        const redirectUrl = `/auth/login?logout=${Date.now()}&nocache=${Date.now()}`;
+        console.log(`🔀 Redirecting to: ${redirectUrl}`);
+        
+        // Force hard redirect - clear history
+        window.location.replace(redirectUrl);
+      }, 500); // Beri waktu lebih untuk cleanup complete
     }
   };
 
   return (
-    <span 
+    <button 
       onClick={onClick} 
+      disabled={isLoading}
       className={`cursor-pointer ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}
+      type="button"
     >
       {isLoading ? "Logging out..." : children}
-    </span>
+    </button>
   );
 };

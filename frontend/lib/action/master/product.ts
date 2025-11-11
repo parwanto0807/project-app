@@ -1,6 +1,7 @@
 "use server";
 
 import { randomUUID } from "crypto";
+import { apiFetch } from "@/lib/apiFetch";
 
 export async function generateProductCode() {
   const shortId = randomUUID().slice(0, 8).toUpperCase();
@@ -9,19 +10,17 @@ export async function generateProductCode() {
 
 export async function fetchAllProducts() {
   try {
-    const res = await fetch(
+    const data = await apiFetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/master/product/getAllProducts`,
       {
         method: "GET",
-        credentials: "include", // 👉 penting biar cookie ikut terkirim
-        cache: "no-store",
       }
     );
 
-    if (!res.ok) throw new Error(`Gagal fetch produk: ${res.status}`);
-
-    const data = await res.json();
-    return { products: data || [], isLoading: false };
+    return {
+      products: Array.isArray(data) ? data : data.products || [],
+      isLoading: false,
+    };
   } catch (error) {
     console.error("[fetchAllProducts]", error);
     return { products: [], isLoading: false };
@@ -38,86 +37,39 @@ const typeMapping: Record<
 };
 
 // Definisikan tipe untuk product
-interface Product {
-  id: string;
-  name: string;
-  type: "Material" | "Jasa" | "Alat";
-  usageUnit: string;
-  description: string;
-  // contoh: price: number; description: string; dll.
-}
+// interface Product {
+//   id: string;
+//   name: string;
+//   type: "Material" | "Jasa" | "Alat";
+//   usageUnit: string;
+//   description: string;
+//   // contoh: price: number; description: string; dll.
+// }
 
 export async function fetchAllProductsByType(
-  accessToken?: string,
+  _accessToken?: string,
   type?: "PRODUCT" | "SERVICE" | "CUSTOM" | "ALL"
-): Promise<{
-  success: boolean;
-  message: string;
-  data: Product[];
-  isLoading: boolean;
-}> {
+) {
   try {
-    let url: string;
-    if (type && type !== "ALL") {
-      const backendType = typeMapping[type] || type;
-      url = `${process.env.NEXT_PUBLIC_API_URL}/api/master/product/getAllProductsByType/${backendType}`;
-    } else {
-      url = `${process.env.NEXT_PUBLIC_API_URL}/api/master/product/getAllProducts`;
-    }
+    const url =
+      type && type !== "ALL"
+        ? `${process.env.NEXT_PUBLIC_API_URL}/api/master/product/getAllProductsByType/${typeMapping[type]}`
+        : `${process.env.NEXT_PUBLIC_API_URL}/api/master/product/getAllProducts`;
 
-    const res = await fetch(url, {
-      method: "GET",
-      credentials: "include",
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-      cache: "no-store",
-    });
-
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error("[fetchAllProductsByType] Response error text:", errorText);
-      throw new Error(`Gagal fetch produk: ${res.status} - ${errorText}`);
-    }
-
-    const response = await res.json();
+    const response = await apiFetch(url, { method: "GET" });
 
     // Handle berbagai format response
-    let success = true;
-    let message = "Products fetched successfully";
-    let data: Product[] = [];
-
-    // Cek format response
-    if (response.success !== undefined) {
-      // Format baru: { success, message, data }
-      success = response.success;
-      message = response.message || message;
-      data = response.data || [];
-    } else if (Array.isArray(response)) {
-      // Format lama: array langsung
-      data = response;
-    } else if (response.products) {
-      // Format alternatif: { products: [] }
-      data = response.products;
-    } else {
-      // Format tidak dikenali
-      console.warn(
-        "[fetchAllProductsByType] Unknown response format:",
-        response
-      );
-      data = [];
-    }
-
-    if (!success) {
-      throw new Error(message || "Failed to fetch products");
-    }
+    const data = Array.isArray(response)
+      ? response
+      : response?.data || response?.products || [];
 
     return {
       success: true,
-      message,
+      message: "Products fetched successfully",
       data,
       isLoading: false,
     };
   } catch (error) {
-    console.error("[fetchAllProductsByType] Error details:", error);
     return {
       success: false,
       message:
@@ -130,22 +82,12 @@ export async function fetchAllProductsByType(
 
 export async function fetchProductById(id: string) {
   try {
-    const res = await fetch(
+    return await apiFetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/master/product/getProductById/${id}`,
-      {
-        method: "GET",
-        credentials: "include",
-        cache: "no-store",
-      }
+      { method: "GET" }
     );
-
-    if (!res.ok) {
-      throw new Error(`Failed to fetch product: ${res.status}`);
-    }
-
-    return await res.json(); // Return the product data directly
   } catch (error) {
     console.error("[fetchProductById]", error);
-    throw error; // Re-throw to handle in component
+    throw error;
   }
 }

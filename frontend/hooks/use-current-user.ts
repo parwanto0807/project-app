@@ -4,6 +4,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { AxiosError } from "axios";
 import { api } from "@/lib/http";
+import { getAccessToken } from "@/lib/autoRefresh";
 
 export interface User {
   id: string;
@@ -26,13 +27,24 @@ export function useCurrentUser() {
   const [user, setUser] = useState<User | null>(globalUser);
   const [loading, setLoading] = useState<boolean>(globalLoading);
   const [error, setError] = useState<string | null>(null);
-  
+
   const isMountedRef = useRef(true);
   const retryCountRef = useRef(0);
   const maxRetries = 2;
 
   const fetchUser = useCallback(async (retry = false): Promise<void> => {
     // Jika sudah ada ongoing fetch, tunggu yang existing
+    const token = getAccessToken?.();
+    if (!token) {
+      globalUser = null;
+      if (isMountedRef.current) {
+        setUser(null);
+        setLoading(false);
+        setError(null);
+      }
+      return;
+    }
+
     if (globalFetchPromise && !retry) {
       try {
         await globalFetchPromise;
@@ -62,25 +74,28 @@ export function useCurrentUser() {
 
       // Set global promise untuk prevent concurrent fetches
       if (!retry) {
-        globalFetchPromise = fetchPromise.then(response => {
-          if (response.data?.user) {
-            globalUser = response.data.user;
-            if (isMountedRef.current) {
-              setUser(response.data.user);
-              setError(null);
+        globalFetchPromise = fetchPromise
+          .then((response) => {
+            if (response.data?.user) {
+              globalUser = response.data.user;
+              if (isMountedRef.current) {
+                setUser(response.data.user);
+                setError(null);
+              }
             }
-          }
-          return;
-        }).catch(err => {
-          throw err;
-        }).finally(() => {
-          globalLoading = false;
-          globalFetchPromise = null;
-          if (isMountedRef.current) {
-            setLoading(false);
-          }
-        });
-        
+            return;
+          })
+          .catch((err) => {
+            throw err;
+          })
+          .finally(() => {
+            globalLoading = false;
+            globalFetchPromise = null;
+            if (isMountedRef.current) {
+              setLoading(false);
+            }
+          });
+
         await globalFetchPromise;
       } else {
         // Untuk retry, tidak set global promise
@@ -95,15 +110,15 @@ export function useCurrentUser() {
       }
 
       retryCountRef.current = 0; // Reset retry count on success
-
     } catch (err) {
       const axiosErr = err as AxiosError<{ error?: string }>;
 
       // ✅ Retry logic dengan limit dan hanya untuk 401
-      if (axiosErr.response?.status === 401 && 
-          !retry && 
-          retryCountRef.current < maxRetries) {
-        
+      if (
+        axiosErr.response?.status === 401 &&
+        !retry &&
+        retryCountRef.current < maxRetries
+      ) {
         retryCountRef.current++;
         await new Promise((r) => setTimeout(r, 250 * retryCountRef.current)); // Exponential backoff
         return fetchUser(true);
@@ -130,7 +145,7 @@ export function useCurrentUser() {
 
   useEffect(() => {
     isMountedRef.current = true;
-    
+
     // Only fetch if we don't already have user data
     if (!globalUser && !globalFetchPromise) {
       setLoading(true);
@@ -150,12 +165,12 @@ export function useCurrentUser() {
     // Force refresh - clear cache and fetch fresh
     globalUser = null;
     retryCountRef.current = 0;
-    
+
     if (isMountedRef.current) {
       setLoading(true);
       setError(null);
     }
-    
+
     await fetchUser();
   }, [fetchUser]);
 

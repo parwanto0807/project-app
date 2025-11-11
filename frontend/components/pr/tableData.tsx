@@ -533,7 +533,7 @@ export function PurchaseRequestTable({
                                     ))
                                 ) : purchaseRequests.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={9} className="text-center py-8">
+                                        <TableCell colSpan={12} className="text-center py-8">
                                             <div className="flex flex-col items-center justify-center text-muted-foreground">
                                                 <FileText className="h-12 w-12 mb-4 text-gray-300" />
                                                 <p className="text-lg font-medium">No purchase requests found</p>
@@ -629,7 +629,7 @@ export function PurchaseRequestTable({
                                                             {formatDate(pr.tanggalPr)}
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell className="font-semibold">
+                                                    <TableCell className="font-bold text-lg">
                                                         {formatCurrency(totalAmount)}
                                                     </TableCell>
                                                     <TableCell>
@@ -846,7 +846,7 @@ export function PurchaseRequestTable({
                             ))
                         ) : purchaseRequests.length === 0 ? (
                             <Card>
-                                <CardContent className="p-4 text-center">
+                                <CardContent className="p-8 text-center">
                                     <div className="flex flex-col items-center justify-center text-muted-foreground">
                                         <FileText className="h-8 w-8 sm:h-12 sm:w-12 mb-3 text-gray-300" />
                                         <p className="text-base sm:text-lg font-medium">No purchase requests found</p>

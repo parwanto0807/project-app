@@ -11,7 +11,12 @@ interface JwtPayload {
 }
 
 type TokenListener = (token: string | null) => void;
-type AuthEvent = "tokenChanged" | "refreshSuccess" | "refreshFailed" | "logout";
+type AuthEvent =
+  | "tokenChanged"
+  | "refreshSuccess"
+  | "refreshFailed"
+  | "logout"
+  | "healthCheck";
 type AuthEventListener = (data: unknown) => void;
 
 // State management
@@ -19,6 +24,8 @@ let accessToken: string | null = null;
 let refreshTimer: number | undefined;
 let refreshQueue: Promise<string | null> | null = null;
 let refreshAttempts = 0;
+let refreshCount = 0;
+let lastRefreshTime: number | null = null;
 
 // Listeners
 const tokenListeners = new Set<TokenListener>();
@@ -41,6 +48,10 @@ const MAX_REFRESH_ATTEMPTS = 3;
 const BASE_DELAY = 1000; // 1 second
 const DEFAULT_SKEW_MS = 45_000; // 45 seconds
 const MAX_DELAY = 24 * 60 * 60 * 1000; // 24 hours
+const HEALTH_CHECK_INTERVAL = 60_000; // 1 minute
+
+// Health monitoring
+let healthCheckInterval: number | undefined;
 
 // ==================== EVENT SYSTEM ====================
 
@@ -60,13 +71,21 @@ export function onAuthEvent(
 }
 
 function emitAuthEvent(event: AuthEvent, data?: unknown): void {
-  eventListeners.get(event)?.forEach((listener) => {
+  if (!IS_CLIENT) return;
+
+  const listeners = eventListeners.get(event);
+  if (!listeners) return;
+
+  // Convert to array to avoid modification during iteration
+  const listenersArray = Array.from(listeners);
+
+  for (const listener of listenersArray) {
     try {
-      listener(data);
+      setTimeout(() => listener(data), 0);
     } catch (error) {
       console.error(`Error in auth event listener for ${event}:`, error);
     }
-  });
+  }
 }
 
 // ==================== JWT UTILITIES ====================
@@ -95,7 +114,8 @@ function parseJwtExp(token: string): number | null {
   if (!payload || typeof payload.exp !== "number") return null;
 
   const now = Math.floor(Date.now() / 1000);
-  return payload.exp > now ? payload.exp : null;
+  const leeway = 60; // 1 minute leeway for clock skew
+  return payload.exp > now - leeway ? payload.exp : null;
 }
 
 /** Manual token validation dengan detailed error */
@@ -103,34 +123,64 @@ export function validateToken(token: string): {
   isValid: boolean;
   error?: string;
   expiresAt?: Date;
+  claims?: JwtPayload;
 } {
-  const payload = parseJwt(token);
-  if (!payload) {
+  // ✅ Enhanced validation
+  if (!token || typeof token !== "string") {
+    return { isValid: false, error: "Token is empty or not a string" };
+  }
+
+  if (token.length < 10) {
+    return { isValid: false, error: "Token too short" };
+  }
+
+  const parts = token.split(".");
+  if (parts.length !== 3) {
     return { isValid: false, error: "Invalid JWT format" };
   }
 
-  if (typeof payload.exp !== "number") {
-    return { isValid: false, error: "Missing expiration claim" };
-  }
+  try {
+    const payload = parseJwt(token);
+    if (!payload) {
+      return { isValid: false, error: "Failed to parse JWT payload" };
+    }
 
-  const now = Math.floor(Date.now() / 1000);
-  if (payload.exp <= now) {
+    if (typeof payload.exp !== "number") {
+      return {
+        isValid: false,
+        error: "Missing expiration claim",
+        claims: payload,
+      };
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    const leeway = 60; // 1 minute leeway for clock skew
+
+    if (payload.exp <= now - leeway) {
+      return {
+        isValid: false,
+        error: "Token expired",
+        expiresAt: new Date(payload.exp * 1000),
+        claims: payload,
+      };
+    }
+
+    return {
+      isValid: true,
+      expiresAt: new Date(payload.exp * 1000),
+      claims: payload,
+    };
+  } catch (error) {
     return {
       isValid: false,
-      error: "Token expired",
-      expiresAt: new Date(payload.exp * 1000),
+      error: `Token validation error: ${error}`,
     };
   }
-
-  return {
-    isValid: true,
-    expiresAt: new Date(payload.exp * 1000),
-  };
 }
 
 // ==================== BROADCAST & STORAGE ====================
 
-function startBroadcast() {
+function startBroadcast(): void {
   if (!IS_CLIENT) return;
 
   if (!bc) {
@@ -144,6 +194,7 @@ function startBroadcast() {
       bc.onmessage = (e) => {
         if (e?.data?.type === "token") {
           if (e.data.token !== accessToken) {
+            console.log("📡 Received token broadcast");
             setAccessToken(e.data.token, {
               broadcast: false,
               schedule: true,
@@ -152,17 +203,22 @@ function startBroadcast() {
           }
         }
       };
-    } catch {
+    } catch (error) {
+      console.warn(
+        "BroadcastChannel not supported, using storage fallback",
+        error
+      );
       setupStorageFallback();
     }
   }
 }
 
-function setupStorageFallback() {
+function setupStorageFallback(): void {
   if (!IS_CLIENT) return;
 
   const handleStorageEvent = (e: StorageEvent) => {
     if (e.key === LS_KEY && e.newValue !== e.oldValue) {
+      console.log("📦 Received token from storage sync");
       setAccessToken(e.newValue, {
         broadcast: false,
         schedule: true,
@@ -179,7 +235,7 @@ function setupStorageFallback() {
 /** Akan dipasang dari http.ts untuk mengeksekusi refresh */
 let refreshExecutor: (() => Promise<string | null>) | null = null;
 
-export function setRefreshExecutor(fn: () => Promise<string | null>) {
+export function setRefreshExecutor(fn: () => Promise<string | null>): void {
   refreshExecutor = async () => {
     try {
       return await fn();
@@ -192,29 +248,92 @@ export function setRefreshExecutor(fn: () => Promise<string | null>) {
 
 async function executeRefreshWithBackoff(): Promise<string | null> {
   if (!refreshExecutor) {
+    console.error("❌ No refresh executor configured");
+    return null;
+  }
+
+  // ✅ Circuit breaker pattern
+  if (refreshAttempts >= MAX_REFRESH_ATTEMPTS) {
+    console.error("❌ Max refresh attempts reached, giving up");
     return null;
   }
 
   try {
+    console.log(`🔄 Attempting token refresh (attempt ${refreshAttempts + 1})`);
+
     const newToken = await refreshExecutor();
+
+    if (newToken) {
+      const validation = validateToken(newToken);
+      if (!validation.isValid) {
+        throw new Error(`Refreshed token is invalid: ${validation.error}`);
+      }
+    }
+
     refreshAttempts = 0; // Reset on success
-    emitAuthEvent("refreshSuccess", { newToken: !!newToken });
+    refreshCount++;
+    lastRefreshTime = Date.now();
+
+    emitAuthEvent("refreshSuccess", {
+      newToken: !!newToken,
+      timestamp: new Date().toISOString(),
+      refreshCount,
+      attempts: refreshAttempts + 1,
+    });
+
+    console.log("✅ Token refresh successful");
     return newToken;
   } catch (error) {
     refreshAttempts++;
 
-    if (refreshAttempts >= MAX_REFRESH_ATTEMPTS) {
-      emitAuthEvent("refreshFailed", { error, attempts: refreshAttempts });
-      setAccessToken(null, {
-        broadcast: true,
-        schedule: false,
-        persist: true,
-      });
+    // ✅ Better error classification without 'any'
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const responseStatus = (error as { response?: { status?: number } })
+      ?.response?.status;
+
+    const isNetworkError =
+      errorMessage.includes("Network") ||
+      errorMessage.includes("timeout") ||
+      errorMessage.includes("fetch");
+    const isAuthError =
+      responseStatus === 401 ||
+      responseStatus === 403 ||
+      errorMessage.includes("401") ||
+      errorMessage.includes("403");
+
+    console.error(`❌ Refresh failed (attempt ${refreshAttempts}):`, {
+      error: errorMessage,
+      isNetworkError,
+      isAuthError,
+    });
+
+    emitAuthEvent("refreshFailed", {
+      error: errorMessage,
+      attempts: refreshAttempts,
+      isNetworkError,
+      isAuthError,
+      timestamp: new Date().toISOString(),
+    });
+
+    // ✅ Clear token hanya untuk auth errors, bukan network errors
+    if (refreshAttempts >= MAX_REFRESH_ATTEMPTS || isAuthError) {
+      if (isAuthError) {
+        console.error("🔒 Auth error detected, clearing token");
+        setAccessToken(null, {
+          broadcast: true,
+          schedule: false,
+          persist: true,
+        });
+      }
       return null;
     }
 
-    const delay = BASE_DELAY * Math.pow(2, refreshAttempts - 1);
+    const delay = Math.min(
+      BASE_DELAY * Math.pow(2, refreshAttempts - 1),
+      30000 // Max 30 seconds
+    );
 
+    console.log(`⏳ Retrying refresh in ${delay}ms...`);
     await new Promise((resolve) => setTimeout(resolve, delay));
     return executeRefreshWithBackoff();
   }
@@ -222,9 +341,11 @@ async function executeRefreshWithBackoff(): Promise<string | null> {
 
 export async function refreshToken(): Promise<string | null> {
   if (refreshQueue) {
+    console.log("📦 Refresh already in progress, returning queue");
     return refreshQueue;
   }
 
+  console.log("🚀 Starting new refresh operation");
   refreshQueue = executeRefreshWithBackoff();
 
   try {
@@ -237,7 +358,7 @@ export async function refreshToken(): Promise<string | null> {
 
 // ==================== SCHEDULING ====================
 
-export function clearRefreshTimer() {
+export function clearRefreshTimer(): void {
   if (refreshTimer) {
     clearTimeout(refreshTimer);
     refreshTimer = undefined;
@@ -254,6 +375,7 @@ export function scheduleProactiveRefresh(
 
   const expSec = parseJwtExp(token);
   if (!expSec) {
+    console.warn("⚠️ Cannot schedule refresh: invalid token expiration");
     return;
   }
 
@@ -264,21 +386,68 @@ export function scheduleProactiveRefresh(
   // Safety check: jika delay terlalu panjang, batasi
   const safeDelay = Math.min(delay, MAX_DELAY);
 
+  console.log(`⏰ Scheduling refresh in ${Math.round(safeDelay / 1000)}s`);
+
   if (safeDelay === 0 || expMs <= now) {
     // Immediate refresh needed
+    console.log("🔔 Token expired or about to expire, refreshing immediately");
     refreshToken().catch((error) => {
-      console.error("Immediate refresh failed:", error);
+      console.error("❌ Immediate refresh failed:", error);
     });
     return;
   }
 
   refreshTimer = window.setTimeout(async () => {
     try {
+      console.log("⏰ Scheduled refresh triggered");
       await refreshToken();
     } catch (error) {
-      console.error("Scheduled refresh failed:", error);
+      console.error("❌ Scheduled refresh failed:", error);
     }
   }, safeDelay);
+}
+
+// ==================== HEALTH MONITORING ====================
+
+export function startHealthMonitoring(
+  intervalMs: number = HEALTH_CHECK_INTERVAL
+): void {
+  if (!IS_CLIENT || healthCheckInterval) return;
+
+  console.log("🏥 Starting token health monitoring");
+
+  healthCheckInterval = window.setInterval(() => {
+    const health = getTokenHealth();
+
+    emitAuthEvent("healthCheck", {
+      health: health.health,
+      expiresIn: health.expiresIn,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Auto-cleanup expired tokens
+    if (health.health === "expired" && accessToken) {
+      console.warn("🧹 Token expired but still in memory, clearing...");
+      setAccessToken(null, {
+        broadcast: true,
+        schedule: false,
+        persist: true,
+      });
+    }
+
+    // Log health status periodically
+    if (health.expiresIn !== null && health.expiresIn < 300) {
+      console.log(`⚠️ Token expiring in ${health.expiresIn}s`);
+    }
+  }, intervalMs);
+}
+
+export function stopHealthMonitoring(): void {
+  if (healthCheckInterval) {
+    clearInterval(healthCheckInterval);
+    healthCheckInterval = undefined;
+    console.log("🛑 Stopped token health monitoring");
+  }
 }
 
 // ==================== CORE TOKEN MANAGEMENT ====================
@@ -287,18 +456,20 @@ export function getAccessToken(): string | null {
   return accessToken;
 }
 
-export function onTokenChange(fn: TokenListener) {
+export function onTokenChange(fn: TokenListener): () => void {
   tokenListeners.add(fn);
   return () => tokenListeners.delete(fn);
 }
 
-function notify(token: string | null) {
+function notify(token: string | null): void {
   const listenersArray = Array.from(tokenListeners);
+  console.log(`📢 Notifying ${listenersArray.length} token listeners`);
+
   for (const fn of listenersArray) {
     try {
       fn(token);
     } catch (error) {
-      console.error("Error in token listener:", error);
+      console.error("❌ Error in token listener:", error);
     }
   }
 }
@@ -312,7 +483,9 @@ export function setAccessToken(
     persist: PERSIST_TO_LOCALSTORAGE,
   }
 ): void {
-  if (isRefreshing) {
+  // ✅ Improved race condition handling
+  if (isRefreshing && token !== null) {
+    console.warn("⏸️ Token update skipped during refresh operation");
     return;
   }
 
@@ -323,7 +496,10 @@ export function setAccessToken(
     if (token) {
       const validation = validateToken(token);
       if (!validation.isValid) {
+        console.warn(`❌ Token validation failed: ${validation.error}`);
         token = null;
+      } else {
+        console.log("✅ Token validated successfully");
       }
     }
 
@@ -335,11 +511,13 @@ export function setAccessToken(
       try {
         if (token) {
           localStorage.setItem(LS_KEY, token);
+          console.log("💾 Token persisted to localStorage");
         } else {
           localStorage.removeItem(LS_KEY);
+          console.log("🧹 Token removed from localStorage");
         }
-      } catch {
-        // Silent catch
+      } catch (error) {
+        console.error("❌ localStorage error:", error);
       }
     }
 
@@ -347,8 +525,9 @@ export function setAccessToken(
       startBroadcast();
       try {
         bc?.postMessage({ type: "token", token: accessToken });
-      } catch {
-        // Silent catch
+        console.log("📡 Token broadcasted to other tabs");
+      } catch (error) {
+        console.error("❌ Broadcast error:", error);
       }
     }
 
@@ -356,6 +535,7 @@ export function setAccessToken(
       scheduleProactiveRefresh(token);
     } else if (!token) {
       clearRefreshTimer();
+      console.log("🛑 Refresh scheduling stopped (no token)");
     }
 
     if (token !== oldToken) {
@@ -365,14 +545,18 @@ export function setAccessToken(
         newToken: !!token,
         hadToken: !!oldToken,
         hasToken: !!token,
+        timestamp: new Date().toISOString(),
       });
 
       if (!token && oldToken) {
-        emitAuthEvent("logout");
+        console.log("🚪 Logout event emitted");
+        emitAuthEvent("logout", { timestamp: new Date().toISOString() });
       }
+    } else {
+      console.log("ℹ️ Token unchanged, skipping notifications");
     }
   } catch (error) {
-    console.error("Error in setAccessToken:", error);
+    console.error("❌ Error in setAccessToken:", error);
   } finally {
     isRefreshing = false;
   }
@@ -384,7 +568,9 @@ export function setAccessToken(
 export function initAuthFromStorage(): void {
   if (!IS_CLIENT) return;
 
+  console.log("🚀 Initializing auth from storage");
   startBroadcast();
+  startHealthMonitoring();
 
   if (!PERSIST_TO_LOCALSTORAGE) {
     try {
@@ -398,6 +584,7 @@ export function initAuthFromStorage(): void {
   try {
     const saved = localStorage.getItem(LS_KEY);
     if (saved) {
+      console.log("🔍 Found saved token in localStorage");
       const validation = validateToken(saved);
       if (validation.isValid) {
         setAccessToken(saved, {
@@ -405,18 +592,24 @@ export function initAuthFromStorage(): void {
           schedule: true,
           persist: true,
         });
+        console.log("✅ Token restored from localStorage");
       } else {
+        console.warn("❌ Saved token invalid, removing:", validation.error);
         localStorage.removeItem(LS_KEY);
       }
+    } else {
+      console.log("🔍 No saved token found in localStorage");
     }
-  } catch {
-    // Silent catch
+  } catch (error) {
+    console.error("❌ Error initializing auth from storage:", error);
   }
 }
 
 /** Cleanup untuk mencegah memory leaks */
 export function cleanup(): void {
+  console.log("🧹 Cleaning up auth system");
   clearRefreshTimer();
+  stopHealthMonitoring();
   tokenListeners.clear();
   eventListeners.clear();
   try {
@@ -430,12 +623,15 @@ export function cleanup(): void {
   accessToken = null;
   isRefreshing = false;
   refreshAttempts = 0;
+  refreshCount = 0;
+  lastRefreshTime = null;
 }
 
 // ==================== UTILITY FUNCTIONS ====================
 
 /** Force refresh token */
 export async function forceRefresh(): Promise<string | null> {
+  console.log("🔧 Manual force refresh requested");
   const result = await refreshToken();
   return result;
 }
@@ -458,6 +654,11 @@ export function getTokenHealth(): {
   expiresIn: number | null;
   willAutoRefresh: boolean;
   health: "healthy" | "expiring_soon" | "expired" | "invalid";
+  refreshMetrics: {
+    count: number;
+    lastRefresh: Date | null;
+    attempts: number;
+  };
 } {
   if (!accessToken) {
     return {
@@ -465,6 +666,11 @@ export function getTokenHealth(): {
       expiresIn: null,
       willAutoRefresh: false,
       health: "invalid",
+      refreshMetrics: {
+        count: refreshCount,
+        lastRefresh: lastRefreshTime ? new Date(lastRefreshTime) : null,
+        attempts: refreshAttempts,
+      },
     };
   }
 
@@ -475,6 +681,11 @@ export function getTokenHealth(): {
       expiresIn: null,
       willAutoRefresh: false,
       health: "expired",
+      refreshMetrics: {
+        count: refreshCount,
+        lastRefresh: lastRefreshTime ? new Date(lastRefreshTime) : null,
+        attempts: refreshAttempts,
+      },
     };
   }
 
@@ -498,6 +709,11 @@ export function getTokenHealth(): {
     expiresIn,
     willAutoRefresh,
     health,
+    refreshMetrics: {
+      count: refreshCount,
+      lastRefresh: lastRefreshTime ? new Date(lastRefreshTime) : null,
+      attempts: refreshAttempts,
+    },
   };
 }
 
@@ -519,10 +735,41 @@ export function hasAnyRole(roles: string[]): boolean {
   return roles.some((role) => claims?.role === role);
 }
 
+/** Dapatkan metrics refresh */
+export function getRefreshMetrics() {
+  return {
+    refreshCount,
+    lastRefreshTime: lastRefreshTime ? new Date(lastRefreshTime) : null,
+    refreshAttempts,
+    queueSize: refreshQueue ? 1 : 0,
+    isRefreshing,
+    health: getTokenHealth(),
+  };
+}
+
 // ==================== DEBUG UTILITIES ====================
 
 /** Reset state untuk testing */
 export function _resetForTesting(): void {
   cleanup();
   refreshAttempts = 0;
+  refreshCount = 0;
+  lastRefreshTime = null;
+}
+
+/** Debug function untuk melihat internal state */
+export function _debugState() {
+  return {
+    accessToken: accessToken ? `${accessToken.substring(0, 20)}...` : null,
+    tokenListeners: tokenListeners.size,
+    eventListeners: Array.from(eventListeners.entries()).map(
+      ([event, listeners]) => ({
+        event,
+        count: listeners.size,
+      })
+    ),
+    refreshMetrics: getRefreshMetrics(),
+    broadcastChannel: bc ? "active" : "inactive",
+    healthCheck: healthCheckInterval ? "active" : "inactive",
+  };
 }

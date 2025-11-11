@@ -1,8 +1,7 @@
-// components/clientSessionProvider.tsx (FIXED - NO ESLINT WARNINGS)
+// components/clientSessionProvider.tsx (FIXED - NO INFINITE LOOP)
 "use client";
 
 import { createContext, useState, useContext, ReactNode, useEffect, useRef, useCallback } from "react";
-import axios from "axios";
 import {
   initAuthFromStorage,
   setRefreshExecutor,
@@ -11,6 +10,7 @@ import {
   getAccessToken,
 } from "@/lib/autoRefresh";
 import { LoadingScreen } from "@/components/ui/loading-gears";
+import { api } from "@/lib/http";
 
 export interface User {
   id: string;
@@ -56,9 +56,10 @@ export default function ClientSessionProvider({
   const hasFetchedRef = useRef(false);
   const isInitializingRef = useRef(false);
   const isMountedRef = useRef(true);
+  const tokenChangeCountRef = useRef(0); // ✅ NEW: Track token changes
 
   // Function untuk baca accessTokenReadable
-  const getReadableToken = (): string | null => {
+  const getReadableToken = useCallback((): string | null => {
     try {
       if (typeof document === 'undefined') return null;
 
@@ -73,10 +74,28 @@ export default function ClientSessionProvider({
     } catch {
       return null;
     }
-  };
+  }, []);
+
+  // Function untuk baca accessToken dari cookie
+  const getCookieToken = useCallback((): string | null => {
+    try {
+      if (typeof document === 'undefined') return null;
+
+      const cookies = document.cookie.split(';');
+      for (const cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'accessToken' && value) {
+          return value;
+        }
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }, []);
 
   // Function untuk handle response data structure dengan type safety
-  const extractUserData = (data: ProfileResponse | User): User | null => {
+  const extractUserData = useCallback((data: ProfileResponse | User): User | null => {
     try {
       let userData: Partial<User> = data;
 
@@ -103,63 +122,69 @@ export default function ClientSessionProvider({
       console.error("Error processing user data:", error);
       return null;
     }
-  };
+  }, []);
 
-  // ✅ Function untuk fetch profile menggunakan Authorization Header
-  const fetchProfileWithAuthHeader = useCallback(async (token: string): Promise<User | null> => {
+  // ✅ FIXED: Function untuk fetch profile menggunakan api dari http.ts
+  const fetchProfileWithAuthHeader = useCallback(async (token?: string): Promise<User | null> => {
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/user-login/profile`,
+      // Jika ada token, set terlebih dahulu ke auth system
+      if (token) {
+        setAccessToken(token);
+      }
+
+      // Gunakan api dari http.ts yang sudah handle interceptors
+      const response = await api.get<ProfileResponse | User>(
+        `/api/auth/user-login/profile` // ✅ FIXED: Remove full URL, use relative path
+      );
+      
+      const userData = extractUserData(response.data);
+      return userData ?? null;
+    } catch (err) {
+      console.error("[fetchProfileWithAuthHeader] Error:", err);
+      return null;
+    }
+  }, [extractUserData]);
+
+  // ✅ FIXED: Function untuk fetch profile dengan credentials menggunakan api dari http.ts
+  const fetchProfileWithCredentials = useCallback(async (): Promise<User | null> => {
+    try {
+      // Gunakan api dari http.ts dengan withCredentials
+      const response = await api.get<ProfileResponse | User>(
+        `/api/auth/user-login/profile`, // ✅ FIXED: Remove full URL
         {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`,
-          },
-          cache: "no-store",
+          withCredentials: true,
+          timeout: 5000,
         }
       );
 
-      if (!response.ok) {
-        return null;
-      }
-
-      const data: ProfileResponse | User = await response.json();
-      const userData = extractUserData(data);
-
-      if (userData) {
-        return userData;
-      }
-
-      return null;
-    } catch {
-      console.error("Profile fetch error");
+      return extractUserData(response.data);
+    } catch (error) {
+      console.error("[fetchProfileWithCredentials] Error:", error);
       return null;
     }
-  }, []);
+  }, [extractUserData]);
 
-  // ✅ FIXED: Hanya fetch profile jika ada token yang valid
+  // ✅ FIXED: Optimized approach testing dengan MAX_RETRIES
+  const MAX_RETRIES = 2; // ✅ NEW: Limit retry attempts
+  const retryCountRef = useRef(0); // ✅ NEW: Track retry attempts
+
   const testAllFetchApproaches = useCallback(async (): Promise<void> => {
     if (!isMountedRef.current || hasFetchedRef.current) return;
 
-    // ✅ CHECK: Jika tidak ada token sama sekali, skip fetch dan set loading false
+    // ✅ NEW: Check max retries to prevent infinite loop
+    if (retryCountRef.current >= MAX_RETRIES) {
+      console.log("Max retry attempts reached, stopping profile fetch");
+      setUser(null);
+      setIsLoading(false);
+      return;
+    }
+
+    retryCountRef.current++;
+
+    // Check semua sumber token
     const readableToken = getReadableToken();
     const currentToken = getAccessToken();
-    
-    // Cek manual di cookies juga
-    let cookieToken = null;
-    try {
-      const cookies = document.cookie.split(';');
-      for (const cookie of cookies) {
-        const [name, value] = cookie.trim().split('=');
-        if (name === 'accessToken' && value) {
-          cookieToken = value;
-          break;
-        }
-      }
-    } catch {
-      // Ignore cookie errors
-    }
+    const cookieToken = getCookieToken();
 
     const hasAnyValidToken = !!(readableToken || currentToken || cookieToken);
 
@@ -172,74 +197,80 @@ export default function ClientSessionProvider({
 
     hasFetchedRef.current = true;
 
-    // APPROACH 1: Gunakan accessTokenReadable dengan Authorization Header
-    try {
-      if (readableToken) {
-        const userData = await fetchProfileWithAuthHeader(readableToken);
+    // Coba semua approach secara berurutan
+    const approaches = [
+      { token: readableToken, name: "readableToken" },
+      { token: currentToken, name: "currentToken" },
+      { token: cookieToken, name: "cookieToken" },
+    ];
+
+    for (const approach of approaches) {
+      if (approach.token) {
+        console.log(`Trying profile fetch with ${approach.name}`);
+        const userData = await fetchProfileWithAuthHeader(approach.token);
         if (userData) {
+          console.log(`Profile fetched successfully with ${approach.name}`);
           setUser(userData);
-          setAccessToken(readableToken);
           setIsLoading(false);
+          retryCountRef.current = 0; // ✅ Reset on success
           return;
         }
       }
-    } catch {
-      // Continue to next approach
     }
 
-    // APPROACH 2: Gunakan token dari autoRefresh system dengan Authorization Header
-    try {
-      if (currentToken) {
-        const userData = await fetchProfileWithAuthHeader(currentToken);
-        if (userData) {
-          setUser(userData);
-          setIsLoading(false);
-          return;
-        }
-      }
-    } catch {
-      // Continue to next approach
-    }
-
-    // APPROACH 3: Manual cookie extraction + Authorization Header
-    try {
-      if (cookieToken) {
-        const userData = await fetchProfileWithAuthHeader(cookieToken);
-        if (userData) {
-          setUser(userData);
-          setAccessToken(cookieToken);
-          setIsLoading(false);
-          return;
-        }
-      }
-    } catch {
-      // Continue to next approach
-    }
-
-    // APPROACH 4: Fallback - withCredentials (jika semua Authorization Header gagal)
-    try {
-      const res = await axios.get<ProfileResponse | User>(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/user-login/profile`,
-        {
-          withCredentials: true,
-          timeout: 5000,
-        }
-      );
-
-      const userData = extractUserData(res.data);
-      if (userData) {
-        setUser(userData);
-      } else {
-        setUser(null);
-      }
-    } catch {
-      // Final fallback - set no user
-      console.log("All profile fetch approaches failed, setting user to null");
+    // Fallback: coba dengan credentials
+    console.log("Trying fallback approach with credentials");
+    const userData = await fetchProfileWithCredentials();
+    if (userData) {
+      setUser(userData);
+      retryCountRef.current = 0; // ✅ Reset on success
+    } else {
+      console.log("All profile fetch approaches failed");
       setUser(null);
     }
 
     setIsLoading(false);
-  }, [fetchProfileWithAuthHeader]); // ✅ FIXED: No missing dependencies
+  }, [fetchProfileWithAuthHeader, fetchProfileWithCredentials, getReadableToken, getCookieToken]);
+
+  // ✅ FIXED: Check token availability
+  const checkTokenAvailability = useCallback((): boolean => {
+    const readableToken = getReadableToken();
+    const currentToken = getAccessToken();
+    const cookieToken = getCookieToken();
+
+    return !!(readableToken || currentToken || cookieToken);
+  }, [getReadableToken, getCookieToken]);
+
+  // ✅ FIXED: Refresh token function menggunakan api dari http.ts
+  const refreshToken = useCallback(async (): Promise<string | null> => {
+    try {
+      // Gunakan api dari http.ts untuk refresh token
+      const response = await api.post<{ token: string }>(
+        `/auth/refresh`, // ✅ FIXED: Remove full URL
+        {},
+        {
+          withCredentials: true,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const newToken = response.data.token;
+      if (newToken) {
+        setAccessToken(newToken);
+        return newToken;
+      }
+      return null;
+    } catch (error) {
+      console.error("Token refresh failed", error);
+      setAccessToken(null);
+      setUser(null);
+      hasFetchedRef.current = false;
+      retryCountRef.current = 0; // ✅ Reset on refresh failure
+      return null;
+    }
+  }, []);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -258,93 +289,46 @@ export default function ClientSessionProvider({
         // Initialize auth system
         initAuthFromStorage();
 
-        // Setup refresh executor  
-        setRefreshExecutor(async (): Promise<string | null> => {
-          try {
-            const response = await fetch(
-              `${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                credentials: "include",
-                body: JSON.stringify({}),
-                cache: "no-store",
-              }
-            );
+        // Setup refresh executor menggunakan api dari http.ts
+        setRefreshExecutor(refreshToken);
 
-            if (!response.ok) {
-              throw new Error(`Refresh failed: ${response.status}`);
-            }
-
-            const data = await response.json();
-            const newToken = data.token;
-
-            if (newToken) {
-              setAccessToken(newToken);
-              return newToken;
-            }
-            return null;
-          } catch (error) {
-            console.error("Token refresh failed", error);
-            setAccessToken(null);
-            setUser(null);
-            hasFetchedRef.current = false;
-            return null;
-          }
-        });
-
+        // ✅ FIXED: Improved token change handler - NO INFINITE LOOP
         onTokenChange((token: string | null) => {
           if (!isMountedRef.current) return;
 
-          if (!token) {
-            setUser(null);
-            hasFetchedRef.current = false;
-            setIsLoading(false);
+          tokenChangeCountRef.current++;
+          
+          // ✅ NEW: Limit token change handling to prevent loops
+          if (tokenChangeCountRef.current > 3) {
+            console.log("Too many token changes, stopping further processing");
             return;
           }
 
+          if (!token) {
+            // Token cleared (logout/expired)
+            setUser(null);
+            hasFetchedRef.current = false;
+            setIsLoading(false);
+            retryCountRef.current = 0;
+            tokenChangeCountRef.current = 0;
+            return;
+          }
+
+          // ✅ FIXED: Only fetch profile if we haven't already OR if this is initial setup
           if (!hasFetchedRef.current) {
+            console.log("Initial token setup, fetching profile...");
             testAllFetchApproaches();
           } else {
-            // Jika token berubah, fetch ulang profile dengan token baru
-            fetchProfileWithAuthHeader(token)
-              .then(userData => {
-                if (userData && isMountedRef.current) {
-                  setUser(userData);
-                }
-              })
-              .catch(() => {
-                console.error("Failed to refetch profile");
-              });
+            // ✅ FIXED: Don't automatically refetch on token changes
+            // Let http.ts handle token refresh for subsequent requests
+            console.log("Token updated, but skipping profile refetch to prevent loop");
           }
         });
 
-        // ✅ FIXED: Check tokens inline instead of using separate function
-        const readableTokenCheck = getReadableToken();
-        const currentTokenCheck = getAccessToken();
-        
-        let cookieTokenCheck = null;
-        try {
-          const cookies = document.cookie.split(';');
-          for (const cookie of cookies) {
-            const [name, value] = cookie.trim().split('=');
-            if (name === 'accessToken' && value) {
-              cookieTokenCheck = value;
-              break;
-            }
-          }
-        } catch {
-          // Ignore cookie errors
-        }
-
-        const hasAnyValidToken = !!(readableTokenCheck || currentTokenCheck || cookieTokenCheck);
-
-        if (hasAnyValidToken) {
-          testAllFetchApproaches();
+        // Check token availability dan fetch profile jika ada
+        if (checkTokenAvailability()) {
+          await testAllFetchApproaches();
         } else {
-          // ✅ No tokens found, skip profile fetch and finish loading
           console.log("No tokens available, skipping initial profile fetch");
           setIsLoading(false);
         }
@@ -362,9 +346,14 @@ export default function ClientSessionProvider({
     return () => {
       isMountedRef.current = false;
     };
-  }, [testAllFetchApproaches, fetchProfileWithAuthHeader]); // ✅ FIXED: No missing dependencies
+  }, [
+    testAllFetchApproaches, 
+    fetchProfileWithAuthHeader, 
+    getReadableToken, 
+    checkTokenAvailability,
+    refreshToken
+  ]);
 
-  // ✅ RETURN LOADING SCREEN JIKA MASIH LOADING
   if (isLoading) {
     return <LoadingScreen />;
   }

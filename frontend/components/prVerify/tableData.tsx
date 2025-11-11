@@ -444,7 +444,7 @@ export function PurchaseRequestVerifyTable({
                                     ))
                                 ) : purchaseRequests.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={8} className="text-center py-8">
+                                        <TableCell colSpan={13} className="text-center py-8">
                                             <div className="flex flex-col items-center justify-center text-muted-foreground">
                                                 <FileText className="h-12 w-12 mb-4 text-gray-300" />
                                                 <p className="text-lg font-medium">No purchase requests found</p>
