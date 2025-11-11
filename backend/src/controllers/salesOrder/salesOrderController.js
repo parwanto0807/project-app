@@ -47,7 +47,7 @@ export const getAllInvoice = async (req, res) => {
     const salesOrders = await prisma.salesOrder.findMany({
       where: {
         status: {
-          in: ["FULFILLED", "BAST", "INVOICED"], // hanya ambil status ini
+          in: ["FULFILLED", "BAST"], // hanya ambil status ini
         },
       },
       include: {
