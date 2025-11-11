@@ -796,24 +796,37 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
 
                                                     return (
                                                         <Fragment key={spkNumber}>
-                                                            <tr className="bg-slate-100/70">
-                                                                <td colSpan={6} className="p-2 text-sm font-semibold">
-                                                                    SPK: {spk?.spkNumber || spkNumber}
+                                                            <tr className="bg-slate-100 border-y border-slate-200">
+                                                                <td colSpan={6} className="p-3">
+                                                                    <div className="flex items-center space-x-2">
+                                                                        <div className="w-1 h-4 bg-blue-500 rounded"></div>
+                                                                        <span className="text-sm font-semibold text-slate-700">
+                                                                            SPK: {spk?.spkNumber || spkNumber} <span className='font-bold ml-2 '>Detail Item :</span> 
+                                                                        </span>
+                                                                    </div>
                                                                 </td>
                                                             </tr>
 
                                                             {spk?.items?.map((item, index) => {
-                                                                // const report = reportsInGroup.find(r => r.id === item.id);
-
                                                                 return (
-                                                                    <tr key={item.id}>
-                                                                        <td className='p-0 text-center'>{index + 1}</td>
-                                                                        <td className="p-2">{item.name}</td>
-                                                                        <td className="p-2">
-                                                                            {item.qty || "0"}
+                                                                    <tr key={item.id} className="hover:bg-slate-50 border-b border-slate-100">
+                                                                        <td className="p-3 text-center text-sm text-slate-500">
+                                                                            {index + 1}
                                                                         </td>
-                                                                        <td className="p-2">
-                                                                            {item.uom || "0"}
+                                                                        <td className="p-3">
+                                                                            <div className="text-sm text-slate-800">{item.name}</div>
+                                                                        </td>
+                                                                        <td className="p-3 text-center">
+                                                                            <div className="flex items-center justify-center space-x-1">
+                                                                                <span className="text-sm font-semibold text-slate-700">
+                                                                                    {item.qty || "0"}
+                                                                                </span>
+                                                                            </div>
+                                                                        </td>
+                                                                        <td className="p-3 text-center">
+                                                                            <span className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded uppercase">
+                                                                                {item.uom || "Unit"}
+                                                                            </span>
                                                                         </td>
                                                                     </tr>
                                                                 );

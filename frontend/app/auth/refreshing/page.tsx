@@ -1,148 +1,193 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { initializeTokensOnLogin } from "@/lib/http";
-import { CheckCircle2, RefreshCw, AlertCircle, Timer, Shield } from "lucide-react";
+import { 
+  initializeTokensOnLogin, 
+  api,
+  clearTokensOnLogout 
+} from "@/lib/http";
+import { CheckCircle2, RefreshCw, AlertCircle, Timer, Shield, LogIn } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-
-// ------------------------------------------------------------
-// Type-safe status state (tanpa `any`)
-// ------------------------------------------------------------
+import { AxiosError } from "axios";
 
 type UiStatus = "idle" | "loading" | "success" | "error";
 
-interface RefreshJson {
+interface RefreshResponse {
   accessToken?: string;
   error?: string;
+  success?: boolean;
 }
 
-// ------------------------------------------------------------
-// Helper: tulis cookie FE agar terbaca middleware saat page load
-// (duplikasi accessToken yang juga disimpan di memory untuk axios)
-// ------------------------------------------------------------
-function writeFrontendAccessCookie(token: string) {
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1])) as { exp?: number };
-    const now = Math.floor(Date.now() / 1000);
-    const ttl = payload?.exp ? Math.max(payload.exp - now - 5, 5) : 90; // buffer 5s
-    document.cookie = `accessToken=${token}; Path=/; Max-Age=${ttl}; SameSite=Lax`;
-  } catch {
-    document.cookie = `accessToken=${token}; Path=/; Max-Age=90; SameSite=Lax`;
-  }
-}
+const MAX_RETRY_ATTEMPTS = 3;
+const SUCCESS_REDIRECT_DELAY = 800;
 
 export default function Refreshing() {
   const router = useRouter();
-  const sp = useSearchParams();
-  const redirect = useMemo(() => sp.get("redirect") || "/", [sp]);
+  const searchParams = useSearchParams();
+  const redirect = useMemo(() => searchParams.get("redirect") || "/", [searchParams]);
 
   const [status, setStatus] = useState<UiStatus>("idle");
-  const [detailMsg, setDetailMsg] = useState("Menyiapkan sesi Anda…");
+  const [detailMessage, setDetailMessage] = useState("Menyiapkan sesi Anda…");
   const [attempt, setAttempt] = useState<number>(0);
-  const abortRef = useRef<AbortController | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  async function doRefresh(nextAttempt: number) {
+  const executeRefresh = useCallback(async (nextAttempt: number): Promise<void> => {
+    if (nextAttempt > MAX_RETRY_ATTEMPTS) {
+      setStatus("error");
+      setDetailMessage("Terlalu banyak percobaan. Silakan login ulang.");
+      return;
+    }
+
     setAttempt(nextAttempt);
     setStatus("loading");
-    setDetailMsg(
+    setDetailMessage(
       nextAttempt === 1
         ? "Menghubungkan ke server otentikasi…"
-        : `Mencoba lagi (${nextAttempt})…`
+        : `Mencoba lagi (${nextAttempt}/${MAX_RETRY_ATTEMPTS})…`
     );
 
-    abortRef.current?.abort();
-    const ac = new AbortController();
-    abortRef.current = ac;
+    abortControllerRef.current?.abort();
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
 
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/refresh`,
-        { method: "POST", credentials: "include", signal: ac.signal }
+      console.log("🔄 Attempting token refresh via http.ts API...");
+
+      // ✅ CLEAN SOLUTION: Gunakan api.post langsung dengan config sederhana
+      const response = await api.post<RefreshResponse>(
+        "/api/auth/refresh",
+        {},
+        {
+          signal: abortController.signal,
+          timeout: 10000,
+          // ✅ _skipAuth akan dihandle oleh interceptor di http.ts
+          // Tidak perlu complex config object
+        }
       );
 
-      const data = (await res.json().catch(() => ({}))) as RefreshJson;
+      const data = response.data;
 
-      if (!res.ok) {
-        throw new Error(data?.error || `Refresh gagal (${res.status})`);
+      if (!data.accessToken) {
+        throw new Error("Token tidak ditemukan pada respons");
       }
 
       const token = data.accessToken;
-      if (!token) throw new Error("Token tidak ditemukan pada respons");
+      await initializeTokensOnLogin(token);
 
-      initializeTokensOnLogin(token);
-      writeFrontendAccessCookie(token);
-
-      setDetailMsg("Berhasil memperbarui sesi. Mengalihkan…");
+      setDetailMessage("Berhasil memperbarui sesi. Mengalihkan…");
       setStatus("success");
 
-      // beri waktu animasi
-      setTimeout(() => router.replace(redirect), 550);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Refresh gagal";
+      console.log("✅ Token refresh successful, redirecting to:", redirect);
+
+      setTimeout(() => {
+        router.replace(redirect);
+      }, SUCCESS_REDIRECT_DELAY);
+
+    } catch (error: unknown) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('Refresh request was aborted');
+        return;
+      }
+
+      const axiosError = error as AxiosError<RefreshResponse>;
+      
+      let errorMessage = "Refresh gagal";
+      
+      if (axiosError.response?.data?.error) {
+        errorMessage = axiosError.response.data.error;
+      } else if (axiosError.message) {
+        errorMessage = axiosError.message;
+      } else if (axiosError.response?.status) {
+        errorMessage = `Refresh gagal (${axiosError.response.status})`;
+      }
+      
       setStatus("error");
-      setDetailMsg(msg);
+      setDetailMessage(errorMessage);
+
+      console.error("❌ Token refresh failed:", errorMessage);
     }
-  }
+  }, [redirect, router]);
+
+  const handleRetry = (): void => {
+    executeRefresh(attempt + 1);
+  };
+
+  const handleLoginRedirect = (): void => {
+    clearTokensOnLogout();
+    router.replace("/auth/login");
+  };
 
   useEffect(() => {
-    // Jalankan 1x ketika halaman dibuka
-    void doRefresh(1);
-    return () => abortRef.current?.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    executeRefresh(1);
+
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, [executeRefresh]);
 
   return (
-    <div>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900/20 to-purple-900/10 p-4">
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35 }}
+        transition={{ duration: 0.4 }}
         className="w-full max-w-md"
       >
-        <div className="rounded-2xl border border-white/20 bg-white/10 backdrop-blur-xl shadow-2xl overflow-hidden">
-          {/* Header */}
-          <div className="px-6 pt-6 pb-2 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-emerald-500/10 grid place-items-center">
-              <Shield className="h-5 w-5 text-emerald-400" />
+        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl shadow-black/20 overflow-hidden">
+          <div className="px-6 pt-6 pb-4 flex items-center gap-3 border-b border-white/5">
+            <div className="h-12 w-12 rounded-full bg-emerald-500/10 grid place-items-center">
+              <Shield className="h-6 w-6 text-emerald-400" />
             </div>
             <div>
-              <h1 className="text-lg font-semibold text-slate-800 leading-tight">Merefresh Sesi</h1>
-              <p className="text-xs text-slate-800">Menjaga Anda tetap masuk dengan aman</p>
+              <h1 className="text-lg font-semibold text-white leading-tight">
+                Memperbarui Sesi
+              </h1>
+              <p className="text-sm text-white/60 mt-0.5">
+                Menjaga Anda tetap masuk dengan aman
+              </p>
             </div>
           </div>
 
-          {/* Body */}
-          <div className="px-6 pb-6 pt-2">
+          <div className="px-6 pb-6 pt-4">
             <AnimatePresence mode="wait">
               {status === "loading" && (
                 <motion.div
                   key="loading"
-                  initial={{ opacity: 0, y: 6 }}
+                  initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
+                  exit={{ opacity: 0, y: -10 }}
                   className="flex flex-col items-center text-center gap-4"
                 >
                   <motion.div
                     animate={{ rotate: 360 }}
-                    transition={{ repeat: Infinity, duration: 1.2, ease: "linear" }}
+                    transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+                    className="relative"
                   >
-                    <RefreshCw className="h-8 w-8 text-emerald-400" />
+                    <RefreshCw className="h-10 w-10 text-emerald-400" />
                   </motion.div>
-                  <div>
-                    <p className="text-sm font-medium">Memperbarui token akses…</p>
-                    <p className="text-xs text-slate-700 mt-1">{detailMsg}</p>
+                  
+                  <div className="space-y-2">
+                    <p className="text-base font-medium text-white">
+                      Memperbarui token akses…
+                    </p>
+                    <p className="text-sm text-white/70">
+                      {detailMessage}
+                    </p>
                   </div>
-                  <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+
+                  <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
                     <motion.div
-                      className="h-full bg-emerald-500"
-                      initial={{ width: 0 }}
-                      animate={{ width: ["0%", "60%", "90%", "100%"] }}
-                      transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+                      className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500"
+                      initial={{ width: "0%" }}
+                      animate={{ width: "100%" }}
+                      transition={{ duration: 2, ease: "easeInOut" }}
                     />
                   </div>
-                  <p className="text-[11px] text-white/50 flex items-center gap-1">
-                    <Timer className="h-3.5 w-3.5" /> Upaya: {attempt}
+
+                  <p className="text-xs text-white/50 flex items-center gap-1.5">
+                    <Timer className="h-3.5 w-3.5" /> 
+                    Upaya: {attempt} of {MAX_RETRY_ATTEMPTS}
                   </p>
                 </motion.div>
               )}
@@ -150,52 +195,84 @@ export default function Refreshing() {
               {status === "success" && (
                 <motion.div
                   key="success"
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
                   className="flex flex-col items-center text-center gap-4"
                 >
-                  <CheckCircle2 className="h-10 w-10 text-emerald-400" />
-                  <p className="text-sm font-medium text-yellow-500">Sesi berhasil diperbarui</p>
-                  <p className="text-xs text-slate-700">Mengalihkan ke halaman tujuan…</p>
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", duration: 0.6 }}
+                  >
+                    <CheckCircle2 className="h-12 w-12 text-emerald-400" />
+                  </motion.div>
+                  
+                  <div className="space-y-2">
+                    <p className="text-base font-semibold text-white">
+                      Sesi berhasil diperbarui!
+                    </p>
+                    <p className="text-sm text-white/70">
+                      Mengalihkan ke halaman tujuan…
+                    </p>
+                  </div>
+
+                  <motion.div
+                    initial={{ width: "0%" }}
+                    animate={{ width: "100%" }}
+                    transition={{ duration: 0.5, delay: 0.2 }}
+                    className="h-1 bg-emerald-400/30 rounded-full overflow-hidden"
+                  >
+                    <motion.div
+                      className="h-full bg-emerald-400"
+                      initial={{ width: "0%" }}
+                      animate={{ width: "100%" }}
+                      transition={{ duration: SUCCESS_REDIRECT_DELAY / 1000, ease: "linear" }}
+                    />
+                  </motion.div>
                 </motion.div>
               )}
 
               {status === "error" && (
                 <motion.div
                   key="error"
-                  initial={{ opacity: 0, y: 6 }}
+                  initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  className="flex flex-col items-center text-center gap-4"
+                  exit={{ opacity: 0, y: -10 }}
+                  className="flex flex-col items-center text-center gap-5"
                 >
-                  <div className="h-10 w-10 rounded-full bg-rose-500/10 grid place-items-center">
-                    <AlertCircle className="h-6 w-6 text-rose-400" />
+                  <div className="h-14 w-14 rounded-full bg-rose-500/10 grid place-items-center">
+                    <AlertCircle className="h-7 w-7 text-rose-400" />
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold">Gagal memperbarui sesi</p>
-                    <p className="text-xs text-rose-300/90 mt-1 break-words max-w-[34ch] mx-auto">
-                      {detailMsg}
+                  
+                  <div className="space-y-2">
+                    <p className="text-base font-semibold text-white">
+                      Gagal memperbarui sesi
                     </p>
-                    <p className="text-[11px] text-slate-400 mt-2">
+                    <p className="text-sm text-rose-300/90 max-w-[30ch] mx-auto leading-relaxed">
+                      {detailMessage}
+                    </p>
+                    <p className="text-xs text-white/50 mt-2">
                       Pastikan koneksi internet aktif dan cookie masih berlaku.
                     </p>
                   </div>
 
-                  <div className="flex items-center justify-center gap-2">
+                  <div className="flex items-center justify-center gap-3 w-full">
                     <button
                       type="button"
-                      onClick={() => void doRefresh(attempt + 1)}
-                      className="px-3.5 py-2 rounded-xl text-sm font-medium bg-white/10 hover:bg-white/15 active:bg-white/20 border border-white/10"
+                      onClick={handleRetry}
+                      disabled={attempt >= MAX_RETRY_ATTEMPTS}
+                      className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-white/10 hover:bg-white/15 active:bg-white/20 border border-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                     >
                       Coba Lagi
                     </button>
                     <button
                       type="button"
-                      onClick={() => router.replace("/auth/login")}
-                      className="px-3.5 py-2 rounded-xl text-sm font-medium bg-rose-500/90 hover:bg-rose-500 text-white shadow"
+                      onClick={handleLoginRedirect}
+                      className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-rose-500/90 hover:bg-rose-500 text-white shadow-lg shadow-rose-500/25 flex items-center justify-center gap-2 transition-all duration-200"
                     >
-                      Ke Login
+                      <LogIn className="h-4 w-4" />
+                      Login Ulang
                     </button>
                   </div>
                 </motion.div>
@@ -204,12 +281,16 @@ export default function Refreshing() {
           </div>
         </div>
 
-        {/* Footer helper */}
-        <div className="text-center mt-4">
-          <p className="text-[10px] text-white/50">
-            Halaman ini aman untuk ditutup setelah selesai. Token disimpan sementara di memory & cookie FE untuk kompatibel dengan middleware.
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="text-center mt-6"
+        >
+          <p className="text-xs text-white/40 max-w-[60ch] mx-auto leading-relaxed">
+            Menggunakan sistem autentikasi terintegrasi dengan http.ts
           </p>
-        </div>
+        </motion.div>
       </motion.div>
     </div>
   );
