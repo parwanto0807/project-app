@@ -272,7 +272,7 @@ const InvoicePdfDocument = ({ invoice }: { invoice: Invoice }) => {
         taxTotal,
         discountTotal,
         grandTotal,
-        balanceDue,
+        // balanceDue,
         approvalStatus,
         approvedBy,
         status // Ditambahkan untuk status invoice
@@ -440,7 +440,7 @@ const InvoicePdfDocument = ({ invoice }: { invoice: Invoice }) => {
                             <Text style={[styles.summaryLabel, styles.grandTotal]}>Grand Total:</Text>
                             <Text style={styles.grandTotal}>{formatCurrency((grandTotal))}</Text>
                         </View>
-                        <View style={styles.summaryRow}>
+                        {/* <View style={styles.summaryRow}>
                             <Text style={styles.summaryLabel}>Balance Due:</Text>
                             <Text style={{
                                 fontWeight: 'bold',
@@ -448,7 +448,7 @@ const InvoicePdfDocument = ({ invoice }: { invoice: Invoice }) => {
                             }}>
                                 {formatCurrency((balanceDue))}
                             </Text>
-                        </View>
+                        </View> */}
                     </View>
                 </View>
 
