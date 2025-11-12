@@ -1,7 +1,7 @@
 // components/sales/quotation/manualCreateForm.tsx
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Plus,
     Trash2,
@@ -16,6 +16,7 @@ import {
     CreditCard,
     ChevronsUpDown,
     Check,
+    Search,
 } from 'lucide-react';
 import {
     QuotationStatus,
@@ -47,6 +48,7 @@ import { useRouter } from 'next/navigation';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
+import { ProductCreateDialog } from '../salesOrder/productDialog';
 
 interface ManualCreateQuotationFormProps {
     customers: Customer[];
@@ -57,23 +59,59 @@ interface ManualCreateQuotationFormProps {
     isLoading?: boolean;
 }
 
+interface LineItemState {
+    productSearchOpen: boolean;
+    productSearchQuery: string;
+}
+
+// Tipe untuk produk yang dikembalikan oleh ProductCreateDialog
+interface CreatedProduct {
+    id: string;
+    name: string;
+    description?: string;
+    usageUnit?: string | null;
+}
+
+// Helper function untuk format date
+const formatDateForInput = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+// Helper function untuk mengonversi CreatedProduct ke Product
+const convertToProduct = (createdProduct: CreatedProduct): Product => {
+    return {
+        id: createdProduct.id,
+        name: createdProduct.name,
+        code: createdProduct.name.substring(0, 3).toUpperCase() + Math.random().toString(36).substring(2, 5).toUpperCase(),
+        type: 'PRODUCT',
+        price: 0, // Default price
+        isActive: true,
+        uom: createdProduct.usageUnit || 'pcs',
+        description: createdProduct.description || '',
+    };
+};
+
 export const ManualCreateQuotationForm: React.FC<ManualCreateQuotationFormProps> = ({
     customers,
-    products,
+    products: initialProducts,
     taxes,
     paymentTerms,
     onSubmit,
     isLoading = false
 }) => {
     const router = useRouter();
-    const [openPopovers, setOpenPopovers] = useState<{ [key: number]: boolean }>({});
-    // Helper functions
-    const formatDateForInput = (date: Date): string => {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    };
+    const [lineStates, setLineStates] = useState<{ [key: number]: LineItemState }>({});
+    
+    // State untuk produk yang bisa di-update
+    const [products, setProducts] = useState<Product[]>(initialProducts);
+
+    // Update products ketika initialProducts berubah
+    useEffect(() => {
+        setProducts(initialProducts);
+    }, [initialProducts]);
 
     const [formData, setFormData] = useState<Omit<CreateQuotationRequest, 'lines'>>(() => {
         const today = new Date();
@@ -117,6 +155,29 @@ export const ManualCreateQuotationForm: React.FC<ManualCreateQuotationFormProps>
         }
     ]);
 
+    // Initialize line states
+    const initializeLineState = (index: number) => {
+        if (!lineStates[index]) {
+            setLineStates(prev => ({
+                ...prev,
+                [index]: {
+                    productSearchOpen: false,
+                    productSearchQuery: '',
+                }
+            }));
+        }
+    };
+
+    const updateItemState = (index: number, updates: Partial<LineItemState>) => {
+        setLineStates(prev => ({
+            ...prev,
+            [index]: {
+                ...prev[index],
+                ...updates
+            }
+        }));
+    };
+
     const handleHeaderChange = (field: keyof typeof formData, value: string | number | boolean | null) => {
         setFormData(prev => ({
             ...prev,
@@ -138,6 +199,7 @@ export const ManualCreateQuotationForm: React.FC<ManualCreateQuotationFormProps>
     };
 
     const addLine = () => {
+        const newIndex = lines.length;
         setLines(prev => [...prev, {
             lineType: LineType.PRODUCT,
             productId: null,
@@ -150,11 +212,20 @@ export const ManualCreateQuotationForm: React.FC<ManualCreateQuotationFormProps>
             lineSubtotal: 0,
             taxId: null
         }]);
+        
+        // Initialize state for new line
+        initializeLineState(newIndex);
     };
 
     const removeLine = (index: number) => {
         if (lines.length > 1) {
             setLines(prev => prev.filter((_, i) => i !== index));
+            // Remove state for deleted line
+            setLineStates(prev => {
+                const newState = { ...prev };
+                delete newState[index];
+                return newState;
+            });
         }
     };
 
@@ -249,6 +320,24 @@ export const ManualCreateQuotationForm: React.FC<ManualCreateQuotationFormProps>
                 } : line
             ));
         }
+    };
+
+    const handleProductSelect = (index: number, productId: string) => {
+        handleProductChange(index, productId);
+    };
+
+    const handleProductCreated = (index: number, createdProduct: CreatedProduct) => {
+        const newProduct = convertToProduct(createdProduct);
+        
+        // Update products state dengan produk baru
+        setProducts(prev => [...prev, newProduct]);
+
+        // Select the newly created product
+        handleProductSelect(index, newProduct.id);
+        updateItemState(index, { 
+            productSearchOpen: false,
+            productSearchQuery: "" 
+        });
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -377,6 +466,13 @@ export const ManualCreateQuotationForm: React.FC<ManualCreateQuotationFormProps>
             day: 'numeric'
         });
     };
+
+    // Initialize states for existing lines on mount
+    React.useEffect(() => {
+        lines.forEach((_, index) => {
+            initializeLineState(index);
+        });
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     return (
         <div className="max-w-7xl mx-auto p-4 bg-white dark:bg-slate-900 dark:text-white rounded-lg shadow-sm">
@@ -567,235 +663,270 @@ export const ManualCreateQuotationForm: React.FC<ManualCreateQuotationFormProps>
                         </div>
                     </CardHeader>
                     <CardContent className="px-6 space-y-2">
-                        {lines.map((line, index) => (
-                            <Card key={index} className="border-2">
-                                <CardHeader className="pb-4">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            {getLineTypeIcon(line.lineType)}
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-medium">Item {index + 1}</span>
-                                                {getLineTypeBadge(line.lineType)}
-                                            </div>
-                                        </div>
-                                        {lines.length > 1 && (
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => removeLine(index)}
-                                                className="h-8 w-8 text-red-600 hover:bg-red-50"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </Button>
-                                        )}
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <div className="grid grid-cols-1 lg:grid-cols-8 gap-4">
-                                        {/* Line Type */}
-                                        <div className="lg:col-span-1 space-y-2">
-                                            <Label>Type</Label>
-                                            <Select
-                                                value={line.lineType}
-                                                onValueChange={(value) => handleLineChange(index, 'lineType', value as LineType)}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value={LineType.PRODUCT}>Product</SelectItem>
-                                                    <SelectItem value={LineType.SERVICE}>Service</SelectItem>
-                                                    <SelectItem value={LineType.CUSTOM}>Custom</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
+                        {lines.map((line, index) => {
+                            const itemState = lineStates[index] || {
+                                productSearchOpen: false,
+                                productSearchQuery: '',
+                            };
+                            
+                            const filteredOptions = itemState.productSearchQuery
+                                ? products.filter(opt => 
+                                    opt.name.toLowerCase().includes(itemState.productSearchQuery.toLowerCase()))
+                                : products;
 
-                                        {/* Product Selection */}
-                                        <div className="lg:col-span-3 space-y-2">
-                                            <Label>Product</Label>
-
-                                            <Popover
-                                                open={openPopovers[index] || false}
-                                                onOpenChange={(val) => setOpenPopovers((prev) => ({ ...prev, [index]: val }))}
-                                            >
-
-                                                <PopoverTrigger asChild>
-                                                    <Button
-                                                        variant="outline"
-                                                        role="combobox"
-                                                        className="w-full justify-between"
-                                                    >
-                                                        {line.productId
-                                                            ? products.find((p) => p.id === line.productId)?.name
-                                                            : "Select Product"}
-                                                        <ChevronsUpDown className="h-4 w-4 opacity-50" />
-                                                    </Button>
-                                                </PopoverTrigger>
-
-                                                <PopoverContent className="w-[350px] p-0">
-                                                    <Command>
-                                                        <CommandInput placeholder="Search product..." />
-
-                                                        {/* ✅ Tambah CommandList untuk support keyboard */}
-                                                        <CommandList>
-                                                            <CommandEmpty>No product found.</CommandEmpty>
-
-                                                            <CommandGroup>
-                                                                {products.map((product) => (
-                                                                    <CommandItem
-                                                                        key={product.id}
-                                                                        value={product.name}
-                                                                        onSelect={() => {
-                                                                            handleProductChange(index, product.id);
-                                                                            setOpenPopovers((prev) => ({ ...prev, [index]: false }));
-                                                                        }}
-
-                                                                    >
-                                                                        <div className="flex justify-between w-full">
-                                                                            <span>{product.name}</span>
-                                                                            <span className="text-muted-foreground">{product.price}</span>
-                                                                        </div>
-
-                                                                        <Check
-                                                                            className={cn(
-                                                                                "ml-auto h-4 w-4",
-                                                                                line.productId === product.id ? "opacity-100" : "opacity-0"
-                                                                            )}
-                                                                        />
-                                                                    </CommandItem>
-                                                                ))}
-                                                            </CommandGroup>
-                                                        </CommandList>
-                                                    </Command>
-                                                </PopoverContent>
-                                            </Popover>
-                                        </div>
-
-                                        {/* Description */}
-                                        <div className="lg:col-span-4 space-y-2">
-                                            <Label>Description</Label>
-                                            <Textarea
-                                                value={line.description || ""}
-                                                onChange={(e) => handleLineChange(index, 'description', e.target.value)}
-                                                placeholder="Item description..."
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-8 lg:grid-cols-8 gap-2">
-                                        {/* Quantity */}
-                                        <div className="space-y-2">
-                                            <Label>Quantity</Label>
-                                            <Input
-                                                type="number"
-                                                min="0"
-                                                step="0.01"
-                                                value={line.qty}
-                                                onChange={(e) => handleLineChange(index, 'qty', parseFloat(e.target.value) || 0)}
-                                            />
-                                        </div>
-
-                                        {/* UOM */}
-                                        <div className="space-y-2">
-                                            <Label>Unit</Label>
-                                            <Input
-                                                type="text"
-                                                value={line.uom || ""}
-                                                onChange={(e) => handleLineChange(index, 'uom', e.target.value)}
-                                                placeholder="e.g., pcs, kg"
-                                            />
-                                        </div>
-
-                                        {/* Unit Price */}
-                                        <div className="md:col-span-2 lg:col-span-2 space-y-2">
-                                            <Label>Unit Price</Label>
-                                            <Input
-                                                type="number"
-                                                min="0"
-                                                step="0.01"
-                                                value={line.unitPrice}
-                                                onChange={(e) => handleLineChange(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                                            />
-                                        </div>
-
-                                        {/* Tax */}
-                                        <div className="space-y-2">
-                                            <Label>Tax</Label>
-                                            <Select
-                                                value={line.taxId || ""}
-                                                onValueChange={(value) => handleLineChange(index, 'taxId', value === 'no-tax' ? '' : value)}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="No Tax" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="no-tax">No Tax</SelectItem>
-                                                    {taxes.map(tax => (
-                                                        <SelectItem key={tax.id} value={tax.id}>
-                                                            {tax.code} ({tax.rate}%)
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-
-                                        <div className='md:col-span-3 lg:col-span-3 space-y-2'>
-                                            {/* Line Discount */}
-                                            <div className="grid grid-cols-1 md:grid-cols-1 gap-4 pt-4 border-t">
-                                                <div className="space-y-2">
-                                                    <Label>Discount Type</Label>
-                                                    <RadioGroup
-                                                        value={line.lineDiscountType}
-                                                        onValueChange={(value) => handleLineChange(index, 'lineDiscountType', value as DiscountType)}
-                                                        className="flex gap-6"
-                                                    >
-                                                        <div className="flex items-center space-x-2">
-                                                            <RadioGroupItem value={DiscountType.PERCENT} id={`percent-${index}`} />
-                                                            <Label htmlFor={`percent-${index}`} className="flex items-center cursor-pointer">
-                                                                <Percent className="w-4 h-4 mr-1 text-gray-600" />
-                                                                Percent
-                                                            </Label>
-                                                        </div>
-                                                        <div className="flex items-center space-x-2">
-                                                            <RadioGroupItem value={DiscountType.AMOUNT} id={`amount-${index}`} />
-                                                            <Label htmlFor={`amount-${index}`} className="flex items-center cursor-pointer">
-                                                                <DollarSign className="w-4 h-4 mr-1 text-gray-600" />
-                                                                Amount
-                                                            </Label>
-                                                        </div>
-                                                    </RadioGroup>
+                            return (
+                                <Card key={index} className="border-2">
+                                    <CardHeader className="pb-4">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                {getLineTypeIcon(line.lineType)}
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-medium">Item {index + 1}</span>
+                                                    {getLineTypeBadge(line.lineType)}
                                                 </div>
                                             </div>
-                                            <div className="mt-4 space-y-2">
-                                                <Label>Discount Value</Label>
+                                            {lines.length > 1 && (
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={() => removeLine(index)}
+                                                    className="h-8 w-8 text-red-600 hover:bg-red-50"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <div className="grid grid-cols-1 lg:grid-cols-8 gap-4">
+                                            {/* Line Type */}
+                                            <div className="lg:col-span-1 space-y-2">
+                                                <Label>Type</Label>
+                                                <Select
+                                                    value={line.lineType}
+                                                    onValueChange={(value) => handleLineChange(index, 'lineType', value as LineType)}
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value={LineType.PRODUCT}>Product</SelectItem>
+                                                        <SelectItem value={LineType.SERVICE}>Service</SelectItem>
+                                                        <SelectItem value={LineType.CUSTOM}>Custom</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+
+                                            {/* Product Selection */}
+                                            <div className="lg:col-span-3 space-y-2">
+                                                <Label>Product</Label>
+                                                <div className="flex items-center gap-4 min-w-0 w-full">
+                                                    {[LineType.PRODUCT, LineType.SERVICE].includes(line.lineType) && (
+                                                        <ProductCreateDialog
+                                                            createEndpoint={`${process.env.NEXT_PUBLIC_API_URL}/api/master/product/createProduct`}
+                                                            onCreated={(createdProduct: CreatedProduct) => handleProductCreated(index, createdProduct)}
+                                                        />
+                                                    )}
+                                                    <Popover
+                                                        open={itemState.productSearchOpen}
+                                                        onOpenChange={(open) =>
+                                                            updateItemState(index, {
+                                                                productSearchOpen: open,
+                                                                productSearchQuery: open ? "" : itemState.productSearchQuery,
+                                                            })
+                                                        }
+                                                    >
+                                                        <PopoverTrigger asChild>
+                                                            <Button
+                                                                variant="outline"
+                                                                role="combobox"
+                                                                className="flex-1 overflow-hidden truncate text-left justify-between"
+                                                            >
+                                                                <span className="truncate block">
+                                                                    {line.productId
+                                                                        ? products.find((opt) => opt.id === line.productId)?.name
+                                                                        : `Pilih ${line.lineType === LineType.PRODUCT ? "produk" : "service / jasa"}`}
+                                                                </span>
+                                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                            </Button>
+                                                        </PopoverTrigger>
+
+                                                        <PopoverContent className="w-full p-0">
+                                                            <Command>
+                                                                <div className="flex items-center border-b px-3">
+                                                                    <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                                                                    <CommandInput
+                                                                        placeholder={`Cari ${line.lineType === LineType.PRODUCT ? "produk" : "jasa"}...`}
+                                                                        value={itemState.productSearchQuery}
+                                                                        onValueChange={(value) =>
+                                                                            updateItemState(index, { productSearchQuery: value })
+                                                                        }
+                                                                    />
+                                                                </div>
+                                                                <CommandList>
+                                                                    <CommandEmpty>
+                                                                        {itemState.productSearchQuery
+                                                                            ? "Tidak ditemukan"
+                                                                            : "Tidak ada data"}
+                                                                    </CommandEmpty>
+                                                                    <CommandGroup>
+                                                                        {filteredOptions.map((opt) => (
+                                                                            <CommandItem
+                                                                                key={opt.id}
+                                                                                value={opt.name}
+                                                                                onSelect={() => {
+                                                                                    handleProductSelect(index, opt.id);
+                                                                                    updateItemState(index, {
+                                                                                        productSearchOpen: false,
+                                                                                        productSearchQuery: "",
+                                                                                    });
+                                                                                }}
+                                                                            >
+                                                                                <Check
+                                                                                    className={cn(
+                                                                                        "mr-2 h-4 w-4",
+                                                                                        line.productId === opt.id
+                                                                                            ? "opacity-100"
+                                                                                            : "opacity-0"
+                                                                                    )}
+                                                                                />
+                                                                                {opt.name}
+                                                                            </CommandItem>
+                                                                        ))}
+                                                                    </CommandGroup>
+                                                                </CommandList>
+                                                            </Command>
+                                                        </PopoverContent>
+                                                    </Popover>
+                                                </div>
+                                            </div>
+
+                                            {/* Description */}
+                                            <div className="lg:col-span-4 space-y-2">
+                                                <Label>Description</Label>
+                                                <Textarea
+                                                    value={line.description || ""}
+                                                    onChange={(e) => handleLineChange(index, 'description', e.target.value)}
+                                                    placeholder="Item description..."
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-8 lg:grid-cols-8 gap-2">
+                                            {/* Quantity */}
+                                            <div className="space-y-2">
+                                                <Label>Quantity</Label>
                                                 <Input
                                                     type="number"
                                                     min="0"
                                                     step="0.01"
-                                                    value={line.lineDiscountValue}
-                                                    onChange={(e) => handleLineChange(index, 'lineDiscountValue', parseFloat(e.target.value) || 0)}
+                                                    value={line.qty}
+                                                    onChange={(e) => handleLineChange(index, 'qty', parseFloat(e.target.value) || 0)}
                                                 />
                                             </div>
-                                        </div>
-                                    </div>
 
-                                    {/* SubTotal - Hanya untuk tampilan UI */}
-                                    <div className="pt-4 border-t">
-                                        <div className="flex justify-between items-center bg-amber-100 dark:bg-slate-600  px-4 py-3 rounded-lg">
-                                            <Label className="text-base font-semibold">SubTotal Line</Label>
-                                            <div className="text-lg font-bold text-blue-600 dark:text-white">
-                                                {calculateLineSubtotal(line).toLocaleString('id-ID', {
-                                                    style: 'currency',
-                                                    currency: 'IDR',
-                                                    minimumFractionDigits: 2
-                                                })}
+                                            {/* UOM */}
+                                            <div className="space-y-2">
+                                                <Label>Unit</Label>
+                                                <Input
+                                                    type="text"
+                                                    value={line.uom || ""}
+                                                    onChange={(e) => handleLineChange(index, 'uom', e.target.value)}
+                                                    placeholder="e.g., pcs, kg"
+                                                />
+                                            </div>
+
+                                            {/* Unit Price */}
+                                            <div className="md:col-span-2 lg:col-span-2 space-y-2">
+                                                <Label>Unit Price</Label>
+                                                <Input
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.01"
+                                                    value={line.unitPrice}
+                                                    onChange={(e) => handleLineChange(index, 'unitPrice', parseFloat(e.target.value) || 0)}
+                                                />
+                                            </div>
+
+                                            {/* Tax */}
+                                            <div className="space-y-2">
+                                                <Label>Tax</Label>
+                                                <Select
+                                                    value={line.taxId || ""}
+                                                    onValueChange={(value) => handleLineChange(index, 'taxId', value === 'no-tax' ? '' : value)}
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="No Tax" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="no-tax">No Tax</SelectItem>
+                                                        {taxes.map(tax => (
+                                                            <SelectItem key={tax.id} value={tax.id}>
+                                                                {tax.code} ({tax.rate}%)
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+
+                                            <div className='md:col-span-3 lg:col-span-3 space-y-2'>
+                                                {/* Line Discount */}
+                                                <div className="grid grid-cols-1 md:grid-cols-1 gap-4 pt-4 border-t">
+                                                    <div className="space-y-2">
+                                                        <Label>Discount Type</Label>
+                                                        <RadioGroup
+                                                            value={line.lineDiscountType}
+                                                            onValueChange={(value) => handleLineChange(index, 'lineDiscountType', value as DiscountType)}
+                                                            className="flex gap-6"
+                                                        >
+                                                            <div className="flex items-center space-x-2">
+                                                                <RadioGroupItem value={DiscountType.PERCENT} id={`percent-${index}`} />
+                                                                <Label htmlFor={`percent-${index}`} className="flex items-center cursor-pointer">
+                                                                    <Percent className="w-4 h-4 mr-1 text-gray-600" />
+                                                                    Percent
+                                                                </Label>
+                                                            </div>
+                                                            <div className="flex items-center space-x-2">
+                                                                <RadioGroupItem value={DiscountType.AMOUNT} id={`amount-${index}`} />
+                                                                <Label htmlFor={`amount-${index}`} className="flex items-center cursor-pointer">
+                                                                    <DollarSign className="w-4 h-4 mr-1 text-gray-600" />
+                                                                    Amount
+                                                                </Label>
+                                                            </div>
+                                                        </RadioGroup>
+                                                    </div>
+                                                </div>
+                                                <div className="mt-4 space-y-2">
+                                                    <Label>Discount Value</Label>
+                                                    <Input
+                                                        type="number"
+                                                        min="0"
+                                                        step="0.01"
+                                                        value={line.lineDiscountValue}
+                                                        onChange={(e) => handleLineChange(index, 'lineDiscountValue', parseFloat(e.target.value) || 0)}
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
+
+                                        {/* SubTotal - Hanya untuk tampilan UI */}
+                                        <div className="pt-4 border-t">
+                                            <div className="flex justify-between items-center bg-amber-100 dark:bg-slate-600  px-4 py-3 rounded-lg">
+                                                <Label className="text-base font-semibold">SubTotal Line</Label>
+                                                <div className="text-lg font-bold text-blue-600 dark:text-white">
+                                                    {calculateLineSubtotal(line).toLocaleString('id-ID', {
+                                                        style: 'currency',
+                                                        currency: 'IDR',
+                                                        minimumFractionDigits: 2
+                                                    })}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            );
+                        })}
                     </CardContent>
                     <div className="w-full flex justify-end pr-6">
                         <Button
