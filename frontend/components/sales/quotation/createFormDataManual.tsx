@@ -14,6 +14,8 @@ import {
     Truck,
     Settings,
     CreditCard,
+    ChevronsUpDown,
+    Check,
 } from 'lucide-react';
 import {
     QuotationStatus,
@@ -42,6 +44,9 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from 'next/navigation';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { cn } from '@/lib/utils';
 
 interface ManualCreateQuotationFormProps {
     customers: Customer[];
@@ -61,7 +66,7 @@ export const ManualCreateQuotationForm: React.FC<ManualCreateQuotationFormProps>
     isLoading = false
 }) => {
     const router = useRouter();
-
+    const [open, setOpen] = useState(false);
     // Helper functions
     const formatDateForInput = (date: Date): string => {
         const year = date.getFullYear();
@@ -618,22 +623,57 @@ export const ManualCreateQuotationForm: React.FC<ManualCreateQuotationFormProps>
                                         {/* Product Selection */}
                                         <div className="lg:col-span-3 space-y-2">
                                             <Label>Product</Label>
-                                            <Select
-                                                value={line.productId || ""}
-                                                onValueChange={(value) => handleProductChange(index, value)}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select Product" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="no-product">Select Product</SelectItem>
-                                                    {products.map(product => (
-                                                        <SelectItem key={product.id} value={product.id}>
-                                                            {product.code} - {product.name} (${product.price})
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
+
+                                            <Popover open={open} onOpenChange={setOpen}>
+                                                <PopoverTrigger asChild>
+                                                    <Button
+                                                        variant="outline"
+                                                        role="combobox"
+                                                        className="w-full justify-between"
+                                                    >
+                                                        {line.productId
+                                                            ? products.find((p) => p.id === line.productId)?.name
+                                                            : "Select Product"}
+                                                        <ChevronsUpDown className="h-4 w-4 opacity-50" />
+                                                    </Button>
+                                                </PopoverTrigger>
+
+                                                <PopoverContent className="w-[350px] p-0">
+                                                    <Command>
+                                                        <CommandInput placeholder="Search product..." />
+
+                                                        {/* ✅ Tambah CommandList untuk support keyboard */}
+                                                        <CommandList>
+                                                            <CommandEmpty>No product found.</CommandEmpty>
+
+                                                            <CommandGroup>
+                                                                {products.map((product) => (
+                                                                    <CommandItem
+                                                                        key={product.id}
+                                                                        value={product.name}
+                                                                        onSelect={() => {
+                                                                            handleProductChange(index, product.id);
+                                                                            setOpen(false); // ✅ Tutup popover saat pilih, termasuk ENTER atau TAB
+                                                                        }}
+                                                                    >
+                                                                        <div className="flex justify-between w-full">
+                                                                            <span>{product.name}</span>
+                                                                            <span className="text-muted-foreground">{product.price}</span>
+                                                                        </div>
+
+                                                                        <Check
+                                                                            className={cn(
+                                                                                "ml-auto h-4 w-4",
+                                                                                line.productId === product.id ? "opacity-100" : "opacity-0"
+                                                                            )}
+                                                                        />
+                                                                    </CommandItem>
+                                                                ))}
+                                                            </CommandGroup>
+                                                        </CommandList>
+                                                    </Command>
+                                                </PopoverContent>
+                                            </Popover>
                                         </div>
 
                                         {/* Description */}

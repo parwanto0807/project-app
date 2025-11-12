@@ -9,8 +9,8 @@ export default function UnauthorizedPage() {
 
   const handleReLogin = () => {
     // Clear any existing auth data before redirecting to login
-    localStorage.removeItem("access_token");
-    sessionStorage.removeItem("access_token");
+    localStorage.removeItem("accessToken");
+    sessionStorage.removeItem("accessToken");
     document.cookie.split(";").forEach(cookie => {
       const name = cookie.split("=")[0].trim();
       if (name.includes("token") || name.includes("auth")) {

@@ -32,7 +32,7 @@ export const LogoutButton = ({ children }: LogoutButtonProps) => {
 
     // 2. Clear storage items dengan logging
     const storageItemsToRemove = [
-      "token", "user", "auth_token", "access_token", "refresh_token",
+      "token", "user", "auth_token", "accessToken", "accessTokenReadable", "refreshToken",
       "user_session", "auth_state", "current_user", "logout_flag"
     ];
 
@@ -176,7 +176,7 @@ export const LogoutButton = ({ children }: LogoutButtonProps) => {
       // ✅ 4. KIRIM LOGOUT REQUEST
       console.log("📡 Sending logout request to backend...");
 
-      const logoutUrl = "/api/auth/logout";
+      const logoutUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/logout`;
       console.log("🎯 Target URL:", logoutUrl);
 
       const response = await fetch(logoutUrl, {
