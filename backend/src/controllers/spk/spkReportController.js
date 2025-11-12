@@ -185,7 +185,7 @@ export const createSpkFieldReport = async (req, res) => {
     });
 
     // ✅ Broadcast ke semua client bahwa ada report baru & SPK berubah
-    req.io.emit("spk_updated");
+    // req.io.emit("spk_updated");
 
     res.status(201).json({
       success: true,
