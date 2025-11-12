@@ -234,27 +234,33 @@ const styles = StyleSheet.create({
     photosContainer: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 8,
     },
     photoItem: {
-        flexDirection: 'column',
+        width: 105,       // 5 kolom (misal ukuran page A4)
+        marginRight: 6,
+        marginBottom: 4,
         alignItems: 'center',
-        marginBottom: 8,
-        width: '23%', // 4 kolom per baris
     },
     photo: {
         width: 100,
-        height: 80,
-        borderRadius: 4,
-        marginBottom: 4,
-        resizeMode: 'cover',
-        borderWidth: 1,
+        height: 120,
+        borderRadius: 2,
+        borderWidth: 0.5,
         borderColor: '#dee2e6',
+        marginBottom: 2,
     },
     photoCaption: {
         fontSize: 7,
         color: '#6c757d',
         textAlign: 'center',
+        lineHeight: 1,
+        marginBottom: 0,
+        padding: 0,
+        flexWrap: 'wrap',
+        width: '100%',
+        // Opsional: batasi max lines
+        numberOfLines: 2, // atau 3
+        ellipsizeMode: 'tail',
     },
     photoIndicator: {
         fontSize: 8,
@@ -454,7 +460,7 @@ const PdfDocument = ({ reports }: { reports: ReportHistory[] }) => {
                         {/* Section Foto di bawah setiap item group */}
                         <View style={styles.photoSection}>
                             <Text style={styles.photoSectionTitle}>DOKUMENTASI FOTO - {itemName}</Text>
-                            
+
                             {group.some(report => report.photos && report.photos.length > 0) ? (
                                 <View style={styles.photosContainer}>
                                     {group.map((report) => (

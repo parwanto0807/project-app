@@ -246,22 +246,20 @@ const styles = StyleSheet.create({
     photosContainer: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 4,  // Jarak diperkecil
     },
     photoItem: {
-        flexDirection: 'column',
-        alignItems: 'center',
+        width: 105,       // 5 kolom (misal ukuran page A4)
+        marginRight: 6,
         marginBottom: 4,
-        width: '18%',  // 5-6 kolom instead of 4 kolom
+        alignItems: 'center',
     },
     photo: {
-        width: 120,
-        height: 140,  // Sangat compact
+        width: 100,
+        height: 120,
         borderRadius: 2,
-        marginBottom: 0,
-        resizeMode: 'cover',
         borderWidth: 0.5,
         borderColor: '#dee2e6',
+        marginBottom: 2,
     },
     photoCaption: {
         fontSize: 7,

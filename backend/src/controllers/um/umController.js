@@ -496,12 +496,12 @@ export const uangMukaController = {
         }
 
         // Cek jika PR sudah memiliki uang muka lain
-        if (existingPR.uangMuka && existingPR.uangMuka.id !== id) {
-          return res.status(400).json({
-            success: false,
-            message: "Purchase request ini sudah memiliki uang muka",
-          });
-        }
+        // if (existingPR.uangMuka && existingPR.uangMuka.id !== id) {
+        //   return res.status(400).json({
+        //     success: false,
+        //     message: "Purchase request ini sudah memiliki uang muka",
+        //   });
+        // }
       }
 
       // Handle status dan tanggal pencairan
