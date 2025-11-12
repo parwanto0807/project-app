@@ -10,7 +10,7 @@ import {
 } from "../../controllers/salesOrder/projectController.js";
 
 // // Middleware
-// import { authenticateToken } from "../../middleware/authMiddleware.js";
+import { authenticateToken } from "../../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -30,11 +30,12 @@ router.get("/sales-orders-last", salesOrder.getLastSalesOrder);
 router.get("/getMonthlySales", salesOrder.getMonthlySales);
 
 // Create SO (header + items + (optional) documents)
-router.post("/sales-orders/create", salesOrder.create);
+router.post("/sales-orders/create", authenticateToken, salesOrder.create);
 
 // Update header SO (tanpa ganti items/documents)
 router.put(
   "/sales-orders/update/:id",
+  authenticateToken,
   salesOrder.updateWithItems
 );
 

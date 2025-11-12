@@ -166,6 +166,8 @@ function calcLineExclusive(qty, unitPrice, discount, taxRate) {
 
 export const create = async (req, res) => {
   try {
+    console.log("USER ID", req.user);
+    
     // ✅ Check semua kemungkinan property names
     const possibleUserId =
       req.user?.userId ||

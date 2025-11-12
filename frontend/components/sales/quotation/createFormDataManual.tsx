@@ -66,7 +66,7 @@ export const ManualCreateQuotationForm: React.FC<ManualCreateQuotationFormProps>
     isLoading = false
 }) => {
     const router = useRouter();
-    const [open, setOpen] = useState(false);
+    const [openPopovers, setOpenPopovers] = useState<{ [key: number]: boolean }>({});
     // Helper functions
     const formatDateForInput = (date: Date): string => {
         const year = date.getFullYear();
@@ -564,15 +564,6 @@ export const ManualCreateQuotationForm: React.FC<ManualCreateQuotationFormProps>
                                 <Package className="w-5 h-5 text-purple-600" />
                                 <CardTitle className="text-lg font-semibold">Quotation Items</CardTitle>
                             </div>
-                            <Button
-                                type="button"
-                                onClick={addLine}
-                                className="flex items-center gap-2"
-                                variant="outline"
-                            >
-                                <Plus className="w-4 h-4" />
-                                Add Item
-                            </Button>
                         </div>
                     </CardHeader>
                     <CardContent className="px-6 space-y-2">
@@ -624,7 +615,11 @@ export const ManualCreateQuotationForm: React.FC<ManualCreateQuotationFormProps>
                                         <div className="lg:col-span-3 space-y-2">
                                             <Label>Product</Label>
 
-                                            <Popover open={open} onOpenChange={setOpen}>
+                                            <Popover
+                                                open={openPopovers[index] || false}
+                                                onOpenChange={(val) => setOpenPopovers((prev) => ({ ...prev, [index]: val }))}
+                                            >
+
                                                 <PopoverTrigger asChild>
                                                     <Button
                                                         variant="outline"
@@ -653,8 +648,9 @@ export const ManualCreateQuotationForm: React.FC<ManualCreateQuotationFormProps>
                                                                         value={product.name}
                                                                         onSelect={() => {
                                                                             handleProductChange(index, product.id);
-                                                                            setOpen(false); // ✅ Tutup popover saat pilih, termasuk ENTER atau TAB
+                                                                            setOpenPopovers((prev) => ({ ...prev, [index]: false }));
                                                                         }}
+
                                                                     >
                                                                         <div className="flex justify-between w-full">
                                                                             <span>{product.name}</span>
@@ -801,6 +797,17 @@ export const ManualCreateQuotationForm: React.FC<ManualCreateQuotationFormProps>
                             </Card>
                         ))}
                     </CardContent>
+                    <div className="w-full flex justify-end pr-6">
+                        <Button
+                            type="button"
+                            onClick={addLine}
+                            className="flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg transition-all"
+                        >
+                            <Plus className="w-4 h-4" />
+                            <span className="font-medium">Add Item</span>
+                        </Button>
+                    </div>
+
                 </Card>
 
                 {/* Discount & Charges Section */}
