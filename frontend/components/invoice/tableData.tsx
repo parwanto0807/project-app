@@ -48,7 +48,10 @@ import {
     Wallet2Icon,
     SearchIcon,
     PlusCircleIcon,
-    PrinterCheck
+    PrinterCheck,
+    Printer,
+    Loader2,
+    Download
 } from "lucide-react";
 import { Invoice } from "@/schemas/invoice";
 import Link from "next/link";
@@ -60,6 +63,7 @@ import { PaymentProcessDialog } from "./paymentProcessDialog";
 import { BankAccount } from "@/schemas/bank";
 import { deleteInvoice } from "@/lib/action/invoice/invoice";
 import { toast } from "sonner";
+import InvoicePdfDocumentOld from "./invoicePdfPreviewOld";
 
 interface InvoiceDataTableProps {
     invoiceData: Invoice[];
@@ -82,8 +86,10 @@ export function InvoiceDataTable({ invoiceData, isLoading, role, banks, currentU
     const basePath = getBasePath(role);
     const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
     const [drawerOpen, setDrawerOpen] = useState(false);
-    const [isPdfPreviewOpen, setIsPdfPreviewOpen] = useState(false)
+    const [isOldPdfPreviewOpen, setIsOldPdfPreviewOpen] = useState(false);
+    const [isNewPdfPreviewOpen, setIsNewPdfPreviewOpen] = useState(false);
     const [dialogOpen, setDialogOpen] = useState(false);
+
 
     // Filter data berdasarkan search term
     const filteredData = invoiceData.filter((invoice) =>
@@ -92,20 +98,20 @@ export function InvoiceDataTable({ invoiceData, isLoading, role, banks, currentU
         )
     );
 
-const handleDeleteInvoice = async (invoiceId: string) => {
-    if (confirm('Are you sure you want to delete this invoice? This action cannot be undone.')) {
-        try {
-            await deleteInvoice(invoiceId);
-            toast.success("Invoice deleted successfully");
-            
-            window.location.reload(); 
-            
-        } catch (error) {
-            console.error("Delete invoice error:", error);
-            toast.error("Failed to delete invoice");
+    const handleDeleteInvoice = async (invoiceId: string) => {
+        if (confirm('Are you sure you want to delete this invoice? This action cannot be undone.')) {
+            try {
+                await deleteInvoice(invoiceId);
+                toast.success("Invoice deleted successfully");
+
+                window.location.reload();
+
+            } catch (error) {
+                console.error("Delete invoice error:", error);
+                toast.error("Failed to delete invoice");
+            }
         }
-    }
-};
+    };
 
     const handlePaymentClick = (invoice: Invoice) => {
         setSelectedInvoice(invoice);
@@ -117,10 +123,15 @@ const handleDeleteInvoice = async (invoiceId: string) => {
         setDrawerOpen(true);
     };
 
-    const handlePdfPreview = (invoice: Invoice) => {
+    const handlePdfPreview = (invoice: Invoice, mode: 'old' | 'new' = 'new') => {
         setSelectedInvoice(invoice);
-        setIsPdfPreviewOpen(true);
+        if (mode === 'old') {
+            setIsOldPdfPreviewOpen(true);
+        } else {
+            setIsNewPdfPreviewOpen(true);
+        }
     };
+
 
     // Pagination logic
     const totalPages = Math.ceil(filteredData.length / itemsPerPage);
@@ -418,28 +429,43 @@ const handleDeleteInvoice = async (invoiceId: string) => {
                                                     </Button>
                                                 </div>
 
-                                                <div>
+                                                <div className="flex items-center gap-2">
+                                                    {/* View Details Button */}
                                                     <Button
                                                         variant="outline"
-                                                        size="icon"
                                                         onClick={() => handleViewDetails(invoice)}
-                                                        className="h-8 w-8 rounded-lg border border-slate-200 bg-slate-50 hover:bg-emerald-400 dark:hover:border-emerald-600 hover:shadow-sm transition-all duration-200 group cursor-pointer"
-                                                        title="View Details"
+                                                        className="h-9 px-3 rounded-lg border border-slate-300 bg-white hover:bg-emerald-50 hover:border-emerald-300 hover:shadow-md transition-all duration-200 group cursor-pointer flex items-center gap-2 dark:border-slate-600 dark:bg-slate-800 dark:hover:bg-emerald-950/30 dark:hover:border-emerald-700 dark:text-slate-200"
                                                     >
-                                                        <Eye className="h-4 w-4 text-slate-500 group-hover:text-emerald-600 transition-colors" />
+                                                        <Eye className="h-4 w-4 text-slate-600 group-hover:text-emerald-600 transition-colors duration-200 dark:text-slate-400 dark:group-hover:text-emerald-400" />
+                                                        <span className="text-sm font-medium text-slate-700 group-hover:text-emerald-700 dark:text-slate-300 dark:group-hover:text-emerald-300">
+                                                            Details
+                                                        </span>
                                                     </Button>
-                                                </div>
 
-                                                <div>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="icon"
-                                                        onClick={() => handlePdfPreview(invoice)}
-                                                        className="h-8 w-8 rounded-lg border border-slate-200 bg-slate-50 hover:bg-blue-400 dark:hover:border-blue-600 hover:shadow-sm transition-all duration-200 group cursor-pointer"
-                                                        title="Preview Pdf"
-                                                    >
-                                                        <PrinterCheck className="h-4 w-4 text-slate-500 group-hover:text-blue-600 transition-colors" />
-                                                    </Button>
+                                                    {/* Preview PDF Button */}
+                                                    <div className="flex items-center gap-1">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => handlePdfPreview(invoice, 'old')}
+                                                            className="h-8 px-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 hover:border-slate-400 transition-all duration-200 cursor-pointer flex items-center gap-1 dark:border-slate-600 dark:bg-slate-800 dark:hover:bg-slate-700"
+                                                            title="Mode Print Lama"
+                                                        >
+                                                            <Printer className="h-3.5 w-3.5 text-slate-600 dark:text-slate-400" />
+                                                            <span className="text-xs font-medium text-slate-700 dark:text-slate-300">Lama</span>
+                                                        </Button>
+
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => handlePdfPreview(invoice, 'new')}
+                                                            className="h-8 px-2 rounded-lg border border-blue-300 bg-blue-50 hover:bg-blue-100 hover:border-blue-400 transition-all duration-200 cursor-pointer flex items-center gap-1 dark:border-blue-600 dark:bg-blue-950/30 dark:hover:bg-blue-950/50"
+                                                            title="Mode Print Baru"
+                                                        >
+                                                            <PrinterCheck className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                                                            <span className="text-xs font-medium text-blue-700 dark:text-blue-300">Baru</span>
+                                                        </Button>
+                                                    </div>
                                                 </div>
 
                                                 <div>
@@ -548,35 +574,88 @@ const handleDeleteInvoice = async (invoiceId: string) => {
                 />
             )}
             {/* Modal Preview PDF */}
-            <Dialog open={isPdfPreviewOpen} onOpenChange={setIsPdfPreviewOpen}>
+            {/* Dialog untuk Mode Baru */}
+            <Dialog open={isNewPdfPreviewOpen} onOpenChange={setIsNewPdfPreviewOpen}>
                 <DialogContent className="max-w-4xl max-h-screen overflow-auto">
                     <DialogHeader>
-                        <DialogTitle>Preview PDF Invoice: {selectedInvoice?.invoiceNumber}</DialogTitle>
+                        <DialogTitle>
+                            Preview PDF Invoice: {selectedInvoice?.invoiceNumber}
+                            <Badge variant="default" className="ml-2 bg-blue-600">
+                                Mode Baru
+                            </Badge>
+                        </DialogTitle>
                     </DialogHeader>
                     {selectedInvoice && (
                         <div className="py-4">
                             <PDFDownloadLink
                                 document={<InvoicePdfDocument invoice={selectedInvoice} />}
-                                fileName={`Invoice-${selectedInvoice.invoiceNumber}.pdf`}
+                                fileName={`Invoice-${selectedInvoice.invoiceNumber}-baru.pdf`}
                             >
                                 {({ loading }) =>
                                     loading ? (
                                         <Button disabled>
+                                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
                                             Memuat PDF...
                                         </Button>
                                     ) : (
                                         <Button>
-                                            Unduh PDF
+                                            <Download className="h-4 w-4 mr-2" />
+                                            Unduh PDF (Mode Baru)
                                         </Button>
                                     )
                                 }
                             </PDFDownloadLink>
 
                             <div className="mt-6 border-t pt-4">
-                                <h3 className="text-lg font-medium mb-4">Preview Dokumen</h3>
+                                <h3 className="text-lg font-medium mb-4">Preview Dokumen - Mode Baru</h3>
                                 <div className="bg-white rounded shadow" style={{ height: "600px" }}>
                                     <PDFViewer width="100%" height="100%">
                                         <InvoicePdfDocument invoice={selectedInvoice} />
+                                    </PDFViewer>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
+
+            {/* Dialog untuk Mode Lama */}
+            <Dialog open={isOldPdfPreviewOpen} onOpenChange={setIsOldPdfPreviewOpen}>
+                <DialogContent className="max-w-4xl max-h-screen overflow-auto">
+                    <DialogHeader>
+                        <DialogTitle>
+                            Preview PDF Invoice: {selectedInvoice?.invoiceNumber}
+                            <Badge variant="outline" className="ml-2 border-slate-400 text-slate-600">
+                                Mode Lama
+                            </Badge>
+                        </DialogTitle>
+                    </DialogHeader>
+                    {selectedInvoice && (
+                        <div className="py-4">
+                            <PDFDownloadLink
+                                document={<InvoicePdfDocumentOld invoice={selectedInvoice} />}
+                                fileName={`Invoice-${selectedInvoice.invoiceNumber}-lama.pdf`}
+                            >
+                                {({ loading }) =>
+                                    loading ? (
+                                        <Button disabled>
+                                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                            Memuat PDF...
+                                        </Button>
+                                    ) : (
+                                        <Button variant="outline">
+                                            <Download className="h-4 w-4 mr-2" />
+                                            Unduh PDF (Mode Lama)
+                                        </Button>
+                                    )
+                                }
+                            </PDFDownloadLink>
+
+                            <div className="mt-6 border-t pt-4">
+                                <h3 className="text-lg font-medium mb-4">Preview Dokumen - Mode Lama</h3>
+                                <div className="bg-white rounded shadow" style={{ height: "600px" }}>
+                                    <PDFViewer width="100%" height="100%">
+                                        <InvoicePdfDocumentOld invoice={selectedInvoice} />
                                     </PDFViewer>
                                 </div>
                             </div>

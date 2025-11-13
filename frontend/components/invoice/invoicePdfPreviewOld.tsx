@@ -247,7 +247,7 @@ const convertToTerbilang = (angka: number): string => {
 };
 
 // Invoice PDF Component
-const InvoicePdfDocument = ({ invoice }: { invoice: Invoice }) => {
+const InvoicePdfDocumentOld = ({ invoice }: { invoice: Invoice }) => {
     const {
         invoiceNumber,
         invoiceDate,
@@ -459,4 +459,4 @@ const InvoicePdfDocument = ({ invoice }: { invoice: Invoice }) => {
     );
 };
 
-export default InvoicePdfDocument;
+export default InvoicePdfDocumentOld;
