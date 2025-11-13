@@ -575,7 +575,7 @@ const PreviewPdfDetail: React.FC<PreviewPdfProps> = ({
     const [pdfBlobUrl, setPdfBlobUrl] = useState<string>("");
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
-    console.log("DATA", reports);
+    // console.log("DATA", reports);
 
     // Ref untuk track mounting status dan previous values
     const isMountedRef = useRef(true);
@@ -589,7 +589,7 @@ const PreviewPdfDetail: React.FC<PreviewPdfProps> = ({
     // Filter reports berdasarkan SPK dan Item Group
     const selectedReports = React.useMemo(() => {
         if (!reports || reports.length === 0) {
-            console.log("📭 No reports available");
+            // console.log("📭 No reports available");
             return [];
         }
 
@@ -599,7 +599,7 @@ const PreviewPdfDetail: React.FC<PreviewPdfProps> = ({
             filtered = filtered.filter(r =>
                 r.spkNumber?.trim() === selectedSpk?.trim()
             );
-            console.log(`🔎 After SPK filter (${selectedSpk}):`, filtered.length);
+            // console.log(`🔎 After SPK filter (${selectedSpk}):`, filtered.length);
         }
 
         if (selectedItemGroup) {
@@ -608,19 +608,19 @@ const PreviewPdfDetail: React.FC<PreviewPdfProps> = ({
                 r.itemName === selectedItemGroup ||
                 r.projectName === selectedItemGroup
             );
-            console.log(`🔎 After ItemGroup filter (${selectedItemGroup}):`, filtered.length);
+            // console.log(`🔎 After ItemGroup filter (${selectedItemGroup}):`, filtered.length);
         }
 
-        console.log("✅ Final selectedReports:", {
-            count: filtered.length,
-            items: filtered.map(r => ({
-                id: r.id,
-                spk: r.spkNumber,
-                itemGroup: r.itemGroup,
-                itemName: r.itemName,
-                projectName: r.projectName
-            }))
-        });
+        // console.log("✅ Final selectedReports:", {
+        //     count: filtered.length,
+        //     items: filtered.map(r => ({
+        //         id: r.id,
+        //         spk: r.spkNumber,
+        //         itemGroup: r.itemGroup,
+        //         itemName: r.itemName,
+        //         projectName: r.projectName
+        //     }))
+        // });
 
         return filtered;
     }, [reports, selectedSpk, selectedItemGroup]);
@@ -644,20 +644,20 @@ const PreviewPdfDetail: React.FC<PreviewPdfProps> = ({
     // Generate PDF blob
     const createPdfBlobUrl = useCallback(async (reports: ReportHistory[], itemGroup?: string) => {
         if (!reports || reports.length === 0) {
-            console.log("📭 No reports to generate PDF");
+            // console.log("📭 No reports to generate PDF");
             return "";
         }
 
         try {
-            console.log("📄 Generating PDF with:", {
-                reportCount: reports.length,
-                itemGroup,
-                sampleReport: reports[0]
-            });
+            // console.log("📄 Generating PDF with:", {
+            //     reportCount: reports.length,
+            //     itemGroup,
+            //     sampleReport: reports[0]
+            // });
 
             const blob = await pdf(<PdfDocument reports={reports} itemGroup={itemGroup} />).toBlob();
             const url = URL.createObjectURL(blob);
-            console.log("✅ PDF Blob URL created successfully");
+            // console.log("✅ PDF Blob URL created successfully");
             return url;
         } catch (error) {
             console.error("❌ Error creating PDF:", error);
@@ -716,7 +716,7 @@ const PreviewPdfDetail: React.FC<PreviewPdfProps> = ({
 
     const downloadPDF = async () => {
         if (selectedReports.length === 0) {
-            console.warn("⚠️ No reports to download");
+            // console.warn("⚠️ No reports to download");
             return;
         }
 
@@ -748,7 +748,7 @@ const PreviewPdfDetail: React.FC<PreviewPdfProps> = ({
 
     const printPDF = async () => {
         if (selectedReports.length === 0) {
-            console.warn("⚠️ No reports to print");
+            // console.warn("⚠️ No reports to print");
             return;
         }
 

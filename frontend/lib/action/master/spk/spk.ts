@@ -83,7 +83,7 @@ export async function fetchAllSpkPr() {
 
 export async function fetchSpkById(id: string) {
   try {
-    console.log("🔍 Fetching SPK by ID:", id);
+    // console.log("🔍 Fetching SPK by ID:", id);
 
     const res = await fetch(`${API_URL}/api/spk/getSPKById/${id}`, {
       method: "GET",
@@ -91,7 +91,7 @@ export async function fetchSpkById(id: string) {
       cache: "no-store",
     });
 
-    console.log("📡 Response status:", res.status);
+    // console.log("📡 Response status:", res.status);
 
     if (!res.ok) {
       const errorData = await res.json();
@@ -102,18 +102,18 @@ export async function fetchSpkById(id: string) {
     const data = await res.json();
 
     // ✅ DEBUG: Log struktur data
-    console.log("📊 Data structure from backend:", {
-      type: typeof data,
-      isArray: Array.isArray(data),
-      length: Array.isArray(data) ? data.length : "N/A",
-      data: data,
-    });
+    // console.log("📊 Data structure from backend:", {
+    //   type: typeof data,
+    //   isArray: Array.isArray(data),
+    //   length: Array.isArray(data) ? data.length : "N/A",
+    //   data: data,
+    // });
 
     // ✅ TEMPORARY FIX: Filter data di frontend
     if (Array.isArray(data)) {
-      console.warn(
-        "⚠️ Backend mengembalikan SEMUA SPK, filtering by ID di frontend"
-      );
+      // console.warn(
+      //   "⚠️ Backend mengembalikan SEMUA SPK, filtering by ID di frontend"
+      // );
 
       // Cari SPK yang sesuai dengan ID
       const filteredSpk = data.find((spk: SPK) => spk.id === id);
@@ -123,12 +123,12 @@ export async function fetchSpkById(id: string) {
         throw new Error(`SPK dengan ID ${id} tidak ditemukan`);
       }
 
-      console.log("✅ SPK ditemukan setelah filtering:", filteredSpk.spkNumber);
+      // console.log("✅ SPK ditemukan setelah filtering:", filteredSpk.spkNumber);
       return filteredSpk;
     }
 
     // Jika backend sudah mengembalikan single object
-    console.log("✅ Backend mengembalikan single SPK:", data.spkNumber);
+    // console.log("✅ Backend mengembalikan single SPK:", data.spkNumber);
     return data;
   } catch (error) {
     console.error("❌ fetchSpkById error:", error);
