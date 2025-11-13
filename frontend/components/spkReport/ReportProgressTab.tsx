@@ -16,6 +16,7 @@ import { motion } from "framer-motion";
 import { SPKDataApi } from './tableData';
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '../ui/dialog';
 import { AlertDialogHeader } from '../ui/alert-dialog';
+import { getImageUrl } from '@/lib/getImageUrl';
 
 interface SPKData {
     id: string;
@@ -730,13 +731,7 @@ const ReportProgressTab = ({
                                                                             </AlertDialogHeader>
                                                                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                                                                                 {latestReport.photos.map((photo: string, idx: number) => {
-                                                                                    const getPhotoUrl = (path: string) => {
-                                                                                        if (path.startsWith("http")) return path;
-                                                                                        const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
-                                                                                        const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-                                                                                        return `${baseUrl}${normalizedPath}`;
-                                                                                    };
-                                                                                    const photoUrl = getPhotoUrl(photo);
+                                                                                    const photoUrl = getImageUrl(photo);
 
                                                                                     return (
                                                                                         <div
