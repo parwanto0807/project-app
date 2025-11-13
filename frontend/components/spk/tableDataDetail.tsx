@@ -757,24 +757,16 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
 
                                                                 {spk?.items?.map((item, index) => {
                                                                     return (
-                                                                        <tr key={item.id} className="hover:bg-slate-50 border-b border-slate-100">
-                                                                            <td className="p-3 text-center text-sm text-slate-500">
-                                                                                {index + 1}
-                                                                            </td>
+                                                                        <tr key={item.id} className="hover:bg-slate-50 border-b border-slate-100 dark:border-slate-800 dark:hover:bg-slate-800">
                                                                             <td className="p-3">
-                                                                                <div className="text-sm text-slate-800">{item.name}</div>
+                                                                                <div className="text-xs md:text-sm">{index + 1} 🔸 {item.name}</div>
                                                                             </td>
                                                                             <td className="p-3 text-center">
                                                                                 <div className="flex items-center justify-center space-x-1">
-                                                                                    <span className="text-sm font-semibold text-slate-700">
-                                                                                        {item.qty || "0"}
+                                                                                    <span className="text-xs md:text-sm font-semibold">
+                                                                                        {item.qty || "0"} - {item.uom}
                                                                                     </span>
                                                                                 </div>
-                                                                            </td>
-                                                                            <td className="p-3 text-center">
-                                                                                <span className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded uppercase">
-                                                                                    {item.uom || "Unit"}
-                                                                                </span>
                                                                             </td>
                                                                         </tr>
                                                                     );
