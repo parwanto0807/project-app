@@ -362,7 +362,7 @@ const ReportProgressTab = ({
 
     return (
         <Card className="border-border/40 bg-card/90 backdrop-blur-sm shadow-lg rounded-xl overflow-hidden transition-all duration-300 hover:shadow-xl">
-            <CardHeader className="pb-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/20 border-b border-border/40">
+            <CardHeader className="pb-2 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/30 dark:to-emerald-900/20 border-b border-border/40">
                 <CardTitle className="text-lg font-bold flex items-center gap-3">
                     <div className="p-2 bg-green-100 dark:bg-green-800 rounded-lg">
                         <Sparkles className="h-5 w-5 text-green-600 dark:text-green-400" />
@@ -376,8 +376,8 @@ const ReportProgressTab = ({
                 </CardTitle>
             </CardHeader>
 
-            <CardContent className="pt-6">
-                <form onSubmit={handleSubmit} className="space-y-6">
+            <CardContent className="pt-0">
+                <form onSubmit={handleSubmit} className="space-y-3">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* Kolom Kiri - Input Data */}
                         <div className="space-y-5">
@@ -418,7 +418,7 @@ const ReportProgressTab = ({
                                                     value={String(item.id)}
                                                     className="text-sm focus:bg-blue-100 dark:focus:bg-blue-900 focus:text-blue-900 dark:focus:text-blue-100"
                                                 >
-                                                    {item.name} - {icon}: {previousProgress}%
+                                                    {icon}: {previousProgress}% 📌{item.name}
                                                     {/* {latestReport && (
                                                         <span className="text-xs text-gray-500 ml-1">
                                                             ({new Date(latestReport.reportedAt).toLocaleDateString('id-ID')})
@@ -431,11 +431,119 @@ const ReportProgressTab = ({
                                 </Select>
 
                                 {formData.items && selectedSpk && (
-                                    <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border-1 border-green-200 dark:border-green-800">
-                                        <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-                                        <span className="text-sm font-medium text-green-700 dark:text-green-300">
-                                            Item dipilih: {selectedSpk.items.find((i) => i.id === formData.items)?.name}
-                                        </span>
+                                    <div className="space-y-2">
+                                        {/* <div className="text-xs text-gray-700 dark:text-gray-300 p-3 bg-white dark:bg-gray-800 rounded-lg border-2 border-gray-200 dark:border-gray-600">
+                                            <span className="font-semibold">📊 Progress untuk:</span>{" "}
+                                            <strong className="text-blue-600 dark:text-blue-400">
+                                                {selectedSpk.items.find((i) => i.id === formData.items)?.name ?? "-"}
+                                            </strong>
+                                            {formData.minProgress && formData.minProgress > 0 && (
+                                                <span className="block mt-1 text-amber-600 dark:text-amber-400 font-medium">
+                                                    ⚠️ Progress minimal: {formData.minProgress}%
+                                                </span>
+                                            )}
+                                        </div> */}
+
+                                        {/* Progress Terakhir */}
+                                        {(() => {
+                                            // Cari laporan terbaru untuk item ini berdasarkan reportedAt
+                                            const latestReport = reports
+                                                ?.filter(report => String(report.soDetailId) === String(formData.items))
+                                                ?.sort((a, b) => new Date(b.reportedAt).getTime() - new Date(a.reportedAt).getTime())[0];
+
+                                            if (latestReport) {
+                                                return (
+                                                    <div className="text-xs text-gray-700 dark:text-gray-300 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border-2 border-green-200 dark:border-green-700">
+                                                        <div className="flex items-center gap-2">
+                                                            <Clock className="h-3 w-3 text-green-600 dark:text-green-400" />
+                                                            <span className="font-semibold">Progress Terakhir:</span>
+                                                            <span className="text-green-600 dark:text-green-400 font-bold">
+                                                                {latestReport.progress}%
+                                                            </span>
+                                                        </div>
+                                                        <div className="text-gray-600 dark:text-gray-400 mt-1">
+                                                            Dilaporkan: {new Date(latestReport.reportedAt).toLocaleDateString('id-ID', {
+                                                                day: 'numeric',
+                                                                month: 'long',
+                                                                year: 'numeric',
+                                                                hour: '2-digit',
+                                                                minute: '2-digit'
+                                                            })}
+                                                        </div>
+                                                        {latestReport.note && (
+                                                            <div className="mt-1 text-gray-600 dark:text-gray-400">
+                                                                <span className="font-medium">Catatan:</span> {latestReport.note}
+                                                            </div>
+                                                        )}
+
+                                                        {/* Foto dari Laporan Terakhir */}
+                                                        {latestReport.photos && latestReport.photos.length > 0 ? (
+                                                            <div className="mt-3">
+                                                                <div className="flex items-center gap-2 mb-2">
+                                                                    <Dialog>
+                                                                        <DialogTrigger asChild>
+                                                                            <div className="flex items-center gap-1 cursor-pointer hover:opacity-80">
+                                                                                <div className="relative">
+                                                                                    <Camera className="w-3.5 h-3.5 text-blue-500" />
+                                                                                    {latestReport.photos.length > 1 && (
+                                                                                        <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-[8px] rounded-full w-3 h-3 flex items-center justify-center">
+                                                                                            {latestReport.photos.length}
+                                                                                        </span>
+                                                                                    )}
+                                                                                </div>
+                                                                                <span className="text-xs text-muted-foreground">{latestReport.photos.length} foto</span>
+                                                                            </div>
+                                                                        </DialogTrigger>
+                                                                        <DialogContent className="max-w-4xl p-4 border-cyan-300">
+                                                                            <AlertDialogHeader>
+                                                                                <DialogTitle>Foto Bukti Laporan Terakhir</DialogTitle>
+                                                                            </AlertDialogHeader>
+                                                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                                                                                {latestReport.photos.map((photo: string, idx: number) => {
+                                                                                    const photoUrl = getImageUrl(photo);
+
+                                                                                    return (
+                                                                                        <div
+                                                                                            key={idx}
+                                                                                            className="group relative aspect-square rounded-xl overflow-hidden border border-border/40 bg-muted/30 cursor-pointer"
+                                                                                            onClick={() => window.open(photoUrl, "_blank")}
+                                                                                        >
+                                                                                            <Image
+                                                                                                src={photoUrl}
+                                                                                                alt={`bukti-${idx + 1}`}
+                                                                                                fill
+                                                                                                className="object-cover transition-transform duration-300 group-hover:scale-110"
+                                                                                                sizes="(max-width: 768px) 50vw, 25vw"
+                                                                                                onError={(e) => {
+                                                                                                    e.currentTarget.src = "/images/placeholder-image.svg";
+                                                                                                }}
+                                                                                            />
+                                                                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                                                                                <ZoomIn className="h-6 w-6 text-white drop-shadow" />
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    );
+                                                                                })}
+                                                                            </div>
+                                                                        </DialogContent>
+                                                                    </Dialog>
+                                                                    <span className="text-xs text-gray-500 dark:text-gray-400">•</span>
+                                                                    {/* <span className="text-xs text-gray-500 dark:text-gray-400">
+                {latestReport.photos[0]?.category || 'Dokumentasi'}
+            </span> */}
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="mt-2 flex items-center gap-1">
+                                                                <Camera className="w-3.5 h-3.5 text-gray-400" />
+                                                                <span className="text-xs text-muted-foreground/70">Tidak ada foto</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            }
+                                            return null;
+                                        })()}
                                     </div>
                                 )}
 
@@ -579,22 +687,34 @@ const ReportProgressTab = ({
                                         <span className="font-medium">Max: 100%</span>
                                     </div>
 
-                                    <Slider
-                                        value={[formData.progress]}
-                                        onValueChange={(value) => {
-                                            const newProgress = Math.max(value[0], formData.minProgress ?? 0);
-                                            setFormData((prev) => ({
-                                                ...prev,
-                                                progress: newProgress,
-                                                type: newProgress === 100 ? "FINAL" : "PROGRESS",
-                                            }));
-                                        }}
-                                        disabled={formData.type === "FINAL" || !formData.items}
-                                        min={formData.minProgress ?? 0}
-                                        max={100}
-                                        step={5}
-                                        className="py-3"
-                                    />
+                                    <div className="relative py-4">
+                                        <div className="absolute top-1/2 left-0 right-0 h-3 bg-gray-200 dark:bg-gray-700 rounded-full transform -translate-y-1/2 z-0"></div>
+                                        <div
+                                            className="absolute top-1/2 left-0 h-3 bg-gradient-to-r from-green-400 to-green-600 rounded-full transform -translate-y-1/2 transition-all duration-300 z-10"
+                                            style={{ width: `${formData.progress}%` }}
+                                        ></div>
+
+                                        {/* Gunakan variant green-gradient dari komponen Slider yang sudah diupdate */}
+                                        <Slider
+                                            value={[formData.progress]}
+                                            onValueChange={(value) => {
+                                                const newProgress = Math.max(value[0], formData.minProgress ?? 0);
+                                                setFormData((prev) => ({
+                                                    ...prev,
+                                                    progress: newProgress,
+                                                    type: newProgress === 100 ? "FINAL" : "PROGRESS",
+                                                }));
+                                            }}
+                                            disabled={formData.type === "FINAL" || !formData.items}
+                                            min={formData.minProgress ?? 0}
+                                            max={100}
+                                            step={5}
+                                            variant="green-gradient"
+                                            size="lg"
+                                            showTooltip
+                                            className="relative z-20"
+                                        />
+                                    </div>
 
                                     <div className="grid grid-cols-7 gap-1 text-xs text-gray-500 dark:text-gray-400 mt-1">
                                         {(() => {
@@ -674,107 +794,6 @@ const ReportProgressTab = ({
                                                 </span>
                                             )}
                                         </div>
-
-                                        {/* Progress Terakhir */}
-                                        {(() => {
-                                            // Cari laporan terbaru untuk item ini berdasarkan reportedAt
-                                            const latestReport = reports
-                                                ?.filter(report => String(report.soDetailId) === String(formData.items))
-                                                ?.sort((a, b) => new Date(b.reportedAt).getTime() - new Date(a.reportedAt).getTime())[0];
-
-                                            if (latestReport) {
-                                                return (
-                                                    <div className="text-xs text-gray-700 dark:text-gray-300 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border-2 border-green-200 dark:border-green-700">
-                                                        <div className="flex items-center gap-2">
-                                                            <Clock className="h-3 w-3 text-green-600 dark:text-green-400" />
-                                                            <span className="font-semibold">Progress Terakhir:</span>
-                                                            <span className="text-green-600 dark:text-green-400 font-bold">
-                                                                {latestReport.progress}%
-                                                            </span>
-                                                        </div>
-                                                        <div className="text-gray-600 dark:text-gray-400 mt-1">
-                                                            Dilaporkan: {new Date(latestReport.reportedAt).toLocaleDateString('id-ID', {
-                                                                day: 'numeric',
-                                                                month: 'long',
-                                                                year: 'numeric',
-                                                                hour: '2-digit',
-                                                                minute: '2-digit'
-                                                            })}
-                                                        </div>
-                                                        {latestReport.note && (
-                                                            <div className="mt-1 text-gray-600 dark:text-gray-400">
-                                                                <span className="font-medium">Catatan:</span> {latestReport.note}
-                                                            </div>
-                                                        )}
-
-                                                        {/* Foto dari Laporan Terakhir */}
-                                                        {latestReport.photos && latestReport.photos.length > 0 ? (
-                                                            <div className="mt-3">
-                                                                <div className="flex items-center gap-2 mb-2">
-                                                                    <Dialog>
-                                                                        <DialogTrigger asChild>
-                                                                            <div className="flex items-center gap-1 cursor-pointer hover:opacity-80">
-                                                                                <div className="relative">
-                                                                                    <Camera className="w-3.5 h-3.5 text-blue-500" />
-                                                                                    {latestReport.photos.length > 1 && (
-                                                                                        <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-[8px] rounded-full w-3 h-3 flex items-center justify-center">
-                                                                                            {latestReport.photos.length}
-                                                                                        </span>
-                                                                                    )}
-                                                                                </div>
-                                                                                <span className="text-xs text-muted-foreground">{latestReport.photos.length} foto</span>
-                                                                            </div>
-                                                                        </DialogTrigger>
-                                                                        <DialogContent className="max-w-4xl p-4 border-cyan-300">
-                                                                            <AlertDialogHeader>
-                                                                                <DialogTitle>Foto Bukti Laporan Terakhir</DialogTitle>
-                                                                            </AlertDialogHeader>
-                                                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                                                                                {latestReport.photos.map((photo: string, idx: number) => {
-                                                                                    const photoUrl = getImageUrl(photo);
-
-                                                                                    return (
-                                                                                        <div
-                                                                                            key={idx}
-                                                                                            className="group relative aspect-square rounded-xl overflow-hidden border border-border/40 bg-muted/30 cursor-pointer"
-                                                                                            onClick={() => window.open(photoUrl, "_blank")}
-                                                                                        >
-                                                                                            <Image
-                                                                                                src={photoUrl}
-                                                                                                alt={`bukti-${idx + 1}`}
-                                                                                                fill
-                                                                                                className="object-cover transition-transform duration-300 group-hover:scale-110"
-                                                                                                sizes="(max-width: 768px) 50vw, 25vw"
-                                                                                                onError={(e) => {
-                                                                                                    e.currentTarget.src = "/images/placeholder-image.svg";
-                                                                                                }}
-                                                                                            />
-                                                                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                                                                                <ZoomIn className="h-6 w-6 text-white drop-shadow" />
-                                                                                            </div>
-                                                                                        </div>
-                                                                                    );
-                                                                                })}
-                                                                            </div>
-                                                                        </DialogContent>
-                                                                    </Dialog>
-                                                                    <span className="text-xs text-gray-500 dark:text-gray-400">•</span>
-                                                                    {/* <span className="text-xs text-gray-500 dark:text-gray-400">
-                {latestReport.photos[0]?.category || 'Dokumentasi'}
-            </span> */}
-                                                                </div>
-                                                            </div>
-                                                        ) : (
-                                                            <div className="mt-2 flex items-center gap-1">
-                                                                <Camera className="w-3.5 h-3.5 text-gray-400" />
-                                                                <span className="text-xs text-muted-foreground/70">Tidak ada foto</span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                );
-                                            }
-                                            return null;
-                                        })()}
                                     </div>
                                 )}
                             </div>
