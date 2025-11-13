@@ -294,7 +294,7 @@ const InvoicePdfDocumentOld = ({ invoice }: { invoice: Invoice }) => {
                 </View>
 
                 {/* Judul Invoice */}
-                <Text style={styles.invoiceTitle}>INVOICE</Text>
+                {/* <Text style={styles.invoiceTitle}>INVOICE</Text> */}
 
                 {/* Informasi Invoice dan Customer */}
                 <View style={styles.infoContainer}>
@@ -351,7 +351,7 @@ const InvoicePdfDocumentOld = ({ invoice }: { invoice: Invoice }) => {
                             <View key={index} style={styles.tableRow}>
                                 <Text style={styles.colNo}>{index + 1}</Text>
                                 <Text style={styles.colDesc}>{item.name}</Text>
-                                <Text style={styles.colQty}>{item.qty}</Text>
+                                <Text style={styles.colQty}>{item.qty} - {item.uom} </Text>
                                 <Text style={styles.colPrice}>{formatCurrency((item.unitPrice))}</Text>
                                 <Text style={styles.colTotal}>{formatCurrency((item.qty ?? 0) * (item.unitPrice ?? 0))}</Text>
                             </View>

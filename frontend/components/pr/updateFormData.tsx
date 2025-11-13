@@ -60,6 +60,7 @@ import { formatCurrency } from "@/lib/action/rab/rab-utils";
 import { fetchKaryawanByEmail } from "@/lib/action/master/karyawan";
 import { usePurchaseRequestsBySpkId } from "@/hooks/use-pr";
 import { SourceProductType } from "@/schemas/pr";
+import { ProductCombobox } from "./productCombobox";
 
 
 interface Product {
@@ -634,21 +635,12 @@ export function TabelUpdatePR({
                                                     <TableRow key={item.tempId}>
                                                         {/* Product */}
                                                         <TableCell className="align-top">
-                                                            <Select
+                                                            <ProductCombobox
                                                                 value={item.productId}
                                                                 onValueChange={(value) => updateItem(item.tempId, "productId", value)}
-                                                            >
-                                                                <SelectTrigger className={cn(errors[`productId-${index}`] && "border-red-500")}>
-                                                                    <SelectValue placeholder="Select product" />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    {products.map(p => (
-                                                                        <SelectItem key={p.id} value={p.id}>
-                                                                            {p.name}
-                                                                        </SelectItem>
-                                                                    ))}
-                                                                </SelectContent>
-                                                            </Select>
+                                                                products={products}
+                                                                error={!!errors[`productId-${index}`]}
+                                                            />
                                                             {errors[`productId-${index}`] && (
                                                                 <p className="text-xs text-red-500 mt-1">{errors[`productId-${index}`]}</p>
                                                             )}
