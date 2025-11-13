@@ -5,7 +5,7 @@ import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 // Create styles
 const styles = StyleSheet.create({
     page: {
-        padding: 25,
+        padding: 5,
         fontFamily: 'Helvetica',
         fontSize: 10,
         lineHeight: 1.3,
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     approvalLine: {
-        marginTop: 40, // Dikurangi
+        marginTop: 100, // Dikurangi
         borderTop: '1pt solid #000000',
         paddingTop: 5,
     },
