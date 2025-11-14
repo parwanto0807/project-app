@@ -395,32 +395,32 @@ const ReportProgressTab = ({
                                     <SelectTrigger className="h-11 text-sm border-2 border-purple-600 dark:border-purple-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 dark:focus:ring-purple-400 dark:focus:border-purple-400 transition-colors">
                                         <SelectValue placeholder="Pilih item pekerjaan..." />
                                     </SelectTrigger>
-                                    <SelectContent className="text-sm border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg overflow-x-auto">
-                                        {selectedSpk?.items.map((item) => {
-                                            const relatedReports = reports
-                                                ?.filter((r) => String(r.soDetailId) === String(item.id))
-                                                .sort((a, b) => new Date(b.reportedAt).getTime() - new Date(a.reportedAt).getTime());
+                                    <div className="max-w-full overflow-x-auto">
+                                        <SelectContent className="min-w-max text-sm border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg">
+                                            {selectedSpk?.items.map((item) => {
+                                                const relatedReports = reports
+                                                    ?.filter((r) => String(r.soDetailId) === String(item.id))
+                                                    .sort((a, b) => new Date(b.reportedAt).getTime() - new Date(a.reportedAt).getTime());
 
-                                            const latestReport = relatedReports?.[0];
-                                            const previousProgress = latestReport?.progress ?? item.progress ?? 0;
+                                                const latestReport = relatedReports?.[0];
+                                                const previousProgress = latestReport?.progress ?? item.progress ?? 0;
 
-                                            let icon = "📈";
-                                            if (previousProgress === 100) icon = "💹";
-                                            else if (previousProgress < 30) icon = "📉";
+                                                let icon = "📈";
+                                                if (previousProgress === 100) icon = "💹";
+                                                else if (previousProgress < 30) icon = "📉";
 
-                                            return (
-                                                <SelectItem
-                                                    key={item.id}
-                                                    value={String(item.id)}
-                                                    className="text-sm focus:bg-blue-100 dark:focus:bg-blue-900 focus:text-blue-900 dark:focus:text-blue-100"
-                                                >
-                                                    <div className="whitespace-nowrap overflow-x-auto max-w-[260px] sm:max-w-none">
-                                                        {icon}: {previousProgress}% 📌{item.name}
-                                                    </div>
-                                                </SelectItem>
-                                            );
-                                        })}
-                                    </SelectContent>
+                                                return (
+                                                    <SelectItem
+                                                        key={item.id}
+                                                        value={String(item.id)}
+                                                        className="text-sm focus:bg-blue-100 dark:focus:bg-blue-900 focus:text-blue-900 dark:focus:text-blue-100"
+                                                    >
+                                                        {icon}: {previousProgress}% 📌 {item.name}
+                                                    </SelectItem>
+                                                );
+                                            })}
+                                        </SelectContent>
+                                    </div>
 
                                 </Select>
 
