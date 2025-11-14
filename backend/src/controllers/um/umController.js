@@ -17,7 +17,7 @@ import { deleteFinanceFile } from "../../utils/deleteFileImage.js";
 export const uangMukaController = {
   async getAllUangMuka(req, res, next) {
     try {
-      // Validasi query parameters dengan Zod
+      // Validasi query parameters
       const validationResult = uangMukaQueryValidation.safeParse(req.query);
       if (!validationResult.success) {
         return res.status(400).json({
@@ -59,48 +59,26 @@ export const uangMukaController = {
         ];
       }
 
-      if (status) {
-        where.status = status;
-      }
-
-      if (metodePencairan) {
-        where.metodePencairan = metodePencairan;
-      }
-
-      if (karyawanId) {
-        where.karyawanId = karyawanId;
-      }
-
-      if (spkId) {
-        where.spkId = spkId;
-      }
+      if (status) where.status = status;
+      if (metodePencairan) where.metodePencairan = metodePencairan;
+      if (karyawanId) where.karyawanId = karyawanId;
+      if (spkId) where.spkId = spkId;
 
       if (startDate || endDate) {
         where.tanggalPengajuan = {};
-        if (startDate) {
-          where.tanggalPengajuan.gte = new Date(startDate);
-        }
-        if (endDate) {
-          where.tanggalPengajuan.lte = new Date(endDate);
-        }
+        if (startDate) where.tanggalPengajuan.gte = new Date(startDate);
+        if (endDate) where.tanggalPengajuan.lte = new Date(endDate);
       }
 
-      // Get uang muka dengan relations
+      // Query database
       const [uangMukaList, totalCount] = await Promise.all([
         prisma.uangMuka.findMany({
           where,
           skip,
           take: limit,
-          orderBy: {
-            createdAt: "desc",
-          },
+          orderBy: { createdAt: "desc" },
           include: {
-            karyawan: {
-              select: {
-                id: true,
-                namaLengkap: true,
-              },
-            },
+            karyawan: { select: { id: true, namaLengkap: true } },
             spk: {
               select: {
                 id: true,
@@ -109,44 +87,63 @@ export const uangMukaController = {
                   select: {
                     id: true,
                     soNumber: true,
-                    project: {
-                      select: {
-                        id: true,
-                        name: true,
-                      },
-                    },
+                    project: { select: { id: true, name: true } },
                   },
                 },
               },
             },
             purchaseRequest: {
-              select: {
-                id: true,
-                nomorPr: true,
-                keterangan: true,
-              },
+              select: { id: true, nomorPr: true, keterangan: true },
             },
             pertanggungjawaban: {
-              select: {
-                id: true,
-                nomor: true,
-              },
+              select: { id: true, nomor: true },
             },
           },
         }),
         prisma.uangMuka.count({ where }),
       ]);
 
-      const totalPages = Math.ceil(totalCount / limit);
+      // 🔥 Aman untuk semua jenis data
+      const formattedList = uangMukaList.map((item) => {
+        let bukti = [];
+
+        try {
+          if (item.buktiPencairanUrl) {
+            // Jika JSON Valid → parse
+            if (
+              item.buktiPencairanUrl.trim().startsWith("[") &&
+              item.buktiPencairanUrl.trim().endsWith("]")
+            ) {
+              bukti = JSON.parse(item.buktiPencairanUrl);
+            }
+            // Jika multi string dipisah koma
+            else if (item.buktiPencairanUrl.includes(",")) {
+              bukti = item.buktiPencairanUrl.split(",").map((v) => v.trim());
+            }
+            // Jika single string
+            else {
+              bukti = [item.buktiPencairanUrl.trim()];
+            }
+          }
+        } catch (err) {
+          // Jika parsing gagal → fallback string tunggal
+          bukti = [item.buktiPencairanUrl];
+        }
+
+        return {
+          ...item,
+          buktiPencairanUrl: bukti,
+        };
+      });
 
       res.json({
         success: true,
-        data: uangMukaList,
+        data: formattedList,
         pagination: {
           page,
           limit,
           total: totalCount,
-          totalPages,
+          totalPages: Math.ceil(totalCount / limit),
         },
       });
     } catch (error) {
@@ -231,9 +228,22 @@ export const uangMukaController = {
         });
       }
 
+      // 🟣 Parse buktiPencairanUrl dari JSON string → array
+      let buktiPencairanUrl = [];
+      if (uangMuka.buktiPencairanUrl) {
+        try {
+          buktiPencairanUrl = JSON.parse(uangMuka.buktiPencairanUrl);
+        } catch {
+          buktiPencairanUrl = [];
+        }
+      }
+
       res.json({
         success: true,
-        data: uangMuka,
+        data: {
+          ...uangMuka,
+          buktiPencairanUrl,
+        },
       });
     } catch (error) {
       next(error);
@@ -242,27 +252,56 @@ export const uangMukaController = {
 
   async createUangMuka(req, res, next) {
     try {
-      // Handle file upload jika ada
-      let buktiPencairanUrl = null;
-      if (req.file) {
+      // -----------------------------
+      // HANDLE UPLOAD (multi/single)
+      // -----------------------------
+      let buktiPencairanArray = [];
+
+      // Jika multiple upload: req.files (multer.array)
+      if (req.files && req.files.length > 0) {
         const baseUrl = process.env.BASE_URL || "http://localhost:3000";
-        buktiPencairanUrl = `/images/finance/${req.file.filename}`;
+        buktiPencairanArray = req.files.map(
+          (file) => `/images/finance/${file.filename}`
+        );
       }
 
+      // Jika masih pakai single upload
+      if (req.file) {
+        const baseUrl = process.env.BASE_URL || "http://localhost:3000";
+        buktiPencairanArray.push(`/images/finance/${req.file.filename}`);
+      }
+
+      // Ubah ke JSON string agar bisa disimpan di 1 field String
+      const buktiPencairanUrl =
+        buktiPencairanArray.length > 0
+          ? JSON.stringify(buktiPencairanArray)
+          : null;
+
+      // -----------------------------
+      // NORMALISASI BODY
+      // -----------------------------
       if (req.body.jumlah) {
         req.body.jumlah = Number(req.body.jumlah);
       }
-      // Validasi body dengan Zod (gabungkan dengan file URL)
+
+      // -----------------------------
+      // VALIDASI BODY + FILE
+      // -----------------------------
       const validationResult = createUangMukaValidation.safeParse({
         ...req.body,
-        buktiPencairanUrl: buktiPencairanUrl || undefined,
+        buktiPencairanUrl:
+          buktiPencairanArray.length > 0 ? buktiPencairanArray : undefined,
       });
 
       if (!validationResult.success) {
-        // Delete uploaded file jika validasi gagal
+        // Hapus file ketika gagal
+        if (req.files) {
+          req.files.forEach((f) => fs.unlinkSync(f.path));
+        }
         if (req.file) {
           fs.unlinkSync(req.file.path);
         }
+
         return res.status(400).json({
           success: false,
           message: "Validation error",
@@ -287,7 +326,9 @@ export const uangMukaController = {
         namaEwalletTujuan,
       } = validationResult.data;
 
-      // Validasi relasi
+      // -----------------------------
+      // CEK RELASI
+      // -----------------------------
       const [karyawan, spk, existingPR] = await Promise.all([
         prisma.karyawan.findUnique({ where: { id: karyawanId } }),
         prisma.sPK.findUnique({ where: { id: spkId } }),
@@ -300,58 +341,52 @@ export const uangMukaController = {
       ]);
 
       if (!karyawan) {
-        // Delete uploaded file jika validasi relasi gagal
-        if (req.file) {
-          fs.unlinkSync(req.file.path);
-        }
-        return res.status(400).json({
-          success: false,
-          message: "Karyawan tidak ditemukan",
-        });
+        if (req.files) req.files.forEach((f) => fs.unlinkSync(f.path));
+        if (req.file) fs.unlinkSync(req.file.path);
+        return res
+          .status(400)
+          .json({ success: false, message: "Karyawan tidak ditemukan" });
       }
 
       if (!spk) {
-        // Delete uploaded file jika validasi relasi gagal
-        if (req.file) {
-          fs.unlinkSync(req.file.path);
-        }
-        return res.status(400).json({
-          success: false,
-          message: "SPK tidak ditemukan",
-        });
+        if (req.files) req.files.forEach((f) => fs.unlinkSync(f.path));
+        if (req.file) fs.unlinkSync(req.file.path);
+        return res
+          .status(400)
+          .json({ success: false, message: "SPK tidak ditemukan" });
       }
 
-      // Cek jika PR sudah memiliki uang muka
+      // Cek jika PR sudah ada uang mukanya
       if (existingPR && existingPR.uangMuka.length > 0) {
-        // Delete uploaded file jika validasi relasi gagal
-        if (req.file) {
-          fs.unlinkSync(req.file.path);
-        }
+        if (req.files) req.files.forEach((f) => fs.unlinkSync(f.path));
+        if (req.file) fs.unlinkSync(req.file.path);
         return res.status(400).json({
           success: false,
-          message: "Biaya Purchase request ini sudah diajukan ",
+          message: "Biaya Purchase request ini sudah diajukan",
         });
       }
 
-      // Generate nomor uang muka
+      // -----------------------------
+      // GENERATE NOMOR
+      // -----------------------------
       const nomor = await generateUangMukaNumber();
 
-      // Tentukan status berdasarkan apakah langsung dicairkan
       const status = tanggalPencairan
         ? UangMukaStatus.DISBURSED
         : UangMukaStatus.PENDING;
 
-      // Gunakan transaction untuk memastikan konsistensi data
-      const result = await prisma.$transaction(async (prisma) => {
-        // Create uang muka
-        const uangMuka = await prisma.uangMuka.create({
+      // -----------------------------
+      // CREATE (TRANSACTION)
+      // -----------------------------
+      const result = await prisma.$transaction(async (prismaTx) => {
+        const uangMuka = await prismaTx.uangMuka.create({
           data: {
             nomor,
             tanggalPengajuan: tanggalPengajuan || new Date(),
             tanggalPencairan,
             jumlah,
             keterangan,
-            buktiPencairanUrl,
+            buktiPencairanUrl, // <-- JSON string!!
             status,
             purchaseRequestId: purchaseRequestId || null,
             karyawanId,
@@ -362,36 +397,21 @@ export const uangMukaController = {
             namaEwalletTujuan,
           },
           include: {
-            karyawan: {
-              select: {
-                id: true,
-                namaLengkap: true,
-              },
-            },
+            karyawan: { select: { id: true, namaLengkap: true } },
             spk: {
               select: {
                 id: true,
                 spkNumber: true,
-                project: {
-                  select: {
-                    id: true,
-                    name: true,
-                  },
-                },
+                project: { select: { id: true, name: true } },
               },
             },
-            purchaseRequest: {
-              select: {
-                id: true,
-                nomorPr: true,
-              },
-            },
+            purchaseRequest: { select: { id: true, nomorPr: true } },
           },
         });
 
-        // Update purchase request status jika status uang muka = DISBURSED
+        // Jika langsung cair → PR completed
         if (status === UangMukaStatus.DISBURSED && purchaseRequestId) {
-          await prisma.purchaseRequest.update({
+          await prismaTx.purchaseRequest.update({
             where: { id: purchaseRequestId },
             data: { status: "COMPLETED" },
           });
@@ -403,20 +423,23 @@ export const uangMukaController = {
       res.status(201).json({
         success: true,
         message: "Uang muka berhasil dibuat",
-        data: result,
+        data: {
+          ...result,
+          buktiPencairanUrl: buktiPencairanArray, // kirim array, bukan JSON string
+        },
       });
     } catch (error) {
-      // Delete uploaded file jika ada error
-      if (req.file) {
-        fs.unlinkSync(req.file.path);
-      }
+      // Hapus file jika terjadi error besar
+      if (req.files) req.files.forEach((f) => fs.unlinkSync(f.path));
+      if (req.file) fs.unlinkSync(req.file.path);
+
       next(error);
     }
   },
 
   async updateUangMuka(req, res, next) {
     try {
-      // Validasi params dengan Zod
+      // Validasi params
       const paramsValidation = uangMukaIdValidation.safeParse(req.params);
       if (!paramsValidation.success) {
         return res.status(400).json({
@@ -429,9 +452,27 @@ export const uangMukaController = {
         });
       }
 
-      // Validasi body dengan Zod
-      const bodyValidation = updateUangMukaValidation.safeParse(req.body);
+      // Handle upload gambar baru (opsional)
+      let uploadedImages = null;
+      if (req.files && req.files.length > 0) {
+        const baseUrl = process.env.BASE_URL || "http://localhost:3000";
+        uploadedImages = req.files.map(
+          (file) => `/images/finance/${file.filename}`
+        );
+      }
+
+      // body validation dulu
+      const bodyValidation = updateUangMukaValidation.safeParse({
+        ...req.body,
+        buktiPencairanUrl: req.body.buktiPencairanUrl || undefined,
+      });
+
       if (!bodyValidation.success) {
+        // Hapus file jika upload gagal validasi
+        if (req.files) {
+          req.files.forEach((file) => fs.unlinkSync(file.path));
+        }
+
         return res.status(400).json({
           success: false,
           message: "Validation error",
@@ -443,9 +484,9 @@ export const uangMukaController = {
       }
 
       const { id } = paramsValidation.data;
-      const updateData = bodyValidation.data;
+      let updateData = bodyValidation.data;
 
-      // Cek apakah uang muka exists
+      // Ambil data existing
       const existingUangMuka = await prisma.uangMuka.findUnique({
         where: { id },
       });
@@ -457,54 +498,28 @@ export const uangMukaController = {
         });
       }
 
-      // Validasi relasi jika diupdate
-      if (updateData.karyawanId) {
-        const karyawan = await prisma.karyawan.findUnique({
-          where: { id: updateData.karyawanId },
-        });
-        if (!karyawan) {
-          return res.status(400).json({
-            success: false,
-            message: "Karyawan tidak ditemukan",
-          });
+      // Jika ada upload baru → gabungkan atau timpa total
+      if (uploadedImages) {
+        // Jika user mengirim "replace": true → timpa semua gambar
+        if (req.body.replace === "true") {
+          updateData.buktiPencairanUrl = JSON.stringify(uploadedImages);
+        } else {
+          // Jika tidak → tambahkan ke list lama
+          const oldImages = existingUangMuka.buktiPencairanUrl
+            ? JSON.parse(existingUangMuka.buktiPencairanUrl)
+            : [];
+
+          const merged = [...oldImages, ...uploadedImages];
+          updateData.buktiPencairanUrl = JSON.stringify(merged);
         }
+      } else if (updateData.buktiPencairanUrl) {
+        // Jika hanya diupdate tanpa upload → pastikan tetap JSON string
+        updateData.buktiPencairanUrl = JSON.stringify(
+          JSON.parse(updateData.buktiPencairanUrl)
+        );
       }
 
-      if (updateData.spkId) {
-        const spk = await prisma.sPK.findUnique({
-          where: { id: updateData.spkId },
-        });
-        if (!spk) {
-          return res.status(400).json({
-            success: false,
-            message: "SPK tidak ditemukan",
-          });
-        }
-      }
-
-      if (updateData.purchaseRequestId) {
-        const existingPR = await prisma.purchaseRequest.findUnique({
-          where: { id: updateData.purchaseRequestId },
-          include: { uangMuka: true },
-        });
-
-        if (!existingPR) {
-          return res.status(400).json({
-            success: false,
-            message: "Purchase request tidak ditemukan",
-          });
-        }
-
-        // Cek jika PR sudah memiliki uang muka lain
-        // if (existingPR.uangMuka && existingPR.uangMuka.id !== id) {
-        //   return res.status(400).json({
-        //     success: false,
-        //     message: "Purchase request ini sudah memiliki uang muka",
-        //   });
-        // }
-      }
-
-      // Handle status dan tanggal pencairan
+      // Atur tanggal otomatis saat status DISBURSED
       if (
         updateData.status === UangMukaStatus.DISBURSED &&
         !updateData.tanggalPencairan
@@ -512,43 +527,33 @@ export const uangMukaController = {
         updateData.tanggalPencairan = new Date();
       }
 
+      // Update database
       const uangMuka = await prisma.uangMuka.update({
         where: { id },
         data: updateData,
         include: {
-          karyawan: {
-            select: {
-              id: true,
-              namaLengkap: true,
-            },
-          },
+          karyawan: { select: { id: true, namaLengkap: true } },
           spk: {
             select: {
               id: true,
               spkNumber: true,
-              project: {
-                select: {
-                  id: true,
-                  name: true,
-                },
-              },
+              project: { select: { id: true, name: true } },
             },
           },
-          purchaseRequest: {
-            select: {
-              id: true,
-              nomorPr: true,
-            },
-          },
+          purchaseRequest: { select: { id: true, nomorPr: true } },
         },
       });
 
-      res.json({
+      return res.json({
         success: true,
         message: "Uang muka berhasil diupdate",
         data: uangMuka,
       });
     } catch (error) {
+      // jika error → hapus file
+      if (req.files) {
+        req.files.forEach((file) => fs.unlinkSync(file.path));
+      }
       next(error);
     }
   },
@@ -557,13 +562,10 @@ export const uangMukaController = {
     console.log("Data Received", req.body);
 
     try {
-      // Validasi params dengan Zod
+      // 1. Validasi params
       const paramsValidation = uangMukaIdValidation.safeParse(req.params);
       if (!paramsValidation.success) {
-        // Delete uploaded file jika validasi gagal
-        if (req.file) {
-          fs.unlinkSync(req.file.path);
-        }
+        if (req.files) req.files.forEach((f) => fs.unlinkSync(f.path));
         return res.status(400).json({
           success: false,
           message: "Validation error",
@@ -574,19 +576,22 @@ export const uangMukaController = {
         });
       }
 
-      // Validasi body dengan Zod
+      // 2. Kumpulkan gambar upload (support multiple)
+      let uploadedImages = null;
+      if (req.files && req.files.length > 0) {
+        uploadedImages = req.files.map(
+          (file) => `/images/finance/${file.filename}`
+        );
+      }
+
+      // 3. Validasi body Zod
       const bodyValidation = updateStatusValidation.safeParse({
         ...req.body,
-        buktiPencairanUrl: req.file
-          ? `/images/finance/${req.file.filename}`
-          : undefined,
+        buktiPencairanUrl: req.body.buktiPencairanUrl || undefined,
       });
 
       if (!bodyValidation.success) {
-        // Delete uploaded file jika validasi gagal
-        if (req.file) {
-          fs.unlinkSync(req.file.path);
-        }
+        if (req.files) req.files.forEach((f) => fs.unlinkSync(f.path));
         return res.status(400).json({
           success: false,
           message: "Validation error",
@@ -606,32 +611,44 @@ export const uangMukaController = {
         namaBankTujuan,
         nomorRekeningTujuan,
         namaEwalletTujuan,
+        replaceImages, // opsional: true | false
       } = bodyValidation.data;
 
+      // 4. Ambil data existing
       const existingUangMuka = await prisma.uangMuka.findUnique({
         where: { id },
         include: {
-          purchaseRequest: {
-            select: {
-              id: true,
-              status: true,
-            },
-          },
+          purchaseRequest: { select: { id: true, status: true } },
         },
       });
 
       if (!existingUangMuka) {
-        // Delete uploaded file jika uang muka tidak ditemukan
-        if (req.file) {
-          fs.unlinkSync(req.file.path);
-        }
+        if (req.files) req.files.forEach((f) => fs.unlinkSync(f.path));
         return res.status(404).json({
           success: false,
           message: "Uang muka tidak ditemukan",
         });
       }
 
-      // Build update data
+      // 5. Build updateData
+      let finalImages = null;
+
+      // Jika ada upload baru
+      if (uploadedImages) {
+        if (replaceImages === "true") {
+          finalImages = uploadedImages; // timpa total
+        } else {
+          // merge dengan lama
+          const oldList = existingUangMuka.buktiPencairanUrl
+            ? JSON.parse(existingUangMuka.buktiPencairanUrl)
+            : [];
+          finalImages = [...oldList, ...uploadedImages];
+        }
+      } else if (buktiPencairanUrl) {
+        // raw string from form → convert ke array
+        finalImages = JSON.parse(buktiPencairanUrl);
+      }
+
       const updateData = {
         status,
         metodePencairan,
@@ -641,38 +658,28 @@ export const uangMukaController = {
         ...(status === UangMukaStatus.DISBURSED && {
           tanggalPencairan: tanggalPencairan || new Date(),
         }),
-        ...(buktiPencairanUrl && { buktiPencairanUrl }),
+        ...(finalImages && {
+          buktiPencairanUrl: JSON.stringify(finalImages),
+        }),
       };
 
-      // Start transaction untuk update uang muka dan purchase request
+      // 6. Transaction update
       const [uangMuka] = await prisma.$transaction([
-        // Update uang muka
         prisma.uangMuka.update({
           where: { id },
           data: updateData,
           include: {
-            karyawan: {
-              select: {
-                id: true,
-                namaLengkap: true,
-              },
-            },
+            karyawan: { select: { id: true, namaLengkap: true } },
             spk: {
               select: {
                 id: true,
                 spkNumber: true,
-                project: {
-                  select: {
-                    id: true,
-                    name: true,
-                  },
-                },
+                project: { select: { id: true, name: true } },
               },
             },
           },
         }),
 
-        // Update purchase request status jika status uang muka = DISBURSED
         ...(status === UangMukaStatus.DISBURSED &&
         existingUangMuka.purchaseRequest
           ? [
@@ -690,10 +697,7 @@ export const uangMukaController = {
         data: uangMuka,
       });
     } catch (error) {
-      // Delete uploaded file jika ada error
-      if (req.file) {
-        fs.unlinkSync(req.file.path);
-      }
+      if (req.files) req.files.forEach((f) => fs.unlinkSync(f.path));
       next(error);
     }
   },

@@ -60,7 +60,7 @@ export async function getAllUangMuka(
         headers: {
           "Content-Type": "application/json",
         },
-        credentials:'include',
+        credentials: "include",
       }
     );
 
@@ -83,7 +83,7 @@ export async function getUangMukaById(id: string): Promise<UangMukaResponse> {
         headers: {
           "Content-Type": "application/json",
         },
-        credentials:'include',
+        credentials: "include",
       }
     );
 
@@ -99,65 +99,40 @@ export async function createUangMuka(
   submitData: SubmitDataWithFile
 ): Promise<UangMukaResponse> {
   try {
-    const { data, file } = submitData;
+    const { data } = submitData;
 
-    // console.log("=== 🚨 DEBUG CREATE UANG MUKA ===");
-    // console.log("📤 Data:", data);
-    // console.log(
-    //   "🔍 Jumlah (sebelum convert):",
-    //   data.jumlah,
-    //   "Tipe:",
-    //   typeof data.jumlah
-    // );
-
-    // Buat FormData untuk kirim file + data
     const formData = new FormData();
 
-    // Pastikan jumlah dikirim sebagai number
-    formData.append("jumlah", data.jumlah.toString()); // Tetap string untuk FormData
+    formData.append("jumlah", data.jumlah.toString());
     formData.append("metodePencairan", data.metodePencairan);
 
-    if (data.keterangan) {
-      formData.append("keterangan", data.keterangan);
-    }
-    if (data.namaBankTujuan) {
+    if (data.keterangan) formData.append("keterangan", data.keterangan);
+    if (data.namaBankTujuan)
       formData.append("namaBankTujuan", data.namaBankTujuan);
-    }
-    if (data.nomorRekeningTujuan) {
+    if (data.nomorRekeningTujuan)
       formData.append("nomorRekeningTujuan", data.nomorRekeningTujuan);
-    }
-    if (data.namaEwalletTujuan) {
+    if (data.namaEwalletTujuan)
       formData.append("namaEwalletTujuan", data.namaEwalletTujuan);
-    }
-    if (data.purchaseRequestId) {
+    if (data.purchaseRequestId)
       formData.append("purchaseRequestId", data.purchaseRequestId);
-    }
-    if (data.karyawanId) {
-      formData.append("karyawanId", data.karyawanId);
-    }
-    if (data.spkId) {
-      formData.append("spkId", data.spkId);
-    }
+    if (data.karyawanId) formData.append("karyawanId", data.karyawanId);
+    if (data.spkId) formData.append("spkId", data.spkId);
 
-    // Convert date to ISO string
     formData.append("tanggalPengajuan", data.tanggalPengajuan.toISOString());
-
     if (data.tanggalPencairan) {
       formData.append("tanggalPencairan", data.tanggalPencairan.toISOString());
     }
-    if (data.buktiPencairanUrl) {
-      formData.append("buktiPencairanUrl", data.buktiPencairanUrl);
+
+    // ⬇️ UPDATED: sekarang array JSON
+    if (data.buktiPencairanUrl && Array.isArray(data.buktiPencairanUrl)) {
+      formData.append(
+        "buktiPencairanUrl",
+        JSON.stringify(data.buktiPencairanUrl)
+      );
     }
 
-    // Append file jika ada
-    if (file) {
-      formData.append("buktiPencairan", file);
-    }
-
-    // console.log("📤 FormData entries:");
-    // Array.from(formData.entries()).forEach(([key, value]) => {
-    //   console.log(`  - ${key}:`, value);
-    // });
+    // ⛔ tidak ada lagi upload file single
+    // if (file) formData.append("buktiPencairan", file);
 
     const response = await fetch(`${API_BASE_URL}/api/um/createUangMuka`, {
       method: "POST",
@@ -165,17 +140,12 @@ export async function createUangMuka(
       body: formData,
     });
 
-    // console.log("📨 Response status:", response.status);
-
     if (!response.ok) {
       const errorData = await response.json();
-      console.error("❌ Error dari backend:", errorData);
-      throw new Error(JSON.stringify(errorData)); // Kirim full error object
+      throw new Error(JSON.stringify(errorData));
     }
 
-    const result = await response.json();
-    // console.log("✅ Success:", result);
-    return result;
+    return await response.json();
   } catch (error) {
     console.error("Error creating uang muka:", error);
     throw error;
@@ -190,13 +160,35 @@ export async function updateUangMuka(
   data: UpdateUangMukaInput
 ): Promise<UangMukaResponse> {
   try {
+    let body: BodyInit;
+    const headers: HeadersInit = {}; // ✔ FIX prefer-const
+
+    // Jika ada file → gunakan FormData
+    if (data.buktiTransaksi && data.buktiTransaksi instanceof File) {
+      const formData = new FormData();
+
+      Object.entries(data).forEach(([key, value]) => {
+        if (key === "buktiTransaksi") {
+          formData.append("buktiTransaksi", value as File);
+        } else if (value !== undefined && value !== null) {
+          formData.append(key, String(value));
+        }
+      });
+
+      body = formData;
+    }
+
+    // Jika tidak ada file → gunakan JSON
+    else {
+      headers["Content-Type"] = "application/json";
+      body = JSON.stringify(data);
+    }
+
     const response = await fetch(`${API_BASE_URL}/api/updateUangMuka/${id}`, {
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials:'include',
-      body: JSON.stringify(data),
+      credentials: "include",
+      headers,
+      body,
     });
 
     return await handleResponse<UangMukaResponse>(response);
@@ -210,77 +202,94 @@ export async function updateUangMuka(
  * Update status uang muka dengan file upload
  */
 // actionUm.ts
+// Di actionUm.ts - coba berbagai variasi field name
 export async function updateUangMukaStatus(
   id: string,
   data: UpdateStatusInput
 ): Promise<UangMukaResponse> {
+  console.log("🔵 3. updateUangMukaStatus started");
   try {
     const formData = new FormData();
 
-    // Data dasar yang diperlukan
+    // Status wajib
     formData.append("status", data.status);
 
-    // Tanggal pencairan
-    if (data.tanggalPencairan) {
-      formData.append("tanggalPencairan", data.tanggalPencairan.toISOString());
-    } else {
-      formData.append("tanggalPencairan", new Date().toISOString());
-    }
+    // Date default
+    formData.append(
+      "tanggalPencairan",
+      data.tanggalPencairan
+        ? data.tanggalPencairan.toISOString()
+        : new Date().toISOString()
+    );
 
-    // ✅ HANYA kirim buktiPencairan (file), JANGAN kirim buktiPencairanUrl
+    console.log("🟡 3a. Processing files:", {
+      buktiPencairanType: typeof data.buktiPencairan,
+      isArray: Array.isArray(data.buktiPencairan),
+      fileCount: Array.isArray(data.buktiPencairan)
+        ? data.buktiPencairan.length
+        : 1,
+    });
+
+    // File processing
     if (data.buktiPencairan) {
-      formData.append("buktiPencairan", data.buktiPencairan);
+      if (Array.isArray(data.buktiPencairan)) {
+        data.buktiPencairan.forEach((file, index) => {
+          if (file instanceof File) {
+            formData.append("buktiPencairan", file);
+            console.log(`📎 3b. Appended file ${index + 1}:`, file.name);
+          }
+        });
+      } else if (data.buktiPencairan instanceof File) {
+        formData.append("buktiPencairan", data.buktiPencairan);
+        console.log("📎 3c. Appended single file:", data.buktiPencairan.name);
+      } else {
+        throw new Error("Format bukti transaksi tidak valid");
+      }
     } else {
-      throw new Error("Bukti transaksi wajib diupload");
+      throw new Error("Minimal upload 1 bukti transaksi");
     }
 
-    // ❌ JANGAN kirim buktiPencairanUrl - backend akan generate otomatis
-    // if (data.buktiPencairanUrl) {
-    //   formData.append("buktiPencairanUrl", data.buktiPencairanUrl);
-    // }
-
-    // Field metode pembayaran - WAJIB untuk DISBURSED
-    if (data.metodePencairan) {
-      formData.append("metodePencairan", data.metodePencairan as string);
-    } else {
+    // Metode pencairan wajib
+    if (!data.metodePencairan) {
       throw new Error("Metode pencairan wajib diisi");
     }
+    formData.append("metodePencairan", data.metodePencairan);
 
-    // Field tambahan opsional
-    if (data.namaBankTujuan) {
+    // Optional fields
+    if (data.namaBankTujuan)
       formData.append("namaBankTujuan", data.namaBankTujuan);
-    }
-    if (data.nomorRekeningTujuan) {
+    if (data.nomorRekeningTujuan)
       formData.append("nomorRekeningTujuan", data.nomorRekeningTujuan);
-    }
-    if (data.namaEwalletTujuan) {
+    if (data.namaEwalletTujuan)
       formData.append("namaEwalletTujuan", data.namaEwalletTujuan);
-    }
 
-    console.log("📤 FormData entries:");
-    Array.from(formData.entries()).forEach(([key, value]) => {
-      console.log(`  - ${key}:`, value);
-    });
+    console.log(
+      "🟡 3d. Making fetch request to:",
+      `${API_BASE_URL}/api/um/updateUangMukaStatus/${id}`
+    );
 
-    const url = `${API_BASE_URL}/api/um/updateUangMukaStatus/${id}`;
-    console.log("🔗 Fetch URL:", url);
+    const response = await fetch(
+      `${API_BASE_URL}/api/um/updateUangMukaStatus/${id}`,
+      {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      }
+    );
 
-    const response = await fetch(url, {
-      method: "POST",
-      credentials: "include",
-      body: formData,
-    });
-
-    console.log("📨 Response status:", response.status);
+    console.log("🟡 3e. Response status:", response.status);
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("❌ Error response:", errorText);
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errMsg = await response.text();
+      console.log("🔴 3f. Response not OK:", errMsg);
+      throw new Error(errMsg);
     }
 
-    return await handleResponse<UangMukaResponse>(response);
+    const result = await handleResponse<UangMukaResponse>(response);
+    console.log("🟢 3g. Request successful:", result);
+    return result;
   } catch (error) {
+    console.log("🔴 3h. Error in updateUangMukaStatus:", error);
     console.error("Error updating uang muka status:", error);
     throw error;
   }
@@ -298,7 +307,7 @@ export async function deleteUangMuka(id: string): Promise<UangMukaResponse> {
         headers: {
           "Content-Type": "application/json",
         },
-        credentials:'include',
+        credentials: "include",
       }
     );
 
@@ -336,7 +345,7 @@ export async function getUangMukaByKaryawan(
         headers: {
           "Content-Type": "application/json",
         },
-        credentials:'include',
+        credentials: "include",
       }
     );
 
@@ -369,7 +378,7 @@ export async function getUangMukaStatistics(): Promise<{
       headers: {
         "Content-Type": "application/json",
       },
-      credentials:'include',
+      credentials: "include",
     });
 
     if (response.ok) {
@@ -458,7 +467,7 @@ export async function exportUangMuka(
       `${API_BASE_URL}/uang-muka/export?${queryParams}`,
       {
         method: "GET",
-        credentials:'include',
+        credentials: "include",
       }
     );
 
@@ -484,7 +493,8 @@ export async function cairkanUangMuka(
     formData.append("id", data.id);
     formData.append("tanggalPencairan", data.tanggalPencairan.toISOString());
 
-    if (data.buktiTransaksi) {
+    // Upload 1 file
+    if (data.buktiTransaksi instanceof File) {
       formData.append("buktiTransaksi", data.buktiTransaksi);
     }
 
@@ -494,12 +504,12 @@ export async function cairkanUangMuka(
       body: formData,
     });
 
+    const result = await response.json();
+
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || "Gagal mencairkan uang muka");
+      throw new Error(result.message || "Gagal mencairkan uang muka");
     }
 
-    const result = await response.json();
     return result;
   } catch (error) {
     console.error("Error cairkan uang muka:", error);

@@ -557,7 +557,7 @@ export function PrApprovalTable({
                                                 <td className="p-3">
                                                     <div className="flex items-center gap-2">
                                                         <Building className="h-3 w-3 text-green-500" />
-                                                        <span className="text-sm">{item.spk?.salesOrder?.project?.name || 'N/A'}</span>
+                                                        <span className="text-sm font-bold uppercase">{item.spk?.salesOrder?.project?.name || 'N/A'}</span>
                                                     </div>
                                                 </td>
                                                 <td className="p-3">

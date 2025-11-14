@@ -50,8 +50,8 @@ const upload = multer({
   fileFilter: fileFilter
 });
 
-// Middleware for single file upload
-export const uploadBuktiPencairan = upload.single('buktiPencairan');
+// Middleware for multiple file upload - GANTI single MENJADI array
+export const uploadBuktiPencairan = upload.array('buktiPencairan', 5); // Maksimal 5 files
 
 // Middleware for handling upload errors
 export const handleUploadError = (err, req, res, next) => {
@@ -66,6 +66,12 @@ export const handleUploadError = (err, req, res, next) => {
       return res.status(400).json({
         success: false,
         message: 'Field name harus "buktiPencairan"'
+      });
+    }
+    if (err.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({
+        success: false,
+        message: 'Terlalu banyak file. Maksimal 5 file.'
       });
     }
   } else if (err) {

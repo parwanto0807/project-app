@@ -3,7 +3,9 @@ import { SalesOrder } from "./salesOrder";
 export type UangMukaStatus = "PENDING" | "DISBURSED" | "SETTLED" | "REJECTED";
 export type MetodePembayaran = "CASH" | "BANK_TRANSFER" | "E_WALLET";
 
-// Base types
+// ===================================================
+// BASE ENTITY
+// ===================================================
 export interface UangMuka {
   id: string;
   nomor: string;
@@ -11,10 +13,10 @@ export interface UangMuka {
   tanggalPencairan?: Date | null;
   jumlah: number;
   keterangan?: string | null;
-  status: UangMukaStatus;
-  buktiPencairanUrl?: string | null;
 
-  // FIELD BARU: Metode pembayaran
+  status: UangMukaStatus;
+  buktiPencairanUrl?: string | null; // JSON string array
+
   metodePencairan?: MetodePembayaran;
   namaBankTujuan?: string | null;
   nomorRekeningTujuan?: string | null;
@@ -23,17 +25,20 @@ export interface UangMuka {
   purchaseRequestId?: string | null;
   karyawanId: string;
   spkId: string;
+
   createdAt: Date;
   updatedAt: Date;
 
-  // Relations (optional, tergantung include query)
+  // Relations
   karyawan?: Karyawan;
   spk?: SPK;
   purchaseRequest?: PurchaseRequest;
   pertanggungjawaban?: Pertanggungjawaban;
 }
 
-// Relation types (sesuaikan dengan model Anda)
+// ===================================================
+// RELATION TYPES
+// ===================================================
 export interface Karyawan {
   id: string;
   namaLengkap: string;
@@ -46,7 +51,7 @@ export interface SPK {
   id: string;
   spkNumber: string;
   salesOrder: SalesOrder;
-  project?: Project; // Ditambahkan untuk kemudahan akses
+  project?: Project;
 }
 
 export interface Project {
@@ -80,7 +85,9 @@ export interface Pertanggungjawaban {
   totalBiaya?: number | null;
 }
 
-// Input types untuk forms
+// ===================================================
+// INPUT TYPES
+// ===================================================
 export interface CreateUangMukaInput {
   tanggalPengajuan: Date;
   tanggalPencairan?: Date | null;
@@ -94,20 +101,20 @@ export interface CreateUangMukaInput {
   namaEwalletTujuan?: string;
 
   purchaseRequestId?: string | null;
-  karyawanId?: string | null; // Ubah jadi optional/nullable
-  spkId?: string | null; // Ubah jadi optional/nullable
+  karyawanId?: string | null;
+  spkId?: string | null;
   status?: UangMukaStatus;
 }
 
 export interface UpdateUangMukaInput {
   tanggalPengajuan?: Date;
-  tanggalPencairan?: Date | null; // Ditambahkan
+  tanggalPencairan?: Date | null;
   jumlah?: number;
   keterangan?: string;
   status?: UangMukaStatus;
-  buktiPencairanUrl?: string;
+  buktiPencairanUrl?: string[]; // JSON string array
+  buktiTransaksi?: File | null;
 
-  // FIELD BARU: Metode pembayaran
   metodePencairan?: MetodePembayaran;
   namaBankTujuan?: string;
   nomorRekeningTujuan?: string;
@@ -118,33 +125,46 @@ export interface UpdateUangMukaInput {
   spkId?: string;
 }
 
+/**
+ * UPDATE STATUS — BACKEND menerima:
+ * - buktiPencairanUrl (string JSON)
+ * - FILES (multiple)
+ * - replaceImages (opsional)
+ */
 export interface UpdateStatusInput {
   status: UangMukaStatus;
   tanggalPencairan?: Date | null;
-  buktiPencairanUrl?: string; // Untuk URL yang sudah diupload
-
-  // FIELD BARU: Wajib jika status DISBURSED
+  buktiPencairanUrl?: string; // JSON array string
   metodePencairan?: MetodePembayaran;
   namaBankTujuan?: string;
   nomorRekeningTujuan?: string;
   namaEwalletTujuan?: string;
 
-  buktiPencairan?: File; // Untuk file upload (frontend only)
+  // NEW: multiple file upload
+  buktiPencairan?: File | File[];
+
+  // NEW: replace total gambar lama?
+  replaceImages?: boolean;
 }
 
+// ===================================================
+// QUERY TYPES
+// ===================================================
 export interface UangMukaQueryInput {
   page?: number;
   limit?: number;
   search?: string;
   status?: UangMukaStatus;
-  metodePencairan?: MetodePembayaran; // FIELD BARU: Filter metode pencairan
+  metodePencairan?: MetodePembayaran;
   karyawanId?: string;
   spkId?: string;
   startDate?: Date;
   endDate?: Date;
 }
 
-// Response types
+// ===================================================
+// RESPONSE TYPES
+// ===================================================
 export interface UangMukaResponse {
   success: boolean;
   data: UangMuka;
@@ -171,11 +191,13 @@ export interface PaginationInfo {
   hasPrevPage?: boolean;
 }
 
-// Filter types
+// ===================================================
+// FILTER TYPES
+// ===================================================
 export interface UangMukaFilters {
   search?: string;
   status?: UangMukaStatus;
-  metodePencairan?: MetodePembayaran; // FIELD BARU
+  metodePencairan?: MetodePembayaran;
   karyawanId?: string;
   spkId?: string;
   startDate?: Date;
@@ -184,28 +206,31 @@ export interface UangMukaFilters {
   limit?: number;
 }
 
-// Form data untuk file upload
+// ===================================================
+// FRONTEND FORM TYPES
+// ===================================================
 export interface UpdateStatusFormData {
   status: UangMukaStatus;
   tanggalPencairan?: Date | null;
 
-  // FIELD BARU
   metodePencairan?: MetodePembayaran;
   namaBankTujuan?: string;
   nomorRekeningTujuan?: string;
   namaEwalletTujuan?: string;
 
-  buktiPencairan?: File;
+  // NEW: multiple file upload
+  buktiPencairan?: File | File[];
+
+  // NEW
+  replaceImages?: boolean;
 }
 
-// Form data untuk create uang muka
 export interface CreateUangMukaFormData {
   tanggalPengajuan?: Date;
   tanggalPencairan?: Date | null;
   jumlah: number;
   keterangan?: string;
 
-  // FIELD BARU (WAJIB)
   metodePencairan: MetodePembayaran;
   namaBankTujuan?: string;
   nomorRekeningTujuan?: string;
@@ -214,10 +239,14 @@ export interface CreateUangMukaFormData {
   purchaseRequestId?: string | null;
   karyawanId: string;
   spkId: string;
-  buktiPencairan?: File; // Untuk upload file saat create
+
+  // NEW
+  buktiPencairan?: File[];
 }
 
-// Select options
+// ===================================================
+// OTHER TYPES
+// ===================================================
 export interface UangMukaStatusOption {
   value: UangMukaStatus;
   label: string;
@@ -230,17 +259,13 @@ export interface MetodePembayaranOption {
   description: string;
 }
 
-// Utility types
 export type UangMukaWithRelations = UangMuka & {
   karyawan: Karyawan;
-  spk: SPK & {
-    project: Project;
-  };
+  spk: SPK & { project: Project };
   purchaseRequest?: PurchaseRequest;
   pertanggungjawaban?: Pertanggungjawaban;
 };
 
-// Type untuk conditional rendering berdasarkan metode pembayaran
 export interface PaymentMethodFields {
   metodePencairan: MetodePembayaran;
   showBankFields: boolean;
@@ -249,7 +274,6 @@ export interface PaymentMethodFields {
   requiredEwalletFields: boolean;
 }
 
-// Type untuk validasi form
 export interface UangMukaFormValidation {
   isValid: boolean;
   errors: {
@@ -262,18 +286,9 @@ export interface UangMukaFormValidation {
   };
 }
 
-// Type untuk summary/dashboard
-export interface UangMukaSummary {
-  totalPending: number;
-  totalDisbursed: number;
-  totalSettled: number;
-  totalRejected: number;
-  totalAmount: number;
-  recentUangMuka: UangMuka[];
-}
-
-
-// types/um.ts
+// ===================================================
+// DETAIL
+// ===================================================
 export interface UangMukaDetail {
   id: string;
   jumlah: number;
@@ -283,35 +298,33 @@ export interface UangMukaDetail {
   nomorRekeningTujuan?: string;
   namaEwalletTujuan?: string;
   status: "PENDING" | "APPROVED" | "REJECTED" | "PAID";
+
   purchaseRequest?: {
     id: string;
     nomorPr: string;
-    project?: {
-      name: string;
-    };
+    project?: { name: string };
   };
-  karyawan?: {
-    id: string;
-    namaLengkap: string;
-  };
-  spk?: {
-    id: string;
-    spkNumber: string;
-  };
+
+  karyawan?: { id: string; namaLengkap: string };
+  spk?: { id: string; spkNumber: string };
+
   tanggalPengajuan: Date;
   tanggalPencairan?: Date;
-  buktiPencairanUrl?: string;
+  buktiPencairanUrl?: string[]; // JSON string array
+
   createdAt: Date;
   updatedAt: Date;
 }
 
-// Di file types Anda, tambahkan existingData
+// ===================================================
+// CAIRKAN UM
+// ===================================================
 export interface CairkanUangMukaData {
   id: string;
   tanggalPencairan: Date;
-  buktiTransaksi: File;
+  buktiTransaksi: File[]; // NEW multiple
   existingData: {
-    metodePencairan: string; // Wajib
+    metodePencairan: string;
     namaBankTujuan?: string;
     nomorRekeningTujuan?: string;
     namaEwalletTujuan?: string;

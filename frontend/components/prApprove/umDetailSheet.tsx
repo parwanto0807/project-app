@@ -1,4 +1,3 @@
-// components/UMDetailSheet.tsx
 "use client";
 
 import { useState } from "react";
@@ -31,6 +30,8 @@ import {
     BadgeDollarSign,
     CalendarDays,
     MessageSquareText,
+    Download,
+    ImageIcon,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -40,6 +41,11 @@ interface UMDetailSheetProps {
     data: UangMukaDetail | null;
     onCairkan: (data: CairkanUangMukaData) => Promise<void>;
     isSubmitting?: boolean;
+}
+
+interface FileWithPreview {
+    file: File;
+    previewUrl?: string;
 }
 
 export function UMDetailSheet({
@@ -52,63 +58,124 @@ export function UMDetailSheet({
     const [tanggalPencairan, setTanggalPencairan] = useState<string>(
         new Date().toISOString().split("T")[0]
     );
-    const [buktiTransaksi, setBuktiTransaksi] = useState<File | null>(null);
-    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [buktiTransaksi, setBuktiTransaksi] = useState<FileWithPreview[]>([]);
+
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
+        const files = event.target.files;
+        if (!files || files.length === 0) return;
 
-        // Validasi tipe file
-        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'];
-        if (!allowedTypes.includes(file.type)) {
-            toast.error("Format file tidak didukung. Gunakan JPG, PNG, WebP, atau PDF.");
-            return;
-        }
-
-        // Validasi ukuran file (max 5MB)
+        const newFiles: FileWithPreview[] = [];
         const maxSize = 5 * 1024 * 1024; // 5MB
-        if (file.size > maxSize) {
-            toast.error("Ukuran file terlalu besar. Maksimal 5MB.");
-            return;
-        }
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'];
 
-        setBuktiTransaksi(file);
+        // Validasi semua file
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
 
-        // Generate preview untuk gambar
-        if (file.type.startsWith('image/')) {
-            const url = URL.createObjectURL(file);
-            setPreviewUrl(url);
-        } else {
-            setPreviewUrl(null);
-        }
-    };
-
-    const handleRemoveFile = () => {
-        setBuktiTransaksi(null);
-        setPreviewUrl(null);
-    };
-
-    const handlePreview = () => {
-        if (previewUrl) {
-            window.open(previewUrl, '_blank');
-        } else if (data?.buktiPencairanUrl) {
-            // Jika path sudah absolute
-            if (data.buktiPencairanUrl.startsWith('http')) {
-                window.open(data.buktiPencairanUrl, '_blank');
-            } else {
-                // Jika path relatif, tambahkan base URL
-                const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-                const fullUrl = `${baseUrl}${data.buktiPencairanUrl.startsWith('/') ? '' : '/'}${data.buktiPencairanUrl}`;
-                window.open(fullUrl, '_blank');
+            // Validasi tipe file
+            if (!allowedTypes.includes(file.type)) {
+                toast.error(`Format file "${file.name}" tidak didukung. Gunakan JPG, PNG, WebP, atau PDF.`);
+                continue;
             }
+
+            // Validasi ukuran file
+            if (file.size > maxSize) {
+                toast.error(`Ukuran file "${file.name}" terlalu besar. Maksimal 5MB.`);
+                continue;
+            }
+
+            // Generate preview untuk gambar
+            let previewUrl: string | undefined;
+            if (file.type.startsWith('image/')) {
+                previewUrl = URL.createObjectURL(file);
+            }
+
+            newFiles.push({ file, previewUrl });
         }
+
+        if (newFiles.length > 0) {
+            setBuktiTransaksi(prev => [...prev, ...newFiles]);
+            toast.success(`${newFiles.length} file berhasil ditambahkan`);
+        }
+    };
+
+    const handleRemoveFile = (index: number) => {
+        setBuktiTransaksi(prev => {
+            const newFiles = [...prev];
+            // Revoke object URL untuk menghindari memory leak
+            if (newFiles[index].previewUrl) {
+                URL.revokeObjectURL(newFiles[index].previewUrl);
+            }
+            newFiles.splice(index, 1);
+            return newFiles;
+        });
+    };
+
+    const handleRemoveAllFiles = () => {
+        // Revoke semua object URL
+        buktiTransaksi.forEach(file => {
+            if (file.previewUrl) {
+                URL.revokeObjectURL(file.previewUrl);
+            }
+        });
+        setBuktiTransaksi([]);
+    };
+
+    // Fungsi untuk handle preview file existing
+    const handlePreviewFile = (fileUrl: string) => {
+        // Jika path sudah absolute
+        if (fileUrl.startsWith('http')) {
+            window.open(fileUrl, '_blank');
+        } else {
+            // Jika path relatif, tambahkan base URL
+            const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+            const fullUrl = `${baseUrl}${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`;
+            window.open(fullUrl, '_blank');
+        }
+    };
+
+    // Fungsi untuk preview file yang baru diupload
+    const handlePreviewNewFile = (previewUrl: string) => {
+        window.open(previewUrl, '_blank');
+    };
+
+    // Fungsi untuk download file
+    const handleDownloadFile = (fileUrl: string, fileName: string) => {
+        const link = document.createElement('a');
+        link.href = fileUrl.startsWith('http') ? fileUrl : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`;
+        link.download = fileName;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     const handleCairkan = async () => {
-        if (!data) return;
+        console.log('🔵 1. handleCairkan started');
+        if (!data) {
+            console.log('🔴 1a. Data is null');
+            return;
+        }
 
         try {
-            // Buat existingData dari data yang ada
+            // Validasi metodePencairan
+            if (!data.metodePencairan) {
+                console.log('🔴 1b. Metode pencairan not found');
+                toast.error("Metode pencairan tidak ditemukan");
+                return;
+            }
+
+            // Validasi bukti transaksi
+            if (buktiTransaksi.length === 0) {
+                console.log('🔴 1c. No files uploaded');
+                toast.error("Minimal satu bukti transaksi wajib diupload");
+                return;
+            }
+
+            // Extract File objects dari FileWithPreview
+            const fileObjects = buktiTransaksi.map(item => item.file);
+            console.log('🟡 1d. Files to upload:', fileObjects.length);
+
             const existingData = {
                 metodePencairan: data.metodePencairan,
                 namaBankTujuan: data.namaBankTujuan,
@@ -116,40 +183,32 @@ export function UMDetailSheet({
                 namaEwalletTujuan: data.namaEwalletTujuan
             };
 
-            console.log('📋 Data yang dikirim:', {
+            console.log('🟡 1e. Calling onCairkan with:', {
                 id: data.id,
                 tanggalPencairan: new Date(tanggalPencairan),
-                hasBukti: !!buktiTransaksi,
-                existingData: existingData
+                fileCount: fileObjects.length,
+                existingData
             });
-
-            // Validasi metodePencairan
-            if (!data.metodePencairan) {
-                toast.error("Metode pencairan tidak ditemukan");
-                return;
-            }
-
-            // Validasi bukti transaksi
-            if (!buktiTransaksi) {
-                toast.error("Bukti transaksi wajib diupload");
-                return;
-            }
 
             await onCairkan({
                 id: data.id,
                 tanggalPencairan: new Date(tanggalPencairan),
-                buktiTransaksi: buktiTransaksi,
-                existingData: existingData // Tambahkan existingData
+                buktiTransaksi: fileObjects,
+                existingData: existingData
             });
 
+            console.log('🟢 1f. onCairkan completed successfully');
+
             // Reset form setelah success
-            setBuktiTransaksi(null);
-            setPreviewUrl(null);
+            handleRemoveAllFiles();
             onOpenChange(false);
+
         } catch (error) {
+            console.log('🔴 1g. Error in handleCairkan:', error);
             console.error("Error proses pencairan:", error);
         }
     };
+
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('id-ID', {
             style: 'currency',
@@ -204,6 +263,22 @@ export function UMDetailSheet({
             default:
                 return { icon: CreditCard, color: 'text-green-600' };
         }
+    };
+
+    // Fungsi untuk mendapatkan nama file dari URL
+    const getFileNameFromUrl = (url: string): string => {
+        return url.split('/').pop() || 'file';
+    };
+
+    // Fungsi untuk menentukan icon berdasarkan tipe file
+    const getFileIcon = (fileName: string) => {
+        const extension = fileName.split('.').pop()?.toLowerCase();
+        if (['jpg', 'jpeg', 'png', 'webp'].includes(extension || '')) {
+            return <ImageIcon className="h-8 w-8 text-orange-500" />;
+        } else if (extension === 'pdf') {
+            return <FileText className="h-8 w-8 text-red-500" />;
+        }
+        return <FileText className="h-8 w-8 text-gray-500" />;
     };
 
     if (!data) return null;
@@ -373,41 +448,64 @@ export function UMDetailSheet({
                         </div>
                     )}
 
-                    {/* Bukti Pencairan Existing */}
-                    {data.buktiPencairanUrl && (
+                    {/* Bukti Pencairan Existing - Diperbarui untuk array */}
+                    {data.buktiPencairanUrl && data.buktiPencairanUrl.length > 0 && (
                         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
                             <div className="flex items-center gap-2 mb-4">
                                 <div className="p-2 bg-orange-50 dark:bg-orange-900/30 rounded-lg">
                                     <FileText className="h-5 w-5 text-orange-600" />
                                 </div>
                                 <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">
-                                    Bukti Pencairan
+                                    Bukti Pencairan ({data.buktiPencairanUrl.length} file)
                                 </h3>
                             </div>
-                            <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-600">
-                                <div className="flex items-center space-x-3">
-                                    <FileText className="h-10 w-10 text-orange-500" />
-                                    <div>
-                                        <p className="text-sm font-medium">File terupload</p>
-                                        <p className="text-xs text-gray-500">
-                                            {data.buktiPencairanUrl.split('/').pop()}
-                                        </p>
-                                    </div>
-                                </div>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={handlePreview}
-                                    className="border-orange-200 text-orange-600 hover:bg-orange-50 hover:text-orange-700"
-                                >
-                                    <Eye className="h-4 w-4 mr-1" />
-                                    Lihat
-                                </Button>
+                            <div className="space-y-3">
+                                {data.buktiPencairanUrl.map((fileUrl, index) => {
+                                    const fileName = getFileNameFromUrl(fileUrl);
+                                    return (
+                                        <div
+                                            key={index}
+                                            className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-100 dark:border-gray-600"
+                                        >
+                                            <div className="flex items-center space-x-3 flex-1 min-w-0">
+                                                {getFileIcon(fileName)}
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-medium truncate text-gray-900 dark:text-gray-100">
+                                                        {fileName}
+                                                    </p>
+                                                    <p className="text-xs text-gray-500">
+                                                        File {index + 1} dari {data.buktiPencairanUrl!.length}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center space-x-2">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => handlePreviewFile(fileUrl)}
+                                                    className="border-orange-200 text-orange-600 hover:bg-orange-50 hover:text-orange-700"
+                                                >
+                                                    <Eye className="h-4 w-4 mr-1" />
+                                                    Lihat
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => handleDownloadFile(fileUrl, fileName)}
+                                                    className="border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                                                >
+                                                    <Download className="h-4 w-4 mr-1" />
+                                                    Unduh
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
 
-                    {/* Form Pencairan - Hanya tampil jika status APPROVED */}
+                    {/* Form Pencairan - Hanya tampil jika status PENDING */}
                     {data.status === "PENDING" && (
                         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
                             <div className="flex items-center gap-2 mb-4">
@@ -438,14 +536,28 @@ export function UMDetailSheet({
                                     </div>
                                 </div>
 
-                                {/* Upload Bukti Transaksi */}
+                                {/* Upload Bukti Transaksi - MULTIPLE FILES */}
                                 <div className="space-y-3">
-                                    <Label className="text-sm font-medium flex items-center gap-2">
-                                        <Upload className="h-4 w-4 text-gray-500" />
-                                        Bukti Transaksi {!data.buktiPencairanUrl && '(Wajib)'}
-                                    </Label>
+                                    <div className="flex items-center justify-between">
+                                        <Label className="text-sm font-medium flex items-center gap-2">
+                                            <Upload className="h-4 w-4 text-gray-500" />
+                                            Bukti Transaksi {!data.buktiPencairanUrl && '(Wajib)'}
+                                        </Label>
+                                        {buktiTransaksi.length > 0 && (
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={handleRemoveAllFiles}
+                                                className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                                            >
+                                                <X className="h-3 w-3 mr-1" />
+                                                Hapus Semua
+                                            </Button>
+                                        )}
+                                    </div>
 
-                                    {!buktiTransaksi ? (
+                                    {buktiTransaksi.length === 0 ? (
                                         <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-8 text-center hover:border-emerald-500 transition-colors cursor-pointer bg-gray-50/50 dark:bg-gray-700/20">
                                             <input
                                                 type="file"
@@ -453,6 +565,7 @@ export function UMDetailSheet({
                                                 accept=".jpg,.jpeg,.png,.webp,.pdf"
                                                 className="hidden"
                                                 id="buktiTransaksi"
+                                                multiple
                                             />
                                             <label
                                                 htmlFor="buktiTransaksi"
@@ -464,58 +577,90 @@ export function UMDetailSheet({
                                                         Klik untuk upload bukti transaksi
                                                     </p>
                                                     <p className="text-xs text-gray-500">
-                                                        PNG, JPG, WebP, PDF (max. 5MB)
+                                                        PNG, JPG, WebP, PDF (max. 5MB per file)
+                                                    </p>
+                                                    <p className="text-xs text-emerald-600">
+                                                        Dapat memilih multiple files
                                                     </p>
                                                 </div>
                                             </label>
                                         </div>
                                     ) : (
-                                        <div className="border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 bg-emerald-50/50 dark:bg-emerald-900/20">
+                                        <div className="space-y-3">
                                             <div className="flex items-center justify-between">
-                                                <div className="flex items-center space-x-3 flex-1 min-w-0">
-                                                    {previewUrl ? (
-                                                        <Image
-                                                            src={previewUrl}
-                                                            alt="Preview"
-                                                            width={48}
-                                                            height={48}
-                                                            className="object-cover rounded-lg"
-                                                        />
-                                                    ) : (
-                                                        <FileText className="h-12 w-12 text-emerald-500" />
-                                                    )}
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-sm font-medium truncate text-emerald-900 dark:text-emerald-100">
-                                                            {buktiTransaksi.name}
-                                                        </p>
-                                                        <p className="text-xs text-emerald-700 dark:text-emerald-300">
-                                                            {(buktiTransaksi.size / 1024 / 1024).toFixed(2)} MB
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center space-x-2">
-                                                    {previewUrl && (
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            size="sm"
-                                                            onClick={handlePreview}
-                                                            className="border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
-                                                        >
-                                                            <Eye className="h-3 w-3 mr-1" />
-                                                            Preview
-                                                        </Button>
-                                                    )}
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={handleRemoveFile}
-                                                        className="border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                                    {buktiTransaksi.length} file terpilih
+                                                </p>
+                                                <input
+                                                    type="file"
+                                                    onChange={handleFileSelect}
+                                                    accept=".jpg,.jpeg,.png,.webp,.pdf"
+                                                    className="hidden"
+                                                    id="buktiTransaksiAddMore"
+                                                    multiple
+                                                />
+                                                <label
+                                                    htmlFor="buktiTransaksiAddMore"
+                                                    className="text-sm text-emerald-600 hover:text-emerald-700 cursor-pointer font-medium"
+                                                >
+                                                    + Tambah File Lain
+                                                </label>
+                                            </div>
+
+                                            <div className="space-y-3 max-h-60 overflow-y-auto">
+                                                {buktiTransaksi.map((fileItem, index) => (
+                                                    <div
+                                                        key={index}
+                                                        className="border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 bg-emerald-50/50 dark:bg-emerald-900/20"
                                                     >
-                                                        <X className="h-3 w-3" />
-                                                    </Button>
-                                                </div>
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center space-x-3 flex-1 min-w-0">
+                                                                {fileItem.previewUrl ? (
+                                                                    <Image
+                                                                        src={fileItem.previewUrl}
+                                                                        alt="Preview"
+                                                                        width={48}
+                                                                        height={48}
+                                                                        className="object-cover rounded-lg"
+                                                                    />
+                                                                ) : (
+                                                                    <FileText className="h-12 w-12 text-emerald-500" />
+                                                                )}
+                                                                <div className="flex-1 min-w-0">
+                                                                    <p className="text-sm font-medium truncate text-emerald-900 dark:text-emerald-100">
+                                                                        {fileItem.file.name}
+                                                                    </p>
+                                                                    <p className="text-xs text-emerald-700 dark:text-emerald-300">
+                                                                        {(fileItem.file.size / 1024 / 1024).toFixed(2)} MB
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center space-x-2">
+                                                                {fileItem.previewUrl && (
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="outline"
+                                                                        size="sm"
+                                                                        onClick={() => handlePreviewNewFile(fileItem.previewUrl!)}
+                                                                        className="border-emerald-200 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
+                                                                    >
+                                                                        <Eye className="h-3 w-3 mr-1" />
+                                                                        Preview
+                                                                    </Button>
+                                                                )}
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={() => handleRemoveFile(index)}
+                                                                    className="border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                                                                >
+                                                                    <X className="h-3 w-3" />
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
                                             </div>
                                         </div>
                                     )}
@@ -524,7 +669,7 @@ export function UMDetailSheet({
                                 {/* Button Cairkan */}
                                 <Button
                                     onClick={handleCairkan}
-                                    disabled={isSubmitting || (!data.buktiPencairanUrl && !buktiTransaksi)}
+                                    disabled={isSubmitting || buktiTransaksi.length === 0}
                                     className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-base shadow-lg shadow-emerald-200 dark:shadow-emerald-900/30"
                                 >
                                     {isSubmitting ? (
@@ -535,7 +680,7 @@ export function UMDetailSheet({
                                     ) : (
                                         <>
                                             <CreditCard className="h-5 w-5 mr-2" />
-                                            Cairkan Uang Muka
+                                            Cairkan Biaya Purchase Request ({buktiTransaksi.length} file)
                                         </>
                                     )}
                                 </Button>

@@ -393,8 +393,7 @@ export function PurchaseRequestVerifyTable({
                         <Table>
                             <TableHeader>
                                 <TableRow className="bg-muted/50">
-                                    <TableHead className="font-semibold">PR Number</TableHead>
-                                    <TableHead className="font-semibold">SPK & SO</TableHead>
+                                    <TableHead className="font-semibold">PR Number, SPK & SO</TableHead>
                                     <TableHead className="font-semibold">Project</TableHead>
                                     <TableHead className="font-semibold">Requested By</TableHead>
                                     <TableHead className="font-semibold">Request Date</TableHead>
@@ -482,12 +481,10 @@ export function PurchaseRequestVerifyTable({
                                                         <FileText className="h-4 w-4 text-blue-500" />
                                                         {pr.nomorPr}
                                                     </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="text-xs text-muted-foreground">
+                                                    <div className="ml-6 text-xs text-muted-foreground">
                                                         SPK : {pr.spk?.spkNumber || pr.spkId}
                                                     </div>
-                                                    <div className="text-xs text-muted-foreground">
+                                                    <div className="ml-6 text-xs text-muted-foreground">
                                                         SO : {pr.spk?.salesOrder?.soNumber || "-"}
                                                     </div>
                                                 </TableCell>
