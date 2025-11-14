@@ -749,7 +749,7 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
                                                                         <div className="flex items-center space-x-2">
                                                                             <div className="w-1 h-4 bg-blue-500 rounded"></div>
                                                                             <span className="text-sm font-semibold text-slate-700">
-                                                                                SPK: {spk?.spkNumber || spkNumber} <span className='font-bold ml-2 '>Detail Item :</span>
+                                                                                <span className='font-bold ml-2 '>Detail Item :</span>
                                                                             </span>
                                                                         </div>
                                                                     </td>
