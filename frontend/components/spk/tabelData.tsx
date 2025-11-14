@@ -50,6 +50,8 @@ import {
     Building,
     ClipboardList,
     UserCircle2Icon,
+    ChevronsDown,
+    ChevronsUp,
 } from "lucide-react";
 import React, { useState, useMemo, Fragment, useEffect } from "react";
 import Link from "next/link";
@@ -310,37 +312,37 @@ const DetailCard = ({ icon: Icon, title, children, className }: {
 );
 
 // Komponen Karyawan Card yang lebih elegan
-const KaryawanCard = ({ karyawan, lokasiUnit }: {
-    karyawan: { namaLengkap: string; jabatan: string; departemen: string; nik: string };
-    lokasiUnit?: string | null;
-}) => (
-    <div className="p-4 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-300">
-        <div className="flex items-start justify-between">
-            <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center text-white font-semibold text-sm">
-                    {karyawan.namaLengkap.charAt(0)}
-                </div>
-                <div>
-                    <h4 className="font-semibold text-gray-900 dark:text-white">{karyawan.namaLengkap}</h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">{karyawan.jabatan}</p>
-                    <div className="flex items-center space-x-2 mt-1">
-                        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                            {karyawan.departemen}
-                        </Badge>
-                        <span className="text-xs text-gray-500 dark:text-gray-500">NIK: {karyawan.nik}</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {lokasiUnit && (
-            <div className="mt-3 flex items-center text-sm text-gray-600 dark:text-gray-400">
-                <MapPin className="h-4 w-4 mr-1 text-rose-500" />
-                <span className="font-medium">Lokasi:</span>
-                <span className="ml-1">{lokasiUnit}</span>
-            </div>
-        )}
-    </div>
-);
+// const KaryawanCard = ({ karyawan, lokasiUnit }: {
+//     karyawan: { namaLengkap: string; jabatan: string; departemen: string; nik: string };
+//     lokasiUnit?: string | null;
+// }) => (
+//     <div className="p-4 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-300">
+//         <div className="flex items-start justify-between">
+//             <div className="flex items-center space-x-3">
+//                 <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center text-white font-semibold text-sm">
+//                     {karyawan.namaLengkap.charAt(0)}
+//                 </div>
+//                 <div>
+//                     <h4 className="font-semibold text-gray-900 dark:text-white">{karyawan.namaLengkap}</h4>
+//                     <p className="text-sm text-gray-600 dark:text-gray-400">{karyawan.jabatan}</p>
+//                     <div className="flex items-center space-x-2 mt-1">
+//                         <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+//                             {karyawan.departemen}
+//                         </Badge>
+//                         <span className="text-xs text-gray-500 dark:text-gray-500">NIK: {karyawan.nik}</span>
+//                     </div>
+//                 </div>
+//             </div>
+//         </div>
+//         {lokasiUnit && (
+//             <div className="mt-3 flex items-center text-sm text-gray-600 dark:text-gray-400">
+//                 <MapPin className="h-4 w-4 mr-1 text-rose-500" />
+//                 <span className="font-medium">Lokasi:</span>
+//                 <span className="ml-1">{lokasiUnit}</span>
+//             </div>
+//         )}
+//     </div>
+// );
 
 export default function TabelDataSpk({
     dataSpk = [],
@@ -559,25 +561,24 @@ export default function TabelDataSpk({
 
     // 👇 RENDER MOBILE CARD VIEW YANG DIPERBAIKI
     const renderMobileView = () => (
-        <div className="space-y-4 p-2">
+        <div className="space-y-3 p-2">
             {paginatedData.map((spk, idx) => {
                 const spkPdfData = mapSpkToPdfValues(spk);
                 const isExpanded = expandedRows.has(spk.id);
 
                 return (
-                    <Card key={`spk-card-${spk.id}`} className="overflow-hidden border-l-4 border-l-primary shadow-lg hover:shadow-xl transition-all duration-300">
-                        <CardContent className="p-4">
-                            {/* Header Card */}
-                            <div className="flex justify-between items-start mb-4">
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <Badge variant="secondary" className="font-medium bg-primary/10 text-primary">
+                    <Card key={`spk-card-${spk.id}`} className="border-l-4 border-l-primary shadow-sm hover:shadow-md transition-all duration-200">
+                        <CardContent className="px-2">
+                            {/* Header Ringkas */}
+                            <div className="flex justify-between items-start mb-0">
+                                <div className="flex flex-row gap-2">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <Badge variant="secondary" className="font-medium bg-primary/10 text-primary text-xs">
                                             #{(currentPage - 1) * itemsPerPage + idx + 1}
                                         </Badge>
-                                        <h3 className="font-bold text-xs md:text-lg text-gray-900 dark:text-white">{spk.spkNumber}</h3>
+                                        <h3 className="font-bold text-xs text-gray-900 dark:text-white">{spk.spkNumber}</h3>
                                     </div>
-                                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                                        <Calendar className="h-4 w-4 mr-1" />
+                                    <div className="text-xs font-bold mt-1 uppercase">
                                         {new Date(spk.spkDate).toLocaleDateString("id-ID", {
                                             day: "2-digit",
                                             month: "short",
@@ -585,280 +586,177 @@ export default function TabelDataSpk({
                                         })}
                                     </div>
                                 </div>
-                            </div>
 
-                            {/* Informasi Utama */}
-                            <div className="space-y-3">
-                                <div className="flex items-center text-sm">
-                                    <FileText className="h-4 w-4 mr-2 text-blue-600" />
-                                    <span className="font-medium">SO:</span>
-                                    <span className="ml-1 text-xs text-gray-700 dark:text-gray-300">{spk.salesOrder?.soNumber || "-"}</span>
-                                </div>
-
-                                <div className="flex items-center gap-2">
-                                    {spk.team ? (
-                                        <>
-                                            <Users className="h-4 w-4 text-blue-600" />
-                                            <Badge variant="secondary" className="bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                                                {spk.team.namaTeam}
-                                            </Badge>
-                                        </>
-                                    ) : spk.details && spk.details.length > 0 ? (
-                                        <>
-                                            <User className="h-4 w-4 text-green-600" />
-                                            <div className="flex flex-wrap gap-1">
-                                                {spk.details.slice(0, 2).map((detail, i) => (
-                                                    <Badge
-                                                        key={`detail-${detail.id}-${i}`}
-                                                        variant="outline"
-                                                        className="text-xs px-2 py-0.5 bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300"
-                                                    >
-                                                        {detail.karyawan?.namaLengkap || "Tanpa Nama"}
-                                                    </Badge>
-                                                ))}
-                                                {spk.details.length > 2 && (
-                                                    <Badge variant="outline" className="text-xs">
-                                                        +{spk.details.length - 2}
-                                                    </Badge>
-                                                )}
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <span className="text-muted-foreground">-</span>
-                                    )}
-                                </div>
-
-                                <div className="flex items-center text-sm">
-                                    <User className="h-4 w-4 mr-2 text-purple-600" />
-                                    <span className="font-medium">Pemberi Tugas :</span>
-                                    <span className="ml-1 text-gray-700 dark:text-gray-300">{spk.createdBy?.namaLengkap || "-"}</span>
-                                </div>
-
-                                {/* Progress Bar */}
-                                <div className="space-y-2">
-                                    <div className="flex justify-between items-center text-sm">
-                                        <span className="font-medium text-gray-700 dark:text-gray-300">Progress:</span>
-                                        <span className="font-semibold">{spk.progress || 0}%</span>
-                                    </div>
-                                    <ProgressIndicator progress={spk.progress || 0} />
-                                </div>
-
-                                {/* Notes dengan tampilan yang lebih baik */}
-                                {spk.notes && (
-                                    <div className="flex items-start p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
-                                        <MessageSquare className="h-4 w-4 mr-2 text-amber-600 mt-0.5 flex-shrink-0" />
-                                        <span className="text-sm text-amber-800 dark:text-amber-200 line-clamp-2">{spk.notes}</span>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="flex flex-row-reverse gap-2 mt-4">
-                                {/* Toggle Expand Button */}
+                                {/* Toggle Button Sederhana */}
                                 <Button
                                     size="sm"
-                                    variant="outline"
+                                    variant="default"
                                     onClick={() => toggleRow(spk.id)}
-                                    className="
-      h-8 w-8 p-0 rounded-full
-      border border-gray-300 dark:border-gray-600
-      bg-white hover:bg-gray-50 dark:bg-gray-800 dark:hover:bg-gray-700
-      text-gray-700 dark:text-gray-300
-      transition-all duration-200
-      shadow-sm hover:shadow-md
-    "
+                                    className="h-8 w-8 p-0 rounded-2xl bg-gradient-to-br from-orange-400 via-amber-500 to-orange-600 text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 hover:from-orange-500 hover:via-amber-600 hover:to-orange-700 active:scale-95 backdrop-blur-sm"
                                 >
                                     {isExpanded ? (
-                                        <ChevronUp className="h-4 w-4" />
+                                        <ChevronsUp className="h-4 w-4 font-bold text-white drop-shadow-sm" />
                                     ) : (
-                                        <ChevronDown className="h-4 w-4" />
+                                        <ChevronsDown className="h-4 w-4 font-bold text-white drop-shadow-sm" />
                                     )}
                                 </Button>
+                            </div>
 
-                                {role === "admin" && (
-                                    <>
-                                        {/* Edit Button */}
-                                        <Link href={`${basePath}/update/${spk.id}`}>
+                            {/* Informasi Utama Ringkas */}
+                            <div className="space-y-0">
+                                {/* Project */}
+                                <div className="flex items-center text-xs">
+                                    <FileText className="h-3 w-3 mr-1 text-blue-600 flex-shrink-0" />
+                                    <span className="text-xs font-bold text-wrap uppercase">
+                                        {spk.salesOrder?.project?.name || "-"}
+                                    </span>
+                                </div>
+
+                                {/* Team/Karyawan Ringkas */}
+                                <div className="flex items-center text-xs">
+                                    <Users className="h-3 w-3 mr-1 text-green-600 flex-shrink-0" />
+                                    <div className="flex flex-row gap-4">
+                                        <span className="text-gray-600 dark:text-gray-400 truncate">
+                                            {spk.team?.namaTeam ||
+                                                (spk.details && spk.details.length > 0 ?
+                                                    `${spk.details.length} orang` :
+                                                    "-")}
+                                        </span>
+                                        <span className="text-xs font-bold">{spk.salesOrder?.customer.branch}</span>
+                                    </div>
+                                </div>
+
+                                {/* Progress Bar Ringkas */}
+                                <div className="space-y-0">
+                                    <ProgressIndicator progress={spk.progress || 0} />
+                                </div>
+                            </div>
+
+                            {/* Expanded Detail - Tetap lengkap seperti sebelumnya */}
+                            {isExpanded && (
+                                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                                    <div className="space-y-4">
+                                        {/* Informasi Detail */}
+                                        <div className="grid grid-cols-1 gap-3">
+                                            <DetailCard icon={User} title="Dibuat Oleh">
+                                                <div>
+                                                    <p className="font-semibold text-sm">{spk.createdBy?.namaLengkap || "-"}</p>
+                                                    {spk.createdBy?.jabatan && (
+                                                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                                                            {spk.createdBy.jabatan}
+                                                            {spk.createdBy?.departemen && ` • ${spk.createdBy.departemen}`}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </DetailCard>
+
+                                            {spk.salesOrder?.customer && (
+                                                <DetailCard icon={Building} title="Customer">
+                                                    <div>
+                                                        <p className="font-semibold text-sm">{spk.salesOrder.customer.name}</p>
+                                                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                                            {spk.salesOrder.customer.branch}
+                                                        </p>
+                                                    </div>
+                                                </DetailCard>
+                                            )}
+                                        </div>
+
+                                        {/* Detail Karyawan/Tim */}
+                                        {spk.details && spk.details.length > 0 && (
+                                            <div>
+                                                <div className="flex items-center mb-2">
+                                                    <Users className="h-4 w-4 mr-2 text-blue-600" />
+                                                    <h5 className="font-semibold text-sm text-gray-900 dark:text-white">Detail Team {spk.team?.namaTeam}</h5>
+                                                    <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">({spk.details.length})</span>
+                                                </div>
+
+                                                <div className="space-y-1.5 max-h-40 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-md p-2">
+                                                    {spk.details.map((detail) => (
+                                                        detail.karyawan && (
+                                                            <div
+                                                                key={`task-${detail.id}`}
+                                                                className="flex justify-between items-center py-1.5 px-2 bg-gray-50 dark:bg-gray-800 rounded text-xs"
+                                                            >
+                                                                <span className="font-medium text-gray-900 dark:text-white truncate flex-1">
+                                                                    {detail.karyawan.namaLengkap}
+                                                                </span>
+                                                            </div>
+                                                        )
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Notes */}
+                                        {spk.notes && (
+                                            <div>
+                                                <div className="flex items-center mb-2">
+                                                    <MessageSquare className="h-4 w-4 mr-2 text-amber-600" />
+                                                    <h5 className="font-semibold text-sm text-gray-900 dark:text-white">Catatan</h5>
+                                                </div>
+                                                <div className="p-2 bg-amber-50 dark:bg-amber-900/20 rounded border border-amber-200 dark:border-amber-800">
+                                                    <p className="text-amber-800 dark:text-amber-200 text-xs leading-relaxed">
+                                                        {spk.notes}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Action Buttons */}
+                                        <div className="flex gap-2 pt-2">
                                             <Button
                                                 size="sm"
                                                 variant="outline"
-                                                className="
-            h-8 w-8 p-0 rounded-full
-            border border-blue-300 dark:border-blue-600
-            bg-white hover:bg-blue-50 dark:bg-gray-800 dark:hover:bg-blue-900/20
-            text-blue-600 dark:text-blue-400
-            transition-all duration-200
-            shadow-sm hover:shadow-md
-          "
+                                                className="h-8 px-3 text-xs flex-1"
+                                                onClick={() => pdfActions.handlePreview(spkPdfData)}
                                             >
-                                                <Edit className="h-4 w-4" />
+                                                <Eye className="h-3 w-3 mr-1" />
+                                                Preview
                                             </Button>
-                                        </Link>
-
-                                        {/* Delete Button */}
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="
-          h-8 w-8 p-0 rounded-full
-          border border-red-300 dark:border-red-600
-          bg-white hover:bg-red-50 dark:bg-gray-800 dark:hover:bg-red-900/20
-          text-red-600 dark:text-red-400
-          transition-all duration-200
-          shadow-sm hover:shadow-md
-        "
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                e.stopPropagation();
-                                                handleDelete(spk.id);
-                                            }}
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </>
-                                )}
-                            </div>
-
-                            {/* PDF Actions for Mobile - Tetap seperti semanya */}
-                            <div className="flex gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="
-      h-9 px-4 rounded-lg
-      flex items-center gap-2
-      border border-gray-300 dark:border-gray-600
-      text-gray-700 dark:text-gray-300
-      hover:bg-gray-50 dark:hover:bg-gray-800
-      transition-all duration-200
-      flex-1
-    "
-                                    onClick={() => pdfActions.handlePreview(spkPdfData)}
-                                >
-                                    <Eye className="h-4 w-4" />
-                                    <span className="text-sm font-medium">
-                                        Preview
-                                    </span>
-                                </Button>
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="
-      h-9 px-4 rounded-lg
-      flex items-center gap-2
-      border border-blue-300 dark:border-blue-700
-      text-blue-700 dark:text-blue-300
-      hover:bg-blue-50 dark:hover:bg-blue-900/20
-      transition-all duration-200
-      flex-1
-    "
-                                    onClick={() => router.push(`${basePath}/spkReportDetail/${spk.id}`)}
-                                >
-                                    <BarChart2 className="h-4 w-4" />
-                                    <span className="text-sm font-medium">
-                                        Monitoring Progress
-                                    </span>
-                                </Button>
-                            </div>
-                        </CardContent>
-
-                        {/* Expanded Detail dengan desain yang lebih baik */}
-                        {isExpanded && (
-                            <div className="bg-gradient-to-b from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 p-4 border-t border-gray-200 dark:border-gray-700">
-                                <div className="flex items-center mb-4">
-                                    <PackageOpen className="h-5 w-5 mr-2 text-primary" />
-                                    <h4 className="font-bold text-lg text-gray-900 dark:text-white">Detail SPK</h4>
-                                </div>
-
-                                {/* Grid Informasi Detail */}
-                                <div className="grid grid-cols-1 gap-3 mb-4">
-                                    <DetailCard icon={Calendar} title="Tanggal SPK">
-                                        <p className="font-semibold">
-                                            {new Date(spk.spkDate).toLocaleDateString("id-ID", {
-                                                weekday: "long",
-                                                year: "numeric",
-                                                month: "long",
-                                                day: "numeric",
-                                            })}
-                                        </p>
-                                    </DetailCard>
-
-                                    <DetailCard icon={FileText} title="Sales Order">
-                                        <div>
-                                            <p className="font-semibold">{spk.salesOrder?.soNumber || "-"}</p>
-                                            {spk.salesOrder?.projectName && (
-                                                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                                    {spk.salesOrder.projectName}
-                                                </p>
-                                            )}
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="h-8 px-3 text-xs flex-1"
+                                                onClick={() => router.push(`${basePath}/spkReportDetail/${spk.id}`)}
+                                            >
+                                                <BarChart2 className="h-3 w-3 mr-1" />
+                                                Monitoring
+                                            </Button>
                                         </div>
-                                    </DetailCard>
 
-                                    <DetailCard icon={User} title="Dibuat Oleh">
-                                        <div>
-                                            <p className="font-semibold">{spk.createdBy?.namaLengkap || "-"}</p>
-                                            {spk.createdBy?.jabatan && (
-                                                <p className="text-sm text-gray-600 dark:text-gray-400">
-                                                    {spk.createdBy.jabatan}
-                                                    {spk.createdBy?.departemen && ` • ${spk.createdBy.departemen}`}
-                                                </p>
-                                            )}
-                                        </div>
-                                    </DetailCard>
-
-                                    {spk.salesOrder?.customer && (
-                                        <DetailCard icon={Building} title="Customer">
-                                            <div>
-                                                <p className="font-semibold">{spk.salesOrder.customer.name}</p>
-                                                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                                    {spk.salesOrder.customer.branch}
-                                                </p>
-                                                {spk.salesOrder.customer.address && (
-                                                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-1 line-clamp-2">
-                                                        {spk.salesOrder.customer.address}
-                                                    </p>
-                                                )}
+                                        {/* Admin Actions */}
+                                        {role === "admin" && (
+                                            <div className="flex gap-2 pt-2">
+                                                <Link href={`${basePath}/update/${spk.id}`} className="flex-1">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="h-8 w-full text-xs"
+                                                    >
+                                                        <Edit className="h-3 w-3 mr-1" />
+                                                        Edit
+                                                    </Button>
+                                                </Link>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="h-8 flex-1 text-xs text-red-600 border-red-300 hover:bg-red-50 dark:border-red-600 dark:hover:bg-red-900/20"
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        handleDelete(spk.id);
+                                                    }}
+                                                >
+                                                    <Trash2 className="h-3 w-3 mr-1" />
+                                                    Hapus
+                                                </Button>
                                             </div>
-                                        </DetailCard>
-                                    )}
+                                        )}
+                                    </div>
                                 </div>
-
-                                {/* Detail Karyawan/Tim */}
-                                {spk.details && spk.details.length > 0 && (
-                                    <div className="mb-4">
-                                        <div className="flex items-center mb-3">
-                                            <Users className="h-5 w-5 mr-2 text-blue-600" />
-                                            <h5 className="font-semibold text-gray-900 dark:text-white">Detail Tugas</h5>
-                                        </div>
-                                        <div className="space-y-3">
-                                            {spk.details.map((detail) => (
-                                                detail.karyawan ? (
-                                                    <KaryawanCard
-                                                        key={`task-${detail.id}`}
-                                                        karyawan={detail.karyawan}
-                                                        lokasiUnit={detail.lokasiUnit}
-                                                    />
-                                                ) : null
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Notes Detail */}
-                                {spk.notes && (
-                                    <div>
-                                        <div className="flex items-center mb-3">
-                                            <MessageSquare className="h-5 w-5 mr-2 text-amber-600" />
-                                            <h5 className="font-semibold text-gray-900 dark:text-white">Catatan</h5>
-                                        </div>
-                                        <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
-                                            <p className="text-amber-800 dark:text-amber-200 text-sm leading-relaxed">
-                                                {spk.notes}
-                                            </p>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
+                            )}
+                        </CardContent>
                     </Card>
                 );
             })}
