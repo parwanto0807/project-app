@@ -151,30 +151,25 @@ export function UMDetailSheet({
     };
 
     const handleCairkan = async () => {
-        console.log('🔵 1. handleCairkan started');
         if (!data) {
-            console.log('🔴 1a. Data is null');
             return;
         }
 
         try {
             // Validasi metodePencairan
             if (!data.metodePencairan) {
-                console.log('🔴 1b. Metode pencairan not found');
                 toast.error("Metode pencairan tidak ditemukan");
                 return;
             }
 
             // Validasi bukti transaksi
             if (buktiTransaksi.length === 0) {
-                console.log('🔴 1c. No files uploaded');
                 toast.error("Minimal satu bukti transaksi wajib diupload");
                 return;
             }
 
             // Extract File objects dari FileWithPreview
             const fileObjects = buktiTransaksi.map(item => item.file);
-            console.log('🟡 1d. Files to upload:', fileObjects.length);
 
             const existingData = {
                 metodePencairan: data.metodePencairan,
@@ -183,21 +178,12 @@ export function UMDetailSheet({
                 namaEwalletTujuan: data.namaEwalletTujuan
             };
 
-            console.log('🟡 1e. Calling onCairkan with:', {
-                id: data.id,
-                tanggalPencairan: new Date(tanggalPencairan),
-                fileCount: fileObjects.length,
-                existingData
-            });
-
             await onCairkan({
                 id: data.id,
                 tanggalPencairan: new Date(tanggalPencairan),
                 buktiTransaksi: fileObjects,
                 existingData: existingData
             });
-
-            console.log('🟢 1f. onCairkan completed successfully');
 
             // Reset form setelah success
             handleRemoveAllFiles();

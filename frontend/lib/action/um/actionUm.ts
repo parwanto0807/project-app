@@ -222,13 +222,13 @@ export async function updateUangMukaStatus(
         : new Date().toISOString()
     );
 
-    console.log("🟡 3a. Processing files:", {
-      buktiPencairanType: typeof data.buktiPencairan,
-      isArray: Array.isArray(data.buktiPencairan),
-      fileCount: Array.isArray(data.buktiPencairan)
-        ? data.buktiPencairan.length
-        : 1,
-    });
+    // console.log("🟡 3a. Processing files:", {
+    //   buktiPencairanType: typeof data.buktiPencairan,
+    //   isArray: Array.isArray(data.buktiPencairan),
+    //   fileCount: Array.isArray(data.buktiPencairan)
+    //     ? data.buktiPencairan.length
+    //     : 1,
+    // });
 
     // File processing
     if (data.buktiPencairan) {
@@ -241,7 +241,7 @@ export async function updateUangMukaStatus(
         });
       } else if (data.buktiPencairan instanceof File) {
         formData.append("buktiPencairan", data.buktiPencairan);
-        console.log("📎 3c. Appended single file:", data.buktiPencairan.name);
+        // console.log("📎 3c. Appended single file:", data.buktiPencairan.name);
       } else {
         throw new Error("Format bukti transaksi tidak valid");
       }
@@ -263,10 +263,10 @@ export async function updateUangMukaStatus(
     if (data.namaEwalletTujuan)
       formData.append("namaEwalletTujuan", data.namaEwalletTujuan);
 
-    console.log(
-      "🟡 3d. Making fetch request to:",
-      `${API_BASE_URL}/api/um/updateUangMukaStatus/${id}`
-    );
+    // console.log(
+    //   "🟡 3d. Making fetch request to:",
+    //   `${API_BASE_URL}/api/um/updateUangMukaStatus/${id}`
+    // );
 
     const response = await fetch(
       `${API_BASE_URL}/api/um/updateUangMukaStatus/${id}`,
@@ -277,11 +277,11 @@ export async function updateUangMukaStatus(
       }
     );
 
-    console.log("🟡 3e. Response status:", response.status);
+    // console.log("🟡 3e. Response status:", response.status);
 
     if (!response.ok) {
       const errMsg = await response.text();
-      console.log("🔴 3f. Response not OK:", errMsg);
+      // console.log("🔴 3f. Response not OK:", errMsg);
       throw new Error(errMsg);
     }
 

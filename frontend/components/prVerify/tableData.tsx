@@ -396,7 +396,6 @@ export function PurchaseRequestVerifyTable({
                                     <TableHead className="font-semibold">PR Number, SPK & SO</TableHead>
                                     <TableHead className="font-semibold">Project</TableHead>
                                     <TableHead className="font-semibold">Requested By</TableHead>
-                                    <TableHead className="font-semibold">Request Date</TableHead>
                                     <TableHead className="font-semibold">Total PR</TableHead>
                                     <TableHead className="font-semibold">Status PR</TableHead>
                                     <TableHead className="font-semibold">Acc Finance</TableHead>
@@ -510,8 +509,6 @@ export function PurchaseRequestVerifyTable({
                                                         <User className="h-4 w-4 text-purple-500" />
                                                         {pr.karyawan?.namaLengkap || pr.karyawanId}
                                                     </div>
-                                                </TableCell>
-                                                <TableCell>
                                                     <div className="flex items-center gap-2">
                                                         <Calendar className="h-4 w-4 text-orange-500" />
                                                         {formatDate(pr.tanggalPr)}
