@@ -27,7 +27,7 @@ export default function PurchaseRequestPageAdmin() {
         dateFrom: undefined,
         dateTo: undefined,
         page: 1,
-        limit: 50,
+        limit: 15,
         search: "",
     });
 

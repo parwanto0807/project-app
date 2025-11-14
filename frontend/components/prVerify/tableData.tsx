@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Fragment } from "react";
+import { useState, Fragment, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -86,8 +86,6 @@ export const statusApproveLabels = {
     DEFAULT: "On Progress",
 } as const;
 
-// Update status colors dan labels sesuai model baru
-// Tambahkan di bagian styles/constants Anda
 const statusColors = {
     DRAFT: "bg-gray-200 text-gray-900 border-gray-400",
     SUBMITTED: "bg-blue-200 text-blue-900 border-blue-400",
@@ -97,7 +95,6 @@ const statusColors = {
     COMPLETED: "bg-purple-200 text-purple-900 border-purple-400",
 } as const;
 
-// Atau versi dengan gradient subtle
 const statusLabels = {
     DRAFT: "Draft",
     REVISION_NEEDED: "Revision Needed",
@@ -167,26 +164,72 @@ export function PurchaseRequestVerifyTable({
     const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
     const [detailOpen, setDetailOpen] = useState(false);
     const [selectedPR, setSelectedPR] = useState<PurchaseRequest | null>(null);
+
+    // Debounced search untuk menghindari terlalu banyak request
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (searchInput !== currentSearch) {
+                onSearchChange(searchInput);
+                onPageChange(1);
+            }
+        }, 500); // 500ms debounce
+
+        return () => clearTimeout(timer);
+    }, [searchInput, currentSearch, onSearchChange, onPageChange]);
+
+    // Sync local state dengan props
+    useEffect(() => {
+        setSearchInput(currentSearch);
+    }, [currentSearch]);
+
+    useEffect(() => {
+        setLocalDateFrom(currentDateFrom?.toISOString().split('T')[0] || "");
+    }, [currentDateFrom]);
+
+    useEffect(() => {
+        setLocalDateTo(currentDateTo?.toISOString().split('T')[0] || "");
+    }, [currentDateTo]);
+
     const handleSearchSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         onSearchChange(searchInput);
+        onPageChange(1);
     };
 
     const handleSearchChange = (value: string) => {
         setSearchInput(value);
-        onSearchChange(value);
     };
 
     const handleDateFilterApply = () => {
         const dateFrom = localDateFrom ? new Date(localDateFrom) : undefined;
         const dateTo = localDateTo ? new Date(localDateTo) : undefined;
         onDateFilterChange(dateFrom, dateTo);
+        onPageChange(1);
     };
 
     const handleClearDateFilters = () => {
         setLocalDateFrom("");
         setLocalDateTo("");
         onDateFilterChange(undefined, undefined);
+        onPageChange(1);
+    };
+
+    const handleStatusFilter = (value: string) => {
+        onStatusFilterChange(value as PurchaseRequestFilters['status']);
+        onPageChange(1);
+    };
+
+    const handleProjectFilter = (value: string) => {
+        onProjectFilterChange(value);
+        onPageChange(1);
+    };
+
+    const handleClearAllFilters = () => {
+        setSearchInput("");
+        setLocalDateFrom("");
+        setLocalDateTo("");
+        onClearFilters();
+        onPageChange(1);
     };
 
     const handleViewDetail = (pr: PurchaseRequest) => {
@@ -194,10 +237,10 @@ export function PurchaseRequestVerifyTable({
         setDetailSheetOpen(true);
     };
 
-    const handleStatusUpdate = (id: string, status: PurchaseRequest['status']) => {
+    const handleStatusUpdate = useCallback((id: string, status: PurchaseRequest['status']) => {
         onStatusUpdate(id, status);
         setDetailSheetOpen(false);
-    };
+    }, [onStatusUpdate]);
 
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('id-ID', {
@@ -207,7 +250,6 @@ export function PurchaseRequestVerifyTable({
         }).format(amount);
     };
 
-    // Safe date formatting function
     const formatDate = (date: Date | string | null | undefined): string => {
         if (!date) return '-';
 
@@ -242,6 +284,26 @@ export function PurchaseRequestVerifyTable({
                 name: pr.project?.name || pr.projectId
             }])
     ).values());
+
+    // Improved pagination numbers generation
+    const generatePaginationNumbers = () => {
+        const currentPage = pagination.page;
+        const totalPages = Math.ceil(pagination.totalCount / pagination.limit);
+
+        if (totalPages <= 5) {
+            return Array.from({ length: totalPages }, (_, i) => i + 1);
+        }
+
+        if (currentPage <= 3) {
+            return [1, 2, 3, 4, '...', totalPages];
+        }
+
+        if (currentPage >= totalPages - 2) {
+            return [1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+        }
+
+        return [1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages];
+    };
 
     if (isError) {
         return (
@@ -285,6 +347,20 @@ export function PurchaseRequestVerifyTable({
                                     onChange={(e) => handleSearchChange(e.target.value)}
                                     className="pl-10 pr-4 py-2 text-sm sm:text-base"
                                 />
+                                {searchInput && (
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                            setSearchInput("");
+                                            onSearchChange("");
+                                        }}
+                                        className="absolute right-1 top-1 h-6 w-6 p-0"
+                                    >
+                                        <X className="h-3 w-3" />
+                                    </Button>
+                                )}
                             </div>
                         </form>
 
@@ -302,7 +378,7 @@ export function PurchaseRequestVerifyTable({
                                     </Button>
                                     <Select
                                         value={currentStatus || ""}
-                                        onValueChange={(value) => onStatusFilterChange(value as PurchaseRequestFilters['status'])}
+                                        onValueChange={handleStatusFilter}
                                     >
                                         <SelectTrigger className="w-full sm:w-[180px] text-xs sm:text-sm">
                                             <SelectValue placeholder="Status" />
@@ -310,7 +386,7 @@ export function PurchaseRequestVerifyTable({
                                         <SelectContent>
                                             <SelectItem value="DRAFT" className="text-xs sm:text-sm">Draft</SelectItem>
                                             <SelectItem value="REVISION_NEEDED" className="text-xs sm:text-sm">Revision Needed</SelectItem>
-                                            <SelectItem value="SUBMITTED" className="text-xs sm:text-sm">Submited</SelectItem>
+                                            <SelectItem value="SUBMITTED" className="text-xs sm:text-sm">Submitted</SelectItem>
                                             <SelectItem value="APPROVED" className="text-xs sm:text-sm">Approved</SelectItem>
                                             <SelectItem value="REJECTED" className="text-xs sm:text-sm">Rejected</SelectItem>
                                             <SelectItem value="COMPLETED" className="text-xs sm:text-sm">Completed</SelectItem>
@@ -319,7 +395,7 @@ export function PurchaseRequestVerifyTable({
 
                                     <Select
                                         value={currentProjectId || ""}
-                                        onValueChange={(value) => onProjectFilterChange(value)}
+                                        onValueChange={handleProjectFilter}
                                     >
                                         <SelectTrigger className="w-full sm:w-[180px] text-xs sm:text-sm">
                                             <SelectValue placeholder="Project" />
@@ -334,7 +410,7 @@ export function PurchaseRequestVerifyTable({
                                     </Select>
                                     <Button
                                         variant="outline"
-                                        onClick={onClearFilters}
+                                        onClick={handleClearAllFilters}
                                         className="whitespace-nowrap text-xs sm:text-sm"
                                     >
                                         <X className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
@@ -543,7 +619,6 @@ export function PurchaseRequestVerifyTable({
                                                         const totalDisbursed =
                                                             pr.uangMuka?.reduce((sum, um) => sum + Number(um.jumlah ?? 0), 0) ?? 0;
 
-                                                        // kalau total 0, langsung tampilkan 0%
                                                         if (totalAmount <= 0) {
                                                             return (
                                                                 <Badge
@@ -557,10 +632,9 @@ export function PurchaseRequestVerifyTable({
 
                                                         const percent = (totalDisbursed / totalAmount) * 100;
 
-                                                        // pilih warna sesuai range persentase
                                                         let colorClass = "bg-red-200 text-red-900 border-red-400";
                                                         if (percent >= 100) {
-                                                            colorClass = "bg-green-300 text-green-900 border-green-500"; // full hijau kalau sudah lunas
+                                                            colorClass = "bg-green-300 text-green-900 border-green-500";
                                                         } else if (percent >= 75) {
                                                             colorClass = "bg-green-200 text-green-900 border-green-400";
                                                         } else if (percent >= 50) {
@@ -781,7 +855,7 @@ export function PurchaseRequestVerifyTable({
                         )}
                     </div>
 
-                    {/* Pagination - Mobile Responsive */}
+                    {/* Improved Pagination - Mobile Responsive */}
                     {!isLoading && purchaseRequests.length > 0 && (
                         <div className="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0 pt-4">
                             {/* Items per page */}
@@ -789,7 +863,10 @@ export function PurchaseRequestVerifyTable({
                                 <span className="text-xs sm:text-sm text-muted-foreground">Items per page:</span>
                                 <Select
                                     value={pagination.limit.toString()}
-                                    onValueChange={(value) => onLimitChange(Number(value))}
+                                    onValueChange={(value) => {
+                                        onLimitChange(Number(value));
+                                        onPageChange(1);
+                                    }}
                                 >
                                     <SelectTrigger className="w-16 sm:w-20 text-xs">
                                         <SelectValue />
@@ -810,7 +887,7 @@ export function PurchaseRequestVerifyTable({
                                 {pagination.totalCount} entries
                             </div>
 
-                            {/* Pagination controls */}
+                            {/* Improved Pagination controls */}
                             <div className="flex items-center space-x-1 sm:space-x-2">
                                 <Button
                                     variant="outline"
@@ -822,35 +899,25 @@ export function PurchaseRequestVerifyTable({
                                     Prev
                                 </Button>
 
-                                {/* Page numbers */}
+                                {/* Improved Page numbers */}
                                 <div className="flex items-center space-x-1">
-                                    {Array.from({ length: Math.min(3, totalPages) }, (_, i) => {
-                                        const pageNum = i + 1;
-                                        return (
+                                    {generatePaginationNumbers().map((pageNum, index) => (
+                                        pageNum === '...' ? (
+                                            <span key={`ellipsis-${index}`} className="px-2 text-xs">
+                                                ...
+                                            </span>
+                                        ) : (
                                             <Button
                                                 key={pageNum}
                                                 variant={pagination.page === pageNum ? "default" : "outline"}
                                                 size="sm"
-                                                onClick={() => onPageChange(pageNum)}
+                                                onClick={() => onPageChange(pageNum as number)}
                                                 className="w-7 h-7 p-0 text-xs"
                                             >
                                                 {pageNum}
                                             </Button>
-                                        );
-                                    })}
-                                    {totalPages > 3 && (
-                                        <>
-                                            <span className="px-1 text-xs">...</span>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => onPageChange(totalPages)}
-                                                className="w-7 h-7 p-0 text-xs"
-                                            >
-                                                {totalPages}
-                                            </Button>
-                                        </>
-                                    )}
+                                        )
+                                    ))}
                                 </div>
 
                                 <Button
