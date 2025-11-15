@@ -167,7 +167,7 @@ function calcLineExclusive(qty, unitPrice, discount, taxRate) {
 export const create = async (req, res) => {
   try {
     console.log("USER ID", req.user);
-    
+
     // ✅ Check semua kemungkinan property names
     const possibleUserId =
       req.user?.userId ||
@@ -617,31 +617,41 @@ export const updateWithItems = async (req, res) => {
       // Cek item yang akan dihapus apakah ada referensi di SPKFieldReport
       const existingItems = await tx.salesOrderItem.findMany({
         where: { salesOrderId: id },
-        select: { 
-          id: true 
+        select: {
+          id: true,
         },
       });
 
-      const existingItemIds = existingItems.map(item => item.id);
-      const incomingItemIds = sorted.filter(item => item.id).map(item => item.id);
-      const itemsToDelete = existingItemIds.filter(id => !incomingItemIds.includes(id));
+      const existingItemIds = existingItems.map((item) => item.id);
+      const incomingItemIds = sorted
+        .filter((item) => item.id)
+        .map((item) => item.id);
+      const itemsToDelete = existingItemIds.filter(
+        (id) => !incomingItemIds.includes(id)
+      );
 
       // Jika ada item yang akan dihapus, cek referensinya
       if (itemsToDelete.length > 0) {
         const referencedItems = await tx.sPKFieldReport.findMany({
           where: {
-            soDetailId: { in: itemsToDelete }
+            soDetailId: { in: itemsToDelete },
           },
           select: {
-            soDetailId: true
-          }
+            soDetailId: true,
+          },
         });
 
-        const referencedItemIds = [...new Set(referencedItems.map(item => item.soDetailId))];
-        
+        const referencedItemIds = [
+          ...new Set(referencedItems.map((item) => item.soDetailId)),
+        ];
+
         // Jika ada item yang direferensi, batalkan transaksi
         if (referencedItemIds.length > 0) {
-          throw new Error(`Tidak dapat menghapus item yang sudah digunakan dalam SPK Field Report. Item IDs: ${referencedItemIds.join(', ')}`);
+          throw new Error(
+            `Tidak dapat menghapus item yang sudah digunakan dalam SPK Field Report. Item IDs: ${referencedItemIds.join(
+              ", "
+            )}`
+          );
         }
       }
 
@@ -726,20 +736,21 @@ export const updateWithItems = async (req, res) => {
     return res.status(200).json(updated);
   } catch (error) {
     console.error("updateWithItems error:", error);
-    
+
     if (error?.code === "P2002" && error?.meta?.target?.includes("soNumber")) {
       return res.status(409).json({ message: "Nomor SO sudah digunakan." });
     }
-    
+
     if (error?.code === "P2003") {
-      return res.status(409).json({ 
-        message: "Tidak dapat menghapus item yang sudah digunakan dalam SPK Field Report." 
+      return res.status(409).json({
+        message:
+          "Tidak dapat menghapus item yang sudah digunakan dalam SPK Field Report.",
       });
     }
 
     if (error.message?.includes("SPK Field Report")) {
-      return res.status(409).json({ 
-        message: error.message 
+      return res.status(409).json({
+        message: error.message,
       });
     }
 
@@ -856,7 +867,7 @@ export async function getSalesOrderSummary(req, res) {
     // Prefer raw SQL Postgres agar efisien (date_trunc + timezone)
     // Catatan: Prisma membuat nama tabel sesuai model "SalesOrder" (quoted). Jika kamu pakai @@map, sesuaikan nama tabelnya.
     const bindings = [];
-    let whereSql = `WHERE "soDate" >= $1 AND "soDate" <= $2`;
+    let whereSql = `WHERE "soDate" >= $1 AND "soDate" <= $2 AND "status" <> 'CANCELLED'`;
     bindings.push(start);
     bindings.push(end);
 
@@ -1157,7 +1168,9 @@ export async function getSalesStats(req, res) {
 
     // Kondisi umum untuk exclude DRAFT
     const notDraftCondition = {
-      status: { not: "DRAFT" },
+      status: {
+        not: { in: ["DRAFT", "CANCELLED"] },
+      },
     };
 
     const [todayAgg, mtdAgg, ytdAgg, lastMonthAgg, yearSummaryAgg] =

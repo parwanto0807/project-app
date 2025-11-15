@@ -243,6 +243,9 @@ export const getAllSPK = async (req, res) => {
 export const getAllSPKPr = async (req, res) => {
   try {
     const spkList = await prisma.sPK.findMany({
+      where: {
+        spkStatusClose: false, // ← TAMBAHKAN INI
+      },
       include: {
         createdBy: true,
         salesOrder: {
