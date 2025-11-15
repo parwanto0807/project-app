@@ -52,6 +52,7 @@ import {
     UserCircle2Icon,
     ChevronsDown,
     ChevronsUp,
+    ListFilter,
 } from "lucide-react";
 import React, { useState, useMemo, Fragment, useEffect } from "react";
 import Link from "next/link";
@@ -311,38 +312,6 @@ const DetailCard = ({ icon: Icon, title, children, className }: {
     </div>
 );
 
-// Komponen Karyawan Card yang lebih elegan
-// const KaryawanCard = ({ karyawan, lokasiUnit }: {
-//     karyawan: { namaLengkap: string; jabatan: string; departemen: string; nik: string };
-//     lokasiUnit?: string | null;
-// }) => (
-//     <div className="p-4 bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-300">
-//         <div className="flex items-start justify-between">
-//             <div className="flex items-center space-x-3">
-//                 <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center text-white font-semibold text-sm">
-//                     {karyawan.namaLengkap.charAt(0)}
-//                 </div>
-//                 <div>
-//                     <h4 className="font-semibold text-gray-900 dark:text-white">{karyawan.namaLengkap}</h4>
-//                     <p className="text-sm text-gray-600 dark:text-gray-400">{karyawan.jabatan}</p>
-//                     <div className="flex items-center space-x-2 mt-1">
-//                         <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-//                             {karyawan.departemen}
-//                         </Badge>
-//                         <span className="text-xs text-gray-500 dark:text-gray-500">NIK: {karyawan.nik}</span>
-//                     </div>
-//                 </div>
-//             </div>
-//         </div>
-//         {lokasiUnit && (
-//             <div className="mt-3 flex items-center text-sm text-gray-600 dark:text-gray-400">
-//                 <MapPin className="h-4 w-4 mr-1 text-rose-500" />
-//                 <span className="font-medium">Lokasi:</span>
-//                 <span className="ml-1">{lokasiUnit}</span>
-//             </div>
-//         )}
-//     </div>
-// );
 
 export default function TabelDataSpk({
     dataSpk = [],
@@ -355,12 +324,16 @@ export default function TabelDataSpk({
     const [currentPage, setCurrentPage] = useState(1);
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
     const [availableTeams, setAvailableTeams] = useState<string[]>([]);
-    const itemsPerPage = 10;
+    const [itemsPerPage, setItemsPerPage] = useState(50); // State untuk items per page
     const basePath = getBasePath(role);
     const router = useRouter();
     const pdfActions = usePdfActions();
 
     const isMobile = useMediaQuery("(max-width: 768px)");
+
+    // Opsi items per page
+    const itemsPerPageOptions = [50, 100, 200, 300];
+
     const handleDelete = async (spkId: string) => {
         const confirmDelete = window.confirm(
             "Apakah Anda yakin ingin menghapus SPK ini? Tindakan ini tidak dapat dibatalkan."
@@ -386,6 +359,11 @@ export default function TabelDataSpk({
             setAvailableTeams(uniqueTeams);
         }
     }, [dataSpk]);
+
+    // Reset ke page 1 ketika itemsPerPage berubah
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [itemsPerPage]);
 
     const filteredData = useMemo(() => {
         if (!Array.isArray(dataSpk)) return [];
@@ -416,7 +394,7 @@ export default function TabelDataSpk({
     const paginatedData = useMemo(() => {
         const start = (currentPage - 1) * itemsPerPage;
         return filteredData.slice(start, start + itemsPerPage);
-    }, [filteredData, currentPage]);
+    }, [filteredData, currentPage, itemsPerPage]);
 
     const handlePageChange = (page: number) => {
         if (page >= 1 && page <= totalPages) {
@@ -885,7 +863,7 @@ export default function TabelDataSpk({
                                                     <span className="text-gray-400 dark:text-gray-600">-</span>
                                                 )}
                                             </TableCell>
-                                            <TableCell className="font-medium text-gray-700 dark:text-gray-300 w-20"> {/* Kurangi dari w-30 ke w-20 */}
+                                            <TableCell className="font-medium text-gray-700 dark:text-gray-300 w-20">
                                                 <div className="flex items-center space-x-2">
                                                     <User className="h-4 w-4 text-purple-600 flex-shrink-0" />
                                                     <span className="truncate max-w-[100px] uppercase">{spk.createdBy?.namaLengkap || "Name..."}</span>
@@ -1429,6 +1407,28 @@ export default function TabelDataSpk({
                                 </SelectContent>
                             </Select>
 
+                            {/* Items Per Page Selector */}
+                            <Select value={itemsPerPage.toString()} onValueChange={(value) => setItemsPerPage(Number(value))}>
+                                <SelectTrigger className="w-28 bg-white/20 backdrop-blur-sm border-white/30 text-white focus:bg-white/30 hover:bg-white/30">
+                                    <ListFilter className="h-3.5 w-3.5 mr-2 text-white" />
+                                    <span className="text-sm">{itemsPerPage}</span>
+                                </SelectTrigger>
+                                <SelectContent className="min-w-[120px]">
+                                    {itemsPerPageOptions.map(option => (
+                                        <SelectItem
+                                            key={option}
+                                            value={option.toString()}
+                                            className="text-sm py-2"
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <ListFilter className="h-3.5 w-3.5" />
+                                                <span>{option}</span> per page
+                                            </div>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
                             {/* Tambah Button */}
                             <Link href={`${basePath}/create`}>
                                 <Button
@@ -1475,6 +1475,21 @@ export default function TabelDataSpk({
                             </SelectGroup>
                         </SelectContent>
                     </Select>
+
+                    {/* Items Per Page Selector Mobile */}
+                    <Select value={itemsPerPage.toString()} onValueChange={(value) => setItemsPerPage(Number(value))}>
+                        <SelectTrigger className="w-24 bg-white/20 backdrop-blur-sm border-white/30 text-white focus:bg-white/30">
+                            <SelectValue placeholder="Items" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {itemsPerPageOptions.map(option => (
+                                <SelectItem key={option} value={option.toString()}>
+                                    {option}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
                     <Link href={`${basePath}/create`} className="flex-1">
                         <Button className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-medium">
                             <Plus size={18} className="mr-2" />
@@ -1499,11 +1514,31 @@ export default function TabelDataSpk({
                         {/* Pagination */}
                         {filteredData.length > 0 && (
                             <div className="p-6 flex flex-col sm:flex-row justify-between items-center gap-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-                                <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    Menampilkan <span className="font-semibold">{(currentPage - 1) * itemsPerPage + 1}</span>–
-                                    <span className="font-semibold">{Math.min(currentPage * itemsPerPage, filteredData.length)}</span> dari{" "}
-                                    <span className="font-semibold">{filteredData.length}</span> SPK
-                                </p>
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                                        Menampilkan <span className="font-semibold">{(currentPage - 1) * itemsPerPage + 1}</span>–
+                                        <span className="font-semibold">{Math.min(currentPage * itemsPerPage, filteredData.length)}</span> dari{" "}
+                                        <span className="font-semibold">{filteredData.length}</span> SPK
+                                    </p>
+
+                                    {/* Items Per Page Selector di Pagination Area */}
+                                    {/* <div className="flex items-center space-x-2">
+                                        <span className="text-sm text-gray-600 dark:text-gray-400">Items per page:</span>
+                                        <Select value={itemsPerPage.toString()} onValueChange={(value) => setItemsPerPage(Number(value))}>
+                                            <SelectTrigger className="w-20 h-8">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {itemsPerPageOptions.map(option => (
+                                                    <SelectItem key={option} value={option.toString()}>
+                                                        {option}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div> */}
+                                </div>
+
                                 <Pagination>
                                     <PaginationContent>
                                         <PaginationItem>

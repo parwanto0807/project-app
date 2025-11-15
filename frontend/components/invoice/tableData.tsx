@@ -51,7 +51,8 @@ import {
     PrinterCheck,
     Printer,
     Loader2,
-    Download
+    Download,
+    ChevronDown
 } from "lucide-react";
 import { Invoice } from "@/schemas/invoice";
 import Link from "next/link";
@@ -82,7 +83,7 @@ function getBasePath(role?: string) {
 export function InvoiceDataTable({ invoiceData, isLoading, role, banks, currentUser }: InvoiceDataTableProps) {
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 8;
+    const [itemsPerPage, setItemsPerPage] = useState(50); // Default items per page
     const basePath = getBasePath(role);
     const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
     const [drawerOpen, setDrawerOpen] = useState(false);
@@ -90,6 +91,8 @@ export function InvoiceDataTable({ invoiceData, isLoading, role, banks, currentU
     const [isNewPdfPreviewOpen, setIsNewPdfPreviewOpen] = useState(false);
     const [dialogOpen, setDialogOpen] = useState(false);
 
+    // Items per page options
+    const itemsPerPageOptions = [50, 100, 200, 300];
 
     // Filter data berdasarkan search term
     const filteredData = invoiceData.filter((invoice) =>
@@ -132,6 +135,11 @@ export function InvoiceDataTable({ invoiceData, isLoading, role, banks, currentU
         }
     };
 
+    // Handle items per page change
+    const handleItemsPerPageChange = (value: number) => {
+        setItemsPerPage(value);
+        setCurrentPage(1); // Reset to first page when changing items per page
+    };
 
     // Pagination logic
     const totalPages = Math.ceil(filteredData.length / itemsPerPage);
@@ -167,7 +175,6 @@ export function InvoiceDataTable({ invoiceData, isLoading, role, banks, currentU
 
         return <Badge variant={config.variant}>{config.label}</Badge>;
     };
-
 
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('id-ID', {
@@ -234,30 +241,31 @@ export function InvoiceDataTable({ invoiceData, isLoading, role, banks, currentU
             <Card className="border-none shadow-none m-0">
                 {/* HEADER: hanya title dan icon */}
                 <CardHeader
-                    className="p-4 rounded-lg text-white
-      bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500
-      dark:from-gray-900 dark:via-indigo-900 dark:to-purple-900"
+                    className="p-4 rounded-lg text-white bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 dark:from-gray-900 dark:via-indigo-900 dark:to-purple-900"
                 >
                     <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
+                        {/* Left Section: Title and Icon */}
                         <div className="flex items-center space-x-3">
                             <div className="flex items-center justify-center h-12 w-12 rounded-full bg-primary">
                                 <Wallet2Icon className="h-6 w-6 text-primary-foreground" />
                             </div>
                             <div>
                                 <CardTitle className="text-lg md:text-2xl">Invoice Customer</CardTitle>
-                                <p className="text-xs md:text-sm text-white">
+                                <p className="text-xs md:text-sm text-white/90">
                                     Manage and track all invoice customer
                                 </p>
                             </div>
                         </div>
 
-                        {/* Desktop: tampil di kanan header */}
-                        <div className="hidden md:flex flex-row space-x-2">
-                            <div className="relative w-64">
-                                <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-white" />
+                        {/* Right Section: Search, Items Per Page, and Button */}
+                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
+                            {/* Items Per Page Selector - Desktop */}
+                            {/* Search Bar */}
+                            <div className="relative w-full md:w-64">
+                                <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-white/70" />
                                 <Input
                                     placeholder="Search Invoice..."
-                                    className="w-full pl-9 text-white placeholder-white/70"
+                                    className="w-full pl-9 bg-white/10 backdrop-blur-sm border-white/30 text-white placeholder-white/70 focus:bg-white/20 focus:border-white/50"
                                     value={searchTerm}
                                     onChange={(e) => {
                                         setSearchTerm(e.target.value)
@@ -265,12 +273,68 @@ export function InvoiceDataTable({ invoiceData, isLoading, role, banks, currentU
                                     }}
                                 />
                             </div>
+                            <div className="hidden md:flex items-center space-x-2 bg-white/10 backdrop-blur-sm rounded-lg px-3 py-1.5">
+                                <span className="text-sm text-white/80">Show</span>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-7 text-white hover:bg-white/20 border-white/30"
+                                        >
+                                            {itemsPerPage} <ChevronDown className="ml-2 h-3 w-3" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                        {itemsPerPageOptions.map((option) => (
+                                            <DropdownMenuItem
+                                                key={option}
+                                                onClick={() => handleItemsPerPageChange(option)}
+                                                className={itemsPerPage === option ? "bg-accent" : ""}
+                                            >
+                                                {option} per page
+                                            </DropdownMenuItem>
+                                        ))}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+
+                            {/* New Invoice Button */}
                             <Link href={`${basePath}/create`} passHref>
-                                <Button className="bg-primary hover:bg-primary/90">
+                                <Button className="bg-white text-indigo-600 hover:bg-white/90 hover:text-indigo-700 font-medium shadow-lg">
                                     <PlusCircleIcon className="mr-2 h-4 w-4" />
                                     New Invoice
                                 </Button>
                             </Link>
+                        </div>
+                    </div>
+
+                    {/* Items Per Page Selector - Mobile */}
+                    <div className="md:hidden flex items-center justify-between mt-3 pt-3 border-t border-white/20">
+                        <div className="flex items-center space-x-2">
+                            <span className="text-sm text-white/80">Show</span>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 bg-white/10 text-white border-white/30 hover:bg-white/20"
+                                    >
+                                        {itemsPerPage} <ChevronDown className="ml-2 h-3 w-3" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start">
+                                    {itemsPerPageOptions.map((option) => (
+                                        <DropdownMenuItem
+                                            key={option}
+                                            onClick={() => handleItemsPerPageChange(option)}
+                                            className={itemsPerPage === option ? "bg-accent" : ""}
+                                        >
+                                            {option} per page
+                                        </DropdownMenuItem>
+                                    ))}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                         </div>
                     </div>
                 </CardHeader>
@@ -299,6 +363,31 @@ export function InvoiceDataTable({ invoiceData, isLoading, role, banks, currentU
             </Card>
 
             <CardContent>
+                {/* Items Per Page Selector - Mobile */}
+                <div className="md:hidden flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-2">
+                        <span className="text-sm text-gray-600">Show</span>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm" className="h-8">
+                                    {itemsPerPage} <ChevronDown className="ml-2 h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start">
+                                {itemsPerPageOptions.map((option) => (
+                                    <DropdownMenuItem
+                                        key={option}
+                                        onClick={() => handleItemsPerPageChange(option)}
+                                        className={itemsPerPage === option ? "bg-accent" : ""}
+                                    >
+                                        {option} per page
+                                    </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                </div>
+
                 {/* Mobile View */}
                 <div className="md:hidden space-y-4">
                     {currentData.map((invoice) => (
@@ -666,5 +755,4 @@ export function InvoiceDataTable({ invoiceData, isLoading, role, banks, currentU
 
         </div>
     );
-
 }

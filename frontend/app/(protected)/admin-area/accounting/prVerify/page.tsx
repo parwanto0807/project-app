@@ -186,7 +186,7 @@ export default function PurchaseRequestPageAdmin() {
         }
         : {
             page: filters.page ?? 1,
-            limit: filters.limit ?? 10,
+            limit: filters.limit ?? 50,
             totalCount: 0,
             totalPages: 1,
         };

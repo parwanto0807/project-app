@@ -1037,10 +1037,10 @@ export function PurchaseRequestTable({
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="5" className="text-xs">5</SelectItem>
-                                        <SelectItem value="10" className="text-xs">10</SelectItem>
-                                        <SelectItem value="20" className="text-xs">20</SelectItem>
                                         <SelectItem value="50" className="text-xs">50</SelectItem>
+                                        <SelectItem value="100" className="text-xs">100</SelectItem>
+                                        <SelectItem value="200" className="text-xs">200</SelectItem>
+                                        <SelectItem value="300" className="text-xs">300</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>

@@ -21,6 +21,7 @@ import {
     ChevronDown,
     Filter,
     X,
+    ListFilter,
 } from "lucide-react"
 import Decimal from "decimal.js"
 import {
@@ -1059,7 +1060,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
     const [sorting, setSorting] = React.useState<SortingState>([])
     const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false)
     const [orderToDelete, setOrderToDelete] = React.useState<string | null>(null)
-    const itemsPerPage = 10
+    const [itemsPerPage, setItemsPerPage] = React.useState(50) // State untuk items per page
     const [expanded, setExpanded] = React.useState<ExpandedState>({})
     const isMobile = useMediaQuery("(max-width: 768px)")
     const [salesOrders, setSalesOrders] = React.useState<SalesOrder[]>(initialSalesOrders)
@@ -1100,6 +1101,10 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
         setDeleteConfirmOpen(false)
         setOrderToDelete(null)
     }
+
+    // Options untuk items per page
+    const itemsPerPageOptions = [50, 100, 200, 300, 400]
+
 
     const columns: ColumnDef<SalesOrder>[] = React.useMemo(() => {
         const baseColumns: ColumnDef<SalesOrder>[] = [
@@ -1548,7 +1553,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
     const paginatedOrders = React.useMemo(() => {
         const startIndex = (currentPage - 1) * itemsPerPage
         return filteredSalesOrders.slice(startIndex, startIndex + itemsPerPage)
-    }, [filteredSalesOrders, currentPage])
+    }, [filteredSalesOrders, currentPage, itemsPerPage]) // Tambahkan itemsPerPage ke dependency
 
     const totalPages = Math.ceil(filteredSalesOrders.length / itemsPerPage)
 
@@ -1570,7 +1575,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
     const StatusFilterDropdown = () => (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="flex items-center gap-2 text-black dark:text-white bg-transparent dark:hover:bg-slate-800 hover:bg-slate-100">
+                <Button variant="outline" className="flex items-center gap-2 bg-transparent dark:hover:bg-slate-800 hover:bg-slate-100">
                     <Filter className="h-4 w-4" />
                     {statusFilter === "ALL" ? "All Status" : statusConfig[statusFilter]?.label}
                     <ChevronDown className="h-4 w-4" />
@@ -1594,6 +1599,32 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                             <div className={`h-2 w-2 rounded-full ${config.className.split(' ')[0]}`} />
                             {config.label}
                         </div>
+                    </DropdownMenuItem>
+                ))}
+            </DropdownMenuContent>
+        </DropdownMenu>
+    )
+
+    const ItemsPerPageDropdown = () => (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="flex items-center gap-2 bg-transparent dark:hover:bg-slate-800 hover:bg-slate-100">
+                    <ListFilter className="h-4 w-4" />
+                    {itemsPerPage} per page
+                    <ChevronDown className="h-4 w-4" />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-32">
+                {itemsPerPageOptions.map((option) => (
+                    <DropdownMenuItem
+                        key={option}
+                        onClick={() => {
+                            setItemsPerPage(option)
+                            setCurrentPage(1) // Reset ke halaman pertama saat mengubah items per page
+                        }}
+                        className={itemsPerPage === option ? "bg-muted" : ""}
+                    >
+                        {option} per page
                     </DropdownMenuItem>
                 ))}
             </DropdownMenuContent>
@@ -1624,7 +1655,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                             <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
                             <Input
                                 placeholder="Search orders..."
-                                className="w-full pl-9"
+                                className="w-full pl-9 custom-placeholder"
                                 value={searchTerm}
                                 onChange={(e) => {
                                     setSearchTerm(e.target.value)
@@ -1634,12 +1665,17 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                         </div>
 
                         {/* posisi kanan */}
-                        <div className="flex space-x-2 justify-end">
-                            <StatusFilterDropdown />
-                            <Link href={`${basePath}/create`} passHref>
-                                <Button className="bg-primary hover:bg-primary/90">
-                                    <PlusCircleIcon className="mr-2 h-4 w-4" />
-                                    New Order
+                        <div className="flex flex-col xl:flex-row gap-4 justify-between items-center w-full py-2 px-7 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-2xl border border-white/20 dark:border-slate-700/50 shadow-lg">
+                            <div className="flex flex-col md:flex-row gap-3 w-full xl:w-auto">
+                                <div className="flex flex-wrap gap-3">
+                                    <StatusFilterDropdown />
+                                    <ItemsPerPageDropdown />
+                                </div>
+                            </div>
+                            <Link href={`${basePath}/create`} passHref className="w-full xl:w-auto">
+                                <Button className="w-full xl:w-auto bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white px-8 py-3 h-auto text-lg font-bold shadow-2xl hover:shadow-3xl transform hover:scale-105 transition-all duration-300">
+                                    <PlusCircleIcon className="mr-3 h-6 w-6" />
+                                    New Sales Order
                                 </Button>
                             </Link>
                         </div>
@@ -1796,9 +1832,11 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
 
                                 {totalPages > 1 && (
                                     <div className="flex items-center justify-between pt-1 border-t mt-1">
-                                        <p className="text-xs text-muted-foreground">
-                                            Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredSalesOrders.length)} of {filteredSalesOrders.length} orders
-                                        </p>
+                                        <div className="flex items-center gap-2">
+                                            <p className="text-xs text-muted-foreground">
+                                                Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredSalesOrders.length)} of {filteredSalesOrders.length} orders
+                                            </p>
+                                        </div>
                                         <Pagination>
                                             <PaginationContent>
                                                 <PaginationItem>
@@ -1865,6 +1903,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
         <Card className="border-none shadow-lg gap-4">
             <CardHeader className="bg-gradient-to-r from-cyan-600 to-purple-600 p-4 rounded-lg text-white">
                 <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
+                    {/* Left Section - Title and Description */}
                     <div className="flex items-center space-x-3">
                         <div className="flex items-center justify-center h-12 w-12 rounded-full bg-primary">
                             <ShoppingCartIcon className="h-6 w-6 text-primary-foreground" />
@@ -1877,13 +1916,16 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                         </div>
                     </div>
 
-                    <div className="flex flex-col space-y-2 sm:flex-row sm:space-x-2 sm:space-y-0">
-                        <div className="flex space-x-2">
-                            <div className="relative">
-                                <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-white" />
+                    {/* Right Section - Search, Filters and Actions */}
+                    <div className="flex flex-col xl:flex-row gap-3 justify-end items-start xl:items-center w-full md:w-auto">
+                        {/* Search and Filters Group */}
+                        <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+                            {/* Search Input */}
+                            <div className="relative w-full md:w-64">
+                                <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
                                 <Input
                                     placeholder="Search orders..."
-                                    className="w-full pl-9 sm:w-64"
+                                    className="w-full pl-9 bg-background"
                                     value={searchTerm}
                                     onChange={(e) => {
                                         setSearchTerm(e.target.value)
@@ -1891,28 +1933,42 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                                     }}
                                 />
                             </div>
-                            <StatusFilterDropdown />
+
+                            {/* Filters Group */}
+                            <div className="flex gap-2 items-center flex-wrap">
+                                <StatusFilterDropdown />
+                                <ItemsPerPageDropdown />
+
+                                {hasActiveFilters && (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                            setSearchTerm("")
+                                            setStatusFilter("ALL")
+                                            setCurrentPage(1)
+                                        }}
+                                        className="h-9 px-3"
+                                    >
+                                        <X className="h-4 w-4 mr-1" />
+                                        Clear
+                                    </Button>
+                                )}
+                            </div>
                         </div>
-                        {hasActiveFilters && (
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                    setSearchTerm("")
-                                    setStatusFilter("ALL")
-                                    setCurrentPage(1)
-                                }}
-                                className="h-9 px-2 text-black"
-                            >
-                                <X className="h-4 w-4" />
-                                <span className="sr-only">Reset filters</span>
-                            </Button>
-                        )}
+
+                        {/* New Order Button */}
                         <Link href={`${basePath}/create`} passHref>
-                            <Button className="bg-primary hover:bg-primary/90">
-                                <PlusCircleIcon className="mr-2 h-4 w-4" />
-                                New Order
-                            </Button>
+                            <div className="relative">
+                                {/* Simple Top Glow */}
+                                <div className="absolute -top-1 -inset-x-1 h-2 bg-cyan-400/60 blur-md rounded-t-lg group-hover:bg-cyan-300/80 group-hover:h-3 transition-all duration-300"></div>
+
+                                <Button className="relative bg-cyan-500 hover:bg-cyan-600 text-white px-6 py-2.5 h-auto font-bold shadow-lg hover:shadow-2xl transition-all duration-300 border-0 overflow-hidden group whitespace-nowrap cursor-pointer">
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                                    <PlusCircleIcon className="mr-2 h-5 w-5 relative z-10" />
+                                    <span className="relative z-10">New Order</span>
+                                </Button>
+                            </div>
                         </Link>
                     </div>
                 </div>
@@ -2014,9 +2070,12 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
 
                         {totalPages > 1 && (
                             <div className="flex items-center justify-between p-4 border-t">
-                                <p className="text-sm text-muted-foreground">
-                                    Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredSalesOrders.length)} of {filteredSalesOrders.length} orders
-                                </p>
+                                <div className="flex items-center gap-4">
+                                    <p className="text-sm text-muted-foreground">
+                                        Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredSalesOrders.length)} of {filteredSalesOrders.length} orders
+                                    </p>
+                                    <ItemsPerPageDropdown />
+                                </div>
                                 <Pagination>
                                     <PaginationContent>
                                         <PaginationItem>
