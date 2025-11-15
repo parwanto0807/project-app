@@ -1274,7 +1274,7 @@ export async function getMonthlySales(req, res) {
     endDate.setHours(23, 59, 59, 999);
 
     // Siapkan WHERE clause dan parameter
-    let whereClause = `"createdAt" BETWEEN $1 AND $2`;
+    let whereClause = `"createdAt" BETWEEN $1 AND $2 AND "status" <> 'CANCELLED'`;
     const params = [startDate, endDate];
 
     if (customerId) {
