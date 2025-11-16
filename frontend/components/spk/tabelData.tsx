@@ -685,11 +685,11 @@ export default function TabelDataSpk({
                                         {/* Action Buttons */}
                                         <div className="space-y-2 pt-2">
                                             {/* User Actions */}
-                                            <div className="flex gap-2 justify-end">
+                                            <div className="flex flex-col xs:flex-row gap-2 justify-end">
                                                 <Button
                                                     size="sm"
                                                     variant="outline"
-                                                    className="h-8 w-40 border-blue-300 hover:bg-blue-50 dark:border-blue-600 dark:hover:bg-blue-900/20 cursor-pointer"
+                                                    className="h-8 w-full xs:w-32 border-blue-300 hover:bg-blue-50 dark:border-blue-600 dark:hover:bg-blue-900/20 cursor-pointer"
                                                     onClick={() => pdfActions.handlePreview(spkPdfData)}
                                                 >
                                                     <Eye className="h-3 w-3 mr-1" />
@@ -698,7 +698,7 @@ export default function TabelDataSpk({
                                                 <Button
                                                     size="sm"
                                                     variant="outline"
-                                                    className="h-8 w-40 border-green-300 hover:bg-green-50 dark:border-green-600 dark:hover:bg-green-900/20  cursor-pointer"
+                                                    className="h-8 w-full xs:w-32 border-green-300 hover:bg-green-50 dark:border-green-600 dark:hover:bg-green-900/20 cursor-pointer"
                                                     onClick={() => router.push(`${basePath}/spkReportDetail/${spk.id}`)}
                                                 >
                                                     <BarChart2 className="h-3 w-3 mr-1" />
@@ -708,12 +708,12 @@ export default function TabelDataSpk({
 
                                             {/* Admin Actions */}
                                             {role === "admin" && (
-                                                <div className="flex gap-2 border-t pt-2 dark:border-gray-700 justify-end">
-                                                    <Link href={`${basePath}/update/${spk.id}`}>
+                                                <div className="flex flex-col xs:flex-row gap-2 border-t pt-2 dark:border-gray-700 justify-end">
+                                                    <Link href={`${basePath}/update/${spk.id}`} className="w-full xs:w-auto">
                                                         <Button
                                                             size="sm"
                                                             variant="outline"
-                                                            className="h-8 w-40 border-amber-300 hover:bg-amber-50 dark:border-amber-600 dark:hover:bg-amber-900/20  cursor-pointer"
+                                                            className="h-8 w-full xs:w-32 border-amber-300 hover:bg-amber-50 dark:border-amber-600 dark:hover:bg-amber-900/20 cursor-pointer"
                                                         >
                                                             <Edit className="h-3 w-3 mr-1" />
                                                             <span className="text-xs">Edit</span>
@@ -722,7 +722,7 @@ export default function TabelDataSpk({
                                                     <Button
                                                         size="sm"
                                                         variant="outline"
-                                                        className="h-8 w-40 text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700 dark:border-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-300 cursor-pointer"
+                                                        className="h-8 w-full xs:w-32 text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700 dark:border-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-300 cursor-pointer"
                                                         onClick={(e) => {
                                                             e.preventDefault();
                                                             e.stopPropagation();
@@ -1371,8 +1371,8 @@ export default function TabelDataSpk({
                                 <PackageOpen className="h-7 w-7 text-white" />
                             </div>
                             <div>
-                                <CardTitle className="text-2xl font-bold">Surat Perintah Kerja</CardTitle>
-                                <p className="text-cyan-100">Manage SPK logistic ke produksi</p>
+                                <CardTitle className="text-xl md:text-2xl font-bold">Surat Perintah Kerja</CardTitle>
+                                <p className="text-xs md:text-sm text-cyan-100">Manage SPK logistic ke produksi</p>
                             </div>
                         </div>
 
@@ -1465,7 +1465,7 @@ export default function TabelDataSpk({
                     {/* Filter Row */}
                     <div className="flex gap-2">
                         <Select value={filterBy} onValueChange={setFilterBy}>
-                            <SelectTrigger className="flex-1 min-w-0 bg-white/70 dark:bg-white/10 backdrop-blur-sm border-cyan-300 dark:border-cyan-800 focus:bg-white dark:focus:bg-gray-800 text-xs h-9">
+                            <SelectTrigger className="flex-1 min-w-0 bg-white/70 dark:bg-white/10 backdrop-blur-sm border-cyan-300 dark:border-cyan-800 focus:bg-white dark:focus:bg-gray-800 text-xs font-bold h-9">
                                 <SelectValue placeholder="Filter" />
                             </SelectTrigger>
                             <SelectContent>
@@ -1486,7 +1486,7 @@ export default function TabelDataSpk({
 
                         {/* Items Per Page Selector */}
                         <Select value={itemsPerPage.toString()} onValueChange={(value) => setItemsPerPage(Number(value))}>
-                            <SelectTrigger className="w-20 bg-white/70 dark:bg-white/10 backdrop-blur-sm border-cyan-300 dark:border-cyan-800 focus:bg-white dark:focus:bg-gray-800 text-xs h-9">
+                            <SelectTrigger className="w-20 bg-white/70 dark:bg-white/10 backdrop-blur-sm border-cyan-300 dark:border-cyan-800 focus:bg-white dark:focus:bg-gray-800 text-xs font bold h-9">
                                 <SelectValue placeholder="Items" />
                             </SelectTrigger>
                             <SelectContent>
