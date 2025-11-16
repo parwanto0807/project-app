@@ -53,6 +53,7 @@ import {
     ChevronsDown,
     ChevronsUp,
     ListFilter,
+    PlusCircleIcon,
 } from "lucide-react";
 import React, { useState, useMemo, Fragment, useEffect } from "react";
 import Link from "next/link";
@@ -1501,8 +1502,8 @@ export default function TabelDataSpk({
                     {/* Tambah Button */}
                     <Link href={`${basePath}/create`}>
                         <Button className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-medium text-sm h-9">
-                            <Plus size={16} className="mr-1" />
-                            Tambah SPK
+                            <PlusCircleIcon size={16} className="mr-1" />
+                            New SPK
                         </Button>
                     </Link>
                 </div>

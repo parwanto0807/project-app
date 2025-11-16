@@ -1651,7 +1651,8 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                             </div>
                         </div>
                     </CardHeader>
-                    <div className="flex flex-col space-y-2">
+                    <div className="flex flex-col space-y-3">
+                        {/* Search Input */}
                         <div className="relative">
                             <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
                             <Input
@@ -1666,10 +1667,10 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                         </div>
 
                         {/* Filter & Action Container - Compact Mobile */}
-                        <div className="flex flex-col sm:flex-row gap-2 justify-between items-stretch sm:items-center w-full p-3 sm:p-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-lg sm:rounded-xl border border-gray-200/50 dark:border-slate-700/50 shadow-sm">
+                        <div className="flex flex-col xs:flex-row gap-2 items-stretch xs:items-center w-full p-3 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-lg border border-gray-200/50 dark:border-slate-700/50 shadow-sm">
 
-                            {/* Filter Section - Compact Row */}
-                            <div className="flex flex-1 gap-2 min-w-0 items-center justify-between">
+                            {/* Filter Section */}
+                            <div className="flex flex-1 gap-2 min-w-0">
                                 <div className="flex-1 min-w-0">
                                     <StatusFilterDropdown />
                                 </div>
@@ -1679,11 +1680,11 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                             </div>
 
                             {/* New Order Button - Compact */}
-                            <Link href={`${basePath}/create`} passHref className="sm:pl-2 mt-2 sm:mt-0">
-                                <Button className="w-full sm:w-auto bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white px-3 sm:px-4 py-2 h-auto text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200 whitespace-nowrap">
+                            <Link href={`${basePath}/create`} passHref className="xs:pl-2 mt-2 xs:mt-0">
+                                <Button className="w-full xs:w-auto bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white px-3 py-2 h-auto text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200 whitespace-nowrap">
                                     <PlusCircleIcon className="mr-2 h-4 w-4" />
-                                    <span className="hidden xs:inline">New Order</span>
-                                    <span className="xs:hidden">New</span>
+                                    <span className="hidden sm:inline">New Order</span>
+                                    <span className="sm:hidden">New SO</span>
                                 </Button>
                             </Link>
                         </div>
