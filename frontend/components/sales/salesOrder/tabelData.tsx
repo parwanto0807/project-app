@@ -1635,8 +1635,8 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
     if (isMobile) {
         return (
             <>
-                <Card className="border-none shadow-lg gap-4">
-                    <CardHeader className="flex flex-col gap-4 bg-gradient-to-r from-cyan-600 to-purple-600 px-4 py-6 rounded-lg text-white shadow-lg transform transition-all duration-300 hover:shadow-xl">
+                <Card className="border-none shadow-lg py-4">
+                    <CardHeader className="flex flex-col bg-gradient-to-r from-cyan-600 to-purple-600 px-4 py-6 rounded-lg text-white shadow-lg transform transition-all duration-300 hover:shadow-xl">
                         <div className="flex flex-col space-y-1">
                             <div className="flex items-center space-x-3">
                                 <div className="flex items-center justify-center h-12 w-12 rounded-full bg-primary">
@@ -1651,7 +1651,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                             </div>
                         </div>
                     </CardHeader>
-                    <div className="flex flex-col space-y-4">
+                    <div className="flex flex-col space-y-2">
                         <div className="relative">
                             <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
                             <Input
@@ -1665,29 +1665,27 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                             />
                         </div>
 
-                        {/* Filter & Action Container */}
-                        <div className="flex flex-col lg:flex-row gap-3 lg:gap-4 justify-between items-start lg:items-center w-full p-4 lg:p-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-xl lg:rounded-2xl border border-gray-200/50 dark:border-slate-700/50 shadow-sm lg:shadow-lg">
+                        {/* Filter & Action Container - Compact Mobile */}
+                        <div className="flex flex-col sm:flex-row gap-2 justify-between items-stretch sm:items-center w-full p-3 sm:p-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-lg sm:rounded-xl border border-gray-200/50 dark:border-slate-700/50 shadow-sm">
 
-                            {/* Filter Section */}
-                            <div className="flex flex-row gap-2 items-center justify-between w-full">
-                                {/* Filter Section */}
-                                <div className="flex flex-1 gap-2 min-w-0">
-                                    <div className="flex-1">
-                                        <StatusFilterDropdown />
-                                    </div>
-                                    <div className="flex-1">
-                                        <ItemsPerPageDropdown />
-                                    </div>
+                            {/* Filter Section - Compact Row */}
+                            <div className="flex flex-1 gap-2 min-w-0 items-center justify-between">
+                                <div className="flex-1 min-w-0">
+                                    <StatusFilterDropdown />
                                 </div>
-
-                                {/* New Order Button */}
-                                <Link href={`${basePath}/create`} passHref className="flex-shrink-0">
-                                    <Button className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white px-4 py-2 h-auto text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200 whitespace-nowrap">
-                                        <PlusCircleIcon className="mr-2 h-4 w-4" />
-                                        New Order
-                                    </Button>
-                                </Link>
+                                <div className="flex-1 min-w-0">
+                                    <ItemsPerPageDropdown />
+                                </div>
                             </div>
+
+                            {/* New Order Button - Compact */}
+                            <Link href={`${basePath}/create`} passHref className="sm:pl-2 mt-2 sm:mt-0">
+                                <Button className="w-full sm:w-auto bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white px-3 sm:px-4 py-2 h-auto text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200 whitespace-nowrap">
+                                    <PlusCircleIcon className="mr-2 h-4 w-4" />
+                                    <span className="hidden xs:inline">New Order</span>
+                                    <span className="xs:hidden">New</span>
+                                </Button>
+                            </Link>
                         </div>
                     </div>
 
