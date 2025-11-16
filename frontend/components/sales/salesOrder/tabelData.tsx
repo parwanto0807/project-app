@@ -774,8 +774,8 @@ function MobileSalesOrderCard({
                             <FileTextIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                         </div>
                         <div>
-                            <p className="font-semibold text-xs">{order.soNumber}</p>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="font-semibold text-[11px]">{order.soNumber}</p>
+                            <p className="text-[11px] text-muted-foreground">
                                 {format(new Date(order.soDate), "dd MMM yyyy")}
                             </p>
                         </div>
@@ -795,19 +795,20 @@ function MobileSalesOrderCard({
                     </div>
                     <div className="flex items-center gap-2">
                         <UserCheck2Icon className="h-4 w-4 text-purple-500" />
-                        <span className="text-xs">{order.customer.name} - {order.customer.branch}</span>
+                        {/* <span className="text-xs">{order.customer.name}</span>  */}
+                        <span className="text-xs font-bold">{order.customer.branch}</span>
                     </div>
                 </div>
 
                 {/* Indikator SPK */}
-                {hasSPK && (
+                {/* {hasSPK && (
                     <div className="mb-3">
                         <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
                             <CheckCircle2 className="h-3 w-3 mr-1" />
                             SPK Sudah Dibuat
                         </Badge>
                     </div>
-                )}
+                )} */}
 
                 <div className="flex flex-row-reverse items-center justify-between border-t pt-3">
                     {/* Total Amount hanya untuk admin/super */}
@@ -819,7 +820,7 @@ function MobileSalesOrderCard({
                     )}
                 </div>
 
-                <div className="flex flex-row-reverse items-end justify-end gap-2">
+                <div className="flex items-center justify-end gap-2 border-t pt-3 dark:border-gray-700">
                     <Button
                         variant="default"
                         size="sm"
@@ -1635,7 +1636,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
         return (
             <>
                 <Card className="border-none shadow-lg gap-4">
-                    <CardHeader className="flex flex-col gap-4 bg-gradient-to-r from-cyan-600 to-purple-600 p-2 rounded-lg text-white shadow-lg transform transition-all duration-300 hover:shadow-xl">
+                    <CardHeader className="flex flex-col gap-4 bg-gradient-to-r from-cyan-600 to-purple-600 px-4 py-6 rounded-lg text-white shadow-lg transform transition-all duration-300 hover:shadow-xl">
                         <div className="flex flex-col space-y-1">
                             <div className="flex items-center space-x-3">
                                 <div className="flex items-center justify-center h-12 w-12 rounded-full bg-primary">
@@ -1664,20 +1665,29 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                             />
                         </div>
 
-                        {/* posisi kanan */}
-                        <div className="flex flex-col xl:flex-row gap-4 justify-between items-center w-full py-2 px-7 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-2xl border border-white/20 dark:border-slate-700/50 shadow-lg">
-                            <div className="flex flex-col md:flex-row gap-3 w-full xl:w-auto">
-                                <div className="flex flex-wrap gap-3">
-                                    <StatusFilterDropdown />
-                                    <ItemsPerPageDropdown />
+                        {/* Filter & Action Container */}
+                        <div className="flex flex-col lg:flex-row gap-3 lg:gap-4 justify-between items-start lg:items-center w-full p-4 lg:p-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-xl lg:rounded-2xl border border-gray-200/50 dark:border-slate-700/50 shadow-sm lg:shadow-lg">
+
+                            {/* Filter Section */}
+                            <div className="flex flex-row gap-2 items-center justify-between w-full">
+                                {/* Filter Section */}
+                                <div className="flex flex-1 gap-2 min-w-0">
+                                    <div className="flex-1">
+                                        <StatusFilterDropdown />
+                                    </div>
+                                    <div className="flex-1">
+                                        <ItemsPerPageDropdown />
+                                    </div>
                                 </div>
+
+                                {/* New Order Button */}
+                                <Link href={`${basePath}/create`} passHref className="flex-shrink-0">
+                                    <Button className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white px-4 py-2 h-auto text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200 whitespace-nowrap">
+                                        <PlusCircleIcon className="mr-2 h-4 w-4" />
+                                        New Order
+                                    </Button>
+                                </Link>
                             </div>
-                            <Link href={`${basePath}/create`} passHref className="w-full xl:w-auto">
-                                <Button className="w-full xl:w-auto bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white px-8 py-3 h-auto text-lg font-bold shadow-2xl hover:shadow-3xl transform hover:scale-105 transition-all duration-300">
-                                    <PlusCircleIcon className="mr-3 h-6 w-6" />
-                                    New Sales Order
-                                </Button>
-                            </Link>
                         </div>
                     </div>
 

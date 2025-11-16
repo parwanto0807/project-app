@@ -682,55 +682,58 @@ export default function TabelDataSpk({
                                         )}
 
                                         {/* Action Buttons */}
-                                        <div className="flex gap-2 pt-2">
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                className="h-8 px-3 text-xs flex-1"
-                                                onClick={() => pdfActions.handlePreview(spkPdfData)}
-                                            >
-                                                <Eye className="h-3 w-3 mr-1" />
-                                                Preview
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                className="h-8 px-3 text-xs flex-1"
-                                                onClick={() => router.push(`${basePath}/spkReportDetail/${spk.id}`)}
-                                            >
-                                                <BarChart2 className="h-3 w-3 mr-1" />
-                                                Monitoring
-                                            </Button>
-                                        </div>
-
-                                        {/* Admin Actions */}
-                                        {role === "admin" && (
-                                            <div className="flex gap-2 pt-2">
-                                                <Link href={`${basePath}/update/${spk.id}`} className="flex-1">
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        className="h-8 w-full text-xs"
-                                                    >
-                                                        <Edit className="h-3 w-3 mr-1" />
-                                                        Edit
-                                                    </Button>
-                                                </Link>
+                                        <div className="space-y-2 pt-2">
+                                            {/* User Actions */}
+                                            <div className="flex gap-2 justify-end">
                                                 <Button
                                                     size="sm"
                                                     variant="outline"
-                                                    className="h-8 flex-1 text-xs text-red-600 border-red-300 hover:bg-red-50 dark:border-red-600 dark:hover:bg-red-900/20"
-                                                    onClick={(e) => {
-                                                        e.preventDefault();
-                                                        e.stopPropagation();
-                                                        handleDelete(spk.id);
-                                                    }}
+                                                    className="h-8 w-40 border-blue-300 hover:bg-blue-50 dark:border-blue-600 dark:hover:bg-blue-900/20 cursor-pointer"
+                                                    onClick={() => pdfActions.handlePreview(spkPdfData)}
                                                 >
-                                                    <Trash2 className="h-3 w-3 mr-1" />
-                                                    Hapus
+                                                    <Eye className="h-3 w-3 mr-1" />
+                                                    <span className="text-xs">Preview</span>
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="h-8 w-40 border-green-300 hover:bg-green-50 dark:border-green-600 dark:hover:bg-green-900/20  cursor-pointer"
+                                                    onClick={() => router.push(`${basePath}/spkReportDetail/${spk.id}`)}
+                                                >
+                                                    <BarChart2 className="h-3 w-3 mr-1" />
+                                                    <span className="text-xs">Monitoring</span>
                                                 </Button>
                                             </div>
-                                        )}
+
+                                            {/* Admin Actions */}
+                                            {role === "admin" && (
+                                                <div className="flex gap-2 border-t pt-2 dark:border-gray-700 justify-end">
+                                                    <Link href={`${basePath}/update/${spk.id}`}>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            className="h-8 w-40 border-amber-300 hover:bg-amber-50 dark:border-amber-600 dark:hover:bg-amber-900/20  cursor-pointer"
+                                                        >
+                                                            <Edit className="h-3 w-3 mr-1" />
+                                                            <span className="text-xs">Edit</span>
+                                                        </Button>
+                                                    </Link>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="h-8 w-40 text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700 dark:border-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-300 cursor-pointer"
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            handleDelete(spk.id);
+                                                        }}
+                                                    >
+                                                        <Trash2 className="h-3 w-3 mr-1" />
+                                                        <span className="text-xs">Delete</span>
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -1361,7 +1364,7 @@ export default function TabelDataSpk({
             <CardHeader className="rounded-xl bg-gradient-to-r from-cyan-600 via-blue-600 to-purple-600 px-6 py-4 text-white relative overflow-hidden">
                 <div className="absolute inset-0 bg-black/10"></div>
                 <div className="relative z-0">
-                    <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
+                    <div className="flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0">
                         <div className="flex items-center space-x-4">
                             <div className="flex items-center justify-center h-14 w-14 rounded-2xl bg-white/20 backdrop-blur-sm border border-white/30">
                                 <PackageOpen className="h-7 w-7 text-white" />
@@ -1444,26 +1447,58 @@ export default function TabelDataSpk({
             </CardHeader>
 
             {/* Toolbar Mobile */}
-            <div className="sm:hidden p-4 space-y-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+            <div
+                className="
+    sm:hidden p-4 space-y-4 rounded-xl border
+
+    bg-gradient-to-br from-white via-gray-50 to-gray-200
+    border-gray-300
+
+    dark:bg-gradient-to-br dark:from-gray-800 dark:via-gray-900 dark:to-black
+    dark:border-gray-700
+  "
+            >
                 <div className="relative">
                     <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
+
                     <Input
                         placeholder="Cari SPK..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-9"
+                        className="
+      w-full pl-9
+
+      bg-white/80
+      border border-gray-300
+      shadow-sm
+      focus-visible:ring-2 focus-visible:ring-blue-500
+
+      dark:bg-gray-800/70
+      dark:border-gray-600
+      dark:text-white
+      dark:placeholder-gray-400
+      dark:focus-visible:ring-blue-400
+    "
                     />
                 </div>
+
+
                 <div className="flex space-x-3">
                     <Select value={filterBy} onValueChange={setFilterBy}>
-                        <SelectTrigger className="w-48 bg-white/20 backdrop-blur-sm border-white/30 text-white focus:bg-white/30">
+                        <SelectTrigger className="
+                w-48 
+                bg-white/70 dark:bg-white/10 
+                backdrop-blur-sm
+                border-cyan-300 dark:border-cyan-800
+                focus:bg-white dark:focus:bg-gray-800
+            ">
                             <SelectValue placeholder="Filter" />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">Semua SPK</SelectItem>
                             <SelectItem value="on-progress">On Progress</SelectItem>
                             <SelectItem value="without-team">Tanpa Tim</SelectItem>
-                            {/* Tambahkan separator untuk grup tim */}
+
                             <SelectSeparator />
                             <SelectGroup>
                                 <SelectLabel>Pilih Tim</SelectLabel>
@@ -1478,7 +1513,13 @@ export default function TabelDataSpk({
 
                     {/* Items Per Page Selector Mobile */}
                     <Select value={itemsPerPage.toString()} onValueChange={(value) => setItemsPerPage(Number(value))}>
-                        <SelectTrigger className="w-24 bg-white/20 backdrop-blur-sm border-white/30 text-white focus:bg-white/30">
+                        <SelectTrigger className="
+                w-24 
+                bg-white/70 dark:bg-white/10 
+                backdrop-blur-sm
+                border-cyan-300 dark:border-cyan-800
+                focus:bg-white dark:focus:bg-gray-800
+            ">
                             <SelectValue placeholder="Items" />
                         </SelectTrigger>
                         <SelectContent>
@@ -1492,12 +1533,13 @@ export default function TabelDataSpk({
 
                     <Link href={`${basePath}/create`} className="flex-1">
                         <Button className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-medium">
-                            <Plus size={18} className="mr-2" />
+                            <Plus size={18} className="mr-1" />
                             Tambah
                         </Button>
                     </Link>
                 </div>
             </div>
+
 
             {/* Konten Utama */}
             <CardContent className="p-0 bg-gray-50/50 dark:bg-gray-800/50">
