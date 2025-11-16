@@ -1447,94 +1447,62 @@ export default function TabelDataSpk({
             </CardHeader>
 
             {/* Toolbar Mobile */}
-            <div
-                className="
-    sm:hidden p-4 space-y-4 rounded-xl border
-
-    bg-gradient-to-br from-white via-gray-50 to-gray-200
-    border-gray-300
-
-    dark:bg-gradient-to-br dark:from-gray-800 dark:via-gray-900 dark:to-black
-    dark:border-gray-700
-  "
-            >
+            <div className="sm:hidden p-3 space-y-3 rounded-lg border bg-gradient-to-br from-white via-gray-50 to-gray-200 border-gray-300 dark:bg-gradient-to-br dark:from-gray-800 dark:via-gray-900 dark:to-black dark:border-gray-700">
+                {/* Search Input */}
                 <div className="relative">
                     <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
-
                     <Input
                         placeholder="Cari SPK..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="
-      w-full pl-9
-
-      bg-white/80
-      border border-gray-300
-      shadow-sm
-      focus-visible:ring-2 focus-visible:ring-blue-500
-
-      dark:bg-gray-800/70
-      dark:border-gray-600
-      dark:text-white
-      dark:placeholder-gray-400
-      dark:focus-visible:ring-blue-400
-    "
+                        className="w-full pl-9 bg-white/80 border border-gray-300 shadow-sm focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-gray-800/70 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 dark:focus-visible:ring-blue-400 text-sm"
                     />
                 </div>
 
+                {/* Filter & Actions - Compact Mobile */}
+                <div className="flex flex-col gap-2">
+                    {/* Filter Row */}
+                    <div className="flex gap-2">
+                        <Select value={filterBy} onValueChange={setFilterBy}>
+                            <SelectTrigger className="flex-1 min-w-0 bg-white/70 dark:bg-white/10 backdrop-blur-sm border-cyan-300 dark:border-cyan-800 focus:bg-white dark:focus:bg-gray-800 text-xs h-9">
+                                <SelectValue placeholder="Filter" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Semua SPK</SelectItem>
+                                <SelectItem value="on-progress">On Progress</SelectItem>
+                                <SelectItem value="without-team">Tanpa Tim</SelectItem>
+                                <SelectSeparator />
+                                <SelectGroup>
+                                    <SelectLabel>Pilih Tim</SelectLabel>
+                                    {availableTeams.map(team => (
+                                        <SelectItem key={team} value={team}>
+                                            {team}
+                                        </SelectItem>
+                                    ))}
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
 
-                <div className="flex space-x-3">
-                    <Select value={filterBy} onValueChange={setFilterBy}>
-                        <SelectTrigger className="
-                w-48 
-                bg-white/70 dark:bg-white/10 
-                backdrop-blur-sm
-                border-cyan-300 dark:border-cyan-800
-                focus:bg-white dark:focus:bg-gray-800
-            ">
-                            <SelectValue placeholder="Filter" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Semua SPK</SelectItem>
-                            <SelectItem value="on-progress">On Progress</SelectItem>
-                            <SelectItem value="without-team">Tanpa Tim</SelectItem>
-
-                            <SelectSeparator />
-                            <SelectGroup>
-                                <SelectLabel>Pilih Tim</SelectLabel>
-                                {availableTeams.map(team => (
-                                    <SelectItem key={team} value={team}>
-                                        {team}
+                        {/* Items Per Page Selector */}
+                        <Select value={itemsPerPage.toString()} onValueChange={(value) => setItemsPerPage(Number(value))}>
+                            <SelectTrigger className="w-20 bg-white/70 dark:bg-white/10 backdrop-blur-sm border-cyan-300 dark:border-cyan-800 focus:bg-white dark:focus:bg-gray-800 text-xs h-9">
+                                <SelectValue placeholder="Items" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {itemsPerPageOptions.map(option => (
+                                    <SelectItem key={option} value={option.toString()}>
+                                        {option}
                                     </SelectItem>
                                 ))}
-                            </SelectGroup>
-                        </SelectContent>
-                    </Select>
+                            </SelectContent>
+                        </Select>
+                    </div>
 
-                    {/* Items Per Page Selector Mobile */}
-                    <Select value={itemsPerPage.toString()} onValueChange={(value) => setItemsPerPage(Number(value))}>
-                        <SelectTrigger className="
-                w-24 
-                bg-white/70 dark:bg-white/10 
-                backdrop-blur-sm
-                border-cyan-300 dark:border-cyan-800
-                focus:bg-white dark:focus:bg-gray-800
-            ">
-                            <SelectValue placeholder="Items" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {itemsPerPageOptions.map(option => (
-                                <SelectItem key={option} value={option.toString()}>
-                                    {option}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-
-                    <Link href={`${basePath}/create`} className="flex-1">
-                        <Button className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-medium">
-                            <Plus size={18} className="mr-1" />
-                            Tambah
+                    {/* Tambah Button */}
+                    <Link href={`${basePath}/create`}>
+                        <Button className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-medium text-sm h-9">
+                            <Plus size={16} className="mr-1" />
+                            Tambah SPK
                         </Button>
                     </Link>
                 </div>
