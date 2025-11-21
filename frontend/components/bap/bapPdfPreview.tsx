@@ -272,38 +272,44 @@ const styles = StyleSheet.create({
         paddingTop: 5,
     },
 
-    // Photo Section
+    // Photo Section - Alternative with fixed aspect ratio
+    // Photo Section - True portrait layout with 4 columns
     photoSection: {
-        marginBottom: 12,
+        marginBottom: 10,
     },
     photoGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'space-between',
-        gap: 6, // Reduced gap
-        marginTop: 6,
+        gap: 4, // Very small gap
+        marginTop: 5,
     },
     photoItem: {
-        width: '23.5%', // Slightly adjusted for tighter fit
-        marginBottom: 8,
+        width: '24%', // 4 columns
+        marginBottom: 6,
         alignItems: 'center',
-        padding: 2, // Minimal padding
     },
-    photoImage: {
+    photoImageContainer: {
         width: '100%',
-        height: 70, // Shorter height for true portrait
-        objectFit: 'cover', // Use cover but with portrait dimensions
+        height: 170, // Fixed portrait height - shorter than width
+        overflow: 'hidden',
         borderWidth: 0.5,
         borderColor: '#CCCCCC',
         backgroundColor: '#F5F5F5',
     },
-    photoCaption: {
-        fontSize: 5.5, // Smaller font
-        textAlign: 'center',
-        marginTop: 2,
-        fontStyle: 'italic',
-        paddingHorizontal: 1,
+    photoImage: {
+        width: '100%',
+        height: '100%',
+        objectFit: 'cover', // Will crop to maintain portrait aspect ratio
     },
+    photoCaption: {
+        fontSize: 5,
+        textAlign: 'center',
+        marginTop: 1,
+        fontStyle: 'italic',
+        lineHeight: 1.2,
+    },
+
     // Professional Table Styles
     tableContainer: {
         marginBottom: 20,
@@ -645,21 +651,23 @@ export function BAPPdfDocument({ bap }: { bap: BAPData }) {
                 {bap.photos && bap.photos.length > 0 && (
                     <View style={styles.photoSection}>
                         <Text style={styles.sectionTitle}>Dokumentasi Foto</Text>
-                        <Text style={{ fontSize: 8, marginBottom: 8, textAlign: 'center' }}>
-                            Total {bap.photos.length} foto dokumentasi • Layout: Portrait
+                        <Text style={{ fontSize: 7, marginBottom: 5, textAlign: 'center' }}>
+                            Total {bap.photos.length} foto dokumentasi - Layout: Portrait
                         </Text>
 
                         <View style={styles.photoGrid}>
                             {bap.photos.map((photo, index) => (
-                                <View key={index} style={styles.photoItem}>
-                                    <PdfImage
-                                        style={styles.photoImage}
-                                        src={getFullImageUrl(photo.photoUrl)}
-                                    />
+                                <View key={photo.id || index} style={styles.photoItem}>
+                                    <View style={styles.photoImageContainer}>
+                                        <PdfImage
+                                            style={styles.photoImage}
+                                            src={getFullImageUrl(photo.photoUrl)}
+                                        />
+                                    </View>
                                     <Text style={styles.photoCaption}>
                                         {getCategoryLabel(photo.category)}
                                     </Text>
-                                    <Text style={[styles.photoCaption, { fontSize: 5 }]}>
+                                    <Text style={styles.photoCaption}>
                                         Foto {index + 1}
                                     </Text>
                                 </View>
@@ -667,7 +675,7 @@ export function BAPPdfDocument({ bap }: { bap: BAPData }) {
                         </View>
                     </View>
                 )}
-
+                
                 {/* Professional Work Scope Table */}
                 <View style={styles.workScopeTableSection}>
                     <Text style={styles.sectionTitle}>RINCIAN CAKUPAN PEKERJAAN</Text>
