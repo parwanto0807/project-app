@@ -274,33 +274,36 @@ const styles = StyleSheet.create({
 
     // Photo Section
     photoSection: {
-        marginBottom: 20,
+        marginBottom: 12,
     },
     photoGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'space-between',
-        gap: 10,
-        marginTop: 10,
+        gap: 6, // Reduced gap
+        marginTop: 6,
     },
     photoItem: {
-        width: '30%',
-        marginBottom: 15,
+        width: '23.5%', // Slightly adjusted for tighter fit
+        marginBottom: 8,
+        alignItems: 'center',
+        padding: 2, // Minimal padding
     },
     photoImage: {
         width: '100%',
-        height: 100,
-        objectFit: 'cover',
-        borderWidth: 1,
+        height: 70, // Shorter height for true portrait
+        objectFit: 'cover', // Use cover but with portrait dimensions
+        borderWidth: 0.5,
         borderColor: '#CCCCCC',
+        backgroundColor: '#F5F5F5',
     },
     photoCaption: {
-        fontSize: 6,
+        fontSize: 5.5, // Smaller font
         textAlign: 'center',
         marginTop: 2,
         fontStyle: 'italic',
+        paddingHorizontal: 1,
     },
-
     // Professional Table Styles
     tableContainer: {
         marginBottom: 20,
@@ -557,7 +560,7 @@ export function BAPPdfDocument({ bap }: { bap: BAPData }) {
                             </Text>
                         </View>
 
-{/* 
+                        {/* 
                         <View style={styles.projectRow}>
                             <Text style={styles.projectLabel}>Lokasi</Text>
                             <Text style={styles.projectValue}>Area Unit Kerja : {bap.salesOrder.project?.location}</Text>
@@ -638,12 +641,12 @@ export function BAPPdfDocument({ bap }: { bap: BAPData }) {
                     <Text style={styles.dateText}>Berita Acara Serah Terima No: {bap.bapNumber}</Text>
                 </View>
 
-                {/* Photos Section */}
+                {/* Photos Section - Modified for 4 columns portrait layout */}
                 {bap.photos && bap.photos.length > 0 && (
                     <View style={styles.photoSection}>
                         <Text style={styles.sectionTitle}>Dokumentasi Foto</Text>
-                        <Text style={{ fontSize: 8, marginBottom: 10 }}>
-                            Total {bap.photos.length} foto dokumentasi
+                        <Text style={{ fontSize: 8, marginBottom: 8, textAlign: 'center' }}>
+                            Total {bap.photos.length} foto dokumentasi • Layout: Portrait
                         </Text>
 
                         <View style={styles.photoGrid}>
@@ -654,7 +657,10 @@ export function BAPPdfDocument({ bap }: { bap: BAPData }) {
                                         src={getFullImageUrl(photo.photoUrl)}
                                     />
                                     <Text style={styles.photoCaption}>
-                                        {getCategoryLabel(photo.category)} - {`Foto ${index + 1}`}
+                                        {getCategoryLabel(photo.category)}
+                                    </Text>
+                                    <Text style={[styles.photoCaption, { fontSize: 5 }]}>
+                                        Foto {index + 1}
                                     </Text>
                                 </View>
                             ))}
@@ -686,63 +692,6 @@ export function BAPPdfDocument({ bap }: { bap: BAPData }) {
                             </View>
                         ))}
                     </View>
-
-                    {/* Summary Table for Items with Prices */}
-                    {/* {bap.salesOrder.items && bap.salesOrder.items.length > 0 && (
-                        <View style={[styles.table, { marginTop: 20 }]}>
-
-                            <View style={[styles.tableRow, styles.tableHeader]}>
-                                <Text style={[styles.tableCell, styles.tableCellNo]}>NO</Text>
-                                <Text style={[styles.tableCell, styles.tableCellItem]}>ITEM PEKERJAAN</Text>
-                                <Text style={[styles.tableCell, styles.tableCellQty]}>QTY</Text>
-                                <Text style={[styles.tableCell, styles.tableCellUom]}>SATUAN</Text>
-                                <Text style={[styles.tableCell, styles.tableCellPrice]}>HARGA SATUAN</Text>
-                                <Text style={[styles.tableCell, styles.tableCellPrice]}>TOTAL</Text>
-                            </View>
-
-
-                            {workItems.map((item, index) => (
-                                <View key={item.id} style={styles.tableRow}>
-                                    <Text style={[styles.tableCell, styles.tableCellNo]}>{index + 1}</Text>
-                                    <Text style={[styles.tableCell, styles.tableCellItem]}>
-                                        {item.name}
-                                        {item.description && `\n${item.description}`}
-                                    </Text>
-                                    <Text style={[styles.tableCell, styles.tableCellQty]}>{item.qty}</Text>
-                                    <Text style={[styles.tableCell, styles.tableCellUom]}>{item.uom}</Text>
-                                    <Text style={[styles.tableCell, styles.tableCellPrice]}>{formatCurrency(item.price)}</Text>
-                                    <Text style={[styles.tableCell, styles.tableCellPrice]}>{formatCurrency(item.total)}</Text>
-                                </View>
-                            ))}
-
-
-                            <View style={[styles.tableRow, styles.tableFooter]}>
-                                <Text style={[styles.tableCell, styles.tableCellNo]}></Text>
-                                <Text style={[styles.tableCell, { flex: 3, textAlign: 'right', paddingRight: 8 }]}>
-                                    SUBTOTAL
-                                </Text>
-                                <Text style={[styles.tableCell, styles.tableCellPrice]}>{formatCurrency(subtotal)}</Text>
-                            </View>
-
-                            {discount > 0 && (
-                                <View style={[styles.tableRow, styles.tableFooter]}>
-                                    <Text style={[styles.tableCell, styles.tableCellNo]}></Text>
-                                    <Text style={[styles.tableCell, { flex: 3, textAlign: 'right', paddingRight: 8 }]}>
-                                        DISKON
-                                    </Text>
-                                    <Text style={[styles.tableCell, styles.tableCellPrice]}>-{formatCurrency(discount)}</Text>
-                                </View>
-                            )}
-
-                            <View style={[styles.tableRow, styles.tableFooter]}>
-                                <Text style={[styles.tableCell, styles.tableCellNo]}></Text>
-                                <Text style={[styles.tableCell, { flex: 3, textAlign: 'right', paddingRight: 8, fontWeight: 'bold' }]}>
-                                    TOTAL
-                                </Text>
-                                <Text style={[styles.tableCell, styles.tableCellPrice, { fontWeight: 'bold' }]}>{formatCurrency(grandTotal)}</Text>
-                            </View>
-                        </View>
-                    )} */}
 
                     {/* Work Completion Note */}
                     <View style={{ marginTop: 15, padding: 10, backgroundColor: '#F8F9FA', borderWidth: 1, borderColor: '#CCCCCC' }}>
