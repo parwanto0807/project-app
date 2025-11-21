@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import {
     Breadcrumb,
     BreadcrumbItem,
@@ -22,6 +22,7 @@ import { CreatePurchaseRequestData, UpdatePurchaseRequestData } from "@/types/pr
 import { fetchAllSpk } from "@/lib/action/master/spk/spk";
 import { toast } from "sonner";
 import { useSession } from "@/components/clientSessionProvider";
+import { useMutation } from "@tanstack/react-query";
 
 interface SPK {
     id: string;
@@ -120,6 +121,28 @@ export default function UpdatePRPageAdmin() {
     const router = useRouter();
     const params = useParams();
     const prId = params.id as string;
+    const searchParams = useSearchParams();
+
+    const urlPage = Number(searchParams.get("page")) || 1;
+    const urlPageSize = Number(searchParams.get("limit")) || 10;
+    const urlSearch = searchParams.get("search") || "";
+    const urlFilter = searchParams.get("filter") || "on-progress";
+    const urlStatus = searchParams.get("status") || "";
+    const urlProject = searchParams.get("projectId") || "";
+    const highlightId = searchParams.get("highlightId") || "";
+
+
+    // Ambil nilai langsung dari URL params
+    const query = new URLSearchParams({
+        page: String(urlPage),
+        limit: String(urlPageSize),
+        search: urlSearch,
+        filter: urlFilter,
+        status: urlStatus,
+        projectId: urlProject,
+        highLightId: highlightId,
+    }).toString();
+
 
     // Dummy auth role → ganti dengan sistem auth kamu
     const userRole = "admin";
@@ -191,24 +214,36 @@ export default function UpdatePRPageAdmin() {
         fetchData();
     }, [fetchData]);
 
+    const updateMutation = useMutation({
+        mutationFn: async ({ id, data }: { id: string; data: UpdatePurchaseRequestData }) =>
+            updatePurchaseRequest(id, data),
+
+        onSuccess: () => {
+            router.push(`/admin-area/logistic/pr?${query}`);
+            toast.success("Purchase Request berhasil diupdate");
+        },
+
+        onError: () => {
+            toast.error("Gagal mengupdate PR");
+        },
+    });
+
+
     // Function untuk handle update menggunakan hook yang sudah ada
-    const handleUpdatePurchaseRequest = async (prData: CreatePurchaseRequestData): Promise<void> => {
+    const handleUpdatePurchaseRequest = async (
+        prData: CreatePurchaseRequestData
+    ): Promise<void> => {
         try {
-            // Clear any previous errors
             clearError();
 
-            // Convert CreatePurchaseRequestData to UpdatePurchaseRequestData
             const updateData: UpdatePurchaseRequestData = {
                 ...prData,
-                // Tambahkan field lain yang diperlukan untuk update
             };
 
-            // Gunakan updatePurchaseRequest dari hook
-            await updatePurchaseRequest(prId, updateData);
-            toast.success("Purchase Request berhasil diupdate");
-
-            // Redirect ke halaman list PR setelah berhasil
-            router.push("/admin-area/logistic/pr");
+            updateMutation.mutate({
+                id: prId,
+                data: updateData
+            });
 
         } catch (error) {
             console.error("Error updating purchase request:", error);
@@ -217,6 +252,7 @@ export default function UpdatePRPageAdmin() {
             throw error;
         }
     };
+
 
     // Handle loading state untuk semua data
     const isLoading = loadingProducts || loadingUser || loadingPR || loadingSpk;

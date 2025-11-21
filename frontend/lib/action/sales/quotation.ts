@@ -7,10 +7,10 @@ import {
   QuotationSummary,
   UploadAttachmentRequest,
   QuotationApiResponse,
+  QuotationQueryParams,
+  QuotationListResponse,
 } from "@/types/quotation";
 import { QuotationStatus } from "@/types/quotation";
-
-import { ListResponse } from "@/types/api";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api";
@@ -54,118 +54,47 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 // GET - Get all quotations dengan filter dan pagination
-export async function getQuotations(params?: {
-  page?: number;
-  limit?: number;
-  status?: string;
-  customerId?: string;
-  search?: string;
-  sortBy?: string;
-  sortOrder?: "asc" | "desc";
-}): Promise<ListResponse<QuotationSummary>> {
+export async function getQuotations(params?: QuotationQueryParams): Promise<QuotationListResponse> {
   try {
     const queryParams = new URLSearchParams();
-
     if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== "") {
-          queryParams.append(key, String(value));
-        }
-      });
+      const { page, pageSize, searchTerm, statusFilter } = params;
+      if (page !== undefined) queryParams.append("page", String(page));
+      if (pageSize !== undefined) queryParams.append("pageSize", String(pageSize));
+      if (searchTerm) queryParams.append("searchTerm", searchTerm);
+      if (statusFilter && statusFilter !== "ALL") queryParams.append("statusFilter", statusFilter);
     }
 
-    const url = `${API_BASE_URL}/api/quotations/getQuotations${
-      queryParams.toString() ? `?${queryParams.toString()}` : ""
-    }`;
+    const url = `${API_BASE_URL}/api/quotations/getQuotations${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
+    const response = await fetch(url, { credentials: "include" });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
+    const result = await response.json();
+
+    const dataArray: QuotationSummary[] = Array.isArray(result?.data) ? result.data : [];
+
+    const currentPage = params?.page || 1;
+    const currentPageSize = params?.pageSize || 10;
+    const totalCount = result?.pagination?.totalCount ?? dataArray.length;
+    const totalPages = Math.ceil(totalCount / currentPageSize);
+
+    return {
+      data: dataArray,
+      pagination: {
+        totalCount,
+        totalPages,
+        currentPage,
+        pageSize: currentPageSize,
+        hasNext: currentPage < totalPages,
+        hasPrev: currentPage > 1,
       },
-      credentials: "include",
-      cache: "no-store",
-    });
-
-    if (!response.ok) {
-      let errorMessage = `HTTP error! status: ${response.status}`;
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.error || errorData.message || errorMessage;
-      } catch (parseError) {
-        console.error("❌ Cannot parse error response:", parseError);
-      }
-      throw new Error(errorMessage);
-    }
-
-    // Debug: Lihat response sebenarnya
-    const responseText = await response.text();
-    let result;
-    try {
-      result = JSON.parse(responseText);
-    } catch (parseError) {
-      console.error("❌ JSON parse error:", parseError);
-      throw new Error("Invalid JSON response from server");
-    }
-
-    // Handle response berdasarkan struktur sebenarnya
-    if (Array.isArray(result)) {
-      return {
-        data: result,
-        pagination: {
-          page: params?.page || 1,
-          limit: params?.limit || result.length,
-          total: result.length,
-          pages: Math.ceil(result.length / (params?.limit || result.length)),
-        },
-      };
-    } else if (result.data !== undefined) {
-      return {
-        data: result.data || [],
-        pagination: result.pagination || {
-          page: params?.page || 1,
-          limit: params?.limit || 10,
-          total: result.total || result.data?.length || 0,
-          pages:
-            result.pages ||
-            Math.ceil(
-              (result.total || result.data?.length || 0) / (params?.limit || 10)
-            ),
-        },
-      };
-    } else if (result.quotations !== undefined) {
-      return {
-        data: result.quotations || [],
-        pagination: result.pagination || {
-          page: params?.page || 1,
-          limit: params?.limit || 10,
-          total: result.total || result.quotations?.length || 0,
-          pages:
-            result.pages ||
-            Math.ceil(
-              (result.total || result.quotations?.length || 0) /
-                (params?.limit || 10)
-            ),
-        },
-      };
-    } else {
-      return {
-        data: result || [],
-        pagination: {
-          page: params?.page || 1,
-          limit: params?.limit || 10,
-          total: Array.isArray(result) ? result.length : 0,
-          pages: Math.ceil(
-            (Array.isArray(result) ? result.length : 0) / (params?.limit || 10)
-          ),
-        },
-      };
-    }
+    };
   } catch (error) {
     console.error("💥 getQuotations error:", error);
     throw error;
   }
 }
+
 
 // GET - Get quotation by ID
 export async function getQuotationById(

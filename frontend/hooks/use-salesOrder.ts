@@ -1,13 +1,33 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { fetchAllSalesOrder } from "@/lib/action/sales/salesOrder";
+import { fetchAllSalesOrder, fetchAllSalesOrderSPK } from "@/lib/action/sales/salesOrder";
+import { OrderStatusEnum } from "@/schemas/index";
+import z from "zod";
 
-export function useSalesOrder() {
+type OrderStatus = z.infer<typeof OrderStatusEnum>;
+
+// hooks/use-salesOrder.ts
+export const useSalesOrder = (
+  page: number,
+  pageSize: number,
+  searchTerm: string,
+  statusFilter: OrderStatus | "ALL", // Pastikan parameter ini ada
+  refreshTrigger: number
+) => {
   return useQuery({
-    queryKey: ["salesOrders"], // key unik untuk cache
-    queryFn: fetchAllSalesOrder,
-    staleTime: 1000 * 60 * 5, // cache 5 menit
-    retry: 1, // jika gagal, coba 1x
+    queryKey: ["salesOrders", page, pageSize, searchTerm, statusFilter, refreshTrigger],
+    queryFn: () => fetchAllSalesOrder(page, pageSize, searchTerm, statusFilter),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
-}
+};
+
+export const useSalesOrderData = () => {
+  return useQuery({
+    queryKey: ["salesOrdersAll"],
+    queryFn: () => fetchAllSalesOrderSPK(),
+    staleTime: 10 * 60 * 1000, // 10 menit
+    gcTime: 20 * 60 * 1000,    // 20 menit
+  });
+};

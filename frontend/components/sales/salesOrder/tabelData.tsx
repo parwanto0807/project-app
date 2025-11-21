@@ -1,38 +1,20 @@
 import * as React from "react"
 import { format } from "date-fns"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
-    FileTextIcon,
-    PlusCircleIcon,
-    SearchIcon,
-    ShoppingCartIcon,
-    UserCheck2Icon,
-    Edit,
-    MoreHorizontal,
-    Eye,
-    Trash2,
-    EyeIcon,
-    DownloadIcon,
-    EyeOff,
-    Loader2,
-    CalendarIcon,
-    TrendingUp,
-    TrendingDown,
     BarChart2,
-    ChevronDown,
-    Filter,
-    X,
-    ListFilter,
-    BarChart3,
     ChevronUp,
-    DollarSign,
-    ShoppingCart,
-    AlertTriangle,
-    AlertCircle,
-    CheckCircle,
-    CreditCard,
-    FileText,
-    PieChart,
-    Info,
+    Edit,
+    EyeIcon,
+    FileTextIcon,
+    MinusCircle,
+    MoreHorizontal,
+    Plus,
+    ShoppingCartIcon,
+    Trash2,
+    TrendingDown,
+    TrendingUp,
+    UserCheck2Icon,
 } from "lucide-react"
 import {
     ColumnDef,
@@ -44,12 +26,9 @@ import {
     getSortedRowModel,
     SortingState,
 } from "@tanstack/react-table"
-import { useRouter } from "next/navigation"
 
 import { type SalesOrder } from "@/lib/validations/sales-order"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
+import { Card, CardContent } from "@/components/ui/card"
 import {
     Table,
     TableBody,
@@ -58,51 +37,36 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
-    Pagination,
-    PaginationContent,
-    PaginationItem,
-    PaginationNext,
-    PaginationPrevious,
-} from "@/components/ui/pagination"
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+import SalesOrderPdfPreview, { SalesOrderFormData } from "./SalesOrderPdfPreview"
+import { mapFormToPdfData } from "./SalesOrderPDF";
+import { SalesOrderPDF } from "./SalesOrderPDF"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header"
-import Link from "next/link"
 import { FaToolbox } from "react-icons/fa"
-import { CheckCircle2, ReceiptText, MinusCircle } from "lucide-react"
+import { CheckCircle2, ReceiptText } from "lucide-react"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { cn } from "@/lib/utils"
-import SalesOrderPdfPreview, { SalesOrderFormData } from "./SalesOrderPdfPreview"
-import { mapFormToPdfData } from "./SalesOrderPDF";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { pdf } from "@react-pdf/renderer"
-import { SalesOrderPDF } from "./SalesOrderPDF"
 import { OrderStatusEnum } from "@/schemas/index";
 import * as z from "zod";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import Decimal from "decimal.js"
+import { Button } from "@/components/ui/button"
+import { pdf } from "@react-pdf/renderer"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { SalesOrderSummary } from "./salesOrderSummary"
 
-type DecimalType = InstanceType<typeof Decimal>;
 type OrderStatus = z.infer<typeof OrderStatusEnum>;
+
+function getBasePath(role?: string) {
+    const paths: Record<string, string> = {
+        super: "/super-admin-area/sales/salesOrder",
+        pic: "/pic-area/sales/salesOrder",
+        admin: "/admin-area/sales/salesOrder",
+    }
+    return paths[role ?? "admin"] || "/admin-area/sales/salesOrder"
+}
 
 const statusConfig: Record<OrderStatus, { label: string; className: string }> = {
     DRAFT: {
@@ -147,290 +111,74 @@ const statusConfig: Record<OrderStatus, { label: string; className: string }> = 
     },
 };
 
-
 interface SalesOrderTableProps {
     salesOrders: SalesOrder[]
     isLoading: boolean
+    onDeleteSuccess?: (orderId: string) => void;
     onDeleteOrder?: (id: string) => Promise<void> | void;
-    role: string
+    role: string;
+    highlightId: string | null;
 }
 
-// Helper component to render the expanded details of an order
-function SalesOrderDetail({ order, role }: { order: SalesOrder, role: string }) {
-    const total = order.items.reduce((sum, item) => {
-        const itemQty = new Decimal(item.qty.toString())
-        const itemPrice = new Decimal(item.unitPrice.toString())
-        return sum.plus(itemQty.times(itemPrice))
-    }, new Decimal(0))
+function mapToFormData(order: SalesOrder): SalesOrderFormData {
+    return {
+        soNumber: order.soNumber,
+        soDate: order.soDate ? new Date(order.soDate) : null,
+        customerId: order.customerId,
+        customerName: order.customer.name,
+        branch: order.customer.branch ?? undefined,
+        location: order.customer.address ?? undefined,
+        customerPIC: order.customer?.contactPerson ?? undefined,
+        projectId: order.projectId,
+        userId: order.userId,
+        type: order.type,
+        status: order.status,
+        currency: order.currency,
+        notes: order.notes,
+        isTaxInclusive: order.isTaxInclusive,
+        items: order.items.map(item => ({
+            itemType: item.itemType,
+            productId: item.productId ?? null,
+            name: item.name ?? "N/A",
+            description: item.description ?? null,
+            uom: item.uom ?? null,
+            qty: item.qty ?? 0,
+            unitPrice: item.unitPrice ?? 0,
+            discount: item.discount ?? 0,
+            taxRate: item.taxRate ?? 0,
+        })),
+        project: order.project,
+        customer: order.customer
+            ? { ...order.customer, branch: order.customer.branch ?? undefined }
+            : undefined,
+    };
+}
+export function useBodyScrollLock(locked: boolean) {
+    React.useEffect(() => {
+        const originalStyle = window.getComputedStyle(document.body).overflow;
 
-    const formatIDR = (n: number) =>
-        new Intl.NumberFormat("id-ID", {
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-        }).format(n)
+        if (locked) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = originalStyle;
+        }
 
-    return (
-        <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-slate-900 dark:to-slate-800 p-4 md:p-6 rounded-lg">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-6 mb-4 md:mb-6">
-                {/* Customer Details */}
-                <div className="space-y-2">
-                    <h4 className="font-semibold text-sm text-primary flex items-center gap-2">
-                        <UserCheck2Icon className="h-4 w-4" />
-                        <span className="hidden md:inline">Customer Details</span>
-                        <span className="md:hidden">Customer</span>
-                    </h4>
-                    <p className="text-sm font-medium">{order.customer.name}</p>
-                    <p className="text-xs md:text-sm text-muted-foreground text-wrap">
-                        {order.customer.address?.substring(0, 60) ?? "No address provided"}
-                        {order.customer.address && order.customer.address.length > 60 ? "..." : ""}
-                    </p>
-                </div>
-
-                {/* Order Info */}
-                <div className="space-y-2">
-                    <h4 className="font-semibold text-sm text-primary">
-                        <span className="hidden md:inline">Order Info</span>
-                        <span className="md:hidden">Info</span>
-                    </h4>
-                    <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="capitalize text-xs">
-                            {order.type.toLowerCase()}
-                        </Badge>
-                        {order.type === "SUPPORT" && (
-                            <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs">
-                                Support
-                            </Badge>
-                        )}
-                    </div>
-                    <p className="text-xs md:text-sm text-muted-foreground">
-                        {format(new Date(order.soDate), "dd MMM yyyy")}
-                    </p>
-                </div>
-
-                {/* Document Status */}
-                <div className="space-y-2">
-                    <h4 className="font-semibold text-sm text-primary">
-                        <span className="hidden md:inline">Document Status</span>
-                        <span className="md:hidden">Documents</span>
-                    </h4>
-                    {Array.isArray(order.documents) && order.documents.length > 0 ? (
-                        <ul className="space-y-1 text-xs md:text-sm">
-                            {renderDocumentStatus(order.documents)}
-                        </ul>
-                    ) : (
-                        <p className="text-xs md:text-sm text-muted-foreground">No documents yet</p>
-                    )}
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-4 md:mb-6">
-                {/* Financial Summary */}
-                {(role === "admin" || role === "super") && (
-                    <div className="bg-white dark:bg-slate-800 p-3 md:p-4 rounded-lg border">
-                        <h4 className="font-semibold text-sm text-primary mb-2 md:mb-3">
-                            <span className="hidden md:inline">Financial Summary</span>
-                            <span className="md:hidden">Financials</span>
-                        </h4>
-                        <div className="space-y-1 md:space-y-2">
-                            <div className="flex justify-between items-center">
-                                <span className="text-xs md:text-sm text-muted-foreground">Subtotal</span>
-                                <span className="text-xs md:text-sm font-medium">
-                                    Rp {formatIDR(total.toNumber())}
-                                </span>
-                            </div>
-                            <div className="flex justify-between items-center border-t pt-1 md:pt-2">
-                                <span className="text-xs md:text-sm font-semibold">Total</span>
-                                <span className="text-sm md:text-lg font-bold text-green-600">
-                                    Rp {formatIDR(total.toNumber())}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* Quick Actions */}
-                {(role === "admin" || role === "super") && (
-                    <div className="bg-white dark:bg-slate-800 p-3 md:p-4 rounded-lg border">
-                        <h4 className="font-semibold text-sm text-primary mb-2 md:mb-3">
-                            <span className="hidden md:inline">Quick Actions</span>
-                            <span className="md:hidden">Actions</span>
-                        </h4>
-                        <div className="flex flex-wrap gap-2">
-                            <Button variant="outline" size="sm" className="text-xs h-8">
-                                <FileTextIcon className="h-3 w-3 mr-1" />
-                                Docs
-                            </Button>
-                            <Button variant="outline" size="sm" className="text-xs h-8">
-                                <ReceiptText className="h-3 w-3 mr-1" />
-                                Invoice
-                            </Button>
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            {/* Order Items */}
-            <div>
-                <h4 className="font-semibold text-sm text-primary mb-2 md:mb-3 flex items-center gap-2">
-                    <ShoppingCartIcon className="h-4 w-4" />
-                    <span className="hidden md:inline">Order Items</span>
-                    <span className="md:hidden">Items</span>
-                </h4>
-                <div className="rounded-lg border bg-white dark:bg-slate-800 overflow-hidden">
-                    <div className="hidden md:block">
-                        <Table>
-                            <TableHeader className="bg-muted/50">
-                                <TableRow>
-                                    <TableHead className="font-semibold text-xs md:text-sm">Product/Service</TableHead>
-                                    <TableHead className="text-right font-semibold text-xs md:text-sm">Qty</TableHead>
-
-                                    {(role === "admin" || role === "super") && (
-                                        <>
-                                            <TableHead className="text-right font-semibold text-xs md:text-sm">Unit Price</TableHead>
-                                            <TableHead className="text-right font-semibold text-xs md:text-sm">Subtotal</TableHead>
-                                        </>
-                                    )}
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {order.items.map((item) => {
-                                    const itemQty = new Decimal(item.qty.toString())
-                                    const itemPrice = new Decimal(item.unitPrice.toString())
-                                    const subtotal = itemQty.times(itemPrice)
-
-                                    return (
-                                        <TableRow key={item.id} className="hover:bg-muted/30">
-                                            <TableCell className="py-2 md:py-3">
-                                                <p className="font-medium text-xs md:text-sm">{item.name}</p>
-                                                {item.description && (
-                                                    <p className="text-xs text-muted-foreground">
-                                                        {item.description.substring(0, 50)}{item.description.length > 50 ? "..." : ""}
-                                                    </p>
-                                                )}
-                                            </TableCell>
-                                            <TableCell className="text-right py-2 md:py-3">
-                                                {item.qty} {item.uom && <Badge variant="outline" className="ml-1 text-[10px]">{item.uom}</Badge>}
-                                            </TableCell>
-
-                                            {(role === "admin" || role === "super") && (
-                                                <>
-                                                    <TableCell className="text-right font-medium text-xs md:text-sm py-2 md:py-3">
-                                                        Rp {formatIDR(itemPrice.toNumber())}
-                                                    </TableCell>
-                                                    <TableCell className="text-right font-medium text-green-600 text-xs md:text-sm py-2 md:py-3">
-                                                        Rp {formatIDR(subtotal.toNumber())}
-                                                    </TableCell>
-                                                </>
-                                            )}
-                                        </TableRow>
-                                    )
-                                })}
-
-                                {(role === "admin" || role === "super") && (
-                                    <TableRow className="bg-muted/30">
-                                        <TableCell colSpan={3} className="text-right font-semibold text-xs md:text-sm py-2 md:py-3">
-                                            Total
-                                        </TableCell>
-                                        <TableCell className="text-right font-bold text-sm md:text-lg text-green-600 py-2 md:py-3">
-                                            Rp {formatIDR(total.toNumber())}
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
-
-                    {/* Mobile view for order items */}
-                    <div className="md:hidden p-3 space-y-3">
-                        {order.items.map((item) => {
-                            const itemQty = new Decimal(item.qty.toString())
-                            const itemPrice = new Decimal(item.unitPrice.toString())
-                            const subtotal = itemQty.times(itemPrice)
-
-                            return (
-                                <div key={item.id} className="border rounded-lg p-3 bg-white">
-                                    <div className="flex justify-between items-start mb-2">
-                                        <div className="flex-1">
-                                            <p className="font-medium text-sm">{item.name}</p>
-                                            {item.description && (
-                                                <p className="text-xs text-muted-foreground mt-1">
-                                                    {item.description.substring(0, 60)}
-                                                    {item.description.length > 60 ? "..." : ""}
-                                                </p>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-2 text-xs">
-                                        <div>
-                                            <span className="text-muted-foreground">Qty: </span>
-                                            <span className="font-medium">{item.qty}</span>
-                                            {item.uom && (
-                                                <Badge variant="outline" className="ml-1 text-[10px]">
-                                                    {item.uom}
-                                                </Badge>
-                                            )}
-                                        </div>
-                                        <div className="text-right">
-                                            <span className="text-muted-foreground">Price: </span>
-                                            <span className="font-medium">Rp {formatIDR(itemPrice.toNumber())}</span>
-                                        </div>
-                                        <div className="col-span-2 text-right border-t pt-1">
-                                            <span className="text-muted-foreground">Subtotal: </span>
-                                            <span className="font-medium text-green-600">Rp {formatIDR(subtotal.toNumber())}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            )
-                        })}
-                        <div className="border-t pt-3 text-right">
-                            <span className="font-semibold text-sm">Total: </span>
-                            <span className="font-bold text-lg text-green-600">Rp {formatIDR(total.toNumber())}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    )
+        return () => {
+            document.body.style.overflow = originalStyle;
+        };
+    }, [locked]);
 }
 
-// Helper function to render document status
-function renderDocumentStatus(documents: { docType: "QUOTATION" | "PO" | "BAP" | "INVOICE" | "PAYMENT_RECEIPT" }[]) {
-    const has = (type: "QUOTATION" | "PO" | "BAP" | "INVOICE" | "PAYMENT_RECEIPT") =>
-        Array.isArray(documents) && documents.some((d) => d.docType === type);
-
-    const DocumentRow = ({ ok, label }: { ok: boolean; label: string }) => (
-        <li className="flex items-center gap-2 py-1">
-            {ok ? (
-                <CheckCircle2 className="h-3 w-3 md:h-4 md:w-4 text-green-600" />
-            ) : (
-                <MinusCircle className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
-            )}
-            <span className={cn(
-                "text-xs md:text-sm",
-                ok ? "text-green-700 font-medium" : "text-muted-foreground"
-            )}>
-                {label}
-            </span>
-        </li>
-    );
-
-    return (
-        <>
-            <DocumentRow ok={has("QUOTATION")} label="Quotation" />
-            <DocumentRow ok={has("PO")} label="PO Received" />
-            <DocumentRow ok={has("BAP")} label="BAST" />
-            <DocumentRow ok={has("INVOICE")} label="Invoiced" />
-            <DocumentRow ok={has("PAYMENT_RECEIPT")} label="Paid" />
-        </>
-    );
-}
-
-// Komponen ActionsCell terpisah untuk menghindari masalah hook
 function ActionsCell({ order, onDeleteSuccess, role }: { order: SalesOrder; onDeleteSuccess: (orderId: string) => void; role: string }) {
     const router = useRouter()
     const isMobile = useMediaQuery("(max-width: 768px)")
     const [showDeleteDialog, setShowDeleteDialog] = React.useState(false)
     const [isDeleting, setIsDeleting] = React.useState(false)
+    const searchParams = useSearchParams();
+    const page = Number(searchParams.get("page")) || 1;
+    const highlightStatus = searchParams.get("status") || "";
+    const pageSize = searchParams.get("pageSize") || "";
+    const searchUrl = searchParams.get("search") || "";
 
     // Lock body scroll ketika dialog terbuka
     useBodyScrollLock(showDeleteDialog);
@@ -467,12 +215,28 @@ function ActionsCell({ order, onDeleteSuccess, role }: { order: SalesOrder; onDe
     }
 
     function handleEditOrder(e: React.MouseEvent) {
-        e.stopPropagation()
-        router.push(`${getBasePath(role)}/update/${order.id}`)
-    }
+        e.stopPropagation();
 
-    function handleViewDetails(e: React.MouseEvent) {
-        e.stopPropagation()
+        const basePath = getBasePath(role);
+        const currentPage = page || 1;
+
+        const highlightId = order.id;
+        const status = highlightStatus ?? undefined;
+        const itemPerPage = pageSize;
+        const search = searchUrl;
+        const returnUrl = `${basePath}?pageSize=${itemPerPage}&page=${currentPage}&highlightId=${highlightId}&status=${status}&search=${search}`;
+
+        const url = new URL(`${basePath}/update/${order.id}`, window.location.origin);
+
+        url.searchParams.set("returnUrl", returnUrl);
+        url.searchParams.set("highlightId", highlightId);
+        if (itemPerPage)
+            url.searchParams.set("pageSize", itemPerPage)
+        if (status) {
+            url.searchParams.set("status", status)
+        }
+
+        router.push(url.toString());
     }
 
     function handleDeleteClick(e: React.MouseEvent) {
@@ -505,13 +269,6 @@ function ActionsCell({ order, onDeleteSuccess, role }: { order: SalesOrder; onDe
                         </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-40" onClick={(e) => e.stopPropagation()}>
-                        <DropdownMenuItem
-                            className="cursor-pointer gap-2 text-xs"
-                            onClick={handleViewDetails}
-                        >
-                            <Eye className="h-3 w-3" />
-                            View Details
-                        </DropdownMenuItem>
                         <DropdownMenuItem
                             onClick={handleEditOrder}
                             disabled={[
@@ -665,361 +422,7 @@ function ActionsCell({ order, onDeleteSuccess, role }: { order: SalesOrder; onDe
     )
 }
 
-// Mobile Card View
-function MobileSalesOrderCard({
-    order,
-    onExpand,
-    onDeleteSuccess,
-    role,
-    hasSPK = false
-}: {
-    order: SalesOrder;
-    onExpand: () => void;
-    onDeleteSuccess: (orderId: string) => void;
-    role: string;
-    hasSPK?: boolean; // Tambahkan prop ini
-}) {
-    const [showDeleteDialog, setShowDeleteDialog] = React.useState(false)
-    const [isDeleting, setIsDeleting] = React.useState(false)
-    const router = useRouter()
-    const pdfActions = usePdfActions();
-    const [isExpanded, setisExpanded] = React.useState(false);
-    const [isLoading, setIsLoading] = React.useState(false);
-    const status = (order?.status ?? "DRAFT") as OrderStatus;
-    const config = statusConfig[status] || statusConfig.DRAFT;
 
-    const handleClick = async () => {
-        setIsLoading(true);
-        try {
-            await pdfActions.handleDownloadPdf(order); // Pastikan ini async/returns Promise
-        } catch (error) {
-            console.error('Download failed:', error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const toggleExpand = () => {
-        setisExpanded(prev => !prev)
-    }
-
-    const total = order.items.reduce((sum, item) => {
-        const itemQty = new Decimal(item.qty ?? 0)
-        const itemPrice = new Decimal(item.unitPrice ?? 0)
-        return sum.plus(itemQty.times(itemPrice))
-    }, new Decimal(0))
-
-    const formattedTotal = new Intl.NumberFormat("id-ID", {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-    }).format(total.toNumber())
-
-    useBodyScrollLock(showDeleteDialog);
-
-    const handleDeleteOrder = async () => {
-        setIsDeleting(true)
-        try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/salesOrder/sales-orders/remove/${order.id}`, {
-                method: "DELETE",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-            })
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`)
-            }
-
-            setShowDeleteDialog(false)
-
-            // Panggil callback untuk update state lokal
-            onDeleteSuccess(order.id)
-
-            // Optional: refresh data dari server setelah 500ms
-            setTimeout(() => {
-                router.refresh()
-            }, 500)
-
-        } catch (error) {
-            console.error("Error deleting order:", error)
-            setShowDeleteDialog(false)
-        } finally {
-            setIsDeleting(false)
-        }
-    }
-
-    const isDeleteDisabled = [
-        "INVOICED",
-        "PAID",
-        "PARTIALLY_INVOICED",
-        "PARTIALLY_PAID",
-        "IN_PROGRESS_SPK",
-        "FULFILLED"
-    ].includes(order.status);
-
-    const handleDeleteClick = (e: React.MouseEvent) => {
-        e.stopPropagation()
-        e.preventDefault()
-
-        // Cek kondisi disabled
-        if (isDeleteDisabled) {
-            return;
-        }
-
-        setShowDeleteDialog(true)
-    }
-    function handleEditOrder(e: React.MouseEvent) {
-        e.stopPropagation()
-        router.push(`${getBasePath(role)}/update/${order.id}`)
-    }
-
-    function cancelDelete(e: React.MouseEvent) {
-        e.stopPropagation()
-        setShowDeleteDialog(false)
-    }
-
-    return (
-        <>
-            <div className="border rounded-lg p-2 mb-1 bg-white dark:bg-slate-800 shadow-sm">
-                <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/50">
-                            <FileTextIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        <div>
-                            <p className="font-semibold text-[11px]">{order.soNumber}</p>
-                            <p className="text-[11px] text-muted-foreground">
-                                {format(new Date(order.soDate), "dd MMM yyyy")}
-                            </p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                        <Badge className={cn("text-xs rounded-md px-2 py-0.5", config.className)}>
-                            {config.label}
-                        </Badge>
-                    </div>
-                </div>
-
-                <div className="space-y-2 mb-3">
-                    <div className="flex items-center gap-2">
-                        <FaToolbox className="h-4 w-4 text-red-500" />
-                        <span className="text-xs font-medium">{order.project?.name || "No Project"}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <UserCheck2Icon className="h-4 w-4 text-purple-500" />
-                        {/* <span className="text-xs">{order.customer.name}</span>  */}
-                        <span className="text-xs font-bold">{order.customer.branch}</span>
-                    </div>
-                </div>
-
-                {/* Indikator SPK */}
-                {/* {hasSPK && (
-                    <div className="mb-3">
-                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
-                            <CheckCircle2 className="h-3 w-3 mr-1" />
-                            SPK Sudah Dibuat
-                        </Badge>
-                    </div>
-                )} */}
-
-                <div className="flex flex-row-reverse items-center justify-between border-t pt-3">
-                    {/* Total Amount hanya untuk admin/super */}
-                    {(role === "admin" || role === "super") && (
-                        <div className="flex flex-row gap-4 mb-2">
-                            <p className="text-xs text-muted-foreground mt-1">Total Amount</p>
-                            <p className="font-semibold text-green-600">Rp {formattedTotal}</p>
-                        </div>
-                    )}
-                </div>
-
-                <div className="flex items-center justify-end gap-2 border-t pt-3 dark:border-gray-700">
-                    <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => router.push(`/admin-area/sales/quotation/create/${order.id}`)}
-                        className="cursor-pointer hover:bg-cyan-700 dark:hover:text-white"
-                    >
-                        PH
-                    </Button>
-
-                    {/* Button SPK dengan kondisi disabled jika sudah ada SPK */}
-                    <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => router.push(`/admin-area/logistic/spk/create/${order.id}`)}
-                        disabled={hasSPK}
-                        className={`cursor-pointer ${hasSPK
-                            ? "bg-gray-400 cursor-not-allowed"
-                            : "hover:bg-cyan-700 dark:hover:text-white"
-                            }`}
-                    >
-                        {hasSPK ? "SPK ✓" : "SPK"}
-                    </Button>
-
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => {
-                            e.stopPropagation()
-                            onExpand()
-                            toggleExpand()
-                        }}
-                        className="text-xs h-8 flex items-center gap-1.5 transition-all duration-300 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 dark:hover:from-gray-700 dark:hover:to-gray-600 hover:text-gray-900 dark:hover:text-white hover:border-gray-400 dark:hover:border-gray-500 shadow-sm hover:shadow-lg hover:scale-105"
-                    >
-                        {isExpanded ? (
-                            <>
-                                <EyeOff className="h-3 w-3" />
-                            </>
-                        ) : (
-                            <>
-                                <Eye className="h-3 w-3" />
-                            </>
-                        )}
-                    </Button>
-
-                    {(role === "admin" || role === "super") && (
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleClick}
-                            disabled={isLoading}
-                            className="h-8 flex items-center gap-1.5 transition-all duration-300 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/30 dark:hover:to-indigo-900/30 hover:shadow-md rounded-md px-3 border border-gray-300 hover:border-blue-200 dark:hover:border-blue-800"
-                        >
-                            {isLoading ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                                <>
-                                    <DownloadIcon className="h-4 w-4" />
-                                </>
-                            )}
-                        </Button>
-                    )}
-
-                    {/* DELETE BUTTON */}
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleDeleteClick}
-                        disabled={isDeleteDisabled}
-                        className={`text-xs h-8 flex items-center gap-1 transition-all duration-200
-        ${isDeleteDisabled
-                                ? "border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed"
-                                : "border-red-200 text-red-600 bg-white hover:bg-red-500 dark:hover:bg-red-500 hover:text-white hover:border-red-500 shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
-                            }`}
-                    >
-                        <Trash2 className="h-3 w-3" />
-                    </Button>
-
-                    {/* EDIT BUTTON */}
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleEditOrder}
-                        disabled={[
-                            "INVOICED",
-                            "PAID",
-                            "PARTIALLY_INVOICED",
-                            "PARTIALLY_PAID",
-                        ].includes(order.status)}
-                        className={`text-xs h-8 flex items-center gap-1 transition-all duration-200
-    ${[
-                                "INVOICED",
-                                "PAID",
-                                "PARTIALLY_INVOICED",
-                                "PARTIALLY_PAID",
-                            ].includes(order.status)
-                                ? "border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed"
-                                : "border-blue-200 text-blue-600 bg-white hover:bg-gradient-to-r hover:from-blue-500 hover:to-blue-600 hover:text-white hover:border-blue-500 shadow-sm hover:shadow-md transform hover:-translate-y-0.5"
-                            }`}
-                    >
-                        <Edit className="h-3 w-3" />
-                    </Button>
-                </div>
-            </div>
-
-            {showDeleteDialog && (
-                <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center">
-                    <div className="bg-white dark:bg-slate-900 rounded-lg border p-6 w-11/12 max-w-md">
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-semibold">Delete Sales Order</h3>
-                            <p className="text-muted-foreground text-wrap">
-                                Are you sure you want to delete sales order{" "}
-                                <span className="font-semibold">{order.soNumber}</span>?
-                                This action cannot be undone.
-                            </p>
-                            <div className="flex justify-end space-x-3">
-                                <Button
-                                    variant="outline"
-                                    onClick={cancelDelete}
-                                    disabled={isDeleting}
-                                >
-                                    Cancel
-                                </Button>
-                                <Button
-                                    variant="destructive"
-                                    onClick={handleDeleteOrder}
-                                    disabled={isDeleting}
-                                >
-                                    {isDeleting ? "Deleting..." : "Delete"}
-                                </Button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-        </>
-    )
-}
-
-// Tambahkan di atas komponen SalesOrderTable
-const useBodyScrollLock = (isLocked: boolean) => {
-    React.useEffect(() => {
-        if (isLocked) {
-            const originalStyle = window.getComputedStyle(document.body).overflow;
-            document.body.style.overflow = 'hidden';
-            return () => {
-                document.body.style.overflow = originalStyle;
-            };
-        }
-    }, [isLocked]);
-};
-
-
-function mapToFormData(order: SalesOrder): SalesOrderFormData {
-    return {
-        soNumber: order.soNumber,
-        soDate: order.soDate ? new Date(order.soDate) : null,
-        customerId: order.customerId,
-        customerName: order.customer.name,
-        branch: order.customer.branch ?? undefined,
-        location: order.customer.address ?? undefined,
-        customerPIC: order.customer?.contactPerson ?? undefined,
-        projectId: order.projectId,
-        userId: order.userId,
-        type: order.type,
-        status: order.status,
-        currency: order.currency,
-        notes: order.notes,
-        isTaxInclusive: order.isTaxInclusive,
-        items: order.items.map(item => ({
-            itemType: item.itemType,
-            productId: item.productId ?? null,
-            name: item.name ?? "N/A",
-            description: item.description ?? null,
-            uom: item.uom ?? null,
-            qty: item.qty ?? 0,
-            unitPrice: item.unitPrice ?? 0,
-            discount: item.discount ?? 0,
-            taxRate: item.taxRate ?? 0,
-        })),
-        project: order.project,
-        customer: order.customer
-            ? { ...order.customer, branch: order.customer.branch ?? undefined }
-            : undefined,
-    };
-}
-
-// Custom hook for PDF actions
 function usePdfActions() {
     const [pdfDialogOpen, setPdfDialogOpen] = React.useState(false);
     const [selectedOrder, setSelectedOrder] = React.useState<SalesOrderFormData | null>(null);
@@ -1057,170 +460,476 @@ function usePdfActions() {
     };
 }
 
-function getBasePath(role?: string) {
-    const paths: Record<string, string> = {
-        super: "/super-admin-area/sales/salesOrder",
-        pic: "/pic-area/sales/salesOrder",
-        admin: "/admin-area/sales/salesOrder",
-    }
-    return paths[role ?? "admin"] || "/admin-area/sales/salesOrder"
+// Helper function untuk document status
+function renderDocumentStatus(documents: { docType: "QUOTATION" | "PO" | "BAP" | "INVOICE" | "PAYMENT_RECEIPT" }[]) {
+    const has = (type: "QUOTATION" | "PO" | "BAP" | "INVOICE" | "PAYMENT_RECEIPT") =>
+        Array.isArray(documents) && documents.some((d) => d.docType === type);
+
+    const DocumentRow = ({ ok, label }: { ok: boolean; label: string }) => (
+        <li className="flex items-center gap-2 py-1">
+            {ok ? (
+                <CheckCircle2 className="h-3 w-3 md:h-4 md:w-4 text-green-600" />
+            ) : (
+                <MinusCircle className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
+            )}
+            <span className={cn(
+                "text-xs md:text-sm",
+                ok ? "text-green-700 font-medium" : "text-muted-foreground"
+            )}>
+                {label}
+            </span>
+        </li>
+    );
+
+    return (
+        <>
+            <DocumentRow ok={has("QUOTATION")} label="Quotation" />
+            <DocumentRow ok={has("PO")} label="PO Received" />
+            <DocumentRow ok={has("BAP")} label="BAST" />
+            <DocumentRow ok={has("INVOICE")} label="Invoiced" />
+            <DocumentRow ok={has("PAYMENT_RECEIPT")} label="Paid" />
+        </>
+    );
+}
+
+// Helper component untuk detail order
+function SalesOrderDetail({ order, role }: { order: SalesOrder, role: string }) {
+    const total = order.items.reduce((sum, item) => {
+        const itemQty = new Decimal(item.qty.toString())
+        const itemPrice = new Decimal(item.unitPrice.toString())
+        return sum.plus(itemQty.times(itemPrice))
+    }, new Decimal(0))
+
+    const formatIDR = (n: number) =>
+        new Intl.NumberFormat("id-ID", {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+        }).format(n)
+
+    const isAdminOrSuper = role === "admin" || role === "super";
+
+    return (
+        <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-slate-900 dark:to-slate-800 p-4 md:p-6 rounded-lg">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-6 mb-4 md:mb-6">
+                {/* Customer Details */}
+                <div className="space-y-2">
+                    <h4 className="font-semibold text-sm text-primary flex items-center gap-2">
+                        <UserCheck2Icon className="h-4 w-4" />
+                        <span className="hidden md:inline">Customer Details</span>
+                        <span className="md:hidden">Customer</span>
+                    </h4>
+                    <p className="text-sm font-medium">{order.customer.name}</p>
+                    <p className="text-xs md:text-sm text-muted-foreground text-wrap">
+                        {order.customer.address?.substring(0, 60) ?? "No address provided"}
+                        {order.customer.address && order.customer.address.length > 60 ? "..." : ""}
+                    </p>
+                </div>
+
+                {/* Order Info */}
+                <div className="space-y-2">
+                    <h4 className="font-semibold text-sm text-primary">
+                        <span className="hidden md:inline">Order Info</span>
+                        <span className="md:hidden">Info</span>
+                    </h4>
+                    <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="capitalize text-xs">
+                            {order.type.toLowerCase()}
+                        </Badge>
+                        {order.type === "SUPPORT" && (
+                            <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs">
+                                Support
+                            </Badge>
+                        )}
+                    </div>
+                    <p className="text-xs md:text-sm text-muted-foreground">
+                        {format(new Date(order.soDate), "dd MMM yyyy")}
+                    </p>
+                </div>
+
+                {/* Document Status */}
+                <div className="space-y-2">
+                    <h4 className="font-semibold text-sm text-primary">
+                        <span className="hidden md:inline">Document Status</span>
+                        <span className="md:hidden">Documents</span>
+                    </h4>
+                    {Array.isArray(order.documents) && order.documents.length > 0 ? (
+                        <ul className="space-y-1 text-xs md:text-sm">
+                            {renderDocumentStatus(order.documents)}
+                        </ul>
+                    ) : (
+                        <p className="text-xs md:text-sm text-muted-foreground">No documents yet</p>
+                    )}
+                </div>
+            </div>
+
+            {isAdminOrSuper && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-4 md:mb-6">
+                    {/* Financial Summary */}
+                    <div className="bg-white dark:bg-slate-800 p-3 md:p-4 rounded-lg border">
+                        <h4 className="font-semibold text-sm text-primary mb-2 md:mb-3">
+                            <span className="hidden md:inline">Financial Summary</span>
+                            <span className="md:hidden">Financials</span>
+                        </h4>
+                        <div className="space-y-1 md:space-y-2">
+                            <div className="flex justify-between items-center">
+                                <span className="text-xs md:text-sm text-muted-foreground">Subtotal</span>
+                                <span className="text-xs md:text-sm font-medium">
+                                    Rp {formatIDR(total.toNumber())}
+                                </span>
+                            </div>
+                            <div className="flex justify-between items-center border-t pt-1 md:pt-2">
+                                <span className="text-xs md:text-sm font-semibold">Total</span>
+                                <span className="text-sm md:text-lg font-bold text-green-600">
+                                    Rp {formatIDR(total.toNumber())}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Quick Actions */}
+                    <div className="bg-white dark:bg-slate-800 p-3 md:p-4 rounded-lg border">
+                        <h4 className="font-semibold text-sm text-primary mb-2 md:mb-3">
+                            <span className="hidden md:inline">Quick Actions</span>
+                            <span className="md:hidden">Actions</span>
+                        </h4>
+                        <div className="flex flex-wrap gap-2">
+                            <Button variant="outline" size="sm" className="text-xs h-8">
+                                <FileTextIcon className="h-3 w-3 mr-1" />
+                                Docs
+                            </Button>
+                            <Button variant="outline" size="sm" className="text-xs h-8">
+                                <ReceiptText className="h-3 w-3 mr-1" />
+                                Invoice
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Order Items */}
+            <div>
+                <h4 className="font-semibold text-sm text-primary mb-2 md:mb-3 flex items-center gap-2">
+                    <ShoppingCartIcon className="h-4 w-4" />
+                    <span className="hidden md:inline">Order Items</span>
+                    <span className="md:hidden">Items</span>
+                </h4>
+                <div className="rounded-lg border bg-white dark:bg-slate-800 overflow-hidden">
+                    <div className="hidden md:block">
+                        <Table>
+                            <TableHeader className="bg-muted/50">
+                                <TableRow>
+                                    <TableHead className="font-semibold text-xs md:text-sm">Product/Service</TableHead>
+                                    <TableHead className="text-right font-semibold text-xs md:text-sm">Qty</TableHead>
+
+                                    {isAdminOrSuper && (
+                                        <>
+                                            <TableHead className="text-right font-semibold text-xs md:text-sm">Unit Price</TableHead>
+                                            <TableHead className="text-right font-semibold text-xs md:text-sm">Subtotal</TableHead>
+                                        </>
+                                    )}
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {order.items.map((item) => {
+                                    const itemQty = new Decimal(item.qty.toString())
+                                    const itemPrice = new Decimal(item.unitPrice.toString())
+                                    const subtotal = itemQty.times(itemPrice)
+
+                                    return (
+                                        <TableRow key={item.id} className="hover:bg-muted/30">
+                                            <TableCell className="py-2 md:py-3">
+                                                <p className="font-medium text-xs md:text-sm">{item.name}</p>
+                                                {item.description && (
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {item.description.substring(0, 50)}{item.description.length > 50 ? "..." : ""}
+                                                    </p>
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="text-right py-2 md:py-3">
+                                                {item.qty} {item.uom && <Badge variant="outline" className="ml-1 text-[10px]">{item.uom}</Badge>}
+                                            </TableCell>
+
+                                            {isAdminOrSuper && (
+                                                <>
+                                                    <TableCell className="text-right font-medium text-xs md:text-sm py-2 md:py-3">
+                                                        Rp {formatIDR(itemPrice.toNumber())}
+                                                    </TableCell>
+                                                    <TableCell className="text-right font-medium text-green-600 text-xs md:text-sm py-2 md:py-3">
+                                                        Rp {formatIDR(subtotal.toNumber())}
+                                                    </TableCell>
+                                                </>
+                                            )}
+                                        </TableRow>
+                                    )
+                                })}
+
+                                {isAdminOrSuper && (
+                                    <TableRow className="bg-muted/30">
+                                        <TableCell colSpan={3} className="text-right font-semibold text-xs md:text-sm py-2 md:py-3">
+                                            Total
+                                        </TableCell>
+                                        <TableCell className="text-right font-bold text-sm md:text-lg text-green-600 py-2 md:py-3">
+                                            Rp {formatIDR(total.toNumber())}
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+
+                    {/* Mobile view for order items */}
+                    <div className="md:hidden py-3 space-y-3">
+                        {order.items.map((item) => {
+                            const itemQty = new Decimal(item.qty.toString())
+                            const itemPrice = new Decimal(item.unitPrice.toString())
+                            const subtotal = itemQty.times(itemPrice)
+
+                            return (
+                                <div key={item.id} className="border rounded-lg p-3 bg-white">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div className="flex-1">
+                                            <p className="font-medium text-sm">{item.name}</p>
+                                            {item.description && (
+                                                <p className="text-xs text-muted-foreground mt-1">
+                                                    {item.description.substring(0, 60)}
+                                                    {item.description.length > 60 ? "..." : ""}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2 text-xs">
+                                        <div>
+                                            <span className="text-muted-foreground">Qty: </span>
+                                            <span className="font-medium">{item.qty}</span>
+                                            {item.uom && (
+                                                <Badge variant="outline" className="ml-1 text-[10px]">
+                                                    {item.uom}
+                                                </Badge>
+                                            )}
+                                        </div>
+                                        {isAdminOrSuper && (
+                                            <div className="text-right">
+                                                <span className="text-muted-foreground">Price: </span>
+                                                <span className="font-medium">Rp {formatIDR(itemPrice.toNumber())}</span>
+                                            </div>
+                                        )}
+                                        {isAdminOrSuper && (
+                                            <div className="col-span-2 text-right border-t pt-1">
+                                                <span className="text-muted-foreground">Subtotal: </span>
+                                                <span className="font-medium text-green-600">Rp {formatIDR(subtotal.toNumber())}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )
+                        })}
+                        {isAdminOrSuper && (
+                            <div className="border-t pt-3 text-right">
+                                <span className="font-semibold text-sm">Total: </span>
+                                <span className="font-bold text-lg text-green-600">Rp {formatIDR(total.toNumber())}</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
 }
 
 
-export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, onDeleteOrder, role }: SalesOrderTableProps) {
-    const [searchTerm, setSearchTerm] = React.useState("")
-    const [currentPage, setCurrentPage] = React.useState(1)
+export function SalesOrderTable({
+    salesOrders: initialSalesOrders,
+    isLoading,
+    onDeleteSuccess,
+    role,
+    highlightId,
+}: SalesOrderTableProps) {
     const [sorting, setSorting] = React.useState<SortingState>([])
-    const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false)
-    const [orderToDelete, setOrderToDelete] = React.useState<string | null>(null)
-    const [itemsPerPage, setItemsPerPage] = React.useState(50)
     const [expanded, setExpanded] = React.useState<ExpandedState>({})
-    const [summaryExpanded, setSummaryExpanded] = React.useState(true)
     const isMobile = useMediaQuery("(max-width: 768px)")
+    const rowRefs = React.useRef<{ [key: string]: HTMLTableRowElement | null }>({});
     const [salesOrders, setSalesOrders] = React.useState<SalesOrder[]>(initialSalesOrders)
-    const handleDelete = onDeleteOrder ?? (() => { })
     const pdfActions = usePdfActions()
-    const basePath = getBasePath(role)
-    const router = useRouter()
-    const [statusFilter, setStatusFilter] = React.useState<OrderStatus | "ALL">("ALL")
-    const hasActiveFilters = searchTerm || statusFilter !== "ALL"
+    const router = useRouter();
+    const [summaryExpanded, setSummaryExpanded] = React.useState(false);
+    const [expandedItems, setExpandedItems] = React.useState<{ [key: string]: boolean }>({});
+    const [summaryTotals, setSummaryTotals] = React.useState({
+        totalSales: new Decimal(0),
+        totalPR: new Decimal(0),
+        totalUangMuka: new Decimal(0),
+        totalLPP: new Decimal(0),
+        profit: new Decimal(0),
+        profitMargin: 0,
+        totalOrders: 0,
+        validOrdersCount: 0
+    });
 
-    // Update local state when prop changes
-    React.useEffect(() => {
-        setSalesOrders(initialSalesOrders)
-    }, [initialSalesOrders])
 
-    const filteredSalesOrders = React.useMemo(() => {
-        return salesOrders.filter((order) => {
-            const matchesSearch =
-                order.soNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                order.project?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                order.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                order.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                order.customer.branch?.toLowerCase().includes(searchTerm.toLowerCase())
+    const toggleItemsExpanded = (orderId: string) => {
+        setExpandedItems(prev => ({
+            ...prev,
+            [orderId]: !prev[orderId]
+        }));
+    };
 
-            const matchesStatus = statusFilter === "ALL" || order.status === statusFilter
-
-            return matchesSearch && matchesStatus
-        })
-    }, [salesOrders, searchTerm, statusFilter])
-
-    // Calculate summary totals
-    const summaryTotals = React.useMemo(() => {
-        // Gunakan filteredSalesOrders yang sudah difilter berdasarkan search term dan status
-        // Filter tambahan untuk mengecualikan DRAFT dan CANCELLED
-        const validOrders = filteredSalesOrders.filter(order =>
-            order.status !== "DRAFT" && order.status !== "CANCELLED"
+    // Function untuk menghitung summary totals
+    const calculateSummaryTotals = React.useCallback((orders: SalesOrder[]) => {
+        const validOrders = orders.filter(order =>
+            order.status !== 'DRAFT' && order.status !== 'CANCELLED'
         );
 
+        // Hitung total sales dari items
         const totalSales = validOrders.reduce((sum, order) => {
             const orderTotal = order.items.reduce((orderSum, item) => {
-                const itemQty = new Decimal(item.qty ?? 0)
-                const itemPrice = new Decimal(item.unitPrice ?? 0)
-                return orderSum.plus(itemQty.times(itemPrice))
-            }, new Decimal(0))
-            return sum.plus(orderTotal)
-        }, new Decimal(0))
+                const itemQty = new Decimal(item.qty ?? 0);
+                const itemPrice = new Decimal(item.unitPrice ?? 0);
+                return orderSum.plus(itemQty.times(itemPrice));
+            }, new Decimal(0));
+            return sum.plus(orderTotal);
+        }, new Decimal(0));
 
+        // Hitung total PR dari semua SPK
         const totalPR = validOrders.reduce((sum, order) => {
-            const allDetails = order.spk?.flatMap(spk =>
-                spk.purchaseRequest?.flatMap(pr => pr.details ?? []) ?? []
-            ) ?? []
+            const orderPR = order.spk?.reduce((spkSum, spk) => {
+                const spkPR = spk.purchaseRequest?.reduce((prSum, pr) => {
+                    const prTotal = pr.details?.reduce((detailSum, detail) => {
+                        return detailSum.plus(new Decimal(detail.estimasiTotalHarga ?? 0));
+                    }, new Decimal(0)) ?? new Decimal(0);
+                    return prSum.plus(prTotal);
+                }, new Decimal(0)) ?? new Decimal(0);
+                return spkSum.plus(spkPR);
+            }, new Decimal(0)) ?? new Decimal(0);
+            return sum.plus(orderPR);
+        }, new Decimal(0));
 
-            const orderPR = allDetails.reduce((prSum, detail) => {
-                const detailJumlah = new Decimal(detail.estimasiTotalHarga ?? 0)
-                return prSum.plus(detailJumlah)
-            }, new Decimal(0))
-
-            return sum.plus(orderPR)
-        }, new Decimal(0))
-
+        // Hitung total uang muka
         const totalUangMuka = validOrders.reduce((sum, order) => {
-            const allUangMuka = order.spk?.flatMap(spk =>
-                spk.purchaseRequest?.flatMap(pr => pr.uangMuka ?? []) ?? []
-            ) ?? []
+            const orderUM = order.spk?.reduce((spkSum, spk) => {
+                const spkUM = spk.purchaseRequest?.reduce((prSum, pr) => {
+                    const prUM = pr.uangMuka?.reduce((umSum, um) => {
+                        return umSum.plus(new Decimal(um.jumlah ?? 0));
+                    }, new Decimal(0)) ?? new Decimal(0);
+                    return prSum.plus(prUM);
+                }, new Decimal(0)) ?? new Decimal(0);
+                return spkSum.plus(spkUM);
+            }, new Decimal(0)) ?? new Decimal(0);
+            return sum.plus(orderUM);
+        }, new Decimal(0));
 
-            const orderUM = allUangMuka.reduce((umSum, um) => {
-                return umSum.plus(new Decimal(um.jumlah ?? 0))
-            }, new Decimal(0))
-
-            return sum.plus(orderUM)
-        }, new Decimal(0))
-
+        // Hitung total LPP (realisasi biaya)
         const totalLPP = validOrders.reduce((sum, order) => {
-            const allPJ = order.spk?.flatMap(spk =>
-                spk.purchaseRequest?.flatMap(pr =>
-                    pr.uangMuka?.flatMap(um => um.pertanggungjawaban ?? []) ?? []
-                ) ?? []
-            ) ?? []
+            const orderLPP = order.spk?.reduce((spkSum, spk) => {
+                const spkLPP = spk.purchaseRequest?.reduce((prSum, pr) => {
+                    const prLPP = pr.uangMuka?.reduce((umSum, um) => {
+                        const umLPP = um.pertanggungjawaban?.reduce((pjSum, pj) => {
+                            return pjSum.plus(new Decimal(pj.totalBiaya ?? 0));
+                        }, new Decimal(0)) ?? new Decimal(0);
+                        return umSum.plus(umLPP);
+                    }, new Decimal(0)) ?? new Decimal(0);
+                    return prSum.plus(prLPP);
+                }, new Decimal(0)) ?? new Decimal(0);
+                return spkSum.plus(spkLPP);
+            }, new Decimal(0)) ?? new Decimal(0);
+            return sum.plus(orderLPP);
+        }, new Decimal(0));
 
-            const orderLPP = allPJ.reduce((lppSum, pj) => {
-                return lppSum.plus(new Decimal(pj.totalBiaya ?? 0))
-            }, new Decimal(0))
+        const profit = totalSales.minus(totalLPP);
+        const profitMargin = totalSales.isZero() ? 0 : profit.div(totalSales).times(100).toNumber();
 
-            return sum.plus(orderLPP)
-        }, new Decimal(0))
-
-        // Calculate profit margin
-        const profit = totalSales.minus(totalLPP)
-        const profitMargin = totalSales.isZero() ? new Decimal(0) : profit.div(totalSales).times(100)
-
-        return {
+        setSummaryTotals({
             totalSales,
             totalPR,
             totalUangMuka,
             totalLPP,
             profit,
             profitMargin,
-            totalOrders: salesOrders.length,
-            filteredOrders: filteredSalesOrders.length,
-            validOrdersCount: validOrders.length,
-            hasActiveFilters: hasActiveFilters // Tambahkan info tentang filter aktif
+            totalOrders: orders.length,
+            validOrdersCount: validOrders.length
+        });
+    }, []);
+
+    // Update salesOrders ketika initialSalesOrders berubah
+    React.useEffect(() => {
+        setSalesOrders(initialSalesOrders);
+    }, [initialSalesOrders]);
+
+    // Hitung summary totals ketika salesOrders berubah
+    React.useEffect(() => {
+        if (salesOrders.length > 0) {
+            calculateSummaryTotals(salesOrders);
         }
-    }, [salesOrders, filteredSalesOrders, hasActiveFilters]) // Tambahkan hasActiveFilters ke dependency
+    }, [salesOrders, calculateSummaryTotals]);
 
-    // Format currency helper
-    const formatCurrency = (amount: DecimalType) => {
-        return new Intl.NumberFormat("id-ID", {
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-        }).format(amount.toNumber())
-    }
+    // Highlight effect
+    React.useEffect(() => {
+        if (!highlightId) return;
 
-    // Get color based on value comparison
-    const getAmountColor = (value: DecimalType, compareTo: DecimalType) => {
-        if (compareTo.isZero()) return "text-gray-600"
-        if (value.gt(compareTo)) return "text-red-600"
-        if (value.div(compareTo).gte(0.8)) return "text-yellow-600"
-        return "text-green-600"
-    }
+        const highlightElement = rowRefs.current[highlightId];
+        if (!highlightElement) return;
+
+        const SCROLL_DELAY = 300;
+        const HIGHLIGHT_DURATION = 5000;
+        const ANIMATION_CLASSES = [
+            "bg-yellow-200",
+            "dark:bg-yellow-900",
+            "animate-pulse",
+            "ring-2",
+            "ring-yellow-400",
+            "ring-offset-2",
+            "transition-all",
+            "duration-500"
+        ];
+
+        // Delay kecil supaya DOM siap
+        const scrollTimer = setTimeout(() => {
+            highlightElement.scrollIntoView({
+                behavior: "smooth",
+                block: "center",
+                inline: "nearest"
+            });
+        }, SCROLL_DELAY);
+
+        // Tambahkan highlight animasi
+        highlightElement.classList.add(...ANIMATION_CLASSES);
+
+        // Hapus highlight + bersihkan URL
+        const cleanupTimer = setTimeout(() => {
+            highlightElement.classList.remove(...ANIMATION_CLASSES);
+
+            // Tambahkan sedikit smoothing setelah animasi
+            highlightElement.classList.add("transition-colors", "duration-300");
+
+            // Hapus highlightId dari URL tanpa reload
+            const params = new URLSearchParams(window.location.search);
+            params.delete("highlightId");
+            const newUrl = params.toString()
+                ? `${window.location.pathname}?${params.toString()}`
+                : window.location.pathname;
+
+            window.history.replaceState({}, "", newUrl);
+
+        }, HIGHLIGHT_DURATION);
+
+        return () => {
+            clearTimeout(scrollTimer);
+            clearTimeout(cleanupTimer);
+            highlightElement.classList.remove(...ANIMATION_CLASSES);
+        };
+    }, [highlightId]);
+
     const handleDeleteSuccess = React.useCallback((deletedOrderId: string) => {
         setSalesOrders(prevOrders => {
             const newOrders = prevOrders.filter(order => order.id !== deletedOrderId)
             return newOrders
         })
 
-        if (onDeleteOrder) {
-            onDeleteOrder(deletedOrderId)
+        // Panggil callback onDeleteSuccess jika ada
+        if (onDeleteSuccess) {
+            onDeleteSuccess(deletedOrderId);
         }
-    }, [onDeleteOrder])
+    }, [onDeleteSuccess])
 
-    const confirmDelete = () => {
-        if (orderToDelete) {
-            handleDelete(orderToDelete)
-        }
-        setDeleteConfirmOpen(false)
-        setOrderToDelete(null)
-    }
-
-    const cancelDelete = () => {
-        setDeleteConfirmOpen(false)
-        setOrderToDelete(null)
-    }
-
-    // Options untuk items per page
-    const itemsPerPageOptions = [50, 100, 200, 300, 400]
-
+    const isAdminOrSuper = role === "admin" || role === "super";
 
     const columns: ColumnDef<SalesOrder>[] = React.useMemo(() => {
         const baseColumns: ColumnDef<SalesOrder>[] = [
@@ -1310,7 +1019,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
         ]
 
         // Kondisional kolom Total hanya untuk admin & super
-        if (role === "admin" || role === "super") {
+        if (isAdminOrSuper) {
             baseColumns.push({
                 id: "total",
                 header: ({ column }) => (
@@ -1341,7 +1050,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
             })
         }
 
-        if (role === "admin" || role === "super") {
+        if (isAdminOrSuper) {
             baseColumns.push({
                 id: "totalPR",
                 header: ({ column }) => (
@@ -1414,7 +1123,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
             });
         }
 
-        if (role === "admin" || role === "super") {
+        if (isAdminOrSuper) {
             baseColumns.push({
                 id: "uangMuka",
                 header: ({ column }) => (
@@ -1452,7 +1161,7 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
             });
         }
 
-        if (role === "admin" || role === "super") {
+        if (isAdminOrSuper) {
             baseColumns.push({
                 id: "pertanggungjawaban",
                 header: ({ column }) => (
@@ -1517,11 +1226,11 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
             });
         }
 
-        if (role === "admin" || role === "super") {
+        if (isAdminOrSuper) {
             // Kolom indikator tren
             baseColumns.push({
                 id: "trend",
-                header: ({ column }) => ( // <- pastikan column disertakan
+                header: ({ column }) => (
                     <DataTableColumnHeader column={column} title="Trend Biaya" className="text-center" />
                 ),
                 cell: ({ row }) => {
@@ -1561,7 +1270,6 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                     );
                 },
             });
-
         }
 
         // Kolom actions tetap ada untuk semua role
@@ -1575,10 +1283,14 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
 
                 return (
                     <div className="flex justify-end gap-2">
-                        <ActionsCell order={row.original} onDeleteSuccess={handleDeleteSuccess} role={role} />
+                        <ActionsCell
+                            order={row.original}
+                            onDeleteSuccess={handleDeleteSuccess}
+                            role={role}
+                        />
 
                         {/* PDF hanya untuk admin/super */}
-                        {(role === "admin" || role === "super") && (
+                        {isAdminOrSuper && (
                             <>
                                 <Dialog
                                     open={pdfActions.pdfDialogOpen}
@@ -1648,20 +1360,10 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
         })
 
         return baseColumns
-    }, [handleDeleteSuccess, pdfActions, role, router])
-
-
-
-
-    const paginatedOrders = React.useMemo(() => {
-        const startIndex = (currentPage - 1) * itemsPerPage
-        return filteredSalesOrders.slice(startIndex, startIndex + itemsPerPage)
-    }, [filteredSalesOrders, currentPage, itemsPerPage]) // Tambahkan itemsPerPage ke dependency
-
-    const totalPages = Math.ceil(filteredSalesOrders.length / itemsPerPage)
+    }, [isAdminOrSuper, pdfActions, router, handleDeleteSuccess, role])
 
     const table = useReactTable({
-        data: paginatedOrders,
+        data: salesOrders,
         columns,
         state: {
             expanded,
@@ -1675,609 +1377,222 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
         getRowId: (row) => row.id,
     })
 
-    const StatusFilterDropdown = () => (
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="flex items-center gap-2 bg-transparent dark:hover:bg-slate-800 hover:bg-slate-100">
-                    <Filter className="h-4 w-4" />
-                    {statusFilter === "ALL" ? "All Status" : statusConfig[statusFilter]?.label}
-                    <ChevronDown className="h-4 w-4" />
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem
-                    onClick={() => setStatusFilter("ALL")}
-                    className={statusFilter === "ALL" ? "bg-muted" : ""}
-                >
-                    All Status
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                {Object.entries(statusConfig).map(([status, config]) => (
-                    <DropdownMenuItem
-                        key={status}
-                        onClick={() => setStatusFilter(status as OrderStatus)}
-                        className={statusFilter === status ? "bg-muted" : ""}
-                    >
-                        <div className="flex items-center gap-2">
-                            <div className={`h-2 w-2 rounded-full ${config.className.split(' ')[0]}`} />
-                            {config.label}
-                        </div>
-                    </DropdownMenuItem>
-                ))}
-            </DropdownMenuContent>
-        </DropdownMenu>
-    )
-
-    const ItemsPerPageDropdown = () => (
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="flex items-center gap-2 bg-transparent dark:hover:bg-slate-800 hover:bg-slate-100">
-                    <ListFilter className="h-4 w-4" />
-                    {itemsPerPage} per page
-                    <ChevronDown className="h-4 w-4" />
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-32">
-                {itemsPerPageOptions.map((option) => (
-                    <DropdownMenuItem
-                        key={option}
-                        onClick={() => {
-                            setItemsPerPage(option)
-                            setCurrentPage(1) // Reset ke halaman pertama saat mengubah items per page
-                        }}
-                        className={itemsPerPage === option ? "bg-muted" : ""}
-                    >
-                        {option} per page
-                    </DropdownMenuItem>
-                ))}
-            </DropdownMenuContent>
-        </DropdownMenu>
-    )
-
+    // Mobile view
     if (isMobile) {
         return (
             <>
-                <Card className="border-none shadow-lg py-4">
-                    <CardHeader className="flex flex-col bg-gradient-to-r from-cyan-600 to-purple-600 px-4 py-6 rounded-lg text-white shadow-lg transform transition-all duration-300 hover:shadow-xl">
-                        <div className="flex flex-col space-y-1">
-                            <div className="flex items-center space-x-3">
-                                <div className="flex items-center justify-center h-12 w-12 rounded-full bg-primary">
-                                    <ShoppingCartIcon className="h-6 w-6 text-primary-foreground" />
-                                </div>
-                                <div>
-                                    <CardTitle className="text-xl">Sales Orders </CardTitle>
-                                    <p className="text-sm text-white dark:text-muted-foreground">
-                                        Manage sales orders
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </CardHeader>
-                    <div className="flex flex-col space-y-3">
-                        {/* Search Input */}
-                        <div className="relative">
-                            <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
-                            <Input
-                                placeholder="Search orders..."
-                                className="w-full pl-9 custom-placeholder"
-                                value={searchTerm}
-                                onChange={(e) => {
-                                    setSearchTerm(e.target.value)
-                                    setCurrentPage(1)
-                                }}
-                            />
-                        </div>
-
-                        {/* Filter & Action Container - Compact Mobile */}
-                        <div className="flex flex-col xs:flex-row gap-2 items-stretch xs:items-center w-full p-3 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-lg border border-gray-200/50 dark:border-slate-700/50 shadow-sm">
-
-                            {/* Filter Section */}
-                            <div className="flex flex-1 gap-2 min-w-0">
-                                <div className="flex-1 min-w-0">
-                                    <StatusFilterDropdown />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <ItemsPerPageDropdown />
-                                </div>
-                            </div>
-
-                            {/* New Order Button - Compact */}
-                            <Link href={`${basePath}/create`} passHref className="xs:pl-2 mt-2 xs:mt-0">
-                                <Button className="w-full xs:w-auto bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white px-3 py-2 h-auto text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200 whitespace-nowrap">
-                                    <PlusCircleIcon className="mr-2 h-4 w-4" />
-                                    <span className="hidden sm:inline">New Order</span>
-                                    <span className="sm:hidden">New SO</span>
-                                </Button>
-                            </Link>
-                        </div>
-                    </div>
-
-                    <CardContent className="px-1">
+                <Card className="border-none shadow-lg mx-0 w-full">
+                    <CardContent className="p-0">
                         {isLoading ? (
-                            <div className="space-y-4">
+                            <div className="space-y-2 p-2">
                                 {[...Array(5)].map((_, i) => (
-                                    <div key={i} className="border rounded-lg p-2 bg-white">
-                                        <div className="flex items-center justify-between mb-3">
-                                            <div className="flex items-center gap-3">
-                                                <Skeleton className="h-10 w-10 rounded-full" />
-                                                <div className="space-y-2">
-                                                    <Skeleton className="h-4 w-32" />
+                                    <div key={i} className="border rounded-lg p-3 bg-white">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <Skeleton className="h-8 w-8 rounded-full" />
+                                                <div className="space-y-1">
                                                     <Skeleton className="h-3 w-24" />
+                                                    <Skeleton className="h-2 w-16" />
                                                 </div>
                                             </div>
-                                            <Skeleton className="h-6 w-16" />
+                                            <Skeleton className="h-5 w-12" />
                                         </div>
-                                        <Skeleton className="h-4 w-full mb-2" />
-                                        <Skeleton className="h-4 w-3/4 mb-3" />
-                                        <div className="flex justify-between items-center border-t pt-3">
-                                            <Skeleton className="h-4 w-20" />
-                                            <div className="flex gap-2">
-                                                <Skeleton className="h-8 w-16" />
-                                                <Skeleton className="h-8 w-8" />
-                                            </div>
-                                        </div>
+                                        <Skeleton className="h-3 w-full mb-1" />
+                                        <Skeleton className="h-3 w-2/3" />
                                     </div>
                                 ))}
                             </div>
                         ) : (
-                            <>
-                                {paginatedOrders.map((order) => {
-                                    const row = table.getRow(order.id)
-                                    // Cek apakah order sudah memiliki SPK untuk mobile view
+                            <div className="space-y-1 p-1">
+                                {salesOrders.map((order) => {
                                     const hasSPK = order.spk && order.spk.length > 0;
 
                                     return (
-                                        <React.Fragment key={order.id}>
-                                            <MobileSalesOrderCard
-                                                order={order}
-                                                onExpand={() => row?.toggleExpanded(!row.getIsExpanded())}
-                                                onDeleteSuccess={handleDeleteSuccess}
-                                                role={role}
-                                                hasSPK={hasSPK} // Pass hasSPK ke mobile component
-                                            />
-
-                                            {/* Detail Items di mobile */}
-                                            {row?.getIsExpanded() && (
-                                                <div className="p-4 mb-4 bg-white dark:bg-slate-950 border rounded-md text-sm shadow">
-                                                    <div className="mt-0 mb-4 md:hidden">
-                                                        <div className="text-sm font-medium mb-2 text-green-600">
-                                                            Detail Items:
+                                        <div
+                                            key={order.id}
+                                            className={cn(
+                                                "border rounded-lg bg-white dark:bg-slate-800 transition-colors",
+                                                highlightId === order.id ? "bg-yellow-100 border-yellow-300" : ""
+                                            )}
+                                        >
+                                            <div className="p-2">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                        <div className="flex items-center justify-center h-8 w-8 rounded-full bg-blue-100 flex-shrink-0">
+                                                            <FileTextIcon className="h-4 w-4 text-blue-600" />
                                                         </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="font-bold text-xs truncate">{order.soNumber}</p>
+                                                            <p className="text-xs text-muted-foreground">
+                                                                {format(new Date(order.soDate), "dd MMM yy")}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <Badge className={cn(
+                                                        "rounded px-2 py-0.5 text-xs uppercase font-semibold flex-shrink-0 ml-1",
+                                                        statusConfig[order.status as OrderStatus]?.className || statusConfig.DRAFT.className
+                                                    )}>
+                                                        {statusConfig[order.status as OrderStatus]?.label || "Draft"}
+                                                    </Badge>
+                                                </div>
 
-                                                        {order.items.map((item, idx) => (
-                                                            <div
-                                                                key={idx}
-                                                                className="mb-3 pb-3 border-b border-gray-100 dark:border-gray-800 last:border-b-0 last:mb-0 last:pb-0"
-                                                            >
-                                                                <div className="font-medium">{item.name}</div>
-                                                                {item.description && (
-                                                                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                                                        {item.description}
-                                                                    </div>
-                                                                )}
-
-                                                                {/* Jika admin/super → tampilkan harga */}
-                                                                {(role === "admin" || role === "super") ? (
-                                                                    <div className="flex justify-between mt-2">
-                                                                        <span>
-                                                                            {item.qty} x Rp{" "}
-                                                                            {item.unitPrice.toLocaleString("id-ID")}
-                                                                        </span>
-                                                                        <span className="font-medium">
-                                                                            Rp{" "}
-                                                                            {(item.qty * item.unitPrice).toLocaleString("id-ID")}
-                                                                        </span>
-                                                                    </div>
-                                                                ) : (
-                                                                    // Jika bukan admin/super → hanya qty
-                                                                    <div className="flex justify-between mt-2 text-gray-500 dark:text-gray-400">
-                                                                        <span>Qty: {item.qty}</span>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        ))}
-
-                                                        {/* Total hanya untuk role admin & super */}
-                                                        {(role === "admin" || role === "super") && (
-                                                            <div className="flex justify-between mt-1 pt-1 border-t border-gray-200 dark:border-gray-700 font-bold">
-                                                                <span>Total Amount:</span>
-                                                                <span>
-                                                                    Rp{" "}
-                                                                    {order.items
-                                                                        .reduce(
-                                                                            (sum, item) => sum + item.qty * item.unitPrice,
-                                                                            0
-                                                                        )
-                                                                        .toLocaleString("id-ID")}
-                                                                </span>
-                                                            </div>
-                                                        )}
-
-                                                        {/* Actions untuk mobile */}
-                                                        {(role === "admin" || role === "super") && (
-                                                            <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                                                                <div className="flex gap-2">
-                                                                    <Button
-                                                                        variant="outline"
-                                                                        size="sm"
-                                                                        onClick={() => pdfActions.handlePreview(order)}
-                                                                        className="flex-1"
-                                                                    >
-                                                                        <EyeIcon className="h-4 w-4 mr-1" />
-                                                                        Preview
-                                                                    </Button>
-                                                                </div>
-                                                                <div className="flex gap-2">
-                                                                    <Button
-                                                                        asChild
-                                                                        disabled={hasSPK}
-                                                                        className="flex-1 p-0"
-                                                                    >
-                                                                        <div
-                                                                            onClick={() => !hasSPK && router.push(`/admin-area/logistic/spk/create/${order.id}`)}
-                                                                            className={`w-full py-1.5 rounded-md text-center
-      ${hasSPK ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 cursor-pointer"}
-    `}
-                                                                        >
-                                                                            {hasSPK ? "SPK Sudah Ada" : "+ Create SPK"}
-                                                                        </div>
-                                                                    </Button>
-
-                                                                    <Button
-                                                                        variant="default"
-                                                                        size="sm"
-                                                                        onClick={() => router.push(`/admin-area/sales/quotation/create/${order.id}`)}
-                                                                        className="flex-1 bg-green-600 hover:bg-green-700"
-                                                                    >
-                                                                        + Quotation
-                                                                    </Button>
-                                                                </div>
-                                                            </div>
-                                                        )}
+                                                <div className="space-y-1 text-xs">
+                                                    <div className="flex items-center gap-1">
+                                                        <FaToolbox className="h-3 w-3 text-red-500 flex-shrink-0" />
+                                                        <span className="font-medium text-wrap">{order.project?.name || "No Project"}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <UserCheck2Icon className="h-3 w-3 text-purple-500 flex-shrink-0" />
+                                                        <span className="text-xs font-bold">{order.customer.branch}</span>
                                                     </div>
                                                 </div>
-                                            )}
-                                        </React.Fragment>
-                                    )
-                                })}
 
-                                {totalPages > 1 && (
-                                    <div className="flex items-center justify-between pt-1 border-t mt-1">
-                                        <div className="flex items-center gap-2">
-                                            <p className="text-xs text-muted-foreground">
-                                                Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredSalesOrders.length)} of {filteredSalesOrders.length} orders
-                                            </p>
+                                                {/* Detail Items untuk mobile */}
+                                                <div className="mt-2 space-y-2 text-xs">
+                                                    <div className="font-medium text-green-600">Items:</div>
+                                                    {order.items.slice(0, 2).map((item, idx) => {
+                                                        const itemTotal = item.qty * item.unitPrice;
+                                                        return (
+                                                            <div key={idx} className="flex justify-between items-center">
+                                                                <span className="truncate flex-1">
+                                                                    {item.qty} x {item.name}
+                                                                </span>
+                                                                <span className="font-medium text-green-600 ml-2 flex-shrink-0 whitespace-nowrap">
+                                                                    Rp {itemTotal.toLocaleString('id-ID')}
+                                                                </span>
+                                                            </div>
+                                                        );
+                                                    })}
+
+                                                    {/* Tampilkan item tambahan jika expanded */}
+                                                    {expandedItems[order.id] && order.items.length > 2 && (
+                                                        <>
+                                                            {order.items.slice(2).map((item, idx) => {
+                                                                const itemTotal = item.qty * item.unitPrice;
+                                                                return (
+                                                                    <div key={idx + 2} className="flex justify-between items-center">
+                                                                        <span className="truncate flex-1">
+                                                                            {item.qty} x {item.name}
+                                                                        </span>
+                                                                        <span className="font-medium text-green-600 ml-2 flex-shrink-0 whitespace-nowrap">
+                                                                            Rp {itemTotal.toLocaleString('id-ID')}
+                                                                        </span>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </>
+                                                    )}
+
+                                                    {/* Button untuk show/hide items */}
+                                                    {order.items.length > 2 && (
+                                                        <button
+                                                            onClick={() => toggleItemsExpanded(order.id)}
+                                                            className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-xs font-medium mt-1"
+                                                        >
+                                                            {expandedItems[order.id] ? (
+                                                                <>
+                                                                    <ChevronUp className="h-3 w-3" />
+                                                                    Show Less
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <Plus className="h-3 w-3" />
+                                                                    +{order.items.length - 2} more items
+                                                                </>
+                                                            )}
+                                                        </button>
+                                                    )}
+                                                </div>
+
+                                                {isAdminOrSuper && (
+                                                    <div className="mt-2 pt-2 border-t border-gray-100">
+                                                        <div className="flex justify-between items-center">
+                                                            <p className="text-xs font-bold uppercase">Total Amount</p>
+                                                            <p className="font-bold text-green-600 text-sm">
+                                                                Rp {order.items.reduce((sum, item) => sum + (item.qty * item.unitPrice), 0).toLocaleString("id-ID")}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Actions untuk mobile */}
+                                                <div className="mt-2 flex justify-end gap-1">
+                                                    <ActionsCell
+                                                        order={order}
+                                                        onDeleteSuccess={handleDeleteSuccess}
+                                                        role={role}
+                                                    />
+
+                                                    {isAdminOrSuper && (
+                                                        <>
+                                                            {/* Create SPK Button */}
+                                                            <TooltipProvider>
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <span>
+                                                                            <Button
+                                                                                variant="default"
+                                                                                size="sm"
+                                                                                disabled={hasSPK}
+                                                                                onClick={() => router.push(`/admin-area/logistic/spk/create/${order.id}`)}
+                                                                                className={hasSPK ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-800 dark:text-white"}
+                                                                            >
+                                                                                {hasSPK ? "SPK Created" : "+ Create SPK"}
+                                                                            </Button>
+                                                                        </span>
+                                                                    </TooltipTrigger>
+                                                                    {hasSPK && (
+                                                                        <TooltipContent>
+                                                                            SPK untuk Sales Order ini sudah dibuat
+                                                                        </TooltipContent>
+                                                                    )}
+                                                                </Tooltip>
+                                                            </TooltipProvider>
+
+                                                            {/* Create Quotation Button */}
+                                                            <Button
+                                                                variant="default"
+                                                                size="sm"
+                                                                onClick={() => router.push(`/admin-area/sales/quotation/create/${order.id}`)}
+                                                                className="bg-green-600 hover:bg-green-700 cursor-pointer dark:text-white"
+                                                            >
+                                                                + Quotation
+                                                            </Button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </div>
-                                        <Pagination>
-                                            <PaginationContent>
-                                                <PaginationItem>
-                                                    <PaginationPrevious
-                                                        onClick={(e) => {
-                                                            e.preventDefault()
-                                                            setCurrentPage((prev) => Math.max(prev - 1, 1))
-                                                        }}
-                                                        className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                                                    />
-                                                </PaginationItem>
-                                                <PaginationItem>
-                                                    <span className="px-2 text-xs">
-                                                        {currentPage}/{totalPages}
-                                                    </span>
-                                                </PaginationItem>
-                                                <PaginationItem>
-                                                    <PaginationNext
-                                                        onClick={(e) => {
-                                                            e.preventDefault()
-                                                            setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                                                        }}
-                                                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                                                    />
-                                                </PaginationItem>
-                                            </PaginationContent>
-                                        </Pagination>
-                                    </div>
-                                )}
-                            </>
+                                    );
+                                })}
+                            </div>
                         )}
                     </CardContent>
                 </Card>
-
-                <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                This action cannot be undone. This will permanently delete the sales order
-                                {orderToDelete && (
-                                    <span className="font-semibold"> {
-                                        salesOrders.find(order => order.id === orderToDelete)?.soNumber
-                                    }</span>
-                                )}.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel onClick={cancelDelete}>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                                onClick={confirmDelete}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            >
-                                Delete
-                            </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
             </>
         )
     }
 
     return (
-        <Card className="border-none shadow-lg gap-4">
-            <CardHeader className="bg-gradient-to-r from-cyan-600 to-purple-600 p-4 rounded-lg text-white">
-                <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
-                    {/* Left Section - Title and Description */}
-                    <div className="flex items-center space-x-3">
-                        <div className="flex items-center justify-center h-12 w-12 rounded-full bg-primary">
-                            <ShoppingCartIcon className="h-6 w-6 text-primary-foreground" />
-                        </div>
-                        <div>
-                            <CardTitle className="text-2xl">Sales Orders</CardTitle>
-                            <p className="text-sm text-white">
-                                Manage and track all sales orders
-                            </p>
-                        </div>
-                    </div>
+        <Card className="border-none shadow-lg">
+            <CardContent className="p-0">
+                {/* Sales Order Summary untuk Admin/Super */}
+                {(role === "admin" || role === "super") && (
+                    <SalesOrderSummary
+                        role={role}
+                        summaryExpanded={summaryExpanded}
+                        setSummaryExpanded={setSummaryExpanded}
+                        summaryTotals={summaryTotals}
+                    />
+                )}
 
-                    {/* Right Section - Search, Filters and Actions */}
-                    <div className="flex flex-col xl:flex-row gap-3 justify-end items-start xl:items-center w-full md:w-auto">
-                        {/* Search and Filters Group */}
-                        <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
-                            {/* Search Input */}
-                            <div className="relative w-full md:w-64">
-                                <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
-                                <Input
-                                    placeholder="Search orders..."
-                                    className="w-full pl-9 bg-background"
-                                    value={searchTerm}
-                                    onChange={(e) => {
-                                        setSearchTerm(e.target.value)
-                                        setCurrentPage(1)
-                                    }}
-                                />
-                            </div>
-
-                            {/* Filters Group */}
-                            <div className="flex gap-2 items-center flex-wrap">
-                                <StatusFilterDropdown />
-                                <ItemsPerPageDropdown />
-
-                                {hasActiveFilters && (
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => {
-                                            setSearchTerm("")
-                                            setStatusFilter("ALL")
-                                            setCurrentPage(1)
-                                        }}
-                                        className="h-9 px-3"
-                                    >
-                                        <X className="h-4 w-4 mr-1 text-black dark:text-white" />
-                                        <span className="text-black dark:text-white">Clear</span>
-                                    </Button>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* New Order Button */}
-                        <Link href={`${basePath}/create`} passHref>
-                            <div className="relative">
-                                <div className="absolute -top-1 -inset-x-1 h-2 bg-cyan-400/60 blur-md rounded-t-lg group-hover:bg-cyan-300/80 group-hover:h-3 transition-all duration-300"></div>
-                                <Button className="relative bg-cyan-500 hover:bg-cyan-600 text-white px-6 py-2.5 h-auto font-bold shadow-lg hover:shadow-2xl transition-all duration-300 border-0 overflow-hidden group whitespace-nowrap cursor-pointer">
-                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-                                    <PlusCircleIcon className="mr-2 h-5 w-5 relative z-10" />
-                                    <span className="relative z-10">New Order</span>
-                                </Button>
-                            </div>
-                        </Link>
-                    </div>
-                </div>
-            </CardHeader>
-
-            {(role === "admin" || role === "super") && (
-                <CardContent className="p-4 pb-0">
-                    <Accordion
-                        type="single"
-                        collapsible
-                        value={summaryExpanded ? "summary" : ""}
-                        onValueChange={(value) => setSummaryExpanded(value === "summary")}
-                    >
-                        <AccordionItem value="summary" className="border rounded-lg shadow-sm">
-                            <AccordionTrigger className="px-6 py-4 hover:no-underline hover:bg-gray-50/50 dark:hover:bg-slate-800/50 transition-colors">
-                                <div className="flex items-center justify-between w-full pr-4 cursor-pointer rounded-lg p-2 bg-gradient-to-r from-gray-200 via-gray-50 to-gray-300 dark:bg-gradient-to-r dark:from-gray-800 dark:via-gray-900 dark:to-black">
-                                    <div className="flex items-center gap-3">
-                                        <BarChart3 className="h-5 w-5 text-cyan-600" />
-                                        <span className="text-lg font-semibold text-gray-900 dark:text-white">
-                                            Sales Order Summary
-                                        </span>
-                                        <Badge variant="outline" className="ml-2">
-                                            {summaryTotals.validOrdersCount} active of {summaryTotals.totalOrders} total orders
-                                        </Badge>
-                                    </div>
-
-                                    {/* Click to open/close di tengah */}
-                                    <div className="flex flex-col items-center justify-center absolute left-1/2 transform -translate-x-1/2">
-                                        <div className="flex flex-col items-center justify-center group cursor-pointer">
-                                            <div className="bg-white dark:bg-gray-800 rounded-full p-2 shadow-lg border border-gray-200 dark:border-gray-600 hover:shadow-xl transition-all duration-300 hover:scale-105">
-                                                {summaryExpanded ? (
-                                                    <ChevronUp className="h-5 w-5 text-cyan-600 dark:text-cyan-400 font-bold" />
-                                                ) : (
-                                                    <ChevronDown className="h-5 w-5 text-cyan-600 dark:text-cyan-400 font-bold" />
-                                                )}
-                                            </div>
-                                            <span className="text-xs font-semibold text-cyan-700 dark:text-cyan-300 mt-2 tracking-wide bg-cyan-50 dark:bg-cyan-900/30 px-2 py-1 rounded-full">
-                                                {summaryExpanded ? 'CLOSE' : 'OPEN'}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                                        <div className="flex items-center gap-2">
-                                            <div className="h-3 w-3 rounded-full bg-green-500"></div>
-                                            <span>Margin : {summaryTotals.profitMargin.toFixed(1)}%</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </AccordionTrigger>
-                            <AccordionContent className="px-6 pb-6">
-                                {/* Info tentang scope data */}
-                                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
-                                    <div className="flex items-center gap-2 text-sm font-bold text-blue-700 dark:text-blue-300">
-                                        <Info className="h-4 w-4" />
-                                        <span>
-                                            Ringkasan hanya mencakup pesanan yang aktif (tidak termasuk status DRAFT dan DIBATALKAN).
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
-                                    {/* Total Sales */}
-                                    <div className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30 rounded-xl p-4 border border-blue-200/50 dark:border-blue-700/30">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                                                Total Sales
-                                            </span>
-                                            <DollarSign className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                                        </div>
-                                        <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-                                            Rp {formatCurrency(summaryTotals.totalSales)}
-                                        </p>
-                                        <div className="flex items-center gap-2 mt-2">
-                                            <TrendingUp className="h-4 w-4 text-green-600" />
-                                            <span className="text-xs text-green-600 font-medium">
-                                                Active orders revenue
-                                            </span>
-                                        </div>
-                                        <p className="text-xs text-muted-foreground mt-1">
-                                            {summaryTotals.validOrdersCount} active orders
-                                        </p>
-                                    </div>
-
-                                    {/* Total Purchase Requests */}
-                                    <div className="bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30 rounded-xl p-4 border border-orange-200/50 dark:border-orange-700/30">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <span className="text-sm font-medium text-orange-700 dark:text-orange-300">
-                                                Total PR
-                                            </span>
-                                            <ShoppingCart className="h-4 w-4 text-orange-600 dark:text-orange-400" />
-                                        </div>
-                                        <p className={`text-2xl font-bold ${getAmountColor(summaryTotals.totalPR, summaryTotals.totalSales)}`}>
-                                            Rp {formatCurrency(summaryTotals.totalPR)}
-                                        </p>
-                                        <div className="flex items-center gap-2 mt-2">
-                                            {summaryTotals.totalPR.gt(summaryTotals.totalSales) ? (
-                                                <AlertTriangle className="h-4 w-4 text-red-600" />
-                                            ) : summaryTotals.totalPR.div(summaryTotals.totalSales).gte(0.8) ? (
-                                                <AlertCircle className="h-4 w-4 text-yellow-600" />
-                                            ) : (
-                                                <CheckCircle className="h-4 w-4 text-green-600" />
-                                            )}
-                                            <span className={`text-xs font-medium ${summaryTotals.totalPR.gt(summaryTotals.totalSales) ? "text-red-600" :
-                                                summaryTotals.totalPR.div(summaryTotals.totalSales).gte(0.8) ? "text-yellow-600" : "text-green-600"
-                                                }`}>
-                                                {summaryTotals.totalSales.isZero() ? "0%" :
-                                                    `${summaryTotals.totalPR.div(summaryTotals.totalSales).times(100).toFixed(1)}% of sales`}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    {/* Total Uang Muka */}
-                                    <div className="bg-gradient-to-br from-purple-50 to-violet-50 dark:from-purple-950/30 dark:to-violet-950/30 rounded-xl p-4 border border-purple-200/50 dark:border-purple-700/30">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
-                                                Total Purchase Request
-                                            </span>
-                                            <CreditCard className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                                        </div>
-                                        <p className="text-2xl font-bold text-purple-900 dark:text-purple-100">
-                                            Rp {formatCurrency(summaryTotals.totalUangMuka)}
-                                        </p>
-                                        <div className="flex items-center gap-2 mt-2">
-                                            <FileText className="h-4 w-4 text-purple-600" />
-                                            <span className="text-xs text-purple-600 font-medium">
-                                                Advance payments
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    {/* Total LPP & Profit */}
-                                    <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 rounded-xl p-4 border border-green-200/50 dark:border-green-700/30">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <span className="text-sm font-medium text-green-700 dark:text-green-300">
-                                                Realisasi Biaya (LPP)
-                                            </span>
-                                            <PieChart className="h-4 w-4 text-green-600 dark:text-green-400" />
-                                        </div>
-                                        <p className={`text-2xl font-bold ${getAmountColor(summaryTotals.totalLPP, summaryTotals.totalSales)}`}>
-                                            Rp {formatCurrency(summaryTotals.totalLPP)}
-                                        </p>
-                                        <div className="mt-2 space-y-1">
-                                            <div className="flex justify-between items-center text-xs">
-                                                <span className="text-green-600 font-medium">Margin :</span>
-                                                <span className="font-bold text-green-700">
-                                                    Rp {formatCurrency(summaryTotals.profit)} ({summaryTotals.profitMargin.toFixed(1)}%)
-                                                </span>
-                                            </div>
-                                            <div className="w-full bg-gray-200 rounded-full h-1.5 dark:bg-gray-700">
-                                                <div
-                                                    className="bg-green-600 h-1.5 rounded-full"
-                                                    style={{
-                                                        width: `${Math.max(0, Math.min(100, 100 - summaryTotals.totalLPP.div(summaryTotals.totalSales.isZero() ? new Decimal(1) : summaryTotals.totalSales).times(100).toNumber()))}%`
-                                                    }}
-                                                ></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Additional Summary Stats */}
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                                    <div className="text-center">
-                                        <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                                            {summaryTotals.totalOrders}
-                                        </p>
-                                        <p className="text-sm text-muted-foreground">Total Orders</p>
-                                    </div>
-                                    <div className="text-center">
-                                        <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                                            {summaryTotals.validOrdersCount}
-                                        </p>
-                                        <p className="text-sm text-muted-foreground">Active Orders</p>
-                                    </div>
-                                    <div className="text-center">
-                                        <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                                            {summaryTotals.totalSales.isZero() ? '0' :
-                                                summaryTotals.totalPR.div(summaryTotals.totalSales).times(100).toFixed(1)}%
-                                        </p>
-                                        <p className="text-sm text-muted-foreground">PR vs Sales Ratio</p>
-                                    </div>
-                                    <div className="text-center">
-                                        <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                                            {summaryTotals.profitMargin.toFixed(1)}%
-                                        </p>
-                                        <p className="text-sm text-muted-foreground">Profit Margin</p>
-                                    </div>
-                                </div>
-                            </AccordionContent>
-                        </AccordionItem>
-                    </Accordion>
-                </CardContent>
-            )}
-
-            <CardContent className="p-2">
                 {isLoading ? (
-                    <div className="space-y-4 p-4">
+                    <div className="space-y-4 p-6">
                         {[...Array(5)].map((_, i) => (
-                            <div key={i} className="flex items-center space-x-4 p-4 border rounded-lg">
+                            <div
+                                key={i}
+                                className="flex items-center space-x-4 p-4 border rounded-lg"
+                            >
                                 <Skeleton className="h-12 w-12 rounded-full" />
                                 <div className="space-y-2 flex-grow">
                                     <Skeleton className="h-4 w-48" />
@@ -2285,129 +1600,92 @@ export function SalesOrderTable({ salesOrders: initialSalesOrders, isLoading, on
                                 </div>
                                 <Skeleton className="h-6 w-20" />
                                 <Skeleton className="h-8 w-24" />
-                                <Skeleton className="h-8 w-8" />
                             </div>
                         ))}
                     </div>
                 ) : (
-                    <>
-                        <div className="rounded-b-lg">
-                            <Table>
-                                <TableHeader className="bg-muted/50">
-                                    {table.getHeaderGroups().map((headerGroup) => (
-                                        <TableRow key={headerGroup.id}>
-                                            {headerGroup.headers.map((header) => (
-                                                <TableHead key={header.id} className="py-4 font-semibold">
-                                                    {header.isPlaceholder
-                                                        ? null
-                                                        : flexRender(header.column.columnDef.header, header.getContext())}
-                                                </TableHead>
-                                            ))}
-                                        </TableRow>
-                                    ))}
-                                </TableHeader>
-
-                                <TableBody>
-                                    {table.getRowModel().rows.length ? (
-                                        table.getRowModel().rows.map((row) => (
-                                            <React.Fragment key={row.id}>
-                                                <TableRow
-                                                    data-state={row.getIsSelected() && "selected"}
-                                                    className="cursor-pointer hover:bg-muted/30"
-                                                    onClick={(e) => {
-                                                        // Hanya toggle expanded jika klik tidak pada button/action
-                                                        if (!e.defaultPrevented) {
-                                                            row.toggleExpanded(!row.getIsExpanded())
-                                                        }
-                                                    }}
-                                                >
-                                                    {row.getVisibleCells().map((cell) => (
-                                                        <TableCell key={cell.id} className="py-4">
-                                                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                                        </TableCell>
-                                                    ))}
-                                                </TableRow>
-
-                                                {row.getIsExpanded() && (
-                                                    <TableRow key={`${row.id}-expanded`}>
-                                                        <TableCell
-                                                            colSpan={table.getVisibleLeafColumns().length}
-                                                            className="p-0 border-b-2 border-primary/20"
-                                                        >
-                                                            <SalesOrderDetail order={row.original} role={role} />
-                                                        </TableCell>
-                                                    </TableRow>
-                                                )}
-                                            </React.Fragment>
-                                        ))
-                                    ) : (
-                                        <TableRow>
-                                            <TableCell
-                                                colSpan={table.getVisibleLeafColumns().length}
-                                                className="h-24 text-center text-muted-foreground p-6"
-                                            >
-                                                <div className="flex flex-col items-center justify-center py-8">
-                                                    <ShoppingCartIcon className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                                                    <p className="text-lg font-medium">No orders found</p>
-                                                    <p className="text-sm text-muted-foreground mb-4">
-                                                        {searchTerm ? "Try adjusting your search query" : "Get started by creating a new sales order"}
-                                                    </p>
-                                                    {!searchTerm && (
-                                                        <Link href={`${basePath}/create`} passHref>
-                                                            <Button>
-                                                                <PlusCircleIcon className="mr-2 h-4 w-4" />
-                                                                Create Order
-                                                            </Button>
-                                                        </Link>
+                    <div className="rounded-b-lg">
+                        <Table>
+                            <TableHeader className="bg-muted/50">
+                                {table.getHeaderGroups().map((headerGroup) => (
+                                    <TableRow key={headerGroup.id}>
+                                        {headerGroup.headers.map((header) => (
+                                            <TableHead key={header.id} className="py-4 font-semibold">
+                                                {header.isPlaceholder
+                                                    ? null
+                                                    : flexRender(
+                                                        header.column.columnDef.header,
+                                                        header.getContext()
                                                     )}
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </div>
+                                            </TableHead>
+                                        ))}
+                                    </TableRow>
+                                ))}
+                            </TableHeader>
 
-                        {totalPages > 1 && (
-                            <div className="flex items-center justify-between p-4 border-t">
-                                <div className="flex items-center gap-4">
-                                    <p className="text-sm text-muted-foreground">
-                                        Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredSalesOrders.length)} of {filteredSalesOrders.length} orders
-                                    </p>
-                                    <ItemsPerPageDropdown />
-                                </div>
-                                <Pagination>
-                                    <PaginationContent>
-                                        <PaginationItem>
-                                            <PaginationPrevious
-                                                onClick={(e) => {
-                                                    e.preventDefault()
-                                                    setCurrentPage((prev) => Math.max(prev - 1, 1))
+                            <TableBody>
+                                {table.getRowModel().rows.length ? (
+                                    table.getRowModel().rows.map((row) => (
+                                        <React.Fragment key={row.id}>
+                                            <TableRow
+                                                ref={(el) => {
+                                                    const id = row.original?.id;
+                                                    if (id) rowRefs.current[id] = el;
                                                 }}
-                                                className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                                            />
-                                        </PaginationItem>
-                                        <PaginationItem>
-                                            <span className="px-4 text-sm">
-                                                Page {currentPage} of {totalPages}
-                                            </span>
-                                        </PaginationItem>
-                                        <PaginationItem>
-                                            <PaginationNext
-                                                onClick={(e) => {
-                                                    e.preventDefault()
-                                                    setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                                                }}
-                                                className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
-                                            />
-                                        </PaginationItem>
-                                    </PaginationContent>
-                                </Pagination>
-                            </div>
-                        )}
-                    </>
+                                                data-row-id={row.original?.id}
+                                                data-state={row.getIsSelected() && "selected"}
+                                                className={cn(
+                                                    "cursor-pointer hover:bg-muted/30 transition-colors",
+                                                    highlightId === row.original?.id ? "bg-yellow-200 dark:bg-yellow-900" : ""
+                                                )}
+                                                onClick={() => row.toggleExpanded(!row.getIsExpanded())}
+                                            >
+
+                                                {row.getVisibleCells().map((cell) => (
+                                                    <TableCell key={cell.id} className="py-4">
+                                                        {flexRender(
+                                                            cell.column.columnDef.cell,
+                                                            cell.getContext()
+                                                        )}
+                                                    </TableCell>
+                                                ))}
+                                            </TableRow>
+
+                                            {row.getIsExpanded() && (
+                                                <TableRow key={`${row.id}-expanded`}>
+                                                    <TableCell
+                                                        colSpan={table.getVisibleLeafColumns().length}
+                                                        className="p-0 border-b-2 border-primary/20"
+                                                    >
+                                                        <SalesOrderDetail
+                                                            order={row.original}
+                                                            role={role}
+                                                        />
+                                                    </TableCell>
+                                                </TableRow>
+                                            )}
+                                        </React.Fragment>
+                                    ))
+                                ) : (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={table.getVisibleLeafColumns().length}
+                                            className="h-24 text-center text-muted-foreground p-6"
+                                        >
+                                            <div className="flex flex-col items-center justify-center py-8">
+                                                <ShoppingCartIcon className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                                                <p className="text-lg font-medium">
+                                                    No orders found
+                                                </p>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
                 )}
             </CardContent>
         </Card>
-    )
+    );
 }

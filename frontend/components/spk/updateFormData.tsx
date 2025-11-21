@@ -52,7 +52,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { SpkApiPayload, SpkFormSchema, SpkFormValues, SalesOrder } from "@/schemas/index";
 import { nanoid } from 'nanoid';
 
@@ -123,6 +123,14 @@ export default function FormUpdateSpk({
     const router = useRouter();
     const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
+    const searchParams = useSearchParams();
+    const returnUrl = searchParams.get("returnUrl") || "";
+    const page = Number(searchParams.get("page")) || 1;
+    const pageSize = Number(searchParams.get("pageSize")) || 10;
+    const highlightId = searchParams.get("highlightId") || "";
+    const highlightStatus = searchParams.get("status") || "";
+    const searchUrl = searchParams.get("search") || "";
+    const urlFilter = searchParams.get("filter") || "all";
 
     // Prepare all karyawan data from teams
     const allKaryawanRaw: Karyawan[] = teams?.flatMap((team) =>
@@ -228,7 +236,7 @@ export default function FormUpdateSpk({
 
     const handleSubmit = async (data: SpkFormValues) => {
         try {
-            const spkDateString = data.spkDate.toISOString().split('T')[0];
+            const spkDateString = data.spkDate.toISOString().split("T")[0];
 
             const payload: SpkApiPayload = {
                 spkNumber: data.spkNumber,
@@ -237,19 +245,25 @@ export default function FormUpdateSpk({
                 teamId: data.teamId || null,
                 notes: data.notes || null,
                 createdById: data.createdById,
-                details: data.details.map(detail => ({
+                details: data.details.map((detail) => ({
                     id: detail.id,
                     karyawanId: detail.karyawanId,
-                    salesOrderItemId: detail.salesOrderItemId === "__all__" ? null : detail.salesOrderItemId,
+                    salesOrderItemId:
+                        detail.salesOrderItemId === "__all__"
+                            ? null
+                            : detail.salesOrderItemId,
                     lokasiUnit: detail.lokasiUnit || null,
                 })),
             };
 
-            const res = await updateSpkAction(payload); // ✅
+            const res = await updateSpkAction(payload);
 
             if (res.success) {
                 toast.success("SPK berhasil diperbarui");
-                router.push(`${getBasePath(role)}`)
+
+                const redirectUrl = `${getBasePath(role)}?page=${page}&pageSize=${pageSize}&status=${highlightStatus}&search=${searchUrl}&highlightId=${highlightId}&returnUrl=${returnUrl}&filter=${urlFilter}`;
+
+                router.push(redirectUrl);
             } else {
                 toast.error(res.message || "Gagal memperbarui SPK");
             }
@@ -258,6 +272,7 @@ export default function FormUpdateSpk({
             toast.error("Terjadi kesalahan saat memperbarui SPK");
         }
     };
+
 
     const handleCancel = () => {
         router.back();

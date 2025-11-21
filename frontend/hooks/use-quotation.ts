@@ -21,20 +21,15 @@ import {
 } from "@/types/quotation";
 import { useState } from "react";
 
-// GET - All quotations dengan pagination
+// Hook useQuotations
 export function useQuotations(params?: QuotationQueryParams) {
   return useQuery<QuotationListResponse, Error>({
     queryKey: ["quotations", params],
     queryFn: async () => {
-      try {
-        const response = await getQuotations(params);
-        return response;
-      } catch (error) {
-        console.error("❌ Error fetching quotations:", error);
-        throw error;
-      }
+      const response = await getQuotations(params);
+      return response; // sudah sesuai ListResponse<QuotationSummary>
     },
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 60 * 5, // cache 5 menit
   });
 }
 

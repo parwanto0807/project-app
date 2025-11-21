@@ -12,7 +12,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { fetchAllSalesOrder } from "@/lib/action/sales/salesOrder";
+import { fetchAllSalesOrderSPK } from "@/lib/action/sales/salesOrder";
 import { getAllTeam } from "@/lib/action/master/team/getAllTeam";
 import { fetchAllKaryawan } from "@/lib/action/master/karyawan";
 import { AdminLoading } from "@/components/admin-loading";
@@ -56,12 +56,12 @@ export default function CreateSpkPageAdminSO() {
 
         // Fetch data secara parallel
         const [resultSO, resultTeam, resultUser] = await Promise.all([
-          fetchAllSalesOrder(),
+          fetchAllSalesOrderSPK(),
           getAllTeam(),
           fetchAllKaryawan()
         ]);
 
-        setSalesOrders(resultSO.salesOrders || []);
+        setSalesOrders(resultSO.data || []);
         setTeams(resultTeam.data || []);
         setUserCreated(resultUser.karyawan || []);
         setDataFetched(true);

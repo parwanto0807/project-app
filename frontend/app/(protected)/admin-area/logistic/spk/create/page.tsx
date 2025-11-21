@@ -70,8 +70,8 @@ export default function CreateSpkPageAdmin() {
 
     const fetchDataSalesOrder = async () => {
       const resultSO = await fetchAllSalesOrder();
-      setSalesOrders(resultSO.salesOrders);
-      setIsDataLoading(resultSO.isLoading);
+      setSalesOrders(resultSO.data);
+      setIsDataLoading(resultSO.data.length === 0);
     };
 
     fetchDataSalesOrder();

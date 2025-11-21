@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
+
 import {
     Breadcrumb,
     BreadcrumbItem,
@@ -10,60 +12,185 @@ import {
     BreadcrumbPage,
     BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+
 import { Badge } from "@/components/ui/badge";
-import { useRouter } from "next/navigation";
-import { getAllTeam } from "@/lib/action/master/team/getAllTeam";
-import { AdminLayout } from "@/components/admin-panel/admin-layout";
+import { Button } from "@/components/ui/button";
+import { CardTitle } from "@/components/ui/card";
+import { Plus, Users } from "lucide-react";
+
 import { LayoutProps } from "@/types/layout";
+
+import { getAllTeam } from "@/lib/action/master/team/getAllTeam";
 import TeamTableData from "@/components/master/team/tableData";
 import { TableLoading } from "@/components/ui/loading";
-import { Button } from "@/components/ui/button";
-import { Plus, Users } from "lucide-react";
-import { CardTitle } from "@/components/ui/card";
+
+import Pagination from "@/components/ui/paginationNew";
+import { PicLayout } from "@/components/admin-panel/pic-layout";
+
+// Define interfaces untuk type safety
+interface Team {
+    id: string;
+    namaTeam: string;
+    deskripsi: string;
+    karyawan: Array<{
+        id: string;
+        karyawanId: string;
+        teamId: string;
+        karyawan: {
+            id: string;
+            namaLengkap: string;
+            departemen: string;
+        };
+    }>;
+    createdAt: string;
+    updatedAt: string;
+}
+
+interface PaginationInfo {
+    totalCount: number;
+    totalPages: number;
+    currentPage: number;
+    pageSize: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+}
 
 export default function TeamPageAdmin() {
-    const [teams, setTeams] = useState([]); // ✅ Ganti state ke teams
+    const searchParams = useSearchParams();
+    const pathname = usePathname();
+    const router = useRouter();
+
+    /** 🧮 Ambil parameter dari URL */
+    const currentPage = Number(searchParams.get("page")) || 1;
+    const searchTerm = searchParams.get("search") || "";
+    const pageSize = Number(searchParams.get("limit")) || 10;
+
+    const [teams, setTeams] = useState<Team[]>([]);
+    const [filteredData, setFilteredData] = useState<Team[]>([]);
+    const [currentItems, setCurrentItems] = useState<Team[]>([]);
+    const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
+    const [pagination, setPagination] = useState<PaginationInfo>({
+        totalCount: 0,
+        totalPages: 1,
+        currentPage: 1,
+        pageSize: 10,
+        hasNext: false,
+        hasPrev: false,
+    });
+
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const router = useRouter();
-    const userRole = "admin";
 
+    const userRole = "pic";
+
+    /** 🚀 Load Data Team */
     useEffect(() => {
-        if (userRole !== "admin") {
+        if (userRole !== "pic") {
             router.push("/unauthorized");
             return;
         }
 
-        const fetchData = async () => {
+        const fetchTeams = async () => {
             try {
                 setIsLoading(true);
-                setError(null);
 
-                if (typeof window === "undefined") return;
+                // Panggil getAllTeam dengan parameter terpisah
+                const result = await getAllTeam(currentPage, pageSize, searchTerm);
 
-                const result = await getAllTeam(); // ✅ Panggil fungsi Team
+                if (result.success) {
+                    setTeams(result.data || []);
+                    setFilteredData(result.data || []);
+                    setCurrentItems(result.data || []);
 
-                if (result.success) { // ✅ Sesuaikan dengan struktur respons Anda
-                    setTeams(result.data || []); // ✅ Sesuaikan properti data
+                    if (result.pagination) {
+                        setPagination(result.pagination);
+                    } else {
+                        // Fallback jika pagination tidak tersedia
+                        setPagination(prev => ({
+                            ...prev,
+                            totalCount: result.data?.length || 0,
+                            currentPage: currentPage,
+                            pageSize: pageSize
+                        }));
+                    }
                 } else {
-                    setError(result.error || "Gagal memuat data team");
+                    setError(result.error || "Gagal memuat data team.");
                 }
+
             } catch (err) {
-                setError("Terjadi kesalahan saat memuat data");
                 console.error("Error fetching teams:", err);
+                setError("Terjadi kesalahan saat memuat data.");
             } finally {
                 setIsLoading(false);
             }
         };
 
-        fetchData();
-    }, [router, userRole]);
+        fetchTeams();
+    }, [router, userRole, currentPage, pageSize, searchTerm]);
+
+    /** 🔄 Search Handler */
+    const handleSearchChange = (term: string) => {
+        const params = new URLSearchParams(searchParams.toString());
+        if (term) {
+            params.set("search", term);
+            if (searchParams.get("search") !== term) {
+                params.set("page", "1"); // Reset hanya jika search berubah
+            }
+        }
+
+        router.push(`${pathname}?${params.toString()}`);
+    };
+
+    /** 🔄 Items Per Page Handler */
+    const handleItemsPerPageChange = (count: number) => {
+        const params = new URLSearchParams(searchParams.toString());
+        params.set("limit", count.toString());
+        params.set("page", "1"); // Reset ke page 1 saat ganti items per page
+        router.push(`${pathname}?${params.toString()}`);
+    };
+
+    /** 🔄 Selected Teams Handler */
+    const handleSelectedTeamsChange = (teams: string[]) => {
+        setSelectedTeams(teams);
+    };
+
+    /** 🔄 Delete Team Handler */
+    const handleDeleteTeam = async (team: Team) => {
+        try {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/team/deleteTeam/${team.id}`, {
+                method: 'DELETE',
+            });
+
+            if (response.ok) {
+                // Refresh data setelah delete dengan parameter terpisah
+                const result = await getAllTeam(currentPage, pageSize, searchTerm);
+
+                if (result.success) {
+                    setTeams(result.data || []);
+                    setFilteredData(result.data || []);
+                    setCurrentItems(result.data || []);
+
+                    if (result.pagination) {
+                        setPagination(result.pagination);
+                    }
+                }
+
+                return Promise.resolve();
+            } else {
+                throw new Error("Gagal menghapus team");
+            }
+        } catch (error) {
+            console.error("Error deleting team:", error);
+            return Promise.reject(error);
+        }
+    };
 
     const layoutProps: LayoutProps = {
         title: "Team Management",
-        role: "admin",
+        role: "pic",
         children: (
             <>
+                {/* 🔹 Breadcrumb */}
                 <Breadcrumb className="mb-6">
                     <BreadcrumbList>
                         <BreadcrumbItem>
@@ -73,7 +200,9 @@ export default function TeamPageAdmin() {
                                 </Badge>
                             </BreadcrumbLink>
                         </BreadcrumbItem>
+
                         <BreadcrumbSeparator />
+
                         <BreadcrumbItem>
                             <BreadcrumbLink asChild>
                                 <Badge variant="outline">
@@ -81,7 +210,9 @@ export default function TeamPageAdmin() {
                                 </Badge>
                             </BreadcrumbLink>
                         </BreadcrumbItem>
+
                         <BreadcrumbSeparator />
+
                         <BreadcrumbItem>
                             <Badge variant="secondary">
                                 <BreadcrumbPage>Team List</BreadcrumbPage>
@@ -90,95 +221,96 @@ export default function TeamPageAdmin() {
                     </BreadcrumbList>
                 </Breadcrumb>
 
+                {/* 🔹 Page Content */}
                 <div className="h-full w-full">
                     <div className="flex-1 space-y-4 p-2 pt-6 md:p-8">
-                        {/* Header dengan statistik loading */}
+
+                        {/* Header */}
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                             <div>
-                                <div className="flex items-center mb-2 md:mb-0">
+                                <div className="flex items-center mb-2">
                                     <Users className="mr-2 h-6 w-6" />
                                     <CardTitle className="text-2xl">Manajemen Team</CardTitle>
                                 </div>
                                 <p className="text-muted-foreground">
-                                    {isLoading ? "Memuat daftar team..." : `Total ${teams.length} team`}
+                                    {isLoading
+                                        ? "Memuat daftar team..."
+                                        : `Menampilkan ${currentItems.length} dari ${pagination.totalCount} team`}
                                 </p>
                             </div>
+
                             {!isLoading && !error && (
                                 <Badge variant="outline" className="text-sm px-3 py-1">
-                                    {teams.length} Records
+                                    {pagination.totalCount} Total Records
                                 </Badge>
                             )}
                         </div>
 
-                        {/* Content Area */}
+                        {/* Content */}
                         <div className="rounded-lg border bg-card p-2 shadow-sm">
-                            {isLoading ? (
-                                <TableLoading rowCount={8} colCount={5} />
-                            ) : error ? (
-                                <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                                    <div className="bg-destructive/10 p-4 rounded-full">
-                                        <svg
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            className="h-10 w-10 text-destructive"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                        >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                            />
-                                        </svg>
-                                    </div>
-                                    <p className="text-center text-destructive text-lg font-medium">
-                                        {error}
-                                    </p>
-                                    <button
-                                        onClick={() => window.location.reload()}
-                                        className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-                                    >
+
+                            {/* Loading */}
+                            {isLoading && <TableLoading rowCount={8} colCount={5} />}
+
+                            {/* Error */}
+                            {!isLoading && error && (
+                                <div className="flex flex-col items-center justify-center py-12">
+                                    <Users className="h-10 w-10 text-destructive mb-4" />
+                                    <p className="text-lg text-destructive font-medium">{error}</p>
+                                    <Button onClick={() => window.location.reload()} className="mt-4">
                                         Coba Lagi
-                                    </button>
+                                    </Button>
                                 </div>
-                            ) : teams.length === 0 ? ( // ✅ Ganti kondisi ke teams
-                                <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                                    <div className="bg-muted p-4 rounded-full">
-                                        <svg
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            className="h-10 w-10 text-muted-foreground"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                        >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                                            />
-                                        </svg>
-                                    </div>
-                                    <p className="text-center text-muted-foreground text-lg font-medium">
+                            )}
+
+                            {/* No Data */}
+                            {!isLoading && !error && teams.length === 0 && (
+                                <div className="flex flex-col items-center justify-center py-12">
+                                    <Users className="h-10 w-10 text-muted-foreground mb-4" />
+                                    <p className="text-lg text-muted-foreground font-medium">
                                         Data team tidak ditemukan
                                     </p>
-                                    <p className="text-sm text-muted-foreground">
-                                        Tidak ada data team yang tersedia saat ini.
-                                    </p>
-                                    <Link href="/admin-area/master/team/create" className="group"> {/* ✅ Ganti route */}
+
+                                    <Link href="/admin-area/master/team/create" className="group">
                                         <Button
-                                            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-2 px-4 md:px-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 flex items-center gap-2 w-full md:w-auto"
-                                            aria-label="Tambah Team Baru"
+                                            className="mt-4 bg-gradient-to-r from-blue-600 to-blue-700
+                      hover:from-blue-700 hover:to-blue-800 text-white font-semibold 
+                      py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition-all 
+                      duration-300 transform hover:-translate-y-0.5 flex items-center gap-2"
                                         >
-                                            <Plus size={18} className="transition-transform duration-300 group-hover:rotate-90" />
-                                            <span className="hidden md:inline">Tambah Team</span> {/* ✅ Ganti teks */}
-                                            <span className="md:hidden">Tambah</span>
+                                            <Plus size={18} className="group-hover:rotate-90 transition-transform" />
+                                            Tambah Team
                                         </Button>
                                     </Link>
                                 </div>
-                            ) : (
-                                <TeamTableData teams={teams} role={userRole} isLoading={isLoading} /> // ✅ Ganti ke komponen Team
+                            )}
+
+                            {/* TABLE + PAGINATION */}
+                            {!isLoading && !error && teams.length > 0 && (
+                                <>
+                                    <TeamTableData
+                                        teams={teams}
+                                        role={userRole}
+                                        isLoading={isLoading}
+                                        currentItems={currentItems}
+                                        filteredData={filteredData}
+                                        searchTerm={searchTerm}
+                                        onSearchChange={handleSearchChange}
+                                        itemsPerPage={pageSize}
+                                        onItemsPerPageChange={handleItemsPerPageChange}
+                                        selectedTeams={selectedTeams}
+                                        onSelectedTeamsChange={handleSelectedTeamsChange}
+                                        onDeleteTeam={handleDeleteTeam}
+                                        currentPage={currentPage}
+                                    />
+
+                                    {/* Pagination - Hanya tampilkan jika totalPages > 1 */}
+                                    {pagination.totalPages > 1 && (
+                                        <div className="flex justify-center mt-2">
+                                            <Pagination totalPages={pagination.totalPages} />
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
                     </div>
@@ -187,5 +319,5 @@ export default function TeamPageAdmin() {
         ),
     };
 
-    return <AdminLayout {...layoutProps} />;
+    return <PicLayout {...layoutProps} />;
 }

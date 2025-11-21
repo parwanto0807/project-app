@@ -16,7 +16,7 @@ import { useCustomers } from "@/hooks/use-customer";
 import { useProducts } from "@/hooks/use-product";
 import { useTaxes } from "@/hooks/use-tax";
 import { usePaymentTerms } from "@/hooks/use-paymentTerm";
-import { useSalesOrder } from "@/hooks/use-salesOrder";
+import { useSalesOrderData } from "@/hooks/use-salesOrder";
 import { useCreateQuotation } from "@/hooks/use-quotation"; // Import the mutation hook
 import { AdminLoading } from "@/components/admin-loading";
 import { CreateQuotationForm } from "@/components/sales/quotation/createFormData";
@@ -33,7 +33,7 @@ export default function CreateQuotationPageAdmin() {
 
   // Hook fetching data
   const { data: customersData, isLoading: isCustomersLoading } = useCustomers();
-  const { data: salesOrderData, isLoading: isSalesOrdersLoading } = useSalesOrder();
+  const { data: salesOrderData, isLoading: isSalesOrdersLoading } = useSalesOrderData();
   const { data: productsData, isLoading: isProductsLoading } = useProducts();
   const { data: taxesData, isLoading: isTaxesLoading } = useTaxes();
   const { data: paymentTermsData, isLoading: isPaymentTermsLoading } = usePaymentTerms();
@@ -67,7 +67,7 @@ export default function CreateQuotationPageAdmin() {
   }, [productsData]);
 
   useEffect(() => {
-    if (salesOrderData?.salesOrders) setSalesOrders(salesOrderData.salesOrders);
+    if (salesOrderData?.data) setSalesOrders(salesOrderData.data);
   }, [salesOrderData]);
 
   useEffect(() => {

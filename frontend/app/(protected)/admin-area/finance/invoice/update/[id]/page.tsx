@@ -128,7 +128,7 @@ export default function UpdateInvoicePage() {
           getBankAccounts(),
         ]);
 
-        setSalesOrders(salesOrderRes.salesOrders || []);
+        setSalesOrders(salesOrderRes.data || []);
         setUsers(usersRes.karyawan || []);
         setBanks(banksRes || []);
       } catch (err) {

@@ -1,8 +1,5 @@
-"use client";
-
-import { useState, useEffect } from "react";
+import { redirect } from "next/navigation";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
     Breadcrumb,
     BreadcrumbItem,
@@ -14,181 +11,111 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { LayoutProps } from "@/types/layout";
-import { PurchaseRequestTable } from "@/components/pr/tableData";
-import { usePurchaseRequest } from "@/hooks/use-pr";
+import { PaginationInfo, PurchaseRequestFilters, PRStatus } from "@/types/pr";
 import { AdminLoading } from "@/components/admin-loading";
-import { PaginationInfo, PurchaseRequest, PurchaseRequestFilters } from "@/types/pr";
-import { toast } from "sonner";
+import { PurchaseRequestClientWrapper } from "@/components/pr/component/purchase-request-wrapper";
+import { getAllPurchaseRequests } from "@/lib/action/pr/pr";
 
-export default function PurchaseRequestPageAdmin() {
-    const [filters, setFilters] = useState<PurchaseRequestFilters>({
-        status: undefined,
-        projectId: undefined,
-        dateFrom: undefined,
-        dateTo: undefined,
-        page: 1,
-        limit: 50,
-        search: "",
-    });
+// Definisikan interface untuk search params yang sesuai dengan Next.js
+interface SearchParams {
+    page?: string;
+    limit?: string;
+    search?: string;
+    status?: string;
+    projectId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+}
 
-    const router = useRouter();
+interface PurchaseRequestPageAdminProps {
+    searchParams: Promise<SearchParams>;
+}
 
-    // Role auth dummy → ganti sesuai auth system kamu
-    const userRole = "admin";
+// Helper function untuk validasi status
+function isValidPRStatus(status: string): status is PRStatus {
+    return ["DRAFT", "REVISION_NEEDED", "SUBMITTED", "APPROVED", "REJECTED", "COMPLETED"].includes(status);
+}
 
-    // ✅ Panggil hook dengan filters
-    const {
-        purchaseRequests,
-        pagination, // Ambil pagination dari hook
-        loading,
-        error,
-        fetchAllPurchaseRequests,
-        deletePurchaseRequest,
-        updatePurchaseRequestStatus,
-    } = usePurchaseRequest();
+// Helper function untuk parse number dengan aman
+function parseNumber(value: string | undefined, defaultValue: number): number {
+    if (!value) return defaultValue;
+    const parsed = parseInt(value);
+    return isNaN(parsed) ? defaultValue : parsed;
+}
 
-    // Fetch data ketika filter berubah
-    useEffect(() => {
-        fetchAllPurchaseRequests(filters);
-    }, [filters, fetchAllPurchaseRequests]);
-
-    // Redirect jika bukan admin
-    useEffect(() => {
-        if (userRole !== "admin") {
-            router.push("/unauthorized");
-        }
-    }, [userRole, router]);
-
-    const handlePageChange = (page: number) => {
-        setFilters(prev => ({ ...prev, page }));
-    };
-
-    const handleLimitChange = (limit: number) => {
-        setFilters(prev => ({ ...prev, limit, page: 1 }));
-    };
-
-    const handleSearchChange = (search: string) => {
-        setFilters(prev => ({ ...prev, search, page: 1 }));
-    };
-
-    const handleStatusFilterChange = (status: PurchaseRequestFilters['status']) => {
-        setFilters(prev => ({ ...prev, status, page: 1 }));
-    };
-
-    const handleProjectFilterChange = (projectId: string) => {
-        setFilters(prev => ({ ...prev, projectId, page: 1 }));
-    };
-
-    const handleDateFilterChange = (dateFrom?: Date, dateTo?: Date) => {
-        setFilters(prev => ({ ...prev, dateFrom, dateTo, page: 1 }));
-    };
-
-    // Handle status update - disesuaikan dengan signature fungsi yang ada
-    const handleStatusUpdate = async (id: string, status: PurchaseRequest['status']) => {
-        try {
-            // Cek jika status sudah COMPLETE
-            if (status === "COMPLETED") {
-                // Bisa tampilkan toast kalau mau
-                toast.info(`PR Sudah di Approval. Mengarahkan ke Proses pengajuan biaya...`);
-
-                // Redirect ke halaman create dengan id
-                router.push(`/admin-area/finance/prApprove/create/${id}`);
-                return; // hentikan fungsi agar tidak lanjut update
-            }
-
-            // Tampilkan loading toast
-            const toastId = toast.loading(`Updating status to ${status}...`);
-
-            // Jalankan update status hanya jika bukan COMPLETE
-            await updatePurchaseRequestStatus(id, { status });
-
-            // Update toast menjadi success
-            toast.success(`Purchase request status updated to ${status}`, {
-                id: toastId
-            });
-
-            // Refresh data setelah update status
-            fetchAllPurchaseRequests(filters);
-        } catch (error) {
-            console.error("Failed to update purchase request status:", error);
-            toast.error(`Failed to update status: ${error instanceof Error ? error.message : "Unknown error"}`);
-        }
-    };
-
-    const handleClearFilters = () => {
-        setFilters({
-            status: undefined,
-            projectId: undefined,
-            dateFrom: undefined,
-            dateTo: undefined,
-            page: 1,
-            limit: 10,
-            search: "",
-        });
-    };
-
-    const handleDelete = async (id: string) => {
-        if (window.confirm("Are you sure you want to delete this purchase request?")) {
-            try {
-                await deletePurchaseRequest(id);
-                console.log("Purchase request deleted successfully");
-                // Refresh data setelah delete
-                fetchAllPurchaseRequests(filters);
-            } catch (error) {
-                console.error("Failed to delete purchase request:", error);
-            }
-        }
-    };
-
-    // Handle loading state
-    if (loading) {
-        return <AdminLoading message="Loading Purchase Requests data..." />;
+export default async function PurchaseRequestPageAdmin({ searchParams }: PurchaseRequestPageAdminProps) {
+    const resolvedSearchParams = await searchParams;
+    
+    // Check authentication and role on server
+    const userRole = "admin"; 
+    
+    if (userRole !== "admin") {
+        redirect("/unauthorized");
     }
 
-    // Handle error state
-    if (error) {
-        return (
-            <AdminLayout
-                title="Purchase Request Management"
-                role="admin"
-            >
-                <div className="flex flex-col items-center justify-center h-64 space-y-4">
-                    <div className="text-red-500 text-lg font-semibold">
-                        Error loading purchase requests
-                    </div>
-                    <div className="text-gray-600 text-sm">
-                        {error || "Terjadi kesalahan saat memuat data"}
-                    </div>
-                    <button
-                        onClick={() => window.location.reload()}
-                        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                    >
-                        Try Again
-                    </button>
-                </div>
-            </AdminLayout>
-        );
+    // Parse search params dengan type safety
+    const page = parseNumber(resolvedSearchParams.page, 1);
+    const limit = parseNumber(resolvedSearchParams.limit, 10);
+    const search = resolvedSearchParams.search || "";
+    
+    // Validasi status dengan type safety
+    const status = resolvedSearchParams.status && isValidPRStatus(resolvedSearchParams.status) 
+        ? resolvedSearchParams.status 
+        : undefined;
+        
+    const projectId = resolvedSearchParams.projectId || undefined;
+    
+    // Parse dates dengan validation
+    let dateFrom: Date | undefined;
+    let dateTo: Date | undefined;
+    
+    try {
+        dateFrom = resolvedSearchParams.dateFrom ? new Date(resolvedSearchParams.dateFrom) : undefined;
+        dateTo = resolvedSearchParams.dateTo ? new Date(resolvedSearchParams.dateTo) : undefined;
+        
+        // Validate dates
+        if (dateFrom && isNaN(dateFrom.getTime())) dateFrom = undefined;
+        if (dateTo && isNaN(dateTo.getTime())) dateTo = undefined;
+    } catch (error) {
+        console.error("Error parsing dates:", error);
+        // Tetap lanjut tanpa date filters jika parsing gagal
     }
 
-    // Buat pagination info dari data yang diterima dari API
-    const tablePagination: PaginationInfo = pagination
-        ? {
-            page: pagination.page ?? filters.page ?? 1,   // fallback ke 1
-            limit: pagination.limit ?? filters.limit ?? 10, // fallback ke 10
-            totalCount: pagination.totalCount ?? 0,
-            totalPages: pagination.totalPages ?? 1,
-        }
-        : {
-            page: filters.page ?? 1,
-            limit: filters.limit ?? 10,
-            totalCount: 0,
-            totalPages: 1,
+    // Build filters object dengan type yang benar
+    const filters: PurchaseRequestFilters = {
+        status,
+        projectId,
+        dateFrom,
+        dateTo,
+        page,
+        limit,
+        search,
+    };
+
+    try {
+        // Fetch data menggunakan server action
+        const { data: purchaseRequests, pagination } = await getAllPurchaseRequests(filters);
+
+        const tablePagination: PaginationInfo = {
+            page: pagination?.page || page,
+            limit: pagination?.limit || limit,
+            totalCount: pagination?.totalCount || 0,
+            totalPages: pagination?.totalPages || 1,
         };
 
-    const layoutProps: LayoutProps = {
-        title: "Purchase Request Management",
-        role: "admin",
-        children: (
+        // Siapkan initial data untuk client wrapper
+        const initialData = {
+            purchaseRequests,
+            pagination: tablePagination,
+            currentSearch: search,
+            currentStatus: status,
+            currentProjectId: projectId,
+            currentDateFrom: dateFrom,
+            currentDateTo: dateTo,
+        };
+
+        // Content yang akan ditampilkan - GUNAKAN CLIENT WRAPPER
+        const pageContent = (
             <>
                 <Breadcrumb>
                     <BreadcrumbList>
@@ -218,33 +145,66 @@ export default function PurchaseRequestPageAdmin() {
 
                 <div className="h-full w-full">
                     <div className="flex-1 space-y-2 p-2 pt-1 md:p-4">
-                        <PurchaseRequestTable
-                            purchaseRequests={purchaseRequests}
-                            isLoading={loading}
-                            isError={!!error}
-                            role="admin"
-                            pagination={tablePagination}
-                            onDelete={handleDelete}
-                            isDeleting={loading}
-                            onPageChange={handlePageChange}
-                            onLimitChange={handleLimitChange}
-                            onSearchChange={handleSearchChange}
-                            onStatusFilterChange={handleStatusFilterChange}
-                            onProjectFilterChange={handleProjectFilterChange}
-                            onDateFilterChange={handleDateFilterChange}
-                            onClearFilters={handleClearFilters}
-                            onStatusUpdate={handleStatusUpdate}
-                            currentSearch={filters.search}
-                            currentStatus={filters.status}
-                            currentProjectId={filters.projectId}
-                            currentDateFrom={filters.dateFrom}
-                            currentDateTo={filters.dateTo}
-                        />
+                        <PurchaseRequestClientWrapper initialData={initialData} />
                     </div>
                 </div>
             </>
-        ),
-    };
+        );
 
-    return <AdminLayout {...layoutProps} />;
+        const layoutProps: LayoutProps = {
+            title: "Purchase Request Management",
+            role: "admin",
+            children: pageContent,
+        };
+
+        return <AdminLayout {...layoutProps} />;
+
+    } catch (error) {
+        console.error("Error loading purchase requests:", error);
+        
+        // Error content
+        const errorContent = (
+            <>
+                <Breadcrumb>
+                    <BreadcrumbList>
+                        <BreadcrumbItem>
+                            <BreadcrumbLink asChild>
+                                <Badge variant="outline">
+                                    <Link href="/admin-area">Dashboard</Link>
+                                </Badge>
+                            </BreadcrumbLink>
+                        </BreadcrumbItem>
+                        <BreadcrumbSeparator />
+                        <BreadcrumbItem>
+                            <BreadcrumbLink asChild>
+                                <Badge variant="outline">
+                                    Logistic
+                                </Badge>
+                            </BreadcrumbLink>
+                        </BreadcrumbItem>
+                        <BreadcrumbSeparator />
+                        <BreadcrumbItem>
+                            <Badge variant="outline">
+                                <BreadcrumbPage>Purchase Requests</BreadcrumbPage>
+                            </Badge>
+                        </BreadcrumbItem>
+                    </BreadcrumbList>
+                </Breadcrumb>
+
+                <div className="flex-1 p-4 flex items-center justify-center min-h-[400px]">
+                    <AdminLoading 
+                        message="Error loading purchase requests data. Please try again later."
+                    />
+                </div>
+            </>
+        );
+
+        const errorLayoutProps: LayoutProps = {
+            title: "Purchase Request Management - Error",
+            role: "admin",
+            children: errorContent,
+        };
+
+        return <AdminLayout {...errorLayoutProps} />;
+    }
 }

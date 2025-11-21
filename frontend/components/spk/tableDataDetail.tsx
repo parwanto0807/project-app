@@ -1162,7 +1162,7 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
 
                                     {/* ✅ Action Bar — DIPISAHKAN dari scroll area, sticky di bottom card */}
                                     <div className="mt-4 flex flex-col sm:flex-row gap-2 justify-end bg-cyan-800 py-2 px-3 rounded-b-lg border-t border-border/40">
-                                        <Button
+                                        {/* <Button
                                             variant="outline"
                                             size="sm"
                                             onClick={handleBack}
@@ -1170,7 +1170,7 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
                                         >
                                             <ArrowLeft className="h-4 w-4 mr-2" />
                                             Kembali
-                                        </Button>
+                                        </Button> */}
 
                                         <Button variant="outline" size="sm" onClick={exportToCSV} className="text-xs h-7">
                                             <Download className="h-3 w-3 mr-1" />

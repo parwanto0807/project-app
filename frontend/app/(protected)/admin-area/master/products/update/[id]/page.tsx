@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import {
   Breadcrumb,
@@ -24,9 +24,12 @@ type Product = z.infer<typeof ProductUpdateSchema>;
 
 export default function UpdateProductPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const id = params?.id as string | undefined;
   const router = useRouter();
   const { user, isLoading } = useSession();
+
+  const returnUrl = searchParams.get("returnUrl") || "/admin-area/master/products?page=1";
 
   const [data, setData] = useState<Product | null>(null);
   const [error, setError] = useState("");
@@ -136,7 +139,12 @@ export default function UpdateProductPage() {
           </button>
         </div>
       ) : data ? (
-        <UpdateProductForm productId={data.id} accessToken={accessToken} role={role} />
+        <UpdateProductForm
+          productId={data.id}
+          accessToken={accessToken}
+          role={role}
+          returnUrl={returnUrl}      // ✔ string
+        />
       ) : (
         <div className="flex flex-col items-center justify-center py-12 space-y-4">
           <div className="bg-yellow-100 p-4 rounded-full">

@@ -57,8 +57,8 @@ export default function DeleteProductAlert({ id, onDelete }: DeleteProductAlertP
     return (
         <AlertDialog open={open} onOpenChange={setOpen}>
             <Button
-                variant="ghost"
-                className="w-full justify-start p-0 h-auto font-normal hover:text-red-600 dark:hover:text-red-400"
+                variant="outline"
+                className="w-full md:w-24 justify-start p-0 h-auto font-normal hover:text-red-600 dark:hover:text-red-400"
                 onClick={(e) => {
                     e.stopPropagation();
                     setOpen(true);

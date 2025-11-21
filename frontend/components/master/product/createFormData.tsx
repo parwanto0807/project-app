@@ -117,16 +117,13 @@ export function CreateProductForm({ role, code }: { role: string; code: string }
 
             toast.success("Product created successfully!", {
                 description: `${values.name} has been added to your products.`,
-                action: {
-                    label: "View",
-                    onClick: () => router.push(`/products/${data.id}`),
-                },
             });
 
             form.reset();
             router.refresh();
-            const basePath = getBasePath(role)
-            router.push(basePath)
+
+            const basePath = getBasePath(role);
+            router.push(`${basePath}?highlightId=${data.id}`);
         } catch (error) {
             toast.error("Failed to create product", {
                 description: error instanceof Error ? error.message : "An unknown error occurred",

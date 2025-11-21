@@ -1,4 +1,5 @@
 import { SpkApiPayload } from "@/schemas/index";
+import { FetchSpkParams, SpkResponse } from "@/types/spk";
 import { SPK } from "@/types/spkReport";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -43,21 +44,63 @@ export async function fetchAllSpk() {
   }
 }
 
-export async function fetchAllSpkAdmin() {
+// @/lib/action/master/spk/spk.ts
+
+export async function fetchAllSpkAdmin(
+  params?: FetchSpkParams
+): Promise<SpkResponse> {
   try {
-    const res = await fetch(`${API_URL}/api/spk/getAllSPKAdmin`, {
+    const {
+      page = 1,
+      pageSize = 10,
+      searchTerm = "",
+      statusFilter = "",
+      filterBy = "",
+    } = params || {};
+
+    // ===== Build Query Params =====
+    const queryParams = new URLSearchParams();
+    queryParams.append("page", String(page));
+    queryParams.append("pageSize", String(pageSize));
+    if (searchTerm) queryParams.append("search", searchTerm);
+    if (statusFilter) queryParams.append("status", statusFilter);
+    if (filterBy) queryParams.append("filterBy", filterBy); // Tambahkan filterBy
+
+    // ===== Gunakan endpoint baru =====
+    const url = `${API_URL}/api/spk/getAllSPKAdmin?${queryParams.toString()}`;
+
+    console.log("Fetching from:", url);
+    console.log("Filter parameters:", {
+      page,
+      pageSize,
+      searchTerm,
+      statusFilter,
+      filterBy,
+    });
+
+    const res = await fetch(url, {
       method: "GET",
       credentials: "include",
       cache: "no-store",
     });
 
+    console.log("Response status:", res.status);
+
     if (!res.ok) {
-      throw new Error("Gagal fetch SPK");
+      const errorData = await res.json().catch(() => null);
+      throw new Error(errorData?.error || `Gagal fetch SPK: ${res.status}`);
     }
 
-    return await res.json();
+    const result = await res.json();
+    console.log("Received result:", {
+      dataCount: result.data?.length || 0,
+      pagination: result.pagination,
+      filterApplied: filterBy,
+    });
+
+    return result;
   } catch (error) {
-    console.error("fetchAllSpk error:", error);
+    console.error("fetchAllSpkAdmin error:", error);
     throw error;
   }
 }

@@ -80,89 +80,190 @@ export interface SpkFormValuesPdfProps {
   updatedAt: Date;
 }
 
-
 // types/spk.ts
 export interface SPKBase {
-    id: string;
-    spkNumber: string;
-    spkDate: Date;
-    salesOrderId: string;
-    teamId: string;
-    createdById: string;
-    notes?: string | null;
-    createdAt: Date;
-    updatedAt: Date;
+  id: string;
+  spkNumber: string;
+  spkDate: Date;
+  salesOrderId: string;
+  teamId: string;
+  createdById: string;
+  notes?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface SPKDataApi extends SPKBase {
-    createdBy: {
+  createdBy: {
+    id: string;
+    namaLengkap: string;
+    jabatan?: string | null;
+    nik?: string | null;
+    departemen?: string | null;
+  };
+
+  salesOrder: {
+    id: string;
+    soNumber: string;
+    projectName: string;
+    customer: {
+      name: string;
+      address: string;
+      branch: string;
+    };
+    project?: {
+      id: string;
+      name: string;
+    };
+    items: {
+      id: string;
+      lineNo: number;
+      itemType: string;
+      name: string;
+      description?: string | null;
+      qty: number;
+      uom?: string | null;
+      unitPrice: number;
+      discount: number;
+      taxRate: number;
+      lineTotal: number;
+    }[];
+  };
+
+  team?: {
+    id: string;
+    namaTeam: string;
+    teamKaryawan?: {
+      teamId: string;
+      karyawan?: {
+        namaLengkap: string;
+        email: string;
+        jabatan: string;
+        departemen: string;
+      };
+    };
+  } | null;
+
+  details: {
+    id: string;
+    karyawan?: {
+      id: string;
+      namaLengkap: string;
+      jabatan: string;
+      departemen: string;
+      email: string;
+      nik: string;
+    };
+    salesOrderItem?: {
+      id: string;
+      name: string;
+      description?: string;
+      qty: number;
+      uom?: string | null;
+    };
+    lokasiUnit?: string | null;
+    status?: "PENDING" | "DONE";
+  }[];
+}
+
+export interface FetchSpkParams {
+  page?: number;
+  pageSize?: number;
+  searchTerm?: string;
+  statusFilter?: string;
+  filterBy: string;
+}
+
+export interface SpkResponse {
+  data: SPK[];
+  pagination: {
+    currentPage: number;
+    pageSize: number;
+    totalCount: number;
+    totalPages: number;
+  };
+}
+
+interface SPK {
+  id: string;
+  spkNumber: string;
+  spkDate: Date;
+  salesOrderId: string;
+  teamId: string;
+  createdById: string;
+  progress: number;
+  spkStatusClose: boolean;
+  spkStatus: boolean;
+  createdBy: {
+    id: string;
+    namaLengkap: string;
+    jabatan?: string | null;
+    nik?: string | null;
+    departemen?: string | null;
+  };
+
+  salesOrder: {
+    id: string;
+    soNumber: string;
+    projectName: string;
+    customer: {
+      name: string;
+      address: string;
+      branch: string;
+    }
+    project?: {
+      id: string;
+      name: string;
+    };
+    items: {
+      id: string;
+      lineNo: number;
+      itemType: string;
+      name: string;
+      description?: string | null;
+      qty: number;
+      uom?: string | null;
+      unitPrice: number;
+      discount: number;
+      taxRate: number;
+      lineTotal: number;
+    }[];
+  };
+
+  team?: {
+    id: string;
+    namaTeam: string;
+    teamKaryawan?: {
+      teamId: string;
+      karyawan?: {
         id: string;
         namaLengkap: string;
-        jabatan?: string | null;
-        nik?: string | null;
-        departemen?: string | null;
+        jabatan: string;
+        departemen: string;
+      };
     };
+  } | null;
 
-    salesOrder: {
-        id: string;
-        soNumber: string;
-        projectName: string;
-        customer: {
-            name: string;
-            address: string;
-            branch: string;
-        };
-        project?: {
-            id: string;
-            name: string;
-        };
-        items: {
-            id: string;
-            lineNo: number;
-            itemType: string;
-            name: string;
-            description?: string | null;
-            qty: number;
-            uom?: string | null;
-            unitPrice: number;
-            discount: number;
-            taxRate: number;
-            lineTotal: number;
-        }[];
+  details: {
+    id: string;
+    karyawan?: {
+      id: string;
+      namaLengkap: string;
+      jabatan: string;
+      departemen: string;
+      nik: string;
     };
+    salesOrderItemSPK?: {
+      id: string;
+      name: string;
+      description?: string;
+      qty: number;
+      uom?: string | null;
+    };
+    lokasiUnit?: string | null;
+  }[];
 
-    team?: {
-        id: string;
-        namaTeam: string;
-        teamKaryawan?: {
-            teamId: string;
-            karyawan?: {
-                namaLengkap: string;
-                email: string;
-                jabatan: string;
-                departemen: string;
-            };
-        };
-    } | null;
-
-    details: {
-        id: string;
-        karyawan?: {
-            id: string;
-            namaLengkap: string;
-            jabatan: string;
-            departemen: string;
-            email: string;
-            nik: string;
-        };
-        salesOrderItem?: {
-            id: string;
-            name: string;
-            description?: string;
-            qty: number;
-            uom?: string | null;
-        };
-        lokasiUnit?: string | null;
-        status?: 'PENDING' | 'DONE';
-    }[];
+  notes?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
 }

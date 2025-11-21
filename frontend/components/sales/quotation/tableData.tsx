@@ -9,147 +9,83 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
     ChevronDown,
     ChevronUp,
-    Search,
-    Plus,
-    FileText,
-    Eye,
     Edit,
     Trash2,
-    Download,
-    ChevronLeft,
-    ChevronRight,
-    MoreHorizontal,
-    Filter,
-    Calendar,
-    User,
-    Mail,
-    DollarSign,
-    List,
-    Package,
-    Type,
-    Scale,
-    Tag,
-    Paperclip,
+    FileDigit,
     Building,
-    MapPin,
+    Mail,
+    CreditCard,
+    Calendar,
     Clock,
     CheckCircle,
     XCircle,
     AlertCircle,
-    // Send,
-    // Copy,
+    FileText,
+    MapPin,
     BarChart3,
-    CreditCard,
-    FileDigit,
-    ClipboardList,
+    List,
+    Paperclip,
+    Tag,
+    Scale,
+    Type,
+    Package,
+    Eye,
+    User,
+    DollarSign,
+    MoreHorizontal,
+    Download,
 } from "lucide-react";
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Quotation, QuotationLine, QuotationSummary } from "@/types/quotation";
-import { useRouter } from "next/navigation";
+import { QuotationLine, QuotationSummary } from "@/types/quotation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { PDFDownloadLink, PDFViewer } from "@react-pdf/renderer";
 import QuotationPdfDocument from "./pdfPreview";
-import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
 
-export interface QuotationItem {
-    id: string;
-    description: string;
-    quantity: number;
-    unitPrice: number;
-    total: number;
-}
-
-export interface PaginationInfo {
-    page: number;
-    limit: number;
-    total: number;
-    pages: number;
-}
+type SortField = "quotationNumber" | "customerName" | "totalAmount" | "createdAt" | "status";
+type SortOrder = "asc" | "desc";
 
 interface QuotationTableProps {
     quotations: QuotationSummary[];
     isLoading: boolean;
     isError: boolean;
-    role: string;
-    pagination?: PaginationInfo;
-    onPageChange?: (page: number) => void;
-    onLimitChange?: (limit: number) => void;
     onDelete: (id: string, options?: { onSuccess?: () => void }) => void;
-    isDeleting?: boolean; // ← harus boolean, bukan function
+    isDeleting?: boolean;
+    highlightId?: string | null;
 }
-
-type SortField = "quotationNumber" | "customerName" | "totalAmount" | "createdAt" | "status";
-type SortOrder = "asc" | "desc";
 
 export function QuotationTable({
     quotations,
     isLoading,
     isError,
-    role,
-    pagination = {
-        page: 1,
-        limit: 10,
-        total: 0,
-        pages: 1
-    },
-    onPageChange,
-    onLimitChange,
     onDelete,
     isDeleting,
+    highlightId,
 }: QuotationTableProps) {
-    const [searchTerm, setSearchTerm] = useState("");
     const [sortField, setSortField] = useState<SortField>("createdAt");
     const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+    const rowRefs = React.useRef<{ [key: string]: HTMLTableRowElement | null }>({});
+    const searchParams = useSearchParams();
+    const page = Number(searchParams.get("page")) || 1;
+    const highlightStatus = searchParams.get("status") || "";
+    const pageSize = searchParams.get("pageSize") || "";
+    const searchUrl = searchParams.get("search") || ""; 
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-    const [currentPage, setCurrentPage] = useState(pagination.page);
     const [selectedQuotation, setSelectedQuotation] = useState<QuotationSummary | null>(null);
     const [showPdfDialog, setShowPdfDialog] = useState(false);
     const [showAlertDialog, setShowAlertDialog] = useState(false);
-
     const router = useRouter();
-    console.log("role", role)
-    // Filter quotations based on search term
-    const filteredQuotations = quotations.filter(quotation =>
-        quotation.quotationNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        quotation.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        quotation.customer.email.toLowerCase().includes(searchTerm.toLowerCase())
-    );
 
-    // Sort quotations dengan type-safe implementation
-    const sortedQuotations = [...filteredQuotations].sort((a, b) => {
+    // Sort quotations
+    const sortedQuotations = [...quotations].sort((a, b) => {
         let aValue: string | number | Date;
         let bValue: string | number | Date;
 
@@ -184,21 +120,6 @@ export function QuotationTable({
         return 0;
     });
 
-    // const getStatusText = (status: string) => {
-    //     switch (status) {
-    //         case 'APPROVED':
-    //             return 'Disetujui';
-    //         case 'REJECTED':
-    //             return 'Ditolak';
-    //         case 'PENDING':
-    //             return 'Menunggu';
-    //         case 'EXPIRED':
-    //             return 'Kadaluarsa';
-    //         default:
-    //             return status;
-    //     }
-    // };
-
     const getStatusIcon = (status: string) => {
         switch (status) {
             case 'APPROVED':
@@ -214,42 +135,6 @@ export function QuotationTable({
         }
     };
 
-    const handleEdit = (e: React.MouseEvent, quotationId: string) => {
-        e.stopPropagation();
-        router.push(`/admin-area/sales/quotation/update/${quotationId}`);
-    };
-
-
-    // Handle buka PDF Dialog
-    const handleOpenPdfDialog = (quotation: QuotationSummary) => {
-        setSelectedQuotation(quotation);
-        setShowPdfDialog(true);
-    };
-
-    // Handle buka PDF Dialog
-    const handleOpenAlertDialog = (quotation: QuotationSummary) => {
-        setSelectedQuotation(quotation);
-        setShowAlertDialog(true);
-    };
-
-    // Handle tutup PDF Dialog
-    const handleSort = (field: SortField) => {
-        if (sortField === field) {
-            setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-        } else {
-            setSortField(field);
-            setSortOrder("asc");
-        }
-    };
-
-    const handleCreateFromSalesOrder = () => {
-        router.push("/admin-area/sales/quotation/create");
-    };
-
-    const handleCreateManual = () => {
-        router.push("/admin-area/sales/quotation/create/manual");
-    };
-
     const toggleRowExpansion = (quotationId: string) => {
         const newExpanded = new Set(expandedRows);
         if (newExpanded.has(quotationId)) {
@@ -260,27 +145,42 @@ export function QuotationTable({
         setExpandedRows(newExpanded);
     };
 
-    // Handle row click untuk expand/collapse
-    const handleRowClick = (quotationId: string) => {
-        toggleRowExpansion(quotationId);
-    };
-
-    // Handle eye button click (stop propagation agar tidak trigger row click)
-    const handleEyeClick = (quotationId: string, e: React.MouseEvent) => {
+    const handleEdit = (e: React.MouseEvent, quotationId: string) => {
         e.stopPropagation();
-        toggleRowExpansion(quotationId);
+
+        // Base path untuk quotation admin
+        const basePath = "/admin-area/sales/quotation";
+        const currentPage = page || 1;
+
+        const focusId = quotationId;
+        const status = highlightStatus ?? undefined;
+        const itemPerPage = pageSize;
+        const search = searchUrl;
+
+        // Build returnUrl dengan status
+        const returnUrl = `${basePath}?pageSize=${itemPerPage}&page=${currentPage}&highlightId=${focusId}${status ? `&status=${status}` : ""}&search=${search}`;
+
+        // Buat URL untuk navigasi
+        const url = new URL(`${basePath}/update/${focusId}`, window.location.origin);
+        url.searchParams.set("returnUrl", returnUrl);
+        url.searchParams.set("highlightId", focusId);
+        if (itemPerPage) url.searchParams.set("pageSize", itemPerPage);
+        if (status) url.searchParams.set("status", status);
+
+        router.push(url.toString());
     };
 
-    const handlePageChange = (page: number) => {
-        setCurrentPage(page);
-        onPageChange?.(page);
+
+    const handleSort = (field: SortField) => {
+        if (sortField === field) {
+            setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+        } else {
+            setSortField(field);
+            setSortOrder("asc");
+        }
     };
 
-    const handleLimitChange = (limit: number) => {
-        onLimitChange?.(limit);
-    };
-
-    const getStatusVariant = (status: Quotation["status"]) => {
+    const getStatusVariant = (status: string) => {
         switch (status) {
             case "DRAFT": return "secondary";
             case "SENT": return "default";
@@ -307,11 +207,82 @@ export function QuotationTable({
         });
     };
 
-    // Calculate display range
-    const startItem = (currentPage - 1) * pagination.limit + 1;
-    const endItem = Math.min(currentPage * pagination.limit, pagination.total);
+    React.useEffect(() => {
+        if (!highlightId) return;
 
-    // Expanded Row Content Component
+        const highlightElement = rowRefs.current[highlightId];
+        if (!highlightElement) return;
+
+        const SCROLL_DELAY = 300;
+        const HIGHLIGHT_DURATION = 5000;
+        const ANIMATION_CLASSES = [
+            "bg-yellow-200",
+            "dark:bg-yellow-900",
+            "animate-pulse",
+            "ring-2",
+            "ring-yellow-400",
+            "ring-offset-2",
+            "transition-all",
+            "duration-500"
+        ];
+
+        // Delay kecil supaya DOM siap
+        const scrollTimer = setTimeout(() => {
+            highlightElement.scrollIntoView({
+                behavior: "smooth",
+                block: "center",
+                inline: "nearest"
+            });
+        }, SCROLL_DELAY);
+
+        // Tambahkan highlight animasi
+        highlightElement.classList.add(...ANIMATION_CLASSES);
+
+        // Hapus highlight + bersihkan URL
+        const cleanupTimer = setTimeout(() => {
+            highlightElement.classList.remove(...ANIMATION_CLASSES);
+
+            // Tambahkan sedikit smoothing setelah animasi
+            highlightElement.classList.add("transition-colors", "duration-300");
+
+            // Hapus highlightId dari URL tanpa reload
+            const params = new URLSearchParams(window.location.search);
+            params.delete("highlightId");
+            const newUrl = params.toString()
+                ? `${window.location.pathname}?${params.toString()}`
+                : window.location.pathname;
+
+            window.history.replaceState({}, "", newUrl);
+
+        }, HIGHLIGHT_DURATION);
+
+        return () => {
+            clearTimeout(scrollTimer);
+            clearTimeout(cleanupTimer);
+            highlightElement.classList.remove(...ANIMATION_CLASSES);
+        };
+    }, [highlightId]);
+
+    // Handle row click untuk expand/collapse
+    const handleRowClick = (quotationId: string) => {
+        toggleRowExpansion(quotationId);
+    };
+
+    // Handle eye button click (stop propagation agar tidak trigger row click)
+    const handleEyeClick = (quotationId: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        toggleRowExpansion(quotationId);
+    };
+    const handleOpenAlertDialog = (quotation: QuotationSummary) => {
+        setSelectedQuotation(quotation);
+        setShowAlertDialog(true);
+    };
+
+    const handleOpenPdfDialog = (quotation: QuotationSummary) => {
+        setSelectedQuotation(quotation);
+        setShowPdfDialog(true);
+    };
+
     const ExpandedRowContent = ({ quotation }: { quotation: QuotationSummary }) => {
         // Format discount display
         const formatDiscount = (type: string, value: number) => {
@@ -628,23 +599,24 @@ export function QuotationTable({
 
                     {/* Contextual Actions */}
                     {/* <div className="flex gap-2 ml-auto">
-                        {quotation.status === "DRAFT" && (
-                            <Button size="sm" className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white">
-                                <Send className="h-4 w-4" />
-                                Kirim ke Pelanggan
-                            </Button>
-                        )}
-                        {quotation.status === "SENT" && (
-                            <Button size="sm" className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white">
-                                <Copy className="h-4 w-4" />
-                                Buat Revisi
-                            </Button>
-                        )}
-                    </div> */}
+                            {quotation.status === "DRAFT" && (
+                                <Button size="sm" className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white">
+                                    <Send className="h-4 w-4" />
+                                    Kirim ke Pelanggan
+                                </Button>
+                            )}
+                            {quotation.status === "SENT" && (
+                                <Button size="sm" className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white">
+                                    <Copy className="h-4 w-4" />
+                                    Buat Revisi
+                                </Button>
+                            )}
+                        </div> */}
                 </div>
             </div>
         );
     };
+
 
     // Skeleton loader
     if (isLoading) {
@@ -659,13 +631,6 @@ export function QuotationTable({
                     <div className="text-center text-red-500">
                         <AlertCircle className="h-8 w-8 mx-auto mb-2" />
                         <p>Gagal memuat quotation</p>
-                        <Button
-                            variant="outline"
-                            className="mt-2"
-                            onClick={() => window.location.reload()}
-                        >
-                            Coba Lagi
-                        </Button>
                     </div>
                 </CardContent>
             </Card>
@@ -674,104 +639,7 @@ export function QuotationTable({
 
     return (
         <div className="space-y-6">
-            {/* Header dengan Gradient yang Lebih Profesional */}
-            <div className="bg-gradient-to-r from-cyan-600 to-purple-600 p-4 mt-6 rounded-lg text-white shadow-lg transform transition-all duration-300 hover:shadow-xl">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-                    <div className="mb-4 md:mb-0">
-                        <div className="flex items-center gap-3 mb-2">
-                            <div className="p-2 bg-white/10 rounded-lg">
-                                <FileDigit className="h-6 w-6 text-blue-300" />
-                            </div>
-                            <h1 className="text-2xl font-bold">Manajemen Quotation</h1>
-                        </div>
-                        <p className="text-slate-200 mt-1 flex items-center gap-2">
-                            <BarChart3 className="h-4 w-4" />
-                            Kelola dan lacak semua quotation Anda di satu tempat
-                        </p>
-                    </div>
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button
-                                className="bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300 transform hover:scale-105 shadow-lg flex items-center gap-2"
-                            >
-                                <Plus className="h-4 w-4" />
-                                Buat Quotation Baru
-                                <ChevronDown className="h-4 w-4" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-64">
-                            <DropdownMenuItem
-                                onClick={handleCreateFromSalesOrder}
-                                className="flex items-center gap-3 cursor-pointer p-3 hover:bg-blue-50"
-                            >
-                                <ClipboardList className="h-4 w-4 text-blue-600" />
-                                <div className="flex flex-col">
-                                    <span className="font-medium">By Sales Order</span>
-                                    <span className="text-sm text-gray-500">Buat quotation dari sales order yang sudah ada</span>
-                                </div>
-                            </DropdownMenuItem>
-
-                            <DropdownMenuItem
-                                onClick={handleCreateManual}
-                                className="flex items-center gap-3 cursor-pointer p-3 hover:bg-green-50"
-                            >
-                                <FileText className="h-4 w-4 text-green-600" />
-                                <div className="flex flex-col">
-                                    <span className="font-medium">Manual</span>
-                                    <span className="text-sm text-gray-500">Buat quotation manual tanpa sales order</span>
-                                </div>
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-            </div>
-
-            {/* Search and Filters */}
-            <Card className="shadow-sm border-slate-200 dark:border-slate-800">
-                <CardHeader className="pb-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                        <div className="relative flex-1 max-w-md">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
-                            <Input
-                                placeholder="Cari quotation..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-10 border-slate-300 focus:border-blue-500"
-                            />
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Button variant="outline" size="sm" className="border-slate-300">
-                                <Filter className="h-4 w-4 mr-2 text-slate-600" />
-                                Filter
-                            </Button>
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="outline" size="sm" className="border-slate-300">
-                                        <List className="h-4 w-4 mr-2 text-slate-600" />
-                                        {pagination.limit} per halaman
-                                        <ChevronDown className="h-4 w-4 ml-2" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent>
-                                    <DropdownMenuItem onClick={() => handleLimitChange(10)} className="flex items-center gap-2">
-                                        <List className="h-4 w-4 text-blue-600" />
-                                        10 per halaman
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleLimitChange(25)} className="flex items-center gap-2">
-                                        <List className="h-4 w-4 text-green-600" />
-                                        25 per halaman
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleLimitChange(50)} className="flex items-center gap-2">
-                                        <List className="h-4 w-4 text-purple-600" />
-                                        50 per halaman
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        </div>
-                    </div>
-                </CardHeader>
-
-                {/* Desktop Table */}
+            <Card className="shadow-sm border-slate-200 dark:border-slate-800 relative z-0"> {/* Tambahkan z-0 */}
                 <CardContent className="p-0">
                     <div className="hidden md:block">
                         <Table>
@@ -861,16 +729,19 @@ export function QuotationTable({
                                         <TableCell colSpan={8} className="text-center py-12 text-slate-500">
                                             <FileText className="h-16 w-16 mx-auto mb-4 text-slate-300" />
                                             <p className="text-lg font-medium mb-2">Tidak ada quotation ditemukan</p>
-                                            {searchTerm && (
-                                                <p className="text-sm">Coba sesuaikan kata pencarian Anda</p>
-                                            )}
                                         </TableCell>
                                     </TableRow>
                                 ) : (
                                     sortedQuotations.map((quotation) => (
                                         <React.Fragment key={quotation.id}>
                                             <TableRow
-                                                className="group hover:bg-slate-50/80 dark:hover:bg-slate-800 transition-colors cursor-pointer border-b border-slate-100  dark:border-slate-800"
+                                                ref={(el) => {
+                                                    rowRefs.current[quotation.id] = el;
+                                                }}
+                                                className={`group hover:bg-slate-50/80 dark:hover:bg-slate-800 transition-colors cursor-pointer border-b border-slate-100 dark:border-slate-800
+  ${quotation.id === highlightId ? "bg-yellow-200 dark:bg-yellow-900" : ""}
+`}
+
                                                 onClick={() => handleRowClick(quotation.id)}
                                             >
                                                 <TableCell>
@@ -984,28 +855,25 @@ export function QuotationTable({
                     </div>
 
                     {/* Mobile Cards */}
-                    <div className="md:hidden space-y-4 p-4">
+                    <div className="md:hidden space-y-4 p-1">
                         {sortedQuotations.length === 0 ? (
                             <div className="text-center py-8 text-slate-500">
                                 <FileText className="h-12 w-12 mx-auto mb-2 text-slate-300" />
                                 <p>Tidak ada quotation ditemukan</p>
-                                {searchTerm && (
-                                    <p className="text-sm">Coba sesuaikan kata pencarian Anda</p>
-                                )}
                             </div>
                         ) : (
                             sortedQuotations.map((quotation) => (
                                 <Card key={quotation.id} className="overflow-hidden border-slate-200 dark:border-slate-800 shadow-sm">
-                                    <CardHeader className="pb-3 bg-slate-50/50 dark:bg-slate-900">
+                                    <CardHeader className="py-1 bg-slate-100/50 dark:bg-slate-900 rounded-xl">
                                         <div className="flex justify-between items-start">
                                             <div>
-                                                <CardTitle className="text-sm flex items-center gap-2">
+                                                <CardTitle className="text-xs font-bold flex items-center gap-2">
                                                     <FileDigit className="h-4 w-4 text-blue-600" />
                                                     {quotation.quotationNumber}
                                                 </CardTitle>
-                                                <CardDescription className="flex text-sm items-center gap-2 mt-1">
+                                                <CardDescription className="flex text-xs items-center gap-2 mt-1">
                                                     <Building className="h-4 w-4 text-green-600" />
-                                                    {quotation.customer.name}
+                                                    <span className="font-bold">{quotation.customer.branch}</span>
                                                 </CardDescription>
                                             </div>
                                             <Badge variant={getStatusVariant(quotation.status)} className="flex items-center gap-1">
@@ -1015,7 +883,7 @@ export function QuotationTable({
                                         </div>
                                     </CardHeader>
                                     <CardContent className="pb-3">
-                                        <div className="space-y-3 text-sm">
+                                        <div className="space-y-3 text-xs">
                                             <div className="flex justify-between items-center">
                                                 <span className="text-slate-500 flex items-center gap-2">
                                                     <CreditCard className="h-4 w-4 text-emerald-600" />
@@ -1041,13 +909,13 @@ export function QuotationTable({
 
                                         {/* Expanded Content for Mobile */}
                                         {expandedRows.has(quotation.id) && (
-                                            <div className="mt-4 pt-4 border-t border-slate-200 space-y-4">
+                                            <div className="mt-2 pt-2 border-t border-slate-200 space-y-2">
                                                 <div className="space-y-3">
-                                                    <h4 className="font-semibold text-sm flex items-center gap-2 text-slate-700">
+                                                    <h4 className="font-semibold text-xs flex items-center gap-2 text-slate-700">
                                                         <User className="h-4 w-4 text-blue-600" />
                                                         Informasi Pelanggan
                                                     </h4>
-                                                    <div className="space-y-2 text-sm">
+                                                    <div className="space-y-2 text-xs">
                                                         <div className="flex items-center gap-2">
                                                             <Mail className="h-4 w-4 text-green-600" />
                                                             <span className="text-slate-600">{quotation.customer.email}</span>
@@ -1060,11 +928,11 @@ export function QuotationTable({
                                                 </div>
 
                                                 <div className="space-y-3">
-                                                    <h4 className="font-semibold text-sm flex items-center gap-2 text-slate-700">
+                                                    <h4 className="font-semibold text-xs flex items-center gap-2 text-slate-700">
                                                         <DollarSign className="h-4 w-4 text-emerald-600" />
                                                         Informasi Keuangan
                                                     </h4>
-                                                    <div className="space-y-2 text-sm">
+                                                    <div className="space-y-2 text-xs">
                                                         <div className="flex justify-between">
                                                             <span className="text-slate-500">Subtotal:</span>
                                                             <span>{formatCurrency(quotation.subtotal)}</span>
@@ -1120,10 +988,10 @@ export function QuotationTable({
                                                 </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
-                                                <DropdownMenuItem onClick={() => toggleRowExpansion(quotation.id)} className="flex items-center gap-2">
+                                                {/* <DropdownMenuItem onClick={() => toggleRowExpansion(quotation.id)} className="flex items-center gap-2">
                                                     <Eye className="h-4 w-4" />
                                                     {expandedRows.has(quotation.id) ? "Sembunyikan" : "Tampilkan"} Detail
-                                                </DropdownMenuItem>
+                                                </DropdownMenuItem> */}
                                                 <DropdownMenuItem
                                                     className="flex items-center gap-2"
                                                     onClick={(e) => handleEdit(e, quotation.id)}
@@ -1151,54 +1019,7 @@ export function QuotationTable({
                         )}
                     </div>
                 </CardContent>
-
-                {/* Pagination */}
-                {sortedQuotations.length > 0 && (
-                    <div className="flex items-center justify-between px-6 py-4 border-t bg-slate-50/50 dark:bg-slate-900">
-                        <div className="text-sm text-slate-500 flex items-center gap-2">
-                            <FileText className="h-4 w-4" />
-                            Menampilkan {startItem} sampai {endItem} dari {pagination.total} quotation
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-                                disabled={currentPage === 1}
-                                className="border-slate-300"
-                            >
-                                <ChevronLeft className="h-4 w-4" />
-                            </Button>
-                            <div className="flex items-center space-x-1">
-                                {Array.from({ length: Math.min(5, pagination.pages) }, (_, i) => {
-                                    const page = i + 1;
-                                    return (
-                                        <Button
-                                            key={page}
-                                            variant={currentPage === page ? "default" : "outline"}
-                                            size="sm"
-                                            onClick={() => handlePageChange(page)}
-                                            className="h-8 w-8 p-0 border-slate-300"
-                                        >
-                                            {page}
-                                        </Button>
-                                    );
-                                })}
-                            </div>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handlePageChange(Math.min(pagination.pages, currentPage + 1))}
-                                disabled={currentPage === pagination.pages}
-                                className="border-slate-300"
-                            >
-                                <ChevronRight className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    </div>
-                )}
             </Card>
-
             {/* PDF Dialog */}
             <Dialog open={showPdfDialog} onOpenChange={setShowPdfDialog}>
                 <DialogContent className="max-w-6xl h-[90vh] flex flex-col p-0">
@@ -1206,7 +1027,7 @@ export function QuotationTable({
                         <div className="flex items-center justify-between">
                             <DialogTitle className="flex items-center gap-2">
                                 <FileText className="h-5 w-5 text-green-600" />
-                                <span className="text-sm">
+                                <span className="text-xs">
                                     Quotation - {selectedQuotation?.quotationNumber}
                                     {selectedQuotation?.version || 0 > 1 && ` (Revisi ${selectedQuotation?.version})`}
                                 </span>
@@ -1274,125 +1095,34 @@ export function QuotationTable({
     );
 }
 
-// Skeleton Loader Component yang Diperbarui
+// Skeleton Loader Component
 function QuotationTableSkeleton() {
     return (
-        <div className="space-y-6">
-            {/* Header Skeleton */}
-            <div className="bg-gradient-to-r from-slate-800 to-slate-700 rounded-xl p-6 text-white">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-                    <div className="mb-4 md:mb-0">
-                        <div className="flex items-center gap-3 mb-2">
-                            <Skeleton className="h-10 w-10 bg-slate-600 rounded-lg" />
-                            <Skeleton className="h-8 w-48 bg-slate-600" />
-                        </div>
-                        <Skeleton className="h-4 w-64 bg-slate-500" />
-                    </div>
-                    <Skeleton className="h-10 w-40 bg-slate-600" />
-                </div>
-            </div>
-
-            {/* Table Skeleton */}
-            <Card className="shadow-sm border-slate-200">
-                <CardHeader>
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                        <Skeleton className="h-10 w-full max-w-md bg-slate-200" />
-                        <div className="flex gap-2">
-                            <Skeleton className="h-9 w-20 bg-slate-200" />
-                            <Skeleton className="h-9 w-28 bg-slate-200" />
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent className="p-0">
-                    {/* Desktop Table Skeleton */}
-                    <div className="hidden md:block">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    {[...Array(8)].map((_, i) => (
-                                        <TableHead key={i}>
-                                            <Skeleton className="h-4 w-20 bg-slate-200" />
-                                        </TableHead>
-                                    ))}
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {[...Array(5)].map((_, i) => (
-                                    <>
-                                        <TableRow key={i}>
-                                            {[...Array(8)].map((_, j) => (
-                                                <TableCell key={j}>
-                                                    <Skeleton className="h-4 w-full bg-slate-100" />
-                                                </TableCell>
-                                            ))}
-                                        </TableRow>
-                                        {/* Expanded row skeleton */}
-                                        <TableRow>
-                                            <TableCell colSpan={8}>
-                                                <div className="p-6 space-y-4">
-                                                    <div className="grid grid-cols-4 gap-4">
-                                                        {[...Array(4)].map((_, k) => (
-                                                            <div key={k} className="space-y-2">
-                                                                <Skeleton className="h-4 w-24 bg-slate-200" />
-                                                                <Skeleton className="h-3 w-20 bg-slate-100" />
-                                                                <Skeleton className="h-3 w-20 bg-slate-100" />
-                                                                <Skeleton className="h-3 w-20 bg-slate-100" />
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                    <div className="flex gap-2">
-                                                        {[...Array(4)].map((_, k) => (
-                                                            <Skeleton key={k} className="h-9 w-24 bg-slate-200" />
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    </>
+        <Card className="shadow-sm border-slate-200">
+            <CardContent className="p-0">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            {[...Array(7)].map((_, i) => (
+                                <TableHead key={i}>
+                                    <Skeleton className="h-4 w-20 bg-slate-200" />
+                                </TableHead>
+                            ))}
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {[...Array(5)].map((_, i) => (
+                            <TableRow key={i}>
+                                {[...Array(7)].map((_, j) => (
+                                    <TableCell key={j}>
+                                        <Skeleton className="h-4 w-full bg-slate-100" />
+                                    </TableCell>
                                 ))}
-                            </TableBody>
-                        </Table>
-                    </div>
-
-                    {/* Mobile Cards Skeleton */}
-                    <div className="md:hidden space-y-4 p-4">
-                        {[...Array(3)].map((_, i) => (
-                            <Card key={i}>
-                                <CardHeader>
-                                    <div className="flex justify-between">
-                                        <div className="space-y-2">
-                                            <Skeleton className="h-6 w-32 bg-slate-200" />
-                                            <Skeleton className="h-4 w-24 bg-slate-200" />
-                                        </div>
-                                        <Skeleton className="h-6 w-16 bg-slate-200" />
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="space-y-2">
-                                    {[...Array(3)].map((_, j) => (
-                                        <div key={j} className="flex justify-between">
-                                            <Skeleton className="h-4 w-16 bg-slate-200" />
-                                            <Skeleton className="h-4 w-20 bg-slate-200" />
-                                        </div>
-                                    ))}
-                                    {/* Expanded content skeleton for mobile */}
-                                    <div className="mt-4 pt-4 space-y-3">
-                                        <Skeleton className="h-4 w-full bg-slate-200" />
-                                        <Skeleton className="h-4 w-3/4 bg-slate-200" />
-                                        <div className="flex gap-2">
-                                            <Skeleton className="h-9 w-20 bg-slate-200" />
-                                            <Skeleton className="h-9 w-20 bg-slate-200" />
-                                        </div>
-                                    </div>
-                                </CardContent>
-                                <div className="p-4 border-t flex justify-between">
-                                    <Skeleton className="h-9 w-28 bg-slate-200" />
-                                    <Skeleton className="h-9 w-9 bg-slate-200" />
-                                </div>
-                            </Card>
+                            </TableRow>
                         ))}
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
     );
 }

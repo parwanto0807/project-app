@@ -146,17 +146,136 @@ export const createSPK = async (req, res) => {
 
 export const getAllSPKAdmin = async (req, res) => {
   try {
+    const page = parseInt(req.query.page) || 1;
+    const pageSize = parseInt(req.query.pageSize) || 50;
+    const search = req.query.search?.trim() || "";
+    const filterBy = req.query.filterBy?.trim() || "";
+
+    const skip = (page - 1) * pageSize;
+
+    // console.log("📥 Received parameters:", {
+    //   page,
+    //   pageSize,
+    //   search,
+    //   filterBy,
+    // });
+
+    // ============================
+    // BUILD WHERE CLAUSE DENGAN SEARCH DAN FILTER
+    // ============================
+    let whereClause = {};
+
+    // Filter conditions - DIPISAH dari search
+    if (filterBy) {
+      // console.log("🔍 Applying filter:", filterBy);
+
+      switch (filterBy) {
+        case "open":
+          whereClause.spkStatusClose = false;
+          break;
+        case "closed":
+          whereClause.spkStatusClose = true;
+          break;
+        case "on-progress":
+          // ⬅️ INI TAMBAHAN BARU
+          whereClause.spkStatusClose = false;
+          break;
+        case "progress-0":
+          whereClause.progress = 0;
+          break;
+
+        case "progress-1-49":
+          whereClause.progress = { gte: 1, lte: 49 };
+          break;
+
+        case "progress-50-99":
+          whereClause.progress = { gte: 50, lte: 99 };
+          break;
+
+        case "progress-100":
+          whereClause.progress = 100;
+          break;
+        case "all":
+          // Tampilkan semua data, tidak perlu filter tambahan
+          break;
+        default:
+          // Filter by team name
+          if (filterBy.startsWith("team-")) {
+            const teamName = filterBy.replace("team-", "");
+            whereClause.team = {
+              namaTeam: {
+                equals: teamName,
+                mode: "insensitive",
+              },
+            };
+          } else {
+            // Jika filter bukan team-*, anggap sebagai nama team langsung
+            whereClause.team = {
+              namaTeam: {
+                equals: filterBy,
+                mode: "insensitive",
+              },
+            };
+          }
+          break;
+      }
+    }
+
+    // Search conditions - DITAMBAHKAN ke existing whereClause
+    if (search) {
+      whereClause.AND = [
+        ...(whereClause.AND || []),
+        {
+          OR: [
+            { spkNumber: { contains: search, mode: "insensitive" } },
+            {
+              salesOrder: {
+                soNumber: { contains: search, mode: "insensitive" },
+              },
+            },
+            {
+              createdBy: {
+                namaLengkap: { contains: search, mode: "insensitive" },
+              },
+            },
+            { team: { namaTeam: { contains: search, mode: "insensitive" } } },
+          ],
+        },
+      ];
+    }
+
+    // console.log("🔍 Final where clause:", JSON.stringify(whereClause, null, 2));
+
+    // ============================
+    // COUNT TOTAL DATA DENGAN SEARCH DAN FILTER
+    // ============================
+    const totalCount = await prisma.sPK.count({ where: whereClause });
+
+    // ============================
+    // FETCH DATA DENGAN PAGINATION
+    // ============================
     const spkList = await prisma.sPK.findMany({
+      where: whereClause,
+      skip,
+      take: pageSize,
       include: {
         createdBy: true,
         salesOrder: {
           include: {
             customer: { select: { name: true, address: true, branch: true } },
             project: { select: { id: true, name: true } },
-            items: true, // ambil semua items
+            items: true,
           },
         },
-        team: true,
+        team: {
+          include: {
+            karyawan: {
+              include: {
+                karyawan: true,
+              },
+            },
+          },
+        },
         details: {
           include: {
             karyawan: true,
@@ -164,16 +283,24 @@ export const getAllSPKAdmin = async (req, res) => {
           },
         },
       },
-      orderBy: { createdAt: "asc" }, // urutkan SPK
+      orderBy: { createdAt: "asc" },
     });
 
+    // console.log("✅ Query results:", {
+    //   dataCount: spkList.length,
+    //   totalCount,
+    //   filterApplied: filterBy,
+    //   hasData: spkList.length > 0,
+    // });
+
+    // ============================
+    // SORTING
+    // ============================
     const spkListSorted = spkList.map((spk) => {
-      // ✅ Sort details per SPK berdasarkan createdAt
       const sortedDetails = spk.details
-        .slice()
+        ?.slice()
         .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 
-      // ✅ Sort salesOrder.items per SPK berdasarkan lineNo
       const sortedItems = spk.salesOrder?.items
         ?.slice()
         .sort((a, b) => (a.lineNo || 0) - (b.lineNo || 0));
@@ -188,7 +315,22 @@ export const getAllSPKAdmin = async (req, res) => {
       };
     });
 
-    res.json(spkListSorted);
+    // ============================
+    // PAGINATION META
+    // ============================
+    const totalPages = Math.ceil(totalCount / pageSize);
+
+    return res.json({
+      data: spkListSorted,
+      pagination: {
+        totalCount,
+        totalPages,
+        currentPage: page,
+        pageSize,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    });
   } catch (error) {
     console.error("Error getAllSPK:", error);
     res.status(500).json({ error: "Failed to fetch SPK list" });

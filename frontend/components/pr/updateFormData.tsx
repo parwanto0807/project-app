@@ -213,6 +213,7 @@ export function TabelUpdatePR({
     const [selectedSpk, setSelectedSpk] = useState<SPK | null>(null);
     const [karyawanData, setKaryawanData] = useState<Karyawan | null>(null);
     const [loadingKaryawan, setLoadingKaryawan] = useState(false);
+    
 
     // Hook untuk mendapatkan histori PR berdasarkan SPK
     const {

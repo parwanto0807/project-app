@@ -44,9 +44,10 @@ interface Karyawan {
 interface UpdateTeamFormProps {
     role: string;
     teamId: string;
+    returnUrl: string;
 }
 
-export default function UpdateTeamForm({ role, teamId }: UpdateTeamFormProps) {
+export default function UpdateTeamForm({ role, teamId, returnUrl }: UpdateTeamFormProps) {
     const router = useRouter();
     const [karyawanList, setKaryawanList] = useState<Karyawan[]>([]);
     const [selectedKaryawan, setSelectedKaryawan] = useState<string[]>([]);
@@ -60,8 +61,6 @@ export default function UpdateTeamForm({ role, teamId }: UpdateTeamFormProps) {
     });
 
     console.log("role", role)
-    console.log("Team", formData);
-    console.log("Team Karyawan", selectedKaryawan);
 
     useEffect(() => {
         const loadData = async () => {
@@ -163,10 +162,14 @@ export default function UpdateTeamForm({ role, teamId }: UpdateTeamFormProps) {
                 description: "Anda akan diarahkan kembali ke daftar tim.",
             });
 
-            setTimeout(() => {
-                router.push("/admin-area/master/team");
-                router.refresh();
-            }, 1500);
+            // ❌ HAPUS INI
+            // router.refresh();
+
+            // 🔥 KEMBALIKAN KE PAGE SEBELUMNYA
+            if (returnUrl) {
+                router.push(decodeURIComponent(returnUrl));
+                return;
+            }
 
         } catch (error: unknown) {
             console.error('Error updating team:', error);
@@ -185,6 +188,7 @@ export default function UpdateTeamForm({ role, teamId }: UpdateTeamFormProps) {
             setIsSubmitting(false);
         }
     };
+
 
     const filteredKaryawan = karyawanList.filter((karyawan) =>
         karyawan.namaLengkap.toLowerCase().includes(searchTerm.toLowerCase())

@@ -484,7 +484,6 @@ export function PurchaseRequestTable({
                                     <TableHead className="font-semibold">PR Number</TableHead>
                                     <TableHead className="w-20 font-semibold">Project</TableHead>
                                     <TableHead className="font-semibold">Requested By</TableHead>
-                                    <TableHead className="font-semibold">Request Date</TableHead>
                                     <TableHead className="font-semibold">Total Amount</TableHead>
                                     <TableHead className="font-semibold">Status</TableHead>
                                     <TableHead className="font-semibold">Acc Finance</TableHead>
@@ -600,13 +599,13 @@ export function PurchaseRequestTable({
                                                             SO : {pr.spk?.salesOrder?.soNumber || "-"}
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell className="max-w-[350px]">
+                                                    <TableCell className="min-w-[350px]">
                                                         <div className="flex items-center gap-2">
                                                             <Building className="h-4 w-4 text-green-500 shrink-0" />
                                                             <TooltipProvider>
                                                                 <Tooltip>
                                                                     <TooltipTrigger asChild>
-                                                                        <span className="text-sm font-bold uppercase cursor-help truncate block w-full">
+                                                                        <span className="text-sm font-bold uppercase cursor-help text-wrap block w-full">
                                                                             {pr.project?.name || pr.projectId}
                                                                         </span>
                                                                     </TooltipTrigger>
@@ -622,8 +621,6 @@ export function PurchaseRequestTable({
                                                             <User className="h-4 w-4 text-purple-500" />
                                                             {pr.karyawan?.namaLengkap || pr.karyawanId}
                                                         </div>
-                                                    </TableCell>
-                                                    <TableCell>
                                                         <div className="flex items-center gap-2">
                                                             <Calendar className="h-4 w-4 text-orange-500" />
                                                             {formatDate(pr.tanggalPr)}
@@ -907,7 +904,7 @@ export function PurchaseRequestTable({
                                                     <p className="font-medium text-muted-foreground">Project</p>
                                                     <div className="flex items-center gap-1">
                                                         <Building className="h-3 w-3 text-green-500 flex-shrink-0" />
-                                                        <span className="truncate text-xs">
+                                                        <span className="text-wrap text-xs">
                                                             {pr.project?.name || pr.projectId}
                                                         </span>
                                                     </div>

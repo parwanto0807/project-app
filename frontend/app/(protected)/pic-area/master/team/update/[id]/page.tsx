@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -18,6 +17,7 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageLoading } from "@/components/ui/loading";
 import { useSession } from "@/components/clientSessionProvider";
+import { PicLayout } from "@/components/admin-panel/pic-layout";
 
 interface Team {
   id: string;
@@ -34,9 +34,11 @@ export default function UpdateTeamPage() {
   const fromPage = searchParams.get('from') || 'list';
   const { user, isLoading: userLoading } = useSession();
 
+  const returnUrl = searchParams.get("returnUrl") || "/admin-area/master/products?page=1";
+
   const [data, setData] = useState<Team | null>(null);
   const [error, setError] = useState("");
-  const [role, setRole] = useState<"admin" | "super">("admin");
+  const [role, setRole] = useState<"pic" | "admin">("pic");
   const [loadingData, setLoadingData] = useState(true);
 
   // Redirect if not logged in
@@ -44,7 +46,7 @@ export default function UpdateTeamPage() {
     if (!userLoading && !user) {
       router.push("/auth/login");
     } else if (!userLoading && user) {
-      const userRole = user.role as "admin" | "super";
+      const userRole = user.role as "pic" | "admin";
       setRole(userRole);
     }
   }, [userLoading, user, router]);
@@ -85,8 +87,8 @@ export default function UpdateTeamPage() {
   }, [id]);
 
   const getBasePath = () => {
-    return role === "super"
-      ? "/super-admin-area/master/team"
+    return role === "pic"
+      ? "/pic-area/master/team"
       : "/admin-area/master/team";
   };
 
@@ -112,7 +114,7 @@ export default function UpdateTeamPage() {
   }
 
   return (
-    <AdminLayout title="Update Data Tim" role={role}>
+    <PicLayout title="Update Data Tim" role={role}>
       <div className="mb-6">
         <Button
           variant="ghost"
@@ -127,7 +129,7 @@ export default function UpdateTeamPage() {
           <BreadcrumbList>
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link href={role === "super" ? "/super-admin-area" : "/admin-area"}>
+                <Link href={role === "pic" ? "/pic-area" : "/admin-area"}>
                   Dashboard
                 </Link>
               </BreadcrumbLink>
@@ -185,6 +187,7 @@ export default function UpdateTeamPage() {
         <UpdateTeamForm
           role={role}
           teamId={id!}
+          returnUrl={returnUrl}      // ✔ string
         />
       ) : (
         <div className="flex flex-col  items-center justify-center py-12 space-y-4">
@@ -215,6 +218,6 @@ export default function UpdateTeamPage() {
           </Button>
         </div>
       )}
-    </AdminLayout>
+    </PicLayout>
   );
 }

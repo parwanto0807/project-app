@@ -7,18 +7,58 @@ import { ProductType } from "../../../../prisma/generated/prisma/index.js";
 // [GET] /products - Ambil semua produk (opsional: hanya aktif)
 export const getAllProducts = async (req, res) => {
   try {
-    const { activeOnly = "true" } = req.query;
+    const {
+      activeOnly = "true",
+      page,
+      limit,
+      includePagination = "false",
+    } = req.query;
     const filter = activeOnly === "false" ? {} : { isActive: true };
 
-    const products = await prisma.product.findMany({
-      where: filter,
-      include: {
-        category: true,
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    if (includePagination === "true") {
+      // Mode dengan pagination
+      const totalCount = await prisma.product.count({
+        where: filter,
+      });
 
-    res.json(products);
+      const pageNumber = parseInt(page) || 1;
+      const pageSize = parseInt(limit) || 10;
+      const skip = (pageNumber - 1) * pageSize;
+      const totalPages = Math.ceil(totalCount / pageSize);
+
+      const products = await prisma.product.findMany({
+        where: filter,
+        include: {
+          category: true,
+        },
+        orderBy: { createdAt: "desc" },
+        skip: skip,
+        take: pageSize,
+      });
+
+      res.json({
+        products,
+        pagination: {
+          totalCount,
+          totalPages,
+          currentPage: pageNumber,
+          pageSize,
+          hasNext: pageNumber < totalPages,
+          hasPrev: pageNumber > 1,
+        },
+      });
+    } else {
+      // Mode tanpa pagination (backward compatible)
+      const products = await prisma.product.findMany({
+        where: filter,
+        include: {
+          category: true,
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      res.json(products);
+    }
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Gagal mengambil data produk" });

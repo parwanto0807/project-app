@@ -67,11 +67,26 @@ export default function CreateSpkPagePic() {
     }
 
     const fetchDataSalesOrder = async () => {
-      const resultSO = await fetchAllSalesOrder();
-      setSalesOrders(resultSO.salesOrders);
-      setIsDataLoading(resultSO.isLoading);
-    };
+      try {
+        // Set loading state sebelum fetch
+        setIsDataLoading(true);
 
+        const resultSO = await fetchAllSalesOrder();
+
+        // Set data dari response
+        setSalesOrders(resultSO.data || []);
+
+        // Hapus baris ini karena resultSO tidak memiliki isLoading
+        // setIsDataLoading(resultSO.isLoading);
+
+      } catch (error) {
+        console.error("Error fetching sales orders:", error);
+        setSalesOrders([]); // Set empty array jika error
+      } finally {
+        // Set loading state menjadi false setelah selesai
+        setIsDataLoading(false);
+      }
+    };
     fetchDataSalesOrder();
 
     const fetchDataTeam = async () => {

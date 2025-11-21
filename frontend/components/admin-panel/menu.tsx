@@ -129,7 +129,7 @@ const SubmenuItem = ({
         <Link
           href={href}
           className={cn(
-            "block px-3 py-1 text-sm rounded hover:bg-muted transition-colors",
+            "block px-4 py-1 text-sm rounded hover:bg-muted transition-colors",
             theme === 'dark'
               ? cn(
                 active ? "bg-gray-700 font-semibold text-white" : "text-gray-300 hover:text-white",

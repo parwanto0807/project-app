@@ -93,6 +93,11 @@ interface UpdateSalesOrderFormProps {
     isLoading?: boolean
     user?: { id: string }
     role?: string
+    returnUrl: string;
+    highlightId: string | null;
+    highlightStatus: string | null;
+    searchUrl: string | null;
+    page: string;
 }
 
 // Interface untuk state per item
@@ -127,6 +132,11 @@ export function UpdateSalesOrderForm({
     isLoading,
     user,
     role,
+    returnUrl,
+    highlightId,
+    highlightStatus,
+    searchUrl,
+    page,
 }: UpdateSalesOrderFormProps) {
     const router = useRouter()
     const [isPending, startTransition] = React.useTransition()
@@ -329,33 +339,59 @@ export function UpdateSalesOrderForm({
         });
     };
 
-    function onSubmit(data: UpdateSalesOrderPayload) {
+    async function onSubmit(data: UpdateSalesOrderPayload) {
         startTransition(async () => {
             try {
-                // Validasi tambahan: pastikan semua item memiliki unitPrice >= 0
-                const hasInvalidPrice = data.items.some(item => item.unitPrice < 0);
+                // Validasi: harga satuan tidak boleh negatif
+                const hasInvalidPrice = data.items.some((item) => item.unitPrice < 0);
                 if (hasInvalidPrice) {
-                    toast.error("Terjadi Kesalahan", { description: "Harga satuan tidak boleh negatif." });
+                    toast.error("Terjadi Kesalahan", {
+                        description: "Harga satuan tidak boleh negatif.",
+                    });
                     return;
                 }
 
-                // Sertakan ID sales order dalam data yang akan dikirim
                 const updateData = {
                     ...data,
-                    id: salesOrder.id, // Tambahkan ID sales order
+                    id: salesOrder.id, // Wajib untuk update
                 };
 
                 const cleanedData = salesOrderUpdateSchema.parse(updateData);
                 const result = await updateSalesOrderAPI(salesOrder.id, cleanedData);
 
                 if (result.error) {
-                    toast.error("Terjadi Kesalahan", { description: result.error });
-                } else if (result.success) {
-                    toast.success("Sukses!", { description: "Sales Order berhasil diperbarui." });
-                    router.push(basePath)
+                    toast.error("Terjadi Kesalahan", {
+                        description: result.error,
+                    });
+                    return;
+                }
+
+                if (result.success) {
+                    toast.success("Berhasil!", {
+                        description: "Sales Order berhasil diperbarui.",
+                    });
+
+                    // ------------------------------------------------------------
+                    // 🔥 REDIRECT SETELAH UPDATE
+                    // ------------------------------------------------------------
+
+                    // 1️⃣ Jika halaman sebelumnya mengirim returnUrl → pakai returnUrl
+                    if (returnUrl && returnUrl !== "") {
+                        router.push(returnUrl);
+                        return;
+                    }
+
+                    // 2️⃣ Jika tidak ada returnUrl → kembali ke list + highlight
+                    const toList = `${basePath}?page=${page ?? 1}&highlightId=${highlightId ?? salesOrder.id}&status=${highlightStatus ?? "UPDATED"}&search=${searchUrl}`;
+
+                    router.push(toList);
                 }
             } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : "Gagal memperbarui Sales Order.";
+                const errorMessage =
+                    error instanceof Error
+                        ? error.message
+                        : "Gagal memperbarui Sales Order.";
+
                 toast.error("Terjadi Kesalahan", { description: errorMessage });
             }
         });

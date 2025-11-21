@@ -768,90 +768,372 @@ class InvoiceController {
   // Get all invoices with pagination
   async getInvoices(req, res) {
     try {
-      // ambil query, default string karena dari URL
       const {
         page = "1",
         limit = "10",
         status,
+        date,
         startDate,
         endDate,
         search,
+        customerId,
+        sortBy = "createdAt",
+        sortOrder = "desc",
+        filter,
       } = req.query;
 
-      // pastikan dikonversi ke number
-      const pageNum = parseInt(page, 10) || 1;
-      const limitNum = parseInt(limit, 10) || 10;
+      const pageNum = Math.max(1, parseInt(page, 10) || 1);
+      const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
       const skip = (pageNum - 1) * limitNum;
 
       const where = {};
 
-      // Filter by status
-      if (status) {
+      // Handle date filter parameter (prioritas utama)
+      if (date && date !== "all") {
+        const today = new Date();
+
+        switch (date) {
+          case "today":
+            const startOfToday = new Date();
+            startOfToday.setHours(0, 0, 0, 0);
+            const endOfToday = new Date();
+            endOfToday.setHours(23, 59, 59, 999);
+            where.invoiceDate = {
+              gte: startOfToday,
+              lte: endOfToday,
+            };
+            break;
+
+          case "this_week":
+            const startOfWeek = new Date();
+            startOfWeek.setDate(today.getDate() - today.getDay());
+            startOfWeek.setHours(0, 0, 0, 0);
+            const endOfWeek = new Date();
+            endOfWeek.setDate(today.getDate() + (6 - today.getDay()));
+            endOfWeek.setHours(23, 59, 59, 999);
+            where.invoiceDate = {
+              gte: startOfWeek,
+              lte: endOfWeek,
+            };
+            break;
+
+          case "this_month":
+            const startOfMonth = new Date(
+              today.getFullYear(),
+              today.getMonth(),
+              1
+            );
+            const endOfMonth = new Date(
+              today.getFullYear(),
+              today.getMonth() + 1,
+              0
+            );
+            endOfMonth.setHours(23, 59, 59, 999);
+            where.invoiceDate = {
+              gte: startOfMonth,
+              lte: endOfMonth,
+            };
+            break;
+
+          case "last_7_days":
+            const last7Days = new Date();
+            last7Days.setDate(today.getDate() - 7);
+            last7Days.setHours(0, 0, 0, 0);
+            where.invoiceDate = {
+              gte: last7Days,
+            };
+            break;
+
+          case "last_30_days":
+            const last30Days = new Date();
+            last30Days.setDate(today.getDate() - 30);
+            last30Days.setHours(0, 0, 0, 0);
+            where.invoiceDate = {
+              gte: last30Days,
+            };
+            break;
+
+          default:
+            // Jika ada value date lain, ignore
+            break;
+        }
+      }
+
+      // Handle filter parameter (untuk kompatibilitas dengan filter lama)
+      if (filter && filter !== "all") {
+        // Jika filter mengandung :, itu adalah filter tanggal format lama
+        if (filter.includes(":")) {
+          const [type, startDateFilter, endDateFilter] = filter.split(":");
+
+          if (startDateFilter && endDateFilter) {
+            where.invoiceDate = {
+              gte: new Date(startDateFilter),
+              lte: new Date(endDateFilter),
+            };
+          }
+        }
+        // Handle filter khusus lainnya
+        else if (filter === "overdue") {
+          where.status = "OVERDUE";
+        } else if (filter === "due_soon") {
+          const today = new Date();
+          const nextWeek = new Date();
+          nextWeek.setDate(today.getDate() + 7);
+          where.dueDate = {
+            gte: today,
+            lte: nextWeek,
+          };
+          where.status = "UNPAID";
+        } else if (filter === "unpaid") {
+          where.status = "UNPAID";
+        }
+        // Jika bukan filter khusus, anggap sebagai status normal
+        else if (filter !== "all") {
+          where.status = filter;
+        }
+      }
+
+      // Filter by status (untuk filter status sederhana)
+      if (status && status !== "all") {
         where.status = status;
       }
 
-      // Filter by date range
-      if (startDate || endDate) {
-        where.invoiceDate = {};
-        if (startDate) where.invoiceDate.gte = new Date(startDate);
-        if (endDate) where.invoiceDate.lte = new Date(endDate);
+      // Filter by customer
+      if (customerId) {
+        where.salesOrder = {
+          customerId: customerId,
+        };
       }
 
-      // Search by invoice number or customer name
-      if (search) {
+      // Filter by date range (untuk filter manual)
+      if (startDate || endDate) {
+        where.invoiceDate = {};
+        if (startDate) {
+          const start = new Date(startDate);
+          if (!isNaN(start.getTime())) {
+            where.invoiceDate.gte = start;
+          }
+        }
+        if (endDate) {
+          const end = new Date(endDate);
+          if (!isNaN(end.getTime())) {
+            where.invoiceDate.lte = end;
+          }
+        }
+      }
+
+      // Filter by due date range
+      if (req.query.dueStartDate || req.query.dueEndDate) {
+        where.dueDate = {};
+        if (req.query.dueStartDate) {
+          const dueStart = new Date(req.query.dueStartDate);
+          if (!isNaN(dueStart.getTime())) {
+            where.dueDate.gte = dueStart;
+          }
+        }
+        if (req.query.dueEndDate) {
+          const dueEnd = new Date(req.query.dueEndDate);
+          if (!isNaN(dueEnd.getTime())) {
+            where.dueDate.lte = dueEnd;
+          }
+        }
+      }
+
+      // Search functionality
+      if (search && search.trim() !== "") {
+        const searchTerm = search.trim();
         where.OR = [
-          { invoiceNumber: { contains: search, mode: "insensitive" } },
+          { invoiceNumber: { contains: searchTerm, mode: "insensitive" } },
           {
             salesOrder: {
-              customerName: { contains: search, mode: "insensitive" },
+              customer: {
+                name: { contains: searchTerm, mode: "insensitive" },
+              },
             },
+          },
+          {
+            salesOrder: {
+              soNumber: { contains: searchTerm, mode: "insensitive" },
+            },
+          },
+          {
+            notes: { contains: searchTerm, mode: "insensitive" },
+          },
+          {
+            internalNotes: { contains: searchTerm, mode: "insensitive" },
           },
         ];
       }
 
-      // query prisma
+      // Validate sort parameters
+      // Validate sort parameters
+      const allowedSortFields = [
+        "createdAt",
+        "updatedAt",
+        "invoiceDate",
+        "dueDate",
+        "totalAmount",
+        "grandTotal",
+        "balanceDue",
+        "invoiceNumber",
+        "status",
+        "approvalStatus",
+      ];
+      const sortField = allowedSortFields.includes(sortBy)
+        ? sortBy
+        : "createdAt";
+      const order = sortOrder.toLowerCase() === "asc" ? "asc" : "desc";
+
+      // Query invoices dengan Prisma - SESUAIKAN DENGAN MODEL
       const [invoices, total] = await Promise.all([
         prisma.invoice.findMany({
           where,
           skip,
           take: limitNum,
           include: {
-            items: true,
-            installments: true,
-            payments: true,
+            // Items - sesuai model
+            items: {
+              select: {
+                id: true,
+                description: true,
+                qty: true, // Ganti qty -> quantity
+                unitPrice: true,
+                // total: true, // Tambahkan total
+                // uom: true, // Tambahkan uom
+              },
+            },
+            // Installments - sesuai model
+            installments: {
+              select: {
+                id: true,
+                dueDate: true,
+                amount: true,
+                status: true,
+                // notes: true, // Tambahkan notes
+                installmentNumber: true,
+              },
+              orderBy: { dueDate: "asc" },
+            },
+            // Payments - sesuai model
+            payments: {
+              select: {
+                id: true,
+                payDate: true, // Ganti payDate -> paymentDate
+                amount: true,
+                method: true, // Ganti method -> paymentMethod
+                reference: true, // Ganti reference -> referenceNumber
+                status: true,
+                notes: true,
+              },
+              orderBy: { payDate: "desc" }, // Ganti payDate -> paymentDate
+            },
+            // Bank account - sesuai model
             bankAccount: {
               select: {
+                id: true,
                 bankName: true,
                 accountNumber: true,
                 accountHolder: true,
+                branch: true,
               },
             },
+            // Sales order dengan relasi lengkap
             salesOrder: {
               select: {
                 id: true,
                 soNumber: true,
                 customer: {
                   select: {
+                    id: true,
                     name: true,
                     address: true,
                     branch: true,
+                    contactPerson: true,
+                    phone: true,
+                  },
+                },
+                project: {
+                  select: {
+                    id: true,
+                    name: true,
+                    location: true,
                   },
                 },
               },
             },
+            // Created by user - sesuai model
             createdBy: {
-              select: { name: true },
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
             },
+            // Approved by karyawan - sesuai model
             approvedBy: {
-              select: { namaLengkap: true, jabatan: true },
+              select: {
+                id: true,
+                namaLengkap: true,
+                jabatan: true,
+                email: true,
+              },
+            },
+            // Invoice taxes - sesuai model
+            invoiceTax: {
+              select: {
+                id: true,
+                taxCode: true, // Ganti taxCode -> taxName
+                taxRate: true,
+                taxAmount: true,
+              },
             },
           },
-          orderBy: { createdAt: "desc" },
+          orderBy: { [sortField]: order },
         }),
         prisma.invoice.count({ where }),
       ]);
 
-      // response
+      // Transform data untuk memastikan field amount sesuai dengan model
+      const transformedInvoices = invoices.map((invoice) => ({
+        ...invoice,
+        // Pastikan semua field financial ada dan dalam format yang benar
+        subtotal: invoice.subtotal
+          ? parseFloat(invoice.subtotal.toString())
+          : 0,
+        discountTotal: invoice.discountTotal
+          ? parseFloat(invoice.discountTotal.toString())
+          : 0,
+        taxTotal: invoice.taxTotal
+          ? parseFloat(invoice.taxTotal.toString())
+          : 0,
+        grandTotal: invoice.grandTotal
+          ? parseFloat(invoice.grandTotal.toString())
+          : 0,
+        paidTotal: invoice.paidTotal
+          ? parseFloat(invoice.paidTotal.toString())
+          : 0,
+        balanceDue: invoice.balanceDue
+          ? parseFloat(invoice.balanceDue.toString())
+          : 0,
+        totalAmount: invoice.totalAmount
+          ? parseFloat(invoice.totalAmount.toString())
+          : 0,
+        // Currency dan exchange rate
+        currency: invoice.currency || "IDR",
+        exchangeRate: invoice.exchangeRate
+          ? parseFloat(invoice.exchangeRate.toString())
+          : 1,
+        // Payment term dan installment type
+        paymentTerm: invoice.paymentTerm || null,
+        installmentType: invoice.installmentType || "FULL",
+        // Approval status
+        approvalStatus: invoice.approvalStatus || "PENDING",
+      }));
+
+      const totalPages = Math.ceil(total / limitNum);
+      const hasNextPage = pageNum < totalPages;
+      const hasPrevPage = pageNum > 1;
+
       res.json({
         success: true,
         data: invoices,
@@ -859,7 +1141,25 @@ class InvoiceController {
           page: pageNum,
           limit: limitNum,
           total,
-          pages: Math.ceil(total / limitNum),
+          pages: totalPages,
+          hasNextPage,
+          hasPrevPage,
+          nextPage: hasNextPage ? pageNum + 1 : null,
+          prevPage: hasPrevPage ? pageNum - 1 : null,
+        },
+        meta: {
+          sortBy: sortField,
+          sortOrder: order,
+          search: search || null,
+          date: date || null,
+          status: status || null,
+          filters: {
+            status: status || null,
+            date: date || null,
+            startDate: startDate || null,
+            endDate: endDate || null,
+            customerId: customerId || null,
+          },
         },
       });
     } catch (error) {
@@ -867,7 +1167,11 @@ class InvoiceController {
       res.status(500).json({
         success: false,
         message: "Failed to fetch invoices",
-        error: error.message,
+        error:
+          process.env.NODE_ENV === "development"
+            ? error.message
+            : "Internal server error",
+        code: "INVOICE_FETCH_ERROR",
       });
     }
   }

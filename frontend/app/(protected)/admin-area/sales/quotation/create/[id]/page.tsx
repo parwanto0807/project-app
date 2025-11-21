@@ -11,7 +11,7 @@ import { useCustomers } from "@/hooks/use-customer"
 import { useProducts } from "@/hooks/use-product"
 import { useTaxes } from "@/hooks/use-tax"
 import { usePaymentTerms } from "@/hooks/use-paymentTerm"
-import { useSalesOrder } from "@/hooks/use-salesOrder"
+import { useSalesOrderData } from "@/hooks/use-salesOrder"
 import { Tax, PaymentTerm, CreateQuotationRequest } from "@/types/quotation"
 import { SalesOrder } from "@/schemas"
 
@@ -28,12 +28,12 @@ export default function CreateQuotationFromSOPage() {
   const { data: productsData, isLoading: isProductsLoading } = useProducts()
   const { data: taxesData, isLoading: isTaxesLoading } = useTaxes()
   const { data: paymentTermsData, isLoading: isPaymentTermsLoading } = usePaymentTerms()
-  const { data: salesOrderData, isLoading: isSalesOrderLoading } = useSalesOrder()
+  const { data: salesOrderData, isLoading: isSalesOrderLoading } = useSalesOrderData()
 
   // Set data sales order yang dipilih
   useEffect(() => {
-    if (salesOrderData?.salesOrders && id) {
-      const foundOrder = salesOrderData.salesOrders.find((so: SalesOrder) => so.id === id)
+    if (salesOrderData?.data && id) {
+      const foundOrder = salesOrderData.data.find((so: SalesOrder) => so.id === id)
       setSelectedSalesOrder(foundOrder || null)
     }
   }, [salesOrderData, id])
@@ -82,7 +82,7 @@ export default function CreateQuotationFromSOPage() {
         <CreateQuotationFormById
           customers={customersData?.customers || []}
           products={productsData?.products || []}
-          salesOrders={salesOrderData?.salesOrders || []}
+          salesOrders={salesOrderData?.data || []}
           taxes={(taxesData?.taxes || []).filter((t: Tax) => t.isActive)}
           paymentTerms={(paymentTermsData?.terms || []).filter((t: PaymentTerm) => t.isActive)}
           onSubmit={handleSubmit}

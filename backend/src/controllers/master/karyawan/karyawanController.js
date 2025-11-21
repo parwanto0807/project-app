@@ -334,11 +334,67 @@ export const deleteGaji = async (req, res) => {
 // GET semua team
 export const getAllTeam = async (req, res) => {
   try {
-    const teams = await prisma.team.findMany({
-      include: { karyawan: { include: { karyawan: true } } },
+    const { page = 1, limit = 10, search = '' } = req.query;
+    
+    // Convert to numbers and set defaults
+    const pageNumber = parseInt(page);
+    const pageSize = parseInt(limit);
+    const skip = (pageNumber - 1) * pageSize;
+    
+    // Build where clause for search
+    const whereClause = search ? {
+      OR: [
+        { namaTeam: { contains: search, mode: 'insensitive' } },
+        { deskripsi: { contains: search, mode: 'insensitive' } },
+        { 
+          karyawan: {
+            some: {
+              karyawan: {
+                namaLengkap: { contains: search, mode: 'insensitive' }
+              }
+            }
+          }
+        }
+      ]
+    } : {};
+
+    // Get total count for pagination
+    const totalCount = await prisma.team.count({
+      where: whereClause
     });
-    res.json(teams);
-    // console.log(teams);
+
+    // Calculate total pages
+    const totalPages = Math.ceil(totalCount / pageSize);
+
+    // Get teams with pagination and search
+    const teams = await prisma.team.findMany({
+      where: whereClause,
+      include: { 
+        karyawan: { 
+          include: { 
+            karyawan: true 
+          } 
+        } 
+      },
+      skip: skip,
+      take: pageSize,
+      orderBy: {
+        createdAt: 'desc' // Optional: sort by creation date
+      }
+    });
+
+    res.json({
+      data: teams,
+      pagination: {
+        totalCount,
+        totalPages,
+        currentPage: pageNumber,
+        pageSize,
+        hasNext: pageNumber < totalPages,
+        hasPrev: pageNumber > 1,
+      }
+    });
+    
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Gagal mengambil data team" });

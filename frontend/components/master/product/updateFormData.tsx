@@ -67,10 +67,11 @@ function getBasePath(role?: string) {
 interface UpdateProductFormProps {
     productId: string;
     accessToken?: string;
-    role: string
+    role: string;
+    returnUrl: string;
 }
 
-export function UpdateProductForm({ productId, accessToken, role }: UpdateProductFormProps) {
+export function UpdateProductForm({ productId, accessToken, role, returnUrl }: UpdateProductFormProps) {
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -118,10 +119,10 @@ export function UpdateProductForm({ productId, accessToken, role }: UpdateProduc
 
     async function onSubmit(values: z.infer<typeof ProductRegisterSchema>) {
         setIsSubmitting(true);
+
         try {
             const formData = new FormData();
 
-            // Tambahkan semua field form kecuali image
             formData.append("code", values.code);
             formData.append("name", values.name);
             formData.append("description", values.description || "");
@@ -136,11 +137,10 @@ export function UpdateProductForm({ productId, accessToken, role }: UpdateProduc
             formData.append("barcode", values.barcode || "");
             formData.append("categoryId", values.categoryId ?? "");
 
-            // Tambahkan image jika ada
             if (values.image instanceof File) {
-                formData.append("image", values.image); // ⬅️ image baru dari input file
+                formData.append("image", values.image);
             } else if (typeof values.image === "string") {
-                formData.append("image", values.image); // ⬅️ image lama (string path dari database)
+                formData.append("image", values.image);
             }
 
             const response = await fetch(
@@ -149,8 +149,7 @@ export function UpdateProductForm({ productId, accessToken, role }: UpdateProduc
                     method: "PUT",
                     body: formData,
                     headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-                    credentials: "include", // agar cookie/token ikut terkirim
-                    // ❌ JANGAN set headers Content-Type → browser akan otomatis handle multipart/form-data
+                    credentials: "include",
                 }
             );
 
@@ -162,27 +161,27 @@ export function UpdateProductForm({ productId, accessToken, role }: UpdateProduc
 
             toast.success("Product updated successfully!", {
                 description: `${values.name} has been updated.`,
-                action: {
-                    label: "View Products",
-                    onClick: () => router.push("/super-admin-area/master/products"),
-                },
             });
 
             router.refresh();
-            const basePath = getBasePath(role)
-            router.push(basePath)
+
+            // 🔥 KEMBALIKAN KE PAGE SEBELUMNYA
+            if (returnUrl) {
+                router.push(decodeURIComponent(returnUrl));
+                return;
+            }
+
+            // fallback
+            const basePath = getBasePath(role);
+            router.push(basePath);
         } catch (error) {
             toast.error("Failed to update product", {
-                description:
-                    error instanceof Error
-                        ? error.message
-                        : "An unknown error occurred",
+                description: error instanceof Error ? error.message : "An unknown error occurred",
             });
         } finally {
             setIsSubmitting(false);
         }
     }
-
 
     if (isLoading) {
         return (
@@ -583,12 +582,18 @@ export function UpdateProductForm({ productId, accessToken, role }: UpdateProduc
                                         <FormItem>
                                             <FormLabel>Barcode/QR Code</FormLabel>
                                             <FormControl>
-                                                <Input placeholder="Optional barcode identifier" {...field} />
+                                                <Input
+                                                    {...field}
+                                                    value={field.value ?? ""}                // fix utama
+                                                    onChange={(e) => field.onChange(e.target.value)}
+                                                    placeholder="Optional barcode identifier"
+                                                />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )}
                                 />
+
                             </div>
 
                             <div className="space-y-4">

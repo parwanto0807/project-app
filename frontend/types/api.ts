@@ -7,10 +7,12 @@ export interface ApiResponse<T> {
 }
 
 export interface PaginationMeta {
-  page: number;
-  limit: number;
-  total: number;
-  pages: number;
+  totalCount: number;
+  totalPages: number;
+  currentPage: number;
+  pageSize: number;
+  hasNext: boolean;
+  hasPrev: boolean;
 }
 
 export interface ListResponse<T> {

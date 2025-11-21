@@ -9,26 +9,20 @@ import {
     flexRender,
     getCoreRowModel,
     getFilteredRowModel,
-    getPaginationRowModel,
     getSortedRowModel,
     useReactTable,
 } from "@tanstack/react-table";
 import {
-    DockIcon,
     Edit,
     Eye,
     FileText,
     MoreHorizontal,
-    Plus,
-    Search,
     Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     Card,
     CardContent,
-    CardHeader,
-    CardTitle,
 } from "@/components/ui/card";
 import {
     DropdownMenu,
@@ -38,7 +32,6 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import {
     Table,
     TableBody,
@@ -47,13 +40,6 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
@@ -64,7 +50,7 @@ import { BAPPdfDocument } from "./bapPdfPreview";
 import { BAPDetailDrawer } from "./bapDetailDialog";
 import { DeleteConfirmationDialog } from "./alertDeleteDialog";
 import { useDeleteBAP } from "@/hooks/use-delete-bap";
-import { toast } from "sonner"; // Jika menggunakan Sonner untuk notifikasi
+import { toast } from "sonner";
 
 export interface BAPData {
     id: string;
@@ -144,7 +130,7 @@ export function BAPDataTable({
     const [isPdfPreviewOpen, setIsPdfPreviewOpen] = useState(false);
     const [selectedBapForDetail, setSelectedBapForDetail] = useState<BAPData | null>(null);
     const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
-    // Gunakan custom hook untuk delete functionality
+    
     const {
         isDialogOpen,
         isLoading: isDeleting,
@@ -154,7 +140,6 @@ export function BAPDataTable({
     } = useDeleteBAP({
         onSuccess: () => {
             toast.success("BAP berhasil dihapus");
-            // Data akan otomatis refresh via window.location.reload()
         },
         onError: (error) => {
             toast.error(`Gagal menghapus BAP: ${error}`);
@@ -295,7 +280,6 @@ export function BAPDataTable({
                                 <FileText className="mr-2 h-4 w-4" />
                                 Preview PDF
                             </DropdownMenuItem>
-                            {/* Ganti dengan fungsi openDialog */}
                             <DropdownMenuItem
                                 className="text-red-600"
                                 onClick={() => openDialog(bap.id)}
@@ -316,7 +300,6 @@ export function BAPDataTable({
         onSortingChange: setSorting,
         onColumnFiltersChange: setColumnFilters,
         getCoreRowModel: getCoreRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
         getSortedRowModel: getSortedRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
         onColumnVisibilityChange: setColumnVisibility,
@@ -331,30 +314,9 @@ export function BAPDataTable({
         },
     });
 
-    const handleAddBAP = () => {
-        router.push("/admin-area/logistic/bap/create");
-    };
-
     if (isLoading) {
         return (
             <Card className="w-full">
-                <CardHeader className="bg-gradient-to-r from-cyan-600 to-purple-600 p-4 rounded-lg text-white">
-                    <div className="flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0">
-                        <div className="flex items-center space-x-3">
-                            <div className="flex items-center justify-center h-12 w-12 rounded-full bg-primary">
-                                <DockIcon className="h-6 w-6 text-primary-foreground" />
-                            </div>
-                            <div>
-                                <CardTitle className="text-xl font-semibold">Berita Acara Serah Terima (BAST)</CardTitle>
-                                <p className="text-sm text-white dark:text-muted-foreground">Kelola Berita Acara Serah Terima Pekerjaan (BAST) Anda</p>
-                            </div>
-                        </div>
-                        <div className="flex flex-col sm:flex-row gap-2">
-                            <Skeleton className="h-10 w-full sm:w-[200px]" />
-                            <Skeleton className="h-10 w-full sm:w-[130px]" />
-                        </div>
-                    </div>
-                </CardHeader>
                 <CardContent className="p-4 md:p-6">
                     <div className="flex items-center py-4">
                         <Skeleton className="h-10 w-full max-w-sm" />
@@ -433,11 +395,6 @@ export function BAPDataTable({
                             </Table>
                         </div>
                     )}
-
-                    <div className="flex items-center justify-end space-x-2 py-4">
-                        <Skeleton className="h-9 w-24" />
-                        <Skeleton className="h-9 w-24" />
-                    </div>
                 </CardContent>
             </Card>
         );
@@ -446,70 +403,14 @@ export function BAPDataTable({
     return (
         <>
             <Card className="w-full">
-                <CardHeader className="bg-gradient-to-r from-cyan-600 to-purple-600 p-4 rounded-lg text-white">
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                        <div className="flex items-center space-x-3">
-                            <div className="flex items-center justify-center h-12 w-12 rounded-full bg-primary">
-                                <DockIcon className="h-6 w-6 text-primary-foreground" />
-                            </div>
-                            <div>
-                                <CardTitle className="text-xl font-semibold">Berita Acara Serah Terima (BAST)</CardTitle>
-                                <p className="text-sm text-white dark:text-muted-foreground">
-                                    Kelola Berita Acara Serah Terima Pekerjaan (BAST) Anda
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row gap-2 items-end">
-                            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                                <div className="relative w-full sm:w-[200px]">
-                                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                        placeholder="Cari BAP..."
-                                        className="pl-8 w-full bg-white/10 border-white/20 text-white placeholder:text-white/70"
-                                        value={globalFilter ?? ""}
-                                        onChange={(event) => setGlobalFilter(event.target.value)}
-                                    />
-                                </div>
-
-                                <Select
-                                    value={(table.getColumn("status")?.getFilterValue() as string) ?? ""}
-                                    onValueChange={(value) =>
-                                        table.getColumn("status")?.setFilterValue(value === "all" ? "" : value)
-                                    }
-                                >
-                                    <SelectTrigger className="w-full sm:w-[180px] bg-white/10 border-white/20 text-white">
-                                        <SelectValue placeholder="Filter status" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Semua status</SelectItem>
-                                        <SelectItem value="DRAFT">Draft</SelectItem>
-                                        <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-                                        <SelectItem value="COMPLETED">Completed</SelectItem>
-                                        <SelectItem value="APPROVED">Approved</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <Button
-                                onClick={handleAddBAP}
-                                className="bg-white text-cyan-700 hover:bg-cyan-50 flex items-center gap-1 w-full sm:w-auto"
-                            >
-                                <Plus className="h-4 w-4" />
-                                <span>BAP Baru</span>
-                            </Button>
-                        </div>
-                    </div>
-                </CardHeader>
-
-                <CardContent className="p-4 md:p-6">
+                <CardContent className="p-1 md:p-6">
                     {isMobile ? (
-                        <div className="space-y-4">
+                        <div className="space-y-2">
                             {table.getRowModel().rows?.length ? (
                                 table.getRowModel().rows.map((row) => {
                                     const bap = row.original;
                                     return (
-                                        <Card key={row.id} className="border p-4">
+                                        <Card key={row.id} className="border p-2">
                                             <div className="space-y-3">
                                                 <div className="flex items-start justify-between">
                                                     <div>
@@ -520,7 +421,7 @@ export function BAPDataTable({
                                                         <p className="text-sm text-muted-foreground">
                                                             {format(new Date(bap.bapDate), "dd MMM yyyy")}
                                                         </p>
-                                                        <p className="text-sm font-medium">{bap.salesOrder.customer.name}</p>
+                                                        <p className="text-sm font-medium">{bap.salesOrder.customer.branch}</p>
                                                     </div>
                                                     <Badge variant={
                                                         bap.status === "APPROVED" ? "success" :
@@ -531,7 +432,7 @@ export function BAPDataTable({
                                                     </Badge>
                                                 </div>
 
-                                                <div className="flex justify-end pt-2">
+                                                <div className="flex justify-end pt-0">
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild>
                                                             <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -564,7 +465,6 @@ export function BAPDataTable({
                                                                 <FileText className="mr-2 h-4 w-4" />
                                                                 Preview PDF
                                                             </DropdownMenuItem>
-                                                            {/* Ganti dengan fungsi openDialog untuk mobile */}
                                                             <DropdownMenuItem
                                                                 className="text-red-600"
                                                                 onClick={() => openDialog(bap.id)}

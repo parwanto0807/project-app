@@ -5,6 +5,97 @@ import { toNum } from "../../lib/soUtils.js";
 /** Ambil semua sales order */
 export const getAll = async (req, res) => {
   try {
+    const page = parseInt(req.query.page) || 1;
+    const pageSize = parseInt(req.query.pageSize) || 50;
+    const search = req.query.search?.trim() || "";
+    const status = req.query.status?.trim() || ""; // Tambahkan status parameter
+    const skip = (page - 1) * pageSize;
+
+    // =============================
+    //     BUILD WHERE CLAUSE
+    // =============================
+    const where = {};
+
+    // Search filter
+    if (search) {
+      where.OR = [
+        { soNumber: { contains: search, mode: "insensitive" } },
+        { customer: { name: { contains: search, mode: "insensitive" } } },
+        { customer: { branch: { contains: search, mode: "insensitive" } } },
+        { project: { name: { contains: search, mode: "insensitive" } } },
+        { user: { name: { contains: search, mode: "insensitive" } } },
+      ];
+    }
+
+    // Status filter - hanya tambahkan jika status tidak kosong dan bukan "ALL"
+    if (status && status !== "ALL") {
+      where.status = status;
+    }
+
+    // =============================
+    //     HITUNG TOTAL SESUAI FILTER
+    // =============================
+    const totalCount = await prisma.salesOrder.count({ where });
+    const totalPages = Math.ceil(totalCount / pageSize);
+
+    // =============================
+    //     QUERY DATA SALES ORDER
+    // =============================
+    const salesOrders = await prisma.salesOrder.findMany({
+      where,
+      include: {
+        customer: true,
+        project: true,
+        user: true,
+        items: { include: { product: true } },
+        documents: true,
+        spk: {
+          include: {
+            purchaseRequest: {
+              select: {
+                id: true,
+                nomorPr: true,
+                details: { select: { id: true, estimasiTotalHarga: true } },
+                uangMuka: {
+                  select: {
+                    id: true,
+                    nomor: true,
+                    jumlah: true,
+                    pertanggungjawaban: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { soDate: "desc" },
+      skip,
+      take: pageSize,
+    });
+
+    // =============================
+    //          RESPONSE
+    // =============================
+    res.json({
+      data: salesOrders,
+      pagination: {
+        totalCount,
+        totalPages,
+        currentPage: page,
+        pageSize,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    });
+  } catch (error) {
+    console.error("GET ALL SALES ORDER ERROR:", error);
+    res.status(500).json({ message: "Gagal mengambil data Sales Order" });
+  }
+};
+
+export const getAllSPK = async (req, res) => {
+  try {
     const salesOrders = await prisma.salesOrder.findMany({
       include: {
         customer: true,
@@ -16,12 +107,12 @@ export const getAll = async (req, res) => {
           include: {
             purchaseRequest: {
               select: {
-                id: true, // hanya ambil id
+                id: true,
                 nomorPr: true,
                 details: { select: { id: true, estimasiTotalHarga: true } },
                 uangMuka: {
                   select: {
-                    id: true, // hanya ambil id
+                    id: true,
                     nomor: true,
                     jumlah: true,
                     pertanggungjawaban: true,
@@ -35,9 +126,12 @@ export const getAll = async (req, res) => {
       orderBy: { soDate: "desc" },
     });
 
-    res.json(salesOrders);
+    res.json({
+      data: salesOrders,
+      totalCount: salesOrders.length,
+    });
   } catch (error) {
-    console.error(error);
+    console.error("GET ALL SALES ORDER ERROR:", error);
     res.status(500).json({ message: "Gagal mengambil data Sales Order" });
   }
 };

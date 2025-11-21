@@ -29,39 +29,108 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 export async function getInvoices(
-  filters: InvoiceFilters = {}
+  filters: InvoiceFilters = {},
+  page: number = 1,
+  limit: number = 10,
+  search?: string,
+  status?: string,
+  sortBy: string = "createdAt",
+  sortOrder: string = "desc",
+  date?: string
 ): Promise<PaginatedInvoices> {
   const params = new URLSearchParams();
-  params.append("page", "1");
-  params.append("limit", "10");
 
+  // Pagination parameters
+  params.append("page", page.toString());
+  params.append("limit", limit.toString());
+
+  // Search parameter
+  if (search && search.trim() !== "") {
+    params.append("search", search.trim());
+  }
+
+  // Status filter
+  if (status && status !== "all") {
+    params.append("status", status);
+  }
+
+  // Date filter
+  if (date && date !== "all") {
+    params.append("date", date);
+  }
+
+  // Sorting parameters
+  params.append("sortBy", sortBy);
+  params.append("sortOrder", sortOrder);
+
+  // Additional filters
   Object.entries(filters).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== "") {
       params.append(key, value.toString());
     }
   });
 
-  const response = await fetch(
-    `${API_BASE_URL}/api/invoice/getInvoices?${params.toString()}`,
-    {
-      method: "GET",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-    }
-  );
-  if (!response.ok) {
-    throw new Error(`Network error: ${response.status} ${response.statusText}`);
-  }
-
-  let result: PaginatedInvoices & { message?: string };
-
   try {
-    result = await response.json();
-  } catch {
-    throw new Error("Invalid JSON response");
-  }
+    const response = await fetch(
+      `${API_BASE_URL}/api/invoice/getInvoices?${params.toString()}`,
+      {
+        method: "GET",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      }
+    );
 
-  return result;
+    if (!response.ok) {
+      throw new Error(
+        `Network error: ${response.status} ${response.statusText}`
+      );
+    }
+
+    let result: PaginatedInvoices;
+
+    try {
+      result = await response.json();
+    } catch (parseError) {
+      console.error("JSON parsing error:", parseError);
+      throw new Error("Invalid JSON response from server");
+    }
+
+    // Validate response structure
+    if (!result || typeof result !== "object") {
+      throw new Error("Invalid response format");
+    }
+
+    // Transform response to match PaginatedInvoices interface
+    const transformedResult: PaginatedInvoices = {
+      data: result.data || [],
+      pagination: result.pagination || {
+        page: page,
+        limit: limit,
+        total: result.data?.length || 0,
+        pages: Math.ceil((result.data?.length || 0) / limit),
+      },
+      success: result.success !== undefined ? result.success : true,
+      message: result.message,
+    };
+
+    return transformedResult;
+  } catch (error) {
+    console.error("❌ Error fetching invoices:", error);
+
+    // Return empty result with proper structure on error
+    return {
+      data: [],
+      pagination: {
+        page: page,
+        limit: limit,
+        total: 0,
+        pages: 0,
+      },
+      success: false,
+      message:
+        error instanceof Error ? error.message : "Unknown error occurred",
+    };
+  }
 }
 
 // lib/action/invoice/invoice.ts

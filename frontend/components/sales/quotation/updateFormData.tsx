@@ -51,6 +51,10 @@ interface UpdateQuotationFormProps {
     salesOrders: SalesOrder[];
     paymentTerms: PaymentTerm[];
     onSubmit: (data: CreateQuotationRequest) => Promise<void>;
+    // returnUrl: string;
+    // highlightId: string | null;
+    // highlightStatus: string | null;
+    // page: number;
     isLoading?: boolean;
     initialData?: QuotationApiResponse;
     isUpdate?: boolean;
@@ -93,6 +97,10 @@ export const UpdateQuotationForm: React.FC<UpdateQuotationFormProps> = ({
     paymentTerms,
     onSubmit,
     isLoading = false,
+    // returnUrl,
+    // page,
+    // highlightId,
+    // highlightStatus,
     initialData,
     isUpdate = false
 }) => {

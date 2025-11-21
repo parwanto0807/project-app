@@ -5,6 +5,7 @@ import { salesOrderUpdateSchema } from "@/schemas";
 import { cookies } from "next/headers";
 import { getAuthHeaders, getCookieHeader } from "@/lib/cookie-utils";
 import { apiFetch } from "@/lib/apiFetch";
+import { unstable_noStore as noStore } from "next/cache";
 
 // form schema utk create/update header+items (tanpa soNumber karena digenerate)
 const formSchema = salesOrderUpdateSchema.omit({ soNumber: true });
@@ -197,51 +198,54 @@ export async function updateSalesOrderAPI(
 // ===============================================================
 // FETCH LIST & DETAIL
 // ===============================================================
-export async function fetchAllSalesOrder() {
+export async function fetchAllSalesOrder(
+  page: number = 1,
+  pageSize: number = 50,
+  search: string = "",
+  status: string = "" // Tambahkan parameter status
+) {
+  noStore(); // ⬅️ memastikan data selalu fresh
   const base = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
-  const url = `${base}/api/salesOrder/sales-orders`;
+
+  // Build URL dengan parameter status
+  const urlParams = new URLSearchParams({
+    page: page.toString(),
+    pageSize: pageSize.toString(),
+    search: encodeURIComponent(search),
+  });
+
+  // Tambahkan status ke URL jika tidak "ALL" atau empty
+  if (status && status !== "ALL") {
+    urlParams.set("status", status);
+  }
+
+  const url = `${base}/api/salesOrder/sales-orders?${urlParams.toString()}`;
 
   try {
-    console.log("📡 Fetching sales orders...");
-
-    const data = await apiFetch(url, {
+    const response = await apiFetch(url, {
       method: "GET",
       headers: {
         accept: "application/json",
       },
     });
 
-    console.log("✅ Sales orders fetched successfully");
     return {
-      salesOrders: Array.isArray(data) ? data : [],
-      isLoading: false,
-      error: null,
+      data: response.data ?? [],
+      pagination: response.pagination ?? {
+        currentPage: page,
+        pageSize,
+        totalPages: 1,
+        totalCount: 0,
+        hasNext: false,
+        hasPrev: false,
+      },
     };
   } catch (error) {
-    console.error("[fetchAllSalesOrder] Error:", error);
-
-    // Type assertion untuk unknown
-    const err = error as Error;
-
-    // Classification error types
-    let errorMessage = "Failed to fetch sales orders";
-
-    if (err.message.includes("Unauthorized")) {
-      errorMessage = "Session expired. Please login again.";
-    } else if (
-      err.message.includes("Network") ||
-      err.message.includes("fetch")
-    ) {
-      errorMessage = "Network error. Please check your connection.";
-    }
-
-    return {
-      salesOrders: [],
-      isLoading: false,
-      error: errorMessage,
-    };
+    console.error("Error fetching sales orders:", error);
+    throw error;
   }
 }
+
 export async function fetchAllSalesOrderInvoice() {
   const base = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
   const url = `${base}/api/salesOrder/sales-orders-invoice`;
@@ -311,6 +315,29 @@ export async function fetchSalesOrderById(id: string) {
     return await res.json();
   } catch (error) {
     console.error("[fetchSalesOrderById]", error);
+    throw error;
+  }
+}
+
+export async function fetchAllSalesOrderSPK() {
+  noStore(); // memastikan selalu fetch fresh data
+
+  const base = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
+  const url = `${base}/api/salesOrder/sales-orders-spk`; // ⬅️ tanpa query params
+
+  try {
+    const response = await apiFetch(url, {
+      method: "GET",
+      headers: {
+        accept: "application/json",
+      },
+    });
+
+    return {
+      data: response.data ?? [],
+    };
+  } catch (error) {
+    console.error("Error fetching sales orders:", error);
     throw error;
   }
 }

@@ -5,6 +5,14 @@ export type SourceProductType =
   | "JASA_PEMBELIAN"
   | "JASA_INTERNAL";
 
+export type PRStatus =
+  | "DRAFT"
+  | "REVISION_NEEDED"
+  | "SUBMITTED"
+  | "APPROVED"
+  | "REJECTED"
+  | "COMPLETED";
+
 export interface PurchaseRequestDetail {
   id?: string;
   productId: string;

@@ -10,6 +10,7 @@ import {
   BAPPhotoInput,
 } from "@/schemas/bap";
 import { cookies } from "next/headers";
+import { BAPData } from "@/app/(protected)/admin-area/logistic/bap/page";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -75,6 +76,7 @@ export const getAllBAP = async (params?: {
   limit?: number;
   status?: z.infer<typeof BAPStatusEnum>;
   search?: string;
+  filterBy?: string;
 }) => {
   try {
     const queryParams = new URLSearchParams();
@@ -82,20 +84,43 @@ export const getAllBAP = async (params?: {
     if (params?.limit) queryParams.append("limit", params.limit.toString());
     if (params?.status) queryParams.append("status", params.status);
     if (params?.search) queryParams.append("search", params.search);
+    if (params?.filterBy) queryParams.append("filterBy", params.filterBy);
 
     const url = `/api/bap/getAllBAP?${queryParams.toString()}`;
 
-    const res = await fetchAPI(url);
+    // Definisikan interface untuk response
+    interface BAPResponse {
+      data: BAPData[];
+      pagination: {
+        page?: number;
+        limit?: number;
+        total?: number;
+        pages?: number;
+      };
+    }
+
+    const res = (await fetchAPI(url)) as BAPResponse;
+
+    // Mapping struktur pagination dari API ke struktur yang diharapkan page.tsx
+    const apiPagination = res.pagination;
+    const mappedPagination = {
+      currentPage: apiPagination?.page || params?.page || 1,
+      pageSize: apiPagination?.limit || params?.limit || 10,
+      totalCount: apiPagination?.total || 0,
+      totalPages: apiPagination?.pages || 1,
+    };
 
     return {
       success: true,
-      data: res.data,
-      pagination: res.pagination,
+      data: res.data || [],
+      pagination: mappedPagination,
     };
   } catch (error) {
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to fetch BAPs",
+      data: [],
+      pagination: null,
     };
   }
 };

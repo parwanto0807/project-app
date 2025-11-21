@@ -87,7 +87,7 @@ export default function UpdateSpkPage() {
         // }
         setSpk(spkResult);
         const soResult = await fetchAllSalesOrder();
-        setSalesOrders(soResult.salesOrders || []);
+        setSalesOrders(soResult.data || []);
         const teamResult = await getAllTeam();
         setTeams(teamResult.data || []);
         const karyawanResult = await fetchAllKaryawan();

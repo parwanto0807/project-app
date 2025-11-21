@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import {
     Breadcrumb,
@@ -29,6 +29,7 @@ import {
 import { SalesOrder } from "@/schemas";
 import Link from "next/link";
 import { useSession } from "@/components/clientSessionProvider";
+import { OrderStatus } from "@/types/salesOrder";
 
 interface UpdateQuotationPageAdminProps {
     params: Promise<{
@@ -44,6 +45,19 @@ export default function UpdateQuotationPageAdmin({
     );
     const { user, isLoading: userLoading } = useSession();
     const router = useRouter();
+    const searchParams = useSearchParams();
+
+    const pageSize = Number(searchParams.get("pageSize")) || 10;
+    const searchTerm = searchParams.get("search") || "";
+    const statusFilter = (searchParams.get("status") as OrderStatus) || "ALL";
+    const refreshTrigger = 0; // untuk refetch manual
+
+    // 🔥 NEW: Ambil data dari query
+    const returnUrl = searchParams.get("returnUrl") || "";
+    const page = Number(searchParams.get("page")) || 1;
+    const highlightId = searchParams.get("highlightId") || "";
+    const highlightStatus = searchParams.get("status") || "";
+    const searchUrl = searchParams.get("search") || "";
 
     // Resolve params promise
     useEffect(() => {
@@ -70,7 +84,7 @@ export default function UpdateQuotationPageAdmin({
     // Hook fetching data untuk dropdowns
     const { data: customersData, isLoading: isCustomersLoading } = useCustomers();
     const { data: salesOrderData, isLoading: isSalesOrdersLoading } =
-        useSalesOrder();
+        useSalesOrder(page, pageSize, searchTerm, statusFilter, refreshTrigger);
     const { data: productsData, isLoading: isProductsLoading } = useProducts();
     const { data: taxesData, isLoading: isTaxesLoading } = useTaxes();
     const { data: paymentTermsData, isLoading: isPaymentTermsLoading } =
@@ -81,6 +95,9 @@ export default function UpdateQuotationPageAdmin({
     const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
     const [taxes, setTaxes] = useState<Tax[]>([]);
     const [paymentTerms, setPaymentTerms] = useState<PaymentTerm[]>([]);
+
+
+
 
     // useEffect untuk otentikasi dan otorisasi
     useEffect(() => {
@@ -105,7 +122,7 @@ export default function UpdateQuotationPageAdmin({
     }, [productsData]);
 
     useEffect(() => {
-        if (salesOrderData?.salesOrders) setSalesOrders(salesOrderData.salesOrders);
+        if (salesOrderData?.data) setSalesOrders(salesOrderData.data);
     }, [salesOrderData]);
 
     useEffect(() => {
@@ -130,13 +147,27 @@ export default function UpdateQuotationPageAdmin({
         if (!quotationId) return;
 
         try {
+            // Jalankan update
             await updateQuotationMutation.mutateAsync({
                 id: quotationId,
                 ...data,
             });
 
-            router.push("/admin-area/sales/quotation");
-            router.refresh();
+            // -------------------------------------------------
+            // 🔹 Redirect setelah update
+            // -------------------------------------------------
+            if (returnUrl && returnUrl !== "") {
+                // Gunakan returnUrl jika tersedia
+                router.push(returnUrl);
+            } else {
+                // Jika tidak ada returnUrl → kembali ke list + highlight
+                const toList = `/admin-area/sales/quotation?page=${page ?? 1}&highlightId=${highlightId ?? quotationId}&status=${highlightStatus ?? "UPDATED"}&search=${searchUrl}`;
+
+                router.push(toList);
+            }
+
+            router.refresh(); // refresh page setelah navigasi
+
         } catch (error) {
             console.error("Error updating quotation:", error);
             alert(
@@ -146,6 +177,7 @@ export default function UpdateQuotationPageAdmin({
             );
         }
     };
+
 
     const isDataLoading =
         userLoading ||
@@ -211,6 +243,10 @@ export default function UpdateQuotationPageAdmin({
                         isLoading={updateQuotationMutation.isPending}
                         initialData={quotationData}
                         isUpdate={true}
+                    // returnUrl={returnUrl}
+                    // page={page}
+                    // highlightId={highlightId}
+                    // highlightStatus={highlightStatus}
                     />
                 ) : (
                     <AdminLoading message="Loading quotation data..." />

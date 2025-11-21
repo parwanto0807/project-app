@@ -19,6 +19,7 @@ const router = express.Router();
  * ----------------------------------------- */
 // List semua SO
 router.get("/sales-orders", salesOrder.getAll);
+router.get("/sales-orders-spk", salesOrder.getAllSPK);
 router.get("/sales-orders-invoice", salesOrder.getAllInvoice);
 router.get("/sales-orders-bap", salesOrder.getAllBap);
 

@@ -19,14 +19,6 @@ import {
     DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
 import {
-    Pagination,
-    PaginationContent,
-    PaginationItem,
-    PaginationLink,
-    PaginationNext,
-    PaginationPrevious,
-} from '@/components/ui/pagination';
-import {
     Card,
     CardContent,
 } from '@/components/ui/card';
@@ -84,19 +76,42 @@ interface TeamTableDataProps {
     teams: Team[];
     role: string;
     isLoading: boolean;
+    currentItems: Team[]; // Items yang ditampilkan di halaman saat ini
+    filteredData: Team[]; // Data yang sudah difilter
+    searchTerm: string;
+    onSearchChange: (term: string) => void;
+    itemsPerPage: number;
+    onItemsPerPageChange: (count: number) => void;
+    selectedTeams?: string[]; // Jadikan optional dengan default value
+    onSelectedTeamsChange?: (teams: string[]) => void; // Jadikan optional
+    onDeleteTeam: (team: Team) => void;
+    currentPage: number;
 }
 
-export default function TeamTableData({ teams, role, isLoading }: TeamTableDataProps) {
-    const [data, setData] = useState<Team[]>([]);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage, setItemsPerPage] = useState(5);
-    const [filteredData, setFilteredData] = useState<Team[]>([]);
+export default function TeamTableData({
+    teams = [],
+    role,
+    isLoading = false,
+    currentItems = [],
+    searchTerm = "",
+    onSearchChange,
+    itemsPerPage,
+    onItemsPerPageChange,
+    selectedTeams = [], // Default value empty array
+    onSelectedTeamsChange,
+    onDeleteTeam,
+    currentPage,
+}: TeamTableDataProps) {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [teamToDelete, setTeamToDelete] = useState<Team | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
-    const [selectedTeams, setSelectedTeams] = useState<string[]>([]); // ✅ teamId terpilih
     const [isMobile, setIsMobile] = useState(false);
+    const [internalSelectedTeams, setInternalSelectedTeams] = useState<string[]>(selectedTeams);
+
+    // Sync dengan props jika ada perubahan
+    useEffect(() => {
+        setInternalSelectedTeams(selectedTeams);
+    }, [selectedTeams]);
 
     // Check screen size on mount and resize
     useEffect(() => {
@@ -110,40 +125,6 @@ export default function TeamTableData({ teams, role, isLoading }: TeamTableDataP
         return () => window.removeEventListener('resize', checkScreenSize);
     }, []);
 
-    // Update data when teams prop changes
-    useEffect(() => {
-        if (teams && Array.isArray(teams)) {
-            setData(teams);
-            setFilteredData(teams);
-        }
-    }, [teams]);
-
-    // Handle search
-    useEffect(() => {
-        let results = data;
-
-        if (searchTerm) {
-            results = results.filter(team =>
-                team.namaTeam.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (team.karyawan &&
-                    team.karyawan.some(
-                        k =>
-                            k.karyawan &&
-                            k.karyawan.namaLengkap &&
-                            k.karyawan.namaLengkap
-                                .toLowerCase()
-                                .includes(searchTerm.toLowerCase())
-                    ))
-            );
-        }
-
-        if (selectedTeams.length > 0) {
-            results = results.filter(team => selectedTeams.includes(team.id.toString()));
-        }
-
-        setFilteredData(results);
-    }, [searchTerm, data, selectedTeams]);
-
     // Fungsi untuk membuka dialog konfirmasi hapus
     const handleDeleteClick = (team: Team) => {
         setTeamToDelete(team);
@@ -156,23 +137,12 @@ export default function TeamTableData({ teams, role, isLoading }: TeamTableDataP
 
         setIsDeleting(true);
         try {
-            // Panggil API untuk menghapus team
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/team/deleteTeam/${teamToDelete.id}`, {
-                method: 'DELETE',
+            await onDeleteTeam(teamToDelete);
+
+            // Tampilkan notifikasi sukses
+            toast.success("Team berhasil dihapus", {
+                description: `Team "${teamToDelete.namaTeam}" telah dihapus.`
             });
-
-            if (response.ok) {
-                // Hapus team dari state
-                setData(prev => prev.filter(team => team.id !== teamToDelete.id));
-                setFilteredData(prev => prev.filter(team => team.id !== teamToDelete.id));
-
-                // Tampilkan notifikasi sukses
-                toast.success("Team berhasil dihapus", {
-                    description: `Team "${teamToDelete.namaTeam}" telah dihapus.`
-                });
-            } else {
-                throw new Error("Gagal menghapus team");
-            }
         } catch (error) {
             console.error("Error deleting team:", error);
             toast.error("Gagal menghapus team", {
@@ -185,35 +155,27 @@ export default function TeamTableData({ teams, role, isLoading }: TeamTableDataP
         }
     };
 
-    // Pagination logic
-    const indexOfLastItem = currentPage * itemsPerPage;
-    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
-    const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+    // Handle toggle checkbox dengan validasi
+    const handleToggleTeam = (teamId: string) => {
+        const newSelectedTeams = internalSelectedTeams.includes(teamId)
+            ? internalSelectedTeams.filter(id => id !== teamId)
+            : [...internalSelectedTeams, teamId];
+
+        // Update state internal
+        setInternalSelectedTeams(newSelectedTeams);
+
+        // Panggil callback dari parent jika ada
+        if (onSelectedTeamsChange) {
+            onSelectedTeamsChange(newSelectedTeams);
+        }
+    };
 
     // Check if user has permission to create teams
     const canCreateTeam = role === 'admin' || role === 'manager';
 
-    // Generate page numbers for pagination
-    const pageNumbers = [];
-    const maxVisiblePages = 5;
-    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-    const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-
-    if (endPage - startPage + 1 < maxVisiblePages) {
-        startPage = Math.max(1, endPage - maxVisiblePages + 1);
-    }
-
-    for (let i = startPage; i <= endPage; i++) {
-        pageNumbers.push(i);
-    }
-
-    // Handle toggle checkbox
-    const handleToggleTeam = (teamId: string) => {
-        setSelectedTeams(prev =>
-            prev.includes(teamId) ? prev.filter(id => id !== teamId) : [...prev, teamId]
-        );
-    };
+    // Validasi data sebelum render
+    const safeCurrentItems = Array.isArray(currentItems) ? currentItems : [];
+    const safeTeams = Array.isArray(teams) ? teams : [];
 
     // Render mobile card view
     const renderMobileView = () => {
@@ -239,8 +201,8 @@ export default function TeamTableData({ teams, role, isLoading }: TeamTableDataP
                             </div>
                         </Card>
                     ))
-                ) : currentItems.length > 0 ? (
-                    currentItems.map((team) => (
+                ) : safeCurrentItems.length > 0 ? (
+                    safeCurrentItems.map((team) => (
                         <Card key={team.id} className="p-4 hover:shadow-md transition-shadow">
                             <div className="flex items-start justify-between mb-3">
                                 <div className="flex items-center">
@@ -346,8 +308,8 @@ export default function TeamTableData({ teams, role, isLoading }: TeamTableDataP
                                     )}
                                 </TableRow>
                             ))
-                        ) : currentItems.length > 0 ? (
-                            currentItems.map((team) => (
+                        ) : safeCurrentItems.length > 0 ? (
+                            safeCurrentItems.map((team) => (
                                 <TableRow key={team.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
                                     <TableCell className="font-medium">
                                         <div className="flex items-center">
@@ -388,9 +350,14 @@ export default function TeamTableData({ teams, role, isLoading }: TeamTableDataP
                                         <TableCell className="text-right">
                                             <div className="flex justify-end space-x-2">
                                                 <Button variant="outline" size="icon" asChild>
-                                                    <Link href={`/admin-area/master/team/update/${team.id}`}>
+                                                    <Link
+                                                        href={`/admin-area/master/team/update/${team.id}?returnUrl=${encodeURIComponent(
+                                                            `/admin-area/master/team?page=${currentPage}`
+                                                        )}`}
+                                                    >
                                                         <Edit className="h-4 w-4" />
                                                     </Link>
+
                                                 </Button>
                                                 <Button
                                                     variant="outline"
@@ -435,7 +402,7 @@ export default function TeamTableData({ teams, role, isLoading }: TeamTableDataP
                                 placeholder="Cari team atau anggota..."
                                 className="pl-8"
                                 value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onChange={(e) => onSearchChange(e.target.value)}
                             />
                         </div>
                         <div className="flex flex-col md:flex-row gap-2 w-full md:w-auto">
@@ -451,10 +418,10 @@ export default function TeamTableData({ teams, role, isLoading }: TeamTableDataP
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="start" className="w-56 max-h-60 overflow-y-auto">
-                                        {data.map(team => (
+                                        {safeTeams.map(team => (
                                             <DropdownMenuCheckboxItem
                                                 key={team.id}
-                                                checked={selectedTeams.includes(team.id.toString())}
+                                                checked={internalSelectedTeams.includes(team.id.toString())}
                                                 onCheckedChange={() => handleToggleTeam(team.id.toString())}
                                             >
                                                 {team.namaTeam}
@@ -471,16 +438,16 @@ export default function TeamTableData({ teams, role, isLoading }: TeamTableDataP
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="start" className="w-40">
-                                        <DropdownMenuItem onClick={() => setItemsPerPage(5)}>
+                                        <DropdownMenuItem onClick={() => onItemsPerPageChange(5)}>
                                             5 Items
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => setItemsPerPage(10)}>
+                                        <DropdownMenuItem onClick={() => onItemsPerPageChange(10)}>
                                             10 Items
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => setItemsPerPage(20)}>
+                                        <DropdownMenuItem onClick={() => onItemsPerPageChange(20)}>
                                             20 Items
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => setItemsPerPage(50)}>
+                                        <DropdownMenuItem onClick={() => onItemsPerPageChange(50)}>
                                             50 Items
                                         </DropdownMenuItem>
                                     </DropdownMenuContent>
@@ -506,91 +473,6 @@ export default function TeamTableData({ teams, role, isLoading }: TeamTableDataP
 
                     {/* Table/Card Section */}
                     {isMobile ? renderMobileView() : renderDesktopView()}
-
-                    {/* Pagination Section */}
-                    {!isLoading && filteredData.length > 0 && (
-                        <div className="flex flex-col md:flex-row items-center justify-between mt-6 space-y-4 md:space-y-0">
-                            <div className="text-sm text-gray-500 dark:text-gray-400">
-                                Menampilkan {indexOfFirstItem + 1} hingga {Math.min(indexOfLastItem, filteredData.length)} dari {filteredData.length} entri
-                            </div>
-
-                            <Pagination>
-                                <PaginationContent>
-                                    <PaginationItem>
-                                        <PaginationPrevious
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                setCurrentPage(prev => Math.max(prev - 1, 1));
-                                            }}
-                                            className={currentPage === 1 ? 'pointer-events-none opacity-50' : ''}
-                                        />
-                                    </PaginationItem>
-
-                                    {startPage > 1 && (
-                                        <PaginationItem>
-                                            <PaginationLink
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    setCurrentPage(1);
-                                                }}
-                                            >
-                                                1
-                                            </PaginationLink>
-                                        </PaginationItem>
-                                    )}
-
-                                    {startPage > 2 && (
-                                        <PaginationItem>
-                                            <span className="px-2">...</span>
-                                        </PaginationItem>
-                                    )}
-
-                                    {pageNumbers.map(page => (
-                                        <PaginationItem key={page}>
-                                            <PaginationLink
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    setCurrentPage(page);
-                                                }}
-                                                isActive={currentPage === page}
-                                            >
-                                                {page}
-                                            </PaginationLink>
-                                        </PaginationItem>
-                                    ))}
-
-                                    {endPage < totalPages - 1 && (
-                                        <PaginationItem>
-                                            <span className="px-2">...</span>
-                                        </PaginationItem>
-                                    )}
-
-                                    {endPage < totalPages && (
-                                        <PaginationItem>
-                                            <PaginationLink
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    setCurrentPage(totalPages);
-                                                }}
-                                            >
-                                                {totalPages}
-                                            </PaginationLink>
-                                        </PaginationItem>
-                                    )}
-
-                                    <PaginationItem>
-                                        <PaginationNext
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                setCurrentPage(prev => Math.min(prev + 1, totalPages));
-                                            }}
-                                            className={currentPage === totalPages ? 'pointer-events-none opacity-50' : ''}
-                                        />
-                                    </PaginationItem>
-                                </PaginationContent>
-                            </Pagination>
-                        </div>
-                    )}
                 </CardContent>
             </Card>
 

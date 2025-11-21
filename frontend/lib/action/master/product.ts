@@ -11,16 +11,23 @@ export async function generateProductCode() {
 export async function fetchAllProducts() {
   try {
     const data = await apiFetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/master/product/getAllProducts`,
+      `${process.env.NEXT_PUBLIC_API_URL}/api/master/product/getAllProducts?includePagination=false`,
       {
         method: "GET",
       }
     );
-
-    return {
-      products: Array.isArray(data) ? data : data.products || [],
-      isLoading: false,
-    };
+    // Jika backend mengembalikan array langsung
+    if (Array.isArray(data)) {
+      return {
+        products: data,
+        isLoading: false,
+      };
+    } else {
+      return {
+        products: data?.products || [],
+        isLoading: false,
+      };
+    }
   } catch (error) {
     console.error("[fetchAllProducts]", error);
     return { products: [], isLoading: false };

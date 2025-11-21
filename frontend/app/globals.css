@@ -399,3 +399,23 @@ body,
 .animate-scan {
   animation: scan 1.5s ease-in-out infinite;
 }
+
+/* globals.css atau styles.css */
+.search-clear-none::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    appearance: none;
+    display: none;
+}
+
+.search-clear-none::-ms-clear {
+    display: none;
+    width: 0;
+    height: 0;
+}
+
+
+tr[data-highlight="true"] {
+  background-color: rgb(254 240 138) !important; /* yellow-200 */
+  animation: pulse 2s ease-in-out infinite;
+  box-shadow: 0 0 0 2px rgb(250 204 21);
+}

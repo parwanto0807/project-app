@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { SuperLayout } from "@/components/admin-panel/super-layout";
 import {
   Breadcrumb,
@@ -27,7 +27,8 @@ export default function UpdateProductPage() {
   const id = params?.id as string | undefined;
   const router = useRouter();
   const { user, isLoading } = useSession();
-
+  const searchParams = useSearchParams();
+  const returnUrl = searchParams.get("returnUrl") || "/admin-area/master/products?page=1";
   const [data, setData] = useState<Product | null>(null);
   const [error, setError] = useState("");
   const [role, setRole] = useState<"super">("super");
@@ -136,7 +137,12 @@ export default function UpdateProductPage() {
           </button>
         </div>
       ) : data ? (
-        <UpdateProductForm productId={data.id} accessToken={accessToken} role={role} />
+        <UpdateProductForm
+          productId={data.id}
+          accessToken={accessToken}
+          role={role}
+          returnUrl={returnUrl}      // ✔ string
+        />
       ) : (
         <div className="flex flex-col items-center justify-center py-12 space-y-4">
           <div className="bg-yellow-100 p-4 rounded-full">

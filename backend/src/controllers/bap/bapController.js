@@ -27,7 +27,7 @@ export const generateBAPNumber = async (tx = prisma) => {
 export const getAllBAP = async (req, res) => {
   try {
     const pageNum = parseInt(req.query.page) || 1;
-    const limitNum = parseInt(req.query.limit) || 10;
+    const limitNum = parseInt(req.query.limit) || 50;
     const skip = (pageNum - 1) * limitNum;
 
     const where = {};
@@ -297,6 +297,7 @@ export const updateBAP = async (req, res) => {
     const { id } = req.params;
     const {
       userId,
+      bapDate,
       workDescription,
       location,
       status,
@@ -326,6 +327,7 @@ export const updateBAP = async (req, res) => {
       where: { id },
       data: {
         userId,
+        bapDate,
         workDescription,
         location,
         status,

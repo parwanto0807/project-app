@@ -22,27 +22,23 @@ export enum DiscountType {
 }
 
 export interface QuotationQueryParams {
-  page?: number;
-  limit?: number;
-  status?: QuotationStatus;
-  customerId?: string;
-  search?: string;
-  sortBy?: string;
-  sortOrder?: "asc" | "desc";
-  dateFrom?: string;
-  dateUntil?: string;
-  quotationDateFrom?: string; // Tambahkan filter untuk quotationDate
-  quotationDateUntil?: string; // Tambahkan filter untuk quotationDate
+  page?: number; // nomor halaman
+  pageSize?: number; // jumlah item per halaman
+  searchTerm?: string; // kata kunci pencarian
+  statusFilter?: QuotationStatus | "ALL"; // status filter
+  refreshTrigger?: number; // trigger untuk refresh data
 }
 
 // Response type untuk getQuotations
 export interface QuotationListResponse {
   data: QuotationSummary[];
   pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    pages: number;
+    totalCount: number;
+    totalPages: number;
+    currentPage: number;
+    pageSize: number;
+    hasNext: boolean;
+    hasPrev: boolean;
   };
 }
 

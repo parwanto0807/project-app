@@ -220,4 +220,5 @@ export interface PaginatedInvoices {
     total: number;
     pages: number;
   };
+  message?: string;
 }

@@ -10,29 +10,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import {
-    Select,
-    SelectContent,
-    SelectGroup,
-    SelectItem,
-    SelectLabel,
-    SelectSeparator,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import {
-    Pagination,
-    PaginationContent,
-    PaginationItem,
-} from "@/components/ui/pagination";
+import { Card, CardContent } from "@/components/ui/card";
 import {
     Plus,
     ChevronDown,
     ChevronUp,
-    ChevronRight,
-    ChevronLeft,
     PackageOpen,
     Users,
     User,
@@ -44,7 +26,6 @@ import {
     MoreHorizontal,
     Eye,
     Download,
-    SearchIcon,
     BarChart2,
     MapPin,
     Building,
@@ -52,16 +33,13 @@ import {
     UserCircle2Icon,
     ChevronsDown,
     ChevronsUp,
-    ListFilter,
-    PlusCircleIcon,
+    BookCheckIcon,
 } from "lucide-react";
-import React, { useState, useMemo, Fragment, useEffect } from "react";
+import React, { useState, Fragment } from "react";
 import Link from "next/link";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
-import { useRouter } from "next/navigation";
-// import { SalesOrderDocument, SalesOrderItem } from "@/lib/validations/sales-order";
-
+import { useRouter, useSearchParams } from "next/navigation";
 import { SPKPDF } from "@/components/spk/SPKPdf";
 import SPKPdfPreview from "./spkPdfPreview";
 import { pdf } from "@react-pdf/renderer";
@@ -69,7 +47,6 @@ import { mapFormValuesToPdfProps, SpkPdfValues } from "@/lib/validations/spk-map
 import { SpkFormValuesPdfProps } from "@/types/spk";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
-
 
 type SPK = {
     id: string;
@@ -80,6 +57,7 @@ type SPK = {
     createdById: string;
     progress: number;
     spkStatusClose: boolean;
+    spkStatus: boolean;
     createdBy: {
         id: string;
         namaLengkap: string;
@@ -93,9 +71,9 @@ type SPK = {
         soNumber: string;
         projectName: string;
         customer: {
-            name: string;      // diisi dari customer.name
-            address: string;   // ✅ baru
-            branch: string;    // ✅ baru
+            name: string;
+            address: string;
+            branch: string;
         }
         project?: {
             id: string;
@@ -160,6 +138,7 @@ type TabelDataSpkProps = {
     isLoading: boolean;
     className?: string;
     onDeleteSpk?: (spkId: string) => void;
+    isDeleting: boolean;
 };
 
 function getBasePath(role?: string) {
@@ -174,17 +153,13 @@ function getBasePath(role?: string) {
 export function normalizePdfProps(data: SpkFormValuesPdfProps) {
     return {
         ...data,
-        spkDate: new Date(data.spkDate), // pastikan Date
+        spkDate: new Date(data.spkDate),
     };
 }
 
-// Helper function dengan type checking
-// Helper function yang menerima Date atau string
 function getTimeAgo(dateInput: Date | string): string {
-    // Konversi ke Date object
     const date = dateInput instanceof Date ? dateInput : new Date(dateInput);
 
-    // Validasi date
     if (isNaN(date.getTime())) {
         return 'Waktu tidak valid';
     }
@@ -213,14 +188,13 @@ function getTimeAgo(dateInput: Date | string): string {
     }
 }
 
-// Hook untuk mengelola aksi PDF
 function usePdfActions() {
     const [pdfDialogOpen, setPdfDialogOpen] = React.useState(false);
     const [selectedSpk, setSelectedSpk] = React.useState<SpkFormValuesPdfProps | null>(null);
+
     const handleDownloadPdf = async (spk: SpkPdfValues) => {
         try {
             const pdfData = mapFormValuesToPdfProps(spk);
-
             const normalized = normalizePdfProps(pdfData);
             const blob = await pdf(<SPKPDF data={normalized} />).toBlob();
             const url = URL.createObjectURL(blob);
@@ -256,7 +230,6 @@ function usePdfActions() {
     };
 }
 
-// Komponen Progress dengan indicator yang lebih informatif
 const ProgressIndicator = ({ progress }: { progress: number }) => {
     const getProgressColor = (progress: number) => {
         if (progress >= 80) return "bg-emerald-500";
@@ -295,7 +268,6 @@ const ProgressIndicator = ({ progress }: { progress: number }) => {
     );
 };
 
-// Komponen Detail Card yang lebih profesional
 const DetailCard = ({ icon: Icon, title, children, className }: {
     icon: React.ElementType;
     title: string;
@@ -313,27 +285,39 @@ const DetailCard = ({ icon: Icon, title, children, className }: {
     </div>
 );
 
-
 export default function TabelDataSpk({
-    dataSpk = [],
+    dataSpk = [], // Default ke array kosong
     role,
     isLoading,
     onDeleteSpk,
+    isDeleting = false,
 }: TabelDataSpkProps) {
-    const [searchTerm, setSearchTerm] = useState("");
-    const [filterBy, setFilterBy] = useState("on-progress");
-    const [currentPage, setCurrentPage] = useState(1);
+    const rowRefs = React.useRef<{ [key: string]: HTMLTableRowElement | null }>({});
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-    const [availableTeams, setAvailableTeams] = useState<string[]>([]);
-    const [itemsPerPage, setItemsPerPage] = useState(50); // State untuk items per page
+
+    const searchParams = useSearchParams();
+    const page = Number(searchParams.get("page")) || 1;
+    const highlightStatus = searchParams.get("status") || "";
+    const pageSize = searchParams.get("pageSize") || "";
+    const highlightId = searchParams.get("highlightId") || "";
+    const searchUrl = searchParams.get("search") || "";
+    const urlFilter = searchParams.get("filter") || "all";
+
     const basePath = getBasePath(role);
     const router = useRouter();
     const pdfActions = usePdfActions();
-
     const isMobile = useMediaQuery("(max-width: 768px)");
 
-    // Opsi items per page
-    const itemsPerPageOptions = [50, 100, 200, 300];
+    // DEBUG: Log data yang diterima
+    console.log("🔍 TabelDataSpk - Data received:", {
+        dataCount: dataSpk?.length || 0,
+        data: dataSpk?.map(item => ({
+            id: item.id,
+            spkNumber: item.spkNumber,
+            progress: item.progress,
+            status: item.spkStatusClose
+        }))
+    });
 
     const handleDelete = async (spkId: string) => {
         const confirmDelete = window.confirm(
@@ -348,60 +332,67 @@ export default function TabelDataSpk({
         }
     };
 
-    // Extract daftar tim unik dari dataSpk
-    useEffect(() => {
-        if (Array.isArray(dataSpk)) {
-            const teams = dataSpk
-                .map(spk => spk.team?.namaTeam)
-                .filter((namaTeam): namaTeam is string =>
-                    namaTeam !== undefined && namaTeam !== null && namaTeam.trim() !== ''
-                );
-            const uniqueTeams = [...new Set(teams)];
-            setAvailableTeams(uniqueTeams);
-        }
-    }, [dataSpk]);
+    // Highlight effect
+    React.useEffect(() => {
+        if (!highlightId) return;
 
-    // Reset ke page 1 ketika itemsPerPage berubah
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [itemsPerPage]);
+        const highlightElement = rowRefs.current[highlightId];
+        if (!highlightElement) return;
 
-    const filteredData = useMemo(() => {
-        if (!Array.isArray(dataSpk)) return [];
+        const SCROLL_DELAY = 300;
+        const HIGHLIGHT_DURATION = 5000;
+        const ANIMATION_CLASSES = [
+            "bg-yellow-200",
+            "dark:bg-yellow-900",
+            "animate-pulse",
+            "ring-2",
+            "ring-yellow-400",
+            "ring-offset-2",
+            "transition-all",
+            "duration-500"
+        ];
 
-        return dataSpk.filter((spk) => {
-            const matchesSearch =
-                spk.spkNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                spk.salesOrder?.soNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                spk.team?.namaTeam?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                spk.createdBy?.namaLengkap?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                spk.notes?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                spk.details?.some((detail) =>
-                    detail.karyawan?.namaLengkap?.toLowerCase().includes(searchTerm.toLowerCase())
-                );
+        // Delay kecil supaya DOM siap
+        const scrollTimer = setTimeout(() => {
+            highlightElement.scrollIntoView({
+                behavior: "smooth",
+                block: "center",
+                inline: "nearest"
+            });
+        }, SCROLL_DELAY);
 
-            if (filterBy === "all") return matchesSearch;
-            if (filterBy === "on-progress" && spk.spkStatusClose === false) return matchesSearch;
-            if (filterBy === "without-team" && !spk.team?.namaTeam) return matchesSearch;
+        // Tambahkan highlight animasi
+        highlightElement.classList.add(...ANIMATION_CLASSES);
 
-            // Filter berdasarkan nama tim spesifik
-            if (availableTeams.includes(filterBy) && spk.team?.namaTeam === filterBy) return matchesSearch;
+        // Hapus highlight + bersihkan URL
+        const cleanupTimer = setTimeout(() => {
+            highlightElement.classList.remove(...ANIMATION_CLASSES);
 
-            return false;
-        });
-    }, [dataSpk, searchTerm, filterBy, availableTeams]);
+            // Tambahkan sedikit smoothing setelah animasi
+            highlightElement.classList.add("transition-colors", "duration-300");
 
-    const totalPages = Math.ceil(filteredData.length / itemsPerPage);
-    const paginatedData = useMemo(() => {
-        const start = (currentPage - 1) * itemsPerPage;
-        return filteredData.slice(start, start + itemsPerPage);
-    }, [filteredData, currentPage, itemsPerPage]);
+            // Hapus highlightId dari URL tanpa reload
+            const params = new URLSearchParams(window.location.search);
+            params.delete("highlightId");
+            const newUrl = params.toString()
+                ? `${window.location.pathname}?${params.toString()}`
+                : window.location.pathname;
 
-    const handlePageChange = (page: number) => {
-        if (page >= 1 && page <= totalPages) {
-            setCurrentPage(page);
-        }
-    };
+            window.history.replaceState({}, "", newUrl);
+
+        }, HIGHLIGHT_DURATION);
+
+        return () => {
+            clearTimeout(scrollTimer);
+            clearTimeout(cleanupTimer);
+            highlightElement.classList.remove(...ANIMATION_CLASSES);
+        };
+    }, [highlightId]);
+
+    // Gunakan dataSpk langsung tanpa filtering
+    const displayData = dataSpk || [];
+
+    console.log("🔍 TabelDataSpk - Display data count:", displayData.length);
 
     const toggleRow = (id: string) => {
         const newExpanded = new Set(expandedRows);
@@ -412,21 +403,6 @@ export default function TabelDataSpk({
         }
         setExpandedRows(newExpanded);
     };
-
-    const getPageNumbers = () => {
-        const totalPagesToShow = 5;
-        let startPage = Math.max(1, currentPage - Math.floor(totalPagesToShow / 2));
-        const endPage = Math.min(totalPages, startPage + totalPagesToShow - 1);
-        if (endPage - startPage + 1 < totalPagesToShow && startPage > 1) {
-            startPage = Math.max(1, endPage - totalPagesToShow + 1);
-        }
-        return Array.from(
-            { length: endPage - startPage + 1 },
-            (_, i) => startPage + i
-        );
-    };
-
-    const pageNumbers = getPageNumbers();
 
     // Fungsi untuk memetakan data SPK ke format yang diharapkan oleh PDF
     const mapSpkToPdfValues = (spk: SPK): SpkPdfValues => {
@@ -453,8 +429,7 @@ export default function TabelDataSpk({
                     id: spk.salesOrder.id,
                     soNumber: spk.salesOrder.soNumber,
                     projectName: spk.salesOrder.project?.name || "",
-                    customer:
-                    {
+                    customer: {
                         name: spk.salesOrder.customer?.name || "",
                         address: spk.salesOrder.customer?.address || "",
                         branch: spk.salesOrder.customer?.branch || "",
@@ -465,20 +440,19 @@ export default function TabelDataSpk({
                             name: spk.salesOrder.project.name || "",
                         }
                         : undefined,
-                    items:
-                        spk.salesOrder.items?.map((item) => ({
-                            id: item.id,
-                            lineNo: item.lineNo,
-                            itemType: item.itemType,
-                            name: item.name ?? "",
-                            description: item.description ?? "",
-                            qty: Number(item.qty) || 0,
-                            uom: item.uom ?? "",
-                            unitPrice: Number(item.unitPrice) || 0,
-                            discount: Number(item.discount) || 0,
-                            taxRate: Number(item.taxRate) || 0,
-                            lineTotal: Number(item.lineTotal) || 0,
-                        })) || [],
+                    items: spk.salesOrder.items?.map((item) => ({
+                        id: item.id,
+                        lineNo: item.lineNo,
+                        itemType: item.itemType,
+                        name: item.name ?? "",
+                        description: item.description ?? "",
+                        qty: Number(item.qty) || 0,
+                        uom: item.uom ?? "",
+                        unitPrice: Number(item.unitPrice) || 0,
+                        discount: Number(item.discount) || 0,
+                        taxRate: Number(item.taxRate) || 0,
+                        lineTotal: Number(item.lineTotal) || 0,
+                    })) || [],
                 }
                 : {
                     id: "",
@@ -508,29 +482,28 @@ export default function TabelDataSpk({
                         : undefined,
                 }
                 : null,
-            details:
-                spk.details?.map((detail) => ({
-                    id: detail.id,
-                    karyawan: detail.karyawan
-                        ? {
-                            id: detail.karyawan?.id ?? "",
-                            namaLengkap: detail.karyawan?.namaLengkap ?? "",
-                            jabatan: detail.karyawan?.jabatan ?? "",
-                            nik: detail.karyawan?.nik ?? "",
-                            departemen: detail.karyawan?.departemen ?? "",
-                        }
-                        : undefined,
-                    lokasiUnit: detail.lokasiUnit ?? null,
-                    salesOrderItemSPK: detail.salesOrderItemSPK
-                        ? {
-                            id: detail.salesOrderItemSPK.id,
-                            name: detail.salesOrderItemSPK.name ?? "",
-                            description: detail.salesOrderItemSPK.description ?? "",
-                            qty: Number(detail.salesOrderItemSPK.qty) || 0,
-                            uom: detail.salesOrderItemSPK.uom ?? "",
-                        }
-                        : undefined,
-                })) || [],
+            details: spk.details?.map((detail) => ({
+                id: detail.id,
+                karyawan: detail.karyawan
+                    ? {
+                        id: detail.karyawan?.id ?? "",
+                        namaLengkap: detail.karyawan?.namaLengkap ?? "",
+                        jabatan: detail.karyawan?.jabatan ?? "",
+                        nik: detail.karyawan?.nik ?? "",
+                        departemen: detail.karyawan?.departemen ?? "",
+                    }
+                    : undefined,
+                lokasiUnit: detail.lokasiUnit ?? null,
+                salesOrderItemSPK: detail.salesOrderItemSPK
+                    ? {
+                        id: detail.salesOrderItemSPK.id,
+                        name: detail.salesOrderItemSPK.name ?? "",
+                        description: detail.salesOrderItemSPK.description ?? "",
+                        qty: Number(detail.salesOrderItemSPK.qty) || 0,
+                        uom: detail.salesOrderItemSPK.uom ?? "",
+                    }
+                    : undefined,
+            })) || [],
 
             notes: spk.notes ?? null,
             createdAt: new Date(spk.createdAt),
@@ -541,7 +514,7 @@ export default function TabelDataSpk({
     // 👇 RENDER MOBILE CARD VIEW YANG DIPERBAIKI
     const renderMobileView = () => (
         <div className="space-y-3 p-2">
-            {paginatedData.map((spk, idx) => {
+            {displayData.map((spk, idx) => {
                 const spkPdfData = mapSpkToPdfValues(spk);
                 const isExpanded = expandedRows.has(spk.id);
 
@@ -553,7 +526,7 @@ export default function TabelDataSpk({
                                 <div className="flex flex-row gap-2">
                                     <div className="flex items-center gap-2 mb-1">
                                         <Badge variant="secondary" className="font-medium bg-primary/10 text-primary text-xs">
-                                            #{(currentPage - 1) * itemsPerPage + idx + 1}
+                                            #{idx + 1}
                                         </Badge>
                                         <h3 className="font-bold text-xs text-gray-900 dark:text-white">{spk.spkNumber}</h3>
                                     </div>
@@ -611,7 +584,7 @@ export default function TabelDataSpk({
                                 </div>
                             </div>
 
-                            {/* Expanded Detail - Tetap lengkap seperti sebelumnya */}
+                            {/* Expanded Detail */}
                             {isExpanded && (
                                 <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                                     <div className="space-y-4">
@@ -709,7 +682,10 @@ export default function TabelDataSpk({
                                             {/* Admin Actions */}
                                             {role === "admin" && (
                                                 <div className="flex flex-col xs:flex-row gap-2 border-t pt-2 dark:border-gray-700 justify-end">
-                                                    <Link href={`${basePath}/update/${spk.id}`} className="w-full xs:w-auto">
+                                                    <Link
+                                                        href={`${basePath}/update/${spk.id}?highlightId=${spk.id}&page=${page}&pageSize=${pageSize}&status=${highlightStatus}&search=${searchUrl}&filter=${urlFilter}`}
+                                                        className="w-full xs:w-auto"
+                                                    >
                                                         <Button
                                                             size="sm"
                                                             variant="outline"
@@ -728,6 +704,7 @@ export default function TabelDataSpk({
                                                             e.stopPropagation();
                                                             handleDelete(spk.id);
                                                         }}
+                                                        disabled={isDeleting}
                                                     >
                                                         <Trash2 className="h-3 w-3 mr-1" />
                                                         <span className="text-xs">Delete</span>
@@ -760,6 +737,7 @@ export default function TabelDataSpk({
                             <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Pembuat</TableHead>
                             <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Project Name</TableHead>
                             <TableHead className="w-40 font-semibold text-gray-700 dark:text-gray-300">Progress</TableHead>
+                            <TableHead className="w-10 font-semibold text-gray-700 dark:text-gray-300">Status</TableHead>
                             <TableHead className="w-32 font-semibold text-gray-700 dark:text-gray-300">Catatan</TableHead>
                             <TableHead className="text-center w-48 font-semibold text-gray-700 dark:text-gray-300">Aksi</TableHead>
                         </TableRow>
@@ -786,19 +764,25 @@ export default function TabelDataSpk({
                                     </TableCell>
                                 </TableRow>
                             ))
-                        ) : paginatedData.length > 0 ? (
-                            paginatedData.map((spk, idx) => {
+                        ) : displayData.length > 0 ? (
+                            displayData.map((spk, idx) => {
                                 const spkPdfData = mapSpkToPdfValues(spk);
                                 const isExpanded = expandedRows.has(spk.id);
 
                                 return (
                                     <Fragment key={`spk-${spk.id}`}>
-                                        <TableRow className={cn(
-                                            "group transition-all duration-300 hover:bg-gray-50 dark:hover:bg-gray-800/50",
-                                            isExpanded && "bg-blue-50 dark:bg-blue-900/20"
-                                        )}>
+                                        <TableRow
+                                            ref={(el) => {
+                                                const id = spk.id;
+                                                if (id) rowRefs.current[id] = el;
+                                            }}
+                                            data-row-id={spk.id}
+                                            className={cn(
+                                                "cursor-pointer hover:bg-muted/30 transition-colors",
+                                                highlightId === spk.id ? "bg-yellow-200 dark:bg-yellow-900" : ""
+                                            )}>
                                             <TableCell className="text-center font-medium text-gray-600 dark:text-gray-400">
-                                                {(currentPage - 1) * itemsPerPage + idx + 1}
+                                                {idx + 1}
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex flex-col space-y-1">
@@ -898,6 +882,24 @@ export default function TabelDataSpk({
                                                     )}
                                                 </div>
                                             </TableCell>
+                                            <TableCell className="font-medium text-gray-700 dark:text-gray-300 w-36">
+                                                <div className="flex items-center space-x-2">
+                                                    <BookCheckIcon className="h-4 w-4 text-orange-500 flex-shrink-0" />
+
+                                                    {/* STATUS BADGE */}
+                                                    <span
+                                                        className={cn(
+                                                            "truncate max-w-[120px] uppercase font-semibold px-2 py-1 rounded-md text-xs",
+                                                            spk.spkStatusClose
+                                                                ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300" // CLOSING
+                                                                : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" // ON PROGRESS
+                                                        )}
+                                                    >
+                                                        {spk.spkStatusClose ? "CLOSING" : "OPEN"}
+                                                    </span>
+                                                </div>
+                                            </TableCell>
+
                                             <TableCell className="text-center">
                                                 {spk.notes ? (
                                                     <TooltipProvider>
@@ -956,23 +958,7 @@ export default function TabelDataSpk({
                                                                 <Button
                                                                     size="sm"
                                                                     variant="outline"
-                                                                    className="
-                    h-9 px-4 rounded-lg
-                    flex items-center gap-2
-                    border border-blue-200 dark:border-blue-800
-                    bg-gradient-to-r from-blue-50 to-indigo-50 
-                    dark:from-blue-950/30 dark:to-indigo-950/30
-                    hover:from-blue-100 hover:to-indigo-100
-                    dark:hover:from-blue-900/40 dark:hover:to-indigo-900/40
-                    text-blue-700 dark:text-blue-300
-                    hover:text-blue-800 dark:hover:text-blue-200
-                    hover:shadow-md hover:shadow-blue-500/10
-                    dark:hover:shadow-blue-400/5
-                    transition-all duration-300
-                    hover:scale-105 active:scale-95
-                    group
-                    font-medium
-                "
+                                                                    className="h-9 px-4 rounded-lg flex items-center gap-2 border border-blue-200 dark:border-blue-800 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 hover:from-blue-100 hover:to-indigo-100 dark:hover:from-blue-900/40 dark:hover:to-indigo-900/40 text-blue-700 dark:text-blue-300 hover:text-blue-800 dark:hover:text-blue-200 hover:shadow-md hover:shadow-blue-500/10 dark:hover:shadow-blue-400/5 transition-all duration-300 hover:scale-105 active:scale-95 group font-medium"
                                                                     onClick={() => router.push(`${basePath}/spkReportDetail/${spk.id}`)}
                                                                 >
                                                                     <div className="relative">
@@ -982,21 +968,10 @@ export default function TabelDataSpk({
                                                                     <span className="hidden sm:inline text-sm font-semibold">Monitoring Progress</span>
                                                                 </Button>
                                                             </TooltipTrigger>
-
                                                             <TooltipContent
                                                                 side="top"
                                                                 align="center"
-                                                                className="
-                px-3 py-2 text-sm rounded-xl
-                bg-gradient-to-br from-slate-800 to-blue-900 
-                dark:from-slate-900 dark:to-blue-950
-                text-white dark:text-blue-100
-                border border-blue-700/30 dark:border-blue-600/30
-                shadow-2xl shadow-blue-500/20
-                backdrop-blur-sm
-                animate-in fade-in-0 zoom-in-95
-                data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95
-            "
+                                                                className="px-3 py-2 text-sm rounded-xl bg-gradient-to-br from-slate-800 to-blue-900 dark:from-slate-900 dark:to-blue-950 text-white dark:text-blue-100 border border-blue-700/30 dark:border-blue-600/30 shadow-2xl shadow-blue-500/20 backdrop-blur-sm"
                                                             >
                                                                 <div className="flex items-center gap-2">
                                                                     <BarChart2 className="h-4 w-4 text-blue-300" />
@@ -1009,9 +984,7 @@ export default function TabelDataSpk({
                                                         </Tooltip>
                                                     </TooltipProvider>
 
-
-                                                    {/* PDF Actions Dropdown */}
-                                                    {/* PDF Actions - Dikeluarkan dari Dropdown */}
+                                                    {/* PDF Actions */}
                                                     <TooltipProvider>
                                                         <Tooltip>
                                                             <TooltipTrigger asChild>
@@ -1048,7 +1021,7 @@ export default function TabelDataSpk({
                                                         </Tooltip>
                                                     </TooltipProvider>
 
-                                                    {/* Dropdown Menu - Hanya berisi Edit dan Hapus */}
+                                                    {/* Dropdown Menu */}
                                                     <DropdownMenu>
                                                         <TooltipProvider>
                                                             <Tooltip>
@@ -1076,11 +1049,16 @@ export default function TabelDataSpk({
                                                                 <>
                                                                     <DropdownMenuItem
                                                                         className="flex items-center space-x-2 p-3 cursor-pointer text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
-                                                                        onClick={() => router.push(`${basePath}/update/${spk.id}`)}
+                                                                        onClick={() =>
+                                                                            router.push(
+                                                                                `${basePath}/update/${spk.id}?highlightId=${spk.id}&page=${page}&pageSize=${pageSize}&status=${highlightStatus}&search=${searchUrl}&filter=${urlFilter}`
+                                                                            )
+                                                                        }
                                                                     >
                                                                         <Edit className="h-4 w-4 text-blue-600" />
                                                                         <span>Edit SPK</span>
                                                                     </DropdownMenuItem>
+
                                                                     <DropdownMenuItem
                                                                         className="flex items-center space-x-2 p-3 cursor-pointer text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
                                                                         onClick={(e) => {
@@ -1100,7 +1078,7 @@ export default function TabelDataSpk({
                                             </TableCell>
                                         </TableRow>
 
-                                        {/* Expanded Row dengan desain yang lebih baik */}
+                                        {/* Expanded Row */}
                                         {isExpanded && (
                                             <TableRow className="bg-gray-50/80 dark:bg-gray-800/50 backdrop-blur-sm">
                                                 <TableCell colSpan={9} className="p-4">
@@ -1321,34 +1299,18 @@ export default function TabelDataSpk({
                                         <PackageOpen className="h-16 w-16 opacity-50" />
                                         <div>
                                             <p className="text-lg font-semibold mb-2">
-                                                {searchTerm || filterBy !== "all"
-                                                    ? "Tidak ada data SPK yang sesuai pencarian"
-                                                    : "Belum ada data SPK"}
+                                                Belum ada data SPK
                                             </p>
                                             <p className="text-sm">
-                                                {searchTerm || filterBy !== "all"
-                                                    ? "Coba ubah kata kunci pencarian atau filter yang diterapkan"
-                                                    : "Mulai dengan membuat SPK baru"}
+                                                Mulai dengan membuat SPK baru
                                             </p>
                                         </div>
-                                        {(searchTerm || filterBy !== "all") ? (
-                                            <Button
-                                                variant="outline"
-                                                onClick={() => {
-                                                    setSearchTerm("");
-                                                    setFilterBy("on-progress");
-                                                }}
-                                            >
-                                                Reset Pencarian
+                                        <Link href={`${basePath}/create`}>
+                                            <Button className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600">
+                                                <Plus className="h-4 w-4 mr-2" />
+                                                Buat SPK Pertama
                                             </Button>
-                                        ) : (
-                                            <Link href={`${basePath}/create`}>
-                                                <Button className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600">
-                                                    <Plus className="h-4 w-4 mr-2" />
-                                                    Buat SPK Pertama
-                                                </Button>
-                                            </Link>
-                                        )}
+                                        </Link>
                                     </div>
                                 </TableCell>
                             </TableRow>
@@ -1361,155 +1323,6 @@ export default function TabelDataSpk({
 
     return (
         <Card className="border-none shadow-xl dark:bg-gradient-to-br dark:from-gray-900 dark:to-gray-950 overflow-hidden">
-            {/* Header dengan gradient yang lebih modern */}
-            <CardHeader className="rounded-xl bg-gradient-to-r from-cyan-600 via-blue-600 to-purple-600 px-6 py-4 text-white relative overflow-hidden">
-                <div className="absolute inset-0 bg-black/10"></div>
-                <div className="relative z-0">
-                    <div className="flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0">
-                        <div className="flex items-center space-x-4">
-                            <div className="flex items-center justify-center h-14 w-14 rounded-2xl bg-white/20 backdrop-blur-sm border border-white/30">
-                                <PackageOpen className="h-7 w-7 text-white" />
-                            </div>
-                            <div>
-                                <CardTitle className="text-xl md:text-2xl font-bold">Surat Perintah Kerja</CardTitle>
-                                <p className="text-xs md:text-sm text-cyan-100">Manage SPK logistic ke produksi</p>
-                            </div>
-                        </div>
-
-                        {/* Toolbar Desktop */}
-                        <div className="hidden sm:flex items-center space-x-3">
-                            {/* Search */}
-                            <div className="relative">
-                                <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-white/80" />
-                                <Input
-                                    placeholder="Cari SPK..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-64 pl-9 bg-white/20 backdrop-blur-sm border-white/30 text-white placeholder-cyan-100 focus:bg-white/30 transition-colors"
-                                />
-                            </div>
-
-                            {/* Filter */}
-                            <Select value={filterBy} onValueChange={setFilterBy}>
-                                <SelectTrigger className="w-48 bg-white/20 backdrop-blur-sm border-white/30 text-white focus:bg-white/30">
-                                    <SelectValue placeholder="Filter" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">Semua SPK</SelectItem>
-                                    <SelectItem value="on-progress">On Progress</SelectItem>
-                                    <SelectItem value="without-team">Tanpa Tim</SelectItem>
-                                    {/* Tambahkan separator untuk grup tim */}
-                                    <SelectSeparator />
-                                    <SelectGroup>
-                                        <SelectLabel>Pilih Tim</SelectLabel>
-                                        {availableTeams.map(team => (
-                                            <SelectItem key={team} value={team}>
-                                                {team}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectGroup>
-                                </SelectContent>
-                            </Select>
-
-                            {/* Items Per Page Selector */}
-                            <Select value={itemsPerPage.toString()} onValueChange={(value) => setItemsPerPage(Number(value))}>
-                                <SelectTrigger className="w-28 bg-white/20 backdrop-blur-sm border-white/30 text-white focus:bg-white/30 hover:bg-white/30">
-                                    <ListFilter className="h-3.5 w-3.5 mr-2 text-white" />
-                                    <span className="text-sm">{itemsPerPage}</span>
-                                </SelectTrigger>
-                                <SelectContent className="min-w-[120px]">
-                                    {itemsPerPageOptions.map(option => (
-                                        <SelectItem
-                                            key={option}
-                                            value={option.toString()}
-                                            className="text-sm py-2"
-                                        >
-                                            <div className="flex items-center gap-2">
-                                                <ListFilter className="h-3.5 w-3.5" />
-                                                <span>{option}</span> per page
-                                            </div>
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-
-                            {/* Tambah Button */}
-                            <Link href={`${basePath}/create`}>
-                                <Button
-                                    className="bg-white text-cyan-700 hover:bg-cyan-50 font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2 px-6 py-2 rounded-xl"
-                                >
-                                    <Plus size={18} />
-                                    <span>Tambah SPK</span>
-                                </Button>
-                            </Link>
-                        </div>
-                    </div>
-                </div>
-            </CardHeader>
-
-            {/* Toolbar Mobile */}
-            <div className="sm:hidden p-3 space-y-3 rounded-lg border bg-gradient-to-br from-white via-gray-50 to-gray-200 border-gray-300 dark:bg-gradient-to-br dark:from-gray-800 dark:via-gray-900 dark:to-black dark:border-gray-700">
-                {/* Search Input */}
-                <div className="relative">
-                    <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
-                    <Input
-                        placeholder="Cari SPK..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-9 bg-white/80 border border-gray-300 shadow-sm focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-gray-800/70 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 dark:focus-visible:ring-blue-400 text-sm"
-                    />
-                </div>
-
-                {/* Filter & Actions - Compact Mobile */}
-                <div className="flex flex-col gap-2">
-                    {/* Filter Row */}
-                    <div className="flex gap-2">
-                        <Select value={filterBy} onValueChange={setFilterBy}>
-                            <SelectTrigger className="flex-1 min-w-0 bg-white/70 dark:bg-white/10 backdrop-blur-sm border-cyan-300 dark:border-cyan-800 focus:bg-white dark:focus:bg-gray-800 text-xs font-bold h-9">
-                                <SelectValue placeholder="Filter" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Semua SPK</SelectItem>
-                                <SelectItem value="on-progress">On Progress</SelectItem>
-                                <SelectItem value="without-team">Tanpa Tim</SelectItem>
-                                <SelectSeparator />
-                                <SelectGroup>
-                                    <SelectLabel>Pilih Tim</SelectLabel>
-                                    {availableTeams.map(team => (
-                                        <SelectItem key={team} value={team}>
-                                            {team}
-                                        </SelectItem>
-                                    ))}
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
-
-                        {/* Items Per Page Selector */}
-                        <Select value={itemsPerPage.toString()} onValueChange={(value) => setItemsPerPage(Number(value))}>
-                            <SelectTrigger className="w-20 bg-white/70 dark:bg-white/10 backdrop-blur-sm border-cyan-300 dark:border-cyan-800 focus:bg-white dark:focus:bg-gray-800 text-xs font bold h-9">
-                                <SelectValue placeholder="Items" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {itemsPerPageOptions.map(option => (
-                                    <SelectItem key={option} value={option.toString()}>
-                                        {option}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    {/* Tambah Button */}
-                    <Link href={`${basePath}/create`}>
-                        <Button className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-medium text-sm h-9">
-                            <PlusCircleIcon size={16} className="mr-1" />
-                            New SPK
-                        </Button>
-                    </Link>
-                </div>
-            </div>
-
-
             {/* Konten Utama */}
             <CardContent className="p-0 bg-gray-50/50 dark:bg-gray-800/50">
                 {isLoading ? (
@@ -1521,78 +1334,6 @@ export default function TabelDataSpk({
                 ) : (
                     <>
                         {isMobile ? renderMobileView() : renderDesktopView()}
-
-                        {/* Pagination */}
-                        {filteredData.length > 0 && (
-                            <div className="p-6 flex flex-col sm:flex-row justify-between items-center gap-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-                                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                                        Menampilkan <span className="font-semibold">{(currentPage - 1) * itemsPerPage + 1}</span>–
-                                        <span className="font-semibold">{Math.min(currentPage * itemsPerPage, filteredData.length)}</span> dari{" "}
-                                        <span className="font-semibold">{filteredData.length}</span> SPK
-                                    </p>
-
-                                    {/* Items Per Page Selector di Pagination Area */}
-                                    {/* <div className="flex items-center space-x-2">
-                                        <span className="text-sm text-gray-600 dark:text-gray-400">Items per page:</span>
-                                        <Select value={itemsPerPage.toString()} onValueChange={(value) => setItemsPerPage(Number(value))}>
-                                            <SelectTrigger className="w-20 h-8">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {itemsPerPageOptions.map(option => (
-                                                    <SelectItem key={option} value={option.toString()}>
-                                                        {option}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div> */}
-                                </div>
-
-                                <Pagination>
-                                    <PaginationContent>
-                                        <PaginationItem>
-                                            <Button
-                                                variant="outline"
-                                                size="icon"
-                                                onClick={() => handlePageChange(currentPage - 1)}
-                                                disabled={currentPage === 1}
-                                                className="h-9 w-9 rounded-lg border-gray-300 dark:border-gray-600"
-                                            >
-                                                <ChevronLeft className="h-4 w-4" />
-                                            </Button>
-                                        </PaginationItem>
-                                        {pageNumbers.map((page) => (
-                                            <PaginationItem key={page}>
-                                                <Button
-                                                    variant={currentPage === page ? "default" : "outline"}
-                                                    size="icon"
-                                                    onClick={() => handlePageChange(page)}
-                                                    className={cn(
-                                                        "h-9 w-9 rounded-lg border-gray-300 dark:border-gray-600",
-                                                        currentPage === page && "bg-gradient-to-r from-cyan-500 to-blue-500 text-white"
-                                                    )}
-                                                >
-                                                    {page}
-                                                </Button>
-                                            </PaginationItem>
-                                        ))}
-                                        <PaginationItem>
-                                            <Button
-                                                variant="outline"
-                                                size="icon"
-                                                onClick={() => handlePageChange(currentPage + 1)}
-                                                disabled={currentPage === totalPages}
-                                                className="h-9 w-9 rounded-lg border-gray-300 dark:border-gray-600"
-                                            >
-                                                <ChevronRight className="h-4 w-4" />
-                                            </Button>
-                                        </PaginationItem>
-                                    </PaginationContent>
-                                </Pagination>
-                            </div>
-                        )}
                     </>
                 )}
             </CardContent>

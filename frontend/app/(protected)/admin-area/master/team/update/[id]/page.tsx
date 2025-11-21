@@ -34,6 +34,8 @@ export default function UpdateTeamPage() {
   const fromPage = searchParams.get('from') || 'list';
   const { user, isLoading: userLoading } = useSession();
 
+  const returnUrl = searchParams.get("returnUrl") || "/admin-area/master/products?page=1";
+
   const [data, setData] = useState<Team | null>(null);
   const [error, setError] = useState("");
   const [role, setRole] = useState<"admin" | "super">("admin");
@@ -185,6 +187,7 @@ export default function UpdateTeamPage() {
         <UpdateTeamForm
           role={role}
           teamId={id!}
+          returnUrl={returnUrl}      // ✔ string
         />
       ) : (
         <div className="flex flex-col  items-center justify-center py-12 space-y-4">

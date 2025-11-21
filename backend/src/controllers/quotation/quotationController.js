@@ -260,146 +260,106 @@ export const createQuotation = async (req, res) => {
   }
 };
 
-// GET All Quotations
+
 export const getQuotations = async (req, res) => {
   try {
-    const {
-      page = 1,
-      limit = 10,
-      status,
-      customerId,
-      search,
-      sortBy = "createdAt",
-      sortOrder = "desc",
-      dateFrom,
-      dateUntil,
-      quotationDateFrom, // Tambahkan filter quotationDate
-      quotationDateUntil, // Tambahkan filter quotationDate
-    } = req.query;
+    const page = parseInt(req.query.page) || 1;
+    const pageSize = parseInt(req.query.pageSize) || 10;
+    const searchTerm = req.query.searchTerm?.trim() || "";
+    const statusFilter = req.query.statusFilter?.trim() || "";
+    const customerId = req.query.customerId?.trim() || "";
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    const take = parseInt(limit);
+    const skip = (page - 1) * pageSize;
 
-    // Build where clause
+    // =============================
+    //     BUILD WHERE CLAUSE
+    // =============================
     const where = {};
 
-    if (status) where.status = status;
-    if (customerId) where.customerId = customerId;
-
-    // Filter berdasarkan created/updated date
-    if (dateFrom || dateUntil) {
-      where.createdAt = {};
-      if (dateFrom) where.createdAt.gte = new Date(dateFrom);
-      if (dateUntil) where.createdAt.lte = new Date(dateUntil);
-    }
-
-    // Filter berdasarkan quotationDate
-    if (quotationDateFrom || quotationDateUntil) {
-      where.quotationDate = {};
-      if (quotationDateFrom)
-        where.quotationDate.gte = new Date(quotationDateFrom);
-      if (quotationDateUntil)
-        where.quotationDate.lte = new Date(quotationDateUntil);
-    }
-
-    if (search) {
+    // Search filter
+    if (searchTerm) {
       where.OR = [
-        { quotationNumber: { contains: search, mode: "insensitive" } },
-        { customer: { name: { contains: search, mode: "insensitive" } } },
-        { customer: { code: { contains: search, mode: "insensitive" } } },
+        { quotationNumber: { contains: searchTerm, mode: "insensitive" } },
+        { customer: { name: { contains: searchTerm, mode: "insensitive" } } },
+        { customer: { branch: { contains: searchTerm, mode: "insensitive" } } },
+        { customer: { email: { contains: searchTerm, mode: "insensitive" } } },
       ];
     }
 
-    // Get quotations dengan pagination
-    const [quotations, total] = await Promise.all([
-      prisma.quotation.findMany({
-        where,
-        include: {
-          customer: {
-            select: {
-              id: true,
-              name: true,
-              code: true,
-              email: true,
-              address: true,
-              branch: true,
-            },
-          },
-          paymentTerm: true,
-          lines: {
-            select: {
-              id: true,
-              lineNo: true,
-              lineType: true,
-              productId: true,
-              description: true,
-              qty: true,
-              uom: true,
-              unitPrice: true,
-              lineDiscountType: true,
-              lineDiscountValue: true,
-              lineSubtotal: true,
-              taxId: true,
-              taxAmount: true,
-              lineTotal: true,
-              product: {
-                select: {
-                  id: true,
-                  name: true,
-                  code: true,
-                },
-              },
-              tax: {
-                select: {
-                  id: true,
-                  name: true,
-                  rate: true,
-                },
-              },
-            },
-            orderBy: {
-              lineNo: "asc",
-            },
-          },
-          _count: {
-            select: {
-              lines: true,
-              attachments: true,
-            },
-          },
-        },
-        orderBy: {
-          [sortBy]: sortOrder,
-        },
-        skip,
-        take,
-      }),
-      prisma.quotation.count({ where }),
-    ]);
+    // Status filter
+    if (statusFilter && statusFilter !== "ALL") {
+      where.status = statusFilter;
+    }
 
-    // Transform data untuk memastikan quotationDate termasuk dalam response
-    const transformedQuotations = quotations.map((quotation) => ({
-      ...quotation,
-      quotationDate: quotation.quotationDate, // Pastikan field ini ada
-    }));
+    // Customer filter
+    if (customerId) {
+      where.customerId = customerId;
+    }
 
+    // =============================
+    //     HITUNG TOTAL SESUAI FILTER
+    // =============================
+    const totalCount = await prisma.quotation.count({ where });
+    const totalPages = Math.ceil(totalCount / pageSize);
+
+    // =============================
+    //     QUERY DATA QUOTATION
+    // =============================
+    const quotations = await prisma.quotation.findMany({
+      where,
+      include: {
+        customer: {
+          select: { id: true, name: true, code: true, email: true, address: true, branch: true },
+        },
+        paymentTerm: true,
+        lines: {
+          select: {
+            id: true,
+            lineNo: true,
+            lineType: true,
+            productId: true,
+            description: true,
+            qty: true,
+            uom: true,
+            unitPrice: true,
+            lineDiscountType: true,
+            lineDiscountValue: true,
+            lineSubtotal: true,
+            taxId: true,
+            taxAmount: true,
+            lineTotal: true,
+            product: { select: { id: true, name: true, code: true } },
+            tax: { select: { id: true, name: true, rate: true } },
+          },
+          orderBy: { lineNo: "asc" },
+        },
+        _count: { select: { lines: true, attachments: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: pageSize,
+    });
+
+    // =============================
+    //          RESPONSE
+    // =============================
     res.json({
-      data: transformedQuotations,
+      data: quotations,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / limit),
+        totalCount,
+        totalPages,
+        currentPage: page,
+        pageSize,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
       },
     });
   } catch (error) {
-    console.error("Error getting quotations:", error);
-    res.status(500).json({
-      error: "Gagal mengambil data quotations",
-      details: error.message,
-    });
+    console.error("GET ALL QUOTATIONS ERROR:", error);
+    res.status(500).json({ message: "Gagal mengambil data Quotation", details: error.message });
   }
 };
+
 
 // GET Quotation by ID
 export const getQuotationById = async (req, res) => {
