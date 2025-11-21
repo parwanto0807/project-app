@@ -272,8 +272,7 @@ const styles = StyleSheet.create({
         paddingTop: 5,
     },
 
-    // Photo Section - Alternative with fixed aspect ratio
-    // Photo Section - True portrait layout with 4 columns
+    // Photo Section - Modified for dynamic pagination
     photoSection: {
         marginBottom: 10,
     },
@@ -281,17 +280,17 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'space-between',
-        gap: 4, // Very small gap
+        gap: 4,
         marginTop: 5,
     },
     photoItem: {
-        width: '24%', // 4 columns
+        width: '24%',
         marginBottom: 6,
         alignItems: 'center',
     },
     photoImageContainer: {
         width: '100%',
-        height: 170, // Fixed portrait height - shorter than width
+        height: 180, // Reduced height to fit more photos per page
         overflow: 'hidden',
         borderWidth: 0.5,
         borderColor: '#CCCCCC',
@@ -300,7 +299,7 @@ const styles = StyleSheet.create({
     photoImage: {
         width: '100%',
         height: '100%',
-        objectFit: 'cover', // Will crop to maintain portrait aspect ratio
+        objectFit: 'cover',
     },
     photoCaption: {
         fontSize: 5,
@@ -308,6 +307,15 @@ const styles = StyleSheet.create({
         marginTop: 1,
         fontStyle: 'italic',
         lineHeight: 1.2,
+    },
+
+    // New style for photo-only pages
+    photoPage: {
+        padding: 20,
+        fontFamily: 'Helvetica',
+        fontSize: 10,
+        lineHeight: 1.3,
+        backgroundColor: '#FFFFFF',
     },
 
     // Professional Table Styles
@@ -443,6 +451,21 @@ const formatCurrency = (amount: number) => {
     }).format(amount);
 };
 
+// Helper function untuk menghitung tinggi yang dibutuhkan untuk foto
+// const calculatePhotosHeight = (photoCount: number, photosPerPage: number = 20) => {
+//     const rows = Math.ceil(photoCount / 4); // 4 photos per row
+//     return rows * 75; // Approximate height per row
+// };
+
+// Helper function untuk memisahkan foto per halaman
+const chunkPhotos = (photos: BAPPhoto[], photosPerPage: number = 20) => {
+    const chunks = [];
+    for (let i = 0; i < photos.length; i += photosPerPage) {
+        chunks.push(photos.slice(i, i + photosPerPage));
+    }
+    return chunks;
+};
+
 export function BAPPdfDocument({ bap }: { bap: BAPData }) {
     // Prepare work items data
     const logoPath = path.resolve('/LogoMd.png');
@@ -459,14 +482,16 @@ export function BAPPdfDocument({ bap }: { bap: BAPData }) {
             uom: 'Paket'
         }];
 
+    // Split photos into chunks for multiple pages
+    const photoChunks = bap.photos ? chunkPhotos(bap.photos, 12) : []; // 20 photos per page
+    const totalPhotoPages = photoChunks.length;
 
-    // Calculate totals
-    // const subtotal = workItems.reduce((sum, item) => sum + (item.total || 0), 0);
-    // const discount = workItems.reduce((sum, item) => sum + (item.discount || 0), 0);
-    // const grandTotal = subtotal - discount;
+    // Calculate total pages
+    const totalPages = 2 + totalPhotoPages; // Main pages + photo pages
 
     return (
         <Document>
+            {/* Page 1 - Main Content */}
             <Page size="A4" style={styles.page}>
                 {/* Header Container dengan Logo dan Company Info */}
                 <View style={styles.headerContainer}>
@@ -486,7 +511,6 @@ export function BAPPdfDocument({ bap }: { bap: BAPData }) {
                     <Text style={styles.mainTitle}>BERITA ACARA SERAH TERIMA PEKERJAAN</Text>
                     <Text style={styles.projectValueHeader}>{bap.bapNumber}</Text>
                 </View>
-
                 {/* Date Section */}
                 <View style={styles.dateSection}>
                     <Text style={styles.dateText}>
@@ -619,7 +643,7 @@ export function BAPPdfDocument({ bap }: { bap: BAPData }) {
                 {/* Footer */}
                 <Text style={styles.footer} fixed>
                     Dokumen ini dicetak secara elektronik pada {format(new Date(), "dd MMMM yyyy 'pukul' HH:mm")} •
-                    BAST No: {bap.bapNumber} • Halaman 1 dari 2
+                    BAST No: {bap.bapNumber} • Halaman 1 dari {totalPages}
                 </Text>
             </Page>
 
@@ -627,10 +651,7 @@ export function BAPPdfDocument({ bap }: { bap: BAPData }) {
             <Page size="A4" style={styles.page}>
                 {/* Header Container untuk Halaman Kedua */}
                 <View style={styles.headerContainer}>
-                    <PdfImage
-                        style={styles.logo}
-                        src={logoPath}
-                    />
+                    <PdfImage style={styles.logo} src={logoPath} />
                     <View style={styles.companyInfo}>
                         <Text style={{ color: '#008000', fontWeight: 'bold', fontSize: 12, marginBottom: 5 }}>
                             PT. RYLIF MIKRO MANDIRI
@@ -647,35 +668,6 @@ export function BAPPdfDocument({ bap }: { bap: BAPData }) {
                     <Text style={styles.dateText}>Berita Acara Serah Terima No: {bap.bapNumber}</Text>
                 </View>
 
-                {/* Photos Section - Modified for 4 columns portrait layout */}
-                {bap.photos && bap.photos.length > 0 && (
-                    <View style={styles.photoSection}>
-                        <Text style={styles.sectionTitle}>Dokumentasi Foto</Text>
-                        <Text style={{ fontSize: 7, marginBottom: 5, textAlign: 'center' }}>
-                            Total {bap.photos.length} foto dokumentasi - Layout: Portrait
-                        </Text>
-
-                        <View style={styles.photoGrid}>
-                            {bap.photos.map((photo, index) => (
-                                <View key={photo.id || index} style={styles.photoItem}>
-                                    <View style={styles.photoImageContainer}>
-                                        <PdfImage
-                                            style={styles.photoImage}
-                                            src={getFullImageUrl(photo.photoUrl)}
-                                        />
-                                    </View>
-                                    <Text style={styles.photoCaption}>
-                                        {getCategoryLabel(photo.category)}
-                                    </Text>
-                                    <Text style={styles.photoCaption}>
-                                        Foto {index + 1}
-                                    </Text>
-                                </View>
-                            ))}
-                        </View>
-                    </View>
-                )}
-                
                 {/* Professional Work Scope Table */}
                 <View style={styles.workScopeTableSection}>
                     <Text style={styles.sectionTitle}>RINCIAN CAKUPAN PEKERJAAN</Text>
@@ -714,9 +706,69 @@ export function BAPPdfDocument({ bap }: { bap: BAPData }) {
 
                 {/* Footer for Second Page */}
                 <Text style={styles.footer} fixed>
-                    Lampiran Berita Acara Serah Terima No: {bap.bapNumber} • Halaman 2 dari 2
+                    Lampiran Berita Acara Serah Terima No: {bap.bapNumber} • Halaman 2 dari {totalPages}
                 </Text>
             </Page>
+
+            {/* Additional Pages for Photos Only */}
+            {photoChunks.map((photoChunk, pageIndex) => (
+                <Page key={`photo-page-${pageIndex}`} size="A4" style={styles.photoPage}>
+                    {/* Header untuk Halaman Foto */}
+                    <View style={styles.headerContainer}>
+                        <PdfImage style={styles.logo} src={logoPath} />
+                        <View style={styles.companyInfo}>
+                            <Text style={{ color: '#008000', fontWeight: 'bold', fontSize: 12, marginBottom: 5 }}>
+                                PT. RYLIF MIKRO MANDIRI
+                            </Text>
+                            <Text>Office: Jl. Anyar RT. 01/RW. 01, Kampung Pulo, No. 5</Text>
+                            <Text>Kemang Pratama, Bekasi Barat, Bekasi - 17144, Indonesia</Text>
+                            <Text>Phone: 0857-7414-8874 | Email: rylifmikromandiri@gmail.com</Text>
+                        </View>
+                    </View>
+
+                    {/* Header for Photo Pages */}
+                    <View style={styles.header}>
+                        <Text style={styles.mainTitle}>DOKUMENTASI FOTO</Text>
+                        <Text style={styles.dateText}>Berita Acara Serah Terima No: {bap.bapNumber}</Text>
+                        <Text style={{ fontSize: 9, marginTop: 5 }}>
+                            Halaman Foto {pageIndex + 1} dari {totalPhotoPages} • Total {bap.photos?.length} foto
+                        </Text>
+                    </View>
+
+                    {/* Photos Section */}
+                    <View style={styles.photoSection}>
+                        <Text style={styles.sectionTitle}>
+                            Dokumentasi Foto ({pageIndex + 1}/{totalPhotoPages})
+                        </Text>
+
+                        <View style={styles.photoGrid}>
+                            {photoChunk.map((photo, index) => (
+                                <View key={photo.id || `${pageIndex}-${index}`} style={styles.photoItem}>
+                                    <View style={styles.photoImageContainer}>
+                                        <PdfImage
+                                            style={styles.photoImage}
+                                            src={getFullImageUrl(photo.photoUrl)}
+                                        />
+                                    </View>
+                                    <Text style={styles.photoCaption}>
+                                        {getCategoryLabel(photo.category)}
+                                    </Text>
+                                    <Text style={styles.photoCaption}>
+                                        Foto {(pageIndex * 20) + index + 1}
+                                    </Text>
+                                </View>
+                            ))}
+                        </View>
+                    </View>
+
+                    {/* Footer for Photo Pages */}
+                    <Text style={styles.footer} fixed>
+                        Dokumentasi Foto Berita Acara Serah Terima No: {bap.bapNumber} •
+                        Halaman {3 + pageIndex} dari {totalPages} •
+                        Foto {pageIndex + 1}/{totalPhotoPages}
+                    </Text>
+                </Page>
+            ))}
         </Document>
     );
 }
