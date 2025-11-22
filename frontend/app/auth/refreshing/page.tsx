@@ -3,10 +3,10 @@
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { 
-  initializeTokensOnLogin, 
+import {
+  initializeTokensOnLogin,
   api,
-  clearTokensOnLogout 
+  clearTokensOnLogout
 } from "@/lib/http";
 import { CheckCircle2, RefreshCw, AlertCircle, Timer, Shield, LogIn } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -50,6 +50,7 @@ export default function Refreshing() {
     }
   }, [reason]);
 
+  // Fungsi refresh token
   const executeRefresh = useCallback(async (nextAttempt: number): Promise<void> => {
     if (nextAttempt > MAX_RETRY_ATTEMPTS) {
       setStatus("error");
@@ -59,12 +60,11 @@ export default function Refreshing() {
 
     setAttempt(nextAttempt);
     setStatus("loading");
-    
-    // Update message based on attempt
+
     if (nextAttempt === 1) {
       setDetailMessage(
-        reason === "token_expired" 
-          ? "Memperbarui sesi yang kedaluwarsa..." 
+        reason === "token_expired"
+          ? "Memperbarui sesi yang kedaluwarsa..."
           : "Menghubungkan ke server otentikasi…"
       );
     } else {
@@ -81,10 +81,7 @@ export default function Refreshing() {
       const response = await api.post<RefreshResponse>(
         "/api/auth/refresh",
         {},
-        {
-          signal: abortController.signal,
-          timeout: 10000,
-        }
+        { signal: abortController.signal, timeout: 10000 }
       );
 
       const data = response.data;
@@ -93,8 +90,7 @@ export default function Refreshing() {
         throw new Error("Token tidak ditemukan pada respons");
       }
 
-      const token = data.accessToken;
-      await initializeTokensOnLogin(token);
+      await initializeTokensOnLogin(data.accessToken);
 
       setDetailMessage("Berhasil memperbarui sesi. Mengalihkan…");
       setStatus("success");
@@ -112,9 +108,9 @@ export default function Refreshing() {
       }
 
       const axiosError = error as AxiosError<RefreshResponse>;
-      
+
       let errorMessage = "Refresh gagal";
-      
+
       if (axiosError.response?.data?.error) {
         errorMessage = axiosError.response.data.error;
       } else if (axiosError.message) {
@@ -122,16 +118,16 @@ export default function Refreshing() {
       } else if (axiosError.response?.status) {
         errorMessage = `Refresh gagal (${axiosError.response.status})`;
       }
-      
+
       setStatus("error");
       setDetailMessage(errorMessage);
-
       console.error("❌ Token refresh failed:", errorMessage);
     }
   }, [redirect, router, reason]);
 
+  // Retry manual
   const handleRetry = (): void => {
-    executeRefresh(attempt + 1);
+    void executeRefresh(attempt + 1); // Pakai void supaya TS tidak complain
   };
 
   const handleLoginRedirect = (): void => {
@@ -139,16 +135,30 @@ export default function Refreshing() {
     router.replace("/auth/login");
   };
 
+  // useEffect untuk cek refresh token
   useEffect(() => {
-    executeRefresh(1);
+    (async () => {
+      const refreshTokenCookie = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("refreshToken="));
+
+      if (!refreshTokenCookie) {
+        console.warn("⛔ No refresh token found, redirecting to login...");
+        clearTokensOnLogout();
+        router.replace("/auth/login?reason=no_refresh_token");
+        return;
+      }
+
+      await executeRefresh(1);
+    })();
 
     return () => {
       abortControllerRef.current?.abort();
     };
-  }, [executeRefresh]);
+  }, [executeRefresh, router]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900/20 to-purple-900/10 p-4">
+    <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-blue-900/20 to-purple-900/10 flex items-center justify-center p-4 z-10">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -156,6 +166,7 @@ export default function Refreshing() {
         className="w-full max-w-md"
       >
         <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl shadow-black/20 overflow-hidden">
+          {/* Header */}
           <div className="px-6 pt-6 pb-4 flex items-center gap-3 border-b border-white/5">
             <div className="h-12 w-12 rounded-full bg-emerald-500/10 grid place-items-center">
               <Shield className="h-6 w-6 text-emerald-400" />
@@ -165,13 +176,14 @@ export default function Refreshing() {
                 Memperbarui Sesi
               </h1>
               <p className="text-sm text-white/60 mt-0.5">
-                {reason === "token_expired" 
-                  ? "Memperbarui sesi yang kedaluwarsa" 
+                {reason === "token_expired"
+                  ? "Memperbarui sesi yang kedaluwarsa"
                   : "Menjaga Anda tetap masuk dengan aman"}
               </p>
             </div>
           </div>
 
+          {/* Body */}
           <div className="px-6 pb-6 pt-4">
             <AnimatePresence mode="wait">
               {status === "loading" && (
@@ -189,14 +201,12 @@ export default function Refreshing() {
                   >
                     <RefreshCw className="h-10 w-10 text-emerald-400" />
                   </motion.div>
-                  
+
                   <div className="space-y-2">
                     <p className="text-base font-medium text-white">
                       Memperbarui token akses…
                     </p>
-                    <p className="text-sm text-white/70">
-                      {detailMessage}
-                    </p>
+                    <p className="text-sm text-white/70">{detailMessage}</p>
                   </div>
 
                   <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
@@ -209,7 +219,7 @@ export default function Refreshing() {
                   </div>
 
                   <p className="text-xs text-white/50 flex items-center gap-1.5">
-                    <Timer className="h-3.5 w-3.5" /> 
+                    <Timer className="h-3.5 w-3.5" />
                     Upaya: {attempt} of {MAX_RETRY_ATTEMPTS}
                   </p>
                 </motion.div>
@@ -230,7 +240,7 @@ export default function Refreshing() {
                   >
                     <CheckCircle2 className="h-12 w-12 text-emerald-400" />
                   </motion.div>
-                  
+
                   <div className="space-y-2">
                     <p className="text-base font-semibold text-white">
                       Sesi berhasil diperbarui!
@@ -267,11 +277,9 @@ export default function Refreshing() {
                   <div className="h-14 w-14 rounded-full bg-rose-500/10 grid place-items-center">
                     <AlertCircle className="h-7 w-7 text-rose-400" />
                   </div>
-                  
+
                   <div className="space-y-2">
-                    <p className="text-base font-semibold text-white">
-                      Gagal memperbarui sesi
-                    </p>
+                    <p className="text-base font-semibold text-white">Gagal memperbarui sesi</p>
                     <p className="text-sm text-rose-300/90 max-w-[30ch] mx-auto leading-relaxed">
                       {detailMessage}
                     </p>
