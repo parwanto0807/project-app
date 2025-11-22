@@ -201,7 +201,6 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser }:
                                     <TableHead>Invoice #</TableHead>
                                     <TableHead>Customer</TableHead>
                                     <TableHead>Date</TableHead>
-                                    <TableHead>Due Date</TableHead>
                                     <TableHead className="text-right">Amount</TableHead>
                                     <TableHead>Status & Approved</TableHead>
                                     <TableHead className="text-center">Actions</TableHead>
@@ -219,29 +218,81 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser }:
                                     invoiceData.map((invoice) => (
                                         <TableRow key={invoice.id}>
                                             <TableCell className="font-medium">
-                                                <div className="flex items-center gap-2">
-                                                    <FileText className="h-4 w-4 text-blue-600" />
-                                                    {invoice.invoiceNumber}
+                                                {/* Invoice Badge */}
+                                                <div className="flex items-center bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded px-1.5 py-0.5 mb-1">
+                                                    <span className="text-[10px] font-bold text-blue-700 bg-blue-200 px-1 py-0.5 rounded mr-1">INV</span>
+                                                    <span className="text-xs font-medium text-gray-900">{invoice.invoiceNumber}</span>
+                                                </div>
+
+                                                {/* SO Badge */}
+                                                <div className="flex items-center bg-gradient-to-r from-green-50 to-green-100 border border-green-200 rounded px-1.5 py-0.5">
+                                                    <span className="text-[10px] font-bold text-green-700 bg-green-200 px-1 py-0.5 rounded mr-1">SO&nbsp;</span>
+                                                    <span className="text-xs font-medium text-gray-900">{invoice.salesOrder.soNumber}</span>
+                                                </div>
+                                            </TableCell>
+
+                                            <TableCell>
+                                                <div className="flex flex-col space-y-1.5">
+                                                    {/* Customer Name - Professional Finance Style */}
+                                                    <div className="flex items-center gap-2">
+                                                        <Building className="h-4 w-4 text-blue-600" />
+                                                        <span className="font-bold text-gray-900 text-sm font-['Inter']">
+                                                            {invoice.salesOrder.customer.name}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Branch Info - Subtle but clear */}
+                                                    <div className="flex items-center gap-2 pl-6">
+                                                        <span className="text-xs text-gray-600 font-medium bg-gray-100 px-2 py-1 rounded">
+                                                            Kantor Cabang: {invoice.salesOrder.customer.branch}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </TableCell>
                                             <TableCell>
-                                                <div className="flex items-center gap-2">
-                                                    <Building className="h-4 w-4 text-gray-500" />
-                                                    <span>{invoice.salesOrder.customer.name}</span>
-                                                    <span>Kantor Cabang : {invoice.salesOrder.customer.branch}</span>
+                                                <div className="flex flex-col">
+                                                    <div className="flex">
+                                                        {/* Timeline */}
+                                                        <div className="flex flex-col items-center mr-3">
+                                                            <div className="w-2 h-2 bg-green-500 rounded-full mb-1"></div>
+                                                            <div className="w-0.5 h-6 bg-gray-300"></div>
+                                                            <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                                                        </div>
+
+                                                        {/* Dates - Fixed Column Layout */}
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center mb-1">
+                                                                <div className="text-xs font-medium text-gray-500 w-24 flex-shrink-0">INVOICE DATE</div>
+                                                                <div className="text-xs font-bold text-gray-900 truncate">{formatDate(invoice.invoiceDate)}</div>
+                                                            </div>
+
+                                                            <div className="flex items-center">
+                                                                <div className="text-xs font-medium text-gray-500 w-24 flex-shrink-0">DUE DATE</div>
+                                                                <div className="text-xs font-bold text-gray-900 truncate">{formatDate(invoice.dueDate)}</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </TableCell>
-                                            <TableCell>{formatDate(invoice.invoiceDate)}</TableCell>
-                                            <TableCell>{formatDate(invoice.dueDate)}</TableCell>
-                                            <TableCell className="text-right font-semibold">
-                                                <div className="flex items-center justify-end gap-1">
-                                                    <DollarSign className="h-4 w-4 text-green-600" />
-                                                    {formatCurrency(invoice.totalAmount)}
+                                            {/* Total Amount Cell */}
+                                            <TableCell className="text-right">
+                                                <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg px-4 py-3 text-right">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <DollarSign className="h-4 w-4 text-green-600" />
+                                                        <span className="text-xl font-bold text-gray-900">
+                                                            {formatCurrency(invoice.totalAmount)}
+                                                        </span>
+                                                    </div>
+                                                    <div className="text-xs text-green-700 font-medium mt-1">INVOICE TOTAL</div>
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="flex gap-2">
-                                                {getStatusBadge(invoice.status)}
-                                                {getApproveStatusBadge(invoice.approvalStatus)}
+
+                                            {/* Status Cell */}
+                                            <TableCell>
+                                                <div className="flex flex-col gap-2 items-start">
+                                                    {getStatusBadge(invoice.status)}
+                                                    {getApproveStatusBadge(invoice.approvalStatus)}
+                                                </div>
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex flex-row-reverse gap-2">
@@ -366,8 +417,8 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser }:
                                     </div>
                                 </div>
                                 <div className="flex justify-end gap-2 mt-3 pt-3 border-t">
-                                    <Button 
-                                        variant="outline" 
+                                    <Button
+                                        variant="outline"
                                         size="sm"
                                         onClick={() => handleViewDetails(invoice)}
                                     >
@@ -406,7 +457,7 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser }:
                                                 Edit
                                             </DropdownMenuItem>
                                             <DropdownMenuSeparator />
-                                            <DropdownMenuItem 
+                                            <DropdownMenuItem
                                                 className="text-red-600"
                                                 onClick={invoice.approvalStatus === "PENDING" ? () => handleDeleteInvoice(invoice.id) : undefined}
                                                 disabled={invoice.approvalStatus !== "PENDING"}
