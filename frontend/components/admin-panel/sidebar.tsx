@@ -27,19 +27,19 @@ export function Sidebar({ role }: SidebarProps) {
       )}
     >
       <SidebarToggle isOpen={sidebar.isOpen} setIsOpen={sidebar.setIsOpen} />
-      
+
       <div className="relative h-full flex flex-col px-3 py-4 overflow-y-auto">
         {/* Logo Section */}
         <div className="flex-shrink-0 mb-6">
-          <Button 
-            variant="ghost" 
-            asChild 
+          <Button
+            variant="ghost"
+            asChild
             className={cn(
               "w-full p-2 hover:bg-accent transition-colors",
               "rounded-lg"
             )}
           >
-            <Link href="/dashboard" className="flex items-center justify-center">
+            <Link href="#" className="flex items-center justify-center">
               <div
                 className={cn(
                   "flex items-center justify-center transition-all duration-300",
