@@ -36,6 +36,7 @@ import {
     LucideIcon,
     Send,
     Loader2,
+    ArrowLeft,
 } from "lucide-react";
 import { PurchaseRequest, PurchaseRequestWithRelations } from "@/types/pr";
 import { makeImageSrc } from "@/utils/makeImageSrc";
@@ -176,7 +177,15 @@ const ImageGallery = ({ images }: ImageGalleryProps) => {
                             height={600}
                             className="max-w-full max-h-full object-contain rounded-lg"
                         />
-                        <div className="absolute bottom-4 right-4">
+                        <div className="absolute bottom-4 right-4 flex gap-2">
+                            <Button
+                                variant="outline"
+                                onClick={() => setSelectedImage(null)}
+                                className="bg-white text-black hover:bg-gray-100 transition-colors flex items-center gap-2"
+                            >
+                                <ArrowLeft className="h-4 w-4" />
+                                Kembali ke Data
+                            </Button>
                             <a
                                 href={selectedImage}
                                 download
@@ -200,6 +209,13 @@ export function PurchaseRequestDetailSheet({
     onStatusUpdate,
 }: PurchaseRequestDetailSheetProps) {
     const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+    // Reset state ketika sheet ditutup
+    React.useEffect(() => {
+        if (!open) {
+            setIsSubmitting(false);
+        }
+    }, [open]);
 
     if (!data) return null;
 
@@ -593,7 +609,7 @@ export function PurchaseRequestDetailSheet({
                                                                                         <ImageIcon className="h-4 w-4" />
                                                                                         Bukti Dokumentasi
                                                                                     </p>
-                                                                                    <ImageGallery images={detail.fotoBukti} />
+                                                                                    <ImageGallery images={detail.fotoBukti} /> 
                                                                                 </div>
                                                                             )}
                                                                         </div>
@@ -613,7 +629,7 @@ export function PurchaseRequestDetailSheet({
                 </div>
 
                 {/* === FOOTER === */}
-                <div className="sticky bottom-0 bg-background border-t p-4 mr-10">
+                <div className="sticky bottom-0 bg-background border-t p-4">
                     <div className="flex justify-end gap-3">
                         <Button
                             variant="outline"
