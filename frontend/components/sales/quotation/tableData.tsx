@@ -816,11 +816,43 @@ export function QuotationTable({
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div className="flex items-center justify-end gap-1 bg-emerald-50 border border-emerald-200 rounded-md px-2 py-1 h-[56px]">
-                                                        <CreditCard className="h-3 w-3 text-emerald-600 flex-shrink-0" />
-                                                        <span className="text-sm font-bold text-emerald-700 whitespace-nowrap">
-                                                            {formatCurrency(quotation.total)}
-                                                        </span>
+                                                    <div className="bg-gradient-to-br from-white to-slate-50 border border-slate-200/80 rounded-lg px-3 py-1 min-w-[140px] shadow-xs hover:shadow-sm transition-all duration-200">
+                                                        <div className="flex flex-col gap-1">
+                                                            {/* Subtotal */}
+                                                            <div className="flex justify-between items-center">
+                                                                <span className="text-[10px] text-slate-500 font-medium">Subtotal</span>
+                                                                <span className="text-xs text-slate-700 font-semibold">
+                                                                    {formatCurrency(quotation.subtotal)}
+                                                                </span>
+                                                            </div>
+
+                                                            {/* Discount */}
+                                                            {quotation.discountValue > 0 && (
+                                                                <div className="flex justify-between items-center bg-amber-50/50 -mx-1 px-2 py-0.5 rounded">
+                                                                    <span className="text-[10px] text-amber-700 font-medium">
+                                                                        Disc{quotation.discountType === 'PERCENT' ? ` ${quotation.discountValue}%` : ''}
+                                                                    </span>
+                                                                    <span className="text-xs text-amber-800 font-semibold">
+                                                                        -{formatCurrency(
+                                                                            quotation.discountType === 'PERCENT'
+                                                                                ? (quotation.subtotal * quotation.discountValue) / 100
+                                                                                : quotation.discountValue
+                                                                        )}
+                                                                    </span>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Separator Line */}
+                                                            <div className="border-t border-slate-200/50 "></div>
+
+                                                            {/* Total */}
+                                                            <div className="flex justify-between items-center">
+                                                                <span className="text-[10px] text-emerald-800 font-bold">TOTAL</span>
+                                                                <span className="text-sm font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-200/50">
+                                                                    {formatCurrency(quotation.total)}
+                                                                </span>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
