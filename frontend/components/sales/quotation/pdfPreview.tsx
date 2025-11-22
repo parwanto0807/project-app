@@ -399,8 +399,7 @@ const QuotationPdfDocument = ({ quotation }: { quotation: QuotationSummary }) =>
                                 <View key={line.id || index} style={styles.tableRow}>
                                     <Text style={styles.colNo}>{line.lineNo || index + 1}</Text>
                                     <Text style={styles.colDesc}>
-                                        {line.description || 'Product Description'}
-                                        {line.product?.name && `\n${line.product.name}`}
+                                        {line.product?.name}
                                     </Text>
                                     <Text style={styles.colQty}>{line.qty}</Text>
                                     <Text style={styles.colUom}>{line.uom || '-'}</Text>
