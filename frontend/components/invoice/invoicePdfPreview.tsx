@@ -279,7 +279,6 @@ const InvoicePdfDocument = ({ invoice }: { invoice: Invoice }) => {
     } = invoice;
 
     const terbilangText = convertToTerbilang(grandTotal);
-    console.log('Invoice', invoice);
 
     return (
         <Document>
