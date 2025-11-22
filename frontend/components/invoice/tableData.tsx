@@ -49,6 +49,7 @@ import { BankAccount } from "@/schemas/bank";
 import { deleteInvoice } from "@/lib/action/invoice/invoice";
 import { toast } from "sonner";
 import InvoicePdfDocumentOld from "./invoicePdfPreviewOld";
+import { FaToolbox } from "react-icons/fa";
 
 interface InvoiceDataTableProps {
     invoiceData: Invoice[];
@@ -190,7 +191,7 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser }:
     }
 
     return (
-        <div className="w-full border rounded-lg md:p-4">
+        <div className="w-full border rounded-lg md:p-0">
             <Card className="border-none shadow-none m-0">
                 <CardContent>
                     {/* Desktop View */}
@@ -200,6 +201,7 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser }:
                                 <TableRow>
                                     <TableHead>Invoice #</TableHead>
                                     <TableHead>Customer</TableHead>
+                                    <TableHead>Project</TableHead>
                                     <TableHead>Date</TableHead>
                                     <TableHead className="text-right">Amount</TableHead>
                                     <TableHead>Status & Approved</TableHead>
@@ -246,6 +248,25 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser }:
                                                         <span className="text-xs text-gray-600 font-medium bg-gray-100 px-2 py-1 rounded">
                                                             Kantor Cabang: {invoice.salesOrder.customer.branch}
                                                         </span>
+                                                    </div>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="group relative">
+                                                    <div className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all duration-200">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`p-2 rounded-lg ${invoice.salesOrder.project.name ? 'bg-green-50' : 'bg-gray-100'}`}>
+                                                                <FaToolbox className={`h-4 w-4 ${invoice.salesOrder.project.name ? 'text-green-600' : 'text-gray-400'}`} />
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                {/* <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Project</div> */}
+                                                                <div className="text-xs uppercase font-bold text-gray-900 text-wrap">
+                                                                    {invoice.salesOrder.project.name || (
+                                                                        <span className="text-gray-400 italic font-normal">No Project Assigned</span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </TableCell>
@@ -388,9 +409,9 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser }:
                     </div>
 
                     {/* Mobile View */}
-                    <div className="md:hidden space-y-4">
+                    <div className="md:hidden space-y-2">
                         {invoiceData.map((invoice) => (
-                            <Card key={invoice.id} className="p-4">
+                            <Card key={invoice.id} className="p-2">
                                 <div className="flex justify-between items-start mb-3">
                                     <div>
                                         <p className="font-semibold text-sm">{invoice.invoiceNumber}</p>
