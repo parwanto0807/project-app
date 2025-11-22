@@ -998,6 +998,8 @@ class InvoiceController {
                 description: true,
                 qty: true, // Ganti qty -> quantity
                 unitPrice: true,
+                name: true,
+                uom: true,
                 // total: true, // Tambahkan total
                 // uom: true, // Tambahkan uom
               },
