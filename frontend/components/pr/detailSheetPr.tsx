@@ -186,14 +186,14 @@ const ImageGallery = ({ images }: ImageGalleryProps) => {
                                 <ArrowLeft className="h-4 w-4" />
                                 Kembali ke Data
                             </Button>
-                            <a
-                                href={selectedImage}
-                                download
-                                className="bg-white text-black px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-100 transition-colors flex items-center gap-2"
+                            <Button
+                                variant="outline"
+                                onClick={() => window.open(selectedImage, '_blank')}
+                                className="bg-white text-black hover:bg-gray-100 transition-colors flex items-center gap-2"
                             >
                                 <Download className="h-4 w-4" />
                                 Download
-                            </a>
+                            </Button>
                         </div>
                     </div>
                 </div>
@@ -609,7 +609,7 @@ export function PurchaseRequestDetailSheet({
                                                                                         <ImageIcon className="h-4 w-4" />
                                                                                         Bukti Dokumentasi
                                                                                     </p>
-                                                                                    <ImageGallery images={detail.fotoBukti} /> 
+                                                                                    <ImageGallery images={detail.fotoBukti} />
                                                                                 </div>
                                                                             )}
                                                                         </div>
