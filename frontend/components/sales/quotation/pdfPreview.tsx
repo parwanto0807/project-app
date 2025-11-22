@@ -4,14 +4,13 @@ import { Document, Page, Text, View, StyleSheet, Image as PdfImage } from '@reac
 // Create styles
 const styles = StyleSheet.create({
     page: {
-        padding: 25, // Sedikit lebih besar padding untuk ukuran Legal
+        padding: 25,
         fontFamily: 'Helvetica',
         fontSize: 10,
         lineHeight: 1.3,
         backgroundColor: '#FFFFFF',
         position: 'relative',
     },
-    // Header
     headerContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -169,13 +168,12 @@ const styles = StyleSheet.create({
         borderTop: '1pt solid #000000',
         paddingTop: 5,
     },
-    // Watermark styles - disesuaikan untuk ukuran Legal
     watermark: {
         position: 'absolute',
-        top: '50%', // Posisi tengah vertikal
-        left: '50%', // Posisi tengah horizontal
+        top: '50%',
+        left: '50%',
         transform: 'translate(-50%, -50%) rotate(-35deg)',
-        fontSize: 80, // Lebih besar untuk ukuran Legal
+        fontSize: 80,
         color: 'rgba(0, 128, 0, 0.2)',
         fontWeight: 'bold',
         zIndex: 9999,
@@ -211,7 +209,7 @@ const formatDate = (dateString: string) => {
     });
 };
 
-// Format discount
+// Format discount untuk line items
 const formatDiscount = (line: QuotationLine) => {
     if (line.lineDiscountType === 'PERCENT') {
         return `${line.lineDiscountValue}%`;
@@ -219,6 +217,37 @@ const formatDiscount = (line: QuotationLine) => {
         return formatCurrency(line.lineDiscountValue);
     }
     return '-';
+};
+
+// Helper function untuk menghitung jumlah discount per line
+const calculateLineDiscountAmount = (line: QuotationLine): number => {
+    const subtotal = line.qty * line.unitPrice;
+
+    if (line.lineDiscountType === 'PERCENT') {
+        return (subtotal * line.lineDiscountValue) / 100;
+    } else if (line.lineDiscountType === 'AMOUNT') {
+        return line.lineDiscountValue;
+    }
+    return 0;
+};
+
+// Helper function untuk menghitung jumlah discount header
+const calculateHeaderDiscountAmount = (subtotal: number, discountValue: number, discountType: string): number => {
+    if (discountType === 'PERCENT') {
+        return (subtotal * discountValue) / 100;
+    } else if (discountType === 'AMOUNT') {
+        return discountValue;
+    }
+    return 0;
+};
+
+// Helper function untuk mendapatkan label discount type
+// Helper function untuk format discount label
+const getDiscountDisplayLabel = (discountValue: number, discountType: string): string => {
+    if (discountType === 'PERCENT' || discountType === 'Percent') {
+        return ` ${discountValue}%`;
+    }
+    return ''; // Untuk AMOUNT, tidak tampilkan nilai
 };
 
 // Quotation PDF Component dengan ukuran Legal
@@ -232,23 +261,37 @@ const QuotationPdfDocument = ({ quotation }: { quotation: QuotationSummary }) =>
         status,
         validFrom,
         validUntil,
-        subtotal,
-        taxTotal,
-        total,
+        subtotal = 0,
+        discountValue = 0,
+        discountType = 'PERCENT',
+        taxTotal = 0,
+        total = 0,
         notes,
         quotationDate,
         updatedAt,
         lines = []
     } = quotation;
 
+    // Hitung discount amount untuk header
+    const headerDiscountAmount = calculateHeaderDiscountAmount(subtotal, discountValue, discountType);
+    const subtotalAfterDiscount = subtotal - headerDiscountAmount;
+
+    // Validasi data
+    const isValidQuotation = quotationNumber && customer;
+
+    if (!isValidQuotation) {
+        return (
+            <Document>
+                <Page size="LEGAL" style={styles.page}>
+                    <Text>Error: Data quotation tidak lengkap</Text>
+                </Page>
+            </Document>
+        );
+    }
+
     return (
         <Document>
-            {/* Ukuran Legal: 8.5 x 14 inci atau 215.9 x 355.6 mm */}
-            <Page 
-                size="LEGAL" 
-                style={styles.page}
-                orientation="portrait" // Portrait orientation untuk Legal
-            >
+            <Page size="LEGAL" style={styles.page} orientation="portrait">
                 {/* Watermark untuk status tertentu */}
                 {status === 'EXPIRED' && (
                     <View style={styles.watermark} fixed>
@@ -300,6 +343,10 @@ const QuotationPdfDocument = ({ quotation }: { quotation: QuotationSummary }) =>
                                     </Text>
                                 </View>
                             </View>
+                            <View style={styles.row}>
+                                <Text style={styles.label}>Status:</Text>
+                                <Text style={styles.value}>{status || 'DRAFT'}</Text>
+                            </View>
                         </View>
                     </View>
 
@@ -311,15 +358,14 @@ const QuotationPdfDocument = ({ quotation }: { quotation: QuotationSummary }) =>
                             </Text>
                             <Text>{customer?.address || '-'}</Text>
                             <Text>Kantor Cabang - {customer?.branch || '-'}</Text>
+                            <Text>{customer?.email || ''}</Text>
                         </View>
                     </View>
                 </View>
 
-                {/* Pembukaan Surat - FULL WIDTH */}
+                {/* Pembukaan Surat */}
                 <View style={styles.textHeaderDH}>
-                    <Text>
-                        Dengan hormat,
-                    </Text>
+                    <Text>Dengan hormat,</Text>
                 </View>
                 <View style={styles.textHeader}>
                     <Text>
@@ -344,19 +390,26 @@ const QuotationPdfDocument = ({ quotation }: { quotation: QuotationSummary }) =>
                         </View>
 
                         {/* Table Rows */}
-                        {lines.map((line, index) => (
-                            <View key={line.id || index} style={styles.tableRow}>
-                                <Text style={styles.colNo}>{line.lineNo || index + 1}</Text>
-                                <Text style={styles.colDesc}>
-                                    {line.description || 'Product Description'}
-                                </Text>
-                                <Text style={styles.colQty}>{line.qty}</Text>
-                                <Text style={styles.colUom}>{line.uom || '-'}</Text>
-                                <Text style={styles.colUnitPrice}>{formatCurrency(line.unitPrice)}</Text>
-                                <Text style={styles.colDiscount}>{formatDiscount(line)}</Text>
-                                <Text style={styles.colTotal}>{formatCurrency(line.lineTotal)}</Text>
-                            </View>
-                        ))}
+                        {lines.map((line, index) => {
+                            const lineSubtotal = line.qty * line.unitPrice;
+                            const lineDiscount = calculateLineDiscountAmount(line);
+                            const lineTotal = lineSubtotal - lineDiscount;
+
+                            return (
+                                <View key={line.id || index} style={styles.tableRow}>
+                                    <Text style={styles.colNo}>{line.lineNo || index + 1}</Text>
+                                    <Text style={styles.colDesc}>
+                                        {line.description || 'Product Description'}
+                                        {line.product?.name && `\n${line.product.name}`}
+                                    </Text>
+                                    <Text style={styles.colQty}>{line.qty}</Text>
+                                    <Text style={styles.colUom}>{line.uom || '-'}</Text>
+                                    <Text style={styles.colUnitPrice}>{formatCurrency(line.unitPrice)}</Text>
+                                    <Text style={styles.colDiscount}>{formatDiscount(line)}</Text>
+                                    <Text style={styles.colTotal}>{formatCurrency(lineTotal)}</Text>
+                                </View>
+                            );
+                        })}
                     </View>
                 </View>
 
@@ -375,12 +428,10 @@ const QuotationPdfDocument = ({ quotation }: { quotation: QuotationSummary }) =>
                                         • Quotation ini berlaku sesuai dengan masa berlaku :
                                     </Text>
                                     <Text style={[styles.notesText, { paddingLeft: 6 }]}>
-                                        <Text style={styles.value}>
-                                            Mulai: {validFrom ? formatDate(validFrom) : '-'}{'  '}
-                                        </Text>
-                                        <Text style={styles.value}>
-                                            Berakhir: {validUntil ? formatDate(validUntil) : '-'}
-                                        </Text>
+                                        Mulai: {validFrom ? formatDate(validFrom) : '-'}
+                                    </Text>
+                                    <Text style={[styles.notesText, { paddingLeft: 6 }]}>
+                                        Berakhir: {validUntil ? formatDate(validUntil) : '-'}
                                     </Text>
                                 </View>
                             )}
@@ -399,10 +450,32 @@ const QuotationPdfDocument = ({ quotation }: { quotation: QuotationSummary }) =>
                             <Text style={styles.summaryLabel}>Subtotal:</Text>
                             <Text>{formatCurrency(subtotal)}</Text>
                         </View>
+
+                        {/* Discount Row */}
+                        {discountValue > 0 && (
+                            <View style={styles.summaryRow}>
+                                <Text style={styles.summaryLabel}>
+                                    Discount:{getDiscountDisplayLabel(discountValue, discountType)}
+                                </Text>
+                                <Text>- {formatCurrency(headerDiscountAmount)}</Text>
+                            </View>
+                        )}
+
+                        {/* Subtotal setelah discount */}
+                        {discountValue > 0 && (
+                            <View style={styles.summaryRow}>
+                                <Text style={styles.summaryLabel}>Subtotal setelah discount:</Text>
+                                <Text>{formatCurrency(subtotalAfterDiscount)}</Text>
+                            </View>
+                        )}
+
+                        {/* Pajak */}
                         <View style={styles.summaryRow}>
                             <Text style={styles.summaryLabel}>Pajak (PPN):</Text>
                             <Text>{formatCurrency(taxTotal)}</Text>
                         </View>
+
+                        {/* Grand Total */}
                         <View style={[styles.summaryRow, { borderTop: '1pt solid #e0e0e0', marginTop: 5 }]}>
                             <Text style={[styles.summaryLabel, styles.grandTotal]}>Total:</Text>
                             <Text style={styles.grandTotal}>{formatCurrency(total)}</Text>
@@ -410,7 +483,7 @@ const QuotationPdfDocument = ({ quotation }: { quotation: QuotationSummary }) =>
                     </View>
                 </View>
 
-                {/* Approval Section - lebih banyak ruang untuk Legal */}
+                {/* Approval Section */}
                 <View style={styles.approvalSection}>
                     <View style={styles.approvalBox}>
                         <Text>Disiapkan Oleh,</Text>

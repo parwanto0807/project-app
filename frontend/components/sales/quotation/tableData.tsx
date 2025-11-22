@@ -39,6 +39,10 @@ import {
     DollarSign,
     MoreHorizontal,
     Download,
+    Loader2,
+    Send,
+    Hourglass,
+    HelpCircle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -49,6 +53,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { PDFDownloadLink, PDFViewer } from "@react-pdf/renderer";
 import QuotationPdfDocument from "./pdfPreview";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type SortField = "quotationNumber" | "customerName" | "totalAmount" | "createdAt" | "status";
 type SortOrder = "asc" | "desc";
@@ -77,7 +82,7 @@ export function QuotationTable({
     const page = Number(searchParams.get("page")) || 1;
     const highlightStatus = searchParams.get("status") || "";
     const pageSize = searchParams.get("pageSize") || "";
-    const searchUrl = searchParams.get("search") || ""; 
+    const searchUrl = searchParams.get("search") || "";
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
     const [selectedQuotation, setSelectedQuotation] = useState<QuotationSummary | null>(null);
     const [showPdfDialog, setShowPdfDialog] = useState(false);
@@ -121,17 +126,41 @@ export function QuotationTable({
     });
 
     const getStatusIcon = (status: string) => {
-        switch (status) {
+        const iconClass = "h-3.5 w-3.5";
+
+        switch (status.toUpperCase()) {
+            case 'DRAFT':
+                return <FileText className={iconClass} />;
+            case 'SENT':
+                return <Send className={iconClass} />;
             case 'APPROVED':
-                return <CheckCircle className="h-4 w-4 text-green-600" />;
+                return <CheckCircle className={iconClass} />;
             case 'REJECTED':
-                return <XCircle className="h-4 w-4 text-red-600" />;
-            case 'PENDING':
-                return <Clock className="h-4 w-4 text-amber-600" />;
+                return <XCircle className={iconClass} />;
             case 'EXPIRED':
-                return <AlertCircle className="h-4 w-4 text-gray-600" />;
+                return <Clock className={iconClass} />;
+            case 'PENDING':
+                return <Hourglass className={iconClass} />;
             default:
-                return <FileText className="h-4 w-4 text-blue-600" />;
+                return <HelpCircle className={iconClass} />;
+        }
+    };
+    const getStatusBadgeStyle = (status: string) => {
+        switch (status.toUpperCase()) {
+            case 'DRAFT':
+                return "bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100";
+            case 'SENT':
+                return "bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100";
+            case 'APPROVED':
+                return "bg-green-50 text-green-700 border-green-300 hover:bg-green-100";
+            case 'REJECTED':
+                return "bg-red-50 text-red-700 border-red-300 hover:bg-red-100";
+            case 'EXPIRED':
+                return "bg-orange-50 text-orange-700 border-orange-300 hover:bg-orange-100";
+            case 'PENDING':
+                return "bg-yellow-50 text-yellow-700 border-yellow-300 hover:bg-yellow-100";
+            default:
+                return "bg-gray-50 text-gray-700 border-gray-300 hover:bg-gray-100";
         }
     };
 
@@ -758,34 +787,54 @@ export function QuotationTable({
                                                         )}
                                                     </Button>
                                                 </TableCell>
-                                                <TableCell className="font-medium">
-                                                    <div className="flex items-center gap-2">
-                                                        <FileDigit className="h-4 w-4 text-blue-600" />
-                                                        {quotation.quotationNumber}
-                                                    </div>
-                                                </TableCell>
                                                 <TableCell>
-                                                    <div>
-                                                        <div className="font-medium flex items-center gap-2">
-                                                            <Building className="h-4 w-4 text-green-600" />
-                                                            {quotation.customer.name} - {quotation.customer.branch}
+                                                    <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-md px-3 py-2 hover:bg-blue-100 transition-colors">
+                                                        <div className="bg-blue-100 p-1.5 rounded-full">
+                                                            <FileDigit className="h-3.5 w-3.5 text-blue-600" />
                                                         </div>
-                                                        <div className="text-sm text-slate-500 flex items-center gap-1">
-                                                            <Mail className="h-3 w-3" />
-                                                            {quotation.customer.email}
+                                                        <div>
+                                                            <p className="text-xs text-blue-600 font-medium">Quotation No.</p>
+                                                            <p className="text-sm font-bold text-blue-800">{quotation.quotationNumber}</p>
                                                         </div>
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="font-medium">
-                                                    <div className="flex items-center gap-2">
-                                                        <CreditCard className="h-4 w-4 text-emerald-600" />
-                                                        {formatCurrency(quotation.total)}
+                                                <TableCell>
+                                                    <div className="bg-slate-50 border border-slate-200 rounded-md p-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <Building className="h-3.5 w-3.5 text-green-600 flex-shrink-0" />
+                                                            <div className="min-w-0 flex-1">
+                                                                <p className="font-semibold text-slate-800 text-sm truncate">
+                                                                    {quotation.customer.name}
+                                                                </p>
+                                                                <p className="text-xs text-slate-600 truncate">
+                                                                    <span className="font-medium">{quotation.customer.branch}</span>
+                                                                    <span className="mx-1.5 text-slate-400">•</span>
+                                                                    {quotation.customer.email}
+                                                                </p>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Badge variant={getStatusVariant(quotation.status)} className="flex items-center gap-1">
+                                                    <div className="flex items-center justify-end gap-1 bg-emerald-50 border border-emerald-200 rounded-md px-2 py-1 h-[56px]">
+                                                        <CreditCard className="h-3 w-3 text-emerald-600 flex-shrink-0" />
+                                                        <span className="text-sm font-bold text-emerald-700 whitespace-nowrap">
+                                                            {formatCurrency(quotation.total)}
+                                                        </span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={`
+            flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium
+            ${getStatusBadgeStyle(quotation.status)}
+        `}
+                                                    >
                                                         {getStatusIcon(quotation.status)}
-                                                        {quotation.status.charAt(0).toUpperCase() + quotation.status.slice(1).toLowerCase()}
+                                                        <span className="capitalize">
+                                                            {quotation.status.toLowerCase()}
+                                                        </span>
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
@@ -802,41 +851,78 @@ export function QuotationTable({
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex justify-end gap-1 opacity-70 group-hover:opacity-100 transition-opacity">
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleOpenPdfDialog(quotation);
-                                                            }}
-                                                            className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 cursor-pointer border-2 dark:hover:border-blue-600"
-                                                            title="Preview PDF"
-                                                        >
-                                                            <Eye className="h-4 w-4" />
-                                                        </Button>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={(e) => handleEdit(e, quotation.id)}
-                                                            className="h-8 w-8 p-0 text-orange-600 hover:text-orange-800 dark:hover:text-orange-300 hover:bg-orange-50 border-2 dark:hover:border-orange-600 cursor-pointer"
-                                                            title="Edit Quotation"
-                                                        >
-                                                            <Edit className="h-4 w-4" />
-                                                        </Button>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleOpenAlertDialog(quotation); // set quotation yang akan dihapus
-                                                            }}
-                                                            className="h-8 w-8 p-0 text-red-600 hover:text-red-800 dark:hover:text-red-300 hover:bg-red-50 dark:hover:border-red-600 cursor-pointer border-2"
-                                                            title="Delete Quotation"
-                                                            disabled={isDeleting} // disable saat delete
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
+                                                        {/* Preview Button */}
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        size="sm"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            handleOpenPdfDialog(quotation);
+                                                                        }}
+                                                                        className="h-8 w-20  text-blue-600 border-blue-200 hover:bg-blue-50 hover:border-blue-300 cursor-pointer"
+                                                                    >
+                                                                        <Eye className="h-3.5 w-3.5 mr-1" />
+                                                                        <span className="text-xs">View</span>
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <p>Preview PDF</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
 
+                                                        {/* Edit Button */}
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        size="sm"
+                                                                        onClick={(e) => handleEdit(e, quotation.id)}
+                                                                        className="h-8 w-16 text-orange-600 border-orange-200 hover:bg-orange-50 hover:border-orange-300 cursor-pointer"
+                                                                    >
+                                                                        <Edit className="h-3.5 w-3.5 mr-1" />
+                                                                        <span className="text-xs">Edit</span>
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <p>Edit Quotation</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+
+                                                        {/* Delete Button */}
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        size="sm"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            handleOpenAlertDialog(quotation);
+                                                                        }}
+                                                                        className="h-8 w-20 text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 cursor-pointer"
+                                                                        disabled={isDeleting}
+                                                                    >
+                                                                        {isDeleting ? (
+                                                                            <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                                                                        ) : (
+                                                                            <Trash2 className="h-3.5 w-3.5 mr-1" />
+                                                                        )}
+                                                                        <span className="text-xs">
+                                                                            {isDeleting ? "Deleting" : "Delete"}
+                                                                        </span>
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <p>Delete Quotation</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
                                                     </div>
                                                 </TableCell>
                                             </TableRow>

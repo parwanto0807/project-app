@@ -323,6 +323,8 @@ export interface QuotationSummary {
   validFrom?: string | null;
   validUntil?: string | null;
   subtotal: number;
+  discountType: DiscountType;
+  discountValue: number;
   taxTotal: number;
   total: number;
   notes: string;
