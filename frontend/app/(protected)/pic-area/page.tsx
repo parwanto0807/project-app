@@ -42,7 +42,7 @@ export default function PicPage() {
 
   return (
     <PicLayout title="Dashboard PIC" role={user.role} >
-      <div className="space-y-3 sm:space-y-4 mb-2 sm:mb-4">
+      <div className="space-y-3 sm:space-y-4 mb-2 sm:mb-4 ml-3">
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>

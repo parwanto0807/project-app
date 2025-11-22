@@ -3,7 +3,7 @@ import { User } from "@/hooks/use-current-user";
 
 interface ContentLayoutProps {
   title: string;
-  role: User["role"]
+  role: User["role"];
   children: React.ReactNode;
 }
 

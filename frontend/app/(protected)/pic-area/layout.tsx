@@ -1,24 +1,20 @@
 "use client";
 
 import AdminPanelLayout from "@/components/admin-panel/admin-panel-layout";
-import { BackToDashboardButton } from "@/components/backToDashboard";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { useSession } from "@/components/clientSessionProvider"; // ✅ GUNAKAN useSession
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useSession } from "@/components/clientSessionProvider";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 
-export default function PicLayout({ children }: { children: React.ReactNode }) {
-  const { user, isLoading } = useSession();
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const { user, isLoading } = useSession(); // ✅ GUNAKAN useSession
   const router = useRouter();
-  const [queryClient] = useState(() => new QueryClient({
-    defaultOptions: {
-      queries: {
-        staleTime: 60 * 1000, // 1 minute
-      },
-    },
-  }));
+
+  // Buat instance QueryClient hanya sekali
+  const [queryClient] = useState(() => new QueryClient());
 
   useEffect(() => {
     if (!isLoading && user?.role !== "pic") {
@@ -26,28 +22,35 @@ export default function PicLayout({ children }: { children: React.ReactNode }) {
     }
   }, [user, isLoading, router]);
 
+  // Loading state
   if (isLoading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
   }
 
+  // Check role setelah loading selesai
   if (user?.role !== "pic") {
-    return null;
+    return null; // Router akan redirect ke /unauthorized
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AdminPanelLayout role={user?.role}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange
+    >
+      <QueryClientProvider client={queryClient}>
+        <AdminPanelLayout role={user.role}>
           <Toaster />
           {children}
-          <BackToDashboardButton />
-        </ThemeProvider>
-      </AdminPanelLayout>
-    </QueryClientProvider>
+        </AdminPanelLayout>
+        {/* Devtools opsional, bisa dihapus di production */}
+        <ReactQueryDevtools initialIsOpen={false} />
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }

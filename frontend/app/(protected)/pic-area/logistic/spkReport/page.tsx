@@ -174,41 +174,46 @@ export default function SpkReportPageAdmin() {
         role: "pic",
         children: (
             <>
-                <Breadcrumb>
-                    <BreadcrumbList>
-                        <BreadcrumbItem>
-                            <BreadcrumbLink asChild>
-                                <Badge variant="outline">
-                                    <Link href="/pic-area">Dashboard</Link>
-                                </Badge>
-                            </BreadcrumbLink>
-                        </BreadcrumbItem>
-                        <BreadcrumbSeparator />
-                        <BreadcrumbItem>
-                            <BreadcrumbLink asChild>
-                                <Badge variant="outline">
-                                    <BreadcrumbPage>SPK Report</BreadcrumbPage>
-                                </Badge>
-                            </BreadcrumbLink>
-                        </BreadcrumbItem>
-                        <BreadcrumbSeparator />
-                        <BreadcrumbItem>
-                            <Badge variant="outline">
-                                <BreadcrumbPage>Monitoring Progress</BreadcrumbPage>
-                            </Badge>
-                        </BreadcrumbItem>
-                    </BreadcrumbList>
-                </Breadcrumb>
+                <div className="h-full flex flex-col min-h-0">
+                    {/* Breadcrumb */}
+                    <div className="flex-shrink-0 ml-4">
+                        <Breadcrumb>
+                            <BreadcrumbList>
+                                <BreadcrumbItem>
+                                    <BreadcrumbLink asChild>
+                                        <Badge variant="outline">
+                                            <Link href="/pic-area">Dashboard</Link>
+                                        </Badge>
+                                    </BreadcrumbLink>
+                                </BreadcrumbItem>
+                                <BreadcrumbSeparator />
+                                <BreadcrumbItem>
+                                    <BreadcrumbLink asChild>
+                                        <Badge variant="outline">
+                                            <BreadcrumbPage>SPK Report</BreadcrumbPage>
+                                        </Badge>
+                                    </BreadcrumbLink>
+                                </BreadcrumbItem>
+                                <BreadcrumbSeparator />
+                                <BreadcrumbItem>
+                                    <Badge variant="outline">
+                                        <BreadcrumbPage>Monitoring Progress</BreadcrumbPage>
+                                    </Badge>
+                                </BreadcrumbItem>
+                            </BreadcrumbList>
+                        </Breadcrumb>
 
-                <div className="h-full w-full">
-                    <div className="flex-1 space-y-4 p-0 pt-6 md:p-4">
-                        <FormMonitoringProgressSpk
-                            dataSpk={dataSpk}
-                            isLoading={isLoading}
-                            userEmail={email}
-                            role={role}
-                            userId={userId}
-                        />
+                        <div className="h-full w-full">
+                            <div className="flex-1 space-y-4 p-0 pt-6 md:py-4">
+                                <FormMonitoringProgressSpk
+                                    dataSpk={dataSpk}
+                                    isLoading={isLoading}
+                                    userEmail={email}
+                                    role={role}
+                                    userId={userId}
+                                />
+                            </div>
+                        </div>
                     </div>
                 </div>
             </>

@@ -1,3 +1,4 @@
+// app/(protected)/admin-area/logistic/pr/page.tsx
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
@@ -10,13 +11,10 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Badge } from "@/components/ui/badge";
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
-import { LayoutProps } from "@/types/layout";
 import { PaginationInfo, PurchaseRequestFilters, PRStatus } from "@/types/pr";
-import { AdminLoading } from "@/components/admin-loading";
 import { PurchaseRequestClientWrapper } from "@/components/pr/component/purchase-request-wrapper";
 import { getAllPurchaseRequests } from "@/lib/action/pr/pr";
 
-// Definisikan interface untuk search params yang sesuai dengan Next.js
 interface SearchParams {
     page?: string;
     limit?: string;
@@ -31,12 +29,10 @@ interface PurchaseRequestPageAdminProps {
     searchParams: Promise<SearchParams>;
 }
 
-// Helper function untuk validasi status
 function isValidPRStatus(status: string): status is PRStatus {
     return ["DRAFT", "REVISION_NEEDED", "SUBMITTED", "APPROVED", "REJECTED", "COMPLETED"].includes(status);
 }
 
-// Helper function untuk parse number dengan aman
 function parseNumber(value: string | undefined, defaultValue: number): number {
     if (!value) return defaultValue;
     const parsed = parseInt(value);
@@ -53,19 +49,17 @@ export default async function PurchaseRequestPageAdmin({ searchParams }: Purchas
         redirect("/unauthorized");
     }
 
-    // Parse search params dengan type safety
+    // Parse search params
     const page = parseNumber(resolvedSearchParams.page, 1);
     const limit = parseNumber(resolvedSearchParams.limit, 10);
     const search = resolvedSearchParams.search || "";
     
-    // Validasi status dengan type safety
     const status = resolvedSearchParams.status && isValidPRStatus(resolvedSearchParams.status) 
         ? resolvedSearchParams.status 
         : undefined;
         
     const projectId = resolvedSearchParams.projectId || undefined;
     
-    // Parse dates dengan validation
     let dateFrom: Date | undefined;
     let dateTo: Date | undefined;
     
@@ -73,15 +67,12 @@ export default async function PurchaseRequestPageAdmin({ searchParams }: Purchas
         dateFrom = resolvedSearchParams.dateFrom ? new Date(resolvedSearchParams.dateFrom) : undefined;
         dateTo = resolvedSearchParams.dateTo ? new Date(resolvedSearchParams.dateTo) : undefined;
         
-        // Validate dates
         if (dateFrom && isNaN(dateFrom.getTime())) dateFrom = undefined;
         if (dateTo && isNaN(dateTo.getTime())) dateTo = undefined;
     } catch (error) {
         console.error("Error parsing dates:", error);
-        // Tetap lanjut tanpa date filters jika parsing gagal
     }
 
-    // Build filters object dengan type yang benar
     const filters: PurchaseRequestFilters = {
         status,
         projectId,
@@ -93,8 +84,13 @@ export default async function PurchaseRequestPageAdmin({ searchParams }: Purchas
     };
 
     try {
-        // Fetch data menggunakan server action
-        const { data: purchaseRequests, pagination } = await getAllPurchaseRequests(filters);
+        const result = await getAllPurchaseRequests(filters);
+        
+        if (!result) {
+            throw new Error("Failed to fetch purchase requests");
+        }
+
+        const { data: purchaseRequests, pagination } = result;
 
         const tablePagination: PaginationInfo = {
             page: pagination?.page || page,
@@ -103,9 +99,8 @@ export default async function PurchaseRequestPageAdmin({ searchParams }: Purchas
             totalPages: pagination?.totalPages || 1,
         };
 
-        // Siapkan initial data untuk client wrapper
         const initialData = {
-            purchaseRequests,
+            purchaseRequests: purchaseRequests || [],
             pagination: tablePagination,
             currentSearch: search,
             currentStatus: status,
@@ -114,9 +109,9 @@ export default async function PurchaseRequestPageAdmin({ searchParams }: Purchas
             currentDateTo: dateTo,
         };
 
-        // Content yang akan ditampilkan - GUNAKAN CLIENT WRAPPER
-        const pageContent = (
-            <>
+        // Gunakan nested children pattern
+        return (
+            <AdminLayout title="Purchase Request Management" role="admin">
                 <Breadcrumb>
                     <BreadcrumbList>
                         <BreadcrumbItem>
@@ -148,23 +143,15 @@ export default async function PurchaseRequestPageAdmin({ searchParams }: Purchas
                         <PurchaseRequestClientWrapper initialData={initialData} />
                     </div>
                 </div>
-            </>
+            </AdminLayout>
         );
-
-        const layoutProps: LayoutProps = {
-            title: "Purchase Request Management",
-            role: "admin",
-            children: pageContent,
-        };
-
-        return <AdminLayout {...layoutProps} />;
 
     } catch (error) {
         console.error("Error loading purchase requests:", error);
         
-        // Error content
-        const errorContent = (
-            <>
+        // Error case juga gunakan nested children
+        return (
+            <AdminLayout title="Purchase Request Management - Error" role="admin">
                 <Breadcrumb>
                     <BreadcrumbList>
                         <BreadcrumbItem>
@@ -192,19 +179,22 @@ export default async function PurchaseRequestPageAdmin({ searchParams }: Purchas
                 </Breadcrumb>
 
                 <div className="flex-1 p-4 flex items-center justify-center min-h-[400px]">
-                    <AdminLoading 
-                        message="Error loading purchase requests data. Please try again later."
-                    />
+                    <div className="text-center">
+                        <div className="text-red-500 text-lg font-semibold mb-2">
+                            Failed to Load Data
+                        </div>
+                        <p className="text-gray-600 mb-4">
+                            There was an error loading the purchase requests. Please try again.
+                        </p>
+                        <Link 
+                            href="/admin-area/logistic/pr" 
+                            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                        >
+                            Try Again
+                        </Link>
+                    </div>
                 </div>
-            </>
+            </AdminLayout>
         );
-
-        const errorLayoutProps: LayoutProps = {
-            title: "Purchase Request Management - Error",
-            role: "admin",
-            children: errorContent,
-        };
-
-        return <AdminLayout {...errorLayoutProps} />;
     }
 }

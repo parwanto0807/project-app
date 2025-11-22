@@ -24,6 +24,20 @@ export const nonNegativeDecimalSchema = z
     },
     { message: "Maksimal 2 digit desimal" }
   );
+export const decimalAllowNegativeSchema = z
+  .number({
+    required_error: "Nilai harus diisi",
+    invalid_type_error: "Nilai harus berupa angka",
+  })
+  .refine(
+    (val) => {
+      const decimalPart = val.toString().split(".")[1];
+      return !decimalPart || decimalPart.length <= 2;
+    },
+    {
+      message: "Maksimal 2 digit desimal",
+    }
+  );
 
 // === Update Detail Schema ===
 export const updateDetailSchema = z
@@ -96,7 +110,7 @@ export const updateLppSchema = z
   .object({
     // Header fields
     totalBiaya: nonNegativeDecimalSchema.optional(),
-    sisaUangDikembalikan: nonNegativeDecimalSchema.optional(),
+    sisaUangDikembalikan: decimalAllowNegativeSchema.optional(),
     keterangan: z.string().max(500).optional().or(z.literal("")),
     status: z.enum(["PENDING", "APPROVED", "REJECTED", "REVISION"]).optional(),
     uangMukaId: uuidSchema.optional(),

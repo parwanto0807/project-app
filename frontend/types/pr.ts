@@ -1,3 +1,5 @@
+import { Product } from "./quotation";
+
 export type SourceProductType =
   | "PEMBELIAN_BARANG"
   | "PENGAMBILAN_STOK"
@@ -17,6 +19,7 @@ export interface PurchaseRequestDetail {
   id?: string;
   productId: string;
   projectBudgetId?: string;
+  product?: Product;
   jumlah: number;
   satuan: string;
   estimasiHargaSatuan: number;

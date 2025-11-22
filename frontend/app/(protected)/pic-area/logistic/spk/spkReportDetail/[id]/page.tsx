@@ -103,45 +103,47 @@ export default function SpkReportDetailByIdPageAdmin() {
     }
 
     return (
-        <PicLayout title="Production Management" role="pic">
-            <Breadcrumb>
-                <BreadcrumbList>
-                    <BreadcrumbItem>
-                        <BreadcrumbLink asChild>
+        <div className="h-full flex flex-col min-h-0 ml-4">
+            <PicLayout title="Production Management" role="pic">
+                <Breadcrumb>
+                    <BreadcrumbList>
+                        <BreadcrumbItem>
+                            <BreadcrumbLink asChild>
+                                <Badge variant="outline">
+                                    <Link href="/user-area">Dashboard</Link>
+                                </Badge>
+                            </BreadcrumbLink>
+                        </BreadcrumbItem>
+                        <BreadcrumbSeparator />
+                        <BreadcrumbItem>
+                            <BreadcrumbLink asChild>
+                                <Badge variant="outline">
+                                    <Link href="/pic-area/logistic/spk">SPK List</Link>
+                                </Badge>
+                            </BreadcrumbLink>
+                        </BreadcrumbItem>
+                        <BreadcrumbSeparator />
+                        <BreadcrumbItem>
                             <Badge variant="outline">
-                                <Link href="/user-area">Dashboard</Link>
+                                <BreadcrumbPage>
+                                    {dataSpk ? `SPK ${dataSpk.spkNumber}` : 'Monitoring Progress'}
+                                </BreadcrumbPage>
                             </Badge>
-                        </BreadcrumbLink>
-                    </BreadcrumbItem>
-                    <BreadcrumbSeparator />
-                    <BreadcrumbItem>
-                        <BreadcrumbLink asChild>
-                            <Badge variant="outline">
-                                <Link href="/pic-area/logistic/spk">SPK List</Link>
-                            </Badge>
-                        </BreadcrumbLink>
-                    </BreadcrumbItem>
-                    <BreadcrumbSeparator />
-                    <BreadcrumbItem>
-                        <Badge variant="outline">
-                            <BreadcrumbPage>
-                                {dataSpk ? `SPK ${dataSpk.spkNumber}` : 'Monitoring Progress'}
-                            </BreadcrumbPage>
-                        </Badge>
-                    </BreadcrumbItem>
-                </BreadcrumbList>
-            </Breadcrumb>
+                        </BreadcrumbItem>
+                    </BreadcrumbList>
+                </Breadcrumb>
 
-            <div className="h-full w-full">
-                <div className="flex-1 space-y-4 p-0 pt-6 md:p-4">
-                    <FormMonitoringProgressSpkByID
-                        dataSpk={dataSpk}
-                        isLoading={isLoading}
-                        role={role}
-                        userId={spkId}
-                    />
+                <div className="h-full w-full">
+                    <div className="flex-1 space-y-4 p-0 pt-6 md:p-4">
+                        <FormMonitoringProgressSpkByID
+                            dataSpk={dataSpk}
+                            isLoading={isLoading}
+                            role={role}
+                            userId={spkId}
+                        />
+                    </div>
                 </div>
-            </div>
-        </PicLayout>
+            </PicLayout>
+        </div>
     );
 }

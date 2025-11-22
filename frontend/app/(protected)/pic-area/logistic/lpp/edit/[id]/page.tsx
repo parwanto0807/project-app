@@ -1,13 +1,13 @@
-// app/(protected)/admin-area/logistic/lpp/create/[id]/page.tsx
+// app/(protected)/pic-area/logistic/lpp/create/[id]/page.tsx
 "use client"
 
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useEffect, useState, useCallback } from "react"
 import { AdminLoading } from "@/components/admin-loading"
 import { PurchaseRequest } from "@/types/pr"
 import { UpdateLppForm, ExistingPertanggungjawaban, PaymentMethod, PertanggungjawabanData } from "@/types/types-lpp"
 import { getPurchaseRequestById } from "@/lib/action/pr/pr"
-import { updateLpp, uploadFoto } from "@/lib/action/lpp/action-lpp"; // Ganti createLpp dengan updateLpp
+import { updateLpp, uploadFoto } from "@/lib/action/lpp/action-lpp"
 import {
     Breadcrumb,
     BreadcrumbItem,
@@ -21,6 +21,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle, ArrowLeft, RefreshCw } from "lucide-react"
 import { toast } from 'sonner';
 import EditLppForm, { FotoBuktiMap } from "@/components/lpp/editFormData"
+import { useMutation } from "@tanstack/react-query"
 import { PicLayout } from "@/components/admin-panel/pic-layout"
 
 // Extended allowed file types dengan MIME types yang lebih comprehensive
@@ -167,7 +168,7 @@ async function uploadFotoAfterCreate(
     return results.flat();
 }
 
-export default function EditLppFromSpkPagePIC() {
+export default function EditLppFromSpkPage() {
     const params = useParams()
     const router = useRouter()
     const id = params.id as string
@@ -177,6 +178,35 @@ export default function EditLppFromSpkPagePIC() {
     const [fetchError, setFetchError] = useState<string | null>(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [existingPertanggungjawaban, setExistingPertanggungjawaban] = useState<PertanggungjawabanData | null>(null)
+
+    const searchParams = useSearchParams();
+
+    const urlPage = Number(searchParams.get("page")) || 1;
+    const urlPageSize = Number(searchParams.get("limit")) || 10;
+    const urlSearch = searchParams.get("search") || "";
+    const urlFilter = searchParams.get("filter") || "on-progress";
+    const urlStatus = searchParams.get("status") || "";
+    const urlProject = searchParams.get("projectId") || "";
+    const highlightId = searchParams.get("highlightId") || "";
+
+    // Ambil nilai langsung dari URL params
+    const query = new URLSearchParams({
+        page: String(urlPage),
+        limit: String(urlPageSize),
+        search: urlSearch,
+        filter: urlFilter,
+        status: urlStatus,
+        projectId: urlProject,
+        highLightId: highlightId,
+    }).toString();
+
+    // Mutation hanya untuk redirect
+    const updateMutation = useMutation({
+        mutationFn: async () => true, // tidak update apapun
+        onSuccess: () => {
+            router.push(`/pic-area/logistic/pr?${query}`);
+        },
+    });
 
     const handleFetchPurchaseRequest = useCallback(async () => {
         if (!id) {
@@ -223,7 +253,6 @@ export default function EditLppFromSpkPagePIC() {
                     }),
                 }))[0];
 
-
             if (existingPj) {
                 setExistingPertanggungjawaban(existingPj);
             } else {
@@ -242,9 +271,7 @@ export default function EditLppFromSpkPagePIC() {
         if (id) handleFetchPurchaseRequest();
     }, [handleFetchPurchaseRequest, id]);
 
-
     const handleSubmit = async (data: UpdateLppForm, fotoBuktiMap?: FotoBuktiMap) => {
-
         if (!existingPertanggungjawaban?.id) {
             toast.error("ID pertanggungjawaban tidak tersedia");
             return;
@@ -279,9 +306,10 @@ export default function EditLppFromSpkPagePIC() {
                 toast.error("Update LPP gagal, coba lagi.");
                 return;
             }
-            // Step 3: Success toast & redirect
+
+            // Step 3: Success toast & redirect menggunakan mutation
             toast.success("LPP berhasil diperbarui!");
-            router.push("/pic-area/logistic/pr");
+            updateMutation.mutate(); // Arahkan ke URL sebelumnya
         } catch (err) {
             console.error("❌ Update LPP error:", err);
             toast.error(`Error: ${err instanceof Error ? err.message : "Unknown error"}`);
@@ -494,5 +522,3 @@ export default function EditLppFromSpkPagePIC() {
         </PicLayout>
     )
 }
-
-

@@ -37,7 +37,8 @@ import {
     Building,
     FileCheck,
     ArrowLeft,
-    X
+    X,
+    BanknoteArrowUp
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
@@ -53,6 +54,7 @@ import { CreateLppForm } from '@/types/types-lpp';
 import { createLppSchema } from '@/schemas/lpp/schemas-lpp';
 import { uploadFoto } from '@/lib/action/lpp/action-lpp';
 import { useRouter } from 'next/navigation';
+import { FieldPath } from 'react-hook-form';
 
 // Types untuk state file upload
 interface FileWithPreview {
@@ -63,6 +65,17 @@ interface FileWithPreview {
 
 export interface FotoBuktiMap {
     [key: number]: FileWithPreview[];
+}
+
+// Types untuk error response
+interface ValidationError {
+    path: string[];
+    message: string;
+}
+
+interface ErrorResponse {
+    errors?: ValidationError[];
+    message?: string;
 }
 
 // Mapping function untuk konversi data form ke CreateLppForm (TANPA upload foto)
@@ -104,7 +117,6 @@ const mapFormToCreateLpp = (
 };
 
 // Function untuk upload foto setelah LPP dibuat
-// Di createFormData.tsx - perbaiki function uploadFotoAfterCreate
 export async function uploadFotoAfterCreate(
     createdDetails: Array<{ id: string }>,
     fotoBuktiMap: FotoBuktiMap,
@@ -160,7 +172,6 @@ export async function uploadFotoAfterCreate(
     return results.flat();
 }
 
-
 type FormValues = CreateLppForm;
 
 interface CreateLppFormInputProps {
@@ -168,16 +179,20 @@ interface CreateLppFormInputProps {
     onSubmit: (data: CreateLppForm, fotoBuktiMap: FotoBuktiMap) => Promise<void>;
     isLoading: boolean;
     onBack?: () => void;
+    serverErrors?: ErrorResponse; // Tambahkan prop untuk error dari server
 }
 
 const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
     purchaseRequest,
     onSubmit,
     isLoading,
-    onBack
+    onBack,
+    serverErrors // Terima server errors sebagai prop
 }) => {
     const [fotoBuktiMap, setFotoBuktiMap] = useState<FotoBuktiMap>({});
+    const [formErrors, setFormErrors] = useState<ValidationError[]>([]);
     const router = useRouter();
+
     const form = useForm<FormValues>({
         resolver: zodResolver(createLppSchema),
         defaultValues: {
@@ -195,6 +210,26 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
             ],
         }
     });
+
+    // Effect untuk menangani server errors
+    React.useEffect(() => {
+        if (serverErrors?.errors) {
+            setFormErrors(serverErrors.errors);
+
+            // Set error untuk setiap field yang memiliki error
+            serverErrors.errors.forEach((error) => {
+                const fieldName = error.path.join('.');
+
+                // Gunakan FieldPath dari react-hook-form
+                form.setError(fieldName as FieldPath<CreateLppForm>, {
+                    type: 'server',
+                    message: error.message
+                });
+            });
+        } else {
+            setFormErrors([]);
+        }
+    }, [serverErrors, form]);
 
     const { fields, append, remove } = useFieldArray({
         control: form.control,
@@ -235,6 +270,12 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
             const newFotoMap = { ...fotoBuktiMap };
             delete newFotoMap[index];
             setFotoBuktiMap(newFotoMap);
+
+            // Clear errors untuk field yang dihapus
+            setFormErrors(prev => prev.filter(error =>
+                !error.path.includes('details') ||
+                !error.path.includes(index.toString())
+            ));
         }
     };
 
@@ -291,12 +332,19 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
 
         purchaseRequest.details.forEach(detail => {
             if (detail.productId) {
-                // Gunakan productId sebagai key, hindari duplikat
+                // Gunakan detail.product.name yang berisi nama sebenarnya
+                // "Mobilisasi" dalam contoh Anda
+                const productName = detail.product?.name || `Product ${detail.productId}`;
+
                 if (!productsMap.has(detail.productId)) {
                     productsMap.set(detail.productId, {
                         id: detail.productId,
-                        name: detail.catatanItem || 'Product tanpa nama',
-                        prDetailIds: [detail.id] // Kumpulkan semua prDetailIds untuk product yang sama
+                        name: productName,
+                        prDetailIds: [detail.id],
+                        // Data tambahan yang useful
+                        product: detail.product, // Simpan seluruh data product
+                        satuan: detail.satuan,
+                        type: detail.product?.type
                     });
                 } else {
                     // Jika productId sudah ada, tambahkan prDetailId ke array
@@ -326,6 +374,9 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
         }
 
         try {
+            // Clear previous errors
+            setFormErrors([]);
+
             // Map data tanpa foto
             const lppData = mapFormToCreateLpp(
                 data,
@@ -340,8 +391,16 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
             await onSubmit(lppData, fotoBuktiMap);
         } catch (error) {
             console.error("Error in form submission:", error);
-            alert("Terjadi kesalahan saat menyimpan data. Silakan coba lagi.");
+            // Error handling akan dilakukan oleh parent component melalui serverErrors prop
         }
+    };
+
+    // Function untuk mendapatkan error message berdasarkan field path
+    const getFieldError = (path: string[]): string | undefined => {
+        const error = formErrors.find(err =>
+            err.path.join('.') === path.join('.')
+        );
+        return error?.message;
     };
 
     // Custom icons
@@ -389,46 +448,138 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
                     {/* PR Info Card */}
                     <Card className="max-w-7xl mx-auto shadow-lg border-0 bg-gradient-to-r from-primary/5 to-blue-100 dark:from-slate-800 dark:to-slate-900 backdrop-blur-sm">
                         <CardContent className="px-6">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div className="text-center md:text-left">
-                                    <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
-                                        <FileText className="h-5 w-5 text-blue-600" />
-                                        <span className="font-semibold text-slate-700 dark:text-slate-300">
-                                            Nomor PR
-                                        </span>
-                                    </div>
-                                    <p className="text-lg font-bold text-slate-900 dark:text-white">
-                                        {purchaseRequest.nomorPr}
-                                    </p>
-                                </div>
+                            <Card className="max-w-7xl mx-auto shadow-lg border-0 bg-gradient-to-r from-primary/5 to-blue-50 dark:from-slate-800 dark:to-slate-900 backdrop-blur-sm">
+                                <CardContent className="p-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                        {/* Nomor PR */}
+                                        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                                                    <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                                </div>
+                                                <span className="font-semibold text-slate-700 dark:text-slate-300 text-sm">
+                                                    Nomor PR
+                                                </span>
+                                            </div>
+                                            <p className="text-lg font-bold text-slate-900 dark:text-white truncate">
+                                                {purchaseRequest.nomorPr}
+                                            </p>
+                                        </div>
 
-                                <div className="text-center">
-                                    <div className="flex items-center justify-center gap-2 mb-2">
-                                        <DollarSign className="h-5 w-5 text-green-600" />
-                                        <span className="font-semibold text-slate-700 dark:text-slate-300">
-                                            Total Budget
-                                        </span>
-                                    </div>
-                                    <p className="text-lg font-bold text-slate-900 dark:text-white">
-                                        Rp {Number(totalBudget).toLocaleString("id-ID")}
-                                    </p>
-                                </div>
+                                        {/* Total Purchase Request */}
+                                        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                                                    <BanknoteArrowUp className="h-4 w-4 text-green-600 dark:text-green-400" />
+                                                </div>
+                                                <span className="font-semibold text-slate-700 dark:text-slate-300 text-sm">
+                                                    Total PR
+                                                </span>
+                                            </div>
+                                            <p className="text-lg font-bold text-slate-900 dark:text-white">
+                                                Rp {Number(totalBudget).toLocaleString("id-ID")}
+                                            </p>
+                                        </div>
 
-                                <div className="text-center md:text-right">
-                                    <div className="flex items-center justify-center md:justify-end gap-2 mb-2">
-                                        <Building className="h-5 w-5 text-purple-600" />
-                                        <span className="font-semibold text-slate-700 dark:text-slate-300">
-                                            Project
-                                        </span>
+                                        {/* Sisa Uang Dikembalikan */}
+                                        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <div className={cn(
+                                                    "p-2 rounded-lg",
+                                                    sisaUangDikembalikan >= 0
+                                                        ? "bg-emerald-100 dark:bg-emerald-900/30"
+                                                        : "bg-red-100 dark:bg-red-900/30"
+                                                )}>
+                                                    <BanknoteArrowUp className={cn(
+                                                        "h-4 w-4",
+                                                        sisaUangDikembalikan >= 0
+                                                            ? "text-emerald-600 dark:text-emerald-400"
+                                                            : "text-red-600 dark:text-red-400"
+                                                    )} />
+                                                </div>
+                                                <span className="font-semibold text-slate-700 dark:text-slate-300 text-sm">
+                                                    Available Budget
+                                                </span>
+                                            </div>
+                                            <p className={cn(
+                                                "text-lg font-bold",
+                                                sisaUangDikembalikan >= 0
+                                                    ? "text-emerald-600 dark:text-emerald-400"
+                                                    : "text-red-600 dark:text-red-400"
+                                            )}>
+                                                Rp {Number(sisaUangDikembalikan).toLocaleString("id-ID")}
+                                            </p>
+                                            <Badge
+                                                variant="outline"
+                                                className={cn(
+                                                    "mt-2 text-xs",
+                                                    sisaUangDikembalikan >= 0
+                                                        ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300"
+                                                        : "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300"
+                                                )}
+                                            >
+                                                {sisaUangDikembalikan >= 0 ? "Dikembalikan" : "Kekurangan"}
+                                            </Badge>
+                                        </div>
+
+                                        {/* Project */}
+                                        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                                                    <Building className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                                                </div>
+                                                <span className="font-semibold text-slate-700 dark:text-slate-300 text-sm">
+                                                    Project
+                                                </span>
+                                            </div>
+                                            <p className="text-lg font-bold text-slate-900 dark:text-white text-wrap">
+                                                {purchaseRequest.project?.name || 'Tidak ada project'}
+                                            </p>
+                                            <Badge
+                                                variant="secondary"
+                                                className="mt-2 bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-300 text-xs"
+                                            >
+                                                {purchaseRequest.project ? "Active" : "No Project"}
+                                            </Badge>
+                                        </div>
                                     </div>
-                                    <p className="text-lg font-bold text-slate-900 dark:text-white">
-                                        {purchaseRequest.project?.name || 'Tidak ada project'}
-                                    </p>
-                                </div>
-                            </div>
+
+                                    {/* Additional Info Bar */}
+                                    <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+                                        <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600 dark:text-slate-400">
+                                            <div className="flex items-center gap-4">
+                                                <span>Status PR:
+                                                    <Badge variant="outline" className="ml-2 bg-blue-50 text-blue-700 border-blue-200">
+                                                        {purchaseRequest.status || 'DRAFT'}
+                                                    </Badge>
+                                                </span>
+                                                <span>Tanggal:
+                                                    <span className="ml-2 font-medium text-slate-700 dark:text-slate-300">
+                                                        {purchaseRequest.createdAt ? format(new Date(purchaseRequest.createdAt), "dd MMM yyyy") : '-'}
+                                                    </span>
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                                                <span>Ready for LPP Creation</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
                         </CardContent>
                     </Card>
                 </div>
+
+                {/* Global Error Message */}
+                {serverErrors?.message && (
+                    <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                        <div className="flex items-center gap-2 text-red-800 dark:text-red-300">
+                            <FileText className="h-5 w-5" />
+                            <span className="font-medium">{serverErrors.message}</span>
+                        </div>
+                    </div>
+                )}
 
                 {/* Main Form */}
                 <div className="max-w-7xl mx-auto">
@@ -603,11 +754,21 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
                                                                     <FormControl>
                                                                         <Input
                                                                             placeholder="Masukkan nomor nota/kuitansi..."
-                                                                            className="border-slate-200 dark:border-slate-600"
+                                                                            className={cn(
+                                                                                "border-slate-200 dark:border-slate-600",
+                                                                                getFieldError(['details', index.toString(), 'nomorBukti']) &&
+                                                                                "border-red-500 dark:border-red-500"
+                                                                            )}
                                                                             {...field}
                                                                             value={field.value ?? ""}
                                                                         />
                                                                     </FormControl>
+                                                                    {/* Tampilkan error message dari server */}
+                                                                    {getFieldError(['details', index.toString(), 'nomorBukti']) && (
+                                                                        <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+                                                                            {getFieldError(['details', index.toString(), 'nomorBukti'])}
+                                                                        </p>
+                                                                    )}
                                                                     <FormMessage />
                                                                 </FormItem>
                                                             )}
@@ -629,13 +790,23 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
                                                                             <Input
                                                                                 type="number"
                                                                                 placeholder="0"
-                                                                                className="pl-10 border-slate-200 dark:border-slate-600"
+                                                                                className={cn(
+                                                                                    "pl-10 border-slate-200 dark:border-slate-600",
+                                                                                    getFieldError(['details', index.toString(), 'jumlah']) &&
+                                                                                    "border-red-500 dark:border-red-500"
+                                                                                )}
                                                                                 {...field}
                                                                                 onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                                                                                 value={field.value ?? ""}
                                                                             />
                                                                         </div>
                                                                     </FormControl>
+                                                                    {/* Tampilkan error message dari server */}
+                                                                    {getFieldError(['details', index.toString(), 'jumlah']) && (
+                                                                        <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+                                                                            {getFieldError(['details', index.toString(), 'jumlah'])}
+                                                                        </p>
+                                                                    )}
                                                                     <FormMessage />
                                                                 </FormItem>
                                                             )}
@@ -773,17 +944,16 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
                                             name="keterangan"
                                             render={({ field }) => (
                                                 <FormItem>
-                                                    <FormLabel className="text-lg font-semibold flex items-center gap-2 text-slate-700 dark:text-slate-300">
-                                                        <FileCheck className="h-5 w-5 text-blue-600" />
-                                                        Keterangan Umum
-                                                    </FormLabel>
+                                                    <FormLabel>Keterangan Umum</FormLabel>
                                                     <FormControl>
-                                                        <Textarea
-                                                            placeholder="Masukkan keterangan umum pertanggungjawaban..."
-                                                            className="min-h-[100px] resize-none border-slate-200 dark:border-slate-600 focus:border-blue-500"
-                                                            {...field}
-                                                        />
+                                                        <Textarea {...field} />
                                                     </FormControl>
+                                                    {/* Tampilkan error dari server */}
+                                                    {getFieldError(['keterangan']) && (
+                                                        <p className="text-sm text-red-600">
+                                                            {getFieldError(['keterangan'])}
+                                                        </p>
+                                                    )}
                                                     <FormMessage />
                                                 </FormItem>
                                             )}
@@ -855,7 +1025,7 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
 
                                         <Button
                                             type="submit"
-                                            disabled={isLoading || totalBiaya === 0 || sisaUangDikembalikan < 0}
+                                            disabled={isLoading || totalBiaya === 0}
                                             className="min-w-[200px] bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-600/25 disabled:opacity-50 disabled:cursor-not-allowed py-3 text-base font-semibold cursor-pointer"
                                         >
                                             {isLoading ? (

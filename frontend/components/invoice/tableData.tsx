@@ -33,11 +33,11 @@ import {
     CreditCard,
     MoreHorizontal,
     Building,
-    DollarSign,
     PrinterCheck,
     Printer,
     Loader2,
     Download,
+    BanknoteArrowDown,
 } from "lucide-react";
 import { Invoice } from "@/schemas/invoice";
 import { InvoiceDetailDrawer } from "./invoiceDetailDialog";
@@ -299,7 +299,7 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser }:
                                             <TableCell className="text-right">
                                                 <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg px-4 py-3 text-right">
                                                     <div className="flex items-center justify-end gap-2">
-                                                        <DollarSign className="h-4 w-4 text-green-600" />
+                                                        <BanknoteArrowDown className="h-5 w-5 text-green-600" />
                                                         <span className="text-xl font-bold text-gray-900">
                                                             {formatCurrency(invoice.totalAmount)}
                                                         </span>

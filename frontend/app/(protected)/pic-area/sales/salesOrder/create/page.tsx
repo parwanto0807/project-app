@@ -95,38 +95,40 @@ export default function CreateSalesOrderPageAdmin() {
   }
 
   return (
-    <PicLayout title="Create Sales Order" role="pic">
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link href="/pic-area">Dashboard</Link>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link href="/pic-area/sales/salesOrder">
-                Sales Order List
-              </Link>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>Create</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
+    <div className="h-full flex flex-col min-h-0 px-4">
+      <PicLayout title="Create Sales Order" role="pic">
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link href="/pic-area">Dashboard</Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link href="/pic-area/sales/salesOrder">
+                  Sales Order List
+                </Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>Create</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
 
-      <div className="mt-6">
-        <CreateSalesOrderForm
-          customers={customers}
-          projects={projects}
-          user={user}
-          role={user.role}
-          isLoading={isDataLoading}
-        />
-      </div>
-    </PicLayout>
+        <div className="mt-6">
+          <CreateSalesOrderForm
+            customers={customers}
+            projects={projects}
+            user={user}
+            role={user.role}
+            isLoading={isDataLoading}
+          />
+        </div>
+      </PicLayout>
+    </div>
   );
 }

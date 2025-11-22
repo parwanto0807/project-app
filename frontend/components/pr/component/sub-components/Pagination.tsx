@@ -10,6 +10,7 @@ import { PaginationInfo } from "@/types/pr";
 import { PAGE_SIZES } from "../constants";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import clsx from "clsx";
 
 interface PaginationProps {
   pagination: PaginationInfo;
@@ -126,26 +127,103 @@ export function Pagination({
     }
   };
 
+  // 🔹 CUSTOM BUTTON COMPONENTS dengan style yang ditingkatkan
+  const PaginationEdgeButton = ({
+    children,
+    onClick,
+    disabled,
+    className = ""
+  }: {
+    children: React.ReactNode;
+    onClick: () => void;
+    disabled: boolean;
+    className?: string;
+  }) => (
+    <motion.div
+      variants={itemVariants}
+      whileHover={!disabled ? "hover" : undefined}
+      whileTap="tap"
+    >
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={onClick}
+        disabled={disabled}
+        className={clsx(
+          "h-8 px-3 rounded-lg text-xs font-medium transition-all duration-200",
+          "border border-gray-300 dark:border-gray-600",
+          "text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800",
+          "hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 dark:hover:from-blue-900/20 dark:hover:to-purple-900/20",
+          "hover:border-blue-300 dark:hover:border-blue-500",
+          "hover:text-blue-700 dark:hover:text-blue-300",
+          "shadow-sm hover:shadow-md",
+          "disabled:bg-gray-100 disabled:dark:bg-gray-800 disabled:text-gray-400 disabled:dark:text-gray-500 disabled:border-gray-200 disabled:dark:border-gray-700 disabled:cursor-not-allowed cursor-pointer",
+          className
+        )}
+      >
+        {children}
+      </Button>
+    </motion.div>
+  );
+
+  const PaginationArrowButton = ({
+    onClick,
+    disabled,
+    direction,
+  }: {
+    onClick: () => void;
+    disabled: boolean;
+    direction: "left" | "right";
+  }) => (
+    <motion.div
+      variants={itemVariants}
+      whileHover={!disabled ? "hover" : undefined}
+      whileTap="tap"
+    >
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={onClick}
+        disabled={disabled}
+        className={clsx(
+          "h-8 w-8 rounded-lg transition-all duration-200",
+          "border border-gray-300 dark:border-gray-600",
+          "text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-800",
+          "hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 dark:hover:from-blue-900/20 dark:hover:to-purple-900/20",
+          "hover:text-blue-700 dark:hover:text-blue-300 hover:border-blue-300 dark:hover:border-blue-500",
+          "shadow-sm hover:shadow-md",
+          "disabled:bg-gray-100 disabled:dark:bg-gray-800 disabled:text-gray-300 disabled:dark:text-gray-600 disabled:border-gray-200 disabled:dark:border-gray-700 disabled:cursor-not-allowed cursor-pointer"
+        )}
+      >
+        {direction === "left" ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+      </Button>
+    </motion.div>
+  );
+
   return (
     <motion.div
       initial="hidden"
       animate="visible"
       variants={containerVariants}
-      className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0 pt-6 border-t"
+      className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0 pt-6 border-t border-gray-200 dark:border-gray-700"
     >
       {/* Items per page */}
       <motion.div variants={itemVariants} className="flex items-center space-x-2">
-        <span className="text-xs sm:text-sm text-muted-foreground">Rows per page:</span>
+        <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Rows per page:</span>
         <Select
           value={pagination.limit.toString()}
           onValueChange={(value) => onLimitChange(Number(value))}
         >
-          <SelectTrigger className="w-20 sm:w-24 h-8 text-xs">
+          <SelectTrigger className="w-20 sm:w-24 h-8 text-xs border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:border-blue-300 dark:hover:border-blue-500 transition-colors">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600">
             {PAGE_SIZES.map((size) => (
-              <SelectItem key={size} value={size.toString()} className="text-xs">
+              <SelectItem 
+                key={size} 
+                value={size.toString()} 
+                className="text-xs hover:bg-blue-50 dark:hover:bg-blue-900/20 focus:bg-blue-50 dark:focus:bg-blue-900/20"
+              >
                 {size}
               </SelectItem>
             ))}
@@ -154,60 +232,39 @@ export function Pagination({
       </motion.div>
 
       {/* Page info */}
-      <motion.div variants={itemVariants} className="text-xs sm:text-sm text-muted-foreground text-center">
+      <motion.div variants={itemVariants} className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 text-center">
         {pagination.totalCount === 0 ? (
           "No entries found"
         ) : (
           <>
-            Showing <span className="font-medium">{startItem}</span> to{" "}
-            <span className="font-medium">{endItem}</span> of{" "}
-            <span className="font-medium">{pagination.totalCount}</span> entries
+            Showing <span className="font-medium text-gray-800 dark:text-gray-200">{startItem}</span> to{" "}
+            <span className="font-medium text-gray-800 dark:text-gray-200">{endItem}</span> of{" "}
+            <span className="font-medium text-gray-800 dark:text-gray-200">{pagination.totalCount}</span> entries
           </>
         )}
       </motion.div>
 
       {/* Pagination controls */}
-      <motion.div variants={itemVariants} className="flex items-center space-x-1">
-        {/* First Page */}
-        <motion.div
-          variants={itemVariants}
-          whileHover="hover"
-          whileTap="tap"
-        >
-          <Button
-            variant="outline"
-            size="sm"
+      <motion.div variants={itemVariants} className="flex items-center space-x-1 md:space-x-2">
+        {/* First Page - Hidden on mobile */}
+        <div className="hidden md:block">
+          <PaginationEdgeButton
             onClick={() => onPageChange(1)}
             disabled={pagination.page <= 1}
-            className="                     hover:border-blue-300 dark:hover:border-blue-500
-"
-            title="First page"
           >
-            {/* <ChevronsLeft className="h-4 w-4" /> */}
-            <span className="text-xs font-bold">First</span>
-          </Button>
-        </motion.div>
+            First
+          </PaginationEdgeButton>
+        </div>
 
         {/* Previous Page */}
-        <motion.div
-          variants={itemVariants}
-          whileHover="hover"
-          whileTap="tap"
-        >
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onPageChange(pagination.page - 1)}
-            disabled={pagination.page <= 1}
-            className="h-8 w-8 p-0"
-            title="Previous page"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-        </motion.div>
+        <PaginationArrowButton
+          onClick={() => onPageChange(pagination.page - 1)}
+          disabled={pagination.page <= 1}
+          direction="left"
+        />
 
         {/* Page numbers */}
-        <div className="flex items-center space-x-1 mx-2">
+        <div className="flex items-center space-x-0.5 mx-0.5">
           <AnimatePresence mode="popLayout">
             {pageNumbers.map((page, index) => (
               page === '...' ? (
@@ -217,7 +274,7 @@ export function Pagination({
                   initial="hidden"
                   animate="visible"
                   exit="exit"
-                  className="px-2 text-xs text-muted-foreground"
+                  className="flex h-8 w-8 items-center justify-center text-xs text-gray-400 dark:text-gray-500 px-2"
                 >
                   ...
                 </motion.span>
@@ -232,13 +289,16 @@ export function Pagination({
                   whileTap="tap"
                 >
                   <Button
-                    variant={pagination.page === page ? "default" : "outline"}
+                    variant="outline"
                     size="sm"
                     onClick={() => onPageChange(page as number)}
-                    className={`h-8 w-8 p-0 text-xs font-medium ${pagination.page === page
-                      ? "bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/25"
-                      : ""
-                      }`}
+                    className={clsx(
+                      "h-8 w-8 p-0 text-xs font-medium transition-all duration-200",
+                      "border border-gray-300 dark:border-gray-600",
+                      pagination.page === page
+                        ? "bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/25 border-transparent"
+                        : "text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-blue-700 dark:hover:text-blue-300 hover:border-blue-300 dark:hover:border-blue-500 shadow-sm hover:shadow-md cursor-pointer"
+                    )}
                   >
                     {page}
                   </Button>
@@ -249,42 +309,21 @@ export function Pagination({
         </div>
 
         {/* Next Page */}
-        <motion.div
-          variants={itemVariants}
-          whileHover="hover"
-          whileTap="tap"
-        >
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onPageChange(pagination.page + 1)}
-            disabled={pagination.page >= totalPages}
-            className="h-8 w-8 p-0"
-            title="Next page"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </motion.div>
+        <PaginationArrowButton
+          onClick={() => onPageChange(pagination.page + 1)}
+          disabled={pagination.page >= totalPages}
+          direction="right"
+        />
 
-        {/* Last Page */}
-        <motion.div
-          variants={itemVariants}
-          whileHover="hover"
-          whileTap="tap"
-        >
-          <Button
-            variant="outline"
-            size="sm"
+        {/* Last Page - Hidden on mobile */}
+        <div className="hidden md:block">
+          <PaginationEdgeButton
             onClick={() => onPageChange(totalPages)}
             disabled={pagination.page >= totalPages}
-            className="                     border border-gray-300 dark:border-gray-600
-"
-            title="Last page"
           >
-            {/* <ChevronsRight className="h-4 w-4" /> */}
-            <span className="text-xs font-bold">Last</span>
-          </Button>
-        </motion.div>
+            Last
+          </PaginationEdgeButton>
+        </div>
       </motion.div>
     </motion.div>
   );

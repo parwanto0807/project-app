@@ -316,7 +316,7 @@ export default function SalesOrderPageAdmin() {
     children: (
       <div className="h-full flex flex-col min-h-0">
         {/* Breadcrumb */}
-        <div className="flex-shrink-0">
+        <div className="flex-shrink-0 ml-4">
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>

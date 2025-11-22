@@ -1,4 +1,4 @@
-// components/purchase-request-client-wrapper.tsx - Alternatif lebih baik
+// components/pr/component/purchase-request-wrapper.tsx - VERSI REAL LOADING
 "use client";
 
 import { useState, useEffect } from "react";
@@ -20,76 +20,59 @@ interface PurchaseRequestClientWrapperProps {
 }
 
 export function PurchaseRequestClientWrapper({ initialData }: PurchaseRequestClientWrapperProps) {
-    const [isLoading, setIsLoading] = useState(true);
+    const [isInitialLoad, setIsInitialLoad] = useState(true);
     const [data, setData] = useState(initialData);
     const { user, isLoading: userLoading } = useSession();
 
-
-    // Simulasi loading untuk demo
+    // Reset initial load setelah component mount dan data tersedia
     useEffect(() => {
-        console.log('⏰ Starting loading timer...');
-        const timer = setTimeout(() => {
-            console.log('✅ Loading completed');
-            setIsLoading(false);
-        }, 2000);
-
-        return () => clearTimeout(timer);
-    }, []);
+        if (initialData.purchaseRequests.length > 0) {
+            // Delay kecil untuk memastikan AdminLoading terlihat
+            const timer = setTimeout(() => {
+                setIsInitialLoad(false);
+            }, 800);
+            
+            return () => clearTimeout(timer);
+        } else {
+            // Jika tidak ada data, langsung hide loading
+            setIsInitialLoad(false);
+        }
+    }, [initialData.purchaseRequests.length]);
 
     // Update data ketika initialData berubah
     useEffect(() => {
-        if (initialData.purchaseRequests.length > 0) {
-            setData(initialData);
-        }
+        setData(initialData);
     }, [initialData]);
 
-    // Tampilkan AdminLoading FULL SCREEN selama loading
-    if (isLoading) {
+    // Tampilkan AdminLoading hanya untuk initial load
+    if (isInitialLoad || userLoading) {
         return (
-            <>
-                {/* Background overlay - full screen */}
-                <div className="fixed inset-0 z-10 bg-background/95 backdrop-blur-sm flex items-center justify-center">
-                    <div className="w-full text-center">
-                        <AdminLoading message="Loading purchase requests data..." />
-                        <div className="mt-6 space-y-2">
-                            <p className="text-sm text-muted-foreground">
-                                Preparing your data...
-                            </p>
-                            <div className="flex justify-center space-x-1">
-                                {[0, 1, 2].map((i) => (
-                                    <div
-                                        key={i}
-                                        className="w-2 h-2 bg-primary rounded-full animate-bounce"
-                                        style={{ animationDelay: `${i * 0.1}s` }}
-                                    />
-                                ))}
-                            </div>
+            <div className="fixed inset-0 z-10 bg-background/95 backdrop-blur-sm flex items-center justify-center">
+                <div className="w-full text-center">
+                    <AdminLoading message="Loading purchase requests..." />
+                    <div className="mt-6 space-y-2">
+                        <p className="text-sm text-muted-foreground">
+                            {userLoading ? "Checking user session..." : "Loading your data..."}
+                        </p>
+                        <div className="flex justify-center space-x-1">
+                            {[0, 1, 2].map((i) => (
+                                <div
+                                    key={i}
+                                    className="w-2 h-2 bg-primary rounded-full animate-bounce"
+                                    style={{ animationDelay: `${i * 0.1}s` }}
+                                />
+                            ))}
                         </div>
                     </div>
                 </div>
-
-                {/* Konten asli yang di-blur di belakang */}
-                {/* <div className="blur-sm pointer-events-none">
-                    <PurchaseRequestTable
-                        purchaseRequests={data.purchaseRequests}
-                        isLoading={true}
-                        isError={false}
-                        role="admin"
-                        pagination={data.pagination}
-                        currentSearch={data.currentSearch}
-                        currentStatus={data.currentStatus}
-                        currentProjectId={data.currentProjectId}
-                        currentDateFrom={data.currentDateFrom}
-                        currentDateTo={data.currentDateTo}
-                    />
-                </div> */}
-            </>
+            </div>
         );
     }
+
     return (
         <PurchaseRequestTable
             purchaseRequests={data.purchaseRequests}
-            isLoading={userLoading}
+            isLoading={false}
             isError={false}
             role={user?.role as "super" | "admin" | "pic"}
             pagination={data.pagination}

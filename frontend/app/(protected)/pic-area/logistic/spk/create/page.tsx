@@ -116,6 +116,7 @@ export default function CreateSpkPagePic() {
   }
 
   return (
+    <div className="h-full flex flex-col min-h-0 ml-4">
     <PicLayout title="Create SPK" role="pic">
       <Breadcrumb>
         <BreadcrumbList>
@@ -147,5 +148,6 @@ export default function CreateSpkPagePic() {
         />
       </div>
     </PicLayout>
+    </div>
   );
 }

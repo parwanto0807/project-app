@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { PurchaseRequestTableProps } from "./types";
@@ -18,6 +18,33 @@ import CreateButtonPR from "./sub-components/createButtonPr";
 import HeaderCard from "@/components/ui/header-card";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useSession } from "@/components/clientSessionProvider";
+
+function getBaseEditPath(role?: string) {
+    const paths: Record<string, string> = {
+        super: "/super-admin-area/logistic/lpp/edit/",
+        pic: "/pic-area/logistic/lpp/edit/",
+        admin: "/admin-area/logistic/lpp/edit/",
+    }
+    return paths[role ?? "admin"] || "/admin-area/logistic/lpp/edit/" // ✅ Perbaiki default path
+}
+
+function getBaseCreatePath(role?: string) {
+    const paths: Record<string, string> = {
+        super: "/super-admin-area/logistic/lpp/create/",
+        pic: "/pic-area/logistic/lpp/create/",
+        admin: "/admin-area/logistic/lpp/create/",
+    }
+    return paths[role ?? "admin"] || "/admin-area/logistic/lpp/create/" // ✅ Perbaiki default path
+}
+
+function getBaseEditPrPath(role?: string) {
+    const paths: Record<string, string> = {
+        super: "/super-admin-area/logistic/pr/update/",
+        pic: "/pic-area/logistic/pr/update/",
+        admin: "/admin-area/logistic/pr/update/",
+    }
+    return paths[role ?? "admin"] || "/admin-area/logistic/pr/update/"
+}
 
 export function PurchaseRequestTable(props: PurchaseRequestTableProps) {
     const router = useRouter();
@@ -44,6 +71,7 @@ export function PurchaseRequestTable(props: PurchaseRequestTableProps) {
     const [selectedPR, setSelectedPR] = useState<PurchaseRequestWithRelations | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
+    const [isChangingPage, setIsChangingPage] = useState(false);
     const isMobile = useMediaQuery("(max-width: 768px)");
     const { user, isLoading: userLoading } = useSession();
 
@@ -55,27 +83,33 @@ export function PurchaseRequestTable(props: PurchaseRequestTableProps) {
     const urlProject = searchParams.get("projectId") || "";
     const highlightId = searchParams.get("highlightId") || "";
 
+    // Track perubahan search params untuk detect navigation
+    const [prevSearchParams, setPrevSearchParams] = useState(searchParams.toString());
 
-    // Ambil nilai langsung dari URL params
-    const query = new URLSearchParams({
-        page: String(urlPage),
-        limit: String(urlPageSize),
-        search: urlSearch,
-        filter: urlFilter,
-        status: urlStatus,
-        projectId: urlProject,
-    }).toString();
+    // Reset isChangingPage ketika data berhasil dimuat
+    useEffect(() => {
+        if (!isLoading) {
+            const currentParams = searchParams.toString();
+            if (currentParams !== prevSearchParams) {
+                setIsChangingPage(false);
+                setPrevSearchParams(currentParams);
+            }
+        }
+    }, [isLoading, searchParams, prevSearchParams]);
 
+    // Fallback: reset loading state setelah timeout
+    useEffect(() => {
+        if (isChangingPage) {
+            const timeout = setTimeout(() => {
+                setIsChangingPage(false);
+            }, 3000);
+            return () => clearTimeout(timeout);
+        }
+    }, [isChangingPage]);
 
-    // DEBUG: Log loading states
-    console.log('🔍 PurchaseRequestTable Debug:');
-    console.log('   - isLoading:', isLoading);
-    console.log('   - userLoading:', userLoading);
-    console.log('   - isError:', isError);
-    console.log('   - data length:', purchaseRequests.length);
-
-    // Fungsi untuk update URL
+    // Fungsi untuk update URL dengan loading state
     const updateURL = (updates: Record<string, string | undefined>) => {
+        setIsChangingPage(true);
         const params = new URLSearchParams(searchParams.toString());
 
         Object.entries(updates).forEach(([key, value]) => {
@@ -90,10 +124,10 @@ export function PurchaseRequestTable(props: PurchaseRequestTableProps) {
             params.set("page", "1");
         }
 
-        router.push(`?${params.toString()}`, { scroll: false });
+        router.push(`?${params.toString()}`);
     };
 
-    // Handler functions
+    // Handler functions dengan loading state
     const handleSearchChange = (search: string) => {
         updateURL({ search });
     };
@@ -118,19 +152,24 @@ export function PurchaseRequestTable(props: PurchaseRequestTableProps) {
     };
 
     const handlePageChange = (page: number) => {
+        if (isChangingPage) return;
         updateURL({ page: page.toString() });
     };
 
     const handleLimitChange = (limit: number) => {
+        if (isChangingPage) return;
         updateURL({ limit: limit.toString(), page: "1" });
     };
 
     const handleClearFilters = () => {
-        router.push("?", { scroll: false });
+        if (isChangingPage) return;
+        setIsChangingPage(true);
+        router.push("?");
         setShowFilters(false);
     };
 
     const handleClearDateFilters = () => {
+        if (isChangingPage) return;
         handleDateFilterChange(undefined, undefined);
     };
 
@@ -199,14 +238,55 @@ export function PurchaseRequestTable(props: PurchaseRequestTableProps) {
 
     const localDateFrom = currentDateFrom?.toISOString().split('T')[0] || "";
     const localDateTo = currentDateTo?.toISOString().split('T')[0] || "";
-    const isCreateButtonDisabled = isLoading || userLoading;
+    const isCreateButtonDisabled = isLoading || userLoading || isChangingPage;
 
     const getSerialNumber = (index: number) => {
         return (pagination.page - 1) * pagination.limit + index + 1;
     };
 
+    const handleCreateLpp = (id: string) => {
+        if (isChangingPage) return;
+
+        const pr = purchaseRequests?.find(pr => pr.id === id);
+
+        if (!pr) {
+            console.warn("Purchase Request tidak ditemukan");
+            return;
+        }
+
+        const allDetails = pr.uangMuka?.flatMap(um =>
+            um.pertanggungjawaban?.flatMap(pj =>
+                pj.details ?? []
+            ) ?? []
+        ) ?? [];
+
+        const hasDetails = allDetails.length;
+
+        const userRole = role;
+
+        // Ambil semua query URL saat ini
+        const query = new URLSearchParams({
+            page: String(urlPage),
+            limit: String(urlPageSize),
+            search: urlSearch,
+            filter: urlFilter,
+            status: urlStatus,
+            projectId: urlProject,
+        }).toString();
+
+        const appendQuery = query ? `?${query}` : "";
+
+        if (hasDetails === 0) {
+            const createPath = getBaseCreatePath(userRole);
+            router.push(`${createPath}${id}${appendQuery}&highlightId=${pr.id}`);
+        } else {
+            const editPath = getBaseEditPath(userRole);
+            router.push(`${editPath}${id}${appendQuery}&highlightId=${pr.id}`);
+        }
+    };
+
     // Highlight effect
-    React.useEffect(() => {
+    useEffect(() => {
         if (!highlightId) return;
 
         const highlightElement = rowRefs.current[highlightId];
@@ -225,7 +305,6 @@ export function PurchaseRequestTable(props: PurchaseRequestTableProps) {
             "duration-500"
         ];
 
-        // Delay kecil supaya DOM siap
         const scrollTimer = setTimeout(() => {
             highlightElement.scrollIntoView({
                 behavior: "smooth",
@@ -234,17 +313,12 @@ export function PurchaseRequestTable(props: PurchaseRequestTableProps) {
             });
         }, SCROLL_DELAY);
 
-        // Tambahkan highlight animasi
         highlightElement.classList.add(...ANIMATION_CLASSES);
 
-        // Hapus highlight + bersihkan URL
         const cleanupTimer = setTimeout(() => {
             highlightElement.classList.remove(...ANIMATION_CLASSES);
-
-            // Tambahkan sedikit smoothing setelah animasi
             highlightElement.classList.add("transition-colors", "duration-300");
 
-            // Hapus highlightId dari URL tanpa reload
             const params = new URLSearchParams(window.location.search);
             params.delete("highlightId");
             const newUrl = params.toString()
@@ -252,7 +326,6 @@ export function PurchaseRequestTable(props: PurchaseRequestTableProps) {
                 : window.location.pathname;
 
             window.history.replaceState({}, "", newUrl);
-
         }, HIGHLIGHT_DURATION);
 
         return () => {
@@ -261,6 +334,9 @@ export function PurchaseRequestTable(props: PurchaseRequestTableProps) {
             highlightElement.classList.remove(...ANIMATION_CLASSES);
         };
     }, [highlightId]);
+
+    // Tampilkan skeleton loading ketika data sedang loading atau ganti halaman
+    const showSkeleton = isLoading || isChangingPage;
 
     if (isError) {
         return (
@@ -305,6 +381,8 @@ export function PurchaseRequestTable(props: PurchaseRequestTableProps) {
                 description={
                     isMobile ? "View all PR records" : "Manage and monitor all purchase requests"
                 }
+                gradientFrom="from-cyan-600"
+                gradientTo="to-stone-300"
                 icon={<ShoppingBagIcon className={isMobile ? "h-5 w-5" : "h-7 w-7"} />}
                 showActionArea={!isMobile}
                 actionArea={
@@ -335,7 +413,7 @@ export function PurchaseRequestTable(props: PurchaseRequestTableProps) {
                                 onClearDateFilters={handleClearDateFilters}
                                 onClearFilters={handleClearFilters}
                                 userLoading={userLoading}
-                                isDataFetching={isLoading}
+                                isDataFetching={showSkeleton}
                             />
 
                             <CreateButtonPR
@@ -360,7 +438,7 @@ export function PurchaseRequestTable(props: PurchaseRequestTableProps) {
                 <CardContent className="p-1 sm:px-4 relative">
 
                     {/* Tampilkan Pagination di atas */}
-                    {!isLoading && purchaseRequests.length > 0 && (
+                    {!showSkeleton && purchaseRequests.length > 0 && (
                         <Pagination
                             pagination={pagination}
                             totalPages={Math.ceil(pagination.totalCount / pagination.limit)}
@@ -369,23 +447,36 @@ export function PurchaseRequestTable(props: PurchaseRequestTableProps) {
                         />
                     )}
 
-                    {/* Desktop Table */}
+                    {/* ✅ HAPUS CONDITIONAL RENDERING SKELETON - Biarkan DesktopTableView handle */}
+
+                    {/* Desktop Table - SELALU RENDER, biarkan component internal handle skeleton */}
                     <div className="hidden lg:block rounded-md border mt-4">
                         <DesktopTableView
                             purchaseRequests={purchaseRequests}
-                            isLoading={isLoading}
+                            isLoading={false}
                             expandedRows={new Set()}
                             role={role}
                             isDeleting={isDeleting}
                             onToggleRowExpansion={() => { }}
                             onViewDetail={handleViewDetail}
                             onViewPdf={handleViewPdf}
-                            onCreateLpp={(id) => router.push(`/admin-area/logistic/lpp/create/${id}`)}
-                            onEdit={(pr) =>
-                                router.push(`/admin-area/logistic/pr/update/${pr.id}?highlightId=${pr.id}&${query}`)
-                            }
+                            onCreateLpp={handleCreateLpp}
+                            onEdit={(pr) => {
+                                const query = new URLSearchParams({
+                                    page: String(urlPage),
+                                    limit: String(urlPageSize),
+                                    search: urlSearch,
+                                    filter: urlFilter,
+                                    status: urlStatus,
+                                    projectId: urlProject,
+                                }).toString();
+                                const basePath = getBaseEditPrPath(role);
+                                router.push(`${basePath}${pr.id}?highlightId=${pr.id}&${query}`);
+                            }}
                             onDelete={handleDelete}
                             getSerialNumber={getSerialNumber}
+                            showSkeleton={showSkeleton} // ✅ Biarkan DesktopTableView handle
+                            skeletonRows={pagination.limit}
                         />
                     </div>
 
@@ -393,22 +484,31 @@ export function PurchaseRequestTable(props: PurchaseRequestTableProps) {
                     <div className="lg:hidden space-y-3 mt-4">
                         <MobileCardView
                             purchaseRequests={purchaseRequests}
-                            isLoading={isLoading}
+                            isLoading={false}
                             expandedRows={new Set()}
                             role={role}
                             isDeleting={isDeleting}
                             hasActiveFilters={!!(currentSearch || currentStatus || currentProjectId || currentDateFrom)}
                             onToggleRowExpansion={() => { }}
                             onViewPdf={handleViewPdf}
-                            onEdit={(pr) =>
-                                router.push(`/admin-area/logistic/pr/update/${pr.id}?highlightId=${pr.id}&${query}`)
-                            }
+                            onEdit={(pr) => {
+                                const query = new URLSearchParams({
+                                    page: String(urlPage),
+                                    limit: String(urlPageSize),
+                                    search: urlSearch,
+                                    filter: urlFilter,
+                                    status: urlStatus,
+                                    projectId: urlProject,
+                                }).toString();
+                                const basePath = getBaseEditPrPath(role);
+                                router.push(`${basePath}${pr.id}?highlightId=${pr.id}&${query}`);
+                            }}
                             onDelete={handleDelete}
                         />
                     </div>
 
                     {/* Pagination Bawah */}
-                    {!isLoading && purchaseRequests.length > 0 && (
+                    {!showSkeleton && purchaseRequests.length > 0 && (
                         <Pagination
                             pagination={pagination}
                             totalPages={Math.ceil(pagination.totalCount / pagination.limit)}
@@ -417,21 +517,14 @@ export function PurchaseRequestTable(props: PurchaseRequestTableProps) {
                         />
                     )}
 
-                    {/* Tampilkan loading session di mobile */}
-                    {isMobile && userLoading && (
-                        <div className="text-center text-sm text-gray-500 py-2">
-                            Loading user session...
-                        </div>
-                    )}
-
                     {/* Tampilkan pesan No Records */}
-                    {!isLoading && purchaseRequests.length === 0 && (
+                    {/* {!showSkeleton && purchaseRequests.length === 0 && (
                         <div className="flex flex-col items-center justify-center p-12 text-center text-gray-500 dark:text-gray-400">
                             <ShoppingBagIcon className="h-10 w-10 mb-3 text-gray-300 dark:text-gray-600" />
                             <p className="font-semibold">No Purchase Requests Found</p>
                             <p className="text-sm">Adjust your filters or create a new request.</p>
                         </div>
-                    )}
+                    )} */}
                 </CardContent>
             </Card>
 

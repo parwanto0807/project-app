@@ -306,36 +306,37 @@ export default function UpdatePRPagePIC() {
         role: "pic",
         children: (
             <>
-                <Breadcrumb>
-                    <BreadcrumbList>
-                        <BreadcrumbItem>
-                            <BreadcrumbLink asChild>
+                <div className="h-full flex flex-col min-h-0 ml-4">
+                    <Breadcrumb>
+                        <BreadcrumbList>
+                            <BreadcrumbItem>
+                                <BreadcrumbLink asChild>
+                                    <Badge variant="outline">
+                                        <Link href="/pic-area">Dashboard</Link>
+                                    </Badge>
+                                </BreadcrumbLink>
+                            </BreadcrumbItem>
+                            <BreadcrumbSeparator />
+                            <BreadcrumbItem>
+                                <BreadcrumbLink asChild>
+                                    <Badge variant="outline">
+                                        <Link href="/pic-area/logistic/pr">Purchase Request List</Link>
+                                    </Badge>
+                                </BreadcrumbLink>
+                            </BreadcrumbItem>
+                            <BreadcrumbSeparator />
+                            <BreadcrumbItem>
                                 <Badge variant="outline">
-                                    <Link href="/pic-area">Dashboard</Link>
+                                    <BreadcrumbPage>Update PR</BreadcrumbPage>
                                 </Badge>
-                            </BreadcrumbLink>
-                        </BreadcrumbItem>
-                        <BreadcrumbSeparator />
-                        <BreadcrumbItem>
-                            <BreadcrumbLink asChild>
-                                <Badge variant="outline">
-                                    <Link href="/pic-area/logistic/pr">Purchase Request List</Link>
-                                </Badge>
-                            </BreadcrumbLink>
-                        </BreadcrumbItem>
-                        <BreadcrumbSeparator />
-                        <BreadcrumbItem>
-                            <Badge variant="outline">
-                                <BreadcrumbPage>Update PR</BreadcrumbPage>
-                            </Badge>
-                        </BreadcrumbItem>
-                    </BreadcrumbList>
-                </Breadcrumb>
+                            </BreadcrumbItem>
+                        </BreadcrumbList>
+                    </Breadcrumb>
 
-                <div className="h-full w-full">
-                    <div className="flex-1 space-y-2 p-2 pt-1 md:p-4">
-                        {/* Info PR yang sedang diupdate */}
-                        {/* <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                    <div className="h-full w-full">
+                        <div className="flex-1 space-y-2 p-2 pt-1 md:p-4">
+                            {/* Info PR yang sedang diupdate */}
+                            {/* <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <h3 className="text-lg font-semibold text-blue-800">
@@ -361,32 +362,33 @@ export default function UpdatePRPagePIC() {
                             </div>
                         </div> */}
 
-                        {/* Tampilkan submit error jika ada */}
-                        {submitError && (
-                            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
-                                <div className="text-red-800 text-sm font-medium">
-                                    Error: {submitError}
+                            {/* Tampilkan submit error jika ada */}
+                            {submitError && (
+                                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                                    <div className="text-red-800 text-sm font-medium">
+                                        Error: {submitError}
+                                    </div>
                                 </div>
-                            </div>
-                        )}
+                            )}
 
-                        {/* Form Input Master + Detail */}
-                        {purchaseRequest && (
-                            <TabelUpdatePR
-                                products={products}
-                                dataSpk={dataSpk}
-                                currentUser={currentUser}
-                                onSubmit={handleUpdatePurchaseRequest}
-                                onSuccess={() => {
-                                    toast.success("Purchase Request berhasil diupdate");
-                                    router.push("/pic-area/logistic/pr");
-                                }}
-                                submitting={submitting}
-                                // Tambahkan props untuk edit mode
-                                editMode={true}
-                                existingData={purchaseRequest}
-                            />
-                        )}
+                            {/* Form Input Master + Detail */}
+                            {purchaseRequest && (
+                                <TabelUpdatePR
+                                    products={products}
+                                    dataSpk={dataSpk}
+                                    currentUser={currentUser}
+                                    onSubmit={handleUpdatePurchaseRequest}
+                                    onSuccess={() => {
+                                        toast.success("Purchase Request berhasil diupdate");
+                                        router.push("/pic-area/logistic/pr");
+                                    }}
+                                    submitting={submitting}
+                                    // Tambahkan props untuk edit mode
+                                    editMode={true}
+                                    existingData={purchaseRequest}
+                                />
+                            )}
+                        </div>
                     </div>
                 </div>
             </>

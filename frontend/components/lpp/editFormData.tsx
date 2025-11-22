@@ -42,7 +42,8 @@ import {
     ArrowLeft,
     X,
     Edit,
-    AlertCircle
+    AlertCircle,
+    BanknoteArrowUp
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
@@ -71,6 +72,17 @@ interface FileWithPreview {
 export interface FotoBuktiMap {
     [key: string]: FileWithPreview[];
     [key: number]: FileWithPreview[];
+}
+
+// Types untuk error response
+interface ValidationError {
+    path: string[];
+    message: string;
+}
+
+interface ErrorResponse {
+    errors?: ValidationError[];
+    message?: string;
 }
 
 // Mapping function untuk konversi data form ke UpdateLppForm (TANPA upload foto)
@@ -121,6 +133,7 @@ interface EditLppFormProps {
     isLoading: boolean;
     onBack?: () => void;
     initialData?: ExistingPertanggungjawaban; // Data LPP yang sudah ada untuk edit
+    serverErrors?: ErrorResponse; // Tambahkan prop untuk error dari server
 }
 
 const EditLppForm: React.FC<EditLppFormProps> = ({
@@ -128,9 +141,11 @@ const EditLppForm: React.FC<EditLppFormProps> = ({
     onSubmit,
     isLoading,
     onBack,
-    initialData
+    initialData,
+    serverErrors // Terima server errors sebagai prop
 }) => {
     const [fotoBuktiMap, setFotoBuktiMap] = useState<FotoBuktiMap>({});
+    const [formErrors, setFormErrors] = useState<ValidationError[]>([]);
     const router = useRouter();
     const PAYMENT_METHODS = ["CASH", "TRANSFER", "DEBIT", "CREDIT_CARD", "QRIS"] as const;
 
@@ -191,6 +206,24 @@ const EditLppForm: React.FC<EditLppFormProps> = ({
         defaultValues: getInitialValues()
     });
 
+    // Effect untuk menangani server errors
+    React.useEffect(() => {
+        if (serverErrors?.errors) {
+            setFormErrors(serverErrors.errors);
+
+            // Set error untuk setiap field yang memiliki error
+            serverErrors.errors.forEach((error) => {
+                const fieldName = error.path.join('.');
+                form.setError(fieldName as never, {
+                    type: 'server',
+                    message: error.message
+                });
+            });
+        } else {
+            setFormErrors([]);
+        }
+    }, [serverErrors, form]);
+
     // console.log("📋 [EDIT FORM] Data Received:", purchaseRequest);
     // console.log("📋 [EDIT FORM] Initial Data:", initialData);
 
@@ -218,6 +251,14 @@ const EditLppForm: React.FC<EditLppFormProps> = ({
         (sum, detail) => sum + Number(detail.estimasiTotalHarga || 0),
         0
     );
+
+    // Function untuk mendapatkan error message berdasarkan field path
+    const getFieldError = (path: string[]): string | undefined => {
+        const error = formErrors.find(err =>
+            err.path.join('.') === path.join('.')
+        );
+        return error?.message;
+    };
 
     // Load existing foto bukti jika ada
     useEffect(() => {
@@ -257,6 +298,12 @@ const EditLppForm: React.FC<EditLppFormProps> = ({
             const newFotoMap = { ...fotoBuktiMap };
             delete newFotoMap[index];
             setFotoBuktiMap(newFotoMap);
+
+            // Clear errors untuk field yang dihapus
+            setFormErrors(prev => prev.filter(error =>
+                !error.path.includes('details') ||
+                !error.path.includes(index.toString())
+            ));
         }
     };
 
@@ -311,7 +358,7 @@ const EditLppForm: React.FC<EditLppFormProps> = ({
     const getAvailableProducts = () => {
         return purchaseRequest.details.map(detail => ({
             id: detail.productId || detail.productId,
-            name: detail.catatanItem || detail.catatanItem || 'Product tidak ditemukan',
+            name: detail.product?.name || detail.catatanItem || 'Product tidak ditemukan',
             prDetailId: detail.id
         }));
     };
@@ -332,6 +379,9 @@ const EditLppForm: React.FC<EditLppFormProps> = ({
         }
 
         try {
+            // Clear previous errors
+            setFormErrors([]);
+
             // Map data tanpa foto
             const lppData = mapFormToCreateLpp(
                 data,
@@ -346,7 +396,7 @@ const EditLppForm: React.FC<EditLppFormProps> = ({
             await onSubmit(lppData, fotoBuktiMap);
         } catch (error) {
             console.error("❌ [EDIT FORM] Error in form submission:", error);
-            alert("Terjadi kesalahan saat menyimpan data. Silakan coba lagi.");
+            // Error handling akan dilakukan oleh parent component melalui serverErrors prop
         }
     };
 
@@ -392,6 +442,16 @@ const EditLppForm: React.FC<EditLppFormProps> = ({
                         </div>
                     </div>
 
+                    {/* Global Error Message */}
+                    {serverErrors?.message && (
+                        <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                            <div className="flex items-center gap-2 text-red-800 dark:text-red-300">
+                                <AlertCircle className="h-5 w-5" />
+                                <span className="font-medium">{serverErrors.message}</span>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Alert untuk Edit Mode */}
                     <Alert className="bg-blue-50 border-blue-200 mb-6">
                         <AlertCircle className="h-4 w-4 text-blue-600" />
@@ -404,55 +464,125 @@ const EditLppForm: React.FC<EditLppFormProps> = ({
                     {/* PR Info Card */}
                     <Card className="max-w-7xl mx-auto shadow-lg border-0 bg-gradient-to-r from-primary/5 to-blue-100 dark:from-slate-800 dark:to-slate-900 backdrop-blur-sm">
                         <CardContent className="px-6">
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                <div className="text-center md:text-left">
-                                    <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
-                                        <FileText className="h-5 w-5 text-blue-600" />
-                                        <span className="font-semibold text-slate-700 dark:text-slate-300">
-                                            Nomor PR
-                                        </span>
-                                    </div>
-                                    <p className="text-lg font-bold text-slate-900 dark:text-white">
-                                        {purchaseRequest.nomorPr}
-                                    </p>
-                                </div>
+                            <Card className="max-w-7xl mx-auto shadow-lg border-0 bg-gradient-to-r from-primary/5 to-blue-50 dark:from-slate-800 dark:to-slate-900 backdrop-blur-sm">
+                                <CardContent className="p-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                        {/* Nomor PR */}
+                                        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                                                    <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                                </div>
+                                                <span className="font-semibold text-slate-700 dark:text-slate-300 text-sm">
+                                                    Nomor PR
+                                                </span>
+                                            </div>
+                                            <p className="text-lg font-bold text-slate-900 dark:text-white truncate">
+                                                {purchaseRequest.nomorPr}
+                                            </p>
+                                        </div>
 
-                                <div className="text-center">
-                                    <div className="flex items-center justify-center gap-2 mb-2">
-                                        <DollarSign className="h-5 w-5 text-green-600" />
-                                        <span className="font-semibold text-slate-700 dark:text-slate-300">
-                                            Total Budget
-                                        </span>
-                                    </div>
-                                    <p className="text-lg font-bold text-slate-900 dark:text-white">
-                                        Rp {Number(totalBudget).toLocaleString("id-ID")}
-                                    </p>
-                                </div>
+                                        {/* Total Purchase Request */}
+                                        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                                                    <BanknoteArrowUp className="h-4 w-4 text-green-600 dark:text-green-400" />
+                                                </div>
+                                                <span className="font-semibold text-slate-700 dark:text-slate-300 text-sm">
+                                                    Total Purchase Request
+                                                </span>
+                                            </div>
+                                            <p className="text-lg font-bold text-slate-900 dark:text-white">
+                                                Rp {Number(totalBudget).toLocaleString("id-ID")}
+                                            </p>
+                                        </div>
 
-                                <div className="text-center">
-                                    <div className="flex items-center justify-center gap-2 mb-2">
-                                        <DollarSign className="h-5 w-5 text-green-600" />
-                                        <span className="font-semibold text-slate-700 dark:text-slate-300">
-                                            Sisa Budget
-                                        </span>
-                                    </div>
-                                    <p className="text-lg font-bold text-green-700 dark:text-green-500">
-                                        Rp {Number(purchaseRequest?.uangMuka?.[0]?.pertanggungjawaban?.[0].sisaUangDikembalikan).toLocaleString("id-ID")}
-                                    </p>
-                                </div>
+                                        {/* Sisa Uang Dikembalikan */}
+                                        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <div className={cn(
+                                                    "p-2 rounded-lg",
+                                                    sisaUangDikembalikan >= 0
+                                                        ? "bg-emerald-100 dark:bg-emerald-900/30"
+                                                        : "bg-red-100 dark:bg-red-900/30"
+                                                )}>
+                                                    <BanknoteArrowUp className={cn(
+                                                        "h-4 w-4",
+                                                        sisaUangDikembalikan >= 0
+                                                            ? "text-emerald-600 dark:text-emerald-400"
+                                                            : "text-red-600 dark:text-red-400"
+                                                    )} />
+                                                </div>
+                                                <span className="font-semibold text-slate-700 dark:text-slate-300 text-sm">
+                                                    Available Budget
+                                                </span>
+                                            </div>
+                                            <p className={cn(
+                                                "text-lg font-bold",
+                                                sisaUangDikembalikan >= 0
+                                                    ? "text-emerald-600 dark:text-emerald-400"
+                                                    : "text-red-600 dark:text-red-400"
+                                            )}>
+                                                Rp {Number(sisaUangDikembalikan).toLocaleString("id-ID")}
+                                            </p>
+                                            <Badge
+                                                variant="outline"
+                                                className={cn(
+                                                    "mt-2 text-xs",
+                                                    sisaUangDikembalikan >= 0
+                                                        ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300"
+                                                        : "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/20 dark:text-red-300"
+                                                )}
+                                            >
+                                                {sisaUangDikembalikan >= 0 ? "Dikembalikan" : "Kekurangan"}
+                                            </Badge>
+                                        </div>
 
-                                <div className="text-center md:text-right">
-                                    <div className="flex items-center justify-center md:justify-end gap-2 mb-2">
-                                        <Building className="h-5 w-5 text-purple-600" />
-                                        <span className="font-semibold text-slate-700 dark:text-slate-300">
-                                            Project
-                                        </span>
+                                        {/* Project */}
+                                        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-700">
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                                                    <Building className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                                                </div>
+                                                <span className="font-semibold text-slate-700 dark:text-slate-300 text-sm">
+                                                    Project
+                                                </span>
+                                            </div>
+                                            <p className="text-lg font-bold text-slate-900 dark:text-white text-wrap">
+                                                {purchaseRequest.project?.name || 'Tidak ada project'}
+                                            </p>
+                                            <Badge
+                                                variant="secondary"
+                                                className="mt-2 bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-300 text-xs"
+                                            >
+                                                {purchaseRequest.project ? "Active" : "No Project"}
+                                            </Badge>
+                                        </div>
                                     </div>
-                                    <p className="text-lg font-bold text-slate-900 dark:text-white">
-                                        {purchaseRequest.project?.name || 'Tidak ada project'}
-                                    </p>
-                                </div>
-                            </div>
+
+                                    {/* Additional Info Bar */}
+                                    <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+                                        <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600 dark:text-slate-400">
+                                            <div className="flex items-center gap-4">
+                                                <span>Status PR:
+                                                    <Badge variant="outline" className="ml-2 bg-blue-50 text-blue-700 border-blue-200">
+                                                        {purchaseRequest.status || 'DRAFT'}
+                                                    </Badge>
+                                                </span>
+                                                <span>Tanggal:
+                                                    <span className="ml-2 font-medium text-slate-700 dark:text-slate-300">
+                                                        {purchaseRequest.createdAt ? format(new Date(purchaseRequest.createdAt), "dd MMM yyyy") : '-'}
+                                                    </span>
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                                                <span>Ready for LPP Creation</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
                         </CardContent>
                     </Card>
                 </div>
@@ -525,7 +655,12 @@ const EditLppForm: React.FC<EditLppFormProps> = ({
                                                                             <FormControl>
                                                                                 <Button
                                                                                     variant={"outline"}
-                                                                                    className={cn("w-full pl-3 text-left font-normal border-slate-200 dark:border-slate-600", !field.value && "text-muted-foreground")}
+                                                                                    className={cn(
+                                                                                        "w-full pl-3 text-left font-normal border-slate-200 dark:border-slate-600",
+                                                                                        !field.value && "text-muted-foreground",
+                                                                                        getFieldError(['details', index.toString(), 'tanggalTransaksi']) &&
+                                                                                        "border-red-500 dark:border-red-500"
+                                                                                    )}
                                                                                 >
                                                                                     {field.value ? format(field.value, "dd MMMM yyyy") : <span>Pilih tanggal</span>}
                                                                                     <Calendar className="ml-auto h-4 w-4 opacity-50" />
@@ -542,6 +677,12 @@ const EditLppForm: React.FC<EditLppFormProps> = ({
                                                                             />
                                                                         </PopoverContent>
                                                                     </Popover>
+                                                                    {/* Tampilkan error message dari server */}
+                                                                    {getFieldError(['details', index.toString(), 'tanggalTransaksi']) && (
+                                                                        <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+                                                                            {getFieldError(['details', index.toString(), 'tanggalTransaksi'])}
+                                                                        </p>
+                                                                    )}
                                                                     <FormMessage />
                                                                 </FormItem>
                                                             )}
@@ -568,7 +709,11 @@ const EditLppForm: React.FC<EditLppFormProps> = ({
                                                                         defaultValue={field.value}
                                                                     >
                                                                         <FormControl>
-                                                                            <SelectTrigger className="border-slate-200 dark:border-slate-600">
+                                                                            <SelectTrigger className={cn(
+                                                                                "border-slate-200 dark:border-slate-600",
+                                                                                getFieldError(['details', index.toString(), 'productId']) &&
+                                                                                "border-red-500 dark:border-red-500"
+                                                                            )}>
                                                                                 <SelectValue placeholder="Pilih Produk" />
                                                                             </SelectTrigger>
                                                                         </FormControl>
@@ -580,6 +725,12 @@ const EditLppForm: React.FC<EditLppFormProps> = ({
                                                                             ))}
                                                                         </SelectContent>
                                                                     </Select>
+                                                                    {/* Tampilkan error message dari server */}
+                                                                    {getFieldError(['details', index.toString(), 'productId']) && (
+                                                                        <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+                                                                            {getFieldError(['details', index.toString(), 'productId'])}
+                                                                        </p>
+                                                                    )}
                                                                     <FormMessage />
                                                                 </FormItem>
                                                             )}
@@ -597,7 +748,11 @@ const EditLppForm: React.FC<EditLppFormProps> = ({
                                                                     </FormLabel>
                                                                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                                                                         <FormControl>
-                                                                            <SelectTrigger className="border-slate-200 dark:border-slate-600">
+                                                                            <SelectTrigger className={cn(
+                                                                                "border-slate-200 dark:border-slate-600",
+                                                                                getFieldError(['details', index.toString(), 'jenisPembayaran']) &&
+                                                                                "border-red-500 dark:border-red-500"
+                                                                            )}>
                                                                                 <SelectValue placeholder="Pilih jenis pembayaran" />
                                                                             </SelectTrigger>
                                                                         </FormControl>
@@ -612,6 +767,12 @@ const EditLppForm: React.FC<EditLppFormProps> = ({
                                                                             ))}
                                                                         </SelectContent>
                                                                     </Select>
+                                                                    {/* Tampilkan error message dari server */}
+                                                                    {getFieldError(['details', index.toString(), 'jenisPembayaran']) && (
+                                                                        <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+                                                                            {getFieldError(['details', index.toString(), 'jenisPembayaran'])}
+                                                                        </p>
+                                                                    )}
                                                                     <FormMessage />
                                                                 </FormItem>
                                                             )}
@@ -630,11 +791,21 @@ const EditLppForm: React.FC<EditLppFormProps> = ({
                                                                     <FormControl>
                                                                         <Input
                                                                             placeholder="Masukkan nomor nota/kuitansi..."
-                                                                            className="border-slate-200 dark:border-slate-600"
+                                                                            className={cn(
+                                                                                "border-slate-200 dark:border-slate-600",
+                                                                                getFieldError(['details', index.toString(), 'nomorBukti']) &&
+                                                                                "border-red-500 dark:border-red-500"
+                                                                            )}
                                                                             {...field}
                                                                             value={field.value ?? ""}
                                                                         />
                                                                     </FormControl>
+                                                                    {/* Tampilkan error message dari server */}
+                                                                    {getFieldError(['details', index.toString(), 'nomorBukti']) && (
+                                                                        <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+                                                                            {getFieldError(['details', index.toString(), 'nomorBukti'])}
+                                                                        </p>
+                                                                    )}
                                                                     <FormMessage />
                                                                 </FormItem>
                                                             )}
@@ -656,7 +827,11 @@ const EditLppForm: React.FC<EditLppFormProps> = ({
                                                                             <Input
                                                                                 type="number"
                                                                                 placeholder="0"
-                                                                                className="pl-10 border-slate-200 dark:border-slate-600"
+                                                                                className={cn(
+                                                                                    "pl-10 border-slate-200 dark:border-slate-600",
+                                                                                    getFieldError(['details', index.toString(), 'jumlah']) &&
+                                                                                    "border-red-500 dark:border-red-500"
+                                                                                )}
                                                                                 {...field}
                                                                                 // pastikan yang dikirim ke form selalu number
                                                                                 onChange={(e) => {
@@ -665,9 +840,14 @@ const EditLppForm: React.FC<EditLppFormProps> = ({
                                                                                 }}
                                                                                 value={field.value ?? ""} // jangan gabung "Rp" di valuedi value
                                                                             />
-
                                                                         </div>
                                                                     </FormControl>
+                                                                    {/* Tampilkan error message dari server */}
+                                                                    {getFieldError(['details', index.toString(), 'jumlah']) && (
+                                                                        <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+                                                                            {getFieldError(['details', index.toString(), 'jumlah'])}
+                                                                        </p>
+                                                                    )}
                                                                     <FormMessage />
                                                                 </FormItem>
                                                             )}
@@ -683,11 +863,21 @@ const EditLppForm: React.FC<EditLppFormProps> = ({
                                                                     <FormControl>
                                                                         <Textarea
                                                                             placeholder="Cth: Pembelian ATK untuk kebutuhan kantor..."
-                                                                            className="min-h-[120px] resize-none border-slate-200 dark:border-slate-600"
+                                                                            className={cn(
+                                                                                "min-h-[120px] resize-none border-slate-200 dark:border-slate-600",
+                                                                                getFieldError(['details', index.toString(), 'keterangan']) &&
+                                                                                "border-red-500 dark:border-red-500"
+                                                                            )}
                                                                             {...field}
                                                                             value={field.value ?? ""}
                                                                         />
                                                                     </FormControl>
+                                                                    {/* Tampilkan error message dari server */}
+                                                                    {getFieldError(['details', index.toString(), 'keterangan']) && (
+                                                                        <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+                                                                            {getFieldError(['details', index.toString(), 'keterangan'])}
+                                                                        </p>
+                                                                    )}
                                                                     <FormMessage />
                                                                 </FormItem>
                                                             )}
@@ -816,10 +1006,20 @@ const EditLppForm: React.FC<EditLppFormProps> = ({
                                                     <FormControl>
                                                         <Textarea
                                                             placeholder="Masukkan keterangan umum pertanggungjawaban..."
-                                                            className="min-h-[100px] resize-none border-slate-200 dark:border-slate-600 focus:border-blue-500"
+                                                            className={cn(
+                                                                "min-h-[100px] resize-none border-slate-200 dark:border-slate-600 focus:border-blue-500",
+                                                                getFieldError(['keterangan']) &&
+                                                                "border-red-500 dark:border-red-500"
+                                                            )}
                                                             {...field}
                                                         />
                                                     </FormControl>
+                                                    {/* Tampilkan error message dari server */}
+                                                    {getFieldError(['keterangan']) && (
+                                                        <p className="text-sm text-red-600 dark:text-red-400 mt-1">
+                                                            {getFieldError(['keterangan'])}
+                                                        </p>
+                                                    )}
                                                     <FormMessage />
                                                 </FormItem>
                                             )}
@@ -891,7 +1091,7 @@ const EditLppForm: React.FC<EditLppFormProps> = ({
 
                                         <Button
                                             type="submit"
-                                            disabled={isLoading || totalBiaya === 0 || sisaUangDikembalikan < 0}
+                                            disabled={isLoading || totalBiaya === 0}
                                             className="min-w-[200px] bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-600/25 disabled:opacity-50 disabled:cursor-not-allowed py-3 text-base font-semibold cursor-pointer"
                                         >
                                             {isLoading ? (

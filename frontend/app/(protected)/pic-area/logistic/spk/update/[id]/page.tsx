@@ -118,37 +118,39 @@ export default function UpdateSpkPagePic() {
   }
 
   return (
-    <PicLayout title={`Edit SPK: ${spk.spkNumber}`} role="pic">
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link href="/pic-area">Dashboard</Link>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link href="/pic-area/logistic/spk">SPK List</Link>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>Edit</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
+    <div className="h-full flex flex-col min-h-0 ml-4">
+      <PicLayout title={`Edit SPK: ${spk.spkNumber}`} role="pic">
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link href="/pic-area">Dashboard</Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link href="/pic-area/logistic/spk">SPK List</Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>Edit</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
 
-      <div className="mt-6">
-        <FormUpdateSpk
-          user={karyawans}
-          spk={spk}
-          salesOrders={salesOrders}
-          teams={teams}
-          isLoading={isLoading}
-          role={user.role}
-        />
-      </div>
-    </PicLayout>
+        <div className="mt-6">
+          <FormUpdateSpk
+            user={karyawans}
+            spk={spk}
+            salesOrders={salesOrders}
+            teams={teams}
+            isLoading={isLoading}
+            role={user.role}
+          />
+        </div>
+      </PicLayout>
+    </div>
   );
 }

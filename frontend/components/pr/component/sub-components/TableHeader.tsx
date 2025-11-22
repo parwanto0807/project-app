@@ -63,15 +63,15 @@ export function TableHeader({
   // Combined loading state
   const isLoading = userLoading || isDataFetching;
 
-  console.log('🔍 TableHeader Debug:');
-  console.log('   - isLoading:', isLoading);
-  console.log('   - userLoading:', userLoading);
-  console.log('   - isDataFetching:', isDataFetching);
+  // console.log('🔍 TableHeader Debug:');
+  // console.log('   - isLoading:', isLoading);
+  // console.log('   - userLoading:', userLoading);
+  // console.log('   - isDataFetching:', isDataFetching);
 
   return (
     <div className="w-full">
       {/* Loading Overlay */}
-      {isLoading && (
+      {/* {isLoading && (
         <div className="absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center z-10 rounded-lg">
           <div className="flex items-center gap-2 bg-white p-3 rounded-lg shadow-lg border">
             <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
@@ -80,7 +80,7 @@ export function TableHeader({
             </span>
           </div>
         </div>
-      )}
+      )} */}
 
       {/* Search and Filters Section */}
       <div className="flex flex-col sm:flex-row gap-3 w-full items-start sm:items-center relative">

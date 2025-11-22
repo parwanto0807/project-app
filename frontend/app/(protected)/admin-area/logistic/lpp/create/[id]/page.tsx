@@ -1,7 +1,7 @@
 // app/(protected)/admin-area/logistic/lpp/create/[id]/page.tsx
 "use client"
 
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { useEffect, useState, useCallback } from "react"
 import { AdminLayout } from "@/components/admin-panel/admin-layout"
 import { AdminLoading } from "@/components/admin-loading"
@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle, ArrowLeft, RefreshCw } from "lucide-react"
 import { toast } from 'sonner';
+import { useMutation } from "@tanstack/react-query"
 
 export default function CreateLppFromSpkPage() {
     const params = useParams()
@@ -32,6 +33,35 @@ export default function CreateLppFromSpkPage() {
     const [isFetching, setIsFetching] = useState(false)
     const [fetchError, setFetchError] = useState<string | null>(null)
     const [isSubmitting, setIsSubmitting] = useState(false) // State untuk submit
+
+    const searchParams = useSearchParams();
+
+    const urlPage = Number(searchParams.get("page")) || 1;
+    const urlPageSize = Number(searchParams.get("limit")) || 10;
+    const urlSearch = searchParams.get("search") || "";
+    const urlFilter = searchParams.get("filter") || "on-progress";
+    const urlStatus = searchParams.get("status") || "";
+    const urlProject = searchParams.get("projectId") || "";
+    const highlightId = searchParams.get("highlightId") || "";
+
+    // Ambil nilai langsung dari URL params
+    const query = new URLSearchParams({
+        page: String(urlPage),
+        limit: String(urlPageSize),
+        search: urlSearch,
+        filter: urlFilter,
+        status: urlStatus,
+        projectId: urlProject,
+        highLightId: highlightId,
+    }).toString();
+
+    // Mutation hanya untuk redirect
+    const redirectMutation = useMutation({
+        mutationFn: async () => true, // tidak update apapun
+        onSuccess: () => {
+            router.push(`/admin-area/logistic/pr?${query}`);
+        },
+    });
 
     const handleFetchPurchaseRequest = useCallback(async () => {
         if (!id) {
@@ -112,8 +142,8 @@ export default function CreateLppFromSpkPage() {
                 toast.success("✅ LPP berhasil dibuat (tanpa foto)");
             }
 
-            router.push("/admin-area/logistic/pr");
-            router.refresh();
+            // PERBAIKAN: Gunakan mutation untuk redirect
+            redirectMutation.mutate();
 
         } catch (err) {
             console.error("❌ Gagal membuat LPP:", err);
@@ -123,19 +153,20 @@ export default function CreateLppFromSpkPage() {
         }
     };
 
+    // PERBAIKAN: Handle back juga menggunakan query yang sama
+    const handleBack = () => {
+        const redirectUrl = query
+            ? `/admin-area/logistic/pr?${query}`
+            : `/admin-area/logistic/pr`;
+        router.push(redirectUrl);
+    };
+
     const handleRetry = () => {
         handleFetchPurchaseRequest()
     }
 
-    const handleBack = () => {
-        router.push('/admin-area/logistic/pr')
-    }
-
     // Loading state
     const isLoading = isFetching
-
-    // // Debug sebelum render
-    // console.log("🎯 [PAGE] Before render - isLoading:", isLoading, "error:", fetchError, "data:", !!selectedPurchaseRequest)
 
     if (isLoading) {
         return (
@@ -167,7 +198,6 @@ export default function CreateLppFromSpkPage() {
     }
 
     if (fetchError) {
-        // console.log("❌ [PAGE] Rendering error state:", fetchError)
         return (
             <AdminLayout title="Buat LPP dari SPK" role="admin">
                 <div className="space-y-4">
@@ -222,7 +252,6 @@ export default function CreateLppFromSpkPage() {
     }
 
     if (!selectedPurchaseRequest) {
-        // console.log("❌ [PAGE] Rendering no data state - selectedPurchaseRequest is null")
         return (
             <AdminLayout title="Buat LPP dari SPK" role="admin">
                 <div className="space-y-4">
@@ -273,7 +302,6 @@ export default function CreateLppFromSpkPage() {
         )
     }
 
-    // console.log("✅ [PAGE] Rendering form dengan data:", selectedPurchaseRequest)
     return (
         <AdminLayout title="Buat Laporan Pertanggungjawaban (LPP) dari SPK" role="admin">
             <div className="space-y-4">
