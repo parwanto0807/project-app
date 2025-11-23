@@ -29,7 +29,7 @@ import Pagination from "@/components/ui/paginationNew";
 import SpkFilter from "@/components/spk/spkDropDownFilter";
 import CreateButtonSPK from "@/components/spk/createSpkButton";
 
-interface SPK {
+type SPK = {
   id: string;
   spkNumber: string;
   spkDate: Date;
@@ -106,11 +106,20 @@ interface SPK {
       uom?: string | null;
     };
     lokasiUnit?: string | null;
-  }[];
-
+  }[] | null;
+  spkFieldReport?: SPKFieldReport[] | null; // Ini harus array
   notes?: string | null;
   createdAt: Date;
   updatedAt: Date;
+};
+
+interface SPKFieldReport {
+  id: string;
+  soDetailId?: string;
+  progress?: number;
+  status?: string;
+  reportedAt?: Date;
+  createdAt: Date;
 }
 
 interface PaginationMeta {

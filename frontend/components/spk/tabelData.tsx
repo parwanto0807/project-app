@@ -34,6 +34,7 @@ import {
     ChevronsDown,
     ChevronsUp,
     BookCheckIcon,
+    Layers,
 } from "lucide-react";
 import React, { useState, Fragment } from "react";
 import Link from "next/link";
@@ -125,12 +126,21 @@ type SPK = {
             uom?: string | null;
         };
         lokasiUnit?: string | null;
-    }[];
-
+    }[] | null;
+    spkFieldReport?: SPKFieldReport[] | null; // Ini harus array
     notes?: string | null;
     createdAt: Date;
     updatedAt: Date;
 };
+
+interface SPKFieldReport {
+    id: string;
+    soDetailId?: string;
+    progress?: number;
+    status?: string;
+    reportedAt?: Date;
+    createdAt: Date;
+}
 
 type TabelDataSpkProps = {
     dataSpk?: SPK[];
@@ -523,20 +533,27 @@ export default function TabelDataSpk({
                         <CardContent className="px-2">
                             {/* Header Ringkas */}
                             <div className="flex justify-between items-start mb-0">
-                                <div className="flex flex-row gap-2">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <Badge variant="secondary" className="font-medium bg-primary/10 text-primary text-xs">
-                                            #{idx + 1}
-                                        </Badge>
-                                        <h3 className="font-bold text-xs text-gray-900 dark:text-white">{spk.spkNumber}</h3>
+                                <div className="flex flex-col gap-2">
+                                    {/* Bagian Atas */}
+                                    <div className="flex flex-row gap-2 justify-between items-center">
+                                        <div className="flex items-center gap-2">
+                                            <Badge variant="secondary" className="font-medium bg-primary/10 text-primary text-xs">
+                                                #{idx + 1}
+                                            </Badge>
+
+                                            {/* Bagian Bawah */}
+                                            <div className="mt-2 text-xs font-semibold uppercase">
+                                                <h3 className="font-bold text-xs text-gray-900 dark:text-white">{spk.spkNumber}</h3>
+                                                {new Date(spk.spkDate).toLocaleDateString("id-ID", {
+                                                    day: "2-digit",
+                                                    month: "short",
+                                                    year: "numeric",
+                                                })}
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="text-xs font-bold mt-1 uppercase">
-                                        {new Date(spk.spkDate).toLocaleDateString("id-ID", {
-                                            day: "2-digit",
-                                            month: "short",
-                                            year: "numeric",
-                                        })}
-                                    </div>
+
+
                                 </div>
 
                                 {/* Toggle Button Sederhana */}
@@ -555,7 +572,7 @@ export default function TabelDataSpk({
                             </div>
 
                             {/* Informasi Utama Ringkas */}
-                            <div className="space-y-0">
+                            <div className="space-y-0 mt-2">
                                 {/* Project */}
                                 <div className="flex items-center text-xs">
                                     <FileText className="h-3 w-3 mr-1 text-blue-600 flex-shrink-0" />
@@ -589,29 +606,103 @@ export default function TabelDataSpk({
                                 <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                                     <div className="space-y-4">
                                         {/* Informasi Detail */}
-                                        <div className="grid grid-cols-1 gap-3">
-                                            <DetailCard icon={User} title="Dibuat Oleh">
-                                                <div>
-                                                    <p className="font-semibold text-sm">{spk.createdBy?.namaLengkap || "-"}</p>
-                                                    {spk.createdBy?.jabatan && (
-                                                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                                                            {spk.createdBy.jabatan}
-                                                            {spk.createdBy?.departemen && ` • ${spk.createdBy.departemen}`}
-                                                        </p>
+                                        <div className="text-xs grid grid-cols-1 gap-3">
+                                            <DetailCard
+                                                className="text-xs border-l-3 border-l-blue-500 bg-blue-50/50 dark:bg-blue-950/20"
+                                                icon={User}
+                                                title="Dibuat Oleh"
+                                            >
+                                                <div className="space-y-1">
+                                                    <p className="font-bold text-xs text-gray-900 dark:text-white">
+                                                        {spk.createdBy?.namaLengkap || "-"}
+                                                    </p>
+                                                    {(spk.createdBy?.jabatan || spk.createdBy?.departemen) && (
+                                                        <div className="flex flex-wrap items-center gap-1 text-gray-600 dark:text-gray-400">
+                                                            {spk.createdBy?.jabatan && (
+                                                                <span className="inline-flex items-center">
+                                                                    {spk.createdBy.jabatan}
+                                                                </span>
+                                                            )}
+                                                            {spk.createdBy?.jabatan && spk.createdBy?.departemen && (
+                                                                <span className="text-gray-400">•</span>
+                                                            )}
+                                                            {spk.createdBy?.departemen && (
+                                                                <span className="inline-flex items-center">
+                                                                    {spk.createdBy.departemen}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     )}
                                                 </div>
                                             </DetailCard>
 
-                                            {spk.salesOrder?.customer && (
-                                                <DetailCard icon={Building} title="Customer">
-                                                    <div>
-                                                        <p className="font-semibold text-sm">{spk.salesOrder.customer.name}</p>
-                                                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                                                            {spk.salesOrder.customer.branch}
-                                                        </p>
-                                                    </div>
-                                                </DetailCard>
-                                            )}
+                                            <div className="space-y-2">
+                                                {spk.salesOrder?.items?.length > 0 ? (
+                                                    spk.salesOrder.items.map((item, index) => {
+                                                        const allFieldReports = spk.spkFieldReport || [];
+
+                                                        const itemFieldReports = Array.isArray(allFieldReports)
+                                                            ? allFieldReports.filter(report => report?.soDetailId === item.id)
+                                                            : [];
+
+
+                                                        // Urutkan dari yang terbaru
+                                                        const sortedReports = itemFieldReports.sort((a, b) => {
+                                                            const dateA = new Date(a.reportedAt || a.createdAt || 0);
+                                                            const dateB = new Date(b.reportedAt || b.createdAt || 0);
+                                                            return dateB.getTime() - dateA.getTime();
+                                                        });
+
+                                                        const latestReport = sortedReports[0];
+                                                        const itemProgress = latestReport?.progress ?? spk.progress ?? 0;
+
+                                                        return (
+                                                            <div key={index} className="flex flex-row justify-between items-center gap-2 py-1 border-b border-gray-200 dark:border-gray-700 last:border-0">
+                                                                <p className="font-bold text-xs text-gray-900 dark:text-white text-wrap flex-1">
+                                                                    {item.name || "-"}
+                                                                </p>
+                                                                <div className="flex items-center gap-3">
+                                                                    {/* Quantity */}
+                                                                    {item.qty && (
+                                                                        <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                                                                            <Layers className="w-3 h-3" />
+                                                                            <span>{item.qty}</span>
+                                                                            {item.uom && <span>{item.uom}</span>}
+                                                                        </div>
+                                                                    )}
+
+                                                                    {/* Progress */}
+                                                                    <div className="flex items-center gap-1 whitespace-nowrap">
+                                                                        <div className="w-8 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                                                                            <div
+                                                                                className={`h-1.5 rounded-full transition-all duration-300 ${itemProgress >= 100 ? 'bg-green-500' :
+                                                                                        itemProgress >= 70 ? 'bg-blue-500' :
+                                                                                            itemProgress >= 30 ? 'bg-yellow-500' :
+                                                                                                itemProgress > 0 ? 'bg-orange-500' : 'bg-gray-400'
+                                                                                    }`}
+                                                                                style={{ width: `${itemProgress}%` }}
+                                                                            ></div>
+                                                                        </div>
+                                                                        <span className={`text-xs font-medium min-w-[30px] ${itemProgress > 0
+                                                                                ? 'text-gray-700 dark:text-gray-300'
+                                                                                : 'text-gray-500 dark:text-gray-400'
+                                                                            }`}>
+                                                                            {itemProgress}%
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Tampilkan jumlah laporan untuk item ini */}
+                                                                <div className="text-xs text-gray-400">
+                                                                    ({itemFieldReports.length})
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })
+                                                ) : (
+                                                    <p className="text-gray-500">No products</p>
+                                                )}
+                                            </div>
                                         </div>
 
                                         {/* Detail Karyawan/Tim */}

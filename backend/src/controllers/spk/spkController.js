@@ -148,7 +148,7 @@ export const getAllSPKAdmin = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const pageSize = parseInt(req.query.pageSize) || 50;
-    
+
     // PERBAIKAN: Decode URL parameters
     let search = req.query.search?.trim() || "";
     if (search) {
@@ -158,7 +158,7 @@ export const getAllSPKAdmin = async (req, res) => {
         console.warn("URL decode failed for search, using original:", search);
       }
     }
-    
+
     const filterBy = req.query.filterBy?.trim() || "";
 
     const skip = (page - 1) * pageSize;
@@ -234,7 +234,7 @@ export const getAllSPKAdmin = async (req, res) => {
     // PERBAIKAN: Multi-keyword search dengan AND condition
     if (search) {
       const words = search.split(" ").filter(Boolean);
-      
+
       if (words.length === 1) {
         // Single word search
         whereClause.AND = [
@@ -252,7 +252,9 @@ export const getAllSPKAdmin = async (req, res) => {
                   namaLengkap: { contains: words[0], mode: "insensitive" },
                 },
               },
-              { team: { namaTeam: { contains: words[0], mode: "insensitive" } } },
+              {
+                team: { namaTeam: { contains: words[0], mode: "insensitive" } },
+              },
               {
                 salesOrder: {
                   customer: {
@@ -265,7 +267,9 @@ export const getAllSPKAdmin = async (req, res) => {
               },
               {
                 salesOrder: {
-                  project: { name: { contains: words[0], mode: "insensitive" } },
+                  project: {
+                    name: { contains: words[0], mode: "insensitive" },
+                  },
                 },
               },
             ],
@@ -273,7 +277,7 @@ export const getAllSPKAdmin = async (req, res) => {
         ];
       } else {
         // Multiple words search - cari yang mengandung semua kata
-        const searchConditions = words.map(word => ({
+        const searchConditions = words.map((word) => ({
           OR: [
             { spkNumber: { contains: word, mode: "insensitive" } },
             {
@@ -305,10 +309,7 @@ export const getAllSPKAdmin = async (req, res) => {
           ],
         }));
 
-        whereClause.AND = [
-          ...(whereClause.AND || []),
-          ...searchConditions,
-        ];
+        whereClause.AND = [...(whereClause.AND || []), ...searchConditions];
       }
     }
 
@@ -336,19 +337,19 @@ export const getAllSPKAdmin = async (req, res) => {
         },
         salesOrder: {
           include: {
-            customer: { 
-              select: { 
+            customer: {
+              select: {
                 id: true,
-                name: true, 
-                address: true, 
-                branch: true,
-              } 
-            },
-            project: { 
-              select: { 
-                id: true, 
                 name: true,
-              } 
+                address: true,
+                branch: true,
+              },
+            },
+            project: {
+              select: {
+                id: true,
+                name: true,
+              },
             },
             items: {
               include: {
@@ -398,6 +399,14 @@ export const getAllSPKAdmin = async (req, res) => {
                 },
               },
             },
+          },
+        },
+        spkFieldReport: {
+          include: {
+            soDetail: true,
+          },
+          orderBy: {
+            reportedAt: "desc", // atau createdAt: 'desc'
           },
         },
       },
@@ -451,9 +460,9 @@ export const getAllSPKAdmin = async (req, res) => {
     });
   } catch (error) {
     console.error("Error getAllSPKAdmin:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Failed to fetch SPK list",
-      details: error.message 
+      details: error.message,
     });
   }
 };
