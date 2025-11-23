@@ -427,14 +427,29 @@ export default function DashboardAwalSalesOrder() {
             fetchMonthlyInvoice(customerId);
         }
     };
-
     const calculateTrend = (): number => {
         if (!salesStats) return 0;
 
         const thisMonth = Number(salesStats.totalThisMonth ?? 0);
         const lastMonth = Number(salesStats.totalLastMonth ?? 0);
 
-        if (!isFinite(thisMonth) || !isFinite(lastMonth) || lastMonth <= 0) return 0;
+        console.log("This Month:", thisMonth, "Last Month:", lastMonth);
+
+        // Validasi input
+        if (!isFinite(thisMonth) || !isFinite(lastMonth)) return 0;
+
+        // Handle berbagai scenario
+        if (lastMonth === 0) {
+            if (thisMonth > 0) return 100;     // Dari 0 ke positif = +100%
+            if (thisMonth < 0) return -100;    // Dari 0 ke negatif = -100%
+            return 0;                          // Tetap 0 = 0%
+        }
+
+        if (thisMonth === 0) {
+            return -100; // Dari positif/negatif ke 0 = -100%
+        }
+
+        // Normal calculation
         return ((thisMonth - lastMonth) / lastMonth) * 100;
     };
 
@@ -443,7 +458,24 @@ export default function DashboardAwalSalesOrder() {
 
         const thisMonth = Number(invoiceStats.totalThisMonth ?? 0);
         const lastMonth = Number(invoiceStats.totalLastMonth ?? 0);
-        if (!isFinite(thisMonth) || !isFinite(lastMonth) || lastMonth <= 0) return 0;
+
+        console.log("Invoice - This Month:", thisMonth, "Last Month:", lastMonth);
+
+        // Validasi input
+        if (!isFinite(thisMonth) || !isFinite(lastMonth)) return 0;
+
+        // Handle berbagai scenario ketika lastMonth = 0
+        if (lastMonth === 0) {
+            if (thisMonth > 0) return 100;     // Dari 0 ke positif = +100%
+            if (thisMonth < 0) return -100;    // Dari 0 ke negatif = -100%
+            return 0;                          // Tetap 0 = 0%
+        }
+
+        if (thisMonth === 0) {
+            return -100; // Dari positif/negatif ke 0 = -100%
+        }
+
+        // Normal calculation
         return ((thisMonth - lastMonth) / lastMonth) * 100;
     };
 
