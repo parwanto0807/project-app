@@ -14,11 +14,9 @@ interface SearchInputProps {
     minLength?: number;
     debounceDelay?: number;
     variant?: "default" | "filled" | "glass";
-    // Fitur baru untuk user lambat
     showTypingIndicator?: boolean;
     showDebounceTimer?: boolean;
     allowManualSubmit?: boolean;
-    // 🔥 NEW: Props untuk kontrol loading dan focus
     showLoading?: boolean;
     preserveFocus?: boolean;
     messages?: {
@@ -39,13 +37,12 @@ const SearchInput = ({
     disabled = false,
     className = "",
     initialValue = "",
-    minLength = 1, // 🔥 Reduced for better UX
-    debounceDelay = 600, // 🔥 Increased for slow typers
+    minLength = 1,
+    debounceDelay = 600,
     variant = "filled",
     showTypingIndicator = true,
     showDebounceTimer = false,
     allowManualSubmit = true,
-    // 🔥 NEW: Default values for new props
     showLoading = true,
     preserveFocus = true,
     messages = {},
@@ -58,55 +55,70 @@ const SearchInput = ({
     const [timeRemaining, setTimeRemaining] = useState(0);
     const [hasError, setHasError] = useState(false);
 
-    const timerRef = useRef<NodeJS.Timeout | null>(null);
-    const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
-    const countdownRef = useRef<NodeJS.Timeout | null>(null);
+    // 🔥 FIX: Gunakan useRef untuk semua timer dengan type yang benar
+    const timerRef = useRef<number | null>(null);
+    const typingTimerRef = useRef<number | null>(null);
+    const countdownRef = useRef<number | null>(null);
     const onSearchRef = useRef(onSearch);
     const mountedRef = useRef(true);
-    const inputRef = useRef<HTMLInputElement>(null); // 🔥 NEW: Ref untuk input
+    const inputRef = useRef<HTMLInputElement>(null);
 
     // Update ref saat onSearch berubah
     useEffect(() => {
         onSearchRef.current = onSearch;
     }, [onSearch]);
 
-    // Cleanup semua timer
+    // 🔥 FIX: Cleanup yang lebih robust
     useEffect(() => {
         return () => {
             mountedRef.current = false;
-            [timerRef, typingTimerRef, countdownRef].forEach(ref => {
-                if (ref.current) {
-                    clearTimeout(ref.current);
-                    if (ref === countdownRef) {
-                        clearInterval(ref.current as unknown as number);
-                    }
-                }
-            });
+            
+            // Clear semua timeout
+            if (timerRef.current) {
+                clearTimeout(timerRef.current);
+                timerRef.current = null;
+            }
+            if (typingTimerRef.current) {
+                clearTimeout(typingTimerRef.current);
+                typingTimerRef.current = null;
+            }
+            
+            // Clear interval
+            if (countdownRef.current) {
+                clearInterval(countdownRef.current);
+                countdownRef.current = null;
+            }
         };
     }, []);
 
-    // 🔥 IMPROVED: Sync dengan initialValue TANPA reset focus
+    // 🔥 FIX: Sync initialValue tanpa menyebabkan re-render berlebihan
     useEffect(() => {
-        if (mountedRef.current && initialValue !== searchTerm) {
+        if (initialValue !== searchTerm && mountedRef.current) {
             setSearchTerm(initialValue);
         }
-    }, [initialValue, searchTerm]); // 🔥 Remove searchTerm from dependencies
+    }, [initialValue, searchTerm]);
 
-    // 🔥 IMPROVED: Debounced search dengan focus preservation
+    // 🔥 FIX: Debounced search yang lebih reliable
     const triggerSearch = useCallback(
         (value: string, immediate: boolean = false) => {
             // Clear existing timers
-            if (timerRef.current) clearTimeout(timerRef.current);
-            if (countdownRef.current) clearInterval(countdownRef.current);
+            if (timerRef.current) {
+                clearTimeout(timerRef.current);
+                timerRef.current = null;
+            }
+            if (countdownRef.current) {
+                clearInterval(countdownRef.current);
+                countdownRef.current = null;
+            }
 
             // Reset states
             setTimeRemaining(0);
             setIsTyping(false);
 
-            if (value === initialValue) return;
+            const trimmedValue = value.trim();
 
             // Handle empty search
-            if (value.trim() === "") {
+            if (trimmedValue === "") {
                 try {
                     onSearchRef.current("");
                     if (showLoading) setIsSearching(false);
@@ -119,10 +131,11 @@ const SearchInput = ({
             }
 
             // Handle min length validation
-            if (value.length < minLength) {
+            if (trimmedValue.length < minLength) {
                 if (showDebounceTimer) {
                     setTimeRemaining(0);
                 }
+                if (showLoading) setIsSearching(false);
                 return;
             }
 
@@ -130,8 +143,13 @@ const SearchInput = ({
             if (immediate) {
                 if (showLoading) setIsSearching(true);
                 try {
-                    onSearchRef.current(value.trim());
-                    if (showLoading) setIsSearching(false);
+                    onSearchRef.current(trimmedValue);
+                    // 🔥 FIX: Jangan langsung set false, biarkan parent yang handle
+                    setTimeout(() => {
+                        if (mountedRef.current && showLoading) {
+                            setIsSearching(false);
+                        }
+                    }, 100);
                 } catch (error) {
                     setHasError(true);
                     if (showLoading) setIsSearching(false);
@@ -140,7 +158,7 @@ const SearchInput = ({
                 return;
             }
 
-            // Debounced search dengan countdown visual
+            // 🔥 FIX: Debounced search dengan state management yang lebih baik
             if (showLoading) setIsSearching(true);
             setHasError(false);
 
@@ -148,26 +166,37 @@ const SearchInput = ({
                 let remaining = debounceDelay;
                 setTimeRemaining(remaining);
 
-                countdownRef.current = setInterval(() => {
+                countdownRef.current = window.setInterval(() => {
                     remaining -= 100;
-                    setTimeRemaining(Math.max(0, remaining));
+                    if (mountedRef.current) {
+                        setTimeRemaining(Math.max(0, remaining));
+                    }
                     if (remaining <= 0 && countdownRef.current) {
                         clearInterval(countdownRef.current);
+                        countdownRef.current = null;
                     }
                 }, 100);
             }
 
-            timerRef.current = setTimeout(() => {
+            timerRef.current = window.setTimeout(() => {
                 if (!mountedRef.current) return;
 
                 try {
-                    onSearchRef.current(value.trim());
-                    if (showLoading) setIsSearching(false);
-                    setTimeRemaining(0);
+                    onSearchRef.current(trimmedValue);
+                    
+                    // 🔥 FIX: Delay sedikit sebelum hide loading
+                    setTimeout(() => {
+                        if (mountedRef.current) {
+                            if (showLoading) setIsSearching(false);
+                            setTimeRemaining(0);
+                        }
+                    }, 200);
 
-                    // 🔥 PRESERVE FOCUS: Kembalikan focus setelah search selesai
+                    // PRESERVE FOCUS
                     if (preserveFocus && inputRef.current) {
-                        inputRef.current.focus();
+                        setTimeout(() => {
+                            inputRef.current?.focus();
+                        }, 0);
                     }
                 } catch (error) {
                     setHasError(true);
@@ -177,10 +206,10 @@ const SearchInput = ({
                 }
             }, debounceDelay);
         },
-        [initialValue, minLength, debounceDelay, onError, showDebounceTimer, showLoading, preserveFocus]
+        [minLength, debounceDelay, onError, showDebounceTimer, showLoading, preserveFocus]
     );
 
-    // 🔥 IMPROVED: Handle input change dengan better focus management
+    // 🔥 FIX: Handle input change dengan debounce yang proper
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
 
@@ -194,7 +223,7 @@ const SearchInput = ({
                 if (typingTimerRef.current) {
                     clearTimeout(typingTimerRef.current);
                 }
-                typingTimerRef.current = setTimeout(() => {
+                typingTimerRef.current = window.setTimeout(() => {
                     if (mountedRef.current) {
                         setIsTyping(false);
                     }
@@ -211,15 +240,18 @@ const SearchInput = ({
 
     const handleClear = () => {
         // Clear semua timer
-        [timerRef, typingTimerRef, countdownRef].forEach(ref => {
-            if (ref.current) {
-                clearTimeout(ref.current);
-                if (ref === countdownRef) {
-                    clearInterval(ref.current as unknown as number);
-                }
-                ref.current = null;
-            }
-        });
+        if (timerRef.current) {
+            clearTimeout(timerRef.current);
+            timerRef.current = null;
+        }
+        if (typingTimerRef.current) {
+            clearTimeout(typingTimerRef.current);
+            typingTimerRef.current = null;
+        }
+        if (countdownRef.current) {
+            clearInterval(countdownRef.current);
+            countdownRef.current = null;
+        }
 
         setSearchTerm("");
         setIsTyping(false);
@@ -230,9 +262,11 @@ const SearchInput = ({
             if (showLoading) setIsSearching(false);
             setHasError(false);
 
-            // 🔥 FOCUS MANAGEMENT: Focus ke input setelah clear
+            // FOCUS MANAGEMENT
             if (inputRef.current) {
-                inputRef.current.focus();
+                setTimeout(() => {
+                    inputRef.current?.focus();
+                }, 0);
             }
         } catch (error) {
             setHasError(true);
@@ -242,10 +276,12 @@ const SearchInput = ({
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (timerRef.current) clearTimeout(timerRef.current);
+        if (timerRef.current) {
+            clearTimeout(timerRef.current);
+            timerRef.current = null;
+        }
 
         if (searchTerm.trim().length >= minLength) {
-            // Immediate search tanpa debounce
             triggerSearch(searchTerm, true);
         }
     };
@@ -254,9 +290,11 @@ const SearchInput = ({
         if (e.key === 'Escape') {
             handleClear();
         }
-        // 🔥 Allow Enter key untuk submit manual
         if (e.key === 'Enter' && allowManualSubmit) {
-            if (timerRef.current) clearTimeout(timerRef.current);
+            if (timerRef.current) {
+                clearTimeout(timerRef.current);
+                timerRef.current = null;
+            }
             e.preventDefault();
             triggerSearch(searchTerm, true);
         }
@@ -319,7 +357,7 @@ const SearchInput = ({
     return (
         <form
             onSubmit={handleSubmit}
-            className={`relative w-full ${className}`} // 🔥 Remove fixed width
+            className={`relative w-full ${className}`}
             role="search"
             data-testid={testId}
         >
@@ -332,7 +370,7 @@ const SearchInput = ({
 
                 {/* Input Field */}
                 <Input
-                    ref={inputRef} // 🔥 NEW: Attach ref untuk focus control
+                    ref={inputRef}
                     type="search"
                     placeholder={finalMessages.placeholder}
                     value={searchTerm}
@@ -375,7 +413,7 @@ const SearchInput = ({
                         </div>
                     )}
 
-                    {/* Loading Spinner - 🔥 CONDITIONAL based on showLoading prop */}
+                    {/* Loading Spinner */}
                     {isSearching && !isTyping && showLoading && (
                         <div
                             className="flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-800"
@@ -416,27 +454,27 @@ const SearchInput = ({
                     </p>
                 )}
 
-{showEnterHint && (
-    <p
-        id="enter-hint"
-        className="text-sm text-yellow-200 dark:text-yellow-300 flex items-center gap-1"
-        style={{
-            textShadow: '0 0 10px rgb(253 224 71), 0 0 20px rgb(253 224 71)',
-            animation: 'pulse 2s ease-in-out infinite'
-        }}
-        role="status"
-    >
-        <span 
-            className="text-lg"
-            style={{
-                filter: 'drop-shadow(0 0 8px rgb(253 224 71))'
-            }}
-        >
-            ⏎
-        </span>
-        {finalMessages.pressEnterToSearch}
-    </p>
-)}
+                {showEnterHint && (
+                    <p
+                        id="enter-hint"
+                        className="text-sm text-yellow-200 dark:text-yellow-300 flex items-center gap-1"
+                        style={{
+                            textShadow: '0 0 10px rgb(253 224 71), 0 0 20px rgb(253 224 71)',
+                            animation: 'pulse 2s ease-in-out infinite'
+                        }}
+                        role="status"
+                    >
+                        <span 
+                            className="text-lg"
+                            style={{
+                                filter: 'drop-shadow(0 0 8px rgb(253 224 71))'
+                            }}
+                        >
+                            ⏎
+                        </span>
+                        {finalMessages.pressEnterToSearch}
+                    </p>
+                )}
 
                 {hasError && (
                     <p

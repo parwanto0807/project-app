@@ -459,8 +459,6 @@ export default function DashboardAwalSalesOrder() {
         const thisMonth = Number(invoiceStats.totalThisMonth ?? 0);
         const lastMonth = Number(invoiceStats.totalLastMonth ?? 0);
 
-        console.log("Invoice - This Month:", thisMonth, "Last Month:", lastMonth);
-
         // Validasi input
         if (!isFinite(thisMonth) || !isFinite(lastMonth)) return 0;
 
