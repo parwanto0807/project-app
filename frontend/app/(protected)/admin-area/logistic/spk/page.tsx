@@ -138,7 +138,7 @@ export default function SpkPageAdmin() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDataFetching, setIsDataFetching] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  
+
   const searchParams = useSearchParams();
   const isMobile = useMediaQuery("(max-width: 768px)");
   const router = useRouter();
@@ -237,7 +237,7 @@ export default function SpkPageAdmin() {
 
     // Reset ke page 1 saat filter berubah
     params.set("page", "1");
-    
+
     // Pertahankan search term dan pageSize yang ada
     if (urlSearch) {
       params.set("search", urlSearch);
@@ -263,7 +263,7 @@ export default function SpkPageAdmin() {
 
     // Reset ke page 1 saat search
     params.set("page", "1");
-    
+
     // Pertahankan filter dan pageSize yang ada
     if (urlFilter !== "on-progress") {
       params.set("filter", urlFilter);
@@ -630,8 +630,8 @@ export default function SpkPageAdmin() {
                   {urlSearch
                     ? `No SPK found for "${urlSearch}"`
                     : urlFilter !== "all"
-                    ? `No SPK found with filter "${urlFilter}"`
-                    : "No SPK data available"
+                      ? `No SPK found with filter "${urlFilter}"`
+                      : "No SPK data available"
                   }
                 </p>
               </div>

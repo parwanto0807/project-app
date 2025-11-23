@@ -3,7 +3,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import React, { useState } from "react";
 import {
-  BarChart3,
   CreditCard,
   Package,
   Users,
@@ -48,20 +47,20 @@ export function MobileShortcut({ basePath = "/admin-area", customGroups }: Mobil
 
   // Default groups untuk admin
   const getDefaultGroups = (): MenuGroup[] => [
-    {
-      id: "dashboard",
-      label: "Dashboard",
-      icon: BarChart3,
-      color: "from-blue-500 to-blue-600",
-      menus: [
-        {
-          href: basePath,
-          label: "Admin Dashboard",
-          icon: BarChart3,
-          description: "Overview dashboard admin"
-        }
-      ]
-    },
+    // {
+    //   id: "dashboard",
+    //   label: "Dashboard",
+    //   icon: BarChart3,
+    //   color: "from-blue-500 to-blue-600",
+    //   menus: [
+    //     {
+    //       href: basePath,
+    //       label: "Admin Dashboard",
+    //       icon: BarChart3,
+    //       description: "Overview dashboard admin"
+    //     }
+    //   ]
+    // },
     {
       id: "sales",
       label: "Sales",

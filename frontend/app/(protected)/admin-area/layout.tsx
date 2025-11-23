@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { BackToDashboardButton } from "@/components/backToDashboard";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useSession(); // ✅ GUNAKAN useSession
@@ -47,6 +48,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <AdminPanelLayout role={user.role}>
           <Toaster />
           {children}
+          <BackToDashboardButton />
         </AdminPanelLayout>
         {/* Devtools opsional, bisa dihapus di production */}
         <ReactQueryDevtools initialIsOpen={false} />

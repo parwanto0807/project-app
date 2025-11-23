@@ -964,17 +964,28 @@ function StatCard({
                     <Skeleton className="h-2 w-16 mt-1 px-4" />
                 ) : (
                     <div className="flex items-center gap-1 px-3">
-                        <span className="text-lg font-bold transition-all duration-300 group-hover:text-gray-800 dark:group-hover:text-gray-100">
-                            {showValue
-                                ? value !== null
+                        <span className="text-sm font-bold transition-all duration-300 group-hover:text-gray-800 dark:group-hover:text-gray-100">
+                            {/* Di mode mobile, selalu tampilkan nilai asli */}
+                            {typeof window !== 'undefined' && window.innerWidth < 1024 ? (
+                                value !== null
                                     ? formatted
                                         ? `Rp ${value.toLocaleString("id-ID")}`
                                         : value.toLocaleString("id-ID")
                                     : "-"
-                                : "XXX.XXX.XXX"}
+                            ) : (
+                                /* Di desktop, ikuti setting showValue */
+                                showValue
+                                    ? value !== null
+                                        ? formatted
+                                            ? `Rp ${value.toLocaleString("id-ID")}`
+                                            : value.toLocaleString("id-ID")
+                                        : "-"
+                                    : "XXX.XXX.XXX"
+                            )}
                         </span>
 
-                        {formatted && (
+                        {/* Tombol Eye hanya tampil di desktop */}
+                        {formatted && typeof window !== 'undefined' && window.innerWidth >= 1024 && (
                             <button
                                 type="button"
                                 onClick={() => setShowValue((prev) => !prev)}
