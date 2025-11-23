@@ -521,7 +521,8 @@ export default function SpkPageAdmin() {
                       onSearch={handleSearch}
                       placeholder="Search SPK..."
                       className="w-full sm:w-64"
-                      disabled={userLoading || isDataFetching}
+                      // disabled={userLoading || isDataFetching}
+                      showLoading={false}
                       initialValue={urlSearch}
                     />
                     <SpkFilter
@@ -557,7 +558,8 @@ export default function SpkPageAdmin() {
                       onSearch={handleSearch}
                       placeholder="Search SPK..."
                       className="w-full"
-                      disabled={userLoading || isDataFetching}
+                      // disabled={userLoading || isDataFetching}
+                      showLoading={false}
                       initialValue={urlSearch}
                     />
                     <SpkFilter

@@ -148,7 +148,17 @@ export const getAllSPKAdmin = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const pageSize = parseInt(req.query.pageSize) || 50;
-    const search = req.query.search?.trim() || "";
+    
+    // PERBAIKAN: Decode URL parameters
+    let search = req.query.search?.trim() || "";
+    if (search) {
+      try {
+        search = decodeURIComponent(search);
+      } catch (e) {
+        console.warn("URL decode failed for search, using original:", search);
+      }
+    }
+    
     const filterBy = req.query.filterBy?.trim() || "";
 
     const skip = (page - 1) * pageSize;
@@ -221,27 +231,85 @@ export const getAllSPKAdmin = async (req, res) => {
       }
     }
 
-    // Search conditions - DITAMBAHKAN ke existing whereClause
+    // PERBAIKAN: Multi-keyword search dengan AND condition
     if (search) {
-      whereClause.AND = [
-        ...(whereClause.AND || []),
-        {
+      const words = search.split(" ").filter(Boolean);
+      
+      if (words.length === 1) {
+        // Single word search
+        whereClause.AND = [
+          ...(whereClause.AND || []),
+          {
+            OR: [
+              { spkNumber: { contains: words[0], mode: "insensitive" } },
+              {
+                salesOrder: {
+                  soNumber: { contains: words[0], mode: "insensitive" },
+                },
+              },
+              {
+                createdBy: {
+                  namaLengkap: { contains: words[0], mode: "insensitive" },
+                },
+              },
+              { team: { namaTeam: { contains: words[0], mode: "insensitive" } } },
+              {
+                salesOrder: {
+                  customer: {
+                    OR: [
+                      { name: { contains: words[0], mode: "insensitive" } },
+                      { branch: { contains: words[0], mode: "insensitive" } },
+                    ],
+                  },
+                },
+              },
+              {
+                salesOrder: {
+                  project: { name: { contains: words[0], mode: "insensitive" } },
+                },
+              },
+            ],
+          },
+        ];
+      } else {
+        // Multiple words search - cari yang mengandung semua kata
+        const searchConditions = words.map(word => ({
           OR: [
-            { spkNumber: { contains: search, mode: "insensitive" } },
+            { spkNumber: { contains: word, mode: "insensitive" } },
             {
               salesOrder: {
-                soNumber: { contains: search, mode: "insensitive" },
+                soNumber: { contains: word, mode: "insensitive" },
               },
             },
             {
               createdBy: {
-                namaLengkap: { contains: search, mode: "insensitive" },
+                namaLengkap: { contains: word, mode: "insensitive" },
               },
             },
-            { team: { namaTeam: { contains: search, mode: "insensitive" } } },
+            { team: { namaTeam: { contains: word, mode: "insensitive" } } },
+            {
+              salesOrder: {
+                customer: {
+                  OR: [
+                    { name: { contains: word, mode: "insensitive" } },
+                    { branch: { contains: word, mode: "insensitive" } },
+                  ],
+                },
+              },
+            },
+            {
+              salesOrder: {
+                project: { name: { contains: word, mode: "insensitive" } },
+              },
+            },
           ],
-        },
-      ];
+        }));
+
+        whereClause.AND = [
+          ...(whereClause.AND || []),
+          ...searchConditions,
+        ];
+      }
     }
 
     // console.log("🔍 Final where clause:", JSON.stringify(whereClause, null, 2));
@@ -259,27 +327,77 @@ export const getAllSPKAdmin = async (req, res) => {
       skip,
       take: pageSize,
       include: {
-        createdBy: true,
+        createdBy: {
+          select: {
+            id: true,
+            namaLengkap: true,
+            email: true,
+          },
+        },
         salesOrder: {
           include: {
-            customer: { select: { name: true, address: true, branch: true } },
-            project: { select: { id: true, name: true } },
-            items: true,
+            customer: { 
+              select: { 
+                id: true,
+                name: true, 
+                address: true, 
+                branch: true,
+              } 
+            },
+            project: { 
+              select: { 
+                id: true, 
+                name: true,
+              } 
+            },
+            items: {
+              include: {
+                product: {
+                  select: {
+                    id: true,
+                    name: true,
+                    code: true,
+                  },
+                },
+              },
+            },
           },
         },
         team: {
           include: {
             karyawan: {
               include: {
-                karyawan: true,
+                karyawan: {
+                  select: {
+                    id: true,
+                    namaLengkap: true,
+                    nik: true,
+                  },
+                },
               },
             },
           },
         },
         details: {
           include: {
-            karyawan: true,
-            salesOrderItem: true,
+            karyawan: {
+              select: {
+                id: true,
+                namaLengkap: true,
+                nik: true,
+              },
+            },
+            salesOrderItem: {
+              include: {
+                product: {
+                  select: {
+                    id: true,
+                    name: true,
+                    code: true,
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -332,8 +450,11 @@ export const getAllSPKAdmin = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error getAllSPK:", error);
-    res.status(500).json({ error: "Failed to fetch SPK list" });
+    console.error("Error getAllSPKAdmin:", error);
+    res.status(500).json({ 
+      error: "Failed to fetch SPK list",
+      details: error.message 
+    });
   }
 };
 

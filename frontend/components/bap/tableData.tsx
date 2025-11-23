@@ -130,7 +130,7 @@ export function BAPDataTable({
     const [isPdfPreviewOpen, setIsPdfPreviewOpen] = useState(false);
     const [selectedBapForDetail, setSelectedBapForDetail] = useState<BAPData | null>(null);
     const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
-    
+
     const {
         isDialogOpen,
         isLoading: isDeleting,
@@ -411,69 +411,87 @@ export function BAPDataTable({
                                     const bap = row.original;
                                     return (
                                         <Card key={row.id} className="border p-2">
-                                            <div className="space-y-3">
+                                            <div className="space-y-4 p-3 bg-white rounded-lg border border-gray-200 shadow-sm">
+                                                {/* Header Section */}
                                                 <div className="flex items-start justify-between">
-                                                    <div>
-                                                        <div className="flex items-center gap-2">
-                                                            <FileText className="h-4 w-4 text-cyan-500" />
-                                                            <h3 className="font-medium">{bap.bapNumber}</h3>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <FileText className="h-4 w-4 text-cyan-500 flex-shrink-0" />
+                                                            <h3 className="font-medium text-sm truncate">{bap.bapNumber}</h3>
                                                         </div>
-                                                        <p className="text-sm text-muted-foreground">
+                                                        <p className="text-xs text-gray-500 mb-1">
                                                             {format(new Date(bap.bapDate), "dd MMM yyyy")}
                                                         </p>
-                                                        <p className="text-sm font-medium">{bap.salesOrder.customer.branch}</p>
+                                                        <p className="text-xs font-medium text-gray-700 truncate">
+                                                            {bap.salesOrder.customer.branch}
+                                                        </p>
+                                                        {bap.salesOrder.project?.name && (
+                                                            <p className="text-xs font-bold text-gray-600 truncate">
+                                                                {bap.salesOrder.project.name}
+                                                            </p>
+                                                        )}
                                                     </div>
-                                                    <Badge variant={
-                                                        bap.status === "APPROVED" ? "success" :
-                                                            bap.status === "COMPLETED" ? "default" :
-                                                                bap.status === "IN_PROGRESS" ? "secondary" : "outline"
-                                                    } className="capitalize">
-                                                        {bap.status.toLowerCase().replace("_", " ")}
-                                                    </Badge>
+
+                                                    <div className="flex items-center gap-2 ml-2">
+                                                        <Badge
+                                                            variant={
+                                                                bap.status === "APPROVED" ? "success" :
+                                                                    bap.status === "COMPLETED" ? "default" :
+                                                                        bap.status === "IN_PROGRESS" ? "secondary" : "outline"
+                                                            }
+                                                            className="capitalize text-xs whitespace-nowrap"
+                                                        >
+                                                            {bap.status.toLowerCase().replace("_", " ")}
+                                                        </Badge>
+                                                    </div>
                                                 </div>
 
-                                                <div className="flex justify-end pt-0">
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                                                <MoreHorizontal className="h-4 w-4" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end">
-                                                            <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-                                                            <DropdownMenuItem
-                                                                onClick={() => navigator.clipboard.writeText(bap.id)}
-                                                            >
-                                                                Salin ID
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuSeparator />
-                                                            <DropdownMenuItem
-                                                                onClick={() => handleViewDetail(bap)}
-                                                            >
-                                                                <Eye className="mr-2 h-4 w-4" />
-                                                                Lihat Detail
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem
-                                                                onClick={() => router.push(`/admin-area/logistic/bap/update/${bap.id}`)}
-                                                            >
-                                                                <Edit className="mr-2 h-4 w-4" />
-                                                                Edit
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem
-                                                                onClick={() => handlePdfPreview(bap)}
-                                                            >
-                                                                <FileText className="mr-2 h-4 w-4" />
-                                                                Preview PDF
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem
-                                                                className="text-red-600"
-                                                                onClick={() => openDialog(bap.id)}
-                                                            >
-                                                                <Trash2 className="mr-2 h-4 w-4" />
-                                                                Hapus
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
+                                                {/* Action Buttons - Mobile Optimized */}
+                                                <div className="flex flex-row-reverse justify-between items-center pt-2 border-t border-gray-100">
+                                                    <div className="flex gap-1">
+                                                        {/* View Detail Button */}
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => handleViewDetail(bap)}
+                                                            className="h-8 w-8 p-0 bg-blue-50 hover:bg-blue-100 text-blue-600"
+                                                        >
+                                                            <Eye className="h-3.5 w-3.5" />
+                                                        </Button>
+
+                                                        {/* Edit Button */}
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => router.push(`/admin-area/logistic/bap/update/${bap.id}`)}
+                                                            className="h-8 w-8 p-0 bg-green-50 hover:bg-green-100 text-green-600"
+                                                        >
+                                                            <Edit className="h-3.5 w-3.5" />
+                                                        </Button>
+
+                                                        {/* PDF Preview Button */}
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => handlePdfPreview(bap)}
+                                                            className="h-8 w-8 p-0 bg-purple-50 hover:bg-purple-100 text-purple-600"
+                                                        >
+                                                            <FileText className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </div>
+
+                                                    <div className="flex gap-1">
+                                                        {/* Delete Button */}
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => openDialog(bap.id)}
+                                                            className="h-8 w-8 p-0 bg-red-50 hover:bg-red-100 text-red-600"
+                                                            title="Hapus"
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </Card>

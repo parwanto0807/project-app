@@ -7,8 +7,8 @@ export const getAll = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const pageSize = parseInt(req.query.pageSize) || 50;
-    const search = req.query.search?.trim() || "";
-    const status = req.query.status?.trim() || ""; // Tambahkan status parameter
+    const search = decodeURIComponent(req.query.search?.trim() || ""); // PERBAIKAN: decode URI component
+    const status = req.query.status?.trim() || "";
     const skip = (page - 1) * pageSize;
 
     // =============================
@@ -16,18 +16,34 @@ export const getAll = async (req, res) => {
     // =============================
     const where = {};
 
-    // Search filter
+    // =============================
+    //     MULTI KEYWORD SEARCH
+    // =============================
     if (search) {
-      where.OR = [
-        { soNumber: { contains: search, mode: "insensitive" } },
-        { customer: { name: { contains: search, mode: "insensitive" } } },
-        { customer: { branch: { contains: search, mode: "insensitive" } } },
-        { project: { name: { contains: search, mode: "insensitive" } } },
-        { user: { name: { contains: search, mode: "insensitive" } } },
-      ];
+      // PERBAIKAN: Decode URL component dan split dengan benar
+      const decodedSearch = decodeURIComponent(search);
+      const words = decodedSearch.split(" ").filter(Boolean);
+
+      if (words.length > 0) {
+        where.AND = words.map((word) => ({
+          OR: [
+            { soNumber: { contains: word, mode: "insensitive" } },
+            {
+              customer: {
+                OR: [
+                  { name: { contains: word, mode: "insensitive" } },
+                  { branch: { contains: word, mode: "insensitive" } },
+                ],
+              },
+            },
+            { project: { name: { contains: word, mode: "insensitive" } } },
+            { user: { name: { contains: word, mode: "insensitive" } } },
+          ],
+        }));
+      }
     }
 
-    // Status filter - hanya tambahkan jika status tidak kosong dan bukan "ALL"
+    // Status filter
     if (status && status !== "ALL") {
       where.status = status;
     }
@@ -36,6 +52,7 @@ export const getAll = async (req, res) => {
     //     HITUNG TOTAL SESUAI FILTER
     // =============================
     const totalCount = await prisma.salesOrder.count({ where });
+
     const totalPages = Math.ceil(totalCount / pageSize);
 
     // =============================

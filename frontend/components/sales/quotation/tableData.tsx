@@ -1080,7 +1080,7 @@ export function QuotationTable({
                                             </div>
                                         )}
                                     </CardContent>
-                                    <div className="px-4 pb-3 flex justify-between border-t border-slate-200 pt-3">
+                                    <div className="flex flex-row-reverse px-4 pb-3 justify-between border-t border-slate-200 pt-3">
                                         <Button
                                             variant="outline"
                                             size="sm"
@@ -1099,38 +1099,63 @@ export function QuotationTable({
                                                 </>
                                             )}
                                         </Button>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="outline" size="sm">
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                {/* <DropdownMenuItem onClick={() => toggleRowExpansion(quotation.id)} className="flex items-center gap-2">
-                                                    <Eye className="h-4 w-4" />
-                                                    {expandedRows.has(quotation.id) ? "Sembunyikan" : "Tampilkan"} Detail
-                                                </DropdownMenuItem> */}
-                                                <DropdownMenuItem
-                                                    className="flex items-center gap-2"
-                                                    onClick={(e) => handleEdit(e, quotation.id)}
-                                                >
-                                                    <Edit className="h-4 w-4 text-orange-600" />
-                                                    Edit
-                                                </DropdownMenuItem>
+                                        {/* Mobile Action Buttons - Replace Dropdown */}
+                                        <div className="flex gap-1 md:hidden">
+                                            {/* Edit Button */}
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={(e) => handleEdit(e, quotation.id)}
+                                                className="h-8 w-8 p-0 border-orange-200 hover:bg-orange-50 hover:text-orange-600"
+                                                title="Edit"
+                                            >
+                                                <Edit className="h-3.5 w-3.5 text-orange-500" />
+                                            </Button>
 
-                                                <DropdownMenuItem
-                                                    className="text-red-600 flex items-center gap-2"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation(); // tetap hentikan bubbling
-                                                        handleOpenAlertDialog(quotation); // set quotation yang akan dihapus
-                                                    }}
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                    Hapus
-                                                </DropdownMenuItem>
+                                            {/* Delete Button */}
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleOpenAlertDialog(quotation);
+                                                }}
+                                                className="h-8 w-8 p-0 border-red-200 hover:bg-red-50 hover:text-red-600"
+                                                title="Hapus"
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                                            </Button>
+                                        </div>
 
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
+                                        {/* Desktop Dropdown - Tetap seperti semula untuk layar larger */}
+                                        <div className="hidden md:block">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="outline" size="sm">
+                                                        <MoreHorizontal className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem
+                                                        className="flex items-center gap-2"
+                                                        onClick={(e) => handleEdit(e, quotation.id)}
+                                                    >
+                                                        <Edit className="h-4 w-4 text-orange-600" />
+                                                        Edit
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        className="text-red-600 flex items-center gap-2"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleOpenAlertDialog(quotation);
+                                                        }}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                        Hapus
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </div>
                                     </div>
                                 </Card>
                             ))

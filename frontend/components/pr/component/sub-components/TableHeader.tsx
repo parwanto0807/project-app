@@ -88,7 +88,7 @@ export function TableHeader({
         <div className="w-full sm:flex-1 max-w-md relative">
           <SearchInput
             onSearch={handleSearch}
-            placeholder="Search SPK..."
+            placeholder="Search PR..."
             className="w-full"
             disabled={isLoading}
             initialValue={searchInput}

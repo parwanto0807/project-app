@@ -381,8 +381,8 @@ export function PurchaseRequestTable(props: PurchaseRequestTableProps) {
                 description={
                     isMobile ? "View all PR records" : "Manage and monitor all purchase requests"
                 }
-                gradientFrom="from-cyan-600"
-                gradientTo="to-stone-300"
+                gradientFrom="from-blue-600"
+                gradientTo="to-violet-500"
                 icon={<ShoppingBagIcon className={isMobile ? "h-5 w-5" : "h-7 w-7"} />}
                 showActionArea={!isMobile}
                 actionArea={

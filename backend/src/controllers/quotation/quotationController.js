@@ -260,12 +260,24 @@ export const createQuotation = async (req, res) => {
   }
 };
 
-
 export const getQuotations = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const pageSize = parseInt(req.query.pageSize) || 10;
-    const searchTerm = req.query.searchTerm?.trim() || "";
+
+    // PERBAIKAN: Decode URL parameters
+    let searchTerm = req.query.searchTerm?.trim() || "";
+    if (searchTerm) {
+      try {
+        searchTerm = decodeURIComponent(searchTerm);
+      } catch (e) {
+        console.warn(
+          "URL decode failed for searchTerm, using original:",
+          searchTerm
+        );
+      }
+    }
+
     const statusFilter = req.query.statusFilter?.trim() || "";
     const customerId = req.query.customerId?.trim() || "";
 
@@ -276,14 +288,31 @@ export const getQuotations = async (req, res) => {
     // =============================
     const where = {};
 
-    // Search filter
+    // PERBAIKAN: Multi-keyword search dengan AND condition
     if (searchTerm) {
-      where.OR = [
-        { quotationNumber: { contains: searchTerm, mode: "insensitive" } },
-        { customer: { name: { contains: searchTerm, mode: "insensitive" } } },
-        { customer: { branch: { contains: searchTerm, mode: "insensitive" } } },
-        { customer: { email: { contains: searchTerm, mode: "insensitive" } } },
-      ];
+      const words = searchTerm.split(" ").filter(Boolean);
+
+      if (words.length === 1) {
+        // Single word search
+        where.OR = [
+          { quotationNumber: { contains: words[0], mode: "insensitive" } },
+          { customer: { name: { contains: words[0], mode: "insensitive" } } },
+          { customer: { branch: { contains: words[0], mode: "insensitive" } } },
+          { customer: { email: { contains: words[0], mode: "insensitive" } } },
+          { customer: { code: { contains: words[0], mode: "insensitive" } } },
+        ];
+      } else {
+        // Multiple words search - cari yang mengandung semua kata
+        where.AND = words.map((word) => ({
+          OR: [
+            { quotationNumber: { contains: word, mode: "insensitive" } },
+            { customer: { name: { contains: word, mode: "insensitive" } } },
+            { customer: { branch: { contains: word, mode: "insensitive" } } },
+            { customer: { email: { contains: word, mode: "insensitive" } } },
+            { customer: { code: { contains: word, mode: "insensitive" } } },
+          ],
+        }));
+      }
     }
 
     // Status filter
@@ -309,7 +338,14 @@ export const getQuotations = async (req, res) => {
       where,
       include: {
         customer: {
-          select: { id: true, name: true, code: true, email: true, address: true, branch: true },
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            email: true,
+            address: true,
+            branch: true,
+          },
         },
         paymentTerm: true,
         lines: {
@@ -356,10 +392,12 @@ export const getQuotations = async (req, res) => {
     });
   } catch (error) {
     console.error("GET ALL QUOTATIONS ERROR:", error);
-    res.status(500).json({ message: "Gagal mengambil data Quotation", details: error.message });
+    res.status(500).json({
+      message: "Gagal mengambil data Quotation",
+      details: error.message,
+    });
   }
 };
-
 
 // GET Quotation by ID
 export const getQuotationById = async (req, res) => {

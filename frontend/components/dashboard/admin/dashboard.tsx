@@ -30,6 +30,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { SalesChart } from "./salesChart";
 import { InvoiceChart } from "./invoiceChart";
+import { MobileShortcut } from "@/components/mobile-shortcut";
 
 // =============================
 // KONFIGURASI API BACKEND
@@ -234,6 +235,7 @@ function StatusBadge({ status }: { status: OrderStatus }) {
     );
 }
 
+
 // =============================
 // KOMPONEN HALAMAN DASHBOARD - YANG DIPERBAIKI
 // =============================
@@ -255,9 +257,10 @@ export default function DashboardAwalSalesOrder() {
     const [monthlyInvoiceAll, setMonthlyInvoiceAll] = useState<MonthlyInvoiceData[]>([]);
     const [monthlyInvoiceFiltered, setMonthlyInvoiceFiltered] = useState<MonthlyInvoiceData[]>([]);
 
+    const basePath = "/admin-area";
     const now = new Date()
     const monthName = now.toLocaleString("id-ID", { month: "long" })
-    const year = now.getFullYear()
+    // const year = now.getFullYear()
     const [hidden, setHidden] = useState(true);
     const toggleHidden = () => setHidden(!hidden);
 
@@ -470,13 +473,13 @@ export default function DashboardAwalSalesOrder() {
                 </div>
             </div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+            {/* Stats Grid - MODIFIED FOR MOBILE: 2 columns on mobile, 4 columns on desktop */}
+            <div className="grid grid-cols-2 gap-3 md:gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
                 <StatCard
                     title="Total Pelanggan"
                     value={customerCount}
                     loading={loading}
-                    icon={<Users2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />}
+                    icon={<Users2 className="h-4 w-4 md:h-5 md:w-5 text-blue-600 dark:text-blue-400" />}
                     trend={salesStats ? Math.round((customerCount || 0) / 10) : 0}
                     href="/admin-area/master/customers"
                     gradient="from-blue-100 to-blue-200 dark:from-blue-700 dark:to-blue-800"
@@ -485,32 +488,34 @@ export default function DashboardAwalSalesOrder() {
                     title="Produk"
                     value={productCount}
                     loading={loading}
-                    icon={<Package className="h-5 w-5 text-purple-600 dark:text-purple-400" />}
+                    icon={<Package className="h-4 w-4 md:h-5 md:w-5 text-purple-600 dark:text-purple-400" />}
                     trend={salesStats ? Math.round((productCount || 0) / 5) : 0}
                     href="/admin-area/master/products"
                     gradient="from-purple-100 to-purple-200 dark:from-purple-700 dark:to-purple-800"
                 />
                 <StatCard
-                    title={`Nilai Sales Order ${monthName} ${year}`}
+                    title={`Sales ${monthName}`}
                     value={salesStats ? salesStats.totalThisMonth : null}
                     loading={loading}
                     formatted
-                    icon={<CreditCard className="h-5 w-5 text-amber-600 dark:text-amber-400" />}
+                    icon={<CreditCard className="h-4 w-4 md:h-5 md:w-5 text-amber-600 dark:text-amber-400" />}
                     trend={calculateTrend()}
                     href="#"
                     gradient="from-amber-100 to-amber-200 dark:from-amber-700 dark:to-amber-800"
                 />
                 <StatCard
-                    title={`Nilai Invoice ${monthName} ${year}`}
+                    title={`Invoice ${monthName}`}
                     value={invoiceStats ? invoiceStats.totalThisMonth : null}
                     loading={loading}
                     formatted
-                    icon={<Building2 className="h-5 w-5 text-green-600 dark:text-green-400" />}
+                    icon={<Building2 className="h-4 w-4 md:h-5 md:w-5 text-green-600 dark:text-green-400" />}
                     trend={calculateTrendInvoice()}
                     href="/admin-area/finance/invoice"
                     gradient="from-green-100 to-green-200 dark:from-green-700 dark:to-green-800"
                 />
             </div>
+
+            <MobileShortcut basePath={basePath} />
 
             {/* Main Content with Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
