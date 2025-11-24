@@ -117,7 +117,7 @@ const CreateQuotationButton = ({
     // METHOD 2 → Buat Manual
     const handleCreateManual = () => {
         startLoading(() => {
-            router.push(`${basePath}/create?mode=manual`);
+            router.push(`${basePath}/create/manual?mode=manual`);
         });
     };
 
