@@ -645,7 +645,6 @@ export default function TabelDataSpk({
                                                             ? allFieldReports.filter(report => report?.soDetailId === item.id)
                                                             : [];
 
-
                                                         // Urutkan dari yang terbaru
                                                         const sortedReports = itemFieldReports.sort((a, b) => {
                                                             const dateA = new Date(a.reportedAt || a.createdAt || 0);
@@ -654,7 +653,10 @@ export default function TabelDataSpk({
                                                         });
 
                                                         const latestReport = sortedReports[0];
-                                                        const itemProgress = latestReport?.progress ?? spk.progress ?? 0;
+
+                                                        // PERBAIKAN: Jangan fallback ke spk.progress
+                                                        // Jika tidak ada laporan field, progress = 0
+                                                        const itemProgress = latestReport?.progress ?? 0;
 
                                                         return (
                                                             <div key={index} className="flex flex-row justify-between items-center gap-2 py-1 border-b border-gray-200 dark:border-gray-700 last:border-0">
