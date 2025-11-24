@@ -120,10 +120,10 @@ export default function SalesOrderPageAdmin() {
       !restrictedStatuses.includes(order.status)
     );
 
-    console.log('📊 FILTERING DEBUG:');
-    console.log('Raw data:', rawSalesOrders.length);
-    console.log('Filtered data:', filteredData.length);
-    console.log('Original pagination totalPages:', salesOrderData?.pagination?.totalPages);
+    // console.log('📊 FILTERING DEBUG:');
+    // console.log('Raw data:', rawSalesOrders.length);
+    // console.log('Filtered data:', filteredData.length);
+    // console.log('Original pagination totalPages:', salesOrderData?.pagination?.totalPages);
 
     return {
       filteredSalesOrders: filteredData
@@ -133,13 +133,13 @@ export default function SalesOrderPageAdmin() {
   // GUNAKAN PAGINATION META ASLI dari API
   const filteredPaginationMeta = salesOrderData?.pagination;
 
-  // Debug untuk memastikan
-  useEffect(() => {
-    console.log('🎯 PAGINATION CHECK:');
-    console.log('Filtered data count:', filteredSalesOrders.length);
-    console.log('Pagination meta totalPages:', filteredPaginationMeta?.totalPages);
-    console.log('Should show pagination:', filteredPaginationMeta && filteredPaginationMeta.totalPages > 1);
-  }, [filteredSalesOrders, filteredPaginationMeta]);
+  // // Debug untuk memastikan
+  // useEffect(() => {
+  //   console.log('🎯 PAGINATION CHECK:');
+  //   console.log('Filtered data count:', filteredSalesOrders.length);
+  //   console.log('Pagination meta totalPages:', filteredPaginationMeta?.totalPages);
+  //   console.log('Should show pagination:', filteredPaginationMeta && filteredPaginationMeta.totalPages > 1);
+  // }, [filteredSalesOrders, filteredPaginationMeta]);
 
   useEffect(() => {
     if (urlStatus && Object.values(OrderStatusEnum.Enum).includes(urlStatus)) {
@@ -253,31 +253,31 @@ export default function SalesOrderPageAdmin() {
     }
   }, [userLoading, user, router]);
 
-  useEffect(() => {
-    console.log('=== PAGINATION DEBUG ===');
-    console.log('Filtered data count:', filteredSalesOrders.length);
-    console.log('Filtered pagination:', filteredPaginationMeta);
-    console.log('Should show pagination:', filteredPaginationMeta && filteredPaginationMeta.totalPages > 1);
-    console.log('=======================');
-  }, [filteredSalesOrders, filteredPaginationMeta]);
+  // useEffect(() => {
+  //   console.log('=== PAGINATION DEBUG ===');
+  //   console.log('Filtered data count:', filteredSalesOrders.length);
+  //   console.log('Filtered pagination:', filteredPaginationMeta);
+  //   console.log('Should show pagination:', filteredPaginationMeta && filteredPaginationMeta.totalPages > 1);
+  //   console.log('=======================');
+  // }, [filteredSalesOrders, filteredPaginationMeta]);
 
   // ===============================
   //    RENDER PAGINATION COMPONENT  
   // ===============================
   const renderPagination = () => {
-    console.log('🔍 RENDER PAGINATION CHECK:', {
-      hasMeta: !!filteredPaginationMeta,
-      totalPages: filteredPaginationMeta?.totalPages,
-      originalTotalCount: salesOrderData?.pagination?.totalCount,
-      filteredCount: filteredSalesOrders.length
-    });
+    // console.log('🔍 RENDER PAGINATION CHECK:', {
+    //   hasMeta: !!filteredPaginationMeta,
+    //   totalPages: filteredPaginationMeta?.totalPages,
+    //   originalTotalCount: salesOrderData?.pagination?.totalCount,
+    //   filteredCount: filteredSalesOrders.length
+    // });
 
     if (!filteredPaginationMeta || filteredPaginationMeta.totalPages <= 1) {
       console.log('❌ No pagination - meta missing or only one page');
       return null;
     }
 
-    console.log('✅ Rendering pagination with', filteredPaginationMeta.totalPages, 'pages');
+    // console.log('✅ Rendering pagination with', filteredPaginationMeta.totalPages, 'pages');
 
     return (
       <div className="flex justify-center">
