@@ -68,6 +68,15 @@ function getBasePath(role?: string) {
     return paths[role ?? "admin"] || "/admin-area/sales/salesOrder"
 }
 
+function getBasePathSPK(role?: string) {
+    const paths: Record<string, string> = {
+        super: "/super-admin-area/logistic/spk",
+        pic: "/pic-area/logistic/spk",
+        admin: "/admin-area/logistic/spk",
+    }
+    return paths[role ?? "admin"] || "/admin-area/logistic/spk"
+}
+
 const statusConfig: Record<OrderStatus, { label: string; className: string }> = {
     DRAFT: {
         label: "Draft",
@@ -1288,7 +1297,45 @@ export function SalesOrderTable({
                             onDeleteSuccess={handleDeleteSuccess}
                             role={role}
                         />
-
+                        {/* Button Create SPK */}
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <span>
+                                        <Button
+                                            variant="default"
+                                            size="sm"
+                                            disabled={hasSPK && ["BAST", "PARTIALLY_INVOICED", "INVOICED", "PARTIALLY_PAID", "PAID", "CANCELLED"].includes(order.status)}
+                                            onClick={() => hasSPK ?
+                                                router.push(`${getBasePathSPK(role)}?search=${encodeURIComponent(order.spk?.[0].spkNumber || '')}&page=1`) :
+                                                router.push(`${getBasePathSPK(role)}/create/${order.id}`)
+                                            }
+                                            className={hasSPK ?
+                                                (["BAST", "PARTIALLY_INVOICED", "INVOICED", "PARTIALLY_PAID", "PAID", "CANCELLED"].includes(order.status) ?
+                                                    "bg-gray-400 cursor-not-allowed" :
+                                                    "bg-gradient-to-r from-green-400 to-emerald-500 hover:from-green-500 hover:to-emerald-600 text-white shadow-lg shadow-green-500/30 dark:shadow-green-600/30") :
+                                                "bg-gradient-to-r from-blue-400 to-cyan-500 hover:from-blue-500 hover:to-cyan-600 text-white shadow-lg shadow-blue-500/30 dark:shadow-blue-600/30"
+                                            }
+                                        >
+                                            {hasSPK ?
+                                                (["BAST", "PARTIALLY_INVOICED", "INVOICED", "PARTIALLY_PAID", "PAID", "CANCELLED"].includes(order.status) ?
+                                                    "SPK Created" :
+                                                    "Cek SPK") :
+                                                "+ Create SPK"
+                                            }
+                                        </Button>
+                                    </span>
+                                </TooltipTrigger>
+                                {hasSPK && (
+                                    <TooltipContent>
+                                        {["BAST", "PARTIALLY_INVOICED", "INVOICED", "PARTIALLY_PAID", "PAID", "CANCELLED"].includes(order.status) ?
+                                            "Tidak dapat mengakses SPK karena order sudah diproses lebih lanjut" :
+                                            "SPK untuk Sales Order ini sudah dibuat"
+                                        }
+                                    </TooltipContent>
+                                )}
+                            </Tooltip>
+                        </TooltipProvider>
                         {/* PDF hanya untuk admin/super */}
                         {isAdminOrSuper && (
                             <>
@@ -1319,39 +1366,24 @@ export function SalesOrderTable({
                                     </DialogContent>
                                 </Dialog>
 
-                                {/* Button Create SPK */}
+                                {/* Button Create Quotation */}
                                 <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
-                                            <span>
-                                                <Button
-                                                    variant="default"
-                                                    size="sm"
-                                                    disabled={hasSPK}
-                                                    onClick={() => router.push(`/admin-area/logistic/spk/create/${order.id}`)}
-                                                    className={hasSPK ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-800 dark:text-white"}
-                                                >
-                                                    {hasSPK ? "SPK Created" : "+ Create SPK"}
-                                                </Button>
-                                            </span>
+                                            <Button
+                                                variant="default"
+                                                size="sm"
+                                                onClick={() => router.push(`/admin-area/sales/quotation/create/${order.id}`)}
+                                                className="bg-gradient-to-r from-green-400 to-emerald-500 hover:from-green-500 hover:to-emerald-600 text-white shadow-lg shadow-green-500/30 dark:shadow-green-600/30 cursor-pointer"
+                                            >
+                                                + Quotation
+                                            </Button>
                                         </TooltipTrigger>
-                                        {hasSPK && (
-                                            <TooltipContent>
-                                                SPK untuk Sales Order ini sudah dibuat
-                                            </TooltipContent>
-                                        )}
+                                        <TooltipContent>
+                                            Buat Quotation baru untuk Sales Order ini
+                                        </TooltipContent>
                                     </Tooltip>
                                 </TooltipProvider>
-
-                                {/* Button Create Quotation */}
-                                <Button
-                                    variant="default"
-                                    size="sm"
-                                    onClick={() => router.push(`/admin-area/sales/quotation/create/${order.id}`)}
-                                    className="bg-green-600 hover:bg-green-700 cursor-pointer dark:text-white"
-                                >
-                                    + Quotation
-                                </Button>
                             </>
                         )}
                     </div>
@@ -1523,41 +1555,66 @@ export function SalesOrderTable({
                                                         role={role}
                                                     />
 
+
+                                                    {/* Create SPK Button */}
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <span>
+                                                                    <Button
+                                                                        variant="default"
+                                                                        size="sm"
+                                                                        disabled={hasSPK && ["BAST", "PARTIALLY_INVOICED", "INVOICED", "PARTIALLY_PAID", "PAID", "CANCELLED"].includes(order.status)}
+                                                                        onClick={() => hasSPK ?
+                                                                            router.push(`${getBasePathSPK(role)}?search=${encodeURIComponent(order.spk?.[0].spkNumber || '')}&page=1`) :
+                                                                            router.push(`${getBasePathSPK(role)}/create/${order.id}`)
+                                                                        }
+                                                                        className={hasSPK ?
+                                                                            (["BAST", "PARTIALLY_INVOICED", "INVOICED", "PARTIALLY_PAID", "PAID", "CANCELLED"].includes(order.status) ?
+                                                                                "bg-gray-400 cursor-not-allowed" :
+                                                                                "bg-gradient-to-r from-green-400 to-emerald-500 hover:from-green-500 hover:to-emerald-600 text-white shadow-lg shadow-green-500/30 dark:shadow-green-600/30") :
+                                                                            "bg-gradient-to-r from-blue-400 to-cyan-500 hover:from-blue-500 hover:to-cyan-600 text-white shadow-lg shadow-blue-500/30 dark:shadow-blue-600/30"
+                                                                        }
+                                                                    >
+                                                                        {hasSPK ?
+                                                                            (["BAST", "PARTIALLY_INVOICED", "INVOICED", "PARTIALLY_PAID", "PAID", "CANCELLED"].includes(order.status) ?
+                                                                                "SPK Created" :
+                                                                                "Cek SPK") :
+                                                                            "+ Create SPK"
+                                                                        }
+                                                                    </Button>
+                                                                </span>
+                                                            </TooltipTrigger>
+                                                            {hasSPK && (
+                                                                <TooltipContent>
+                                                                    {["BAST", "PARTIALLY_INVOICED", "INVOICED", "PARTIALLY_PAID", "PAID", "CANCELLED"].includes(order.status) ?
+                                                                        "Tidak dapat mengakses SPK karena order sudah diproses lebih lanjut" :
+                                                                        "SPK untuk Sales Order ini sudah dibuat"
+                                                                    }
+                                                                </TooltipContent>
+                                                            )}
+                                                        </Tooltip>
+                                                    </TooltipProvider>
                                                     {isAdminOrSuper && (
                                                         <>
-                                                            {/* Create SPK Button */}
+                                                            {/* Create Quotation Button */}
                                                             <TooltipProvider>
                                                                 <Tooltip>
                                                                     <TooltipTrigger asChild>
-                                                                        <span>
-                                                                            <Button
-                                                                                variant="default"
-                                                                                size="sm"
-                                                                                disabled={hasSPK}
-                                                                                onClick={() => router.push(`/admin-area/logistic/spk/create/${order.id}`)}
-                                                                                className={hasSPK ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-800 dark:text-white"}
-                                                                            >
-                                                                                {hasSPK ? "SPK Created" : "+ Create SPK"}
-                                                                            </Button>
-                                                                        </span>
+                                                                        <Button
+                                                                            variant="default"
+                                                                            size="sm"
+                                                                            onClick={() => router.push(`/admin-area/sales/quotation/create/${order.id}`)}
+                                                                            className="bg-gradient-to-r from-green-400 to-emerald-500 hover:from-green-500 hover:to-emerald-600 text-white shadow-lg shadow-green-500/30 dark:shadow-green-600/30 cursor-pointer"
+                                                                        >
+                                                                            + Quotation
+                                                                        </Button>
                                                                     </TooltipTrigger>
-                                                                    {hasSPK && (
-                                                                        <TooltipContent>
-                                                                            SPK untuk Sales Order ini sudah dibuat
-                                                                        </TooltipContent>
-                                                                    )}
+                                                                    <TooltipContent>
+                                                                        Buat Quotation baru untuk Sales Order ini
+                                                                    </TooltipContent>
                                                                 </Tooltip>
                                                             </TooltipProvider>
-
-                                                            {/* Create Quotation Button */}
-                                                            <Button
-                                                                variant="default"
-                                                                size="sm"
-                                                                onClick={() => router.push(`/admin-area/sales/quotation/create/${order.id}`)}
-                                                                className="bg-green-600 hover:bg-green-700 cursor-pointer dark:text-white"
-                                                            >
-                                                                + Quotation
-                                                            </Button>
                                                         </>
                                                     )}
                                                 </div>

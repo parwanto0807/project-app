@@ -676,16 +676,16 @@ export default function TabelDataSpk({
                                                                         <div className="w-8 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
                                                                             <div
                                                                                 className={`h-1.5 rounded-full transition-all duration-300 ${itemProgress >= 100 ? 'bg-green-500' :
-                                                                                        itemProgress >= 70 ? 'bg-blue-500' :
-                                                                                            itemProgress >= 30 ? 'bg-yellow-500' :
-                                                                                                itemProgress > 0 ? 'bg-orange-500' : 'bg-gray-400'
+                                                                                    itemProgress >= 70 ? 'bg-blue-500' :
+                                                                                        itemProgress >= 30 ? 'bg-yellow-500' :
+                                                                                            itemProgress > 0 ? 'bg-orange-500' : 'bg-gray-400'
                                                                                     }`}
                                                                                 style={{ width: `${itemProgress}%` }}
                                                                             ></div>
                                                                         </div>
                                                                         <span className={`text-xs font-medium min-w-[30px] ${itemProgress > 0
-                                                                                ? 'text-gray-700 dark:text-gray-300'
-                                                                                : 'text-gray-500 dark:text-gray-400'
+                                                                            ? 'text-gray-700 dark:text-gray-300'
+                                                                            : 'text-gray-500 dark:text-gray-400'
                                                                             }`}>
                                                                             {itemProgress}%
                                                                         </span>
@@ -1294,7 +1294,10 @@ export default function TabelDataSpk({
                                                                                             {item.qty} {item.uom || 'pcs'}
                                                                                         </p>
                                                                                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                                                                                            @ {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(item.unitPrice)}
+                                                                                            {role === 'admin' || role === 'super'
+                                                                                                ? `@ ${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(item.unitPrice)}`
+                                                                                                : '@ ***'
+                                                                                            }
                                                                                         </p>
                                                                                         {item.discount > 0 && (
                                                                                             <p className="text-xs text-red-600 dark:text-red-400">
