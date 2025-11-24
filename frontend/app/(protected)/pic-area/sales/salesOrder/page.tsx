@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState, useMemo } from "react";
 import z from "zod";
 import Link from "next/link";
 import {
@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Badge } from "@/components/ui/badge";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { LayoutProps } from "@/types/layout";
 import { SalesOrderTable } from "@/components/sales/salesOrder/tabelData";
 import { useSalesOrder } from "@/hooks/use-salesOrder";
@@ -26,7 +25,7 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import CreateSalesOrderButton from "@/components/sales/salesOrder/create-salesOrder-button";
 import StatusFilterDropdown from "@/components/sales/salesOrder/statusFilterDropdown";
 import ItemsPerPageDropdown from "@/components/shared/itemsPerPageDropdown";
-import { OrderStatusEnum } from "@/schemas/index";
+import { OrderStatusEnum, SalesOrder } from "@/schemas/index";
 import SearchInput from "@/components/shared/SearchInput";
 import { PicLayout } from "@/components/admin-panel/pic-layout";
 
@@ -75,6 +74,7 @@ const statusConfig = {
   },
 };
 
+
 export default function SalesOrderPageAdmin() {
   const { user, isLoading: userLoading } = useSession();
   const router = useRouter();
@@ -85,7 +85,6 @@ export default function SalesOrderPageAdmin() {
   const urlPageSize = Number(searchParams.get("pageSize")) || 10;
   const urlStatus = searchParams.get("status") as OrderStatus | null;
   const highlightId = searchParams.get("highlightId") || null;
-
 
   // ===============================
   //    STATE MANAGEMENT
@@ -110,8 +109,37 @@ export default function SalesOrderPageAdmin() {
     error: salesOrderError,
   } = useSalesOrder(urlPage, itemsPerPage, urlSearchTerm, statusFilter, refreshTrigger);
 
-  const salesOrders = salesOrderData?.data || [];
-  const paginationMeta = salesOrderData?.pagination;
+  // Filter salesOrders berdasarkan role
+  const { filteredSalesOrders } = useMemo(() => {
+    const rawSalesOrders = salesOrderData?.data || [];
+
+    // Untuk PIC, filter out status yang tidak boleh dilihat
+    const restrictedStatuses = ["BAST", "PARTIALLY_INVOICED", "INVOICED", "PARTIALLY_PAID", "PAID", "CANCELLED"];
+
+    const filteredData = rawSalesOrders.filter((order: SalesOrder) =>
+      !restrictedStatuses.includes(order.status)
+    );
+
+    console.log('📊 FILTERING DEBUG:');
+    console.log('Raw data:', rawSalesOrders.length);
+    console.log('Filtered data:', filteredData.length);
+    console.log('Original pagination totalPages:', salesOrderData?.pagination?.totalPages);
+
+    return {
+      filteredSalesOrders: filteredData
+    };
+  }, [salesOrderData]);
+
+  // GUNAKAN PAGINATION META ASLI dari API
+  const filteredPaginationMeta = salesOrderData?.pagination;
+
+  // Debug untuk memastikan
+  useEffect(() => {
+    console.log('🎯 PAGINATION CHECK:');
+    console.log('Filtered data count:', filteredSalesOrders.length);
+    console.log('Pagination meta totalPages:', filteredPaginationMeta?.totalPages);
+    console.log('Should show pagination:', filteredPaginationMeta && filteredPaginationMeta.totalPages > 1);
+  }, [filteredSalesOrders, filteredPaginationMeta]);
 
   useEffect(() => {
     if (urlStatus && Object.values(OrderStatusEnum.Enum).includes(urlStatus)) {
@@ -147,7 +175,6 @@ export default function SalesOrderPageAdmin() {
     },
     [searchParams, router]
   );
-
 
   // ===============================
   //    SEARCH HANDLER
@@ -226,56 +253,55 @@ export default function SalesOrderPageAdmin() {
     }
   }, [userLoading, user, router]);
 
-  // ===============================
-  //    LOADING & ERROR STATE
-  // ===============================
-
-  // Hanya show AdminLoading untuk initial load
-  if (userLoading || isInitialLoad) {
-    return <AdminLoading message="Loading sales orders..." />;
-  }
-
-  if (salesOrderError) {
-    return (
-      <AdminLayout title="Sales Order Management" role="pic">
-        <div className="p-4">
-          <div className="bg-red-50 border border-red-200 rounded-md p-4">
-            <h3 className="text-red-800 font-medium">Error loading sales orders</h3>
-            <p className="text-red-700 text-sm mt-1">
-              {salesOrderError.message || "Failed to load sales orders"}
-            </p>
-          </div>
-        </div>
-      </AdminLayout>
-    );
-  }
+  useEffect(() => {
+    console.log('=== PAGINATION DEBUG ===');
+    console.log('Filtered data count:', filteredSalesOrders.length);
+    console.log('Filtered pagination:', filteredPaginationMeta);
+    console.log('Should show pagination:', filteredPaginationMeta && filteredPaginationMeta.totalPages > 1);
+    console.log('=======================');
+  }, [filteredSalesOrders, filteredPaginationMeta]);
 
   // ===============================
-  //    RENDER PAGINATION COMPONENT
+  //    RENDER PAGINATION COMPONENT  
   // ===============================
   const renderPagination = () => {
-    if (!paginationMeta || paginationMeta.totalPages <= 1) return null;
+    console.log('🔍 RENDER PAGINATION CHECK:', {
+      hasMeta: !!filteredPaginationMeta,
+      totalPages: filteredPaginationMeta?.totalPages,
+      originalTotalCount: salesOrderData?.pagination?.totalCount,
+      filteredCount: filteredSalesOrders.length
+    });
+
+    if (!filteredPaginationMeta || filteredPaginationMeta.totalPages <= 1) {
+      console.log('❌ No pagination - meta missing or only one page');
+      return null;
+    }
+
+    console.log('✅ Rendering pagination with', filteredPaginationMeta.totalPages, 'pages');
 
     return (
       <div className="flex justify-center">
-        <Pagination totalPages={paginationMeta.totalPages} />
+        <Pagination totalPages={filteredPaginationMeta.totalPages} />
       </div>
     );
   };
-
   // ===============================
   //    RENDER ITEMS INFO COMPONENT
   // ===============================
   const renderItemsInfo = () => {
-    if (!paginationMeta || paginationMeta.totalCount === 0) return null;
+    // Tampilkan info items hanya jika ada data
+    if (!filteredPaginationMeta || filteredPaginationMeta.totalCount === 0) return null;
+
+    const startIndex = ((urlPage - 1) * itemsPerPage) + 1;
+    const endIndex = Math.min(urlPage * itemsPerPage, filteredPaginationMeta.totalCount);
 
     return (
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2 py-1 border-t pt-3">
         <div className="text-xs md:text-sm text-muted-foreground">
-          Showing {((urlPage - 1) * itemsPerPage) + 1}-
-          {Math.min(urlPage * itemsPerPage, paginationMeta.totalCount)} of{" "}
-          {paginationMeta.totalCount} entries
+          Showing {startIndex}-{endIndex} of{" "}
+          {filteredPaginationMeta.totalCount} entries
           {statusFilter !== "ALL" && ` (filtered by ${statusConfig[statusFilter]?.label})`}
+          {" (restricted view for PIC)"}
         </div>
       </div>
     );
@@ -308,6 +334,30 @@ export default function SalesOrderPageAdmin() {
   );
 
   // ===============================
+  //    LOADING & ERROR STATE
+  // ===============================
+
+  // Hanya show AdminLoading untuk initial load
+  if (userLoading || isInitialLoad) {
+    return <AdminLoading message="Loading sales orders..." />;
+  }
+
+  if (salesOrderError) {
+    return (
+      <PicLayout title="Sales Order Management" role="pic">
+        <div className="p-4">
+          <div className="bg-red-50 border border-red-200 rounded-md p-4">
+            <h3 className="text-red-800 font-medium">Error loading sales orders</h3>
+            <p className="text-red-700 text-sm mt-1">
+              {salesOrderError.message || "Failed to load sales orders"}
+            </p>
+          </div>
+        </div>
+      </PicLayout>
+    );
+  }
+
+  // ===============================
   //    PAGE LAYOUT
   // ===============================
   const layoutProps: LayoutProps = {
@@ -322,7 +372,7 @@ export default function SalesOrderPageAdmin() {
               <BreadcrumbItem>
                 <BreadcrumbLink asChild>
                   <Badge variant="outline">
-                    <Link href="/admin-area">Dashboard</Link>
+                    <Link href="/pic-area">Dashboard</Link>
                   </Badge>
                 </BreadcrumbLink>
               </BreadcrumbItem>
@@ -355,7 +405,7 @@ export default function SalesOrderPageAdmin() {
                 icon={<Package className={isMobile ? "h-5 w-5" : "h-7 w-7"} />}
                 gradientFrom="from-cyan-600"
                 gradientTo="to-purple-600"
-                showActionArea={!isMobile} // Sembunyikan action area di mobile
+                showActionArea={!isMobile}
                 actionArea={
                   <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                     <SearchInput
@@ -438,12 +488,13 @@ export default function SalesOrderPageAdmin() {
             </>
 
             {/* TOP PAGINATION & ITEMS INFO */}
-            {paginationMeta && paginationMeta.totalCount > 0 && (
+            {filteredPaginationMeta && filteredPaginationMeta.totalCount > 0 && (
               <div className="space-y-3">
                 {renderItemsInfo()}
                 {renderPagination()}
               </div>
             )}
+
 
             {/* TABLE - Tampilkan skeleton loading untuk subsequent fetches */}
             {isSalesOrderFetching && !isInitialLoad ? (
@@ -451,8 +502,8 @@ export default function SalesOrderPageAdmin() {
             ) : (
               <div className="border rounded-lg bg-card" data-table-container>
                 <SalesOrderTable
-                  salesOrders={salesOrders}
-                  isLoading={false} // Tidak perlu loading indicator di table untuk subsequent fetches
+                  salesOrders={filteredSalesOrders}
+                  isLoading={false}
                   role={user?.role || "pic"}
                   highlightId={highlightId}
                 />
@@ -460,7 +511,7 @@ export default function SalesOrderPageAdmin() {
             )}
 
             {/* BOTTOM PAGINATION & ITEMS INFO */}
-            {paginationMeta && paginationMeta.totalCount > 0 && (
+            {filteredPaginationMeta && filteredPaginationMeta.totalCount > 0 && (
               <div className="space-y-3">
                 {renderItemsInfo()}
                 {renderPagination()}
@@ -468,7 +519,7 @@ export default function SalesOrderPageAdmin() {
             )}
 
             {/* EMPTY STATE */}
-            {salesOrders.length === 0 && !isSalesOrderFetching && (
+            {filteredSalesOrders.length === 0 && !isSalesOrderFetching && (
               <div className="text-center py-12 border rounded-lg bg-muted/20">
                 <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <h3 className="text-lg font-medium text-muted-foreground">No sales orders found</h3>
@@ -477,6 +528,7 @@ export default function SalesOrderPageAdmin() {
                     ? `No sales orders with status "${statusConfig[statusFilter]?.label}"`
                     : "Get started by creating a new sales order"
                   }
+                  {" (restricted view for PIC)"}
                 </p>
                 {statusFilter === "ALL" && (
                   <div className="mt-4">

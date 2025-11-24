@@ -1200,51 +1200,6 @@ export async function getRecentSalesOrders(req, res) {
   }
 }
 
-// function startOfDayLocal(d = new Date(), tzOffsetMinutes = 0) {
-//   const dt = new Date(d);
-//   // Reset to UTC midnight then adjust for timezone
-//   dt.setUTCHours(0, 0, 0, 0);
-//   return new Date(dt.getTime() + tzOffsetMinutes * 60000);
-// }
-
-// function startOfMonthLocal(d = new Date(), tzOffsetMinutes = 0) {
-//   const dt = new Date(d);
-//   // Set to first day of month at UTC midnight, then adjust for timezone
-//   dt.setUTCDate(1);
-//   dt.setUTCHours(0, 0, 0, 0);
-//   return new Date(dt.getTime() + tzOffsetMinutes * 60000);
-// }
-
-// function startOfYearLocal(d = new Date(), tzOffsetMinutes = 0) {
-//   const dt = new Date(d);
-//   // Set to first day of year at UTC midnight, then adjust for timezone
-//   dt.setUTCMonth(0, 1);
-//   dt.setUTCHours(0, 0, 0, 0);
-//   return new Date(dt.getTime() + tzOffsetMinutes * 60000);
-// }
-
-// function startOfLastMonthLocal(d = new Date(), tzOffsetMinutes = 0) {
-//   const dt = new Date(d);
-//   // Go to first day of current month, then subtract one month
-//   dt.setUTCDate(1);
-//   dt.setUTCHours(0, 0, 0, 0);
-//   dt.setUTCMonth(dt.getUTCMonth() - 1);
-//   return new Date(dt.getTime() + tzOffsetMinutes * 60000);
-// }
-
-// function endOfLastMonthLocal(d = new Date(), tzOffsetMinutes = 0) {
-//   const dt = new Date(d);
-//   // Go to first day of current month, then subtract 1ms to get end of previous month
-//   dt.setUTCDate(1);
-//   dt.setUTCHours(0, 0, 0, 0);
-//   const endOfLastMonth = new Date(dt.getTime() - 1);
-//   return new Date(endOfLastMonth.getTime() + tzOffsetMinutes * 60000);
-// }
-
-// Safely convert Prisma Decimal | number | null | undefined → number
-
-const num = (x) => (x == null ? 0 : Number(x));
-
 export async function getSalesStats(req, res) {
   try {
     const now = new Date();

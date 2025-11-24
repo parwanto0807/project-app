@@ -773,6 +773,7 @@ export function SalesOrderTable({
         validOrdersCount: 0
     });
 
+    const isAdminOrSuper = role === "admin" || role === "super";
 
     const toggleItemsExpanded = (orderId: string) => {
         setExpandedItems(prev => ({
@@ -857,17 +858,26 @@ export function SalesOrderTable({
         });
     }, []);
 
-    // Update salesOrders ketika initialSalesOrders berubah
-    React.useEffect(() => {
-        setSalesOrders(initialSalesOrders);
-    }, [initialSalesOrders]);
 
-    // Hitung summary totals ketika salesOrders berubah
-    React.useEffect(() => {
-        if (salesOrders.length > 0) {
-            calculateSummaryTotals(salesOrders);
+    // Filter salesOrders berdasarkan role
+    const filteredSalesOrders = React.useMemo(() => {
+        if (isAdminOrSuper) {
+            // Tampilkan semua data untuk admin/super
+            return initialSalesOrders;
+        } else {
+            // Filter out status tertentu untuk non-admin/super
+            const restrictedStatuses = ["BAST", "PARTIALLY_INVOICED", "INVOICED", "PARTIALLY_PAID", "PAID", "CANCELLED"];
+            return initialSalesOrders.filter(order =>
+                !restrictedStatuses.includes(order.status)
+            );
         }
-    }, [salesOrders, calculateSummaryTotals]);
+    }, [initialSalesOrders, isAdminOrSuper]);
+
+    // Update salesOrders dengan data yang sudah difilter
+    React.useEffect(() => {
+        setSalesOrders(filteredSalesOrders);
+        calculateSummaryTotals(filteredSalesOrders);
+    }, [filteredSalesOrders, calculateSummaryTotals]);
 
     // Highlight effect
     React.useEffect(() => {
@@ -938,7 +948,7 @@ export function SalesOrderTable({
         }
     }, [onDeleteSuccess])
 
-    const isAdminOrSuper = role === "admin" || role === "super";
+
 
     const columns: ColumnDef<SalesOrder>[] = React.useMemo(() => {
         const baseColumns: ColumnDef<SalesOrder>[] = [
@@ -1483,14 +1493,18 @@ export function SalesOrderTable({
                                                 <div className="mt-2 space-y-2 text-xs">
                                                     <div className="font-medium text-green-600">Items:</div>
                                                     {order.items.slice(0, 2).map((item, idx) => {
-                                                        const itemTotal = item.qty * item.unitPrice;
+                                                        const itemTotal = isAdminOrSuper ? item.qty * item.unitPrice : 0;
                                                         return (
                                                             <div key={idx} className="flex justify-between items-center">
                                                                 <span className="truncate flex-1">
                                                                     {item.qty} x {item.name}
                                                                 </span>
-                                                                <span className="font-medium text-green-600 ml-2 flex-shrink-0 whitespace-nowrap">
-                                                                    Rp {itemTotal.toLocaleString('id-ID')}
+                                                                <span className={`font-medium ml-2 flex-shrink-0 whitespace-nowrap ${isAdminOrSuper ? 'text-green-600' : 'text-gray-400 italic'
+                                                                    }`}>
+                                                                    {isAdminOrSuper
+                                                                        ? `Rp ${itemTotal.toLocaleString('id-ID')}`
+                                                                        : '***'
+                                                                    }
                                                                 </span>
                                                             </div>
                                                         );
@@ -1500,14 +1514,17 @@ export function SalesOrderTable({
                                                     {expandedItems[order.id] && order.items.length > 2 && (
                                                         <>
                                                             {order.items.slice(2).map((item, idx) => {
-                                                                const itemTotal = item.qty * item.unitPrice;
+                                                                const itemTotal = isAdminOrSuper ? item.qty * item.unitPrice : 0;
                                                                 return (
                                                                     <div key={idx + 2} className="flex justify-between items-center">
                                                                         <span className="truncate flex-1">
                                                                             {item.qty} x {item.name}
                                                                         </span>
                                                                         <span className="font-medium text-green-600 ml-2 flex-shrink-0 whitespace-nowrap">
-                                                                            Rp {itemTotal.toLocaleString('id-ID')}
+                                                                            {isAdminOrSuper
+                                                                                ? `Rp ${itemTotal.toLocaleString('id-ID')}`
+                                                                                : '***'
+                                                                            }
                                                                         </span>
                                                                     </div>
                                                                 );
