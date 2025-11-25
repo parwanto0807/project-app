@@ -488,6 +488,22 @@ export const updateQuotation = async (req, res) => {
       });
     }
 
+    // VALIDASI STATUS - Tambahkan validasi ini
+    const validStatuses = [
+      "DRAFT",
+      "SENT",
+      "APPROVED",
+      "REJECTED",
+      "EXPIRED",
+      "CONVERTED",
+    ];
+    if (status && !validStatuses.includes(status)) {
+      return res.status(400).json({
+        error: "Status tidak valid",
+        validStatuses: validStatuses,
+      });
+    }
+
     // Calculate new totals if lines are provided
     let calculatedTotals = {};
     if (lines) {
@@ -504,12 +520,13 @@ export const updateQuotation = async (req, res) => {
 
     // Update quotation dengan transaction
     const updatedQuotation = await prisma.$transaction(async (tx) => {
-      // Prepare update data - HAPUS customerId dari sini
+      // Prepare update data
       const updateData = {
         quotationDate: quotationDate ? new Date(quotationDate) : undefined,
         currency,
         exchangeRate: exchangeRate ? parseFloat(exchangeRate) : undefined,
-        status,
+        // GUNAKAN STATUS YANG SUDAH DIVALIDASI ATAU STATUS EXISTING
+        status: status || existingQuotation.status,
         validFrom: validFrom ? new Date(validFrom) : undefined,
         validUntil: validUntil ? new Date(validUntil) : undefined,
         discountType,
@@ -526,6 +543,13 @@ export const updateQuotation = async (req, res) => {
         version: existingQuotation.version + 1,
       };
 
+      // Filter out undefined values untuk menghindari update field dengan undefined
+      Object.keys(updateData).forEach((key) => {
+        if (updateData[key] === undefined) {
+          delete updateData[key];
+        }
+      });
+
       // Tambahkan customer relation JIKA customerId diberikan
       if (customerId) {
         updateData.customer = {
@@ -539,7 +563,6 @@ export const updateQuotation = async (req, res) => {
           connect: { id: paymentTermId },
         };
       } else if (paymentTermId === null) {
-        // Jika ingin menghapus paymentTerm
         updateData.paymentTerm = {
           disconnect: true,
         };
@@ -628,7 +651,6 @@ export const updateQuotation = async (req, res) => {
     });
   }
 };
-
 // DELETE Quotation
 export const deleteQuotation = async (req, res) => {
   try {

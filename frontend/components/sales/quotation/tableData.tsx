@@ -988,7 +988,7 @@ export function QuotationTable({
                     </div>
 
                     {/* Mobile Cards */}
-                    <div className="md:hidden space-y-4 p-1">
+                    <div className="md:hidden space-y-2 p-1">
                         {sortedQuotations.length === 0 ? (
                             <div className="text-center py-8 text-slate-500">
                                 <FileText className="h-12 w-12 mx-auto mb-2 text-slate-300" />
@@ -1021,7 +1021,7 @@ export function QuotationTable({
                                             </div>
                                             <Badge
                                                 variant={getStatusVariant(quotation.status)}
-                                                className="flex items-center gap-1 px-2 py-1 text-xs flex-shrink-0 ml-2"
+                                                className="flex items-center gap-1 px-1 py-1 text-xs flex-shrink-0 ml-2"
                                             >
                                                 {getStatusIcon(quotation.status)}
                                                 {quotation.status.charAt(0).toUpperCase() + quotation.status.slice(1).toLowerCase()}
@@ -1062,7 +1062,7 @@ export function QuotationTable({
                                             <div className="space-y-0.5">
                                                 {/* Tampilkan semua lines jika expanded, atau hanya 2 jika tidak */}
                                                 {(expandedProductRows.has(quotation.id) ? quotation.lines : quotation.lines?.slice(0, 2))?.map((line) => (
-                                                    <div key={line.id} className="flex items-center gap-2 px-2 py-0.5 bg-slate-50 dark:bg-slate-800 rounded-md">
+                                                    <div key={line.id} className="flex items-center gap-2 px-0 py-0.5 bg-slate-50 dark:bg-slate-800 rounded-md">
                                                         <div className="flex-shrink-0">
                                                             <span className="text-[10px] font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-700 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-600">
                                                                 {line.qty} {line.uom}
