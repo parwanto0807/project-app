@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     approvalLine: {
-        marginTop: 60,
+        marginTop: 90,
         borderTop: '1pt solid #000000',
         paddingTop: 5,
     },
@@ -256,7 +256,7 @@ const QuotationPdfDocument = ({ quotation }: { quotation: QuotationSummary }) =>
 
     const {
         quotationNumber,
-        version,
+        // version,
         customer,
         status,
         validFrom,
@@ -335,7 +335,7 @@ const QuotationPdfDocument = ({ quotation }: { quotation: QuotationSummary }) =>
                                 <Text style={styles.label}>Quotation Date:</Text>
                                 <Text style={styles.value}>{formatDate(quotationDate)}</Text>
                             </View>
-                            <View style={styles.row}>
+                            {/* <View style={styles.row}>
                                 <Text style={styles.label}>Revisi:</Text>
                                 <View style={styles.value}>
                                     <Text style={[styles.value, { color: 'grey' }]}>
@@ -346,7 +346,7 @@ const QuotationPdfDocument = ({ quotation }: { quotation: QuotationSummary }) =>
                             <View style={styles.row}>
                                 <Text style={styles.label}>Status:</Text>
                                 <Text style={styles.value}>{status || 'DRAFT'}</Text>
-                            </View>
+                            </View> */}
                         </View>
                     </View>
 

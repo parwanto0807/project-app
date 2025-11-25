@@ -35,14 +35,13 @@ import {
     Type,
     Package,
     Eye,
-    User,
-    DollarSign,
     MoreHorizontal,
     Download,
     Loader2,
     Send,
     Hourglass,
     HelpCircle,
+    MapPinHouse,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -88,6 +87,7 @@ export function QuotationTable({
     const [showPdfDialog, setShowPdfDialog] = useState(false);
     const [showAlertDialog, setShowAlertDialog] = useState(false);
     const router = useRouter();
+    const [expandedProductRows, setExpandedProductRows] = useState<Set<string>>(new Set());
 
     // Sort quotations
     const sortedQuotations = [...quotations].sort((a, b) => {
@@ -666,6 +666,21 @@ export function QuotationTable({
         );
     }
 
+
+
+    // Fungsi untuk toggle expand/collapse
+    const toggleProductExpansion = (quotationId: string) => {
+        setExpandedProductRows(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(quotationId)) {
+                newSet.delete(quotationId);
+            } else {
+                newSet.add(quotationId);
+            }
+            return newSet;
+        });
+    };
+
     return (
         <div className="space-y-6">
             <Card className="shadow-sm border-slate-200 dark:border-slate-800 relative z-0"> {/* Tambahkan z-0 */}
@@ -981,180 +996,221 @@ export function QuotationTable({
                             </div>
                         ) : (
                             sortedQuotations.map((quotation) => (
-                                <Card key={quotation.id} className="overflow-hidden border-slate-200 dark:border-slate-800 shadow-sm">
-                                    <CardHeader className="py-1 bg-slate-100/50 dark:bg-slate-900 rounded-xl">
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <CardTitle className="text-xs font-bold flex items-center gap-2">
-                                                    <FileDigit className="h-4 w-4 text-blue-600" />
-                                                    {quotation.quotationNumber}
-                                                </CardTitle>
-                                                <CardDescription className="flex text-xs items-center gap-2 mt-1">
-                                                    <Building className="h-4 w-4 text-green-600" />
-                                                    <span className="font-bold">{quotation.customer.branch}</span>
-                                                </CardDescription>
+                                <Card key={quotation.id} className="overflow-hidden border-slate-200 dark:border-slate-800 shadow-md">
+                                    <CardHeader className="py-1 bg-gradient-to-r from-slate-50 to-slate-100/50 dark:from-slate-900 dark:to-slate-800 rounded-t-lg border-b border-slate-200 dark:border-slate-700">
+                                        <div className="flex justify-between items-center">
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <FileDigit className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                                                <div className="min-w-0">
+                                                    <CardTitle className="text-sm font-bold truncate text-slate-900 dark:text-slate-100">
+                                                        {quotation.quotationNumber}
+                                                    </CardTitle>
+                                                    <CardDescription className="flex items-center gap-1 text-xs mt-0.5">
+                                                        <Building className="h-3.5 w-3.5 text-green-600 flex-shrink-0" />
+                                                        <span className="font-medium text-slate-700 dark:text-slate-300 truncate">
+                                                            {quotation.customer.branch}
+                                                        </span>
+                                                    </CardDescription>
+                                                    <CardDescription className="flex items-center gap-1 text-xs mt-0.5 ">
+                                                        <MapPinHouse className="h-3.5 w-3.5 text-green-600 flex-shrink-0" />
+                                                        <span className="font-medium text-slate-700 dark:text-slate-300 text-wrap">
+                                                            {quotation.customer.address}
+                                                        </span>
+                                                    </CardDescription>
+                                                </div>
                                             </div>
-                                            <Badge variant={getStatusVariant(quotation.status)} className="flex items-center gap-1">
+                                            <Badge
+                                                variant={getStatusVariant(quotation.status)}
+                                                className="flex items-center gap-1 px-2 py-1 text-xs flex-shrink-0 ml-2"
+                                            >
                                                 {getStatusIcon(quotation.status)}
                                                 {quotation.status.charAt(0).toUpperCase() + quotation.status.slice(1).toLowerCase()}
                                             </Badge>
                                         </div>
                                     </CardHeader>
-                                    <CardContent className="pb-3">
-                                        <div className="space-y-3 text-xs">
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-slate-500 flex items-center gap-2">
-                                                    <CreditCard className="h-4 w-4 text-emerald-600" />
-                                                    Jumlah:
-                                                </span>
-                                                <span className="font-medium">{formatCurrency(quotation.total)}</span>
+
+                                    <CardContent className="pb-0 pt-1">
+                                        {/* Informasi Utama - Lebih Rapat */}
+                                        <div className="grid grid-cols-2 gap-2 text-xs">
+                                            <div className="flex items-center gap-1.5">
+                                                <Calendar className="h-3.5 w-3.5 text-orange-600 flex-shrink-0" />
+                                                <div>
+                                                    <div className="text-slate-500 text-[11px]">Dibuat</div>
+                                                    <div className="font-medium text-slate-900 dark:text-slate-100">
+                                                        {formatDate(quotation.createdAt)}
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-slate-500 flex items-center gap-2">
-                                                    <Calendar className="h-4 w-4 text-orange-600" />
-                                                    Dibuat:
-                                                </span>
-                                                <span>{formatDate(quotation.createdAt)}</span>
-                                            </div>
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-slate-500 flex items-center gap-2">
-                                                    <Clock className="h-4 w-4 text-amber-600" />
-                                                    Berlaku Sampai:
-                                                </span>
-                                                <span>{formatDate(quotation.validUntil ?? "")}</span>
+                                            <div className="flex items-center gap-1.5">
+                                                <Clock className="h-3.5 w-3.5 text-amber-600 flex-shrink-0" />
+                                                <div>
+                                                    <div className="text-slate-500 text-[11px]">Berlaku</div>
+                                                    <div className="font-medium text-slate-900 dark:text-slate-100">
+                                                        {formatDate(quotation.validUntil ?? "")}
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
 
-                                        {/* Expanded Content for Mobile */}
-                                        {expandedRows.has(quotation.id) && (
-                                            <div className="mt-2 pt-2 border-t border-slate-200 space-y-2">
-                                                <div className="space-y-3">
-                                                    <h4 className="font-semibold text-xs flex items-center gap-2 text-slate-700">
-                                                        <User className="h-4 w-4 text-blue-600" />
-                                                        Informasi Pelanggan
-                                                    </h4>
-                                                    <div className="space-y-2 text-xs">
-                                                        <div className="flex items-center gap-2">
-                                                            <Mail className="h-4 w-4 text-green-600" />
-                                                            <span className="text-slate-600">{quotation.customer.email}</span>
+                                        {/* Daftar Produk */}
+                                        <div className="border-t border-slate-200 dark:border-slate-700 pt-3">
+                                            <h4 className="font-semibold text-xs flex items-center gap-2 text-slate-700 dark:text-slate-300 mb-2">
+                                                <Package className="h-4 w-4 text-purple-600" />
+                                                Item Produk
+                                            </h4>
+
+                                            <div className="space-y-0.5">
+                                                {/* Tampilkan semua lines jika expanded, atau hanya 2 jika tidak */}
+                                                {(expandedProductRows.has(quotation.id) ? quotation.lines : quotation.lines?.slice(0, 2))?.map((line) => (
+                                                    <div key={line.id} className="flex items-center gap-2 px-2 py-0.5 bg-slate-50 dark:bg-slate-800 rounded-md">
+                                                        <div className="flex-shrink-0">
+                                                            <span className="text-[10px] font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-700 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-600">
+                                                                {line.qty} {line.uom}
+                                                            </span>
                                                         </div>
-                                                        <div className="flex items-center gap-2">
-                                                            <MapPin className="h-4 w-4 text-orange-600" />
-                                                            <span className="text-slate-600">{quotation.customer.address || "N/A"}</span>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="font-medium text-xs text-slate-900 dark:text-slate-100 truncate">
+                                                                {line.product?.name}
+                                                            </p>
+                                                        </div>
+                                                        <div className="flex-shrink-0">
+                                                            <span className="text-xs font-semibold text-green-600 dark:text-green-400">
+                                                                {formatCurrency(line.unitPrice)}
+                                                            </span>
                                                         </div>
                                                     </div>
-                                                </div>
+                                                ))}
 
-                                                <div className="space-y-3">
-                                                    <h4 className="font-semibold text-xs flex items-center gap-2 text-slate-700">
-                                                        <DollarSign className="h-4 w-4 text-emerald-600" />
-                                                        Informasi Keuangan
-                                                    </h4>
-                                                    <div className="space-y-2 text-xs">
-                                                        <div className="flex justify-between">
-                                                            <span className="text-slate-500">Subtotal:</span>
-                                                            <span>{formatCurrency(quotation.subtotal)}</span>
-                                                        </div>
-                                                        <div className="flex justify-between">
-                                                            <span className="text-slate-500">Pajak:</span>
-                                                            <span className="text-orange-600">{formatCurrency(quotation.taxTotal)}</span>
-                                                        </div>
-                                                        <div className="flex justify-between font-semibold border-t pt-2">
-                                                            <span className="text-slate-700">Total:</span>
-                                                            <span className="text-emerald-600">{formatCurrency(quotation.total)}</span>
-                                                        </div>
+                                                {/* Tampilkan toggle untuk produk lainnya */}
+                                                {quotation.lines && quotation.lines.length > 2 && (
+                                                    <div className="text-center py-1">
+                                                        <button
+                                                            onClick={() => toggleProductExpansion(quotation.id)}
+                                                            className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center justify-center gap-1 mx-auto cursor-pointer"
+                                                        >
+                                                            {expandedProductRows.has(quotation.id) ? (
+                                                                <>
+                                                                    <ChevronUp className="h-3 w-3" />
+                                                                    Tampilkan lebih sedikit
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <ChevronDown className="h-3 w-3" />
+                                                                    + {quotation.lines.length - 2} produk lainnya
+                                                                </>
+                                                            )}
+                                                        </button>
                                                     </div>
-                                                </div>
-
-                                                <div className="flex flex-wrap gap-2 pt-2">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="flex-1 min-w-[120px] flex items-center gap-2"
-                                                        onClick={() => handleOpenPdfDialog(quotation)}
-                                                    >
-                                                        <Eye className="h-4 w-4" />
-                                                        Preview
-                                                    </Button>
-                                                </div>
+                                                )}
                                             </div>
-                                        )}
-                                    </CardContent>
-                                    <div className="flex flex-row-reverse px-4 pb-3 justify-between border-t border-slate-200 pt-3">
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => toggleRowExpansion(quotation.id)}
-                                            className="flex items-center gap-2"
-                                        >
-                                            {expandedRows.has(quotation.id) ? (
-                                                <>
-                                                    <ChevronUp className="h-4 w-4" />
-                                                    Lebih Sedikit
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <ChevronDown className="h-4 w-4" />
-                                                    Lebih Detail
-                                                </>
+                                        </div>
+
+                                        {/* Informasi Keuangan */}
+                                        <div className="border-t border-slate-200 dark:border-slate-700 pt-3 mt-1">
+                                            <div className="flex justify-between items-center mb-1">
+                                                <span className="text-xs text-slate-500">Subtotal:</span>
+                                                <span className="text-xs font-medium">{formatCurrency(quotation.subtotal)}</span>
+                                            </div>
+
+                                            {/* Discount Section */}
+                                            {quotation.discountValue > 0 && (
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <span className="text-xs text-slate-500">
+                                                        Diskon{quotation.discountType === 'PERCENT' ? ` (${quotation.discountValue}%)` : ''}:
+                                                    </span>
+                                                    <span className="text-xs text-red-600 font-medium">
+                                                        -{formatCurrency(
+                                                            quotation.discountType === 'PERCENT'
+                                                                ? (quotation.subtotal * quotation.discountValue) / 100
+                                                                : quotation.discountValue
+                                                        )}
+                                                    </span>
+                                                </div>
                                             )}
-                                        </Button>
-                                        {/* Mobile Action Buttons - Replace Dropdown */}
-                                        <div className="flex gap-1 md:hidden">
-                                            {/* Edit Button */}
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={(e) => handleEdit(e, quotation.id)}
-                                                className="h-8 w-8 p-0 border-orange-200 hover:bg-orange-50 hover:text-orange-600"
-                                                title="Edit"
-                                            >
-                                                <Edit className="h-3.5 w-3.5 text-orange-500" />
-                                            </Button>
 
-                                            {/* Delete Button */}
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleOpenAlertDialog(quotation);
-                                                }}
-                                                className="h-8 w-8 p-0 border-red-200 hover:bg-red-50 hover:text-red-600"
-                                                title="Hapus"
-                                            >
-                                                <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                                            </Button>
+                                            <div className="flex justify-between items-center mb-1">
+                                                <span className="text-xs text-slate-500">Pajak:</span>
+                                                <span className="text-xs text-orange-600">{formatCurrency(quotation.taxTotal)}</span>
+                                            </div>
+
+                                            <div className="flex justify-between items-center pt-2 border-t border-slate-200 dark:border-slate-700">
+                                                <span className="text-sm font-bold text-slate-900 dark:text-slate-100">Total:</span>
+                                                <span className="text-sm font-bold text-emerald-600">{formatCurrency(quotation.total)}</span>
+                                            </div>
                                         </div>
+                                    </CardContent>
 
-                                        {/* Desktop Dropdown - Tetap seperti semula untuk layar larger */}
-                                        <div className="hidden md:block">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="outline" size="sm">
-                                                        <MoreHorizontal className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem
-                                                        className="flex items-center gap-2"
-                                                        onClick={(e) => handleEdit(e, quotation.id)}
-                                                    >
-                                                        <Edit className="h-4 w-4 text-orange-600" />
-                                                        Edit
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem
-                                                        className="text-red-600 flex items-center gap-2"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleOpenAlertDialog(quotation);
-                                                        }}
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                        Hapus
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
+                                    {/* Action Buttons */}
+                                    <div className="px-4 pb-0 pt-2 border-t border-slate-200 dark:border-slate-700">
+                                        <div className="flex flex-row-reverse justify-between items-center">
+                                            {/* Preview Button dengan Icon */}
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handleOpenPdfDialog(quotation)}
+                                                className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700"
+                                            >
+                                                <Eye className="h-4 w-4" />
+                                                <span>Preview PDF</span>
+                                            </Button>
+
+                                            {/* Action Buttons */}
+                                            <div className="flex gap-1">
+                                                {/* Edit Button */}
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={(e) => handleEdit(e, quotation.id)}
+                                                    className="h-9 w-9 p-0 border-orange-200 bg-orange-50 hover:bg-orange-100 text-orange-600"
+                                                    title="Edit Quotation"
+                                                >
+                                                    <Edit className="h-4 w-4" />
+                                                </Button>
+
+                                                {/* Delete Button */}
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleOpenAlertDialog(quotation);
+                                                    }}
+                                                    className="h-9 w-9 p-0 border-red-200 bg-red-50 hover:bg-red-100 text-red-600"
+                                                    title="Hapus Quotation"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+
+                                                {/* More Options untuk Desktop (tersembunyi di mobile) */}
+                                                <div className="hidden md:block">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="outline" size="sm" className="h-9 w-9 p-0">
+                                                                <MoreHorizontal className="h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem
+                                                                className="flex items-center gap-2"
+                                                                onClick={(e) => handleEdit(e, quotation.id)}
+                                                            >
+                                                                <Edit className="h-4 w-4 text-orange-600" />
+                                                                Edit
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem
+                                                                className="text-red-600 flex items-center gap-2"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleOpenAlertDialog(quotation);
+                                                                }}
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                                Hapus
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </Card>
