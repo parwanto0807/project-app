@@ -76,7 +76,7 @@ export const createSPK = async (req, res) => {
       spkNumber,
       spkDate,
       createdById,
-      salesOrderId, // 👈 kita akan pakai ini untuk update SalesOrder
+      salesOrderId,
       teamId,
       notes,
       details,
@@ -119,7 +119,7 @@ export const createSPK = async (req, res) => {
         await tx.salesOrder.update({
           where: { id: salesOrderId },
           data: {
-            status: "IN_PROGRESS_SPK", // 👈 sesuaikan dengan enum value di schema Anda
+            status: "IN_PROGRESS_SPK",
           },
         });
       }
@@ -127,7 +127,7 @@ export const createSPK = async (req, res) => {
       return spk;
     });
 
-    // ✅ TAMBAHKAN: BROADCAST NOTIFICATION KE ADMIN & PIC - SAMA SEPERTI DI CREATE PRODUCT
+    // ✅ BROADCAST NOTIFICATION KE ADMIN, PIC, DAN TEAM MEMBERS
     try {
       // Dapatkan semua user dengan role admin dan pic
       const adminUsers = await prisma.user.findMany({
@@ -143,14 +143,18 @@ export const createSPK = async (req, res) => {
         },
       });
 
-      // console.log(
-      //   `📢 Sending SPK notification to ${adminUsers.length} admin/pic users`
-      // );
-
       // Dapatkan informasi user yang membuat SPK
       const creatorUser = await prisma.karyawan.findUnique({
         where: { id: createdById },
-        select: { namaLengkap: true, email: true },
+        select: {
+          namaLengkap: true,
+          email: true,
+          user: {
+            select: {
+              role: true,
+            },
+          },
+        },
       });
 
       const creatorName =
@@ -159,7 +163,10 @@ export const createSPK = async (req, res) => {
       // Dapatkan informasi Sales Order terkait
       const salesOrderInfo = await prisma.salesOrder.findUnique({
         where: { id: salesOrderId },
-        select: { soNumber: true, customer: { select: { name: true } } },
+        select: {
+          soNumber: true,
+          customer: { select: { name: true } },
+        },
       });
 
       const soNumber = salesOrderInfo?.soNumber || "Unknown SO";
@@ -170,7 +177,11 @@ export const createSPK = async (req, res) => {
         "../../utils/firebase/notificationService.js"
       );
 
-      // Kirim notifikasi ke setiap admin dan pic
+      // ✅ BROADCAST NOTIFICATION KE ADMIN & PIC
+      // console.log(
+      //   `📢 Sending SPK notification to ${adminUsers.length} admin/pic users`
+      // );
+
       for (const admin of adminUsers) {
         await NotificationService.sendToUser(admin.id, {
           title: "SPK Baru Dibuat 🛠️",
@@ -193,8 +204,38 @@ export const createSPK = async (req, res) => {
         // );
       }
 
-      // Juga kirim notifikasi ke user yang membuat SPK (jika bukan admin/pic)
-      if (creatorUser && !["admin", "pic"].includes(creatorUser.role)) {
+      // ✅ BROADCAST NOTIFICATION KE TEAM MEMBERS DENGAN ROLE = USER
+      if (teamId) {
+        try {
+          await NotificationService.broadcastToTeamMembers(teamId, {
+            title: "Anda Ditugaskan di SPK Baru 📋",
+            body: `Anda termasuk dalam team SPK ${newSPK.spkNumber} untuk SO ${soNumber} - Customer: ${customerName}`,
+            data: {
+              type: "spk_assignment",
+              spkId: newSPK.id,
+              spkNumber: newSPK.spkNumber,
+              soNumber: soNumber,
+              customerName: customerName,
+              createdBy: creatorName,
+              teamId: teamId,
+              action: `/spk/${newSPK.id}`,
+              timestamp: new Date().toISOString(),
+            },
+          });
+        } catch (teamNotifyError) {
+          console.error(
+            "❌ Error sending team notifications:",
+            teamNotifyError
+          );
+        }
+      }
+
+      // ✅ NOTIFIKASI KE CREATOR SPK (jika bukan admin/pic)
+      if (
+        creatorUser &&
+        creatorUser.user &&
+        !["admin", "pic"].includes(creatorUser.user.role)
+      ) {
         await NotificationService.sendToUser(createdById, {
           title: "SPK Berhasil Dibuat ✅",
           body: `SPK ${newSPK.spkNumber} telah berhasil dibuat untuk SO ${soNumber}`,
@@ -208,43 +249,9 @@ export const createSPK = async (req, res) => {
           },
         });
 
-        // console.log(
-        //   `✅ SPK notification sent to creator: ${creatorUser.email}`
-        // );
-      }
-
-      // ✅ NOTIFIKASI TAMBAHAN: Kirim ke team members jika ada teamId
-      if (teamId) {
-        const teamMembers = await prisma.teamMember.findMany({
-          where: { teamId: teamId },
-          include: { karyawan: true },
-        });
-
-        // console.log(
-        //   `👥 Sending SPK notification to ${teamMembers.length} team members`
-        // );
-
-        for (const member of teamMembers) {
-          if (member.karyawan.userId) {
-            // Pastikan karyawan punya user account
-            await NotificationService.sendToUser(member.karyawan.userId, {
-              title: "Anda Ditugaskan di SPK Baru 📋",
-              body: `Anda termasuk dalam team SPK ${newSPK.spkNumber} untuk SO ${soNumber}`,
-              data: {
-                type: "spk_assignment",
-                spkId: newSPK.id,
-                spkNumber: newSPK.spkNumber,
-                soNumber: soNumber,
-                customerName: customerName,
-                action: `/spk/${newSPK.id}`,
-              },
-            });
-
-            // console.log(
-            //   `✅ SPK assignment notification sent to team member: ${member.karyawan.nama}`
-            // );
-          }
-        }
+        console.log(
+          `✅ SPK notification sent to creator: ${creatorUser.email}`
+        );
       }
     } catch (notificationError) {
       // Jangan gagalkan create SPK jika notifikasi gagal
