@@ -148,13 +148,13 @@ export const createSPK = async (req, res) => {
       // );
 
       // Dapatkan informasi user yang membuat SPK
-      const creatorUser = await prisma.user.findUnique({
+      const creatorUser = await prisma.karyawan.findUnique({
         where: { id: createdById },
-        select: { name: true, email: true, role: true },
+        select: { namaLengkap: true, email: true },
       });
 
       const creatorName =
-        creatorUser?.name || creatorUser?.email || "Unknown User";
+        creatorUser?.namaLengkap || creatorUser?.email || "Unknown User";
 
       // Dapatkan informasi Sales Order terkait
       const salesOrderInfo = await prisma.salesOrder.findUnique({
