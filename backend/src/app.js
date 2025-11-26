@@ -25,6 +25,7 @@ import prRoutes from "./routes/pr/prRouters.js";
 import umRoutes from "./routes/um/umRouters.js";
 import lppRouter from "./routes/lpp/lppRouters.js";
 import sessionRoute from "./routes/auth/sessionRoutes.js";
+import notifications from "./routes/notifications/notificationRoutes.js";
 
 import path from "path";
 
@@ -118,6 +119,7 @@ app.use("/api/coa", coaRoutes);
 app.use("/api/pr", prRoutes);
 app.use("/api/um", umRoutes);
 app.use("/api/lpp", lppRouter);
+app.use("/api/notifications", notifications);
 
 // Health Check Endpoint
 app.get("/api/health", (req, res) => {

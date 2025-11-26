@@ -144,7 +144,7 @@ const HeaderCard = ({
           </div>
           
           {showActionArea && actionArea && (
-            <div className="flex-shrink-0 relative z-50 overflow-visible">
+            <div className="flex-shrink-0 relative z-10 overflow-visible">
               {actionArea}
             </div>
           )}

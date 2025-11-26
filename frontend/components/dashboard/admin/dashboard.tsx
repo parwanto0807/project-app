@@ -433,8 +433,6 @@ export default function DashboardAwalSalesOrder() {
         const thisMonth = Number(salesStats.totalThisMonth ?? 0);
         const lastMonth = Number(salesStats.totalLastMonth ?? 0);
 
-        console.log("This Month:", thisMonth, "Last Month:", lastMonth);
-
         // Validasi input
         if (!isFinite(thisMonth) || !isFinite(lastMonth)) return 0;
 
@@ -502,7 +500,6 @@ export default function DashboardAwalSalesOrder() {
                     </Button>
                 </div>
             </div>
-
             {/* Stats Grid - MODIFIED FOR MOBILE: 2 columns on mobile, 4 columns on desktop */}
             <div className="grid grid-cols-2 gap-3 md:gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
                 <StatCard

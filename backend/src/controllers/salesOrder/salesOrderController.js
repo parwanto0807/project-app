@@ -1,6 +1,7 @@
 import { prisma } from "../../config/db.js";
 import { Prisma } from "../../../prisma/generated/prisma/index.js";
 import { toNum } from "../../lib/soUtils.js";
+import { NotificationService } from "../../utils/firebase/notificationService.js";
 
 /** Ambil semua sales order */
 export const getAll = async (req, res) => {
@@ -277,7 +278,7 @@ function calcLineExclusive(qty, unitPrice, discount, taxRate) {
 
 export const create = async (req, res) => {
   try {
-    console.log("USER ID", req.user);
+    // console.log("USER ID", req.user);
 
     // ✅ Check semua kemungkinan property names
     const possibleUserId =
@@ -532,6 +533,79 @@ export const create = async (req, res) => {
         maxWait: 30000,
       }
     );
+
+    // ✅ TAMBAHKAN: BROADCAST NOTIFICATION KE ADMIN & PIC - SAMA SEPERTI DI CREATE PRODUCT
+    try {
+      // Dapatkan semua user dengan role admin dan pic
+      const adminUsers = await prisma.user.findMany({
+        where: {
+          role: { in: ["admin", "pic"] },
+          active: true,
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+        },
+      });
+
+      console.log(
+        `📢 Sending notification to ${adminUsers.length} admin/pic users`
+      );
+
+      // Dapatkan informasi user yang membuat SO
+      const creatorUser = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { name: true, email: true, role: true },
+      });
+
+      const creatorName =
+        creatorUser?.name || creatorUser?.email || "Unknown User";
+
+      // Kirim notifikasi ke setiap admin dan pic
+      for (const admin of adminUsers) {
+        await NotificationService.sendToUser(admin.id, {
+          title: "Sales Order Baru Dibuat 🛍️",
+          body: `SO ${created.soNumber} berhasil dibuat oleh ${creatorName}`,
+          data: {
+            type: "sales_order_created",
+            salesOrderId: created.id,
+            soNumber: created.soNumber,
+            customerName: created.customer?.name || "Unknown Customer",
+            projectName: created.project?.name || "Unknown Project",
+            grandTotal: created.grandTotal.toString(),
+            currency: created.currency,
+            createdBy: creatorName,
+            action: `/sales-orders/${created.id}`,
+            timestamp: new Date().toISOString(),
+          },
+        });
+
+        // console.log(`✅ Notification sent to ${admin.role}: ${admin.email}`);
+      }
+
+      // Juga kirim notifikasi ke user yang membuat SO (jika bukan admin/pic)
+      if (creatorUser && !["admin", "pic"].includes(creatorUser.role)) {
+        await NotificationService.sendToUser(userId, {
+          title: "Sales Order Berhasil Dibuat ✅",
+          body: `Sales Order ${created.soNumber} telah berhasil dibuat`,
+          data: {
+            type: "sales_order_created",
+            salesOrderId: created.id,
+            soNumber: created.soNumber,
+            customerName: created.customer?.name || "Unknown Customer",
+            grandTotal: created.grandTotal.toString(),
+            action: `/sales-orders/${created.id}`,
+          },
+        });
+
+        // console.log(`✅ Notification sent to creator: ${creatorUser.email}`);
+      }
+    } catch (notificationError) {
+      // Jangan gagalkan create SO jika notifikasi gagal
+      console.error("❌ Error sending notification:", notificationError);
+    }
 
     return res.status(201).json(created);
   } catch (error) {

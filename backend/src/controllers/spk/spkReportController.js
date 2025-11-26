@@ -184,6 +184,84 @@ export const createSpkFieldReport = async (req, res) => {
       },
     });
 
+    // ✅ TAMBAHKAN: BROADCAST NOTIFICATION HANYA KE ADMIN & PIC SAJA
+    try {
+      // Dapatkan semua user dengan role admin dan pic
+      const adminUsers = await prisma.user.findMany({
+        where: {
+          role: { in: ["admin", "pic"] },
+          active: true,
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+        },
+      });
+
+      console.log(
+        `📢 Sending SPK Field Report notification to ${adminUsers.length} admin/pic users`
+      );
+
+      // Dapatkan informasi SPK dan Sales Order terkait
+      const spkInfo = await prisma.sPK.findUnique({
+        where: { id: spkId },
+        include: {
+          salesOrder: {
+            select: { soNumber: true, customer: { select: { name: true } } },
+          },
+        },
+      });
+
+      const spkNumber = spkInfo?.spkNumber || "Unknown SPK";
+      const soNumber = spkInfo?.salesOrder?.soNumber || "Unknown SO";
+      const customerName =
+        spkInfo?.salesOrder?.customer?.name || "Unknown Customer";
+
+      // Import NotificationService
+      const { NotificationService } = await import(
+        "../../utils/firebase/notificationService.js"
+      );
+
+      // Kirim notifikasi ke setiap admin dan pic
+      for (const admin of adminUsers) {
+        await NotificationService.sendToUser(admin.id, {
+          title:
+            type === "FINAL"
+              ? "Laporan Final SPK Selesai 🎯"
+              : "Progress SPK Diperbarui 📊",
+          body:
+            type === "FINAL"
+              ? `Laporan final SPK ${spkNumber} (SO: ${soNumber}) telah diselesaikan oleh ${karyawan.namaLengkap}`
+              : `Progress SPK ${spkNumber} (SO: ${soNumber}) diperbarui menjadi ${progress}% oleh ${karyawan.namaLengkap}`,
+          data: {
+            type: "spk_field_report",
+            reportId: report.id,
+            spkId: spkId,
+            spkNumber: spkNumber,
+            soNumber: soNumber,
+            customerName: customerName,
+            karyawanName: karyawan.namaLengkap,
+            progress: progress,
+            reportType: type,
+            action: `/spk/${spkId}/reports`,
+            timestamp: new Date().toISOString(),
+          },
+        });
+
+        console.log(
+          `✅ SPK Field Report notification sent to ${admin.role}: ${admin.email}`
+        );
+      }
+    } catch (notificationError) {
+      // Jangan gagalkan create report jika notifikasi gagal
+      console.error(
+        "❌ Error sending SPK Field Report notification:",
+        notificationError
+      );
+    }
+
     // ✅ Broadcast ke semua client bahwa ada report baru & SPK berubah
     // req.io.emit("spk_updated");
 

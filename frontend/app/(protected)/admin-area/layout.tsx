@@ -48,6 +48,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <AdminPanelLayout role={user.role}>
           <Toaster />
           {children}
+          <div className="container mx-auto p-4 mt-6">
+          </div>
           <BackToDashboardButton />
         </AdminPanelLayout>
         {/* Devtools opsional, bisa dihapus di production */}

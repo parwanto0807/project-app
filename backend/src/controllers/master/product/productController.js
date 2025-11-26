@@ -3,6 +3,7 @@
 
 import { prisma } from "../../../config/db.js";
 import { ProductType } from "../../../../prisma/generated/prisma/index.js";
+import { NotificationService } from "../../../utils/firebase/notificationService.js";
 
 // [GET] /products - Ambil semua produk (opsional: hanya aktif)
 export const getAllProducts = async (req, res) => {
@@ -197,16 +198,81 @@ export const createProduct = async (req, res) => {
       data: productData,
     });
 
+    console.log(`✅ Product created: ${created.code} - ${created.name}`);
+
+    // ✅ KIRIM NOTIFIKASI SETELAH PRODUCT BERHASIL DIBUAT
+    try {
+      // Dapatkan semua user dengan role admin
+      const adminUsers = await prisma.user.findMany({
+        where: {
+          role: { in: ["admin", "pic"] },
+          active: true,
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+        },
+      });
+
+      console.log(
+        `📢 Sending notification to ${adminUsers.length} admin users`
+      );
+
+      // Kirim notifikasi ke setiap admin
+      for (const admin of adminUsers) {
+        await NotificationService.sendToUser(admin.id, {
+          title: "Produk Baru Ditambahkan 🆕",
+          body: `Produk "${created.name}" (${created.code}) berhasil ditambahkan ke sistem`,
+          data: {
+            type: "product_created",
+            id: created.id,
+            action: `/products/${created.id}`,
+            productCode: created.code,
+            productName: created.name,
+            createdBy: req.user?.email || "System",
+            timestamp: new Date().toISOString(),
+          },
+        });
+
+        console.log(`✅ Notification sent to admin: ${admin.email}`);
+      }
+
+      // Juga kirim notifikasi ke user yang membuat product (jika bukan admin)
+      if (req.user && req.user.role !== "admin") {
+        await NotificationService.sendToUser(req.user.id, {
+          title: "Produk Berhasil Ditambahkan ✅",
+          body: `Produk "${created.name}" telah berhasil ditambahkan ke inventory`,
+          data: {
+            type: "product_created",
+            id: created.id,
+            action: `/products/${created.id}`,
+            productCode: created.code,
+            productName: created.name,
+          },
+        });
+
+        console.log(`✅ Notification sent to creator: ${req.user.email}`);
+      }
+    } catch (notificationError) {
+      // Jangan gagalkan create product jika notifikasi gagal
+      console.error("❌ Error sending notification:", notificationError);
+    }
+
     res.status(201).json(created);
   } catch (error) {
-    console.error(error);
+    console.error("Error creating product:", error);
+
     // Prisma unique constraint error (duplicate)
     if (error.code === "P2002") {
-      return res
-        .status(400)
-        .json({ message: "Kode produk atau barcode sudah digunakan" });
+      return res.status(400).json({
+        message: "Kode produk atau barcode sudah digunakan",
+      });
     }
-    res.status(500).json({ message: "Gagal menambahkan produk" });
+
+    res.status(500).json({
+      message: "Gagal menambahkan produk",
+    });
   }
 };
 

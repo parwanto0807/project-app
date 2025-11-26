@@ -88,7 +88,6 @@ export function normalizePdfProps(data: SPKDataApi) {
   };
 }
 
-
 // lib/utils.ts
 export function generatePagination(currentPage: number, totalPages: number) {
   // Jika total pages <= 7, tampilkan semua pages
@@ -98,14 +97,39 @@ export function generatePagination(currentPage: number, totalPages: number) {
 
   // Jika current page di awal
   if (currentPage <= 3) {
-    return [1, 2, 3, '...', totalPages - 1, totalPages];
+    return [1, 2, 3, "...", totalPages - 1, totalPages];
   }
 
   // Jika current page di akhir
   if (currentPage >= totalPages - 2) {
-    return [1, 2, '...', totalPages - 2, totalPages - 1, totalPages];
+    return [1, 2, "...", totalPages - 2, totalPages - 1, totalPages];
   }
 
   // Jika current page di tengah
-  return [1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages];
+  return [
+    1,
+    "...",
+    currentPage - 1,
+    currentPage,
+    currentPage + 1,
+    "...",
+    totalPages,
+  ];
 }
+
+export const registerServiceWorker =
+  async (): Promise<ServiceWorkerRegistration | null> => {
+    if ("serviceWorker" in navigator) {
+      try {
+        const registration = await navigator.serviceWorker.register(
+          "/firebase-messaging-sw.js"
+        );
+        console.log("✅ Service Worker registered:", registration);
+        return registration;
+      } catch (error) {
+        console.error("❌ Service Worker registration failed:", error);
+        return null;
+      }
+    }
+    return null;
+  };

@@ -98,6 +98,7 @@ model User {
   verifiedPayments Payment[]
   rab              RAB[]
   auditLogs        AuditLog[]
+  notifications Notification[]
 }
 
 model LoginAttempt {
@@ -117,22 +118,49 @@ model LoginAttempt {
 }
 
 model UserSession {
-  id           String   @id @default(uuid())
+  id           String    @id @default(uuid())
   userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sessionToken String   @unique
-  refreshToken String   @unique
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionToken String    @unique
+  refreshToken String    @unique
+  fcmToken     String?   @db.Text
   deviceId     String? // Link to TrustedDevice if recognized
   ipAddress    String
   userAgent    String
   country      String? // Geolocation data
   city         String?
-  isRevoked    Boolean  @default(false)
+  isRevoked    Boolean   @default(false)
   revokedAt    DateTime?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime  @default(now())
   expiresAt    DateTime
 
   @@index([userId])
+  @@index([expiresAt])
+}
+
+model Notification {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title String @db.VarChar(255)
+  body  String
+  type  String @default("general") @db.VarChar(50)
+
+  imageUrl  String? @db.VarChar(500)
+  actionUrl String? @db.VarChar(500)
+
+  data Json? @default("{}")
+
+  read Boolean @default(false)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  expiresAt DateTime?
+
+  @@index([userId])
+  @@index([userId, read])
+  @@index([createdAt])
   @@index([expiresAt])
 }
 

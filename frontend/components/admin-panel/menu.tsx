@@ -78,7 +78,7 @@ const MenuItem = ({
               active && "opacity-100",
               theme === 'dark' ? "bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-purple-500/10" : "bg-gradient-to-r from-cyan-400/10 via-blue-400/10 to-purple-400/10"
             )} />
-            
+
             <span className={cn(
               "relative transition-transform duration-200",
               !isOpen ? "ml-0" : "mr-2"
@@ -94,12 +94,12 @@ const MenuItem = ({
                 )}
               />
               {active && (
-                <Sparkles 
-                  size={6} 
+                <Sparkles
+                  size={6}
                   className={cn(
                     "absolute -top-0.5 -right-0.5 animate-ping",
                     theme === 'dark' ? "text-cyan-300" : "text-white"
-                  )} 
+                  )}
                 />
               )}
             </span>
@@ -114,7 +114,7 @@ const MenuItem = ({
             >
               {label}
             </p>
-            
+
             <div className={cn(
               "absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-cyan-400 to-blue-500 transition-all duration-300 group-hover:w-full",
               active && "w-full"
@@ -123,8 +123,8 @@ const MenuItem = ({
         </Button>
       </TooltipTrigger>
       {!isOpen && (
-        <TooltipContent 
-          side="right" 
+        <TooltipContent
+          side="right"
           sideOffset={8}
           className={cn(
             theme === 'dark' ? "bg-gray-800 text-white border-gray-700" : "bg-white text-gray-800 border-gray-200",
@@ -163,13 +163,13 @@ const SubmenuItem = ({
             "block px-3 py-1.5 text-xs rounded-md transition-all duration-200 hover:scale-[1.02] group relative",
             theme === 'dark'
               ? cn(
-                active 
-                  ? "bg-cyan-600/20 text-cyan-300 border border-cyan-500/20 shadow" 
+                active
+                  ? "bg-cyan-600/20 text-cyan-300 border border-cyan-500/20 shadow"
                   : "text-gray-400 hover:text-white hover:bg-gray-700/50",
               )
               : cn(
-                active 
-                  ? "bg-cyan-100 text-cyan-700 border border-cyan-300 shadow" 
+                active
+                  ? "bg-cyan-100 text-cyan-700 border border-cyan-300 shadow"
                   : "text-gray-600 hover:text-cyan-700 hover:bg-cyan-50/80",
               )
           )}
@@ -178,11 +178,11 @@ const SubmenuItem = ({
             "absolute inset-0 rounded-md opacity-0 transition-opacity duration-200 group-hover:opacity-100",
             theme === 'dark' ? "bg-gradient-to-r from-cyan-500/5 to-blue-500/5" : "bg-gradient-to-r from-cyan-400/5 to-blue-400/5"
           )} />
-          
+
           <span className="relative z-10 flex items-center gap-1.5">
             <div className={cn(
               "w-1 h-1 rounded-full transition-all duration-200",
-              active 
+              active
                 ? (theme === 'dark' ? "bg-cyan-400" : "bg-cyan-500")
                 : (theme === 'dark' ? "bg-gray-600 group-hover:bg-cyan-400" : "bg-gray-400 group-hover:bg-cyan-400")
             )} />
@@ -191,8 +191,8 @@ const SubmenuItem = ({
         </Link>
       </TooltipTrigger>
       {!isOpen && (
-        <TooltipContent 
-          side="right" 
+        <TooltipContent
+          side="right"
           className={cn(
             theme === 'dark' ? "bg-gray-800 text-white border-gray-700" : "bg-white text-gray-800 border-gray-200",
             "z-50 max-w-xs px-2 py-1.5 rounded-lg text-xs shadow-lg border"
@@ -222,8 +222,8 @@ const MenuGroupLabel = ({
             <div className="ml-0.5 w-8 h-8 flex justify-center items-center group mb-1">
               <div className={cn(
                 "p-1.5 rounded-lg transition-all duration-200",
-                theme === 'dark' 
-                  ? "bg-gray-800/50 text-gray-400 hover:bg-gray-700/50" 
+                theme === 'dark'
+                  ? "bg-gray-800/50 text-gray-400 hover:bg-gray-700/50"
                   : "bg-white/50 text-gray-500 hover:bg-gray-100/80",
                 "backdrop-blur-sm"
               )}>
@@ -231,8 +231,8 @@ const MenuGroupLabel = ({
               </div>
             </div>
           </TooltipTrigger>
-          <TooltipContent 
-            side="right" 
+          <TooltipContent
+            side="right"
             className={cn(
               theme === 'dark' ? "bg-gray-800 text-white border-gray-700" : "bg-white text-gray-800 border-gray-200",
               "z-20 px-2 py-1.5 rounded-lg text-xs font-medium border"
@@ -280,8 +280,8 @@ export function Menu({ isOpen, role, theme = 'dark' }: MenuProps) {
     <ScrollArea className="h-[calc(95vh-70px)]">
       <nav className={cn(
         "mt-1 h-full w-full rounded-xl p-1",
-        theme === 'dark' 
-          ? "bg-gray-900/95 backdrop-blur-sm" 
+        theme === 'dark'
+          ? "bg-gray-900/95 backdrop-blur-sm"
           : "bg-white/95 backdrop-blur-sm border border-gray-200/50"
       )}>
         <ul className="flex flex-col items-start space-y-0.5 px-1">
@@ -387,10 +387,10 @@ export function Menu({ isOpen, role, theme = 'dark' }: MenuProps) {
                               align="start"
                               sideOffset={8}
                               className={cn(
-                                theme === 'dark' 
-                                  ? "bg-gray-800/95 text-white border-gray-700 backdrop-blur-md" 
+                                theme === 'dark'
+                                  ? "bg-gray-800/95 text-white border-gray-700 backdrop-blur-md"
                                   : "bg-white/95 text-gray-800 border-gray-200 backdrop-blur-md",
-                                "z-50 w-56 p-2 shadow-xl border rounded-lg"
+                                "z-55 w-56 p-2 shadow-xl border rounded-lg"
                               )}
                             >
                               <div className="flex flex-col gap-1">

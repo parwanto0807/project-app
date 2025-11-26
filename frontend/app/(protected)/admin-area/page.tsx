@@ -1,3 +1,4 @@
+// app/admin-area/page.tsx
 'use client';
 
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
@@ -17,17 +18,13 @@ import DashboardAwalSalesOrder from "@/components/dashboard/admin/dashboard";
 import { Home, LayoutDashboard, UserCircle } from "lucide-react";
 import Link from "next/link";
 
-// ✅ 1. IMPORT FIREBASE
-import { messaging } from "@/lib/firebase";
-import { getToken } from "firebase/messaging";
-
 export default function DashboardPage() {
   const { user, isLoading } = useSession();
   const router = useRouter();
 
   useAutoLogout(86400);
 
-  // ✅ 2. LOGIC AUTH & REDIRECT (Bawaan Anda)
+  // Logic Auth Redirect
   useEffect(() => {
     if (isLoading) return;
     if (!user) {
@@ -37,74 +34,10 @@ export default function DashboardPage() {
     }
   }, [user, isLoading, router]);
 
-  // ✅ 3. LOGIC REQUEST NOTIFIKASI & TOKEN
-  useEffect(() => {
-    // Hanya jalankan jika user sudah terautentikasi (bukan loading, dan user ada)
-    if (isLoading || !user) return;
+  // ✅ HAPUS FCM LOGIC DARI SINI - biar FCMSetup yang handle
 
-    const setupFCM = async () => {
-      try {
-        // Cek support browser & messaging
-        if (typeof window === "undefined" || !messaging) return;
-
-        // Minta Izin
-        const permission = await Notification.requestPermission();
-
-        if (permission === "granted") {
-          console.log("🔔 Izin notifikasi diberikan.");
-
-          // Ambil Token
-          const token = await getToken(messaging, {
-            // 👇 GANTI DENGAN KEY DARI FIREBASE CONSOLE -> PROJECT SETTINGS -> CLOUD MESSAGING -> WEB CONFIG
-            vapidKey: process.env.VAPID_KEY,
-          });
-
-          if (token) {
-            console.log("🔑 FCM Token User:", token);
-            // Kirim token ke backend
-            saveTokenToBackend(token, user.id); // Asumsi user object punya id
-          }
-        } else {
-          console.log("🔕 Izin notifikasi ditolak.");
-        }
-      } catch (error) {
-        console.error("❌ Error setup FCM:", error);
-      }
-    };
-
-    setupFCM();
-  }, [user, isLoading]); // Jalankan ulang jika status user berubah
-
-  // ✅ 4. FUNGSI SIMPAN KE BACKEND (Placeholder)
-  const saveTokenToBackend = async (token: string, userId: string | number) => {
-    try {
-      // Contoh implementasi fetch ke Node.js Backend Anda:
-      /*
-      await fetch('http://localhost:5000/api/notifications/save-token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${sessionToken}` // Jika perlu auth header
-        },
-        body: JSON.stringify({
-          token: token,
-          userId: userId
-        })
-      });
-      */
-      console.log("✅ Token siap dikirim ke backend untuk User ID:", userId);
-    } catch (err) {
-      console.error("Gagal save token ke DB:", err);
-    }
-  };
-
-
-  // --- RENDER UI ---
-
-  if (!user || user.role !== "admin") {
-    return null;
-  }
-
+  if (!user || user.role !== "admin") return null;
+  
   return (
     <AdminLayout title="Dashboard Admin" role={user.role}>
       {/* Page Header */}
@@ -142,6 +75,7 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+      
       {/* Main Dashboard Content */}
       <DashboardAwalSalesOrder />
     </AdminLayout>

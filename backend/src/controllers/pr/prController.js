@@ -271,6 +271,73 @@ export class PurchaseRequestController {
         },
       });
 
+      // ✅ TAMBAHKAN: BROADCAST NOTIFICATION KE ADMIN & PIC
+      try {
+        // Dapatkan semua user dengan role admin dan pic
+        const adminUsers = await prisma.user.findMany({
+          where: {
+            role: { in: ["admin", "pic"] },
+            active: true,
+          },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+          },
+        });
+
+        console.log(
+          `📢 Sending Purchase Request notification to ${adminUsers.length} admin/pic users`
+        );
+
+        // Hitung total estimasi budget
+        const totalEstimasiBudget = detailsWithTotal.reduce((total, detail) => {
+          return total + detail.estimasiTotalHarga;
+        }, 0);
+
+        // Format currency untuk display
+        const formattedBudget = new Intl.NumberFormat("id-ID", {
+          style: "currency",
+          currency: "IDR",
+        }).format(totalEstimasiBudget);
+
+        // Import NotificationService
+        const { NotificationService } = await import(
+          "../../utils/firebase/notificationService.js"
+        );
+
+        // Kirim notifikasi ke setiap admin dan pic
+        for (const admin of adminUsers) {
+          await NotificationService.sendToUser(admin.id, {
+            title: "Purchase Request Baru Dibuat 📝",
+            body: `PR ${nomorPr} dengan total estimasi ${formattedBudget} berhasil dibuat`,
+            data: {
+              type: "purchase_request_created",
+              prId: purchaseRequest.id,
+              prNumber: nomorPr,
+              projectName: purchaseRequest.project?.name || "Unknown Project",
+              karyawanName:
+                purchaseRequest.karyawan?.namaLengkap || "Unknown Karyawan",
+              totalItems: detailsWithTotal.length,
+              totalBudget: totalEstimasiBudget.toString(),
+              action: `/purchase-requests/${purchaseRequest.id}`,
+              timestamp: new Date().toISOString(),
+            },
+          });
+
+          console.log(
+            `✅ Purchase Request notification sent to ${admin.role}: ${admin.email}`
+          );
+        }
+      } catch (notificationError) {
+        // Jangan gagalkan create PR jika notifikasi gagal
+        console.error(
+          "❌ Error sending Purchase Request notification:",
+          notificationError
+        );
+      }
+
       res.status(201).json({
         success: true,
         message: "Purchase Request created successfully",

@@ -493,10 +493,10 @@ class InvoiceController {
                 },
               });
 
-              console.log(
-                `Update result for item ${item.soItemId}:`,
-                updateResult
-              );
+              // console.log(
+              //   `Update result for item ${item.soItemId}:`,
+              //   updateResult
+              // );
               updatedSalesOrderItemsCount += updateResult.count;
 
               // Jika tidak ada yang terupdate, coba alternatif
@@ -518,7 +518,7 @@ class InvoiceController {
                     lineTotal: item.lineTotal,
                   },
                 });
-                console.log(`Fallback update successful:`, fallbackResult);
+                // console.log(`Fallback update successful:`, fallbackResult);
                 updatedSalesOrderItemsCount++;
               }
             } catch (error) {
@@ -541,7 +541,7 @@ class InvoiceController {
                     lineTotal: item.lineTotal,
                   },
                 });
-                console.log(`Last resort update successful:`, lastResortResult);
+                // console.log(`Last resort update successful:`, lastResortResult);
                 updatedSalesOrderItemsCount++;
               } catch (lastError) {
                 console.error(
@@ -559,9 +559,9 @@ class InvoiceController {
           }
         }
 
-        console.log(
-          `Total SalesOrderItems updated: ${updatedSalesOrderItemsCount}`
-        );
+        // console.log(
+        //   `Total SalesOrderItems updated: ${updatedSalesOrderItemsCount}`
+        // );
 
         // Create installments if provided
         if (installments && installments.length > 0) {
@@ -623,6 +623,78 @@ class InvoiceController {
           where: { id: completeInvoice.salesOrder.id },
           data: { status: "INVOICED" },
         });
+      }
+
+      // ✅ TAMBAHKAN: BROADCAST NOTIFICATION HANYA KE ADMIN SAJA
+      try {
+        // Dapatkan semua user dengan role admin saja (tidak termasuk pic)
+        const adminUsers = await prisma.user.findMany({
+          where: {
+            role: "admin", // Hanya admin saja
+            active: true,
+          },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+          },
+        });
+
+        // console.log(
+        //   `📢 Sending Invoice notification to ${adminUsers.length} admin users`
+        // );
+
+        // Dapatkan informasi user yang membuat invoice
+        const creatorUser = await prisma.user.findUnique({
+          where: { id: createdById },
+          select: { name: true, email: true },
+        });
+
+        const creatorName =
+          creatorUser?.name || creatorUser?.email || "Unknown User";
+
+        // Import NotificationService
+        const { NotificationService } = await import(
+          "../../utils/firebase/notificationService.js"
+        );
+
+        // Format amount untuk display
+        const formattedAmount = new Intl.NumberFormat("id-ID", {
+          style: "currency",
+          currency: currency || "IDR",
+        }).format(calculatedTotals.grandTotal || 0);
+
+        // Kirim notifikasi ke setiap admin
+        for (const admin of adminUsers) {
+          await NotificationService.sendToUser(admin.id, {
+            title: "Invoice Baru Dibuat 🧾",
+            body: `Invoice ${invoiceNumber} senilai ${formattedAmount} berhasil dibuat oleh ${creatorName}`,
+            data: {
+              type: "invoice_created",
+              invoiceId: completeInvoice.id,
+              invoiceNumber: invoiceNumber,
+              salesOrderId: salesOrderId,
+              soNumber: completeInvoice.salesOrder?.soNumber || "Unknown SO",
+              customerName:
+                completeInvoice.salesOrder?.customer?.name ||
+                "Unknown Customer",
+              amount: calculatedTotals.grandTotal?.toString() || "0",
+              currency: currency,
+              createdBy: creatorName,
+              action: `/invoices/${completeInvoice.id}`,
+              timestamp: new Date().toISOString(),
+            },
+          });
+
+          // console.log(`✅ Invoice notification sent to admin: ${admin.email}`);
+        }
+      } catch (notificationError) {
+        // Jangan gagalkan create invoice jika notifikasi gagal
+        console.error(
+          "❌ Error sending Invoice notification:",
+          notificationError
+        );
       }
 
       res.status(201).json({

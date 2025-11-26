@@ -284,6 +284,65 @@ export const createBAP = async (req, res) => {
       });
     }
 
+    // ✅ TAMBAHKAN: BROADCAST NOTIFICATION HANYA KE ADMIN SAJA
+    try {
+      // Dapatkan semua user dengan role admin saja (tidak termasuk pic)
+      const adminUsers = await prisma.user.findMany({
+        where: {
+          role: "admin", // Hanya admin saja
+          active: true,
+        },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+        },
+      });
+
+      // console.log(
+      //   `📢 Sending BAP notification to ${adminUsers.length} admin users`
+      // );
+
+      // Dapatkan informasi user yang membuat BAP
+      const creatorUser = await prisma.user.findUnique({
+        where: { id: createdById },
+        select: { name: true, email: true },
+      });
+
+      const creatorName =
+        creatorUser?.name || creatorUser?.email || "Unknown User";
+
+      // Import NotificationService
+      const { NotificationService } = await import(
+        "../../utils/firebase/notificationService.js"
+      );
+
+      // Kirim notifikasi ke setiap admin
+      for (const admin of adminUsers) {
+        await NotificationService.sendToUser(admin.id, {
+          title: "BAP Baru Dibuat 📋",
+          body: `BAP ${bapNumber} berhasil dibuat oleh ${creatorName} untuk SO ${bap.salesOrder.soNumber}`,
+          data: {
+            type: "bap_created",
+            bapId: bap.id,
+            bapNumber: bapNumber,
+            salesOrderId: salesOrderId,
+            soNumber: bap.salesOrder.soNumber,
+            customerName: bap.salesOrder.customer?.name || "Unknown Customer",
+            createdBy: creatorName,
+            action: `/bap/${bap.id}`,
+            timestamp: new Date().toISOString(),
+          },
+        });
+
+        // console.log(`✅ BAP notification sent to admin: ${admin.email}`);
+      }
+    } catch (notificationError) {
+      // Jangan gagalkan create BAP jika notifikasi gagal
+      console.error("❌ Error sending BAP notification:", notificationError);
+    }
+
     res.status(201).json(bap);
   } catch (error) {
     console.error("❌ Error createBAP:", error);

@@ -3,7 +3,9 @@ import {
   getAllSessions,
   getActiveSessions,
   revokeSession,
+  updateFcmToken,
 } from "../../controllers/auth/sessionController.js";
+import { authenticateToken } from "../../middleware/authMiddleware.js";
 
 const router = Router();
 
@@ -15,5 +17,7 @@ router.get("/active", getActiveSessions);
 
 // PATCH /sessions/revoke/:id → logout paksa
 router.patch("/revoke/:id", revokeSession);
+
+router.post("/update-session-fcm", authenticateToken, updateFcmToken);
 
 export default router;

@@ -7,13 +7,13 @@ import {
 } from "firebase/messaging";
 
 const firebaseConfig = {
-  apiKey: process.env.API_KEY,
-  authDomain: process.env.AUTH_DOMAIN,
-  projectId: process.env.PROJECT_ID,
-  storageBucket: process.env.STORAGE_BUCKET,
-  messagingSenderId: process.env.MESSAGIN_SENDER_ID,
-  appId: process.env.APP_ID,
-  measurementId: process.env.MEASUREMENT_ID,
+  apiKey: "AIzaSyBR2CWIcT2i80RoerJi3nRVreUcN7izgG0",
+  authDomain: "project-app-7225a.firebaseapp.com",
+  projectId: "project-app-7225a",
+  storageBucket: "project-app-7225a.firebasestorage.app",
+  messagingSenderId: "192039876000",
+  appId: "1:192039876000:web:c14390b83d1ff1a705a0c5",
+  measurementId: "G-JVW7D82DEY",
 };
 
 // 1. Initialize Firebase
