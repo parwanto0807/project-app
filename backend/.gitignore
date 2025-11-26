@@ -9,3 +9,6 @@ build/
 prisma/generated/
 prisma/dev.db
 prisma/dev.db-journal
+
+# 🔒 Secrets
+backend/service-account-key.json
