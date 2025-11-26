@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { messaging } from '@/lib/firebase';
 import { onMessage, getToken } from 'firebase/messaging';
 import { useNotifications } from '@/contexts/NotificationContext';
@@ -11,6 +11,7 @@ import { getAccessToken } from '@/lib/autoRefresh';
 export default function NotificationBell() {
     const [isLoading, setIsLoading] = useState(true);
     const [isOpen, setIsOpen] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
     const {
         notifications,
         addNotification,
@@ -22,133 +23,110 @@ export default function NotificationBell() {
         loadFromServer
     } = useNotifications();
 
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Detect mobile screen
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth < 768);
+        };
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
+    // Initial Load
     useEffect(() => {
         const loadNotifications = async () => {
             try {
                 setIsLoading(true);
-                await loadFromServer(); // Load dari database
+                await loadFromServer();
             } catch (error) {
                 console.error('Failed to load notifications:', error);
             } finally {
                 setIsLoading(false);
             }
         };
-
         loadNotifications();
     }, [loadFromServer]);
 
+    // Click Outside Handling
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            // ✅ FIX: Pastikan target adalah Element
             const target = event.target as Element;
-
             if (!target || typeof target.closest !== 'function') {
-                // Jika target tidak valid, close dropdown
                 setIsOpen(false);
                 return;
             }
-
             if (!target.closest('.notification-bell-container')) {
                 setIsOpen(false);
             }
         };
-
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    // Sync Logic
     useEffect(() => {
         if (!isLoading) {
             syncWithServer();
         }
     }, [notifications, isLoading, syncWithServer]);
 
-    // Initialize FCM and service worker
+    // Initialize FCM
     useEffect(() => {
         const initializeFCM = async () => {
-            if (!messaging) {
-                return;
-            }
-
+            if (!messaging) return;
             try {
-                // ✅ CHECK JIKA USER SEDANG LOGOUT
                 const accessToken = getAccessToken();
-                if (!accessToken) {
-                    console.log("🔐 [FCM] User tidak login - skip initialization");
-                    return;
-                }
-
-                // ✅ LANJUTKAN INITIALIZATION JIKA USER MASIH LOGIN
+                if (!accessToken) return;
+                
                 if ('serviceWorker' in navigator) {
                     try {
                         await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-                    } catch (registrationError) {
-                        console.log('SW registration failed: ', registrationError);
+                    } catch (err) {
+                        console.log('SW registration failed: ', err);
                     }
                 }
-
                 if (Notification.permission === 'default') {
                     await Notification.requestPermission();
                 }
-
                 if (Notification.permission === 'granted') {
-                    try {
-                        const token = await getToken(messaging, {
-                            vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
-                        });
-
-                        // ✅ SAVE TOKEN TAPI JANGAN THROW ERROR JIKA GAGAL
-                        await saveFcmToken(token);
-
-                    } catch (tokenError) {
-                        console.log('Error getting FCM token:', tokenError);
-                    }
+                    const token = await getToken(messaging, {
+                        vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
+                    });
+                    await saveFcmToken(token);
                 }
             } catch (error) {
                 console.log('FCM initialization skipped:', error);
             }
         };
-
         initializeFCM();
     }, []);
 
+    // Logout Cleanup
     useEffect(() => {
         const handleLogoutCleanup = async () => {
             if (!messaging) return;
-
             try {
-                // ✅ DAPATKAN TOKEN DAN HAPUS DARI SERVER
                 const token = await getToken(messaging);
-                if (token) {
-                    await removeFcmToken(token);
-                }
-
-                // ✅ HAPUS LOCAL NOTIFICATIONS
+                if (token) await removeFcmToken(token);
                 localStorage.removeItem('fcm-notifications');
-
             } catch (error) {
-                // ✅ IGNORE ERRORS SELAMA LOGOUT
                 console.log('Cleanup during logout:', error);
             }
         };
-
-        // ✅ LISTEN UNTUK LOGOUT EVENT (SESUAIKAN DENGAN AUTH SYSTEM ANDA)
         window.addEventListener('user-logout', handleLogoutCleanup);
-
-        return () => {
-            window.removeEventListener('user-logout', handleLogoutCleanup);
-        };
+        return () => window.removeEventListener('user-logout', handleLogoutCleanup);
     }, []);
 
-    // Di dalam NotificationBell component
+    // Handle Incoming Messages
     useEffect(() => {
         if (!messaging) return;
-
         const unsubscribe = onMessage(messaging, (payload) => {
-            // ✅ GUNAKAN CONTEXT NOTIFICATION TYPE DENGAN EXPLICIT
             const newNotification: ContextNotification = {
                 id: payload.data?.notificationId || `fcm-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                userId: 'current-user', // Temporary, akan diupdate oleh context
+                userId: 'current-user',
                 title: payload.notification?.title || 'New Notification',
                 body: payload.notification?.body || '',
                 timestamp: new Date(),
@@ -160,37 +138,37 @@ export default function NotificationBell() {
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
             };
-
             addNotification(newNotification);
         });
-
         return () => unsubscribe();
     }, [addNotification]);
 
-    // Close dropdown when clicking outside
+    // Handle Escape Key & Body Scroll Lock
     useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            const target = event.target as HTMLElement;
-            if (!target.closest('.notification-bell-container')) {
-                setIsOpen(false);
-            }
+        const handleEscapeKey = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') setIsOpen(false);
         };
-
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
+        if (isOpen) {
+            document.addEventListener('keydown', handleEscapeKey);
+            if (isMobile) document.body.style.overflow = 'hidden';
+        }
+        return () => {
+            document.removeEventListener('keydown', handleEscapeKey);
+            document.body.style.overflow = 'unset';
+        };
+    }, [isOpen, isMobile]);
 
     if (isLoading) {
         return (
-            <div className="relative p-3 rounded-2xl bg-gray-100 dark:bg-gray-800 animate-pulse">
-                <div className="w-5 h-5 bg-gray-300 dark:bg-gray-600 rounded"></div>
+            <div className="relative p-2 rounded-full bg-gray-100 dark:bg-gray-800 animate-pulse">
+                <div className="w-5 h-5 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
             </div>
         );
     }
 
     return (
-        <div className="notification-bell-container relative">
-            {/* Notification Bell Button */}
+        <div className="notification-bell-container relative z-50">
+            {/* --- BELL BUTTON --- */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 className={`
@@ -201,11 +179,11 @@ export default function NotificationBell() {
                     group
                 `}
             >
-                {/* Bell button container (same size as others) */}
+                {/* Bell button container */}
                 <div className="relative flex items-center justify-center 
-    w-9 h-9 rounded-xl bg-white dark:bg-gray-900 
-    border border-gray-200 dark:border-gray-700 
-    shadow-sm cursor-pointer transition">
+                    w-9 h-9 rounded-xl bg-white dark:bg-gray-900 
+                    border border-gray-200 dark:border-gray-700 
+                    shadow-sm cursor-pointer transition">
 
                     {/* Bell Icon */}
                     <svg
@@ -220,8 +198,8 @@ export default function NotificationBell() {
                             strokeLinejoin="round"
                             strokeWidth={1.8}
                             d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 
-            00-4-5.659V4a2 2 0 10-4 0v1.341C7.67 6.165 6 8.388 6 11v3.159c0 
-            .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                            00-4-5.659V4a2 2 0 10-4 0v1.341C7.67 6.165 6 8.388 6 11v3.159c0 
+                            .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
                         />
                     </svg>
 
@@ -234,7 +212,7 @@ export default function NotificationBell() {
                     )}
                 </div>
 
-                {/* Red Counter Badge */}
+                {/* Red Counter Badge - Animasi lompat-lompat */}
                 {unreadCount > 0 && (
                     <span className={`
                         absolute -top-2 -right-2 
@@ -249,148 +227,157 @@ export default function NotificationBell() {
                 )}
             </button>
 
-            {/* Notification Dropdown */}
+            {/* --- DROPDOWN / DRAWER --- */}
             {isOpen && (
-                <div className={`
-                    absolute right-0 mt-3 w-96 
-                    bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900
-                    rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700
-                    backdrop-blur-lg bg-opacity-95 dark:bg-opacity-95
-                    z-50
-                    animate-in fade-in-0 zoom-in-95 duration-200
-                `}>
-                    {/* Header */}
-                    <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                                <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-xl">
-                                    <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
-                                    </svg>
-                                </div>
-                                <div>
-                                    <h3 className="font-bold text-gray-900 dark:text-white text-lg">
+                <>
+                    {/* Backdrop Overlay */}
+                    {isMobile && (
+                        <div
+                            className="fixed inset-0 bg-black/60 backdrop-blur-[2px] z-[998] transition-opacity"
+                            onClick={() => setIsOpen(false)}
+                        />
+                    )}
+
+                    <div
+                        ref={dropdownRef}
+                        className={`
+                            bg-white dark:bg-gray-900 
+                            border border-gray-100 dark:border-gray-800
+                            shadow-2xl flex flex-col
+                            ${isMobile
+                                ? 'fixed top-0 right-0 h-[100dvh] w-[85vw] max-w-sm z-[999] animate-in slide-in-from-right duration-300' 
+                                : 'absolute right-0 mt-3 w-80 max-h-[80vh] rounded-xl z-50 animate-in fade-in zoom-in-95 duration-200'
+                            }
+                        `}
+                    >
+                        {/* 1. HEADER (Fixed) */}
+                        <div className={`
+                            flex-none border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 z-10
+                            ${isMobile ? 'p-4' : 'p-4 rounded-t-xl'}
+                        `}>
+                            {/* Title & Count Row */}
+                            <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-2">
+                                    <h3 className={`font-bold text-gray-900 dark:text-white ${isMobile ? 'text-sm' : 'text-sm'}`}>
                                         Notifications
                                     </h3>
                                     {unreadCount > 0 && (
-                                        <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">
-                                            {unreadCount} unread {unreadCount === 1 ? 'message' : 'messages'}
-                                        </p>
+                                        <span className="px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-600 text-[10px] font-bold border border-blue-200">
+                                            {unreadCount} New
+                                        </span>
                                     )}
                                 </div>
                             </div>
-                            <div className="flex gap-2">
-                                {unreadCount > 0 && (
+
+                            {/* Action Buttons Row (Mark All Read & Clear) - Visible on Mobile & Desktop */}
+                            {notifications.length > 0 && (
+                                <div className="flex gap-2">
                                     <button
                                         onClick={markAllAsRead}
-                                        className="px-3 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900 rounded-lg transition-colors"
+                                        disabled={unreadCount === 0}
+                                        className={`
+                                            flex-1 py-1.5 px-3 text-[10px] font-medium rounded border transition-colors
+                                            ${unreadCount > 0 
+                                                ? 'bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-900/30' 
+                                                : 'bg-gray-50 text-gray-400 border-gray-100 cursor-not-allowed dark:bg-gray-800 dark:text-gray-600 dark:border-gray-700'
+                                            }
+                                        `}
                                     >
                                         Mark all read
                                     </button>
-                                )}
-                                {notifications.length > 0 && (
                                     <button
                                         onClick={clearAll}
-                                        className="px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg transition-colors"
+                                        className="flex-1 py-1.5 px-3 text-[10px] font-medium bg-red-50 text-red-600 rounded border border-red-100 hover:bg-red-100 dark:bg-red-900/10 dark:text-red-400 dark:border-red-900/30 transition-colors"
                                     >
                                         Clear all
                                     </button>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Notifications List */}
-                    <div className="max-h-96 overflow-y-auto custom-scrollbar">
-                        {notifications.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
-                                <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-2xl flex items-center justify-center mb-4">
-                                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
-                                    </svg>
                                 </div>
-                                <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
-                                    No notifications yet
-                                </h4>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">
-                                    Well notify you when something arrives
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="p-2">
-                                {notifications.map((notification, index) => (
-                                    <div
-                                        key={notification.id}
-                                        className={`
-                                            p-4 rounded-xl mb-2 cursor-pointer transition-all duration-200
-                                            hover:shadow-md hover:scale-[1.02]
-                                            ${!notification.read
-                                                ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-l-blue-500'
-                                                : 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750'
-                                            }
-                                            ${index === 0 ? 'animate-in fade-in-0 slide-in-from-top-2' : ''}
-                                        `}
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            if (!notification.read) {
-                                                markAsRead(notification.id);
-                                            }
-                                        }}
-                                    >
-                                        <div className="flex justify-between items-start">
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-start space-x-3">
-                                                    <div className={`flex-shrink-0 w-2 h-2 mt-2 rounded-full ${!notification.read
-                                                        ? 'bg-blue-500 animate-pulse'
-                                                        : 'bg-gray-300 dark:bg-gray-600'
-                                                        }`}></div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <h4 className={`font-semibold text-sm truncate ${!notification.read
-                                                            ? 'text-gray-900 dark:text-white'
-                                                            : 'text-gray-700 dark:text-gray-300'
-                                                            }`}>
+                            )}
+                        </div>
+
+                        {/* 2. LIST BODY (Scrollable & Flexible) */}
+                        <div className="flex-1 min-h-0 overflow-y-auto bg-gray-50/30 dark:bg-black/20">
+                            {notifications.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center h-full p-6 text-center">
+                                    <div className="w-12 h-12 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-3">
+                                        <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V4a2 2 0 10-4 0v1.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                                        </svg>
+                                    </div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                        No notifications yet
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                                    {notifications.map((notification) => (
+                                        <div
+                                            key={notification.id}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (!notification.read) markAsRead(notification.id);
+                                            }}
+                                            className={`
+                                                relative cursor-pointer transition-colors group
+                                                ${isMobile ? 'p-3' : 'p-4'}
+                                                ${!notification.read 
+                                                    ? 'bg-blue-50/60 dark:bg-blue-900/10' 
+                                                    : 'bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800'
+                                                }
+                                            `}
+                                        >
+                                            <div className="flex gap-3 items-start">
+                                                {/* Unread Indicator */}
+                                                <div className={`mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0 transition-colors ${!notification.read ? 'bg-blue-500 shadow-sm shadow-blue-300' : 'bg-transparent'}`} />
+                                                
+                                                <div className="flex-1 min-w-0">
+                                                    {/* Title & Time */}
+                                                    <div className="flex justify-between items-start gap-2 mb-1">
+                                                        <h4 className={`font-semibold text-gray-900 dark:text-white leading-tight ${isMobile ? 'text-xs' : 'text-sm'}`}>
                                                             {notification.title}
                                                         </h4>
-                                                        <p className="text-gray-600 dark:text-gray-400 text-xs mt-1 line-clamp-2">
-                                                            {notification.body}
-                                                        </p>
-                                                        <p className="text-gray-400 dark:text-gray-500 text-xs mt-2">
-                                                            {notification.timestamp.toLocaleDateString('en-US', {
-                                                                month: 'short',
-                                                                day: 'numeric',
-                                                                year: 'numeric'
-                                                            })} at {notification.timestamp.toLocaleTimeString('en-US', {
-                                                                hour: '2-digit',
-                                                                minute: '2-digit'
-                                                            })}
-                                                        </p>
+                                                        <span className={`text-gray-400 dark:text-gray-500 whitespace-nowrap flex-shrink-0 ${isMobile ? 'text-[10px]' : 'text-xs'}`}>
+                                                            {new Date(notification.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        </span>
+                                                    </div>
+
+                                                    {/* Body */}
+                                                    <p className={`text-gray-600 dark:text-gray-400 leading-snug line-clamp-2 ${isMobile ? 'text-[11px]' : 'text-xs'}`}>
+                                                        {notification.body}
+                                                    </p>
+
+                                                    {/* Date Footer */}
+                                                    <div className="mt-1.5 flex items-center justify-between">
+                                                        <span className={`text-gray-400 dark:text-gray-600 ${isMobile ? 'text-[10px]' : 'text-[10px]'}`}>
+                                                            {new Date(notification.timestamp).toLocaleDateString()}
+                                                        </span>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Footer */}
-                    {notifications.length > 0 && (
-                        <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 rounded-b-2xl">
-                            <div className="flex justify-between items-center text-xs">
-                                <span className="text-gray-500 dark:text-gray-400">
-                                    {notifications.length} total {notifications.length === 1 ? 'notification' : 'notifications'}
-                                </span>
-                                <button
-                                    onClick={() => setIsOpen(false)}
-                                    className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white font-medium transition-colors"
-                                >
-                                    Close
-                                </button>
-                            </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
-                    )}
-                </div>
+
+                        {/* 3. FOOTER (Fixed) */}
+                        <div className={`
+                            flex-none border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900
+                            ${isMobile ? 'p-3' : 'p-3 text-center rounded-b-xl'}
+                        `}>
+                            <button
+                                onClick={() => setIsOpen(false)}
+                                className={`
+                                    w-full py-2.5 rounded-lg text-xs font-semibold transition-colors
+                                    bg-gray-100 text-gray-600 hover:bg-gray-200 
+                                    dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700
+                                `}
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </>
             )}
         </div>
     );
