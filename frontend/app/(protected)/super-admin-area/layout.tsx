@@ -4,20 +4,20 @@ import AdminPanelLayout from "@/components/admin-panel/admin-panel-layout";
 import { useSession } from "@/components/clientSessionProvider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
-// import { useRouter } from "next/navigation";
-// import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function SuperLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useSession();
-  // const router = useRouter();
+  const router = useRouter();
 
-  // useEffect(() => {
-  //   if (!isLoading) {
-  //     if (!user || user.role !== "super") {
-  //       // router.push("/unauthorized");
-  //     }
-  //   }
-  // }, [user, isLoading, router]);
+  useEffect(() => {
+    if (!isLoading) {
+      if (!user || user.role !== "super") {
+        // router.push("/unauthorized");
+      }
+    }
+  }, [user, isLoading, router]);
 
   if (isLoading) {
     return (

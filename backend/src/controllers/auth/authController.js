@@ -776,7 +776,7 @@ function setAuthCookies(res, accessToken, refreshToken) {
   res.cookie("accessToken", accessToken, {
     ...cookieOptions,
     httpOnly: true,
-    maxAge: 15 * 60 * 1000,
+    maxAge: 1 * 60 * 1000,
   });
 
   // ✅ Readable cookie (HANYA development)
@@ -784,7 +784,7 @@ function setAuthCookies(res, accessToken, refreshToken) {
     res.cookie("accessTokenReadable", accessToken, {
       ...cookieOptions,
       httpOnly: false, // Readable
-      maxAge: 15 * 60 * 1000,
+      maxAge: 1 * 60 * 1000,
     });
     console.log("🔧 Development: Readable cookie set");
   }

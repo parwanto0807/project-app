@@ -263,7 +263,7 @@ export const createSpkFieldReport = async (req, res) => {
       const spkNumber = spkInfo?.spkNumber || "Unknown SPK";
       const soNumber = spkInfo?.salesOrder?.soNumber || "Unknown SO";
       const customerName =
-        spkInfo?.salesOrder?.customer?.name || "Unknown Customer";
+        spkInfo?.salesOrder?.customer?.branch || "Unknown Customer";
 
       // Import NotificationService
       const { NotificationService } = await import(
@@ -279,8 +279,8 @@ export const createSpkFieldReport = async (req, res) => {
               : "Progress SPK Diperbarui 📊",
           body:
             type === "FINAL"
-              ? `Laporan final SPK ${spkNumber} (${productName}) - SO: ${soNumber} telah diselesaikan oleh ${karyawan.namaLengkap}`
-              : `Progress SPK ${spkNumber} (${productName}) - SO: ${soNumber} diperbarui menjadi ${progress}% oleh ${karyawan.namaLengkap}`,
+              ? `Laporan final SPK ${spkNumber} (${productName} - ${customerName}) - SO: ${soNumber} telah diselesaikan oleh ${karyawan.namaLengkap}`
+              : `Progress SPK ${spkNumber} (${productName} - ${customerName}) - SO: ${soNumber} diperbarui menjadi ${progress}% oleh ${karyawan.namaLengkap}`,
           data: {
             type: "spk_field_report",
             reportId: report.id,
