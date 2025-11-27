@@ -26,7 +26,7 @@ export default function PWAInstallPrompt() {
     }
 
     const handleBeforeInstallPrompt = (e: Event) => {
-      console.log('🎯 beforeinstallprompt event fired');
+      // console.log('🎯 beforeinstallprompt event fired');
       e.preventDefault();
       
       // ✅ TYPE CAST dengan safety check
@@ -36,7 +36,7 @@ export default function PWAInstallPrompt() {
     };
 
     const handleAppInstalled = () => {
-      console.log('✅ PWA was installed');
+      // console.log('✅ PWA was installed');
       setIsInstalled(true);
       setShowPrompt(false);
     };

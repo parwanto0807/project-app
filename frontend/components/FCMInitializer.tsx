@@ -198,7 +198,7 @@ export default function FCMInitializer() {
   useEffect(() => {
     // ✅ CHECK LOGIN STATUS SEBELUM INIT
     if (!checkLoginStatus()) {
-      console.log('🔐 [FCM] User not logged in - skipping initialization');
+      // console.log('🔐 [FCM] User not logged in - skipping initialization');
       return;
     }
 

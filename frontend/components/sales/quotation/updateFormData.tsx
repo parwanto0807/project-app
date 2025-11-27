@@ -1,7 +1,7 @@
 // components/sales/quotation/updateFormData.tsx
 "use client";
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import {
@@ -14,6 +14,9 @@ import {
     DollarSign,
     Package,
     CreditCard,
+    ChevronsUpDown,
+    Check,
+    Search,
 } from 'lucide-react';
 import {
     LineType,
@@ -43,6 +46,9 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { SalesOrder } from '@/schemas';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { cn } from '@/lib/utils';
 
 interface UpdateQuotationFormProps {
     customers: Customer[];
@@ -90,6 +96,12 @@ interface FormData {
     }>;
 }
 
+// Definisikan tipe untuk item state
+interface ProductItemState {
+    productSearchOpen: boolean;
+    productSearchQuery: string;
+}
+
 export const UpdateQuotationForm: React.FC<UpdateQuotationFormProps> = ({
     customers,
     products,
@@ -105,6 +117,7 @@ export const UpdateQuotationForm: React.FC<UpdateQuotationFormProps> = ({
     isUpdate = false
 }) => {
     const router = useRouter();
+    const [itemState, setItemState] = useState<{ [key: number]: ProductItemState }>({});
 
     // React Hook Form initialization
     const {
@@ -158,6 +171,28 @@ export const UpdateQuotationForm: React.FC<UpdateQuotationFormProps> = ({
     const watchedOtherCharges = watch("otherCharges");
     const watchedTaxInclusive = watch("taxInclusive");
     // const watchedCustomerId = watch("customerId");
+
+    // Function untuk update item state
+    const updateItemState = (index: number, newState: Partial<ProductItemState>) => {
+        setItemState(prev => ({
+            ...prev,
+            [index]: {
+                ...prev[index],
+                ...newState
+            }
+        }));
+    };
+
+    // Function untuk filter produk
+    const filteredProducts = (index: number) => {
+        const query = itemState[index]?.productSearchQuery || '';
+        if (!query) return products;
+
+        return products.filter(product =>
+            product.name.toLowerCase().includes(query.toLowerCase()) ||
+            product.code?.toLowerCase().includes(query.toLowerCase())
+        );
+    };
 
     // Effect untuk load initial data
     useEffect(() => {
@@ -645,7 +680,10 @@ export const UpdateQuotationForm: React.FC<UpdateQuotationFormProps> = ({
                                             <FileText className="w-4 h-4 text-gray-600" />
                                             <div className="flex items-center gap-2">
                                                 <span className="font-medium">Item {index + 1}</span>
-                                                <Badge variant="secondary" className="bg-gray-100 text-gray-800 border-gray-200">Product</Badge>
+                                                <Badge variant="secondary" className="bg-gray-100 text-gray-800 border-gray-200">
+                                                    {field.lineType === LineType.PRODUCT ? 'Product' :
+                                                        field.lineType === LineType.SERVICE ? 'Service' : 'Custom'}
+                                                </Badge>
                                             </div>
                                         </div>
                                         {fields.length > 1 && (
@@ -663,6 +701,7 @@ export const UpdateQuotationForm: React.FC<UpdateQuotationFormProps> = ({
                                     </div>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
+                                    {/* Line Type */}
                                     <div className="lg:col-span-1 space-y-2">
                                         <Label>Type</Label>
                                         <Controller
@@ -686,32 +725,92 @@ export const UpdateQuotationForm: React.FC<UpdateQuotationFormProps> = ({
                                         />
                                     </div>
 
+                                    {/* Product & Description */}
                                     <div className="grid grid-cols-1 lg:grid-cols-8 gap-4">
                                         {/* Product Selection */}
                                         <div className="lg:col-span-3 space-y-2">
                                             <Label>Product</Label>
-                                            <Controller
-                                                name={`lines.${index}.productId`}
-                                                control={control}
-                                                render={({ field }) => (
-                                                    <Select
-                                                        value={field.value || ""}
-                                                        onValueChange={(value) => handleProductSelect(index, value === "no-product" ? "" : value)}
-                                                    >
-                                                        <SelectTrigger className="bg-white dark:bg-gray-800 dark:text-white">
-                                                            <SelectValue placeholder="Select Product" />
-                                                        </SelectTrigger>
-                                                        <SelectContent className="bg-white dark:bg-gray-800 dark:text-white">
-                                                            <SelectItem value="no-product">Select Product</SelectItem>
-                                                            {products.map(product => (
-                                                                <SelectItem key={product.id} value={product.id}>
-                                                                    {product.code} - {product.name} (${product.price})
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                )}
-                                            />
+                                            <div className="flex items-center gap-4 min-w-0 w-full">
+                                                <Controller
+                                                    name={`lines.${index}.productId`}
+                                                    control={control}
+                                                    render={({ field }) => (
+                                                        <Popover
+                                                            open={itemState[index]?.productSearchOpen || false}
+                                                            onOpenChange={(open) =>
+                                                                updateItemState(index, {
+                                                                    productSearchOpen: open,
+                                                                    productSearchQuery: open ? "" : itemState[index]?.productSearchQuery || "",
+                                                                })
+                                                            }
+                                                        >
+                                                            <PopoverTrigger asChild>
+                                                                <Button
+                                                                    variant="outline"
+                                                                    role="combobox"
+                                                                    className="flex-1 overflow-hidden truncate text-left justify-between bg-white dark:bg-gray-800 dark:text-white"
+                                                                >
+                                                                    <span className="truncate block">
+                                                                        {field.value
+                                                                            ? products.find((opt) => opt.id === field.value)?.name
+                                                                            : `Pilih ${watch(`lines.${index}.lineType`) === LineType.PRODUCT ? "produk" : "service / jasa"}`}
+                                                                    </span>
+                                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                                </Button>
+                                                            </PopoverTrigger>
+
+                                                            <PopoverContent className="w-full p-0 bg-white dark:bg-gray-800 dark:text-white">
+                                                                <Command>
+                                                                    <div className="flex items-center border-b px-3">
+                                                                        <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                                                                        <CommandInput
+                                                                            placeholder={`Cari ${watch(`lines.${index}.lineType`) === LineType.PRODUCT ? "produk" : "jasa"}...`}
+                                                                            value={itemState[index]?.productSearchQuery || ""}
+                                                                            onValueChange={(value) =>
+                                                                                updateItemState(index, { productSearchQuery: value })
+                                                                            }
+                                                                        />
+                                                                    </div>
+                                                                    <CommandList>
+                                                                        <CommandEmpty>
+                                                                            {itemState[index]?.productSearchQuery
+                                                                                ? "Tidak ditemukan"
+                                                                                : "Tidak ada data"}
+                                                                        </CommandEmpty>
+                                                                        <CommandGroup>
+                                                                            {filteredProducts(index).map((opt) => (
+                                                                                <CommandItem
+                                                                                    key={opt.id}
+                                                                                    value={opt.name}
+                                                                                    onSelect={() => {
+                                                                                        field.onChange(opt.id);
+                                                                                        handleProductSelect(index, opt.id);
+                                                                                        updateItemState(index, {
+                                                                                            productSearchOpen: false,
+                                                                                            productSearchQuery: "",
+                                                                                        });
+                                                                                    }}
+                                                                                    className="dark:text-white"
+                                                                                >
+                                                                                    <Check
+                                                                                        className={cn(
+                                                                                            "mr-2 h-4 w-4",
+                                                                                            field.value === opt.id
+                                                                                                ? "opacity-100"
+                                                                                                : "opacity-0"
+                                                                                        )}
+                                                                                    />
+                                                                                    {opt.name}
+                                                                                </CommandItem>
+                                                                            ))}
+                                                                        </CommandGroup>
+                                                                    </CommandList>
+                                                                </Command>
+                                                            </PopoverContent>
+                                                        </Popover>
+                                                    )}
+                                                />
+                                            </div>
                                         </div>
 
                                         {/* Description */}
@@ -737,6 +836,7 @@ export const UpdateQuotationForm: React.FC<UpdateQuotationFormProps> = ({
                                         </div>
                                     </div>
 
+                                    {/* Quantity, UOM, Unit Price, Tax */}
                                     <div className="grid grid-cols-2 md:grid-cols-8 lg:grid-cols-8 gap-2">
                                         {/* Quantity */}
                                         <div className="space-y-2">
@@ -838,8 +938,8 @@ export const UpdateQuotationForm: React.FC<UpdateQuotationFormProps> = ({
                                             />
                                         </div>
 
+                                        {/* Discount */}
                                         <div className='md:col-span-4 space-y-2'>
-                                            {/* Line Discount */}
                                             <div className="grid grid-cols-1 gap-4 pt-4 border-t">
                                                 <div className="space-y-2">
                                                     <Label>Discount Type</Label>
@@ -897,12 +997,12 @@ export const UpdateQuotationForm: React.FC<UpdateQuotationFormProps> = ({
                                         </div>
                                     </div>
 
-                                    {/* SubTotal - Hanya untuk tampilan UI */}
+                                    {/* SubTotal */}
                                     <div className="pt-4 border-t">
-                                        <div className="flex justify-between items-center bg-amber-100 dark:bg-slate-600  px-4 py-3 rounded-lg">
+                                        <div className="flex justify-between items-center bg-amber-100 dark:bg-slate-600 px-4 py-3 rounded-lg">
                                             <Label className="text-base font-semibold">SubTotal Line</Label>
                                             <div className="text-lg font-bold text-blue-600 dark:text-white">
-                                                {calculateLineSubtotal(watchedLines?.[index] || {
+                                                {calculateLineSubtotal(watch(`lines.${index}`) || {
                                                     productId: "",
                                                     description: "",
                                                     qty: 1,

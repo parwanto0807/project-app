@@ -4,10 +4,9 @@ import * as z from "zod";
 import { useState, useTransition } from "react";
 import { CardWrapper } from "./card-wrapper";
 import { useForm } from "react-hook-form";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LoginSchema } from "@/schemas";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { FaArrowLeft } from "react-icons/fa";
@@ -24,8 +23,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FormError } from "../form-error";
 import { FormSuccess } from "../form-success";
-import { MfaRegistrationDialog } from "./mfa-registration-dialog"; // Changed to component version
-import { initializeTokensOnLogin } from "@/lib/http";
+import { MfaRegistrationDialog } from "./mfa-registration-dialog";
+import { initializeTokensOnLogin } from "@/lib/http"; // tetap import, tapi hanya dipanggil saat finalisasi login
 
 const LoginForm = () => {
   const router = useRouter();
@@ -47,6 +46,31 @@ const LoginForm = () => {
     },
   });
 
+  // Helper function untuk verify auth sebelum redirect (opsional)
+  const verifyAuthBeforeRedirect = async (apiUrl: string, accessToken: string) => {
+    try {
+      const verifyRes = await fetch(`${apiUrl}/api/auth/verify`, {
+        method: "GET",
+        credentials: "include",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      if (verifyRes.ok) {
+        const verifyData = await verifyRes.json();
+        console.log("✅ [AUTH VERIFY] User authenticated:", verifyData.user?.email);
+        return { authenticated: true, user: verifyData.user };
+      } else {
+        console.error("🔴 [AUTH VERIFY] Authentication failed");
+        return { authenticated: false };
+      }
+    } catch (err) {
+      console.error("🔴 [AUTH VERIFY] Verification error:", err);
+      return { authenticated: false };
+    }
+  };
+
   const onSubmit = async (values: z.infer<typeof LoginSchema>) => {
     setError("");
     setSuccess("");
@@ -54,9 +78,17 @@ const LoginForm = () => {
     startTransition(async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+        if (!apiUrl) {
+          console.error("🔴 [LOGIN] API URL is undefined");
+          setError("Konfigurasi aplikasi tidak valid. Silakan refresh halaman.");
+          return;
+        }
+
         const deviceId = generateDeviceId();
 
-        // ✅ 1. Login request
+        console.log("🔐 [LOGIN] Step 1: Starting login process");
+
+        // 1) Kirim request login (credential)
         const loginRes = await fetch(`${apiUrl}/api/auth/admin/login`, {
           method: "POST",
           headers: {
@@ -67,7 +99,10 @@ const LoginForm = () => {
           body: JSON.stringify(values),
         });
 
+        console.log("🔐 [LOGIN] Login response status:", loginRes.status);
+
         const loginData = await loginRes.json();
+        console.log("🔐 [LOGIN] Login response data:", loginData);
 
         if (!loginRes.ok) {
           return setError(loginData.error || "Login gagal, periksa email & password");
@@ -77,47 +112,102 @@ const LoginForm = () => {
           return setError("Login berhasil, tapi token tidak diterima");
         }
 
-        // ✅ Initialize tokens FIRST dan TUNGGU sampai selesai
-        await initializeTokensOnLogin(loginData.accessToken);
+        // ===== Simpan token SEMENTARA (pre-token) =====
+        // Jangan panggil initializeTokensOnLogin di sini jika MFA mungkin diperlukan.
+        sessionStorage.setItem("pre_access_token", loginData.accessToken);
+        if (loginData.user) {
+          sessionStorage.setItem("pre_user", JSON.stringify(loginData.user));
+        }
+        sessionStorage.setItem("mfa_device_id", deviceId);
+        sessionStorage.setItem("mfa_pending", "false"); // default false
 
-        // ✅ 2. Check MFA status - SETELAH token fully initialized
+        // Beri sedikit delay supaya storage sinkron (opsional)
+        await new Promise((r) => setTimeout(r, 50));
+
+        console.log("🔐 [LOGIN] Step 2: Checking MFA status");
+
+        // 2) Cek status MFA menggunakan pre token
         const statusRes = await fetch(`${apiUrl}/api/auth/mfa/status`, {
+          method: "GET",
           credentials: "include",
           headers: {
             "x-device-id": deviceId,
+            Authorization: `Bearer ${loginData.accessToken}`,
             "Cache-Control": "no-cache",
-            "Authorization": `Bearer ${loginData.accessToken}`,
           },
         });
 
+        console.log("🔐 [LOGIN] MFA status response:", statusRes.status);
+
         const statusData = await statusRes.json();
+        console.log("🔐 [LOGIN] MFA status data:", statusData);
 
         if (!statusRes.ok) {
+          console.error("🔐 [LOGIN] MFA status check failed:", statusData);
           return setError(statusData.error || "Gagal cek status MFA");
         }
 
-        // ✅ 3. Handle MFA flow
-        if (statusData.mfaRequired) {
-          const mfaToken = loginData.tempToken || statusData.tempToken;
-          if (!mfaToken) {
-            return setError("MFA diperlukan tapi token tidak diterima dari server");
-          }
-          sessionStorage.setItem("mfa_temp_token", mfaToken);
-          setShowMfaDialog(true);
+        // 3a) Jika MFA required -> redirect ke halaman input OTP (simpan temp token)
+        if (statusData.mfaRequired && !statusData.trustedDevice) {
+          sessionStorage.setItem("mfa_temp_token", statusData.tempToken);
+          sessionStorage.setItem("mfa_pending", "true");
+          router.push("/auth/inputOtp");
           return;
         }
 
-        // ✅ 4. Handle first-time MFA setup
+        // 3b) Jika MFA belum di-enable (first-time setup) -> buka halaman setup MFA (opsional)
         if (!statusData.mfaEnabled) {
-          setShowMfaDialog(true);
+          console.log("🔐 [LOGIN] MFA not enabled -> redirect to /auth/setupMfa");
+          sessionStorage.setItem("mfa_pending", "true");
+          router.push("/auth/setupMfa");
           return;
         }
 
-        // ✅ 5. Redirect to dashboard - PASTIKAN semua operasi sebelumnya selesai
-        router.push("/super-admin-area");
+        // 4) Jika sampai sini: MFA tidak required dan sudah enabled => finalize login
+        console.log("🔐 [LOGIN] MFA not required. Finalizing login...");
 
+        const preToken = sessionStorage.getItem("pre_access_token")!;
+        if (!preToken) {
+          return setError("Token pra-login hilang. Silakan coba login lagi.");
+        }
+
+        // (Optional) verify token with backend before initialize
+        const finalCheck = await verifyAuthBeforeRedirect(apiUrl, preToken);
+        if (!finalCheck.authenticated) {
+          return setError("Gagal verifikasi authentication sebelum redirect");
+        }
+
+        // === Sekarang aman: inisialisasi token final & start auto-refresh ===
+        if (typeof initializeTokensOnLogin === "function") {
+          try {
+            // NOTE: initializeTokensOnLogin harus menyimpan accessToken/refreshToken dan start auto-refresh
+            await initializeTokensOnLogin(preToken);
+            console.log("🔐 [LOGIN] Tokens initialized via initializeTokensOnLogin");
+          } catch (initErr) {
+            console.error("🔴 [LOGIN] initializeTokensOnLogin error:", initErr);
+            // fallback sederhana
+            localStorage.setItem("accessToken", preToken);
+            if (loginData.user) localStorage.setItem("user", JSON.stringify(loginData.user));
+          }
+        } else {
+          // fallback: simpan langsung
+          localStorage.setItem("accessToken", preToken);
+          if (loginData.user) localStorage.setItem("user", JSON.stringify(loginData.user));
+        }
+
+        // cleanup flags
+        sessionStorage.removeItem("mfa_pending");
+        sessionStorage.removeItem("mfa_temp_token");
+        sessionStorage.removeItem("pre_access_token");
+        sessionStorage.removeItem("pre_user");
+        // redirect to dashboard
+        console.log("✅ [LOGIN] SUCCESS - Redirecting to /super-admin-area");
+        setTimeout(() => {
+          router.push("/super-admin-area");
+          router.refresh();
+        }, 50);
       } catch (err: unknown) {
-        console.error("Login error:", err);
+        console.error("🔴 [LOGIN] Error details:", err);
         if (err instanceof TypeError) {
           setError("Tidak dapat menghubungi server. Cek koneksi atau API URL.");
           return;
@@ -127,7 +217,7 @@ const LoginForm = () => {
     });
   };
 
-
+  // Jika MFA dialog used for registration flow (keperluan kamu), tetap dipertahankan
   const handleMfaDialogSuccess = () => {
     setShowMfaDialog(false);
     router.push("/auth/inputOtp");
@@ -135,7 +225,7 @@ const LoginForm = () => {
 
   const handleMfaDialogCancel = () => {
     setShowMfaDialog(false);
-    // router.push("/super-admin-area");
+    // tidak redirect ke dashboard; biarkan user memilih
   };
 
   function generateDeviceId() {
@@ -148,8 +238,10 @@ const LoginForm = () => {
     return "";
   }
 
+  // Tetap pertahankan Google auth handler
   const handleGoogleLogin = () => {
     const googleAuthUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/auth/google`;
+    // pakai redirect ke backend oauth endpoint (backend yang handle callback)
     window.location.href = googleAuthUrl;
   };
 
@@ -246,22 +338,10 @@ const LoginForm = () => {
               <span className="font-medium text-gray-700">Login with Google</span>
             </Button>
           </form>
-
-          {false && (
-            <div className="mt-3 sm:mt-4 text-center text-xs">
-              Don&apos;t have an account?{" "}
-              <Link
-                href="/auth/register"
-                className="text-primary hover:underline transition-colors"
-              >
-                Sign up
-              </Link>
-            </div>
-          )}
         </Form>
       </CardWrapper>
 
-      {/* MFA Registration Dialog */}
+      {/* MFA Registration Dialog (tetap ada, kalau kamu pakai untuk setup/registration) */}
       <MfaRegistrationDialog
         open={showMfaDialog}
         onOpenChange={setShowMfaDialog}

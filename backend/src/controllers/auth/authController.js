@@ -698,44 +698,36 @@ export default {
 
 export const adminLogin = async (req, res) => {
   const { email, password } = req.body;
-  if (!email || !password) {
-    return res.status(400).json({ error: "Email and password are required" });
-  }
+  const user = await prisma.user.findUnique({ where: { email } });
 
-  try {
-    const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) return res.status(403).json({ error: "Invalid credentials" });
 
-    if (!user || user.provider !== "credentials") {
-      return res.status(403).json({ error: "Invalid credentials" });
-    }
+  const valid = await bcrypt.compare(password, user.password);
+  if (!valid) return res.status(403).json({ error: "Invalid credentials" });
 
-    const isValid = await bcrypt.compare(password, user.password);
-    if (!isValid) {
-      return res.status(403).json({ error: "Invalid credentials" });
-    }
+  if (user.mfaEnabled) {
+    const mfaTempToken = jwt.sign(
+      { userId: user.id, purpose: "MFA_VERIFICATION" },
+      process.env.MFA_TEMP_SECRET,
+      { expiresIn: "5m" }
+    );
 
-    // Generate tokens
-    const accessToken = generateAccessToken(user);
-    const refreshToken = generateRefreshToken(user);
-
-    // Create session and set cookies
-    const sessionToken = await createUserSession(user, refreshToken, req);
-    setAuthCookies(res, refreshToken, sessionToken);
-
-    res.json({
+    return res.json({
       success: true,
-      accessToken,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-      },
+      mfaRequired: true,
+      mfaTempToken,
     });
-  } catch (error) {
-    console.error("Admin login error:", error);
-    res.status(500).json({ error: "Internal server error" });
   }
+
+  const accessToken = generateAccessToken(user);
+  const refreshToken = generateRefreshToken(user);
+
+  return res.json({
+    success: true,
+    mfaRequired: false,
+    accessToken,
+    refreshToken,
+  });
 };
 
 function setAuthCookies(res, refreshToken, sessionToken) {
@@ -786,83 +778,141 @@ export const activateMfaSetup = async (req, res) => {
 
 export const getMFAStatus = async (req, res) => {
   try {
-    // 1. Ambil userId dari JWT utama/session
-    const userId = req.user?.userId || req.user?.id;
+    const userId = req.user?.id ?? req.user?.userId;
+
     if (!userId) {
       return res.status(401).json({ error: "User not authenticated" });
     }
-    // console.log("userId:", userId);
 
-    // 2. Ambil user dan trustedDevices
+    const deviceId = req.headers["x-device-id"];
+    if (!deviceId) {
+      return res.status(400).json({
+        error: "Missing device identifier",
+        code: "DEVICE_ID_REQUIRED",
+      });
+    }
+
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
-        mfaEnabled: true,
-        trustedDevices: { select: { deviceId: true } },
+        mfaSecret: true,
+        trustedDevices: {
+          select: { deviceId: true, isRevoked: true },
+        },
+        id: true,
+        email: true,
+        role: true,
       },
     });
-
-    // console.log("User data:", user);
 
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // 3. Ambil deviceId dari header atau IP
-    const deviceId = req.headers["x-device-id"] || req.ip;
+    const mfaEnabled = !!user.mfaSecret;
 
-    // 1. Ambil trustedDevices (hindari null)
-    const trustedDevices = user.trustedDevices || [];
-
-    // 2. Cek apakah device sekarang cocok
-    const isKnownDevice = trustedDevices.some(
-      (device) => device.deviceId === deviceId
-    );
-
-    // 3. Terapkan logika sesuai tabel kamu
-    const mfaRequired =
-      trustedDevices.length === 0 || // tidak ada trusted device
-      (trustedDevices.length > 0 && !isKnownDevice); // ada trusted tapi device tidak cocok
-    let tempToken = null;
-
-    // 6. Jika MFA dibutuhkan, generate token
-    if (mfaRequired) {
-      tempToken = jwt.sign(
-        { userId, purpose: "MFA", deviceId },
-        MFA_TEMP_SECRET,
-        { expiresIn: "5m" }
-      );
-      // console.log("Generated tempToken:", tempToken);
-      // console.log("TempToken will expire at:", expiresAt);
+    if (!mfaEnabled) {
+      return res.json({
+        mfaRequired: false,
+        mfaEnabled: false,
+      });
     }
 
-    // 7. Kirimkan respons
-    return res.status(200).json({
-      mfaRequired,
-      mfaEnabled: user.mfaEnabled,
+    const deviceTrusted = user.trustedDevices.some(
+      (d) => d.deviceId === deviceId && !d.isRevoked
+    );
+
+    // === Device sudah trusted → langsung lanjut login ===
+    if (deviceTrusted) {
+      return res.json({
+        mfaRequired: false,
+        mfaEnabled: true,
+      });
+    }
+
+    // === Device tidak dikenal → butuh OTP ===
+    const tempToken = jwt.sign(
+      {
+        userId: user.id,
+        purpose: "MFA_VERIFICATION",
+        deviceId,
+      },
+      process.env.MFA_TEMP_SECRET,
+      { expiresIn: "5m" }
+    );
+
+    return res.json({
+      mfaRequired: true,
+      mfaEnabled: true,
       tempToken,
     });
   } catch (error) {
     console.error("[MFA STATUS ERROR]", error);
-    return res.status(500).json({ error: "Internal server error" });
+    return res.status(500).json({
+      error: "Internal server error",
+      code: "SERVER_ERROR",
+    });
   }
 };
 
 export const setupMFA = async (req, res) => {
   try {
-    const secret = speakeasy.generateSecret({
-      name: `MyApp (${req.user.email})`,
+    const tempToken = req.headers.authorization?.replace("Bearer ", "").trim();
+    if (!tempToken) {
+      return res.status(400).json({ error: "Missing temporary MFA token" });
+    }
+
+    const payload = jwt.verify(tempToken, process.env.MFA_TEMP_SECRET);
+
+    if (!payload.userId || payload.purpose !== "MFA_VERIFICATION") {
+      return res.status(401).json({ error: "Invalid MFA setup token" });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+      select: { email: true, mfaSecret: true },
     });
 
-    const qrCode = await QRCode.toDataURL(secret.otpauth_url || "");
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
 
-    res.json({
-      secret: secret.base32,
+    // Jika sudah ada MFA secret → gunakan kembali
+    let secret = user.mfaSecret;
+
+    if (!secret) {
+      secret = speakeasy.generateSecret({
+        length: 20,
+        name: `MyApp (${user.email})`,
+      }).base32;
+
+      await prisma.user.update({
+        where: { id: payload.userId },
+        data: { mfaSecret: secret },
+      });
+    }
+
+    const otpauthUrl = speakeasy.otpauthURL({
+      secret,
+      label: `MyApp (${user.email})`,
+      issuer: "MyApp",
+      encoding: "base32",
+    });
+
+    const qrCode = await QRCode.toDataURL(otpauthUrl);
+
+    return res.json({
+      success: true,
+      secret,
       qrCode,
+      message: "Scan QR dengan Google Authenticator lalu masukkan OTP",
     });
-  } catch (err) {
-    console.error("[MFA Setup Error]", err);
-    res.status(500).json({ error: "Gagal setup MFA" });
+  } catch (error) {
+    console.error("[MFA Setup Error]", error);
+    return res.status(500).json({
+      error: "Failed to setup MFA",
+      details: error.message,
+    });
   }
 };
 
@@ -898,113 +948,32 @@ export const completeMfaSetup = async (req, res) => {
 
 export const newVerifyMFA = async (req, res) => {
   const { otp, rememberDevice } = req.body;
-  const authHeader = req.headers.authorization;
+  const token = req.headers.authorization?.replace("Bearer ", "");
 
-  // Validate token presence
-  const tempToken = authHeader?.replace("Bearer ", "").trim();
-  if (!tempToken || tempToken === "null") {
-    return res.status(400).json({
-      error: "Missing verification token",
-      solution: "Restart the MFA setup process",
-    });
+  const payload = jwt.verify(token, process.env.MFA_TEMP_SECRET);
+
+  const user = await prisma.user.findUnique({
+    where: { id: payload.userId },
+    select: { id: true, mfaSecret: true }
+  });
+
+  const isValid = speakeasy.totp.verify({
+    secret: user.mfaSecret,
+    encoding: "base32",
+    token: otp,
+    window: 1,
+  });
+
+  if (!isValid) {
+    return res.status(401).json({ error: "Invalid OTP" });
   }
 
-  try {
-    // Verify token and validate structure
-    const payload = jwt.verify(tempToken, process.env.MFA_TEMP_SECRET);
+  const accessToken = generateAccessToken(user);
 
-    // Validate required payload fields
-    if (!payload.userId || payload.purpose !== "MFA_VERIFICATION") {
-      throw new Error("Invalid token payload structure");
-    }
-
-    // Get user with MFA secret
-    const user = await prisma.user.findUnique({
-      where: { id: payload.userId },
-      select: {
-        id: true,
-        mfaSecret: true,
-        email: true,
-        role: true,
-      },
-    });
-
-    if (!user?.mfaSecret) {
-      return res.status(400).json({
-        error: "MFA not configured for this user",
-        code: "MFA_NOT_CONFIGURED",
-      });
-    }
-
-    // Verify OTP
-    const isValid = speakeasy.totp.verify({
-      secret: user.mfaSecret,
-      encoding: "base32",
-      token: otp,
-      window: 1,
-    });
-
-    if (!isValid) {
-      return res.status(401).json({
-        error: "Invalid or expired OTP code",
-        code: "INVALID_OTP",
-      });
-    }
-
-    // Handle device remembering
-    if (rememberDevice && payload.deviceId) {
-      await prisma.trustedDevice.upsert({
-        where: {
-          userId_deviceId: {
-            userId: user.id,
-            deviceId: payload.deviceId,
-          },
-        },
-        create: {
-          userId: user.id,
-          deviceId: payload.deviceId,
-        },
-        update: {},
-      });
-    }
-
-    // Generate final access token
-    const accessToken = jwt.sign(
-      {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: "1d" }
-    );
-
-    return res.json({
-      success: true,
-      accessToken,
-    });
-  } catch (err) {
-    console.error("MFA verification error:", err);
-
-    if (err.name === "TokenExpiredError") {
-      return res.status(401).json({
-        error: "Verification session expired",
-        code: "TOKEN_EXPIRED",
-      });
-    }
-
-    if (err.name === "JsonWebTokenError") {
-      return res.status(401).json({
-        error: "Invalid verification token",
-        code: "INVALID_TOKEN",
-      });
-    }
-
-    return res.status(500).json({
-      error: "Internal server error",
-      code: "SERVER_ERROR",
-    });
-  }
+  return res.json({
+    success: true,
+    accessToken
+  });
 };
 
 export const verifyMFA = async (req, res) => {

@@ -85,14 +85,14 @@ function setupVisibilityHandler(): void {
 
   const handleVisibilityChange = () => {
     if (document.visibilityState === "visible") {
-      console.log("🔄 App became visible, checking token health");
+      // console.log("🔄 App became visible, checking token health");
 
       // Tunggu sebentar untuk memastikan tab benar-benar aktif
       setTimeout(() => {
         const health = getTokenHealth();
 
         if (health.health === "expired" || health.health === "expiring_soon") {
-          console.log("⚠️ Token needs refresh after app wake-up");
+          // console.log("⚠️ Token needs refresh after app wake-up");
           refreshToken().catch((error) => {
             console.error("❌ Wake-up refresh failed:", error);
           });
@@ -102,7 +102,7 @@ function setupVisibilityHandler(): void {
           health.expiresIn < 300
         ) {
           // Jika token masih valid tapi akan segera expired, schedule refresh
-          console.log("⏰ Rescheduling refresh after wake-up");
+          // console.log("⏰ Rescheduling refresh after wake-up");
           if (accessToken) {
             scheduleProactiveRefresh(accessToken);
           }
@@ -238,7 +238,7 @@ function startBroadcast(): void {
       bc.onmessage = (e) => {
         if (e?.data?.type === "token") {
           if (e.data.token !== accessToken) {
-            console.log("📡 Received token broadcast");
+            // console.log("📡 Received token broadcast");
             setAccessToken(e.data.token, {
               broadcast: false,
               schedule: true,
@@ -262,7 +262,7 @@ function setupStorageFallback(): void {
 
   const handleStorageEvent = (e: StorageEvent) => {
     if (e.key === LS_KEY && e.newValue !== e.oldValue) {
-      console.log("📦 Received token from storage sync");
+      // console.log("📦 Received token from storage sync");
       setAccessToken(e.newValue, {
         broadcast: false,
         schedule: true,
@@ -303,7 +303,7 @@ async function executeRefreshWithBackoff(): Promise<string | null> {
   }
 
   try {
-    console.log(`🔄 Attempting token refresh (attempt ${refreshAttempts + 1})`);
+    // console.log(`🔄 Attempting token refresh (attempt ${refreshAttempts + 1})`);
 
     const newToken = await refreshExecutor();
 
@@ -325,7 +325,7 @@ async function executeRefreshWithBackoff(): Promise<string | null> {
       attempts: refreshAttempts + 1,
     });
 
-    console.log("✅ Token refresh successful");
+    // console.log("✅ Token refresh successful");
     return newToken;
   } catch (error) {
     refreshAttempts++;
@@ -345,11 +345,11 @@ async function executeRefreshWithBackoff(): Promise<string | null> {
       errorMessage.includes("401") ||
       errorMessage.includes("403");
 
-    console.error(`❌ Refresh failed (attempt ${refreshAttempts}):`, {
-      error: errorMessage,
-      isNetworkError,
-      isAuthError,
-    });
+    // console.error(`❌ Refresh failed (attempt ${refreshAttempts}):`, {
+    //   error: errorMessage,
+    //   isNetworkError,
+    //   isAuthError,
+    // });
 
     emitAuthEvent("refreshFailed", {
       error: errorMessage,
@@ -362,7 +362,7 @@ async function executeRefreshWithBackoff(): Promise<string | null> {
     // ✅ Clear token hanya untuk auth errors, bukan network errors
     if (refreshAttempts >= MAX_REFRESH_ATTEMPTS || isAuthError) {
       if (isAuthError) {
-        console.error("🔒 Auth error detected, clearing token");
+        // console.error("🔒 Auth error detected, clearing token");
         setAccessToken(null, {
           broadcast: true,
           schedule: false,
@@ -377,7 +377,7 @@ async function executeRefreshWithBackoff(): Promise<string | null> {
       30000 // Max 30 seconds
     );
 
-    console.log(`⏳ Retrying refresh in ${delay}ms...`);
+    // console.log(`⏳ Retrying refresh in ${delay}ms...`);
     await new Promise((resolve) => setTimeout(resolve, delay));
     return executeRefreshWithBackoff();
   }
@@ -385,7 +385,7 @@ async function executeRefreshWithBackoff(): Promise<string | null> {
 
 export async function refreshToken(): Promise<string | null> {
   if (isLoggingOut) {
-    console.log("⛔ Skipping refresh: user is logging out");
+    // console.log("⛔ Skipping refresh: user is logging out");
     return null;
   }
 
@@ -716,7 +716,7 @@ function setupPageLoadRecovery(): void {
   };
 
   const checkAndRecoverToken = () => {
-    console.log("🔍 Page loaded, checking token state...");
+    // console.log("🔍 Page loaded, checking token state...");
 
     setTimeout(() => {
       const health = getTokenHealth();

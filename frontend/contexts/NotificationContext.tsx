@@ -50,13 +50,13 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const hasInitialLoad = useRef(false);
 
   // ✅ DEBUG: Log setiap perubahan notifications
-  useEffect(() => {
-    console.log('🔔 Notifications updated:', {
-      total: notifications.length,
-      unread: notifications.filter(n => !n.read).length,
-      notifications: notifications.map(n => ({ id: n.id, read: n.read, title: n.title }))
-    });
-  }, [notifications]);
+  // useEffect(() => {
+  //   console.log('🔔 Notifications updated:', {
+  //     total: notifications.length,
+  //     unread: notifications.filter(n => !n.read).length,
+  //     notifications: notifications.map(n => ({ id: n.id, read: n.read, title: n.title }))
+  //   });
+  // }, [notifications]);
 
   const convertApiToLocalNotification = (apiNotif: ApiNotification): Notification => ({
     id: apiNotif.id,
@@ -76,17 +76,17 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   // ✅ LOAD FROM SERVER - TAMBAHKAN DEBUG DETAILED
   const loadFromServer = useCallback(async (): Promise<void> => {
     try {
-      console.log('🔄 Starting loadFromServer...');
+      // console.log('🔄 Starting loadFromServer...');
       setIsLoading(true);
 
       const serverNotifications = await getNotifications({ limit: 100 });
-      console.log('📥 Raw server notifications:', serverNotifications);
+      // console.log('📥 Raw server notifications:', serverNotifications);
 
       const formattedNotifications: Notification[] = serverNotifications.map(
         convertApiToLocalNotification
       );
 
-      console.log('📨 Formatted notifications:', formattedNotifications);
+      // console.log('📨 Formatted notifications:', formattedNotifications);
 
       // ✅ DEBUG: Check read status dari server
       const unreadFromServer = formattedNotifications.filter(n => !n.read);
@@ -96,7 +96,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       localStorage.setItem('fcm-notifications', JSON.stringify(formattedNotifications));
 
       hasInitialLoad.current = true;
-      console.log('✅ loadFromServer completed');
+      // console.log('✅ loadFromServer completed');
     } catch (error) {
       console.error('❌ Error loading notifications:', error);
       // Fallback ke cache
@@ -107,7 +107,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             ...notif,
             timestamp: new Date(notif.timestamp),
           }));
-          console.log('📂 Loading from cache:', cachedNotifications);
+          // console.log('📂 Loading from cache:', cachedNotifications);
           setNotifications(cachedNotifications);
           hasInitialLoad.current = true;
         }
@@ -122,7 +122,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   // ✅ SYNC WITH SERVER - DISABLE DULU UNTUK DEBUG
   const syncWithServer = useCallback(async (): Promise<void> => {
     // ✅ COMMENT DULU UNTUK DEBUG - HENTIKAN SEMUA SYNC OTOMATIS
-    console.log('🚫 syncWithServer disabled for debugging');
+    // console.log('🚫 syncWithServer disabled for debugging');
     return;
 
     /*
@@ -257,7 +257,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   // ✅ AUTO-LOAD ON MOUNT - HANYA SEKALI
   useEffect(() => {
     if (!hasInitialLoad.current) {
-      console.log('🚀 Initial load on mount');
+      // console.log('🚀 Initial load on mount');
       loadFromServer();
     }
   }, [loadFromServer]);
