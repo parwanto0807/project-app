@@ -342,7 +342,7 @@ export default function NotificationBell() {
                                                     </div>
 
                                                     {/* Body */}
-                                                    <p className={`text-gray-600 dark:text-gray-400 leading-snug line-clamp-2 ${isMobile ? 'text-[11px]' : 'text-xs'}`}>
+                                                    <p className={`text-gray-600 dark:text-gray-400 leading-snug line-clamp-4 ${isMobile ? 'text-[11px]' : 'text-xs'}`}>
                                                         {notification.body}
                                                     </p>
 
