@@ -633,6 +633,7 @@ export function CreateInvoiceForm({ currentUser, salesOrders, users, banks }: Cr
                                         onClick={() => appendItem({
                                             name: "",
                                             qty: 1,
+                                            uom:"",
                                             unitPrice: 0,
                                             discount: 0,
                                             discountPercent: 0,
@@ -654,6 +655,7 @@ export function CreateInvoiceForm({ currentUser, salesOrders, users, banks }: Cr
                                                 <TableRow>
                                                     <TableHead className="font-semibold">Item Name</TableHead>
                                                     <TableHead className="font-semibold">Qty</TableHead>
+                                                    <TableHead className="font-semibold">Satuan</TableHead>
                                                     <TableHead className="font-semibold">Unit Price</TableHead>
                                                     <TableHead className="font-semibold">
                                                         <div className="flex items-center gap-1">
@@ -696,6 +698,20 @@ export function CreateInvoiceForm({ currentUser, salesOrders, users, banks }: Cr
                                                                                 {...field}
                                                                                 onChange={(e) => field.onChange(parseFloat(e.target.value))}
                                                                             />
+                                                                        </FormControl>
+                                                                        <FormMessage />
+                                                                    </FormItem>
+                                                                )}
+                                                            />
+                                                        </TableCell>
+                                                        <TableCell className="font-medium">
+                                                            <FormField
+                                                                control={form.control}
+                                                                name={`items.${index}.uom`}
+                                                                render={({ field }) => (
+                                                                    <FormItem>
+                                                                        <FormControl>
+                                                                            <Input placeholder="Satuan" {...field} />
                                                                         </FormControl>
                                                                         <FormMessage />
                                                                     </FormItem>

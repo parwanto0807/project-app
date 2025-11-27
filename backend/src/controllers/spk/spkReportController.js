@@ -185,6 +185,7 @@ export const createSpkFieldReport = async (req, res) => {
     });
 
     // ✅ TAMBAHKAN: BROADCAST NOTIFICATION HANYA KE ADMIN & PIC SAJA
+    // ✅ TAMBAHKAN: BROADCAST NOTIFICATION HANYA KE ADMIN & PIC SAJA
     try {
       // Dapatkan semua user dengan role admin dan pic
       const adminUsers = await prisma.user.findMany({
@@ -204,12 +205,57 @@ export const createSpkFieldReport = async (req, res) => {
         `📢 Sending SPK Field Report notification to ${adminUsers.length} admin/pic users`
       );
 
-      // Dapatkan informasi SPK dan Sales Order terkait
+      // CARA LEBIH EFISIEN: Ambil product name dari soDetail yang sudah ada di report
+      let productName = "Unknown Product";
+
+      // Jika ada soDetailId, ambil product name dari soDetail
+      if (soDetailId) {
+        const soDetail = await prisma.salesOrderItem.findUnique({
+          where: { id: soDetailId },
+          select: {
+            product: { select: { name: true } },
+            name: true,
+          },
+        });
+        productName =
+          soDetail?.product?.name || soDetail?.name || "Unknown Product";
+      }
+      // Jika tidak ada soDetailId, ambil dari SPK (cara sebelumnya)
+      else {
+        const spkInfo = await prisma.sPK.findUnique({
+          where: { id: spkId },
+          include: {
+            salesOrder: {
+              select: {
+                soNumber: true,
+                customer: { select: { name: true } },
+                items: {
+                  take: 1,
+                  select: {
+                    product: { select: { name: true } },
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        const firstItem = spkInfo?.salesOrder?.items?.[0];
+        productName =
+          firstItem?.product?.name || firstItem?.name || "Unknown Product";
+      }
+
+      // Dapatkan informasi dasar SPK
       const spkInfo = await prisma.sPK.findUnique({
         where: { id: spkId },
-        include: {
+        select: {
+          spkNumber: true,
           salesOrder: {
-            select: { soNumber: true, customer: { select: { name: true } } },
+            select: {
+              soNumber: true,
+              customer: { select: { name: true } },
+            },
           },
         },
       });
@@ -233,8 +279,8 @@ export const createSpkFieldReport = async (req, res) => {
               : "Progress SPK Diperbarui 📊",
           body:
             type === "FINAL"
-              ? `Laporan final SPK ${spkNumber} (SO: ${soNumber}) telah diselesaikan oleh ${karyawan.namaLengkap}`
-              : `Progress SPK ${spkNumber} (SO: ${soNumber}) diperbarui menjadi ${progress}% oleh ${karyawan.namaLengkap}`,
+              ? `Laporan final SPK ${spkNumber} (${productName}) - SO: ${soNumber} telah diselesaikan oleh ${karyawan.namaLengkap}`
+              : `Progress SPK ${spkNumber} (${productName}) - SO: ${soNumber} diperbarui menjadi ${progress}% oleh ${karyawan.namaLengkap}`,
           data: {
             type: "spk_field_report",
             reportId: report.id,
@@ -242,6 +288,7 @@ export const createSpkFieldReport = async (req, res) => {
             spkNumber: spkNumber,
             soNumber: soNumber,
             customerName: customerName,
+            productName: productName,
             karyawanName: karyawan.namaLengkap,
             progress: progress,
             reportType: type,

@@ -402,17 +402,16 @@ body,
 
 /* globals.css atau styles.css */
 .search-clear-none::-webkit-search-cancel-button {
-    -webkit-appearance: none;
-    appearance: none;
-    display: none;
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
 }
 
 .search-clear-none::-ms-clear {
-    display: none;
-    width: 0;
-    height: 0;
+  display: none;
+  width: 0;
+  height: 0;
 }
-
 
 tr[data-highlight="true"] {
   background-color: rgb(254 240 138) !important; /* yellow-200 */
@@ -421,50 +420,49 @@ tr[data-highlight="true"] {
 }
 
 .neon-glow {
-    text-shadow: 
-        0 0 5px #fff,
-        0 0 10px #fff,
-        0 0 15px #ff0,
-        0 0 20px #ff0,
-        0 0 25px #ff0;
+  text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 15px #ff0, 0 0 20px #ff0,
+    0 0 25px #ff0;
 }
 
 .drop-shadow-glow {
-    filter: drop-shadow(0 0 8px #ff0) drop-shadow(0 0 12px #ff0);
+  filter: drop-shadow(0 0 8px #ff0) drop-shadow(0 0 12px #ff0);
 }
 
 /* Atau untuk efek yang lebih subtle */
 .neon-glow {
-    text-shadow: 
-        0 0 5px currentColor,
-        0 0 10px currentColor,
-        0 0 15px currentColor;
+  text-shadow: 0 0 5px currentColor, 0 0 10px currentColor,
+    0 0 15px currentColor;
 }
 
 /* Animation untuk efek berkedip */
 @keyframes neon-blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
 }
 
 .neon-blink {
-    animation: neon-blink 2s infinite;
+  animation: neon-blink 2s infinite;
 }
 
 .glow-effect {
-    filter: drop-shadow(0 0 8px rgb(253 224 71)) 
-            drop-shadow(0 0 12px rgb(253 224 71));
+  filter: drop-shadow(0 0 8px rgb(253 224 71))
+    drop-shadow(0 0 12px rgb(253 224 71));
 }
 
 .icon-glow {
-    filter: drop-shadow(0 0 6px rgb(253 224 71)) 
-            drop-shadow(0 0 10px rgb(253 224 71))
-            drop-shadow(0 0 14px rgb(253 224 71));
+  filter: drop-shadow(0 0 6px rgb(253 224 71))
+    drop-shadow(0 0 10px rgb(253 224 71)) drop-shadow(0 0 14px rgb(253 224 71));
 }
 
 /* globals.css */
 @keyframes ping {
-  75%, 100% {
+  75%,
+  100% {
     transform: scale(1.5);
     opacity: 0;
   }
@@ -506,4 +504,25 @@ tr[data-highlight="true"] {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+html[data-scroll-behavior="smooth"] {
+  scroll-behavior: smooth;
+}
+
+/* Prevent scroll issues dengan fixed elements */
+.fixed-element-scroll-fix {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* Custom class untuk full-page modals */
+.full-page-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  overflow: hidden !important;
+  transform: translateZ(0);
 }

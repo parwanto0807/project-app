@@ -43,7 +43,7 @@ export default function FCMInitializer() {
       if (Notification.permission === 'granted' && payload.notification) {
         new Notification(payload.notification.title || 'New Notification', {
           body: payload.notification.body,
-          icon: payload.notification.image || '/icon-192x192.png',
+          icon: payload.notification.image || '/icons/icon-192x192.png',
         });
       }
     });

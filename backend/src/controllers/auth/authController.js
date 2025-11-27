@@ -696,8 +696,11 @@ export default {
 };
 // 🔹 FUNGSI LAINNYA TETAP SAMA (tidak diubah) 🔹
 
+// Di backend login controller (adminLogin)
 export const adminLogin = async (req, res) => {
   const { email, password } = req.body;
+  console.log("USER", req.body);
+
   const user = await prisma.user.findUnique({ where: { email } });
 
   if (!user) return res.status(403).json({ error: "Invalid credentials" });
@@ -722,26 +725,76 @@ export const adminLogin = async (req, res) => {
   const accessToken = generateAccessToken(user);
   const refreshToken = generateRefreshToken(user);
 
+  // ✅ PASTIKAN INI DIEKSEKUSI
+  try {
+    setAuthCookies(res, accessToken, refreshToken);
+    console.log("✅ [BACKEND] Cookies set successfully");
+  } catch (error) {
+    console.error("❌ [BACKEND] Failed to set cookies:", error);
+    return res
+      .status(500)
+      .json({ error: "Failed to set authentication cookies" });
+  }
+
+  // ✅ DEBUG: Cek headers sebelum dikirim
+  console.log("🔐 [BACKEND] Response headers:", {
+    "set-cookie": res.getHeaders()["set-cookie"],
+    "access-control-allow-credentials":
+      res.getHeaders()["access-control-allow-credentials"],
+    "access-control-allow-origin":
+      res.getHeaders()["access-control-allow-origin"],
+  });
+
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header("Access-Control-Allow-Origin", "http://localhost:3000");
+
   return res.json({
     success: true,
     mfaRequired: false,
-    accessToken,
-    refreshToken,
+    accessToken, // Tetap kirim di response body untuk localStorage
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+    },
   });
 };
 
-function setAuthCookies(res, refreshToken, sessionToken) {
-  const sevenDays = 7 * 24 * 60 * 60 * 1000;
+// Tambahkan parameter accessToken ke function yang sudah ada
+// Backend: Conditional cookies based on environment
+function setAuthCookies(res, accessToken, refreshToken) {
+  const isProduction = process.env.NODE_ENV === "production";
+
   const cookieOptions = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
     path: "/",
-    maxAge: sevenDays,
   };
 
-  res.cookie("refreshToken", refreshToken, cookieOptions);
-  res.cookie("session_token", sessionToken, cookieOptions);
+  // HttpOnly cookie (selalu)
+  res.cookie("accessToken", accessToken, {
+    ...cookieOptions,
+    httpOnly: true,
+    maxAge: 15 * 60 * 1000,
+  });
+
+  // ✅ Readable cookie (HANYA development)
+  if (!isProduction) {
+    res.cookie("accessTokenReadable", accessToken, {
+      ...cookieOptions,
+      httpOnly: false, // Readable
+      maxAge: 15 * 60 * 1000,
+    });
+    console.log("🔧 Development: Readable cookie set");
+  }
+
+  // Refresh token (selalu httpOnly)
+  res.cookie("refreshToken", refreshToken, {
+    ...cookieOptions,
+    httpOnly: true,
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
 }
 
 export const activateMfaSetup = async (req, res) => {
@@ -954,7 +1007,7 @@ export const newVerifyMFA = async (req, res) => {
 
   const user = await prisma.user.findUnique({
     where: { id: payload.userId },
-    select: { id: true, mfaSecret: true }
+    select: { id: true, mfaSecret: true },
   });
 
   const isValid = speakeasy.totp.verify({
@@ -972,7 +1025,7 @@ export const newVerifyMFA = async (req, res) => {
 
   return res.json({
     success: true,
-    accessToken
+    accessToken,
   });
 };
 

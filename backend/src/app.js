@@ -33,6 +33,8 @@ const app = express();
 import cookieParser from "cookie-parser";
 import { allowedOrigins } from "./config/env.js";
 
+const isProduction = NODE_ENV === "production";
+
 // Security Middleware
 app.use(cookieParser());
 app.use(helmet());
@@ -54,13 +56,15 @@ app.use(
       }
     },
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: [
       "Content-Type",
       "Authorization",
       "x-device-id",
       "cache-control",
+      "X-Requested-With",
     ],
+    exposedHeaders: ["set-cookie"],
   })
 );
 
@@ -71,14 +75,15 @@ app.use(express.urlencoded({ extended: true }));
 // Session Configuration
 app.use(
   session({
-    secret: SESSION_SECRET, // Jangan lupa untuk setup variabel SESSION_SECRET di environment
+    secret: SESSION_SECRET,
     resave: false,
-    saveUninitialized: false, // Sesuaikan dengan GDPR compliance
+    saveUninitialized: false,
     cookie: {
-      maxAge: 24 * 60 * 60 * 1000, // 1 hari
-      httpOnly: true, // Mengatur cookie agar tidak dapat diakses via JavaScript
-      secure: NODE_ENV === "production", // Hanya aktifkan secure di production
-      sameSite: NODE_ENV === "production" ? "strict" : "lax", // Lebih ketat di production
+      maxAge: 24 * 60 * 60 * 1000,
+      httpOnly: true,
+      secure: isProduction, // ✅ Production: true, Development: false
+      sameSite: isProduction ? "none" : "lax", // ✅ Production: none, Development: lax
+      // Untuk production dengan HTTPS, butuh sameSite: "none" dan secure: true
     },
   })
 );

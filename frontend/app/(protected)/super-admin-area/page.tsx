@@ -10,34 +10,63 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
-import { useAutoLogout } from "@/hooks/use-auto-logout";
+import { useEffect, useState } from "react"; // ✅ ADD useState
 import { LoadingScreen } from "@/components/ui/loading-gears";
 import DashboardAwalSalesOrder from "@/components/dashboard/super-admin/dashboard";
-import { Home, LayoutDashboard, UserCircle } from "lucide-react"; // ✨ Import ikon
+import { Home, LayoutDashboard, UserCircle } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "@/components/clientSessionProvider";
 
 export default function DashboardPage() {
   const { user, isLoading } = useSession();
   const router = useRouter();
+  const [debug, setDebug] = useState("initial"); // ✅ ADD debug state
 
-  useAutoLogout(86400);
+  console.log("🎯 DashboardPage RENDER - user:", user);
+  console.log("🔍 DashboardPage DEBUG state:", debug);
 
   useEffect(() => {
-    if (isLoading) return;
-    if (!user) {
-      router.push("/auth/login");
-    } else if (user.role !== "super") {
-      router.push("/unauthorized");
+    setDebug("useEffect started");
+    console.log("🔄 DashboardPage useEffect TRIGGERED");
+
+    if (isLoading) {
+      setDebug("still loading");
+      console.log("⏳ Still loading...");
+      return;
     }
+
+    if (!user) {
+      setDebug("no user - redirect to login");
+      console.log("❌ No user - redirecting to login");
+      router.push("/auth/login");
+      return;
+    }
+
+    if (user.role !== "super") {
+      setDebug(`wrong role: ${user.role} - redirect to unauthorized`);
+      console.log(`🚫 Wrong role: ${user.role} - redirecting to unauthorized`);
+      router.push("/unauthorized");
+      return;
+    }
+
+    setDebug("user authenticated and authorized");
+    console.log("✅ User authenticated and authorized:", user);
   }, [user, isLoading, router]);
 
-  if (isLoading) return <LoadingScreen />;
+  // ✅ ADD more detailed loading states
+  if (isLoading) {
+    console.log("🔄 Rendering LoadingScreen");
+    return <LoadingScreen />;
+  }
 
   if (!user || user.role !== "super") {
-    return null; // Tetap null agar tidak ada flash konten sebelum redirect
+    console.log("🚫 Rendering null - user:", user ? user.role : "no user");
+    return null;
   }
+
+  // ✅ FINALLY RENDER CONTENT
+  console.log("🎉 FINALLY RENDERING SUPER ADMIN CONTENT");
+  console.log("USER ON PAGE SUPER ADMIN", user);
 
   return (
     <SuperLayout title="Dashboard Super Admin" role={user.role}>
@@ -65,18 +94,9 @@ export default function DashboardPage() {
 
         <div className="flex items-start sm:items-center justify-between">
           <div>
-            {/* 👇 judul lebih kecil di mobile, naik di breakpoint */}
-            {/* <h1 className="pl-2 text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight leading-tight">
-              Dashboard Super Admin
-            </h1> */}
-
-            {/* 👇 teks sambutan responsif + ikon mengecil di mobile */}
             <p className="pl-2 text-xs sm:text-sm md:text-base text-muted-foreground mt-1 flex items-center gap-1.5 sm:gap-2">
               <UserCircle className="h-4 w-4 text-green-500 sm:h-5 sm:w-5" />
               Selamat datang kembali,&nbsp;
-              {/* <span className="font-bold bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-                {user?.name}!
-              </span> */}
               <span className="shine-text font-bold">
                 {user?.name}!
               </span>
@@ -86,9 +106,16 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Debug info */}
+      <div className="mb-4 p-4 bg-green-100 border border-green-400 rounded">
+        <h3 className="font-bold text-green-800">✅ DEBUG INFO</h3>
+        <p>Status: {debug}</p>
+        <p>User: {user ? `${user.name} (${user.role})` : 'None'}</p>
+        <p>Loading: {isLoading ? 'Yes' : 'No'}</p>
+      </div>
+
       {/* ✅ Konten utama dashboard */}
       <DashboardAwalSalesOrder />
-
     </SuperLayout>
   );
 }

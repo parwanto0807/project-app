@@ -12,22 +12,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { 
-  LogOut, 
-  Monitor, 
-  Globe, 
-  User, 
+import {
+  LogOut,
+  Monitor,
+  Globe,
+  User,
   Calendar,
   MoreHorizontal,
   Smartphone,
@@ -41,6 +33,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import PaginationComponent from "@/components/ui/paginationNew";
+import { useSearchParams } from "next/navigation";
 
 interface SessionListProps {
   sessions: Session[];
@@ -51,10 +45,13 @@ type ViewMode = 'list' | 'detail';
 
 export default function SessionListTable({ sessions, isLoading }: SessionListProps) {
   const [data, setData] = useState<Session[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const itemsPerPage = 20;
+
+  // Get current page from URL search params
+  const searchParams = useSearchParams();
+  const currentPage = Number(searchParams.get("page")) || 1;
 
   useEffect(() => {
     setData(sessions);
@@ -190,7 +187,7 @@ export default function SessionListTable({ sessions, isLoading }: SessionListPro
               {new Date(session.createdAt).toLocaleDateString()}
             </div>
             <div className="text-gray-500 dark:text-gray-400 text-xs">
-              {new Date(session.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+              {new Date(session.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </div>
           </div>
         </div>
@@ -219,7 +216,7 @@ export default function SessionListTable({ sessions, isLoading }: SessionListPro
 
   // Mobile view component - Super Compact
   const MobileSessionCard = ({ session }: { session: Session }) => (
-    <Card 
+    <Card
       className="mb-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-all duration-200 active:scale-[0.98] cursor-pointer"
       onClick={() => handleViewDetail(session)}
     >
@@ -252,8 +249,8 @@ export default function SessionListTable({ sessions, isLoading }: SessionListPro
 
   // Desktop Table Row - More Compact
   const DesktopTableRow = ({ session }: { session: Session }) => (
-    <TableRow 
-      key={session.id} 
+    <TableRow
+      key={session.id}
       className="border-b border-gray-50 dark:border-gray-800/50 hover:bg-gray-50/50 dark:hover:bg-gray-800/20 transition-colors duration-200 cursor-pointer h-12"
       onClick={() => handleViewDetail(session)}
     >
@@ -291,7 +288,7 @@ export default function SessionListTable({ sessions, isLoading }: SessionListPro
             {new Date(session.createdAt).toLocaleDateString()}
           </span>
           <span className="text-xs text-gray-500 dark:text-gray-400">
-            {new Date(session.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+            {new Date(session.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>
         </div>
       </TableCell>
@@ -310,9 +307,9 @@ export default function SessionListTable({ sessions, isLoading }: SessionListPro
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 className="h-6 w-6 p-0"
                 onClick={(e) => e.stopPropagation()}
               >
@@ -436,35 +433,7 @@ export default function SessionListTable({ sessions, isLoading }: SessionListPro
 
       {totalPages > 1 && viewMode === 'list' && (
         <div className="p-3 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/20 rounded-b-lg">
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious 
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer h-8 w-8"}
-                />
-              </PaginationItem>
-              
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <PaginationItem key={page}>
-                  <PaginationLink
-                    onClick={() => setCurrentPage(page)}
-                    isActive={currentPage === page}
-                    className="cursor-pointer h-8 w-8 text-xs"
-                  >
-                    {page}
-                  </PaginationLink>
-                </PaginationItem>
-              ))}
-              
-              <PaginationItem>
-                <PaginationNext 
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer h-8 w-8"}
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
+          <PaginationComponent totalPages={totalPages} />
         </div>
       )}
     </Card>
@@ -484,7 +453,7 @@ function SessionListSkeleton() {
           <Skeleton className="h-5 w-12 bg-gray-300 dark:bg-gray-600" />
         </div>
       </CardHeader>
-      
+
       <CardContent className="p-0">
         {/* Desktop Skeleton */}
         <div className="hidden md:block p-1">

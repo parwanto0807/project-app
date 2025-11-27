@@ -19,36 +19,35 @@ export default function PWAInstallPrompt() {
   const [isInstalled, setIsInstalled] = useState(false);
 
   useEffect(() => {
-    // Check if already installed
-    if (window.matchMedia('(display-mode: standalone)').matches) {
+    // Cek apakah aplikasi sudah terinstall
+    if (window.matchMedia("(display-mode: standalone)").matches) {
       setIsInstalled(true);
       return;
     }
 
     const handleBeforeInstallPrompt = (e: Event) => {
-      // console.log('🎯 beforeinstallprompt event fired');
       e.preventDefault();
-      
-      // ✅ TYPE CAST dengan safety check
+
       const installEvent = e as BeforeInstallPromptEvent;
       setDeferredPrompt(installEvent);
-      setShowPrompt(true);
+      setShowPrompt(true); // tampilkan tombol install / popup
     };
 
     const handleAppInstalled = () => {
-      // console.log('✅ PWA was installed');
       setIsInstalled(true);
       setShowPrompt(false);
+      setDeferredPrompt(null);
     };
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    window.addEventListener("appinstalled", handleAppInstalled);
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener("appinstalled", handleAppInstalled);
     };
   }, []);
+
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;

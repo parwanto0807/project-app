@@ -1,4 +1,3 @@
-// app/auth/refreshing/page.tsx
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
@@ -22,6 +21,7 @@ interface RefreshResponse {
 
 const MAX_RETRY_ATTEMPTS = 3;
 const SUCCESS_REDIRECT_DELAY = 800;
+const RETRY_DELAY = 2000;
 
 export default function Refreshing() {
   const router = useRouter();
@@ -33,8 +33,26 @@ export default function Refreshing() {
   const [detailMessage, setDetailMessage] = useState("Menyiapkan sesi Anda…");
   const [attempt, setAttempt] = useState<number>(0);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Set pesan berdasarkan reason dari middleware
+  useEffect(() => {
+    const originalScrollBehavior = document.documentElement.style.scrollBehavior;
+    document.documentElement.style.scrollBehavior = 'auto';
+
+    return () => {
+      document.documentElement.style.scrollBehavior = originalScrollBehavior;
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     if (reason) {
       switch (reason) {
@@ -44,17 +62,46 @@ export default function Refreshing() {
         case "token_expired":
           setDetailMessage("Sesi telah kedaluwarsa. Memperbarui...");
           break;
+        case "invalid_token":
+          setDetailMessage("Token tidak valid. Memperbarui sesi...");
+          break;
+        case "no_refresh_token":
+          setDetailMessage("Sesi habis. Silakan login ulang...");
+          break;
         default:
           setDetailMessage("Memperbarui sesi Anda...");
       }
     }
   }, [reason]);
 
-  // Fungsi refresh token
+  // ✅ PERBAIKAN: Cek apakah user sudah login (untuk handle direct access setelah login berhasil)
+  const checkIfAlreadyLoggedIn = useCallback((): boolean => {
+    const accessToken = localStorage.getItem("accessToken");
+    const userData = localStorage.getItem("user");
+
+    if (accessToken && userData) {
+      console.log("✅ [REFRESH] User already logged in, redirecting to dashboard");
+      setStatus("success");
+      setDetailMessage("Login berhasil! Mengalihkan...");
+
+      setTimeout(() => {
+        router.replace(redirect || "/super-admin-area");
+      }, SUCCESS_REDIRECT_DELAY);
+      return true;
+    }
+    return false;
+  }, [redirect, router]);
+
+  // ✅ PERBAIKAN: Fungsi refresh token yang kompatibel dengan Google Login
   const executeRefresh = useCallback(async (nextAttempt: number): Promise<void> => {
     if (nextAttempt > MAX_RETRY_ATTEMPTS) {
       setStatus("error");
       setDetailMessage("Terlalu banyak percobaan. Silakan login ulang.");
+      return;
+    }
+
+    // ✅ CEK DULU: Jika sudah login, tidak perlu refresh
+    if (checkIfAlreadyLoggedIn()) {
       return;
     }
 
@@ -76,29 +123,39 @@ export default function Refreshing() {
     abortControllerRef.current = abortController;
 
     try {
-      console.log("🔄 Attempting token refresh via http.ts API...");
+      console.log(`🔄 Attempting token refresh (attempt ${nextAttempt})...`);
 
       const response = await api.post<RefreshResponse>(
         "/api/auth/refresh",
         {},
-        { signal: abortController.signal, timeout: 10000 }
+        {
+          signal: abortController.signal,
+          timeout: 10000,
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          },
+          withCredentials: true
+        }
       );
 
       const data = response.data;
 
       if (!data.accessToken) {
-        throw new Error("Token tidak ditemukan pada respons");
+        throw new Error("Token tidak ditemukan pada respons server");
       }
 
+      // Initialize tokens
       await initializeTokensOnLogin(data.accessToken);
 
       setDetailMessage("Berhasil memperbarui sesi. Mengalihkan…");
       setStatus("success");
 
-      console.log("✅ Token refresh successful, redirecting to:", redirect);
+      console.log("✅ Token refresh successful, redirecting to: SUPER-ADMIN-AREA");
 
+      // ✅ PASTIKAN REDIRECT KE SUPER-ADMIN-AREA
       setTimeout(() => {
-        router.replace(redirect);
+        router.replace("/super-admin-area");
       }, SUCCESS_REDIRECT_DELAY);
 
     } catch (error: unknown) {
@@ -109,56 +166,168 @@ export default function Refreshing() {
 
       const axiosError = error as AxiosError<RefreshResponse>;
 
-      let errorMessage = "Refresh gagal";
+      let errorMessage = "Gagal memperbarui sesi";
+      let shouldRetry = false;
 
-      if (axiosError.response?.data?.error) {
+      if (axiosError.code === 'ECONNABORTED' || axiosError.message?.includes('timeout')) {
+        errorMessage = "Timeout: Server tidak merespons";
+        shouldRetry = true;
+      } else if (axiosError.response?.status === 401) {
+        errorMessage = "Sesi tidak valid. Silakan login ulang.";
+        shouldRetry = false;
+      } else if (axiosError.response?.status === 500) {
+        errorMessage = "Server error. Coba lagi dalam beberapa saat.";
+        shouldRetry = nextAttempt < MAX_RETRY_ATTEMPTS;
+      } else if (axiosError.response?.data?.error) {
         errorMessage = axiosError.response.data.error;
-      } else if (axiosError.message) {
-        errorMessage = axiosError.message;
-      } else if (axiosError.response?.status) {
-        errorMessage = `Refresh gagal (${axiosError.response.status})`;
+        shouldRetry = false;
+      } else if (!navigator.onLine) {
+        errorMessage = "Tidak ada koneksi internet";
+        shouldRetry = true;
       }
 
       setStatus("error");
       setDetailMessage(errorMessage);
-      console.error("❌ Token refresh failed:", errorMessage);
-    }
-  }, [redirect, router, reason]);
+      console.error("❌ Token refresh failed:", errorMessage, error);
 
-  // Retry manual
+      if (shouldRetry && nextAttempt < MAX_RETRY_ATTEMPTS) {
+        console.log(`🔄 Auto-retrying in ${RETRY_DELAY}ms...`);
+        retryTimeoutRef.current = setTimeout(() => {
+          executeRefresh(nextAttempt + 1);
+        }, RETRY_DELAY);
+      }
+    }
+  }, [router, reason, checkIfAlreadyLoggedIn]);
+
   const handleRetry = (): void => {
-    void executeRefresh(attempt + 1); // Pakai void supaya TS tidak complain
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
+    }
+    executeRefresh(1);
   };
 
   const handleLoginRedirect = (): void => {
+    abortControllerRef.current?.abort();
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+    }
     clearTokensOnLogout();
     router.replace("/auth/login");
   };
 
-  // useEffect untuk cek refresh token
+  // ✅ PERBAIKAN UTAMA: Logic check yang komprehensif
+  // Di useEffect checkAndRefresh, tambahkan debug detail:
   useEffect(() => {
-    (async () => {
+    const checkAndRefresh = async () => {
+      console.log("🔄 [REFRESH] Starting authentication check...");
+      console.log("📋 [REFRESH] URL Params:", { redirect, reason });
+
+      // ✅ CEK 1: Apakah sudah login (untuk direct access setelah login)
+      const accessToken = localStorage.getItem("accessToken");
+      const userData = localStorage.getItem("user");
+
+      console.log("🔍 [REFRESH] LocalStorage check:", {
+        accessToken: accessToken ? "✓" : "✗",
+        userData: userData ? "✓" : "✗",
+        accessTokenLength: accessToken?.length
+      });
+
+      // ✅ PERBAIKAN: Jika sudah login, langsung redirect KE SUPER-ADMIN-AREA
+      if (accessToken && userData) {
+        console.log("✅ [REFRESH] User already logged in, redirecting to SUPER-ADMIN-AREA");
+        setStatus("success");
+        setDetailMessage("Login berhasil! Mengalihkan...");
+
+        setTimeout(() => {
+          // ✅ PASTIKAN REDIRECT KE SUPER-ADMIN-AREA
+          router.replace("/super-admin-area");
+        }, 1000);
+        return;
+      }
+
+      // ✅ CEK 2: Koneksi internet
+      if (!navigator.onLine) {
+        setStatus("error");
+        setDetailMessage("Tidak ada koneksi internet. Periksa koneksi Anda.");
+        return;
+      }
+
+      // ✅ CEK 3: Refresh token cookie (DETAILED DEBUG)
+      const allCookies = document.cookie;
+      console.log("🍪 [REFRESH] ALL Cookies:", allCookies);
+
       const refreshTokenCookie = document.cookie
         .split("; ")
         .find((row) => row.startsWith("refreshToken="));
 
-      if (!refreshTokenCookie) {
-        console.warn("⛔ No refresh token found, redirecting to login...");
-        clearTokensOnLogout();
-        router.replace("/auth/login?reason=no_refresh_token");
+      console.log("🔍 [REFRESH] Refresh token check:", {
+        hasRefreshTokenCookie: !!refreshTokenCookie,
+        refreshTokenValue: refreshTokenCookie ? "***" : "none"
+      });
+
+      // ✅ CEK 4: Refresh token di localStorage 
+      const refreshTokenLocal = localStorage.getItem("refreshToken");
+      console.log("💾 [REFRESH] LocalStorage refresh token:", !!refreshTokenLocal);
+
+      // ✅ LOGIC: Jika ada refresh token (cookie atau localStorage), lakukan refresh
+      if (refreshTokenCookie || refreshTokenLocal) {
+        console.log("🔄 [REFRESH] Refresh token found, starting refresh process");
+        await executeRefresh(1);
         return;
       }
 
-      await executeRefresh(1);
-    })();
+      // ✅ JIKA TIDAK ADA REFRESH TOKEN: Handle berdasarkan scenario
+      console.warn("⛔ No refresh token found anywhere");
 
-    return () => {
-      abortControllerRef.current?.abort();
+      // ✅ PERBAIKAN: Cek lagi apakah accessToken ada (race condition)
+      const recheckAccessToken = localStorage.getItem("accessToken");
+      const recheckUserData = localStorage.getItem("user");
+
+      if (recheckAccessToken && recheckUserData) {
+        console.log("🔄 [REFRESH] Race condition detected - tokens now exist, redirecting");
+        setStatus("success");
+        setDetailMessage("Login berhasil! Mengalihkan...");
+
+        setTimeout(() => {
+          router.replace("/super-admin-area");
+        }, 1000);
+        return;
+      }
+
+      // ✅ TIDAK ADA TOKEN SAMA SEKALI - Redirect ke login
+      setStatus("error");
+      setDetailMessage("Sesi tidak valid. Mengarahkan ke login...");
+
+      setTimeout(() => {
+        clearTokensOnLogout();
+        const loginUrl = "/auth/login?reason=no_refresh_token" +
+          (redirect && redirect !== "/" ? `&redirect=${encodeURIComponent(redirect)}` : "");
+        console.log("🔀 [REFRESH] Redirecting to login:", loginUrl);
+        router.replace(loginUrl);
+      }, 1500);
     };
-  }, [executeRefresh, router]);
 
+    checkAndRefresh();
+  }, [executeRefresh, router, redirect, reason]); // ✅ executeRefresh sudah termasuk checkIfAlreadyLoggedIn
+
+  // Render UI (tetap sama)
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-blue-900/20 to-purple-900/10 flex items-center justify-center p-4 z-10">
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 50,
+        background: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a20 50%, #581c8720 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '1rem'
+      }}
+    >
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -293,8 +462,9 @@ export default function Refreshing() {
                       type="button"
                       onClick={handleRetry}
                       disabled={attempt >= MAX_RETRY_ATTEMPTS}
-                      className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-white/10 hover:bg-white/15 active:bg-white/20 border border-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                      className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-white/10 hover:bg-white/15 active:bg-white/20 border border-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2"
                     >
+                      <RefreshCw className="h-4 w-4" />
                       Coba Lagi
                     </button>
                     <button
@@ -312,6 +482,7 @@ export default function Refreshing() {
           </div>
         </div>
 
+        {/* Debug info */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -319,7 +490,7 @@ export default function Refreshing() {
           className="text-center mt-6"
         >
           <p className="text-xs text-white/40 max-w-[60ch] mx-auto leading-relaxed">
-            {reason && `Reason: ${reason}`}
+            {reason && `Alasan: ${reason} • `}Attempt: {attempt}
           </p>
         </motion.div>
       </motion.div>
