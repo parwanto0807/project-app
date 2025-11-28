@@ -302,6 +302,10 @@ export class PurchaseRequestController {
           currency: "IDR",
         }).format(totalEstimasiBudget);
 
+        // Dapatkan nama karyawan yang membuat PR
+        const karyawanName =
+          purchaseRequest.karyawan?.namaLengkap || "Unknown Karyawan";
+
         // Import NotificationService
         const { NotificationService } = await import(
           "../../utils/firebase/notificationService.js"
@@ -311,14 +315,13 @@ export class PurchaseRequestController {
         for (const admin of adminUsers) {
           await NotificationService.sendToUser(admin.id, {
             title: "Purchase Request Baru Dibuat 📝",
-            body: `PR ${nomorPr} dengan total estimasi ${formattedBudget} berhasil dibuat`,
+            body: `PR ${nomorPr} dengan total estimasi ${formattedBudget} berhasil dibuat oleh ${karyawanName}`,
             data: {
               type: "purchase_request_created",
               prId: purchaseRequest.id,
               prNumber: nomorPr,
               projectName: purchaseRequest.project?.name || "Unknown Project",
-              karyawanName:
-                purchaseRequest.karyawan?.namaLengkap || "Unknown Karyawan",
+              karyawanName: karyawanName,
               totalItems: detailsWithTotal.length,
               totalBudget: totalEstimasiBudget.toString(),
               action: `/purchase-requests/${purchaseRequest.id}`,

@@ -314,36 +314,44 @@ export const clearAllNotifications = async (): Promise<boolean> => {
       return false;
     }
 
-    console.log("🔄 [Notifications] Clearing all notifications using individual delete...");
+    console.log(
+      "🔄 [Notifications] Clearing all notifications using individual delete..."
+    );
 
     // ✅ DAPATKAN SEMUA NOTIFICATIONS
     const notifications = await getNotifications({ limit: 100 });
-    
+
     if (notifications.length === 0) {
       console.log("ℹ️ [Notifications] No notifications to clear");
       return true;
     }
 
-    console.log(`🗑️ [Notifications] Deleting ${notifications.length} notifications...`);
+    console.log(
+      `🗑️ [Notifications] Deleting ${notifications.length} notifications...`
+    );
 
     // ✅ HAPUS SATU PER SATU
-    const deletePromises = notifications.map(notification => 
+    const deletePromises = notifications.map((notification) =>
       deleteNotification(notification.id)
     );
 
     const results = await Promise.allSettled(deletePromises);
-    
-    const successfulDeletes = results.filter(result => 
-      result.status === 'fulfilled' && result.value === true
+
+    const successfulDeletes = results.filter(
+      (result) => result.status === "fulfilled" && result.value === true
     ).length;
 
-    console.log(`✅ [Notifications] Successfully deleted ${successfulDeletes} out of ${notifications.length} notifications`);
-    
+    console.log(
+      `✅ [Notifications] Successfully deleted ${successfulDeletes} out of ${notifications.length} notifications`
+    );
+
     // Return true jika berhasil menghapus setidaknya satu notifikasi
     return successfulDeletes > 0;
-    
   } catch (error) {
-    console.error("❌ [Notifications] Error clearing all notifications:", error);
+    console.error(
+      "❌ [Notifications] Error clearing all notifications:",
+      error
+    );
     return false;
   }
 };
@@ -513,3 +521,30 @@ export const isNotification = (obj: unknown): obj is Notification => {
 export const isNotificationArray = (obj: unknown): obj is Notification[] => {
   return Array.isArray(obj) && obj.every(isNotification);
 };
+
+// lib/action/fcm/fcm.ts - ADD THIS FUNCTION
+export async function getStoredFcmToken(): Promise<string | null> {
+  try {
+    const accessToken = localStorage.getItem("accessToken");
+    if (!accessToken) {
+      return null;
+    }
+
+    const response = await fetch(`${BASE_DOMAIN}/sessions/cekToken`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      return data.token || null;
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Error getting stored FCM token:", error);
+    return null;
+  }
+}

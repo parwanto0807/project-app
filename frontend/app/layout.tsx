@@ -1,4 +1,4 @@
-// app/layout.tsx - UPDATED WITH PWA SUPPORT
+// app/layout.tsx - FIXED VERSION
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import ClientSessionProvider from "@/components/clientSessionProvider";
@@ -16,15 +16,12 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "ProyekID",
   },
-  // ✅ Move application-name and format-detection here
   applicationName: "ProyekID",
   formatDetection: {
     telephone: false,
   },
-  // ✅ Additional metadata for better PWA support
   keywords: ["construction", "projects", "platform"],
   authors: [{ name: "ProyekID Team" }],
-  // ✅ Open Graph for social sharing
   openGraph: {
     type: "website",
     title: "ProyekID",
@@ -33,14 +30,12 @@ export const metadata: Metadata = {
   },
 };
 
-// ✅ Properly typed viewport export
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
   themeColor: "#000000",
-  // ✅ Additional viewport properties for PWA
   viewportFit: "cover",
 };
 
@@ -55,8 +50,7 @@ export default function RootLayout({
         <meta name="google" content="notranslate" />
         <meta name="googlebot" content="notranslate" />
 
-        {/* ✅ OPTIMIZED PWA META TAGS */}
-        {/* theme-color is now handled by viewport export */}
+        {/* ✅ PWA META TAGS */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="ProyekID" />
@@ -64,14 +58,14 @@ export default function RootLayout({
         <meta name="msapplication-TileColor" content="#000000" />
         <meta name="msapplication-tap-highlight" content="no" />
 
-        {/* ✅ APPLE TOUCH ICONS - Improved sizes */}
+        {/* ✅ APPLE TOUCH ICONS */}
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
         <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png" />
         <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180x180.png" />
         <link rel="apple-touch-icon" sizes="167x167" href="/icons/icon-167x167.png" />
         <link rel="apple-touch-icon" sizes="120x120" href="/icons/icon-120x120.png" />
 
-        {/* ✅ FAVICON & ICONS - Complete set */}
+        {/* ✅ FAVICON & ICONS */}
         <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32x32.png" />
         <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16x16.png" />
         <link rel="shortcut icon" href="/favicon.ico" />
@@ -92,16 +86,17 @@ export default function RootLayout({
       <body
         className="min-h-screen overflow-x-hidden"
         suppressHydrationWarning
-        // ✅ Add CSS to prevent scroll issues
         style={{ scrollBehavior: 'auto' }}
       >
         <AuthProvider>
-          {/* Session provider mungkin butuh info auth */}
           <ClientSessionProvider>
-            {/* Notification mungkin butuh auth untuk FCM */}
             <NotificationProvider>
-              <FCMInitializer />
               {children}
+              
+              {/* ✅ FCMInitializer DIPINDAH SETELAH CHILDREN */}
+              {/* Ini memastikan semua provider sudah fully ready */}
+              <FCMInitializer />
+              
               <PWAInstallPrompt />
             </NotificationProvider>
           </ClientSessionProvider>

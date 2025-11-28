@@ -93,68 +93,46 @@ export const revokeSession = async (req, res) => {
 export const updateFcmToken = async (req, res) => {
   try {
     const { fcmToken, deviceInfo } = req.body;
-    const userId = req.user.id;
-    const sessionToken = req.cookies.session_token;
-
-    if (!fcmToken) {
-      return res.status(400).json({
-        error: "FCM token diperlukan",
-      });
-    }
+    const userId = req.user.id; // Dari middleware auth
 
     console.log(`[FCM] Updating FCM token for user: ${userId}`);
 
-    // Cari session yang aktif berdasarkan session_token
-    const existingSession = await prisma.userSession.findFirst({
+    if (!fcmToken) {
+      return res.status(400).json({ error: "FCM token diperlukan" });
+    }
+
+    // ✅ CARI BERDASARKAN userId + isRevoked (LEBIH ROBUST)
+    const activeSession = await prisma.userSession.findFirst({
       where: {
         userId: userId,
-        sessionToken: sessionToken,
         isRevoked: false,
+        expiresAt: {
+          gt: new Date(), // Session masih valid
+        },
+      },
+      orderBy: {
+        createdAt: "desc", // Ambil yang terbaru
       },
     });
-    console.log(`[FCM] existingSession: ${existingSession}`);
 
-    if (!existingSession) {
-      console.log(
-        `[FCM] Session tidak ditemukan, membuat session baru untuk user: ${userId}`
-      );
-
-      // Buat session baru jika tidak ditemukan
-      const newSession = await prisma.userSession.create({
-        data: {
-          userId: userId,
-          sessionToken: sessionToken,
-          fcmToken: fcmToken,
-          deviceId: deviceInfo || "Unknown Device",
-          ipAddress: req.ip || req.connection.remoteAddress,
-          userAgent: req.get("User-Agent") || "Unknown",
-          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 hari
-          isActive: true,
-        },
-      });
-
-      return res.json({
-        data: {
-          sessionId: newSession.id,
-          fcmToken: newSession.fcmToken,
-        },
+    if (!activeSession) {
+      console.log(`[FCM] Tidak ada session aktif untuk user: ${userId}`);
+      return res.status(401).json({
+        error: "Tidak ada session aktif",
+        details: "Silakan login kembali",
       });
     }
 
-    // Update session yang existing
+    // ✅ UPDATE SESSION YANG AKTIF
     const updatedSession = await prisma.userSession.update({
-      where: {
-        id: existingSession.id,
-      },
+      where: { id: activeSession.id },
       data: {
         fcmToken: fcmToken,
-        deviceId: deviceInfo || existingSession.deviceInfo,
+        deviceId: deviceInfo || activeSession.deviceInfo,
       },
     });
 
-    console.log(
-      `[FCM] FCM token berhasil diupdate untuk session: ${updatedSession.id}`
-    );
+    console.log(`[FCM] FCM token updated for session: ${updatedSession.id}`);
 
     res.json({
       message: "FCM token berhasil diupdate",
@@ -165,15 +143,6 @@ export const updateFcmToken = async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Error updateFcmToken:", error);
-
-    // Handle error specific untuk record not found
-    if (error.code === "P2025") {
-      return res.status(404).json({
-        error: "Session tidak ditemukan",
-        details: "Session mungkin sudah expired atau dihapus",
-      });
-    }
-
     res.status(500).json({
       error: "Gagal mengupdate FCM token",
       details: error.message,

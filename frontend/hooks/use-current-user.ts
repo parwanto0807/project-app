@@ -177,24 +177,24 @@ export function useCurrentUser() {
   useEffect(() => {
     isMountedRef.current = true;
 
-    console.log("🎯 useCurrentUser - Component mounted, checking auth...");
+    // console.log("🎯 useCurrentUser - Component mounted, checking auth...");
 
     // Only fetch if we don't already have user data and not already loading
     if (!globalUser && !globalFetchPromise) {
-      console.log("🎯 useCurrentUser - No user data, fetching...");
+      // console.log("🎯 useCurrentUser - No user data, fetching...");
       fetchUser();
     } else if (globalUser) {
       // If we already have data, use it immediately
-      console.log("🎯 useCurrentUser - Using cached user data");
+      // console.log("🎯 useCurrentUser - Using cached user data");
       setUser(globalUser);
       setLoading(false);
     } else if (globalFetchPromise) {
-      console.log("🎯 useCurrentUser - Fetch already in progress");
+      // console.log("🎯 useCurrentUser - Fetch already in progress");
       setLoading(true);
     }
 
     return () => {
-      console.log("🎯 useCurrentUser - Component unmounted");
+      // console.log("🎯 useCurrentUser - Component unmounted");
       isMountedRef.current = false;
     };
   }, [fetchUser]);
