@@ -54,7 +54,7 @@ model TrustedDevice {
   id         String   @id @default(uuid())
   userId     String
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  deviceId   String // Hashed device fingerprint
+  deviceId   String?
   deviceName String? // User-defined name
   deviceType String? // "mobile", "desktop", etc.
   os         String?
@@ -98,7 +98,7 @@ model User {
   verifiedPayments Payment[]
   rab              RAB[]
   auditLogs        AuditLog[]
-  notifications Notification[]
+  notifications    Notification[]
 }
 
 model LoginAttempt {

@@ -5,6 +5,7 @@ import { createContext, useState, useContext, ReactNode, useEffect, useRef, useC
 import { useAuth } from "@/contexts/AuthContext"; // ← IMPORT AUTH CONTEXT
 import { LoadingScreen } from "@/components/ui/loading-gears";
 import { api } from "@/lib/http";
+import { useRouter } from "next/navigation";
 
 export interface User {
   id: string;
@@ -52,6 +53,7 @@ export default function ClientSessionProvider({
 
   const hasFetchedRef = useRef(false);
   const isMountedRef = useRef(true);
+  const router = useRouter();
 
   // Function untuk handle response data structure dengan type safety
   const extractUserData = useCallback((data: ProfileResponse | User): User | null => {
@@ -85,6 +87,7 @@ export default function ClientSessionProvider({
   }, []);
 
   // ✅ SIMPLIFIED: Function untuk fetch profile
+
   const fetchProfile = useCallback(async (): Promise<User | null> => {
     try {
       const response = await api.get<ProfileResponse | User>(
@@ -93,11 +96,24 @@ export default function ClientSessionProvider({
 
       const userData = extractUserData(response.data);
       return userData ?? null;
-    } catch (err) {
-      console.error("[fetchProfile] Error:", err);
+    } catch (err: unknown) {
+      console.error("[fetchProfile] Error fetching profile:", err);
+
+      let reason = "session_terminated"; // default reason
+
+      if (err instanceof Error) {
+        const msg = err.message.toLowerCase();
+        if (msg.includes("expired")) reason = "token_expired";
+        if (msg.includes("single")) reason = "device_limit";
+      }
+
+      // Redirect ke unauthorized page
+      router.replace(`/unauthorized?reason=${reason}`);
+
       return null;
     }
-  }, [extractUserData]);
+  }, [router, extractUserData]);
+
 
   // ✅ SIMPLIFIED: Fetch profile hanya ketika ada token dan authenticated
   const fetchUserProfile = useCallback(async (): Promise<void> => {

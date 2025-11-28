@@ -169,14 +169,14 @@ setRefreshExecutor(async (): Promise<string | null> => {
 
 // ====== REQUEST INTERCEPTOR ======
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  // Skip auth for certain requests
   const skipAuthConfig = config as RetriableConfig;
   if (skipAuthConfig._skipAuth) {
     return config;
   }
 
-  // Development fallback dari cookie
-  const token = getAccessToken();
+  let token = getAccessToken();
+
+  // Dev-mode fallback token dari cookie
   if (
     !token &&
     typeof window !== "undefined" &&
@@ -190,32 +190,23 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
       ? accessTokenCookie.split("=")[1]
       : null;
 
+    // Validasi token cookie
     if (cookieValue) {
-      // Cek validitas token sebelum menyimpan
       try {
-        const decodedPayload = parseJwt(cookieValue);
-        const { exp } = decodedPayload;
-        if (exp && exp * 1000 > Date.now()) {
+        const decoded = parseJwt(cookieValue);
+        if (decoded.exp * 1000 > Date.now()) {
           setAccessToken(cookieValue);
-        } else {
-          console.warn("⚠️ Token from cookie is expired");
+          token = cookieValue;
         }
-      } catch (error) {
-        console.warn("⚠️ Invalid token in cookie:", error);
+      } catch (e) {
+        console.warn("⚠️ Invalid access token from cookie.", e);
       }
     }
   }
 
-  // Set authorization header
-  const currentToken = getAccessToken();
-  if (currentToken) {
-    if (config.headers instanceof AxiosHeaders) {
-      config.headers.set("Authorization", `Bearer ${currentToken}`);
-    } else {
-      (config.headers as RawAxiosRequestHeaders)[
-        "Authorization"
-      ] = `Bearer ${currentToken}`;
-    }
+  // Pasang token ke header
+  if (token) {
+    config.headers.set("Authorization", `Bearer ${token}`);
   }
 
   config.withCredentials = true;

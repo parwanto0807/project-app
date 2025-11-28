@@ -10,7 +10,7 @@ import { authenticateToken } from "../../middleware/authMiddleware.js";
 const router = Router();
 
 // GET /sessions → semua sesi
-router.get("/", getAllSessions);
+router.get("/", authenticateToken, getAllSessions);
 
 // GET /sessions/active → sesi masih valid
 router.get("/active", getActiveSessions);
