@@ -1,4 +1,4 @@
-// hooks/use-current-user.ts (Fixed version)
+// hooks/use-current-user.ts (Improved version)
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
@@ -33,10 +33,13 @@ export function useCurrentUser() {
   const maxRetries = 2;
 
   const fetchUser = useCallback(async (retry = false): Promise<void> => {
-    // Jika sudah ada ongoing fetch, tunggu yang existing
+    // ✅ PERBAIKAN: Better token check
     const token = getAccessToken?.();
-    if (!token) {
+    const hasToken = !!token;
+
+    if (!hasToken) {
       globalUser = null;
+      globalLoading = false;
       if (isMountedRef.current) {
         setUser(null);
         setLoading(false);
@@ -45,17 +48,17 @@ export function useCurrentUser() {
       return;
     }
 
+    // ✅ PERBAIKAN: Handle existing fetch dengan better logic
     if (globalFetchPromise && !retry) {
       try {
         await globalFetchPromise;
-        // Setelah existing fetch selesai, update state dari global
         if (isMountedRef.current) {
           setUser(globalUser);
           setLoading(globalLoading);
         }
         return;
       } catch {
-        // Jika existing fetch gagal, lanjut dengan fetch baru
+        // Continue to new fetch jika existing gagal
       }
     }
 
@@ -64,28 +67,38 @@ export function useCurrentUser() {
         globalLoading = true;
         if (isMountedRef.current) {
           setLoading(true);
+          setError(null);
         }
       }
 
+      console.log("🔄 useCurrentUser - Fetching profile..."); // ← DEBUG
+
       const fetchPromise = api.get<ProfileResponse>(
         "/api/auth/user-login/profile",
-        { withCredentials: true }
+        {
+          withCredentials: true,
+          timeout: 10000,
+        }
       );
 
-      // Set global promise untuk prevent concurrent fetches
       if (!retry) {
         globalFetchPromise = fetchPromise
           .then((response) => {
+            console.log("✅ useCurrentUser - Response:", response.data); // ← DEBUG
             if (response.data?.user) {
               globalUser = response.data.user;
               if (isMountedRef.current) {
                 setUser(response.data.user);
                 setError(null);
               }
+            } else {
+              console.log("❌ useCurrentUser - No user in response");
+              throw new Error("No user data in response");
             }
             return;
           })
           .catch((err) => {
+            console.error("❌ useCurrentUser - Fetch error:", err);
             throw err;
           })
           .finally(() => {
@@ -100,37 +113,54 @@ export function useCurrentUser() {
       } else {
         // Untuk retry, tidak set global promise
         const response = await fetchPromise;
+        console.log("✅ useCurrentUser - Retry response:", response.data); // ← DEBUG
         if (response.data?.user) {
           globalUser = response.data.user;
           if (isMountedRef.current) {
             setUser(response.data.user);
             setError(null);
           }
+        } else {
+          throw new Error("No user data in response");
         }
       }
 
-      retryCountRef.current = 0; // Reset retry count on success
+      retryCountRef.current = 0;
     } catch (err) {
       const axiosErr = err as AxiosError<{ error?: string }>;
+      console.error("❌ useCurrentUser - Error:", axiosErr);
 
-      // ✅ Retry logic dengan limit dan hanya untuk 401
+      // ✅ PERBAIKAN: Better error handling dan retry logic
       if (
         axiosErr.response?.status === 401 &&
         !retry &&
         retryCountRef.current < maxRetries
       ) {
         retryCountRef.current++;
-        await new Promise((r) => setTimeout(r, 250 * retryCountRef.current)); // Exponential backoff
+        console.log(
+          `🔄 useCurrentUser - Retrying (${retryCountRef.current}/${maxRetries})`
+        );
+        await new Promise((resolve) =>
+          setTimeout(resolve, 500 * retryCountRef.current)
+        );
         return fetchUser(true);
       }
 
-      // Update global state on error
+      // ✅ PERBAIKAN: Handle different error types
+      let errorMessage = "Unknown error";
+
+      if (axiosErr.response?.data?.error) {
+        errorMessage = axiosErr.response.data.error;
+      } else if (axiosErr.message) {
+        errorMessage = axiosErr.message;
+      } else if (axiosErr.code === "ECONNABORTED") {
+        errorMessage = "Request timeout";
+      }
+
       globalUser = null;
       if (isMountedRef.current) {
         setUser(null);
-        setError(
-          axiosErr.response?.data?.error || axiosErr.message || "Unknown error"
-        );
+        setError(errorMessage);
       }
     } finally {
       if (!retry) {
@@ -141,28 +171,37 @@ export function useCurrentUser() {
         }
       }
     }
-  }, []); // api is stable, so empty deps is ok
+  }, []);
 
+  // ✅ ✅ ✅ TAMBAHKAN INI: useEffect untuk fetch data otomatis
   useEffect(() => {
     isMountedRef.current = true;
 
-    // Only fetch if we don't already have user data
+    console.log("🎯 useCurrentUser - Component mounted, checking auth...");
+
+    // Only fetch if we don't already have user data and not already loading
     if (!globalUser && !globalFetchPromise) {
-      setLoading(true);
+      console.log("🎯 useCurrentUser - No user data, fetching...");
       fetchUser();
     } else if (globalUser) {
       // If we already have data, use it immediately
+      console.log("🎯 useCurrentUser - Using cached user data");
       setUser(globalUser);
       setLoading(false);
+    } else if (globalFetchPromise) {
+      console.log("🎯 useCurrentUser - Fetch already in progress");
+      setLoading(true);
     }
 
     return () => {
+      console.log("🎯 useCurrentUser - Component unmounted");
       isMountedRef.current = false;
     };
   }, [fetchUser]);
 
   const refresh = useCallback(async (): Promise<void> => {
     // Force refresh - clear cache and fetch fresh
+    console.log("🔄 useCurrentUser - Manual refresh triggered");
     globalUser = null;
     retryCountRef.current = 0;
 
@@ -174,6 +213,12 @@ export function useCurrentUser() {
     await fetchUser();
   }, [fetchUser]);
 
+  const clearError = useCallback((): void => {
+    if (isMountedRef.current) {
+      setError(null);
+    }
+  }, []);
+
   const memoizedValue = useMemo(
     () => ({
       user,
@@ -181,14 +226,16 @@ export function useCurrentUser() {
       error,
       isAuthenticated: !!user,
       setUser: (newUser: User | null) => {
+        console.log("✏️ useCurrentUser - Manual user update:", newUser);
         globalUser = newUser;
         if (isMountedRef.current) {
           setUser(newUser);
         }
       },
       refresh,
+      clearError,
     }),
-    [user, loading, error, refresh]
+    [user, loading, error, refresh, clearError]
   );
 
   return memoizedValue;

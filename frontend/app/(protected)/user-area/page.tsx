@@ -1,8 +1,9 @@
 'use client';
 
-import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useSession } from "@/components/clientSessionProvider";
+import { useAuth } from "@/contexts/AuthContext";
+import { useEffect, useState, useCallback } from "react";
 import { useAutoLogout } from "@/hooks/use-auto-logout";
 import { LoadingScreen } from "@/components/ui/loading-gears";
 import { UserCircle } from "lucide-react"
@@ -11,18 +12,24 @@ import { SPK } from "@/types/spkReport";
 import { fetchAllSpk, getSpkByEmail } from "@/lib/action/master/spk/spk";
 import { toast } from "sonner";
 import { fetchKaryawanByEmail } from "@/lib/action/master/karyawan";
-import { useSession } from "@/components/clientSessionProvider";
+import { UserLayout } from "@/components/admin-panel/user-layout";
 
 export default function DashboardPage() {
-  const { user, isLoading } = useSession();
-  const [dataSpk, setDataSpk] = useState<SPK[]>([]);
+  const { user, isLoading: sessionLoading } = useSession();
+  const { isAuthenticated, loading: authLoading, role: authRole } = useAuth();
   const router = useRouter();
+  const [isChecking, setIsChecking] = useState(true);
+  const [dataSpk, setDataSpk] = useState<SPK[]>([]);
   const [dataKarywanByEmail, setDataKarywanByEmail] = useState<string>('');
 
-  const email = user?.email || '';
-  const role = user?.role || '';
-  const userId = dataKarywanByEmail || '';
   useAutoLogout(86400);
+
+  // ✅ PERBAIKAN: Combined loading state
+  const isLoading = sessionLoading || authLoading;
+
+  const email = user?.email || '';
+  const role = user?.role || authRole || '';
+  const userId = dataKarywanByEmail || '';
 
   const fetchData = useCallback(async () => {
     if (!email) {
@@ -32,12 +39,11 @@ export default function DashboardPage() {
     }
 
     try {
-
       let result: SPK[] = [];
       if (role === "admin" || role === 'super') {
-        result = await fetchAllSpk();   // ✅ ambil semua SPK untuk admin/super
+        result = await fetchAllSpk();
       } else {
-        result = await getSpkByEmail(email); // ✅ user biasa hanya SPK yang assigned
+        result = await getSpkByEmail(email);
       }
 
       setDataSpk(result);
@@ -53,46 +59,65 @@ export default function DashboardPage() {
     } catch (error) {
       console.error("Error fetching SPK:", error);
       toast.error("Gagal memuat data SPK");
-    } finally {
     }
   }, [email, role]);
 
+  // ✅ PERBAIKAN: Better auth redirect logic
   useEffect(() => {
     if (isLoading) return;
-    if (!user) {
-      router.push("/auth/login");
-    } else if (user.role !== "user") {
-      router.push("/unauthorized");
-    }
-    if (email) {
-      fetchData(); // ✅ Aman dipanggil
-    } else {
-      console.warn("Email tidak tersedia, tidak dapat memuat SPK");
-    }
-  }, [user, isLoading, router, fetchData, email]);
 
-  if (isLoading) return <LoadingScreen />;
+    const timer = setTimeout(() => {
+      if (!user && !isAuthenticated) {
+        router.push("/auth/login");
+        return;
+      }
 
-  if (!user || user.role !== "user") {
+      if (user && user.role !== "user" && role !== "user") {
+        router.push("/unauthorized");
+        return;
+      }
+
+      // ✅ Auth successful
+      setIsChecking(false);
+
+      // Fetch data setelah auth berhasil
+      if (email) {
+        fetchData();
+      } else {
+        console.warn("Email tidak tersedia, tidak dapat memuat SPK");
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [user, isAuthenticated, role, isLoading, router, email, fetchData]);
+
+  // ✅ PERBAIKAN: Show loading selama checking
+  if (isLoading || isChecking) {
+    return <LoadingScreen />;
+  }
+
+  // ✅ PERBAIKAN: Final auth check sebelum render
+  if (!user || !isAuthenticated || (user.role !== "user" && role !== "user")) {
     return null;
   }
 
+  // ✅ Get display name dari multiple sources
+  const displayName = user?.name || user?.username || user?.email?.split('@')[0] || 'User';
+  const displayRole = user?.role || authRole || 'user';
+
   return (
-    <AdminLayout title="Dashboard User" role={user.role}>
+    <UserLayout title="Dashboard User" role={displayRole}>
       {/* Page Header */}
       <div className="space-y-3 sm:space-y-4 mb-2 sm:mb-4">
         <div className="flex items-start sm:items-center justify-between">
           <div>
-            {/* <h1 className="pl-2 text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight leading-tight">
-              Dashboard Admin
-            </h1> */}
             <p className="pl-1 text-sm sm:text-sm md:text-base text-muted-foreground my-1 flex items-center gap-1.5 sm:gap-2">
               <UserCircle className="h-6 w-6 text-green-500 sm:h-5 sm:w-5" />
               Selamat datang kembali,&nbsp;
               <span className="shine-text font-bold">
-                {user?.name}!
+                {displayName}!
               </span>
-              <span className="hidden xs:inline">(Role: {user?.role})</span>
+              <span className="hidden xs:inline">(Role: {displayRole})</span>
             </p>
           </div>
         </div>
@@ -100,10 +125,9 @@ export default function DashboardPage() {
       {/* Main Dashboard Content */}
       <DashboardUserSPK
         dataSpk={dataSpk}
-        // userEmail={email}
-        role={role}
+        role={displayRole}
         userId={userId}
       />
-    </AdminLayout>
+    </UserLayout>
   );
 }

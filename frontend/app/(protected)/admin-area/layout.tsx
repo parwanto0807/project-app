@@ -3,38 +3,72 @@
 import AdminPanelLayout from "@/components/admin-panel/admin-panel-layout";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
-import { useSession } from "@/components/clientSessionProvider"; // ✅ GUNAKAN useSession
+import { useSession } from "@/components/clientSessionProvider";
+import { useAuth } from "@/contexts/AuthContext"; // ← TAMBAHKAN INI
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { BackToDashboardButton } from "@/components/backToDashboard";
+import { LoadingScreen } from "@/components/ui/loading-gears"; // ← GUNAKAN LOADING CONSISTENT
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { user, isLoading } = useSession(); // ✅ GUNAKAN useSession
+  const { user, isLoading: sessionLoading } = useSession();
+  const { isAuthenticated, loading: authLoading, role } = useAuth(); // ← KOMBINASI DENGAN AUTH CONTEXT
   const router = useRouter();
+  const [isChecking, setIsChecking] = useState(true);
 
   // Buat instance QueryClient hanya sekali
   const [queryClient] = useState(() => new QueryClient());
 
-  useEffect(() => {
-    if (!isLoading && user?.role !== "admin") {
-      router.push("/unauthorized");
-    }
-  }, [user, isLoading, router]);
+  // ✅ PERBAIKAN: Combined loading state
+  const isLoading = sessionLoading || authLoading;
 
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Loading...</div>
-      </div>
-    );
+  // ✅ PERBAIKAN: Better auth check dengan delay
+  useEffect(() => {
+    if (isLoading) return;
+
+    const timer = setTimeout(() => {
+      console.log("🔍 AdminLayout Auth Check:", {
+        hasUser: !!user,
+        isAuthenticated,
+        userRole: user?.role,
+        authRole: role,
+        path: window.location.pathname
+      });
+
+      // ✅ Check multiple conditions dengan priority
+      if (!user && !isAuthenticated) {
+        console.log("🚫 No authentication - redirect to login");
+        router.push("/auth/login");
+        return;
+      }
+
+      // ✅ Check role dari multiple sources
+      const userRole = user?.role || role;
+      if (userRole !== "admin") {
+        console.log(`🚫 Not admin (role: ${userRole}) - redirect to unauthorized`);
+        router.push("/unauthorized");
+        return;
+      }
+
+      // ✅ Auth successful
+      console.log("✅ AdminLayout - Auth successful, showing content");
+      setIsChecking(false);
+    }, 500); // ↑↑↑ INCREASE DELAY ↑↑↑
+
+    return () => clearTimeout(timer);
+  }, [user, isAuthenticated, role, isLoading, router]);
+
+  // ✅ PERBAIKAN: Show consistent loading screen
+  if (isLoading || isChecking) {
+    return <LoadingScreen />;
   }
 
-  // Check role setelah loading selesai
-  if (user?.role !== "admin") {
-    return null; // Router akan redirect ke /unauthorized
+  // ✅ PERBAIKAN: Final guard sebelum render
+  const userRole = user?.role || role;
+  if (!user || !isAuthenticated || userRole !== "admin") {
+    return null; // Will be redirected by useEffect
   }
 
   return (
@@ -45,7 +79,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       disableTransitionOnChange
     >
       <QueryClientProvider client={queryClient}>
-        <AdminPanelLayout role={user.role}>
+        <AdminPanelLayout role={userRole}>
           <Toaster />
           {children}
           <div className="container mx-auto p-4 mt-6">

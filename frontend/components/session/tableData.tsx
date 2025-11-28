@@ -283,6 +283,16 @@ export default function SessionListTable({ sessions, isLoading }: SessionListPro
         </div>
       </TableCell>
       <TableCell className="py-1">
+        <div className="flex items-center gap-1">
+          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${session.isRevoked
+            ? 'bg-red-100 text-red-800'
+            : 'bg-green-100 text-green-800'
+            }`}>
+            {session.isRevoked ? 'Revoked' : 'Active'}
+          </span>
+        </div>
+      </TableCell>
+      <TableCell className="py-1">
         <div className="flex flex-col">
           <span className="text-xs text-gray-900 dark:text-gray-100 font-medium">
             {new Date(session.createdAt).toLocaleDateString()}
@@ -392,6 +402,12 @@ export default function SessionListTable({ sessions, isLoading }: SessionListPro
                   <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400 text-xs">
                     <Monitor className="h-3 w-3" />
                     Device
+                  </div>
+                </TableHead>
+                <TableHead className="py-2">
+                  <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400 text-xs">
+                    <Monitor className="h-3 w-3" />
+                    Revoked
                   </div>
                 </TableHead>
                 <TableHead className="py-2">

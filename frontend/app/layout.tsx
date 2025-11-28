@@ -5,6 +5,7 @@ import ClientSessionProvider from "@/components/clientSessionProvider";
 import { NotificationProvider } from '@/contexts/NotificationContext';
 import FCMInitializer from '@/components/FCMInitializer';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
+import { AuthProvider } from "@/contexts/AuthContext";
 
 export const metadata: Metadata = {
   title: "ProyekID",
@@ -94,14 +95,17 @@ export default function RootLayout({
         // ✅ Add CSS to prevent scroll issues
         style={{ scrollBehavior: 'auto' }}
       >
-        <ClientSessionProvider>
-          <NotificationProvider>
-            <FCMInitializer />
-            {children}
-            {/* ✅ PWA INSTALL PROMPT */}
-            <PWAInstallPrompt />
-          </NotificationProvider>
-        </ClientSessionProvider>
+        <AuthProvider>
+          {/* Session provider mungkin butuh info auth */}
+          <ClientSessionProvider>
+            {/* Notification mungkin butuh auth untuk FCM */}
+            <NotificationProvider>
+              <FCMInitializer />
+              {children}
+              <PWAInstallPrompt />
+            </NotificationProvider>
+          </ClientSessionProvider>
+        </AuthProvider>
       </body>
     </html>
   );

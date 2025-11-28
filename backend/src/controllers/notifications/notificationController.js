@@ -10,8 +10,6 @@ export const getUserNotifications = async (req, res) => {
     const userId = req.user.id;
     const { limit = 50, unreadOnly = false } = req.query;
 
-    console.log(`[Notification] Getting notifications for user: ${userId}`);
-
     const whereClause = {
       userId: userId,
       OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
@@ -29,10 +27,6 @@ export const getUserNotifications = async (req, res) => {
       },
       take: parseInt(limit),
     });
-
-    console.log(
-      `[Notification] Found ${notifications.length} notifications for user ${userId}`
-    );
 
     res.json(notifications);
   } catch (error) {
@@ -60,8 +54,6 @@ export const getUnreadCount = async (req, res) => {
       },
     });
 
-    console.log(`[Notification] Unread count for user ${userId}: ${count}`);
-
     res.json({ count });
   } catch (error) {
     console.error("[Notification] Error getting unread count:", error);
@@ -88,10 +80,6 @@ export const markNotificationsAsRead = async (req, res) => {
       });
     }
 
-    console.log(
-      `[Notification] Marking ${notificationIds.length} notifications as read for user: ${userId}`
-    );
-
     const result = await prisma.notification.updateMany({
       where: {
         id: { in: notificationIds },
@@ -103,9 +91,6 @@ export const markNotificationsAsRead = async (req, res) => {
       },
     });
 
-    console.log(
-      `[Notification] Successfully marked ${result.count} notifications as read`
-    );
 
     res.json({
       success: true,
@@ -128,11 +113,6 @@ export const markNotificationsAsRead = async (req, res) => {
 export const markAllNotificationsAsRead = async (req, res) => {
   try {
     const userId = req.user.id;
-
-    console.log(
-      `[Notification] Marking all notifications as read for user: ${userId}`
-    );
-
     const result = await prisma.notification.updateMany({
       where: {
         userId: userId,
@@ -144,11 +124,6 @@ export const markAllNotificationsAsRead = async (req, res) => {
         updatedAt: new Date(),
       },
     });
-
-    console.log(
-      `[Notification] Successfully marked all ${result.count} notifications as read`
-    );
-
     res.json({
       success: true,
       message: `Marked all ${result.count} notifications as read`,
@@ -174,11 +149,6 @@ export const deleteNotification = async (req, res) => {
   try {
     const userId = req.user.id;
     const { id } = req.params;
-
-    console.log(
-      `[Notification] Deleting notification ${id} for user: ${userId}`
-    );
-
     // Verify the notification belongs to the user
     const notification = await prisma.notification.findFirst({
       where: {
@@ -197,8 +167,6 @@ export const deleteNotification = async (req, res) => {
     await prisma.notification.delete({
       where: { id: id },
     });
-
-    console.log(`[Notification] Successfully deleted notification: ${id}`);
 
     res.json({
       success: true,
@@ -221,20 +189,11 @@ export const clearAllNotifications = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    console.log(
-      `[Notification] Clearing all notifications for user: ${userId}`
-    );
-
     const result = await prisma.notification.deleteMany({
       where: {
         userId: userId,
       },
     });
-
-    console.log(
-      `[Notification] Successfully cleared ${result.count} notifications`
-    );
-
     res.json({
       success: true,
       message: `Cleared ${result.count} notifications`,
@@ -256,8 +215,6 @@ export const clearAllNotifications = async (req, res) => {
 export const sendTestNotification = async (req, res) => {
   try {
     const userId = req.user.id;
-
-    console.log(`[Notification] Sending test notification to user: ${userId}`);
 
     const result = await NotificationService.sendToUser(userId, {
       title: "🧪 Test Notification",
@@ -340,8 +297,6 @@ export const getNotificationStats = async (req, res) => {
       read: readCount,
       today: todayCount,
     };
-
-    console.log(`[Notification] Stats for user ${userId}:`, stats);
 
     res.json({
       success: true,

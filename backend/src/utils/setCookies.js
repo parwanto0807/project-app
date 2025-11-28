@@ -1,4 +1,4 @@
-import { COOKIE_NAMES, getCookieOptions} from '../config/cookies.js';
+import { COOKIE_NAMES, getCookieOptions } from "../config/cookies.js";
 
 export const setTokenCookies = (
   res,
@@ -6,7 +6,8 @@ export const setTokenCookies = (
   refreshToken,
   sessionToken = null
 ) => {
-  console.log("🍪 Setting cookies with domain:", 
+  console.log(
+    "🍪 Setting cookies with domain:",
     process.env.NODE_ENV === "production" ? "rylif-app.com" : "localhost"
   );
 
@@ -17,7 +18,7 @@ export const setTokenCookies = (
   });
 
   res.cookie(COOKIE_NAMES.REFRESH_TOKEN, refreshToken, {
-    ...getCookieOptions(false), // httpOnly: true  
+    ...getCookieOptions(false), // httpOnly: true
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 hari
   });
 
@@ -40,21 +41,29 @@ export const setTokenCookies = (
 
 export const clearAuthCookies = (res) => {
   const allCookieNames = Object.values(COOKIE_NAMES);
-  
+
   console.log("🧹 Clearing cookies:", allCookieNames);
   console.log("🔧 Environment:", process.env.NODE_ENV);
-  console.log("🌐 Domain:", process.env.NODE_ENV === "production" ? "rylif-app.com" : "localhost");
+  console.log(
+    "🌐 Domain:",
+    process.env.NODE_ENV === "production" ? "rylif-app.com" : "localhost"
+  );
 
   allCookieNames.forEach((cookieName) => {
     const isReadable = cookieName === COOKIE_NAMES.ACCESS_TOKEN_READABLE;
     const options = getCookieOptions(isReadable);
-    
+
     res.clearCookie(cookieName, options);
     console.log(`✅ Cleared cookie: ${cookieName}`, options);
   });
 
   // 🚨 CLEAR EXTRA/LEGACY COOKIES untuk pastikan bersih
-  const legacyCookies = ["sessionToken", "access_token", "refresh_token"];
+  const legacyCookies = [
+    "sessionToken",
+    "accessToken",
+    "accessTokenReadable",
+    "refreshToken",
+  ];
   legacyCookies.forEach((cookieName) => {
     res.clearCookie(cookieName, getCookieOptions(false));
     console.log(`🧹 Cleared legacy cookie: ${cookieName}`);

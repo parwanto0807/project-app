@@ -4,7 +4,7 @@ import * as z from "zod";
 import { useEffect, useState, useTransition } from "react";
 import { CardWrapper } from "./card-wrapper";
 import { useForm } from "react-hook-form";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LoginSchema } from "@/schemas";
 import Link from "next/link";
@@ -26,7 +26,6 @@ import { FormSuccess } from "../form-success";
 import { toast } from "sonner";
 
 const LoginForm = () => {
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   const urlError =
@@ -71,58 +70,47 @@ const LoginForm = () => {
           return;
         }
 
-        console.log("🔐 [LOGIN] Starting login process");
-
         // 1) Kirim request login
         const loginRes = await fetch(`${apiUrl}/api/auth/admin/login`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          credentials: "include", // ✅ INI HARUS ADA
+          credentials: "include",
           body: JSON.stringify(values),
         });
 
-        // ✅ DEBUG DETAILED RESPONSE
-        console.log("🔐 [LOGIN] Response details:", {
-          status: loginRes.status,
-          statusText: loginRes.statusText,
-          ok: loginRes.ok,
-          url: loginRes.url,
-          type: loginRes.type,
-          headers: Object.fromEntries(loginRes.headers.entries()), // Lihat semua headers
-        });
-
-        // ✅ CEK SET-COOKIE HEADER SPECIFICALLY
-        const setCookieHeader = loginRes.headers.get('set-cookie');
-        console.log("🔐 [LOGIN] Set-Cookie header:", setCookieHeader);
-
         const loginData = await loginRes.json();
-        console.log("🔐 [LOGIN] Login response data:", loginData);
 
         if (!loginRes.ok || !loginData.success) {
           setError(loginData.error || "Login gagal");
           return;
         }
 
-        // ✅ SIMPAN ACCESS TOKEN
+        // ✅ SIMPAN ACCESS TOKEN & USER DATA
         localStorage.setItem("accessToken", loginData.accessToken);
-        console.log("✅ [LOGIN] Access token saved to localStorage");
+        localStorage.setItem("userData", JSON.stringify(loginData.user)); // ✅ GUNAKAN userData BUKAN user
 
-        // ✅ SIMPAN USER DATA
-        localStorage.setItem("user", JSON.stringify(loginData.user));
-        console.log("✅ [LOGIN] User data saved");
 
-        // ✅ CHECK COOKIES SETELAH LOGIN (dengan delay)
-        setTimeout(() => {
-          console.log("🍪 [LOGIN] Cookies after login:", document.cookie);
-          console.log("🍪 [LOGIN] All cookies:", document.cookie.split(';').map(c => c.trim()));
+        // Cara 1: Dispatch event untuk trigger session refresh
+        window.dispatchEvent(new Event('storage'));
 
-          // ✅ LANGSUNG REDIRECT KE DASHBOARD (bypass refreshing page)
-          console.log("✅ [LOGIN] Login successful, redirecting to dashboard...");
-          toast.success("Login berhasil!");
-          router.push("/super-admin-area");
-        }, 500);
+        // Cara 2: Tambahkan delay yang cukup
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        // ✅ CHECK COOKIES & LOCALSTORAGE SETELAH PENYIMPANAN
+        console.log("🍪 [LOGIN] Cookies after login:", document.cookie);
+        console.log("📦 [LOGIN] localStorage check:", {
+          accessToken: localStorage.getItem("accessToken") ? "EXISTS" : "MISSING",
+          userData: localStorage.getItem("userData") ? "EXISTS" : "MISSING"
+        });
+
+        // ✅ PASTIKAN: Gunakan window.location.href UNTUK HARD REDIRECT
+        console.log("🔄 [LOGIN] Performing hard redirect to dashboard...");
+        toast.success("Login berhasil!");
+
+        // ⚠️ JANGAN GUNAKAN router.push() - GUNAKAN window.location.href
+        window.location.href = "/super-admin-area";
 
       } catch (err: unknown) {
         console.error("🔴 [LOGIN] Error:", err);

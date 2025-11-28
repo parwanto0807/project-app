@@ -184,8 +184,6 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         throw new Error('Failed to mark as read on server');
       }
 
-      console.log('✅ Successfully marked as read on server:', id);
-
     } catch (error) {
       console.error('❌ Error marking as read:', error);
 
@@ -201,12 +199,10 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, []);
 
   const markAllAsRead = useCallback(async (): Promise<void> => {
-    console.log('🎯 markAllAsRead called');
 
     // ✅ UPDATE LOCAL STATE DULU
     setNotifications(prev => {
       const updated = prev.map(notif => ({ ...notif, read: true }));
-      console.log('🔄 All notifications marked as read locally');
       return updated;
     });
 
@@ -230,8 +226,6 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   const clearAll = useCallback(async (): Promise<void> => {
     try {
-      console.log('🗑️ [Notifications] Clearing all notifications...');
-
       // ✅ OPTIMISTIC UPDATE - clear local state dulu
       setNotifications([]);
       localStorage.removeItem('fcm-notifications');
@@ -262,18 +256,6 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   }, [loadFromServer]);
 
-  // ✅ COMMENT AUTO-SYNC UNTUK DEBUG
-  /*
-  useEffect(() => {
-    if (hasInitialLoad.current && !isLoading && notifications.length > 0) {
-      const timeoutId = setTimeout(() => {
-        syncWithServer();
-      }, 2000);
-
-      return () => clearTimeout(timeoutId);
-    }
-  }, [notifications, isLoading, syncWithServer]);
-  */
 
   const unreadCount = notifications.filter(notif => !notif.read).length;
 

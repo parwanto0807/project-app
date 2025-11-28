@@ -11,8 +11,6 @@ export class NotificationService {
     }
 
     try {
-      console.log(`[Notification] Preparing to send to user: ${userId}`);
-
       // ✅ SIMPAN KE DATABASE TERLEBIH DAHULU (PERSISTENCE)
       const dbNotification = await prisma.notification.create({
         data: {
@@ -28,8 +26,6 @@ export class NotificationService {
             : null,
         },
       });
-
-      // console.log(`[Notification] 💾 Saved to DB with ID: ${dbNotification.id}`);
 
       // ✅ PERBAIKI QUERY: Gunakan isRevoked: false dan expiresAt
       const userSessions = await prisma.userSession.findMany({
@@ -111,7 +107,6 @@ export class NotificationService {
         response.responses.forEach((resp, idx) => {
           if (!resp.success) {
             failedTokens.push(tokens[idx]);
-            console.log(`[Notification] Token failed:`, resp.error?.message);
           }
         });
 
@@ -157,8 +152,6 @@ export class NotificationService {
 
   static async broadcastToAdmins(notification) {
     try {
-      console.log("[Notification] Broadcasting to admins and PICs...");
-
       const adminUsers = await prisma.user.findMany({
         where: {
           role: { in: ["admin", "pic"] },
@@ -232,8 +225,6 @@ export class NotificationService {
   // ✅ METHOD BARU: Broadcast ke Users dengan role = "user"
   static async broadcastToUsers(notification) {
     try {
-      console.log("[Notification] Broadcasting to Users...");
-
       const userUsers = await prisma.user.findMany({
         where: {
           role: "user",
@@ -247,10 +238,7 @@ export class NotificationService {
         },
       });
 
-      console.log(`[Notification] Found ${userUsers.length} Users`);
-
       if (userUsers.length === 0) {
-        console.log(`[Notification] ⚠️  No active Users found`);
         return [];
       }
 
@@ -263,7 +251,6 @@ export class NotificationService {
       let totalFCMSent = 0;
 
       for (const user of userUsers) {
-        console.log(`[Notification] Sending to User: ${user.email}`);
         const result = await this.sendToUser(user.id, {
           ...notification,
           type: notification.type || "user_broadcast",
@@ -330,7 +317,6 @@ export class NotificationService {
       let totalFCMSent = 0;
 
       for (const user of specificUsers) {
-        console.log(`[Notification] Sending to ${user.role}: ${user.email}`);
         const result = await this.sendToUser(user.id, {
           ...notification,
           type: notification.type || "specific_user_broadcast",
@@ -368,10 +354,25 @@ export class NotificationService {
   static async broadcastToTeamMembers(teamId, notification) {
     try {
       console.log(
-        `[Notification] Broadcasting to team members for teamId: ${teamId}`
+        `🔍 [DEBUG] Starting broadcastToTeamMembers for teamId: ${teamId}`
       );
 
-      // Dapatkan semua karyawan dalam team
+      // 1. CEK APAKAH TEAM ADA
+      const teamExists = await prisma.team.findUnique({
+        where: { id: teamId },
+        select: { id: true, namaTeam: true },
+      });
+
+      if (!teamExists) {
+        console.log(`❌ [DEBUG] Team with ID ${teamId} not found`);
+        return [];
+      }
+
+      console.log(
+        `✅ [DEBUG] Team found: ${teamExists.namaTeam} (${teamExists.id})`
+      );
+
+      // 2. QUERY LENGKAP DENGAN SEMUA KEMUNGKINAN
       const teamKaryawan = await prisma.teamKaryawan.findMany({
         where: {
           teamId: teamId,
@@ -392,31 +393,109 @@ export class NotificationService {
         },
       });
 
-      // Filter hanya yang memiliki user dengan role "user"
-      const teamUsers = teamKaryawan.filter(
-        (member) => member.karyawan.user && member.karyawan.user.role === "user"
+      // console.log(`📊 [DEBUG] Raw teamKaryawan results:`, teamKaryawan.length);
+
+      // 3. DETAILED LOGGING SETIAP RECORD
+      // teamKaryawan.forEach((member, index) => {
+      //   console.log(`👥 [DEBUG] Member ${index + 1}:`, {
+      //     teamKaryawanId: member.id,
+      //     karyawanId: member.karyawanId,
+      //     userId: member.karyawan?.user?.id || "NO USER",
+      //     userName: member.karyawan?.user?.name || "NO NAME",
+      //     userRole: member.karyawan?.user?.role || "NO ROLE",
+      //     hasUser: !!member.karyawan?.user,
+      //   });
+      // });
+
+      // 4. ANALISIS BERBAGAI KEMUNGKINAN FILTER
+      const allUsers = teamKaryawan.filter((member) => member.karyawan?.user);
+      const usersWithRoleUser = allUsers.filter(
+        (member) => member.karyawan.user.role === "user"
+      );
+      const usersWithOtherRoles = allUsers.filter(
+        (member) => member.karyawan.user.role !== "user"
       );
 
-      console.log(
-        `[Notification] Found ${teamUsers.length} team members with role "user" in team ${teamId}`
-      );
+      // console.log(`📈 [DEBUG] Analysis:`);
+      // console.log(`   - Total teamKaryawan: ${teamKaryawan.length}`);
+      // console.log(`   - With user relation: ${allUsers.length}`);
+      // console.log(`   - With role "user": ${usersWithRoleUser.length}`);
+      // console.log(`   - With other roles: ${usersWithOtherRoles.length}`);
 
-      if (teamUsers.length === 0) {
+      // 5. TAMPILKAN ROLE YANG ADA
+      const rolesFound = [
+        ...new Set(allUsers.map((member) => member.karyawan.user.role)),
+      ];
+      // console.log(`🎭 [DEBUG] Roles found in team:`, rolesFound);
+
+      // 6. JIKA TIDAK ADA USER DENGAN ROLE "user", CEK CASE SENSITIVITY
+      if (usersWithRoleUser.length === 0 && allUsers.length > 0) {
+        console.log(`🔍 [DEBUG] Checking case sensitivity...`);
+
+        // Cek berbagai variasi penulisan "user"
+        const caseVariations = {
+          User: allUsers.filter(
+            (member) => member.karyawan.user.role === "User"
+          ),
+          USER: allUsers.filter(
+            (member) => member.karyawan.user.role === "USER"
+          ),
+          user: usersWithRoleUser,
+          karyawan: allUsers.filter(
+            (member) => member.karyawan.user.role === "karyawan"
+          ),
+          staff: allUsers.filter(
+            (member) => member.karyawan.user.role === "staff"
+          ),
+        };
+
+        // console.log(`🔍 [DEBUG] Case variations count:`, caseVariations);
+      }
+
+      // 7. GUNAKAN FILTER YANG LEBIH FLEKSIBEL JIKA PERLU
+      let finalUsers = usersWithRoleUser;
+
+      // Jika tidak ada dengan role "user", gunakan semua user dalam team
+      if (finalUsers.length === 0 && allUsers.length > 0) {
         console.log(
-          `[Notification] ⚠️  No team members with role "user" found`
+          `⚠️ [DEBUG] No users with role "user", using all users in team`
         );
+        finalUsers = allUsers;
+      }
+
+      // console.log(`✅ [DEBUG] Final users to broadcast: ${finalUsers.length}`);
+
+      if (finalUsers.length === 0) {
+        console.log(`❌ [DEBUG] No users found for broadcasting`);
         return [];
       }
 
-      const userIds = teamUsers.map((member) => member.karyawan.user.id);
+      // 8. PREPARE USER IDs
+      const userIds = finalUsers.map((member) => {
+        console.log(
+          `📨 [DEBUG] Will broadcast to user: ${member.karyawan.user.id} - ${member.karyawan.user.name} (${member.karyawan.user.role})`
+        );
+        return member.karyawan.user.id;
+      });
 
-      // Gunakan method broadcastToSpecificUsers yang sudah ada
-      return await this.broadcastToSpecificUsers(userIds, {
+      // console.log(`🎯 [DEBUG] Final user IDs:`, userIds);
+
+      // 9. CALL BROADCAST FUNCTION
+      // console.log(
+      //   `🚀 [DEBUG] Calling broadcastToSpecificUsers with ${userIds.length} users`
+      // );
+
+      const broadcastResult = await this.broadcastToSpecificUsers(userIds, {
         ...notification,
         type: notification.type || "team_assignment",
       });
+
+      // console.log(`✅ [DEBUG] Broadcast completed successfully`);
+      // console.log(`📊 [DEBUG] Broadcast result:`, broadcastResult);
+
+      return broadcastResult;
     } catch (error) {
-      console.error("[Notification] Team Members Broadcast error:", error);
+      console.error("❌ [DEBUG] Team Members Broadcast error:", error);
       throw error;
     }
   }
@@ -439,10 +518,7 @@ export class NotificationService {
         },
       });
 
-      console.log(`[Notification] Found ${picUsers.length} PIC users`);
-
       if (picUsers.length === 0) {
-        console.log(`[Notification] ⚠️  No active PIC users found`);
         return [];
       }
 
@@ -452,7 +528,6 @@ export class NotificationService {
 
       const results = [];
       for (const user of picUsers) {
-        console.log(`[Notification] Sending to PIC: ${user.email}`);
         const result = await this.sendToUser(user.id, {
           ...notification,
           type: notification.type || "pic_broadcast",
@@ -488,8 +563,6 @@ export class NotificationService {
   // ✅ METHOD BARU: Broadcast hanya ke Admin (tanpa PIC)
   static async broadcastToAdminsOnly(notification) {
     try {
-      console.log("[Notification] Broadcasting to Admins only...");
-
       const adminUsers = await prisma.user.findMany({
         where: {
           role: "admin",
@@ -503,15 +576,12 @@ export class NotificationService {
         },
       });
 
-      console.log(`[Notification] Found ${adminUsers.length} Admin users`);
-
       adminUsers.forEach((user) => {
         console.log(`[Notification] Admin: ${user.email}`);
       });
 
       const results = [];
       for (const user of adminUsers) {
-        console.log(`[Notification] Sending to Admin: ${user.email}`);
         const result = await this.sendToUser(user.id, {
           ...notification,
           type: notification.type || "admin_broadcast",

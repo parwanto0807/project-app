@@ -12,34 +12,64 @@ import {
 } from "@/components/ui/breadcrumb";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/components/clientSessionProvider";
-import { useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext"; // ← TAMBAHKIN INI
+import { useEffect, useState } from "react";
 import { useAutoLogout } from "@/hooks/use-auto-logout";
 import DashboardAwalSalesOrder from "@/components/dashboard/admin/dashboard";
 import { Home, LayoutDashboard, UserCircle } from "lucide-react";
 import Link from "next/link";
+import { LoadingScreen } from "@/components/ui/loading-gears";
 
 export default function DashboardPage() {
-  const { user, isLoading } = useSession();
+  const { user, isLoading: sessionLoading } = useSession();
+  const { isAuthenticated, loading: authLoading, role } = useAuth(); // ← GUNAKAN AUTH CONTEXT
   const router = useRouter();
+  const [isChecking, setIsChecking] = useState(true);
 
   useAutoLogout(86400);
 
-  // Logic Auth Redirect
+  // ✅ PERBAIKAN: Combined loading state
+  const isLoading = sessionLoading || authLoading;
+
+  // ✅ PERBAIKAN: Better auth redirect logic
   useEffect(() => {
     if (isLoading) return;
-    if (!user) {
-      router.push("/auth/login");
-    } else if (user.role !== "admin") {
-      router.push("/unauthorized");
-    }
-  }, [user, isLoading, router]);
 
-  // ✅ HAPUS FCM LOGIC DARI SINI - biar FCMSetup yang handle
+    const timer = setTimeout(() => {
 
-  if (!user || user.role !== "admin") return null;
-  
+      if (!user && !isAuthenticated) {
+        router.push("/auth/login");
+        return;
+      }
+
+      if (user && user.role !== "admin" && role !== "admin") {
+        router.push("/unauthorized");
+        return;
+      }
+
+      // ✅ Auth successful
+      setIsChecking(false);
+    }, 300); // Delay 300ms untuk pastikan state sync
+
+    return () => clearTimeout(timer);
+  }, [user, isAuthenticated, role, isLoading, router]);
+
+  // ✅ PERBAIKAN: Show loading selama checking
+  if (isLoading || isChecking) {
+    return <LoadingScreen />;
+  }
+
+  // ✅ PERBAIKAN: Final auth check sebelum render
+  if (!user || !isAuthenticated || (user.role !== "admin" && role !== "admin")) {
+    return null; // Akan di-redirect oleh useEffect
+  }
+
+  // ✅ Get display name dari multiple sources
+  const displayName = user?.name || user?.username || user?.email?.split('@')[0] || 'User';
+  const displayRole = user?.role || role || 'user';
+
   return (
-    <AdminLayout title="Dashboard Admin" role={user.role}>
+    <AdminLayout title="Dashboard Admin" role={displayRole}>
       {/* Page Header */}
       <div className="space-y-3 sm:space-y-4 mb-2 sm:mb-4">
         <Breadcrumb>
@@ -68,14 +98,14 @@ export default function DashboardPage() {
               <UserCircle className="h-4 w-4 text-green-500 sm:h-5 sm:w-5" />
               Selamat datang kembali,&nbsp;
               <span className="shine-text font-bold">
-                {user?.name}!
+                {displayName}!
               </span>
-              <span className="hidden xs:inline">(Role: {user?.role})</span>
+              <span className="hidden xs:inline">(Role: {displayRole})</span>
             </p>
           </div>
         </div>
       </div>
-      
+
       {/* Main Dashboard Content */}
       <DashboardAwalSalesOrder />
     </AdminLayout>

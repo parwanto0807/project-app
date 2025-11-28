@@ -228,7 +228,7 @@ export const createSpkFieldReport = async (req, res) => {
             salesOrder: {
               select: {
                 soNumber: true,
-                customer: { select: { name: true } },
+                customer: { select: { branch: true } },
                 items: {
                   take: 1,
                   select: {
@@ -254,7 +254,7 @@ export const createSpkFieldReport = async (req, res) => {
           salesOrder: {
             select: {
               soNumber: true,
-              customer: { select: { name: true } },
+              customer: { select: { branch: true } },
             },
           },
         },

@@ -42,20 +42,17 @@ export function Sidebar({ role }: SidebarProps) {
             <Link href="#" className="flex items-center justify-center">
               <div
                 className={cn(
-                  "flex items-center justify-center transition-all duration-300",
-                  sidebar.isOpen ? "w-full" : "w-10"
+                  "relative transition-all duration-300",
+                  sidebar.isOpen ? "w-[160px] h-[40px]" : "w-[40px] h-[40px]"
                 )}
               >
                 <Image
                   src={sidebar.isOpen ? "/LogoMd.png" : "/LogoSM.png"}
                   alt="Rylif Mikro Mandiri"
-                  width={sidebar.isOpen ? 160 : 40}
-                  height={40}
+                  fill
+                  sizes={sidebar.isOpen ? "160px" : "40px"} // ← TAMBAHKAN INI
                   priority
-                  className={cn(
-                    "object-contain transition-all duration-300",
-                    sidebar.isOpen ? "w-full h-auto" : "w-10 h-auto"
-                  )}
+                  className="object-contain"
                 />
               </div>
             </Link>

@@ -10,73 +10,78 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react"; // ✅ ADD useState
+import { useEffect, useState } from "react";
 import { LoadingScreen } from "@/components/ui/loading-gears";
 import DashboardAwalSalesOrder from "@/components/dashboard/super-admin/dashboard";
 import { Home, LayoutDashboard, UserCircle } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "@/components/clientSessionProvider";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function DashboardPage() {
-  const { user, isLoading } = useSession();
+  const { user, isLoading: sessionLoading } = useSession();
+  const { isAuthenticated, loading: authLoading, role: authRole } = useAuth();
   const router = useRouter();
-  const [debug, setDebug] = useState("initial"); // ✅ ADD debug state
+  const [isChecking, setIsChecking] = useState(true);
 
-  console.log("🎯 DashboardPage RENDER - user:", user);
-  console.log("🔍 DashboardPage DEBUG state:", debug);
+  // ✅ PERBAIKAN: Combined loading state
+  const isLoading = sessionLoading || authLoading;
 
+  // ✅ PERBAIKAN: Better auth redirect logic
   useEffect(() => {
-    setDebug("useEffect started");
-    console.log("🔄 DashboardPage useEffect TRIGGERED");
+    if (isLoading) return;
 
-    if (isLoading) {
-      setDebug("still loading");
-      console.log("⏳ Still loading...");
-      return;
-    }
+    const timer = setTimeout(() => {
+      console.log("🔍 Auth check for Super Admin:", {
+        user: !!user,
+        isAuthenticated,
+        role: authRole,
+        path: window.location.pathname
+      });
 
-    if (!user) {
-      setDebug("no user - redirect to login");
-      console.log("❌ No user - redirecting to login");
-      router.push("/auth/login");
-      return;
-    }
+      if (!user && !isAuthenticated) {
+        console.log("🚫 No user & not authenticated - redirect to login");
+        router.push("/auth/login");
+        return;
+      }
 
-    if (user.role !== "super") {
-      setDebug(`wrong role: ${user.role} - redirect to unauthorized`);
-      console.log(`🚫 Wrong role: ${user.role} - redirecting to unauthorized`);
-      router.push("/unauthorized");
-      return;
-    }
+      if (user && user.role !== "super" && authRole !== "super") {
+        console.log("🚫 Not Super Admin - redirect to unauthorized");
+        router.push("/unauthorized");
+        return;
+      }
 
-    setDebug("user authenticated and authorized");
-    console.log("✅ User authenticated and authorized:", user);
-  }, [user, isLoading, router]);
+      // ✅ Auth successful
+      console.log("✅ Auth successful for Super Admin - showing dashboard");
+      setIsChecking(false);
+    }, 300);
 
-  // ✅ ADD more detailed loading states
-  if (isLoading) {
-    console.log("🔄 Rendering LoadingScreen");
+    return () => clearTimeout(timer);
+  }, [user, isAuthenticated, authRole, isLoading, router]);
+
+  // ✅ PERBAIKAN: Show loading selama checking
+  if (isLoading || isChecking) {
     return <LoadingScreen />;
   }
 
-  if (!user || user.role !== "super") {
-    console.log("🚫 Rendering null - user:", user ? user.role : "no user");
+  // ✅ PERBAIKAN: Final auth check sebelum render
+  if (!user || !isAuthenticated || (user.role !== "super" && authRole !== "super")) {
     return null;
   }
 
-  // ✅ FINALLY RENDER CONTENT
-  console.log("🎉 FINALLY RENDERING SUPER ADMIN CONTENT");
-  console.log("USER ON PAGE SUPER ADMIN", user);
+  // ✅ Get display name dan role dari multiple sources
+  const displayName = user?.name || user?.username || user?.email?.split('@')[0] || 'Super Admin';
+  const displayRole = user?.role || authRole || 'super';
 
   return (
-    <SuperLayout title="Dashboard Super Admin" role={user.role}>
-      {/* SECTION: Page Header yang lebih elegan */}
+    <SuperLayout title="Dashboard Super Admin" role={displayRole}>
+      {/* SECTION: Page Header */}
       <div className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
-                <Link href="#" className="flex items-center gap-1.5 sm:gap-2 pl-2">
+                <Link href="/super-admin-area" className="flex items-center gap-1.5 sm:gap-2 pl-2">
                   <Home className="h-4 w-4 text-gray-500 sm:h-4 sm:w-4" />
                   <span className="text-sm sm:text-base">Home</span>
                 </Link>
@@ -98,20 +103,12 @@ export default function DashboardPage() {
               <UserCircle className="h-4 w-4 text-green-500 sm:h-5 sm:w-5" />
               Selamat datang kembali,&nbsp;
               <span className="shine-text font-bold">
-                {user?.name}!
+                {displayName}!
               </span>
-              <span className="hidden xs:inline">(Role: {user?.role})</span>
+              <span className="hidden xs:inline">(Role: {displayRole})</span>
             </p>
           </div>
         </div>
-      </div>
-
-      {/* Debug info */}
-      <div className="mb-4 p-4 bg-green-100 border border-green-400 rounded">
-        <h3 className="font-bold text-green-800">✅ DEBUG INFO</h3>
-        <p>Status: {debug}</p>
-        <p>User: {user ? `${user.name} (${user.role})` : 'None'}</p>
-        <p>Loading: {isLoading ? 'Yes' : 'No'}</p>
       </div>
 
       {/* ✅ Konten utama dashboard */}

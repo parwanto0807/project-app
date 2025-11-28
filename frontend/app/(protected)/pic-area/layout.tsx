@@ -3,38 +3,59 @@
 import AdminPanelLayout from "@/components/admin-panel/admin-panel-layout";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
-import { useSession } from "@/components/clientSessionProvider"; // ✅ GUNAKAN useSession
+import { useSession } from "@/components/clientSessionProvider";
+import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { LoadingScreen } from "@/components/ui/loading-gears";
+
+// ✅ Import type Role dari file yang sesuai
+type Role = "user" | "admin" | "super";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { user, isLoading } = useSession(); // ✅ GUNAKAN useSession
+  const { user, isLoading: sessionLoading } = useSession();
+  const { isAuthenticated, loading: authLoading, role: authRole } = useAuth();
   const router = useRouter();
+  const [isChecking, setIsChecking] = useState(true);
+
+  const isLoading = sessionLoading || authLoading;
 
   // Buat instance QueryClient hanya sekali
   const [queryClient] = useState(() => new QueryClient());
 
   useEffect(() => {
-    if (!isLoading && user?.role !== "pic") {
-      router.push("/unauthorized");
-    }
-  }, [user, isLoading, router]);
+    if (isLoading) return;
 
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Loading...</div>
-      </div>
-    );
+    const timer = setTimeout(() => {
+
+      if (!user && !isAuthenticated) {
+        router.push("/auth/login");
+        return;
+      }
+
+      if (user && user.role !== "pic" && authRole !== "pic") {
+        router.push("/unauthorized");
+        return;
+      }
+
+      setIsChecking(false);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [user, isAuthenticated, authRole, isLoading, router]);
+
+  if (isLoading || isChecking) {
+    return <LoadingScreen />;
   }
 
-  // Check role setelah loading selesai
-  if (user?.role !== "pic") {
-    return null; // Router akan redirect ke /unauthorized
+  if (!user || !isAuthenticated || (user.role !== "pic" && authRole !== "pic")) {
+    return null;
   }
+
+  // ✅ PERBAIKAN: Type casting yang aman untuk Role
+  const displayRole: Role = (user?.role as Role) || (authRole as Role) || "pic";
 
   return (
     <ThemeProvider
@@ -44,11 +65,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       disableTransitionOnChange
     >
       <QueryClientProvider client={queryClient}>
-        <AdminPanelLayout role={user.role}>
+        <AdminPanelLayout role={displayRole}>
           <Toaster />
           {children}
         </AdminPanelLayout>
-        {/* Devtools opsional, bisa dihapus di production */}
         <ReactQueryDevtools initialIsOpen={false} />
       </QueryClientProvider>
     </ThemeProvider>

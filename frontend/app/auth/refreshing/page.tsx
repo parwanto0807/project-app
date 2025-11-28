@@ -50,8 +50,8 @@ export default function Refreshing() {
     }
   }, [reason]);
 
-  // Fungsi refresh token
-  const executeRefresh = useCallback(async (nextAttempt: number): Promise<void> => {
+  // Fungsi refresh token dengan retry
+  const executeRefresh = useCallback(async (nextAttempt: number = 1): Promise<void> => {
     if (nextAttempt > MAX_RETRY_ATTEMPTS) {
       setStatus("error");
       setDetailMessage("Terlalu banyak percobaan. Silakan login ulang.");
@@ -71,17 +71,18 @@ export default function Refreshing() {
       setDetailMessage(`Mencoba lagi (${nextAttempt}/${MAX_RETRY_ATTEMPTS})…`);
     }
 
+    // Abort request sebelumnya jika ada
     abortControllerRef.current?.abort();
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
 
     try {
-      console.log("🔄 Attempting token refresh via http.ts API...");
+      console.log("🔄 Attempting token refresh via API...");
 
       const response = await api.post<RefreshResponse>(
         "/api/auth/refresh",
         {},
-        { signal: abortController.signal, timeout: 10000 }
+        { signal: abortController.signal, withCredentials: true, timeout: 10000 }
       );
 
       const data = response.data;
@@ -90,6 +91,7 @@ export default function Refreshing() {
         throw new Error("Token tidak ditemukan pada respons");
       }
 
+      // Simpan token baru di client (state atau cookie jika perlu)
       await initializeTokensOnLogin(data.accessToken);
 
       setDetailMessage("Berhasil memperbarui sesi. Mengalihkan…");
@@ -108,7 +110,6 @@ export default function Refreshing() {
       }
 
       const axiosError = error as AxiosError<RefreshResponse>;
-
       let errorMessage = "Refresh gagal";
 
       if (axiosError.response?.data?.error) {
@@ -119,15 +120,23 @@ export default function Refreshing() {
         errorMessage = `Refresh gagal (${axiosError.response.status})`;
       }
 
-      setStatus("error");
-      setDetailMessage(errorMessage);
       console.error("❌ Token refresh failed:", errorMessage);
+
+      // Coba retry otomatis setelah 1 detik jika masih ada attempt tersisa
+      if (nextAttempt < MAX_RETRY_ATTEMPTS) {
+        setTimeout(() => {
+          void executeRefresh(nextAttempt + 1);
+        }, 1000);
+      } else {
+        setStatus("error");
+        setDetailMessage(errorMessage);
+      }
     }
   }, [redirect, router, reason]);
 
   // Retry manual
   const handleRetry = (): void => {
-    void executeRefresh(attempt + 1); // Pakai void supaya TS tidak complain
+    void executeRefresh(attempt + 1);
   };
 
   const handleLoginRedirect = (): void => {
@@ -135,27 +144,25 @@ export default function Refreshing() {
     router.replace("/auth/login");
   };
 
-  // useEffect untuk cek refresh token
+  // useEffect untuk cek refresh token saat halaman di-mount
   useEffect(() => {
     (async () => {
-      const refreshTokenCookie = document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("refreshToken="));
-
-      if (!refreshTokenCookie) {
-        console.warn("⛔ No refresh token found, redirecting to login...");
+      try {
+        // Langsung panggil API refresh, biarkan backend yang cek refreshToken HttpOnly
+        await executeRefresh(1);
+      } catch (err) {
+        console.error("⛔ Gagal refresh token:", err);
+        // Jika gagal, clear token dan redirect ke login
         clearTokensOnLogout();
-        router.replace("/auth/login?reason=no_refresh_token");
-        return;
+        router.replace("/auth/login?reason=refresh_failed");
       }
-
-      await executeRefresh(1);
     })();
 
     return () => {
       abortControllerRef.current?.abort();
     };
   }, [executeRefresh, router]);
+
 
   return (
     <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-blue-900/20 to-purple-900/10 flex items-center justify-center p-4 z-10">

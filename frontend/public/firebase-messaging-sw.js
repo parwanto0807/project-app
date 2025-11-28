@@ -24,8 +24,6 @@ const messaging = firebase.messaging();
 
 // ✅ FIXED INSTALL EVENT - Better cache handling
 self.addEventListener("install", (event) => {
-  console.log("🔔 [SW] Service Worker installed");
-
   event.waitUntil(
     caches.open("fcm-assets-v1").then((cache) => {
       // ✅ GUNAKAN PATH YANG BENAR: /icons/
@@ -39,8 +37,6 @@ self.addEventListener("install", (event) => {
         "/icons/icon-512x512.png",
         "/icons/icon-1024x1024.png",
       ].filter(Boolean);
-
-      console.log("🔔 [SW] Caching assets:", assetsToCache);
 
       const cachePromises = assetsToCache.map((asset) => {
         return cache.add(asset).catch((error) => {
@@ -57,7 +53,6 @@ self.addEventListener("install", (event) => {
 
 // ✅ ACTIVATE EVENT - Clean up
 self.addEventListener("activate", (event) => {
-  console.log("🔔 [SW] Service Worker activated");
 
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -65,7 +60,6 @@ self.addEventListener("activate", (event) => {
         cacheNames.map((cacheName) => {
           // Delete old caches
           if (cacheName !== "fcm-assets-v1") {
-            console.log("🔔 [SW] Deleting old cache:", cacheName);
             return caches.delete(cacheName);
           }
         })
@@ -78,7 +72,6 @@ self.addEventListener("activate", (event) => {
 
 // ✅ BACKGROUND MESSAGE HANDLER
 messaging.onBackgroundMessage((payload) => {
-  console.log("🔔 [SW] Received background message:", payload);
 
   const notificationTitle = payload.notification?.title || "New Notification";
   const notificationBody = payload.notification?.body || "";
@@ -108,7 +101,6 @@ messaging.onBackgroundMessage((payload) => {
     ],
   };
 
-  console.log("🔔 [SW] Showing notification:", notificationTitle);
   return self.registration.showNotification(
     notificationTitle,
     notificationOptions
@@ -117,7 +109,6 @@ messaging.onBackgroundMessage((payload) => {
 
 // ✅ NOTIFICATION CLICK HANDLER
 self.addEventListener("notificationclick", (event) => {
-  console.log("🔔 [SW] Notification clicked:", event.notification);
 
   event.notification.close();
   const action = event.action;
@@ -126,7 +117,6 @@ self.addEventListener("notificationclick", (event) => {
     notificationData?.actionUrl || notificationData?.click_action || "/";
 
   if (action === "dismiss") {
-    console.log("🔔 [SW] User dismissed notification");
     return;
   }
 
@@ -139,12 +129,10 @@ self.addEventListener("notificationclick", (event) => {
       .then((windowClients) => {
         for (const client of windowClients) {
           if (client.url.includes(self.location.origin) && "focus" in client) {
-            console.log("🔔 [SW] Focusing existing app tab");
             return client.focus();
           }
         }
 
-        console.log("🔔 [SW] Opening new app tab");
         if (self.clients.openWindow) {
           return self.clients.openWindow(targetUrl);
         }
@@ -152,4 +140,3 @@ self.addEventListener("notificationclick", (event) => {
   );
 });
 
-console.log("🔔 [SW] Firebase Messaging Service Worker loaded successfully");

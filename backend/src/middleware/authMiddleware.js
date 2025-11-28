@@ -3,9 +3,8 @@ import cookie from "cookie";
 import checkIfNewDevice from "../utils/cekNewDevices.js";
 
 import { prisma } from "../config/db.js";
-import { clearAuthCookies } from "../utils/setCookies.js";
 
-import { JWT_SECRET, JWT_REFRESH_SECRET } from "../config/env.js";
+import { JWT_SECRET } from "../config/env.js";
 
 async function verifySessionToken(req, res, next) {
   try {
@@ -115,46 +114,49 @@ async function checkMFAStatus(req, res, next) {
 
 export const authenticateToken = async (req, res, next) => {
   try {
-    console.log("[AUTH] Starting token authentication for:", req.url);
-
-    // ✅ DEBUG: Check JWT_SECRET sebelum digunakan
-    console.log("[AUTH] JWT_SECRET configured:", JWT_SECRET ? "Yes" : "No");
-
     // Cek token dari multiple sources
     let token = null;
+    let tokenSource = "none";
 
-    // 1. Cek dari Authorization header
+    // 1. Cek dari Authorization header (PRIORITAS TERTINGGI)
     const authHeader = req.headers["authorization"];
     if (authHeader && authHeader.startsWith("Bearer ")) {
       token = authHeader.split(" ")[1];
-      console.log("[AUTH] Token found in Authorization header");
+      tokenSource = "authorization_header";
     }
 
-    // 2. Cek dari cookies (fallback)
-    if (!token && req.cookies && req.cookies.access_token) {
-      token = req.cookies.access_token;
-      console.log("[AUTH] Token found in cookies");
+    // 2. ✅ PERBAIKAN: Cek dari SEMUA kemungkinan cookie names
+    const possibleCookieNames = [
+      "accessToken", // Standard name
+      "accessTokenReadable", // Readable version
+      "access_token", // Google/legacy name
+      "token", // Alternative name
+      "authToken", // Another alternative
+    ];
+
+    for (const cookieName of possibleCookieNames) {
+      if (!token && req.cookies && req.cookies[cookieName]) {
+        token = req.cookies[cookieName];
+        tokenSource = `cookie_${cookieName}`;
+        break; // Stop pada cookie pertama yang ditemukan
+      }
     }
 
     // 3. Cek dari query string (untuk development)
     if (!token && req.query && req.query.token) {
       token = req.query.token;
-      console.log("[AUTH] Token found in query string");
+      tokenSource = "query_string";
     }
 
     if (!token) {
-      console.log("[AUTH] No token provided");
       return res.status(401).json({
         success: false,
         error: "Access token required",
       });
     }
 
-    console.log(`[AUTH] Token received: ${token.substring(0, 20)}...`);
-
     // ✅ Validasi JWT_SECRET
     if (!JWT_SECRET) {
-      console.error("[AUTH] CRITICAL: JWT_SECRET is not defined");
       return res.status(500).json({
         success: false,
         error: "Server configuration error",
@@ -162,13 +164,9 @@ export const authenticateToken = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
-    console.log(
-      `[AUTH] Token decoded for user: ${decoded.userId}, version: ${decoded.tokenVersion}`
-    );
 
     // ✅ VALIDASI: Pastikan decoded.userId ada
     if (!decoded.userId) {
-      console.error("[AUTH] Token missing userId");
       return res.status(401).json({
         success: false,
         error: "Invalid token: missing user information",
@@ -188,7 +186,6 @@ export const authenticateToken = async (req, res, next) => {
     });
 
     if (!user) {
-      console.log(`[AUTH] User not found: ${decoded.userId}`);
       return res.status(401).json({
         success: false,
         error: "User not found",
@@ -196,7 +193,6 @@ export const authenticateToken = async (req, res, next) => {
     }
 
     if (!user.active) {
-      console.log(`[AUTH] Account deactivated: ${user.email}`);
       return res.status(401).json({
         success: false,
         error: "Account is deactivated",
@@ -205,10 +201,6 @@ export const authenticateToken = async (req, res, next) => {
 
     // ✅ PERBAIKAN: Check token version
     if (decoded.tokenVersion !== user.tokenVersion) {
-      console.log(
-        `[AUTH] Token version mismatch for user: ${user.email}. Token: ${decoded.tokenVersion}, DB: ${user.tokenVersion}`
-      );
-
       // Import handleTokenVersionMismatch dynamically untuk avoid circular dependency
       const { handleTokenVersionMismatch } = await import(
         "../controllers/auth/authController.js"
@@ -223,8 +215,6 @@ export const authenticateToken = async (req, res, next) => {
       });
     }
 
-    console.log(`[AUTH] Authentication successful for user: ${user.email}`);
-
     // ✅ PERBAIKAN: Attach user ke request dengan data yang lengkap
     req.user = {
       id: user.id,
@@ -233,15 +223,11 @@ export const authenticateToken = async (req, res, next) => {
       tokenVersion: user.tokenVersion,
     };
 
-    // ✅ DEBUG: Log req.user untuk memastikan data ter-attach
-    console.log(`[AUTH] req.user attached:`, req.user);
-
     next();
   } catch (error) {
     console.error("[AUTH] Middleware error:", error);
 
     if (error.name === "JsonWebTokenError") {
-      console.log("[AUTH] Invalid token format");
       return res.status(401).json({
         success: false,
         error: "Invalid token",
@@ -249,7 +235,6 @@ export const authenticateToken = async (req, res, next) => {
     }
 
     if (error.name === "TokenExpiredError") {
-      console.log("[AUTH] Token expired");
       return res.status(401).json({
         success: false,
         error: "Token expired",
@@ -257,15 +242,12 @@ export const authenticateToken = async (req, res, next) => {
     }
 
     if (error.code === "MODULE_NOT_FOUND") {
-      console.error("[AUTH] Module import error - check file paths");
-      console.error("[AUTH] Error details:", error.message);
       return res.status(500).json({
         success: false,
         error: "Server configuration error",
       });
     }
 
-    console.error("[AUTH] Unexpected authentication error:", error.message);
     return res.status(500).json({
       success: false,
       error: "Authentication failed",
@@ -277,7 +259,6 @@ export const authenticateToken = async (req, res, next) => {
 export const requireRole = (roles) => {
   return (req, res, next) => {
     if (!req.user) {
-      console.error("[AUTH] requireRole: req.user is missing");
       return res.status(401).json({
         success: false,
         error: "Authentication required",
@@ -286,7 +267,6 @@ export const requireRole = (roles) => {
 
     // ✅ VALIDASI: Pastikan req.user.id ada
     if (!req.user.id) {
-      console.error("[AUTH] requireRole: req.user.id is undefined");
       return res.status(401).json({
         success: false,
         error: "Invalid user data",
@@ -294,9 +274,6 @@ export const requireRole = (roles) => {
     }
 
     if (!roles.includes(req.user.role)) {
-      console.log(
-        `[AUTH] Insufficient permissions for user: ${req.user.email}, role: ${req.user.role}, required: ${roles}`
-      );
       return res.status(403).json({
         success: false,
         error: "Insufficient permissions",

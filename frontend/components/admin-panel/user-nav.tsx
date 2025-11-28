@@ -22,10 +22,41 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { useCurrentUser } from "@/hooks/use-current-user";
+import { useSession } from "@/components/clientSessionProvider"; // ← GUNAKAN useSession
 
 export function UserNav() {
-  const user = useCurrentUser();
+  const { user, isLoading } = useSession(); // ← useSession mengembalikan { user, isLoading }
+  // console.log("USER NAV useSession:", { user, isLoading });
+  // console.log("🔍 USER NAV DEBUG - Full user data:", user);
+  // console.log("🔍 USER NAV DEBUG - Avatar URL:", user?.avatar);
+  // console.log("🔍 USER NAV DEBUG - Has avatar:", !!user?.avatar);
+
+  // ✅ Handle loading state
+  if (isLoading) {
+    return (
+      <Button variant="outline" className="relative h-8 w-8 rounded-full" disabled>
+        <Avatar className="h-8 w-8">
+          <AvatarFallback className="bg-transparent">
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600" />
+          </AvatarFallback>
+        </Avatar>
+      </Button>
+    );
+  }
+
+  // ✅ Handle no user state - TAMPILKAN LOGIN BUTTON
+  if (!user) {
+    return (
+      <Button variant="outline" className="h-8 rounded-full px-3" asChild>
+        <Link href="/auth/login" className="flex items-center gap-2">
+          <FaUser className="h-3 w-3" />
+          <span className="text-sm">Login</span>
+        </Link>
+      </Button>
+    );
+  }
+
+  // ✅ USER ADA - TAMPILKAN DROPDOWN NORMAL
   return (
     <DropdownMenu>
       <TooltipProvider disableHoverableContent>
@@ -34,35 +65,46 @@ export function UserNav() {
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
-                className="relative h-8 w-8 rounded-full"
+                className="relative h-8 w-8 rounded-full hover:bg-accent"
               >
-                <Avatar className="h-8 w-8">
+                <Avatar className="h-8 w-8 border">
                   <AvatarImage
-                    src={user.user?.avatar || "/default-avatar.png"}
-                    className="h-full w-full object-scale-down"
+                    src={user.avatar || "/default-avatar.png"}
+                    alt={user.name || "User"}
+                    className="h-full w-full object-cover"
                     onError={(e) => {
+                      console.log("Avatar image failed to load, using fallback");
                       (e.target as HTMLImageElement).src = "/default-avatar.png";
                     }}
                   />
-
-
-                  <AvatarFallback className="bg-transparent items-center justify-center">
-                    <FaUser className="text-blue-400 align-center" />
+                  <AvatarFallback className="bg-gradient-to-br from-blue-100 to-purple-100">
+                    {user.name ? (
+                      <span className="text-sm font-medium text-blue-600">
+                        {user.name.charAt(0).toUpperCase()}
+                      </span>
+                    ) : (
+                      <FaUser className="h-4 w-4 text-blue-600" />
+                    )}
                   </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
           </TooltipTrigger>
-          <TooltipContent side="bottom">Profile</TooltipContent>
+          <TooltipContent side="bottom">
+            <p>Profile: {user.name}</p>
+          </TooltipContent>
         </Tooltip>
       </TooltipProvider>
 
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{user?.user?.name} </p>
+            <p className="text-sm font-medium leading-none">{user.name}</p>
             <p className="text-xs leading-none text-muted-foreground">
-              Role : {user?.user?.role}
+              {user.email}
+            </p>
+            <p className="text-xs leading-none text-muted-foreground">
+              Role: {user.role}
             </p>
           </div>
         </DropdownMenuLabel>
@@ -83,7 +125,7 @@ export function UserNav() {
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <LogoutButton>
-          <DropdownMenuItem>
+          <DropdownMenuItem className="cursor-pointer">
             <ExitIcon className="h-4 w-4 mr-2" />
             Sign Out
           </DropdownMenuItem>

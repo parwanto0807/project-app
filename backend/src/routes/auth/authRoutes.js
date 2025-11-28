@@ -31,7 +31,7 @@ const router = Router();
 // 🔐 MFA ROUTES
 router.get("/mfa/status", authenticateToken, checkMFAStatus, getMFAStatus);
 router.get("/sessions", verifySessionToken, getSessions);
-router.post('/mfa/activate-setup', authenticateToken, activateMfaSetup);
+router.post("/mfa/activate-setup", authenticateToken, activateMfaSetup);
 router.post("/mfa/complete-setup", authenticateToken, completeMfaSetup);
 router.get("/mfa/setup", authenticateToken, setupMFA);
 router.post("/mfa/verify", verifyMFA);
@@ -102,24 +102,17 @@ router.post("/logout-session", async (req, res) => {
 });
 
 // routes/auth.js
-router.get('/token', authenticateToken, (req, res) => {
+router.get("/token", authenticateToken, (req, res) => {
   // Return user info, bukan token
   res.json({
     user: {
       id: req.user.id,
       email: req.user.email,
-      role: req.user.role
-    }
+      role: req.user.role,
+    },
   });
 });
 
-router.post('/refresh', (req, res) => {
-  // Refresh logic yang menggunakan httpOnly cookies
-  const refreshToken = req.cookies.refreshToken;
-  // ... refresh logic
-  // Set new httpOnly cookies
-  setTokenCookies(res, newAccessToken, newRefreshToken);
-  res.json({ success: true });
-});
+router.post("/refresh", refreshHandler);
 
 export default router;

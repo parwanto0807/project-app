@@ -68,57 +68,80 @@ const generateRefreshToken = (user) => {
   );
 };
 
-// ✅ PERBAIKAN: Session management dengan urutan YANG BENAR
 async function createUserSession(user, req) {
-  const ipAddress =
-    req.headers["x-forwarded-for"]?.split(",")[0] || req.socket.remoteAddress;
-  const userAgent = req.headers["user-agent"] || "Unknown";
+  try {
+    const ipAddress =
+      req.headers["x-forwarded-for"]?.split(",")[0] || req.socket.remoteAddress;
+    const userAgent = req.headers["user-agent"] || "Unknown";
 
-  // ✅ Validasi user data
-  if (!user?.id) {
-    throw new Error("Invalid user data for session creation");
+    // ✅ Validasi user data
+    if (!user?.id) {
+      throw new Error("Invalid user data for session creation");
+    }
+
+    // ✅ 1. DELETE SESSIONS YANG SUDAH LEBIH DARI 7 HARI
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    await prisma.userSession.deleteMany({
+      where: {
+        userId: user.id,
+        OR: [
+          {
+            createdAt: { lt: sevenDaysAgo }, // Session lama (> 7 hari)
+          },
+          {
+            expiresAt: { lt: new Date() }, // Session expired
+          },
+        ],
+      },
+    });
+
+    // ✅ 2. REVOKE ALL PREVIOUS SESSIONS YANG MASIH AKTIF
+    await prisma.userSession.updateMany({
+      where: {
+        userId: user.id,
+        isRevoked: false,
+      },
+      data: {
+        isRevoked: true,
+        revokedAt: new Date(),
+      },
+    });
+
+    // ✅ 3. INCREMENT TOKEN VERSION
+    const updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        tokenVersion: { increment: 1 },
+        lastLoginAt: new Date(),
+      },
+    });
+
+    // ✅ 4. GENERATE TOKENS SETELAH INCREMENT
+    const accessToken = generateAccessToken(updatedUser);
+    const refreshToken = generateRefreshToken(updatedUser);
+
+    // ✅ 5. Generate session token
+    const sessionToken = crypto.randomBytes(32).toString("hex");
+
+    // ✅ 6. CREATE SESSION BARU
+    await prisma.userSession.create({
+      data: {
+        userId: updatedUser.id,
+        sessionToken,
+        refreshToken,
+        ipAddress: ipAddress?.toString().substring(0, 255) || "Unknown",
+        userAgent: userAgent.substring(0, 500),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 hari dari sekarang
+        isRevoked: false,
+      },
+    });
+
+    return { accessToken, refreshToken };
+  } catch (error) {
+    console.error("[SESSION] Error creating user session:", error);
+    throw error;
   }
-
-  console.log(
-    `[SESSION] Before update - User tokenVersion: ${user.tokenVersion}`
-  );
-
-  // ✅ 1. INCREMENT TOKEN VERSION TERLEBIH DAHULU
-  const updatedUser = await prisma.user.update({
-    where: { id: user.id },
-    data: {
-      tokenVersion: { increment: 1 },
-      lastLoginAt: new Date(),
-    },
-  });
-
-  console.log(
-    `[SESSION] After update - User tokenVersion: ${updatedUser.tokenVersion}`
-  );
-
-  // ✅ 2. GENERATE TOKENS SETELAH INCREMENT (dengan version yang sudah di-update)
-  const accessToken = generateAccessToken(updatedUser);
-  const refreshToken = generateRefreshToken(updatedUser);
-
-  // ✅ 3. Generate session token
-  const sessionToken = crypto.randomBytes(32).toString("hex");
-
-  // ✅ 4. CREATE SESSION DENGAN TOKENS YANG SUDAH UPDATED
-  await prisma.userSession.create({
-    data: {
-      userId: updatedUser.id,
-      sessionToken,
-      refreshToken,
-      ipAddress: ipAddress?.toString().substring(0, 255) || "Unknown",
-      userAgent: userAgent.substring(0, 500),
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-    },
-  });
-
-  console.log(`[SESSION] Session created successfully for user: ${user.id}`);
-
-  // ✅ Return both tokens
-  return { accessToken, refreshToken };
 }
 
 // Constants untuk error messages
@@ -138,10 +161,8 @@ const ERROR_MESSAGES = {
 
 // ✅ PERBAIKAN: Google Login - FIXED VERSION
 export const googleLogin = async (req, res) => {
-  // Validasi environment variables
   const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL;
   if (!frontendUrl) {
-    console.error("NEXT_PUBLIC_FRONTEND_URL is not configured");
     if (!res.headersSent) {
       return res.status(500).json({
         error: "Internal Server Error: Application configuration missing",
@@ -154,30 +175,17 @@ export const googleLogin = async (req, res) => {
   const loginUrl = `${frontendUrl}/auth/loginAdmin`;
   const successUrl = `${frontendUrl}/admin-area`;
 
-  // ✅ PERBAIKAN: Handle OAuth errors dari Google
   if (oauthError) {
-    console.error("OAuth error from Google:", oauthError);
     return res.redirect(`${loginUrl}?error=${ERROR_MESSAGES.OAUTH_FAILED}`);
   }
 
-  // ✅ PERBAIKAN: Validasi input yang konsisten
   if (!code || typeof code !== "string") {
     return res.redirect(`${loginUrl}?error=${ERROR_MESSAGES.INVALID_CODE}`);
   }
 
-  // ✅ PERBAIKAN FIX: Hanya trim, jangan hapus karakter khusus
   const sanitizedCode = code.trim();
 
-  // ✅ DEBUG: Log code length dan karakter
-  console.log(
-    `[GOOGLE] Auth code received: ${sanitizedCode.length} characters`
-  );
-  console.log(
-    `[GOOGLE] Code starts with: ${sanitizedCode.substring(0, 10)}...`
-  );
-
   try {
-    // ✅ PERBAIKAN: Token exchange dengan error handling yang better
     let tokenRes;
     try {
       const tokenData = new URLSearchParams({
@@ -187,10 +195,6 @@ export const googleLogin = async (req, res) => {
         redirect_uri: GOOGLE_CALLBACK_URL,
         grant_type: "authorization_code",
       });
-
-      console.log(
-        `[GOOGLE] Token exchange request for code length: ${sanitizedCode.length}`
-      );
 
       tokenRes = await axios.post(
         "https://oauth2.googleapis.com/token",
@@ -203,19 +207,10 @@ export const googleLogin = async (req, res) => {
         }
       );
     } catch (tokenError) {
-      console.error(
-        "[GOOGLE] Token exchange error:",
-        tokenError.response?.data || tokenError.message
-      );
-
-      // ✅ PERBAIKAN: Handle specific Google OAuth errors
       if (tokenError.response?.data?.error === "invalid_grant") {
         if (
           tokenError.response?.data?.error_description?.includes("Malformed")
         ) {
-          console.error(
-            "[GOOGLE] Malformed auth code - possible sanitization issue"
-          );
           throw new Error(
             "Authentication+failed+due+to+invalid+authorization+code"
           );
@@ -236,9 +231,6 @@ export const googleLogin = async (req, res) => {
       throw new Error("No access token received from Google");
     }
 
-    console.log("[GOOGLE] Successfully obtained access token from Google");
-
-    // ✅ PERBAIKAN: Get user profile dengan error handling
     let profileRes;
     try {
       profileRes = await axios.get(
@@ -252,35 +244,39 @@ export const googleLogin = async (req, res) => {
         }
       );
     } catch (profileError) {
-      console.error(
-        "[GOOGLE] Profile fetch error:",
-        profileError.response?.data || profileError.message
-      );
       throw new Error(ERROR_MESSAGES.PROFILE_FETCH_FAILED);
     }
 
     const { id: googleId, email, name, picture: avatar } = profileRes.data;
 
-    // ✅ PERBAIKAN: Validasi email yang comprehensive
     if (!email || typeof email !== "string" || !email.includes("@")) {
       throw new Error(ERROR_MESSAGES.NO_EMAIL);
     }
 
     const normalizedEmail = email.toLowerCase().trim();
 
-    console.log(`[GOOGLE] Processing Google login for: ${normalizedEmail}`);
-
-    // ✅ PERBAIKAN: Check authorization dengan error handling
     const allowedEmail = await prisma.accountEmail.findUnique({
       where: { email: normalizedEmail },
     });
 
     if (!allowedEmail) {
-      console.warn(`[GOOGLE] Unauthorized login attempt: ${normalizedEmail}`);
       return res.redirect(`${loginUrl}?error=${ERROR_MESSAGES.NOT_AUTHORIZED}`);
     }
 
-    // ✅ PERBAIKAN: User upsert dengan transaction-like consistency
+    const existingUser = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
+
+    if (
+      existingUser &&
+      existingUser.provider !== "google" &&
+      existingUser.provider !== null
+    ) {
+      return res.redirect(
+        `${loginUrl}?error=Account+already+exists+with+different+login+method`
+      );
+    }
+
     const user = await prisma.user.upsert({
       where: { email: normalizedEmail },
       update: {
@@ -289,6 +285,7 @@ export const googleLogin = async (req, res) => {
         googleId,
         provider: "google",
         lastLoginAt: new Date(),
+        role: allowedEmail?.role || existingUser?.role,
       },
       create: {
         email: normalizedEmail,
@@ -296,53 +293,28 @@ export const googleLogin = async (req, res) => {
         avatar,
         googleId,
         provider: "google",
-        role: "user",
+        role: allowedEmail?.role || "user",
         lastLoginAt: new Date(),
         tokenVersion: 0,
       },
     });
 
-    console.log(
-      `[GOOGLE] User ${user.id} current tokenVersion: ${user.tokenVersion}`
-    );
-
-    // ✅ PERBAIKAN: Session creation dengan urutan YANG BENAR
     let accessToken, refreshToken;
     try {
       const tokens = await createUserSession(user, req);
       accessToken = tokens.accessToken;
       refreshToken = tokens.refreshToken;
-      console.log(
-        "[GOOGLE] Session created successfully with updated token versions"
-      );
     } catch (sessionError) {
-      console.error("[GOOGLE] Session creation error:", sessionError);
-      // Fallback: generate tokens dengan version current (bukan incremented)
-      console.warn("[GOOGLE] Using fallback tokens without session");
       accessToken = generateAccessToken(user);
       refreshToken = generateRefreshToken(user);
     }
 
-    // ✅ PERBAIKAN: Set cookies dengan tokens yang sudah diperbarui
     setTokenCookies(res, accessToken, refreshToken);
 
-    // ✅ PERBAIKAN: Success redirect dengan logging
-    console.log(
-      `[GOOGLE] Google login successful for user: ${normalizedEmail}`
-    );
     return res.redirect(302, successUrl);
   } catch (err) {
-    // ✅ PERBAIKAN: Error handling yang structured dan comprehensive
-    console.error("--- GOOGLE LOGIN ERROR ---");
-    console.error("Timestamp:", new Date().toISOString());
-    console.error("Error type:", err.name);
-    console.error("Error message:", err.message);
-    console.error("Stack trace:", err.stack);
-    console.error("--- END OF ERROR REPORT ---");
-
     let errorMessage = ERROR_MESSAGES.INTERNAL_ERROR;
 
-    // ✅ PERBAIKAN: Error mapping yang lebih specific menggunakan constants
     if (err.message.includes(ERROR_MESSAGES.INVALID_GRANT)) {
       errorMessage = ERROR_MESSAGES.INVALID_GRANT;
     } else if (err.message.includes(ERROR_MESSAGES.NO_EMAIL)) {
@@ -361,12 +333,9 @@ export const googleLogin = async (req, res) => {
         "Authentication+failed+due+to+invalid+authorization+code.+Please+try+again.";
     }
 
-    // ✅ PERBAIKAN: Pastikan headers belum terkirim sebelum redirect
     if (!res.headersSent) {
       return res.redirect(`${loginUrl}?error=${errorMessage}`);
     } else {
-      console.error("Cannot redirect: Headers already sent");
-      // Fallback response
       if (!res.writableEnded) {
         return res.status(500).json({
           success: false,
@@ -514,8 +483,6 @@ export const revokeAllSessions = async (req, res) => {
 // ✅ PERBAIKAN: Fungsi untuk handle token version mismatch
 export const handleTokenVersionMismatch = async (userId) => {
   try {
-    console.log(`[AUTH] Handling token version mismatch for user: ${userId}`);
-
     // Revoke all active sessions
     const revokedSessions = await prisma.userSession.updateMany({
       where: {
@@ -528,8 +495,6 @@ export const handleTokenVersionMismatch = async (userId) => {
       },
     });
 
-    console.log(`[AUTH] Revoked ${revokedSessions.count} active sessions`);
-
     // Reset token version ke 0
     const resetUser = await prisma.user.update({
       where: { id: userId },
@@ -537,8 +502,6 @@ export const handleTokenVersionMismatch = async (userId) => {
         tokenVersion: 0,
       },
     });
-
-    console.log(`[AUTH] Token version reset to 0 for user: ${userId}`);
 
     return resetUser;
   } catch (error) {
@@ -698,104 +661,57 @@ export default {
 
 // Di backend login controller (adminLogin)
 export const adminLogin = async (req, res) => {
-  const { email, password } = req.body;
-  console.log("USER", req.body);
+  try {
+    const { email, password } = req.body;
 
-  const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({ where: { email } });
 
-  if (!user) return res.status(403).json({ error: "Invalid credentials" });
+    if (!user) return res.status(403).json({ error: "Invalid credentials" });
 
-  const valid = await bcrypt.compare(password, user.password);
-  if (!valid) return res.status(403).json({ error: "Invalid credentials" });
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) return res.status(403).json({ error: "Invalid credentials" });
 
-  if (user.mfaEnabled) {
-    const mfaTempToken = jwt.sign(
-      { userId: user.id, purpose: "MFA_VERIFICATION" },
-      process.env.MFA_TEMP_SECRET,
-      { expiresIn: "5m" }
-    );
+    if (user.mfaEnabled) {
+      const mfaTempToken = jwt.sign(
+        { userId: user.id, purpose: "MFA_VERIFICATION" },
+        process.env.MFA_TEMP_SECRET,
+        { expiresIn: "5m" }
+      );
+
+      return res.json({
+        success: true,
+        mfaRequired: true,
+        mfaTempToken,
+      });
+    }
+
+    // ✅ GUNAKAN createUserSession UNTUK GENERATE TOKENS DAN SIMPAN SESSION
+    const { accessToken, refreshToken } = await createUserSession(user, req);
+
+    // ✅ STANDARDIZED: GUNAKAN setTokenCookies UNTUK KONSISTENSI
+    setTokenCookies(res, accessToken, refreshToken);
+
+    res.header("Access-Control-Allow-Credentials", "true");
+    res.header("Access-Control-Allow-Origin", "http://localhost:3000");
 
     return res.json({
       success: true,
-      mfaRequired: true,
-      mfaTempToken,
+      mfaRequired: false,
+      accessToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      },
     });
-  }
-
-  const accessToken = generateAccessToken(user);
-  const refreshToken = generateRefreshToken(user);
-
-  // ✅ PASTIKAN INI DIEKSEKUSI
-  try {
-    setAuthCookies(res, accessToken, refreshToken);
-    console.log("✅ [BACKEND] Cookies set successfully");
   } catch (error) {
-    console.error("❌ [BACKEND] Failed to set cookies:", error);
-    return res
-      .status(500)
-      .json({ error: "Failed to set authentication cookies" });
-  }
-
-  // ✅ DEBUG: Cek headers sebelum dikirim
-  console.log("🔐 [BACKEND] Response headers:", {
-    "set-cookie": res.getHeaders()["set-cookie"],
-    "access-control-allow-credentials":
-      res.getHeaders()["access-control-allow-credentials"],
-    "access-control-allow-origin":
-      res.getHeaders()["access-control-allow-origin"],
-  });
-
-  res.header("Access-Control-Allow-Credentials", "true");
-  res.header("Access-Control-Allow-Origin", "http://localhost:3000");
-
-  return res.json({
-    success: true,
-    mfaRequired: false,
-    accessToken, // Tetap kirim di response body untuk localStorage
-    user: {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-    },
-  });
-};
-
-// Tambahkan parameter accessToken ke function yang sudah ada
-// Backend: Conditional cookies based on environment
-function setAuthCookies(res, accessToken, refreshToken) {
-  const isProduction = process.env.NODE_ENV === "production";
-
-  const cookieOptions = {
-    secure: isProduction,
-    sameSite: isProduction ? "none" : "lax",
-    path: "/",
-  };
-
-  // HttpOnly cookie (selalu)
-  res.cookie("accessToken", accessToken, {
-    ...cookieOptions,
-    httpOnly: true,
-    maxAge: 1 * 60 * 1000,
-  });
-
-  // ✅ Readable cookie (HANYA development)
-  if (!isProduction) {
-    res.cookie("accessTokenReadable", accessToken, {
-      ...cookieOptions,
-      httpOnly: false, // Readable
-      maxAge: 1 * 60 * 1000,
+    return res.status(500).json({
+      error: "Internal Server Error",
+      message: error.message,
     });
-    console.log("🔧 Development: Readable cookie set");
   }
-
-  // Refresh token (selalu httpOnly)
-  res.cookie("refreshToken", refreshToken, {
-    ...cookieOptions,
-    httpOnly: true,
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-  });
-}
+};
 
 export const activateMfaSetup = async (req, res) => {
   // console.log("UserId for MFA Setup:", req.user);
@@ -1220,8 +1136,6 @@ export const registerAdmin = async (req, res) => {
 
 export const getProfile = async (req, res) => {
   try {
-    console.log("[PROFILE] Getting user profile");
-
     // ✅ Tangkap token dari header Authorization
     const authHeader = req.headers["authorization"];
     let tokenFromHeader = null;
@@ -1229,11 +1143,9 @@ export const getProfile = async (req, res) => {
       // Format: "Bearer <token>"
       tokenFromHeader = authHeader.split(" ")[1];
     }
-    console.log("[PROFILE] Token from header:", tokenFromHeader);
 
     // ✅ Tangkap token dari cookie (jika menggunakan cookies)
     const tokenFromCookie = req.cookies?.accessToken || null;
-    console.log("[PROFILE] Token from cookie:", tokenFromCookie);
 
     // ✅ VALIDASI: Pastikan req.user dan req.user.id ada
     if (!req.user) {
@@ -1251,8 +1163,6 @@ export const getProfile = async (req, res) => {
         error: "Invalid user data",
       });
     }
-
-    console.log(`[PROFILE] Looking for user with ID: ${req.user.id}`);
 
     const user = await prisma.user.findUnique({
       where: {
@@ -1279,8 +1189,6 @@ export const getProfile = async (req, res) => {
       });
     }
 
-    console.log(`[PROFILE] Profile found for: ${user.email}`);
-
     res.json({
       success: true,
       user: {
@@ -1306,7 +1214,7 @@ export const refreshHandler = async (req, res) => {
   }
 
   try {
-    const payload = jwt.verify(token, JWT_REFRESH_SECRET);
+    const payload = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
 
     const session = await prisma.userSession.findFirst({
       where: {
@@ -1329,16 +1237,21 @@ export const refreshHandler = async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
+    // Generate token baru
     const newAccessToken = generateAccessToken(user);
+    const newRefreshToken = generateRefreshToken(user);
 
-    // Set Access Token (8 jam)
-    res.cookie("accessToken", newAccessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 8 * 60 * 60 * 1000, // 8 jam
+    // Update session refresh token di DB
+    await prisma.userSession.update({
+      where: { id: session.id },
+      data: {
+        refreshToken: newRefreshToken,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
     });
+
+    // ✅ STANDARDIZED: GUNAKAN setTokenCookies UNTUK KONSISTENSI
+    setTokenCookies(res, newAccessToken, newRefreshToken);
 
     return res.status(200).json({
       success: true,
@@ -1418,8 +1331,6 @@ export const getCurrentUser = async (req, res) => {
 // ✅ ENDPOINT: /api/auth/user-login/profile - untuk kompatibilitas dengan use-current-user.ts
 export const getUserLoginProfile = async (req, res) => {
   try {
-    console.log("[AUTH] Getting user profile for /api/auth/user-login/profile");
-
     // VALIDASI: Pastikan req.user dan req.user.id ada
     if (!req.user) {
       console.error(
@@ -1440,11 +1351,6 @@ export const getUserLoginProfile = async (req, res) => {
         error: "Invalid user data",
       });
     }
-
-    console.log(
-      `[AUTH] /api/auth/user-login/profile - Looking for user with ID: ${req.user.id}`
-    );
-
     const user = await prisma.user.findUnique({
       where: {
         id: req.user.id,
@@ -1471,10 +1377,6 @@ export const getUserLoginProfile = async (req, res) => {
         error: "User not found",
       });
     }
-
-    console.log(
-      `[AUTH] /api/auth/user-login/profile - User found: ${user.email}`
-    );
 
     res.json({
       success: true,

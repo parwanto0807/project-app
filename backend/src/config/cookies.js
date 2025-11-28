@@ -2,7 +2,7 @@
 export const COOKIE_NAMES = {
   ACCESS_TOKEN: "accessToken",
   REFRESH_TOKEN: "refreshToken", 
-  SESSION_TOKEN: "session_token", // ❗️GUNAKAN underscore untuk konsistensi
+  SESSION_TOKEN: "sessionToken", // ❗️GUNAKAN underscore untuk konsistensi
   ACCESS_TOKEN_READABLE: "accessTokenReadable"
 };
 
