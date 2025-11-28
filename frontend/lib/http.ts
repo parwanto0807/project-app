@@ -5,6 +5,7 @@ import axios, {
   type InternalAxiosRequestConfig,
   type RawAxiosRequestHeaders,
   AxiosHeaders,
+  type AxiosResponse,
 } from "axios";
 
 // Import dari autoRefresh.ts - gunakan sebagai single source of truth
@@ -18,6 +19,37 @@ import {
   cleanup,
 } from "./autoRefresh";
 
+// ====== TYPE DEFINITIONS ======
+interface ApiErrorResponse {
+  message?: string;
+  code?: string;
+  status?: number;
+  error?: string;
+}
+
+interface ApiSuccessResponse {
+  accessToken?: string;
+  refreshToken?: string;
+  message?: string;
+}
+
+interface JwtPayload {
+  exp: number;
+  iat?: number;
+  sub?: string;
+  [key: string]: unknown;
+}
+
+// Extend AxiosError dengan data yang kita expect
+interface CustomAxiosError extends AxiosError {
+  response?: AxiosResponse<ApiErrorResponse>;
+}
+
+type RetriableConfig = InternalAxiosRequestConfig & {
+  _retry?: boolean;
+  _skipAuth?: boolean;
+};
+
 // ====== SINGLE FLIGHT REFRESH STATE ======
 let refreshInFlight: Promise<string> | null = null;
 
@@ -25,23 +57,92 @@ let refreshInFlight: Promise<string> | null = null;
 export const api: AxiosInstance = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL,
   withCredentials: true,
-  timeout: 30000, // ✅ Added timeout
+  timeout: 30000,
 });
 
 const raw: AxiosInstance = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL,
   withCredentials: true,
-  timeout: 30000, // ✅ Added timeout
+  timeout: 30000,
 });
 
 const REFRESH_PATH = "/api/auth/refresh";
+
+// ====== HELPER FUNCTIONS ======
+function parseJwt(token: string): JwtPayload {
+  try {
+    const [, payload] = token.split(".");
+    const decodedPayload = JSON.parse(atob(payload)) as JwtPayload;
+    return decodedPayload;
+  } catch {
+    throw new Error("Invalid JWT token");
+  }
+}
+
+function redirectToUnauthorized(
+  reason:
+    | "session_terminated"
+    | "token_expired"
+    | "device_limit" = "session_terminated"
+): void {
+  console.log(`🔀 Redirecting to unauthorized page: ${reason}`);
+
+  clearTokensOnLogout();
+
+  if (typeof window !== "undefined") {
+    setTimeout(() => {
+      const queryParams = new URLSearchParams({ reason });
+      window.location.href = `/unauthorized?${queryParams}`;
+    }, 100);
+  }
+}
+
+// Type guard untuk memeriksa apakah error adalah AxiosError dengan response data
+const isAxiosErrorWithResponse = (
+  error: unknown
+): error is CustomAxiosError => {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "isAxiosError" in error &&
+    (error as AxiosError).isAxiosError === true &&
+    "response" in error &&
+    (error as AxiosError).response !== undefined
+  );
+};
+
+// Type guard untuk memeriksa single session violation
+const isSingleSessionViolation = (error: unknown): boolean => {
+  if (!isAxiosErrorWithResponse(error)) return false;
+
+  const errorMessage = error.response?.data?.message || "";
+  return (
+    errorMessage.includes("device") ||
+    errorMessage.includes("session") ||
+    errorMessage.includes("another device") ||
+    errorMessage.includes("single session")
+  );
+};
+
+// Safe error message extractor
+const getErrorMessage = (error: unknown): string => {
+  if (isAxiosErrorWithResponse(error)) {
+    return error.response?.data?.message || error.message || "Unknown error";
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "Unknown error";
+};
 
 // ====== SETUP REFRESH EXECUTOR UNTUK AUTOREFRESH ======
 setRefreshExecutor(async (): Promise<string | null> => {
   console.log("🔄 Refresh executor called from autoRefresh system");
 
   try {
-    const response = await raw.post(REFRESH_PATH);
+    const response = await raw.post<ApiSuccessResponse>(REFRESH_PATH);
 
     if (response.data?.accessToken) {
       const newToken = response.data.accessToken;
@@ -49,14 +150,13 @@ setRefreshExecutor(async (): Promise<string | null> => {
       return newToken;
     }
 
-    // ✅ Better error handling for different response formats
     console.error("❌ Invalid refresh response format:", response.data);
     throw new Error("Invalid refresh response format");
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("❌ Refresh executor failed:", error);
 
-    // ✅ Clear tokens on critical auth errors
-    if (axios.isAxiosError(error)) {
+    // Clear tokens on critical auth errors
+    if (isAxiosErrorWithResponse(error)) {
       if (error.response?.status === 401 || error.response?.status === 403) {
         console.log("🔒 Auth error during refresh, clearing tokens");
         clearTokensOnLogout();
@@ -70,9 +170,7 @@ setRefreshExecutor(async (): Promise<string | null> => {
 // ====== REQUEST INTERCEPTOR ======
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   // Skip auth for certain requests
-  const skipAuthConfig = config as InternalAxiosRequestConfig & {
-    _skipAuth?: boolean;
-  };
+  const skipAuthConfig = config as RetriableConfig;
   if (skipAuthConfig._skipAuth) {
     return config;
   }
@@ -95,8 +193,7 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
     if (cookieValue) {
       // Cek validitas token sebelum menyimpan
       try {
-        const [, payload] = cookieValue.split(".");
-        const decodedPayload = JSON.parse(atob(payload));
+        const decodedPayload = parseJwt(cookieValue);
         const { exp } = decodedPayload;
         if (exp && exp * 1000 > Date.now()) {
           setAccessToken(cookieValue);
@@ -134,7 +231,7 @@ const callRefresh = async (): Promise<string> => {
 
   console.log("🔄 Starting new refresh request");
   refreshInFlight = raw
-    .post(REFRESH_PATH)
+    .post<ApiSuccessResponse>(REFRESH_PATH)
     .then((response) => {
       console.log("📨 Refresh response received:", {
         status: response.status,
@@ -159,15 +256,25 @@ const callRefresh = async (): Promise<string> => {
       console.error("❌ Invalid refresh response format");
       throw new Error("Invalid refresh response format");
     })
-    .catch((error: AxiosError) => {
+    .catch((error: unknown) => {
       console.error("❌ Refresh request failed:", {
-        status: error.response?.status,
-        message: error.message,
+        status: isAxiosErrorWithResponse(error)
+          ? error.response?.status
+          : "unknown",
+        message: getErrorMessage(error),
       });
 
-      // ✅ Clear tokens on auth errors
-      if (error.response?.status === 401 || error.response?.status === 403) {
-        clearTokensOnLogout();
+      // Handle single session violation
+      if (isSingleSessionViolation(error)) {
+        console.log("🚫 Refresh failed due to single session policy");
+        throw new Error("SINGLE_SESSION_VIOLATION");
+      }
+
+      // Clear tokens on auth errors
+      if (isAxiosErrorWithResponse(error)) {
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          clearTokensOnLogout();
+        }
       }
 
       throw error;
@@ -180,17 +287,16 @@ const callRefresh = async (): Promise<string> => {
 };
 
 // ====== RESPONSE INTERCEPTOR ======
-type RetriableConfig = InternalAxiosRequestConfig & {
-  _retry?: boolean;
-  _skipAuth?: boolean;
-};
-
 api.interceptors.response.use(
   (response) => response,
-  async (error: AxiosError) => {
+  async (error: unknown) => {
+    if (!isAxiosErrorWithResponse(error)) {
+      return Promise.reject(error);
+    }
+
     const originalRequest = error.config as RetriableConfig | undefined;
 
-    // ✅ FIX: Skip untuk request tertentu
+    // Skip untuk request tertentu
     if (!error.response || !originalRequest || originalRequest._skipAuth) {
       return Promise.reject(error);
     }
@@ -198,7 +304,15 @@ api.interceptors.response.use(
     const is401 = error.response.status === 401;
     const isRefreshCall = originalRequest.url?.includes(REFRESH_PATH);
 
-    // ✅ FIX: Prevent infinite loop
+    // Check for single session violation
+    if (isSingleSessionViolation(error)) {
+      console.log("🚫 Single session violation detected, redirecting...");
+      clearTokensOnLogout();
+      redirectToUnauthorized("session_terminated");
+      return Promise.reject(error);
+    }
+
+    // Prevent infinite loop
     if (is401 && !isRefreshCall && !originalRequest._retry) {
       originalRequest._retry = true;
 
@@ -221,20 +335,24 @@ api.interceptors.response.use(
 
         console.log("✅ Retrying original request with new token");
         return api(originalRequest);
-      } catch (refreshError) {
+      } catch (refreshError: unknown) {
         console.error("❌ Refresh failed, clearing tokens");
 
-        // ✅ FIX: Clear tokens dan stop further attempts
-        clearTokensOnLogout();
-
-        // Jangan redirect otomatis, biarkan component handle
-        console.log("🛑 Refresh failed, user should be redirected to login");
+        // Check if refresh failed due to single session
+        if (isSingleSessionViolation(refreshError)) {
+          console.log("🚫 Refresh failed due to single session violation");
+          clearTokensOnLogout();
+          redirectToUnauthorized("session_terminated");
+        } else {
+          clearTokensOnLogout();
+          console.log("🛑 Refresh failed, user should be redirected to login");
+        }
 
         return Promise.reject(refreshError);
       }
     }
 
-    // ✅ FIX: Jika sudah di-retry dan masih 401, reject saja
+    // Jika sudah di-retry dan masih 401, reject saja
     if (is401 && originalRequest._retry) {
       console.log("🛑 Already retried, rejecting request");
       return Promise.reject(error);
@@ -254,8 +372,7 @@ export const initializeTokensOnLogin = async (
 
   // Validate token before storing
   try {
-    const [, payload] = accessToken.split(".");
-    const decodedPayload = JSON.parse(atob(payload));
+    const decodedPayload = parseJwt(accessToken);
     const { exp } = decodedPayload;
 
     if (!exp || exp * 1000 <= Date.now()) {
@@ -288,7 +405,7 @@ export function clearTokensOnLogout(): void {
   // Remove default header
   delete api.defaults.headers.common["Authorization"];
 
-  // ✅ Hapus semua kemungkinan token di browser
+  // Hapus semua kemungkinan token di browser
   if (typeof window !== "undefined") {
     const domain = window.location.hostname;
 
@@ -304,6 +421,9 @@ export function clearTokensOnLogout(): void {
     // Local/session storage
     localStorage.removeItem("access_token");
     sessionStorage.removeItem("access_token");
+
+    // Clear any pending FCM tokens
+    localStorage.removeItem("pending_fcm_token");
   }
 }
 
@@ -317,44 +437,46 @@ export async function ensureFreshToken(): Promise<boolean> {
       return !!newToken;
     }
 
-    // ✅ Additional validation - check if token is about to expire
-    const tokenExp = getAccessToken() ? parseJwt(getAccessToken()!).exp : 0;
-    const now = Math.floor(Date.now() / 1000);
-    const isExpiringSoon = tokenExp - now < 300; // 5 minutes
+    // Additional validation - check if token is about to expire
+    const currentToken = getAccessToken();
+    if (currentToken) {
+      const tokenExp = parseJwt(currentToken).exp;
+      const now = Math.floor(Date.now() / 1000);
+      const isExpiringSoon = tokenExp - now < 300; // 5 minutes
 
-    if (isExpiringSoon) {
-      console.log("🔄 Token expiring soon, proactive refresh");
-      const newToken = await forceRefresh();
-      return !!newToken;
+      if (isExpiringSoon) {
+        console.log("🔄 Token expiring soon, proactive refresh");
+        const newToken = await forceRefresh();
+        return !!newToken;
+      }
     }
 
     return true;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("❌ ensureFreshToken failed:", error);
+
+    // Handle single session violation
+    if (
+      error instanceof Error &&
+      error.message === "SINGLE_SESSION_VIOLATION"
+    ) {
+      redirectToUnauthorized("session_terminated");
+    }
+
     return false;
   }
 }
 
-// ✅ Helper function to parse JWT
-function parseJwt(token: string): { exp: number } {
-  try {
-    const [, payload] = token.split(".");
-    return JSON.parse(atob(payload));
-  } catch {
-    throw new Error("Invalid JWT token");
-  }
-}
-
 // Utility untuk public APIs (tanpa auth)
-export const publicApi = axios.create({
+export const publicApi: AxiosInstance = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL,
   timeout: 30000,
 });
 
-// ✅ Export raw instance for non-auth requests
+// Export raw instance for non-auth requests
 export { raw };
 
-// ✅ Health check function
+// Health check function
 export const checkAuthHealth = async (): Promise<boolean> => {
   try {
     await ensureFreshToken();
@@ -363,3 +485,6 @@ export const checkAuthHealth = async (): Promise<boolean> => {
     return false;
   }
 };
+
+// Export functions untuk digunakan di komponen lain
+export { redirectToUnauthorized, isSingleSessionViolation, getErrorMessage };

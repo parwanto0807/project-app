@@ -3,6 +3,7 @@ export interface Session {
   userId: string;
   sessionToken: string;
   refreshToken: string;
+  fcmToken:string;
   deviceId?: string | null;
   ipAddress: string;
   userAgent: string;

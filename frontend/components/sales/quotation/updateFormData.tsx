@@ -49,6 +49,7 @@ import { SalesOrder } from '@/schemas';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
+import { ProductCreateDialog } from '../salesOrder/productDialog';
 
 interface UpdateQuotationFormProps {
     customers: Customer[];
@@ -102,9 +103,29 @@ interface ProductItemState {
     productSearchQuery: string;
 }
 
+interface CreatedProduct {
+    id: string;
+    name: string;
+    description?: string;
+    usageUnit?: string | null;
+}
+
+const convertToProduct = (createdProduct: CreatedProduct): Product => {
+    return {
+        id: createdProduct.id,
+        name: createdProduct.name,
+        code: createdProduct.name.substring(0, 3).toUpperCase() + Math.random().toString(36).substring(2, 5).toUpperCase(),
+        type: 'PRODUCT',
+        price: 0, // Default price
+        isActive: true,
+        uom: createdProduct.usageUnit || 'pcs',
+        description: createdProduct.description || '',
+    };
+};
+
 export const UpdateQuotationForm: React.FC<UpdateQuotationFormProps> = ({
     customers,
-    products,
+    products: initialProducts,
     taxes,
     paymentTerms,
     onSubmit,
@@ -118,6 +139,12 @@ export const UpdateQuotationForm: React.FC<UpdateQuotationFormProps> = ({
 }) => {
     const router = useRouter();
     const [itemState, setItemState] = useState<{ [key: number]: ProductItemState }>({});
+    const [products, setProducts] = useState<Product[]>(initialProducts);
+
+    // Update products ketika initialProducts berubah
+    useEffect(() => {
+        setProducts(initialProducts);
+    }, [initialProducts]);
 
     // React Hook Form initialization
     const {
@@ -281,6 +308,20 @@ export const UpdateQuotationForm: React.FC<UpdateQuotationFormProps> = ({
             setValue(`lines.${index}.unitPrice`, product.price || 0);
             setValue(`lines.${index}.uom`, product.uom || "");
         }
+    };
+
+    const handleProductCreated = (index: number, createdProduct: CreatedProduct) => {
+        const newProduct = convertToProduct(createdProduct);
+
+        // Update products state dengan produk baru
+        setProducts(prev => [...prev, newProduct]);
+
+        // Select the newly created product
+        handleProductSelect(index, newProduct.id);
+        updateItemState(index, {
+            productSearchOpen: false,
+            productSearchQuery: ""
+        });
     };
 
     // Calculate totals
@@ -731,6 +772,12 @@ export const UpdateQuotationForm: React.FC<UpdateQuotationFormProps> = ({
                                         <div className="lg:col-span-3 space-y-2">
                                             <Label>Product</Label>
                                             <div className="flex items-center gap-4 min-w-0 w-full">
+                                                {[LineType.PRODUCT, LineType.SERVICE].includes(field.lineType) && (
+                                                    <ProductCreateDialog
+                                                        createEndpoint={`${process.env.NEXT_PUBLIC_API_URL}/api/master/product/createProduct`}
+                                                        onCreated={(createdProduct: CreatedProduct) => handleProductCreated(index, createdProduct)}
+                                                    />
+                                                )}
                                                 <Controller
                                                     name={`lines.${index}.productId`}
                                                     control={control}

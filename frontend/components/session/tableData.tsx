@@ -293,6 +293,26 @@ export default function SessionListTable({ sessions, isLoading }: SessionListPro
         </div>
       </TableCell>
       <TableCell className="py-1">
+        <div className="flex items-center gap-1">
+          {session.isRevoked ? (
+            <span className="flex items-center gap-1 text-gray-500" title="Session revoked - Last active status">
+              <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+              Last Active
+            </span>
+          ) : session.fcmToken && session.fcmToken !== '' ? (
+            <span className="flex items-center gap-1 text-green-600">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              Active
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 text-gray-500">
+              <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+              Inactive
+            </span>
+          )}
+        </div>
+      </TableCell>
+      <TableCell className="py-1">
         <div className="flex flex-col">
           <span className="text-xs text-gray-900 dark:text-gray-100 font-medium">
             {new Date(session.createdAt).toLocaleDateString()}
@@ -408,6 +428,12 @@ export default function SessionListTable({ sessions, isLoading }: SessionListPro
                   <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400 text-xs">
                     <Monitor className="h-3 w-3" />
                     Revoked
+                  </div>
+                </TableHead>
+                <TableHead className="py-2">
+                  <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400 text-xs">
+                    <Monitor className="h-3 w-3" />
+                    Broadcast Notification
                   </div>
                 </TableHead>
                 <TableHead className="py-2">
