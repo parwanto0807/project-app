@@ -93,57 +93,63 @@ export const revokeSession = async (req, res) => {
 export const updateFcmToken = async (req, res) => {
   try {
     const { fcmToken, deviceInfo } = req.body;
-    const userId = req.user.id; // Dari middleware auth
-
-    console.log(`[FCM] Updating FCM token for user: ${userId}`);
+    const userId = req.user.id;
 
     if (!fcmToken) {
       return res.status(400).json({ error: "FCM token diperlukan" });
     }
 
-    // ✅ CARI BERDASARKAN userId + isRevoked (LEBIH ROBUST)
+    console.log(`[FCM] Updating FCM token for user: ${userId}`);
+
+    // 🚀 Cari session aktif terbaru
     const activeSession = await prisma.userSession.findFirst({
       where: {
-        userId: userId,
+        userId,
         isRevoked: false,
-        expiresAt: {
-          gt: new Date(), // Session masih valid
-        },
+        // expiresAt: { gt: new Date() },
       },
-      orderBy: {
-        createdAt: "desc", // Ambil yang terbaru
-      },
+      orderBy: { createdAt: "desc" },
     });
 
     if (!activeSession) {
-      console.log(`[FCM] Tidak ada session aktif untuk user: ${userId}`);
       return res.status(401).json({
         error: "Tidak ada session aktif",
         details: "Silakan login kembali",
       });
     }
 
-    // ✅ UPDATE SESSION YANG AKTIF
+    // 🛠 Update session aktif
     const updatedSession = await prisma.userSession.update({
       where: { id: activeSession.id },
       data: {
-        fcmToken: fcmToken,
+        fcmToken,
         deviceId: deviceInfo || activeSession.deviceInfo,
       },
     });
 
-    console.log(`[FCM] FCM token updated for session: ${updatedSession.id}`);
+    console.log(`[FCM] Updated FCM for active session: ${updatedSession.id}`);
 
-    res.json({
-      message: "FCM token berhasil diupdate",
-      data: {
-        sessionId: updatedSession.id,
-        fcmToken: updatedSession.fcmToken,
+    // 🧹 BONUS SECURITY: Bersihkan FCM token di session revoked
+    await prisma.userSession.updateMany({
+      where: {
+        userId,
+        isRevoked: true,
       },
+      data: {
+        fcmToken: null,
+      },
+    });
+
+    console.log(`[FCM] Cleared token for revoked sessions of user: ${userId}`);
+
+    return res.json({
+      message: "FCM token berhasil diupdate",
+      sessionId: updatedSession.id,
+      fcmToken: updatedSession.fcmToken,
     });
   } catch (error) {
     console.error("❌ Error updateFcmToken:", error);
-    res.status(500).json({
+    return res.status(500).json({
       error: "Gagal mengupdate FCM token",
       details: error.message,
     });

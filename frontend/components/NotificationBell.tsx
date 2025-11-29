@@ -80,7 +80,7 @@ export default function NotificationBell() {
             try {
                 const accessToken = getAccessToken();
                 if (!accessToken) return;
-                
+
                 if ('serviceWorker' in navigator) {
                     try {
                         await navigator.serviceWorker.register('/firebase-messaging-sw.js');
@@ -172,18 +172,18 @@ export default function NotificationBell() {
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 className={`
-                    relative p-3 rounded-2xl transition-all duration-300 ease-in-out
-                    bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900
-                    border border-white dark:border-gray-700
-                    hover:scale-105 active:scale-95
-                    group
-                `}
+    relative p-3 rounded-2xl transition-all duration-300 ease-in-out
+    hover:scale-105 active:scale-95
+    group
+    bg-transparent border-transparent
+  `}
             >
+
                 {/* Bell button container */}
                 <div className="relative flex items-center justify-center 
-                    w-9 h-9 rounded-xl bg-white dark:bg-gray-900 
+                    w-9 h-9 rounded-lg bg-white dark:bg-gray-900 
                     border border-gray-200 dark:border-gray-700 
-                    shadow-sm cursor-pointer transition">
+                    shadow-lg cursor-pointer transition">
 
                     {/* Bell Icon */}
                     <svg
@@ -245,7 +245,7 @@ export default function NotificationBell() {
                             border border-gray-100 dark:border-gray-800
                             shadow-2xl flex flex-col
                             ${isMobile
-                                ? 'fixed top-0 right-0 h-[100dvh] w-[85vw] max-w-sm z-[999] animate-in slide-in-from-right duration-300' 
+                                ? 'fixed top-0 right-0 h-[100dvh] w-[85vw] max-w-sm z-[999] animate-in slide-in-from-right duration-300'
                                 : 'absolute right-0 mt-3 w-80 max-h-[80vh] rounded-xl z-50 animate-in fade-in zoom-in-95 duration-200'
                             }
                         `}
@@ -277,8 +277,8 @@ export default function NotificationBell() {
                                         disabled={unreadCount === 0}
                                         className={`
                                             flex-1 py-1.5 px-3 text-[10px] font-medium rounded border transition-colors
-                                            ${unreadCount > 0 
-                                                ? 'bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-900/30' 
+                                            ${unreadCount > 0
+                                                ? 'bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-900/30'
                                                 : 'bg-gray-50 text-gray-400 border-gray-100 cursor-not-allowed dark:bg-gray-800 dark:text-gray-600 dark:border-gray-700'
                                             }
                                         `}
@@ -320,8 +320,8 @@ export default function NotificationBell() {
                                             className={`
                                                 relative cursor-pointer transition-colors group
                                                 ${isMobile ? 'p-3' : 'p-4'}
-                                                ${!notification.read 
-                                                    ? 'bg-blue-50/60 dark:bg-blue-900/10' 
+                                                ${!notification.read
+                                                    ? 'bg-blue-50/60 dark:bg-blue-900/10'
                                                     : 'bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800'
                                                 }
                                             `}
@@ -329,7 +329,7 @@ export default function NotificationBell() {
                                             <div className="flex gap-3 items-start">
                                                 {/* Unread Indicator */}
                                                 <div className={`mt-1.5 w-1.5 h-1.5 rounded-full flex-shrink-0 transition-colors ${!notification.read ? 'bg-blue-500 shadow-sm shadow-blue-300' : 'bg-transparent'}`} />
-                                                
+
                                                 <div className="flex-1 min-w-0">
                                                     {/* Title & Time */}
                                                     <div className="flex justify-between items-start gap-2 mb-1">

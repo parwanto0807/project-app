@@ -291,14 +291,14 @@ export class NotificationService {
   // ✅ METHOD BARU: Broadcast ke Users berdasarkan array user IDs
   static async broadcastToSpecificUsers(userIds, notification) {
     try {
-      console.log(
-        `[Notification] Broadcasting to ${userIds.length} specific users...`
-      );
+      // console.log(
+      //   `[Notification] Broadcasting to ${userIds.length} specific users...`
+      // );
 
       const specificUsers = await prisma.user.findMany({
         where: {
           id: { in: userIds },
-          isActive: true,
+          active: true,
         },
         select: {
           id: true,
@@ -308,9 +308,9 @@ export class NotificationService {
         },
       });
 
-      console.log(
-        `[Notification] Found ${specificUsers.length} active users from provided IDs`
-      );
+      // console.log(
+      //   `[Notification] Found ${specificUsers.length} active users from provided IDs`
+      // );
 
       const results = [];
       let totalDBSaved = 0;
@@ -335,13 +335,13 @@ export class NotificationService {
         }
       }
 
-      console.log(
-        `[Notification] 📢 Specific Users Broadcast completed:\n` +
-          `  Target Users: ${userIds.length}\n` +
-          `  Active Users Found: ${specificUsers.length}\n` +
-          `  Notifications Saved to DB: ${totalDBSaved}\n` +
-          `  FCM Notifications Sent: ${totalFCMSent}`
-      );
+      // console.log(
+      //   `[Notification] 📢 Specific Users Broadcast completed:\n` +
+      //     `  Target Users: ${userIds.length}\n` +
+      //     `  Active Users Found: ${specificUsers.length}\n` +
+      //     `  Notifications Saved to DB: ${totalDBSaved}\n` +
+      //     `  FCM Notifications Sent: ${totalFCMSent}`
+      // );
 
       return results;
     } catch (error) {
@@ -353,34 +353,27 @@ export class NotificationService {
   // ✅ METHOD BARU: Broadcast ke Team Members berdasarkan teamId
   static async broadcastToTeamMembers(teamId, notification) {
     try {
-      console.log(
-        `🔍 [DEBUG] Starting broadcastToTeamMembers for teamId: ${teamId}`
-      );
+      // console.log(`🚀 [Broadcast] TeamID: ${teamId}`);
 
-      // 1. CEK APAKAH TEAM ADA
+      // 1️⃣ Validasi Team
       const teamExists = await prisma.team.findUnique({
         where: { id: teamId },
         select: { id: true, namaTeam: true },
       });
 
       if (!teamExists) {
-        console.log(`❌ [DEBUG] Team with ID ${teamId} not found`);
+        // console.warn(`❌ Team tidak ditemukan: ${teamId}`);
         return [];
       }
 
-      console.log(
-        `✅ [DEBUG] Team found: ${teamExists.namaTeam} (${teamExists.id})`
-      );
-
-      // 2. QUERY LENGKAP DENGAN SEMUA KEMUNGKINAN
-      const teamKaryawan = await prisma.teamKaryawan.findMany({
-        where: {
-          teamId: teamId,
-        },
+      // 2️⃣ Ambil user yang role-nya "user"
+      const teamUsers = await prisma.teamKaryawan.findMany({
+        where: { teamId },
         include: {
           karyawan: {
             include: {
               user: {
+                where: { role: "user" }, // hanya role "user"
                 select: {
                   id: true,
                   email: true,
@@ -393,109 +386,29 @@ export class NotificationService {
         },
       });
 
-      // console.log(`📊 [DEBUG] Raw teamKaryawan results:`, teamKaryawan.length);
-
-      // 3. DETAILED LOGGING SETIAP RECORD
-      // teamKaryawan.forEach((member, index) => {
-      //   console.log(`👥 [DEBUG] Member ${index + 1}:`, {
-      //     teamKaryawanId: member.id,
-      //     karyawanId: member.karyawanId,
-      //     userId: member.karyawan?.user?.id || "NO USER",
-      //     userName: member.karyawan?.user?.name || "NO NAME",
-      //     userRole: member.karyawan?.user?.role || "NO ROLE",
-      //     hasUser: !!member.karyawan?.user,
-      //   });
-      // });
-
-      // 4. ANALISIS BERBAGAI KEMUNGKINAN FILTER
-      const allUsers = teamKaryawan.filter((member) => member.karyawan?.user);
-      const usersWithRoleUser = allUsers.filter(
-        (member) => member.karyawan.user.role === "user"
-      );
-      const usersWithOtherRoles = allUsers.filter(
-        (member) => member.karyawan.user.role !== "user"
-      );
-
-      // console.log(`📈 [DEBUG] Analysis:`);
-      // console.log(`   - Total teamKaryawan: ${teamKaryawan.length}`);
-      // console.log(`   - With user relation: ${allUsers.length}`);
-      // console.log(`   - With role "user": ${usersWithRoleUser.length}`);
-      // console.log(`   - With other roles: ${usersWithOtherRoles.length}`);
-
-      // 5. TAMPILKAN ROLE YANG ADA
-      const rolesFound = [
-        ...new Set(allUsers.map((member) => member.karyawan.user.role)),
-      ];
-      // console.log(`🎭 [DEBUG] Roles found in team:`, rolesFound);
-
-      // 6. JIKA TIDAK ADA USER DENGAN ROLE "user", CEK CASE SENSITIVITY
-      if (usersWithRoleUser.length === 0 && allUsers.length > 0) {
-        console.log(`🔍 [DEBUG] Checking case sensitivity...`);
-
-        // Cek berbagai variasi penulisan "user"
-        const caseVariations = {
-          User: allUsers.filter(
-            (member) => member.karyawan.user.role === "User"
-          ),
-          USER: allUsers.filter(
-            (member) => member.karyawan.user.role === "USER"
-          ),
-          user: usersWithRoleUser,
-          karyawan: allUsers.filter(
-            (member) => member.karyawan.user.role === "karyawan"
-          ),
-          staff: allUsers.filter(
-            (member) => member.karyawan.user.role === "staff"
-          ),
-        };
-
-        // console.log(`🔍 [DEBUG] Case variations count:`, caseVariations);
-      }
-
-      // 7. GUNAKAN FILTER YANG LEBIH FLEKSIBEL JIKA PERLU
-      let finalUsers = usersWithRoleUser;
-
-      // Jika tidak ada dengan role "user", gunakan semua user dalam team
-      if (finalUsers.length === 0 && allUsers.length > 0) {
-        console.log(
-          `⚠️ [DEBUG] No users with role "user", using all users in team`
-        );
-        finalUsers = allUsers;
-      }
-
-      // console.log(`✅ [DEBUG] Final users to broadcast: ${finalUsers.length}`);
+      // Filter hanya yang memiliki user
+      const finalUsers = teamUsers
+        .filter((member) => member.karyawan?.user)
+        .map((member) => member.karyawan.user);
 
       if (finalUsers.length === 0) {
-        console.log(`❌ [DEBUG] No users found for broadcasting`);
+        // console.warn(`⚠️ Tidak ada user role "user" pada team ini`);
         return [];
       }
 
-      // 8. PREPARE USER IDs
-      const userIds = finalUsers.map((member) => {
-        console.log(
-          `📨 [DEBUG] Will broadcast to user: ${member.karyawan.user.id} - ${member.karyawan.user.name} (${member.karyawan.user.role})`
-        );
-        return member.karyawan.user.id;
-      });
+      const userIds = finalUsers.map((u) => u.id);
+      // console.log(`📩 Broadcasting to users:`, userIds);
 
-      // console.log(`🎯 [DEBUG] Final user IDs:`, userIds);
-
-      // 9. CALL BROADCAST FUNCTION
-      // console.log(
-      //   `🚀 [DEBUG] Calling broadcastToSpecificUsers with ${userIds.length} users`
-      // );
-
+      // 3️⃣ Broadcast
       const broadcastResult = await this.broadcastToSpecificUsers(userIds, {
         ...notification,
         type: notification.type || "team_assignment",
       });
 
-      // console.log(`✅ [DEBUG] Broadcast completed successfully`);
-      // console.log(`📊 [DEBUG] Broadcast result:`, broadcastResult);
-
+      // console.log(`✅ Broadcast selesai`);
       return broadcastResult;
     } catch (error) {
-      console.error("❌ [DEBUG] Team Members Broadcast error:", error);
+      console.error(`🔥 Error broadcastToTeamMembers:`, error);
       throw error;
     }
   }
@@ -544,14 +457,14 @@ export class NotificationService {
         .filter((r) => r.success)
         .reduce((sum, r) => sum + (r.sentCount || 0), 0);
 
-      console.log(
-        `[Notification] 📢 PIC Broadcast completed:\n` +
-          `  PIC Users: ${picUsers.length}\n` +
-          `  Notifications Saved to DB: ${
-            results.filter((r) => r.success).length
-          }\n` +
-          `  FCM Notifications Sent: ${totalSent}`
-      );
+      // console.log(
+      //   `[Notification] 📢 PIC Broadcast completed:\n` +
+      //     `  PIC Users: ${picUsers.length}\n` +
+      //     `  Notifications Saved to DB: ${
+      //       results.filter((r) => r.success).length
+      //     }\n` +
+      //     `  FCM Notifications Sent: ${totalSent}`
+      // );
 
       return results;
     } catch (error) {

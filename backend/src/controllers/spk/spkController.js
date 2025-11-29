@@ -165,12 +165,13 @@ export const createSPK = async (req, res) => {
         where: { id: salesOrderId },
         select: {
           soNumber: true,
-          customer: { select: { name: true } },
+          customer: { select: { branch: true } },
         },
       });
 
       const soNumber = salesOrderInfo?.soNumber || "Unknown SO";
-      const customerName = salesOrderInfo?.customer?.name || "Unknown Customer";
+      const customerName =
+        salesOrderInfo?.customer?.branch || "Unknown Customer";
 
       // Import NotificationService
       const { NotificationService } = await import(
@@ -178,14 +179,14 @@ export const createSPK = async (req, res) => {
       );
 
       // ✅ BROADCAST NOTIFICATION KE ADMIN & PIC
-      // console.log(
-      //   `📢 Sending SPK notification to ${adminUsers.length} admin/pic users`
-      // );
+      console.log(
+        `📢 Sending SPK notification to ${adminUsers.length} admin/pic users`
+      );
 
       for (const admin of adminUsers) {
         await NotificationService.sendToUser(admin.id, {
           title: "SPK Baru Dibuat 🛠️",
-          body: `SPK ${newSPK.spkNumber} berhasil dibuat oleh ${creatorName} untuk SO ${soNumber}`,
+          body: `SPK ${newSPK.spkNumber} berhasil dibuat oleh ${creatorName} untuk SO ${soNumber} - Customer: ${customerName}`,
           data: {
             type: "spk_created",
             spkId: newSPK.id,

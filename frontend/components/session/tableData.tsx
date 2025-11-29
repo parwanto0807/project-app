@@ -1,6 +1,5 @@
 "use client";
 
-import { Session } from "@/types/session";
 import { revokeSession } from "@/lib/action/session/session";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -35,6 +34,25 @@ import {
 } from "@/components/ui/dropdown-menu";
 import PaginationComponent from "@/components/ui/paginationNew";
 import { useSearchParams } from "next/navigation";
+import { motion } from "framer-motion";
+
+// Di file types/session.ts
+export interface Session {
+  id: string;
+  user?: {
+    name?: string;
+    email?: string;
+  };
+  userAgent: string;
+  ipAddress: string;
+  isRevoked: boolean;
+  createdAt: string;
+  expiresAt: string;
+  // Tambahkan properti berikut
+  notificationsEnabled?: boolean;
+  // atau
+  notificationStatus?: 'enabled' | 'disabled';
+}
 
 interface SessionListProps {
   sessions: Session[];
@@ -104,269 +122,392 @@ export default function SessionListTable({ sessions, isLoading }: SessionListPro
     return '💻';
   };
 
+  // Check session and notification status based on business rules
+  const checkSessionStatus = (session: Session & { fcmToken?: string | null }) => {
+    const isSessionOn = !session.isRevoked;
+
+    // Determine notification status based on business rules
+    let isNotifOn = false;
+
+    if (session.isRevoked) {
+      // Session revoked cases
+      if (session.fcmToken) {
+        isNotifOn = true; // 🔴 OFF / 🟢 ON - Token tertinggal
+      } else {
+        isNotifOn = false; // 🔴 OFF / 🔴 OFF - User diblok
+      }
+    } else {
+      // Active session cases
+      if (session.fcmToken) {
+        isNotifOn = true; // 🟢 ON / 🟢 ON - Ideal
+      } else {
+        isNotifOn = false; // 🟢 ON / 🔴 OFF - Device baru/putus
+      }
+    }
+
+    return { isSessionOn, isNotifOn };
+  };
+
+  // Helper function to get status labels
+  const getStatusLabels = (session: Session & { fcmToken?: string | null }) => {
+    const { isSessionOn, isNotifOn } = checkSessionStatus(session);
+
+    const sessionLabel = isSessionOn ? "ON" : "OFF";
+    const notifLabel = isNotifOn ? "ON" : "OFF";
+
+    return { sessionLabel, notifLabel };
+  };
+
   // Detail View Component - More Compact
-  const SessionDetailView = ({ session }: { session: Session }) => (
-    <div className="space-y-3 animate-in fade-in duration-300">
-      {/* Header */}
-      <div className="flex items-center gap-2 mb-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleBackToList}
-          className="flex items-center gap-1 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 h-8 px-2"
-        >
-          <ArrowLeft className="h-3 w-3" />
-          Back
-        </Button>
-        <Badge variant="secondary" className="ml-auto bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 text-xs">
-          Session Details
-        </Badge>
-      </div>
+  const SessionDetailView = ({ session }: { session: Session }) => {
+    const { isSessionOn, isNotifOn } = checkSessionStatus(session);
 
-      {/* Compact User Info */}
-      <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border">
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-white text-xs font-medium">
-          {session.user?.name?.charAt(0).toUpperCase() || 'U'}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate">
-            {session.user?.name || 'Unknown User'}
-          </p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-            {session.user?.email}
-          </p>
-        </div>
-      </div>
-
-      {/* Compact Info Grid */}
-      <div className="grid grid-cols-2 gap-2">
-        {/* Device Info */}
-        <div className="p-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg">
-          <div className="flex items-center gap-1 mb-1">
-            <Monitor className="h-3 w-3 text-gray-400" />
-            <span className="text-xs text-gray-500 dark:text-gray-400">Device</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="text-sm">{getDeviceIcon(session.userAgent)}</span>
-            <span className="text-xs font-medium text-gray-900 dark:text-gray-100">
-              {formatDeviceInfo(session.userAgent)}
-            </span>
-          </div>
-        </div>
-
-        {/* Browser Info */}
-        <div className="p-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg">
-          <div className="flex items-center gap-1 mb-1">
-            <Smartphone className="h-3 w-3 text-gray-400" />
-            <span className="text-xs text-gray-500 dark:text-gray-400">Browser</span>
-          </div>
-          <span className="text-xs font-medium text-gray-900 dark:text-gray-100">
-            {getBrowserInfo(session.userAgent)}
-          </span>
-        </div>
-
-        {/* IP Address */}
-        <div className="p-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg">
-          <div className="flex items-center gap-1 mb-1">
-            <MapPin className="h-3 w-3 text-gray-400" />
-            <span className="text-xs text-gray-500 dark:text-gray-400">IP Address</span>
-          </div>
-          <Badge variant="outline" className="font-mono text-xs bg-blue-50 dark:bg-blue-950/30 h-5">
-            {session.ipAddress}
+    return (
+      <div className="space-y-3 animate-in fade-in duration-300">
+        {/* Header */}
+        <div className="flex items-center gap-2 mb-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleBackToList}
+            className="flex items-center gap-1 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 h-8 px-2"
+          >
+            <ArrowLeft className="h-3 w-3" />
+            Back
+          </Button>
+          <Badge variant="secondary" className="ml-auto bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 text-xs">
+            Session Details
           </Badge>
         </div>
 
-        {/* Login Time */}
-        <div className="p-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg">
-          <div className="flex items-center gap-1 mb-1">
-            <Calendar className="h-3 w-3 text-gray-400" />
-            <span className="text-xs text-gray-500 dark:text-gray-400">Login</span>
-          </div>
-          <div className="text-xs">
-            <div className="font-medium text-gray-900 dark:text-gray-100">
-              {new Date(session.createdAt).toLocaleDateString()}
-            </div>
-            <div className="text-gray-500 dark:text-gray-400 text-xs">
-              {new Date(session.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Compact Action Buttons */}
-      <div className="flex gap-2 pt-2">
-        <Button
-          variant="outline"
-          onClick={handleBackToList}
-          className="flex-1 h-8 text-xs"
-        >
-          Back to List
-        </Button>
-        <Button
-          variant="destructive"
-          onClick={() => handleRevoke(session.id)}
-          className="flex-1 h-8 text-xs flex items-center gap-1"
-        >
-          <LogOut className="h-3 w-3" />
-          Revoke
-        </Button>
-      </div>
-    </div>
-  );
-
-  // Mobile view component - Super Compact
-  const MobileSessionCard = ({ session }: { session: Session }) => (
-    <Card
-      className="mb-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-all duration-200 active:scale-[0.98] cursor-pointer"
-      onClick={() => handleViewDetail(session)}
-    >
-      <CardContent className="p-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-white text-xs font-medium flex-shrink-0">
-              {session.user?.name?.charAt(0).toUpperCase() || 'U'}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-gray-900 dark:text-gray-100 text-sm truncate">
-                {session.user?.name || 'Unknown User'}
-              </p>
-              <div className="flex items-center gap-1 mt-0.5">
-                <Badge variant="outline" className="text-xs font-mono h-4 px-1">
-                  {session.ipAddress}
-                </Badge>
-                <span className="text-xs text-gray-400">{getDeviceIcon(session.userAgent)}</span>
-                <span className="text-xs text-gray-500 dark:text-gray-400">
-                  {new Date(session.createdAt).toLocaleDateString()}
-                </span>
-              </div>
-            </div>
-          </div>
-          <Info className="h-3 w-3 text-gray-400 flex-shrink-0 ml-1" />
-        </div>
-      </CardContent>
-    </Card>
-  );
-
-  // Desktop Table Row - More Compact
-  const DesktopTableRow = ({ session }: { session: Session }) => (
-    <TableRow
-      key={session.id}
-      className="border-b border-gray-50 dark:border-gray-800/50 hover:bg-gray-50/50 dark:hover:bg-gray-800/20 transition-colors duration-200 cursor-pointer h-12"
-      onClick={() => handleViewDetail(session)}
-    >
-      <TableCell className="py-1">
-        <div className="flex items-center gap-2">
+        {/* Compact User Info */}
+        <div className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-white text-xs font-medium">
             {session.user?.name?.charAt(0).toUpperCase() || 'U'}
           </div>
-          <div className="min-w-0">
-            <p className="font-medium text-gray-900 dark:text-gray-100 text-sm truncate max-w-[120px]">
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate">
               {session.user?.name || 'Unknown User'}
             </p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[120px]">
+            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
               {session.user?.email}
             </p>
           </div>
         </div>
-      </TableCell>
-      <TableCell className="py-1">
-        <Badge variant="outline" className="font-mono text-xs bg-blue-50 dark:bg-blue-950/30 h-5">
-          {session.ipAddress}
-        </Badge>
-      </TableCell>
-      <TableCell className="py-1">
-        <div className="flex items-center gap-1">
-          <span className="text-sm">{getDeviceIcon(session.userAgent)}</span>
-          <span className="text-xs text-gray-600 dark:text-gray-400">
-            {formatDeviceInfo(session.userAgent)}
-          </span>
+
+        {/* Status Indicators */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="p-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg">
+            <div className="flex items-center gap-1 mb-1">
+              <span className="text-xs text-gray-500 dark:text-gray-400">Session Status</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <motion.div
+                className={`w-2 h-2 rounded-full ${isSessionOn ? "bg-green-500" : "bg-red-500"}`}
+                animate={{ opacity: [0.4, 1, 0.4], scale: [1, 1.25, 1] }}
+                transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+              />
+              <span className={`text-xs font-medium ${isSessionOn ? "text-green-600" : "text-red-600"}`}>
+                {isSessionOn ? "Active" : "Inactive"}
+              </span>
+            </div>
+          </div>
+
+          <div className="p-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg">
+            <div className="flex items-center gap-1 mb-1">
+              <span className="text-xs text-gray-500 dark:text-gray-400">Notifications</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <motion.div
+                className={`w-2 h-2 rounded-full ${isNotifOn ? "bg-green-500" : "bg-red-500"}`}
+                animate={{ opacity: [0.4, 1, 0.4], scale: [1, 1.25, 1] }}
+                transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+              />
+              <span className={`text-xs font-medium ${isNotifOn ? "text-green-600" : "text-red-600"}`}>
+                {isNotifOn ? "Enabled" : "Disabled"}
+              </span>
+            </div>
+          </div>
         </div>
-      </TableCell>
-      <TableCell className="py-1">
-        <div className="flex items-center gap-1">
-          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${session.isRevoked
-            ? 'bg-red-100 text-red-800'
-            : 'bg-green-100 text-green-800'
-            }`}>
-            {session.isRevoked ? 'Revoked' : 'Active'}
-          </span>
-        </div>
-      </TableCell>
-      <TableCell className="py-1">
-        <div className="flex items-center gap-1">
-          {session.isRevoked ? (
-            <span className="flex items-center gap-1 text-gray-500" title="Session revoked - Last active status">
-              <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-              Last Active
+
+        {/* Compact Info Grid */}
+        <div className="grid grid-cols-2 gap-2">
+          {/* Device Info */}
+          <div className="p-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg">
+            <div className="flex items-center gap-1 mb-1">
+              <Monitor className="h-3 w-3 text-gray-400" />
+              <span className="text-xs text-gray-500 dark:text-gray-400">Device</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-sm">{getDeviceIcon(session.userAgent)}</span>
+              <span className="text-xs font-medium text-gray-900 dark:text-gray-100">
+                {formatDeviceInfo(session.userAgent)}
+              </span>
+            </div>
+          </div>
+
+          {/* Browser Info */}
+          <div className="p-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg">
+            <div className="flex items-center gap-1 mb-1">
+              <Smartphone className="h-3 w-3 text-gray-400" />
+              <span className="text-xs text-gray-500 dark:text-gray-400">Browser</span>
+            </div>
+            <span className="text-xs font-medium text-gray-900 dark:text-gray-100">
+              {getBrowserInfo(session.userAgent)}
             </span>
-          ) : session.fcmToken && session.fcmToken !== '' ? (
-            <span className="flex items-center gap-1 text-green-600">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              Active
-            </span>
-          ) : (
-            <span className="flex items-center gap-1 text-gray-500">
-              <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-              Inactive
-            </span>
-          )}
+          </div>
+
+          {/* IP Address */}
+          <div className="p-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg">
+            <div className="flex items-center gap-1 mb-1">
+              <MapPin className="h-3 w-3 text-gray-400" />
+              <span className="text-xs text-gray-500 dark:text-gray-400">IP Address</span>
+            </div>
+            <Badge variant="outline" className="font-mono text-xs bg-blue-50 dark:bg-blue-950/30 h-5">
+              {session.ipAddress}
+            </Badge>
+          </div>
+
+          {/* Login Time */}
+          <div className="p-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg">
+            <div className="flex items-center gap-1 mb-1">
+              <Calendar className="h-3 w-3 text-gray-400" />
+              <span className="text-xs text-gray-500 dark:text-gray-400">Login</span>
+            </div>
+            <div className="text-xs">
+              <div className="font-medium text-gray-900 dark:text-gray-100">
+                {new Date(session.createdAt).toLocaleDateString()}
+              </div>
+              <div className="text-gray-500 dark:text-gray-400 text-xs">
+                {new Date(session.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </div>
+            </div>
+          </div>
         </div>
-      </TableCell>
-      <TableCell className="py-1">
-        <div className="flex flex-col">
-          <span className="text-xs text-gray-900 dark:text-gray-100 font-medium">
-            {new Date(session.createdAt).toLocaleDateString()}
-          </span>
-          <span className="text-xs text-gray-500 dark:text-gray-400">
-            {new Date(session.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </span>
-        </div>
-      </TableCell>
-      <TableCell className="py-1 text-right">
-        <div className="flex items-center justify-end gap-1">
+
+        {/* Compact Action Buttons */}
+        <div className="flex gap-2 pt-2">
           <Button
-            variant="ghost"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleViewDetail(session);
-            }}
-            className="h-6 w-6 p-0"
+            variant="outline"
+            onClick={handleBackToList}
+            className="flex-1 h-8 text-xs"
           >
-            <Info className="h-3 w-3" />
+            Back to List
           </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <MoreHorizontal className="h-3 w-3" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
-              <DropdownMenuItem
-                onClick={() => handleViewDetail(session)}
-                className="flex items-center gap-2 text-xs"
-              >
-                <Info className="h-3 w-3" />
-                View Details
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => handleRevoke(session.id)}
-                className="text-red-600 dark:text-red-400 focus:text-red-700 dark:focus:text-red-300 focus:bg-red-50 dark:focus:bg-red-950/50 flex items-center gap-2 text-xs"
-              >
-                <LogOut className="h-3 w-3" />
-                Revoke Session
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Button
+            variant="destructive"
+            onClick={() => handleRevoke(session.id)}
+            className="flex-1 h-8 text-xs flex items-center gap-1"
+            disabled={session.isRevoked}
+          >
+            <LogOut className="h-3 w-3" />
+            {session.isRevoked ? 'Revoked' : 'Revoke'}
+          </Button>
         </div>
-      </TableCell>
-    </TableRow>
-  );
+      </div>
+    );
+  };
+
+  // Mobile view component - Super Compact
+  const MobileSessionCard = ({ session }: { session: Session }) => {
+    const { isSessionOn, isNotifOn } = checkSessionStatus(session);
+
+    return (
+      <Card
+        className="mb-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-all duration-200 active:scale-[0.98] cursor-pointer"
+        onClick={() => handleViewDetail(session)}
+      >
+        <CardContent className="p-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-white text-xs font-medium flex-shrink-0">
+                {session.user?.name?.charAt(0).toUpperCase() || 'U'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-gray-900 dark:text-gray-100 text-sm truncate">
+                  {session.user?.name || 'Unknown User'}
+                </p>
+                <div className="flex items-center gap-1 mt-0.5">
+                  <Badge variant="outline" className="text-xs font-mono h-4 px-1">
+                    {session.ipAddress}
+                  </Badge>
+                  <span className="text-xs text-gray-400">{getDeviceIcon(session.userAgent)}</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    {new Date(session.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-col items-end gap-1">
+              <Info className="h-3 w-3 text-gray-400 flex-shrink-0" />
+              <div className="flex gap-1">
+                <motion.div
+                  className={`w-1.5 h-1.5 rounded-full ${isSessionOn ? "bg-green-500" : "bg-red-500"}`}
+                  animate={{ opacity: [0.4, 1, 0.4] }}
+                  transition={{ duration: 1.4, repeat: Infinity }}
+                />
+                <motion.div
+                  className={`w-1.5 h-1.5 rounded-full ${isNotifOn ? "bg-green-500" : "bg-red-500"}`}
+                  animate={{ opacity: [0.4, 1, 0.4] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                />
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  // Desktop Table Row - More Compact
+  const DesktopTableRow = ({ session }: { session: Session & { fcmToken?: string | null } }) => {
+    const { isSessionOn, isNotifOn } = checkSessionStatus(session);
+    const { sessionLabel, notifLabel } = getStatusLabels(session);
+
+    return (
+      <TableRow
+        key={session.id}
+        className="border-b border-gray-50 dark:border-gray-800/50 hover:bg-gray-50/50 dark:hover:bg-gray-800/20 transition-colors duration-200 cursor-pointer h-12"
+        onClick={() => handleViewDetail(session)}
+      >
+        <TableCell className="py-1">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-purple-600 text-white text-xs font-medium">
+              {session.user?.name?.charAt(0).toUpperCase() || 'U'}
+            </div>
+            <div className="min-w-0">
+              <p className="font-medium text-gray-900 dark:text-gray-100 text-sm truncate max-w-[120px]">
+                {session.user?.name || 'Unknown User'}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[120px]">
+                {session.user?.email}
+              </p>
+            </div>
+          </div>
+        </TableCell>
+        <TableCell className="py-1">
+          <Badge variant="outline" className="font-mono text-xs bg-blue-50 dark:bg-blue-950/30 h-5">
+            {session.ipAddress}
+          </Badge>
+        </TableCell>
+        <TableCell className="py-1">
+          <div className="flex items-center gap-1">
+            <span className="text-sm">{getDeviceIcon(session.userAgent)}</span>
+            <span className="text-xs text-gray-600 dark:text-gray-400">
+              {formatDeviceInfo(session.userAgent)}
+            </span>
+          </div>
+        </TableCell>
+        {/* <TableCell className="py-1">
+          <div className="flex items-center gap-1">
+            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${session.isRevoked
+              ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+              : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+              }`}>
+              {session.isRevoked ? 'Revoked' : 'Active'}
+            </span>
+          </div>
+        </TableCell> */}
+        <TableCell className="py-1">
+          <div className="flex items-center gap-8">
+            {/* Session Status */}
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-xs text-gray-500 dark:text-gray-400">Session</span>
+              <span className={`flex items-center gap-1 ${isSessionOn ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                <motion.div
+                  className={`w-2 h-2 rounded-full ${isSessionOn ? "bg-green-500" : "bg-red-300"}`}
+                  animate={isSessionOn ?
+                    { opacity: [0.4, 1, 0.4], scale: [1, 1.25, 1] } :
+                    { opacity: 1, scale: 1 }
+                  }
+                  transition={isSessionOn ?
+                    { duration: 1.4, repeat: Infinity, ease: "easeInOut" } :
+                    { duration: 0 }
+                  }
+                />
+                {sessionLabel}
+              </span>
+            </div>
+
+            <div className="h-6 w-px bg-gray-300 dark:bg-gray-600" />
+
+            {/* Notification Status */}
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-xs text-gray-500 dark:text-gray-400">Notif</span>
+              <span className={`flex items-center gap-1 ${isNotifOn ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                <motion.div
+                  className={`w-2 h-2 rounded-full ${isNotifOn ? "bg-green-500" : "bg-red-300"}`}
+                  animate={isNotifOn ?
+                    { opacity: [0.4, 1, 0.4], scale: [1, 1.25, 1] } :
+                    { opacity: 1, scale: 1 }
+                  }
+                  transition={isNotifOn ?
+                    { duration: 1.5, repeat: Infinity, ease: "easeInOut" } :
+                    { duration: 0 }
+                  }
+                />
+                {notifLabel}
+              </span>
+            </div>
+          </div>
+        </TableCell>
+        <TableCell className="py-1">
+          <div className="flex flex-col">
+            <span className="text-xs text-gray-900 dark:text-gray-100 font-medium">
+              {new Date(session.createdAt).toLocaleDateString()}
+            </span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              {new Date(session.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          </div>
+        </TableCell>
+        <TableCell className="py-1 text-right">
+          <div className="flex items-center justify-end gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleViewDetail(session);
+              }}
+              className="h-6 w-6 p-0"
+            >
+              <Info className="h-3 w-3" />
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MoreHorizontal className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40">
+                <DropdownMenuItem
+                  onClick={() => handleViewDetail(session)}
+                  className="flex items-center gap-2 text-xs"
+                >
+                  <Info className="h-3 w-3" />
+                  View Details
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleRevoke(session.id)}
+                  disabled={session.isRevoked}
+                  className="text-red-600 dark:text-red-400 focus:text-red-700 dark:focus:text-red-300 focus:bg-red-50 dark:focus:bg-red-950/50 flex items-center gap-2 text-xs"
+                >
+                  <LogOut className="h-3 w-3" />
+                  {session.isRevoked ? 'Already Revoked' : 'Revoke Session'}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </TableCell>
+      </TableRow>
+    );
+  };
 
   if (isLoading) return <SessionListSkeleton />;
 
@@ -424,16 +565,14 @@ export default function SessionListTable({ sessions, isLoading }: SessionListPro
                     Device
                   </div>
                 </TableHead>
-                <TableHead className="py-2">
+                {/* <TableHead className="py-2">
                   <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400 text-xs">
-                    <Monitor className="h-3 w-3" />
-                    Revoked
+                    Status
                   </div>
-                </TableHead>
+                </TableHead> */}
                 <TableHead className="py-2">
                   <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400 text-xs">
-                    <Monitor className="h-3 w-3" />
-                    Broadcast Notification
+                    Sesion & Broadcast Status
                   </div>
                 </TableHead>
                 <TableHead className="py-2">
@@ -461,7 +600,7 @@ export default function SessionListTable({ sessions, isLoading }: SessionListPro
         </div>
 
         {data.length === 0 && (
-          <div className="text-center py-2">
+          <div className="text-center py-8">
             <div className="text-gray-400 dark:text-gray-500 mb-2">
               <Monitor className="h-12 w-12 mx-auto mb-2 opacity-40" />
             </div>
