@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { messaging } from '@/lib/firebase';
 import { onMessage, getToken } from 'firebase/messaging';
 import { useNotifications } from '@/contexts/NotificationContext';
-import type { Notification as ContextNotification } from '@/contexts/NotificationContext';
+// import type { Notification as ContextNotification } from '@/contexts/NotificationContext';
 import { removeFcmToken, saveFcmToken } from '@/lib/action/fcm/fcm';
 import { getAccessToken } from '@/lib/autoRefresh';
 
@@ -124,21 +124,36 @@ export default function NotificationBell() {
     useEffect(() => {
         if (!messaging) return;
         const unsubscribe = onMessage(messaging, (payload) => {
-            const newNotification: ContextNotification = {
-                id: payload.data?.notificationId || `fcm-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                userId: 'current-user',
-                title: payload.notification?.title || 'New Notification',
-                body: payload.notification?.body || '',
+            console.log("🔥 [FCM Foreground] Payload:", payload);
+
+            const title =
+                payload.notification?.title || payload.data?.title || "Notification";
+
+            const body = payload.notification?.body || payload.data?.body || "";
+
+            const notification = {
+                id: payload.data?.notificationId ?? `fcm-${Date.now()}`,
+                userId: payload.data?.userId ?? "",
+                title,
+                body,
                 timestamp: new Date(),
                 read: false,
-                type: payload.data?.type || 'general',
-                imageUrl: payload.notification?.image,
+                type: payload.data?.type ?? "general",
+                imageUrl: payload.notification?.image ?? payload.data?.imageUrl,
                 actionUrl: payload.data?.actionUrl,
-                data: payload.data ? { ...payload.data } : undefined,
+                data: payload.data,
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
             };
-            addNotification(newNotification);
+
+            addNotification(notification);
+
+            if (Notification.permission === "granted") {
+                new Notification(title, {
+                    body,
+                    icon: notification.imageUrl || "/icons/icon-192x192.png",
+                });
+            }
         });
         return () => unsubscribe();
     }, [addNotification]);

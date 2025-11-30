@@ -1,9 +1,16 @@
 // contexts/NotificationContext.tsx
-'use client';
+"use client";
 
-import React, { createContext, useCallback, useContext, useEffect, useState, useRef } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+  useRef,
+  useMemo,
+} from "react";
 
-// ✅ IMPORT FUNCTIONS & TYPES DARI FCM
 import {
   Notification as ApiNotification,
   NotificationData,
@@ -11,7 +18,7 @@ import {
   markNotificationsAsRead,
   markAllNotificationsAsRead,
   clearAllNotifications,
-} from '@/lib/action/fcm/fcm';
+} from "@/lib/action/fcm/fcm";
 
 export interface Notification {
   id: string;
@@ -33,256 +40,228 @@ interface NotificationContextType {
   unreadCount: number;
   isLoading: boolean;
   addNotification: (notification: Notification) => void;
-  markAsRead: (id: string) => void;
+  markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
-  clearAll: () => void;
+  clearAll: () => Promise<void>;
   loadFromServer: () => Promise<void>;
   syncWithServer: () => Promise<void>;
   refreshNotifications: () => Promise<void>;
 }
 
-const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
+const NotificationContext = createContext<
+  NotificationContextType | undefined
+>(undefined);
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
   const hasInitialLoad = useRef(false);
 
-  // ✅ DEBUG: Log setiap perubahan notifications
-  // useEffect(() => {
-  //   console.log('🔔 Notifications updated:', {
-  //     total: notifications.length,
-  //     unread: notifications.filter(n => !n.read).length,
-  //     notifications: notifications.map(n => ({ id: n.id, read: n.read, title: n.title }))
-  //   });
-  // }, [notifications]);
+  const convertApiToLocalNotification = useCallback(
+    (apiNotif: ApiNotification): Notification => ({
+      // make sure required fields exist; provide safe defaults
+      id: apiNotif.id ?? `srv-${Date.now()}`,
+      userId: apiNotif.userId ?? "",
+      title: apiNotif.title ?? "",
+      body: apiNotif.body ?? "",
+      timestamp: apiNotif.createdAt ? new Date(apiNotif.createdAt) : new Date(),
+      read: typeof apiNotif.read === "boolean" ? apiNotif.read : false,
+      type: apiNotif.type ?? "general",
+      imageUrl: apiNotif.imageUrl,
+      actionUrl: apiNotif.actionUrl,
+      data: apiNotif.data,
+      createdAt: apiNotif.createdAt ?? new Date().toISOString(),
+      updatedAt: apiNotif.updatedAt ?? new Date().toISOString(),
+    }),
+    []
+  );
 
-  const convertApiToLocalNotification = (apiNotif: ApiNotification): Notification => ({
-    id: apiNotif.id,
-    userId: apiNotif.userId,
-    title: apiNotif.title,
-    body: apiNotif.body,
-    timestamp: new Date(apiNotif.createdAt),
-    read: apiNotif.read,
-    type: apiNotif.type,
-    imageUrl: apiNotif.imageUrl,
-    actionUrl: apiNotif.actionUrl,
-    data: apiNotif.data,
-    createdAt: apiNotif.createdAt,
-    updatedAt: apiNotif.updatedAt,
-  });
-
-  // ✅ LOAD FROM SERVER - TAMBAHKAN DEBUG DETAILED
-  const loadFromServer = useCallback(async (): Promise<void> => {
+  const persistToLocalStorage = useCallback((data: Notification[]) => {
     try {
-      // console.log('🔄 Starting loadFromServer...');
-      setIsLoading(true);
-
-      const serverNotifications = await getNotifications({ limit: 100 });
-      // console.log('📥 Raw server notifications:', serverNotifications);
-
-      const formattedNotifications: Notification[] = serverNotifications.map(
-        convertApiToLocalNotification
-      );
-
-      // console.log('📨 Formatted notifications:', formattedNotifications);
-
-      // ✅ DEBUG: Check read status dari server
-      const unreadFromServer = formattedNotifications.filter(n => !n.read);
-      console.log(`📊 Server data: ${unreadFromServer.length} unread from total ${formattedNotifications.length}`);
-
-      setNotifications(formattedNotifications);
-      localStorage.setItem('fcm-notifications', JSON.stringify(formattedNotifications));
-
-      hasInitialLoad.current = true;
-      // console.log('✅ loadFromServer completed');
+      localStorage.setItem("fcm-notifications", JSON.stringify(data));
     } catch (error) {
-      console.error('❌ Error loading notifications:', error);
-      // Fallback ke cache
-      try {
-        const cached = localStorage.getItem('fcm-notifications');
-        if (cached) {
-          const cachedNotifications: Notification[] = JSON.parse(cached).map((notif: Notification) => ({
-            ...notif,
-            timestamp: new Date(notif.timestamp),
-          }));
-          // console.log('📂 Loading from cache:', cachedNotifications);
-          setNotifications(cachedNotifications);
-          hasInitialLoad.current = true;
-        }
-      } catch (cacheError) {
-        console.error('❌ Error loading from cache:', cacheError);
-      }
+      console.error("❌ Failed to persist notifications:", error);
+    }
+  }, []);
+
+  const loadCacheFallback = useCallback((): Notification[] => {
+    try {
+      const cached = localStorage.getItem("fcm-notifications");
+      if (!cached) return [];
+
+      return JSON.parse(cached).map((notif: Notification) => ({
+        ...notif,
+        timestamp: new Date(notif.timestamp),
+      }));
+    } catch (err) {
+      console.error("❌ Failed to load cache notifications:", err);
+      return [];
+    }
+  }, []);
+
+  // ----------------- FIXED: removed early-return guard -----------------
+  const loadFromServer = useCallback(async () => {
+    // previously there was: if (isLoading) return; <-- this blocks first load since isLoading initial true
+    setIsLoading(true);
+    try {
+      console.log("🔄 [Notifications] fetching from server...");
+      const serverData = await getNotifications({ limit: 100 });
+      console.log("📥 [Notifications] raw server response:", serverData);
+
+      const formatted = serverData.map(convertApiToLocalNotification);
+
+      setNotifications(formatted);
+      persistToLocalStorage(formatted);
+      hasInitialLoad.current = true;
+      console.log(`✅ [Notifications] loaded ${formatted.length} items from server`);
+    } catch (err) {
+      console.error("❌ [Notifications] Server load error, using cache", err);
+      const cached = loadCacheFallback();
+      setNotifications(cached);
+      hasInitialLoad.current = true;
+      console.log(`ℹ️ [Notifications] loaded ${cached.length} items from cache`);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [convertApiToLocalNotification, loadCacheFallback, persistToLocalStorage]);
 
-  // ✅ SYNC WITH SERVER - DISABLE DULU UNTUK DEBUG
-  const syncWithServer = useCallback(async (): Promise<void> => {
-    // ✅ COMMENT DULU UNTUK DEBUG - HENTIKAN SEMUA SYNC OTOMATIS
-    // console.log('🚫 syncWithServer disabled for debugging');
-    return;
-
-    /*
-    if (isLoading || !hasInitialLoad.current || isSyncing.current) {
-      console.log('⏸️ Sync skipped - loading:', isLoading, 'hasInitialLoad:', hasInitialLoad.current, 'isSyncing:', isSyncing.current);
-      return;
-    }
-
-    try {
-      isSyncing.current = true;
-      console.log('🔄 Starting syncWithServer...', notifications);
-      
-      const success = await syncNotificationsWithServer(notifications);
-
-      if (success) {
-        console.log('✅ Sync successful');
-      } else {
-        console.error('❌ Sync failed');
-      }
-    } catch (error) {
-      console.error('❌ Error syncing with server:', error);
-    } finally {
-      isSyncing.current = false;
-    }
-    */
-  }, []);
-
-  const refreshNotifications = useCallback(async (): Promise<void> => {
+  const refreshNotifications = useCallback(async () => {
     await loadFromServer();
   }, [loadFromServer]);
 
-  const addNotification = useCallback((notification: Notification): void => {
-    setNotifications(prev => {
-      const exists = prev.find(n => n.id === notification.id);
-      if (exists) {
-        return prev;
-      }
-      return [notification, ...prev];
-    });
-  }, []);
-
-  const markAsRead = useCallback(async (id: string): Promise<void> => {
-    console.log('🎯 markAsRead called for:', id);
-
-    try {
-      // ✅ OPTIMISTIC UPDATE
-      setNotifications(prev => {
-        const updated = prev.map(notif =>
-          notif.id === id ? { ...notif, read: true } : notif
-        );
-        console.log('🔄 Local state updated for:', id);
-        return updated;
-      });
-
-      // ✅ GUNAKAN markNotificationsAsRead DARI FCM
-      const success = await markNotificationsAsRead([id]);
-
-      if (!success) {
-        throw new Error('Failed to mark as read on server');
-      }
-
-    } catch (error) {
-      console.error('❌ Error marking as read:', error);
-
-      // ✅ ROLLBACK
-      setNotifications(prev => {
-        const rolledBack = prev.map(notif =>
-          notif.id === id ? { ...notif, read: false } : notif
-        );
-        console.log('🔄 Rolled back local state for:', id);
-        return rolledBack;
-      });
-    }
-  }, []);
-
-  const markAllAsRead = useCallback(async (): Promise<void> => {
-
-    // ✅ UPDATE LOCAL STATE DULU
-    setNotifications(prev => {
-      const updated = prev.map(notif => ({ ...notif, read: true }));
+  const updateLocalState = useCallback((updater: (prev: Notification[]) => Notification[]) => {
+    setNotifications((prev) => {
+      const updated = updater(prev);
+      persistToLocalStorage(updated);
       return updated;
     });
+  }, [persistToLocalStorage]);
 
-    // ✅ GUNAKAN FUNCTION YANG SUDAH ADA
+  const addNotification = useCallback((notif: Notification) => {
+    updateLocalState((prev) => {
+      if (prev.some((n) => n.id === notif.id)) return prev;
+      return [notif, ...prev];
+    });
+  }, [updateLocalState]);
+
+  const syncWithServer = useCallback(async () => {
+    if (!hasInitialLoad.current) return;
+
+    console.log("🔁 [Notifications] Syncing with server...");
+
     try {
-      console.log('🔄 Calling markAllNotificationsAsRead on server...');
+      const serverData = await getNotifications({ limit: 100 });
+      const formatted = serverData.map(convertApiToLocalNotification);
+
+      setNotifications(prev => {
+        const isEqual =
+          prev.length === formatted.length &&
+          prev.every((n, i) => n.id === formatted[i].id && n.read === formatted[i].read);
+
+        if (isEqual) {
+          console.log("⏸ No state changes → skip update, skip re-render");
+          return prev; // ⛔ prevent infinite re-render
+        }
+
+        console.log("🔄 Updating state with new server data...");
+        persistToLocalStorage(formatted);
+        return formatted;
+      });
+
+      console.log("✅ [Notifications] Sync complete");
+    } catch (err) {
+      console.error("❌ [Notifications] Sync failed:", err);
+    }
+  }, [convertApiToLocalNotification, persistToLocalStorage]);
+
+
+useEffect(() => {
+  if (!hasInitialLoad.current) return;
+
+  const handleVisibility = () => {
+    if (!document.hidden) syncWithServer();
+  };
+
+  document.addEventListener("visibilitychange", handleVisibility);
+
+  const interval = setInterval(syncWithServer, 60000);
+
+  return () => {
+    document.removeEventListener("visibilitychange", handleVisibility);
+    clearInterval(interval);
+  };
+}, [syncWithServer]);
+
+  const markAsRead = useCallback(async (id: string) => {
+    updateLocalState((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+    );
+
+    try {
+      const success = await markNotificationsAsRead([id]);
+      if (!success) throw new Error();
+    } catch {
+      updateLocalState((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, read: false } : n))
+      );
+    }
+  }, [updateLocalState]);
+
+  const markAllAsRead = useCallback(async () => {
+    updateLocalState((prev) => prev.map((n) => ({ ...n, read: true })));
+
+    try {
       const success = await markAllNotificationsAsRead();
-
-      if (success) {
-        console.log('✅ Server markAllAsRead successful');
-      } else {
-        console.error('❌ Server markAllAsRead failed');
-        // ✅ RELOAD DARI SERVER UNTUK DAPATKAN STATE YANG SEBENARNYA
-        await loadFromServer();
-      }
-    } catch (error) {
-      console.error('❌ Error in markAllAsRead:', error);
+      if (!success) throw new Error();
+    } catch {
       await loadFromServer();
     }
-  }, [loadFromServer]);
+  }, [updateLocalState, loadFromServer]);
 
-  const clearAll = useCallback(async (): Promise<void> => {
+  const clearAll = useCallback(async () => {
+    updateLocalState(() => []);
+
     try {
-      // ✅ OPTIMISTIC UPDATE - clear local state dulu
-      setNotifications([]);
-      localStorage.removeItem('fcm-notifications');
-
-      // ✅ GUNAKAN FUNCTION DARI FCM
       const success = await clearAllNotifications();
-
-      if (success) {
-        console.log('✅ [Notifications] Successfully cleared all notifications from server');
-      } else {
-        console.error('❌ [Notifications] Failed to clear notifications from server');
-        // Optional: reload dari server untuk sync state
-        await loadFromServer();
-      }
-
-    } catch (error) {
-      console.error('❌ [Notifications] Error clearing all:', error);
-      // Rollback dengan reload dari server
+      if (!success) throw new Error();
+    } catch {
       await loadFromServer();
     }
-  }, [loadFromServer]);
+  }, [updateLocalState, loadFromServer]);
 
-  // ✅ AUTO-LOAD ON MOUNT - HANYA SEKALI
   useEffect(() => {
     if (!hasInitialLoad.current) {
-      // console.log('🚀 Initial load on mount');
       loadFromServer();
     }
   }, [loadFromServer]);
 
-
-  const unreadCount = notifications.filter(notif => !notif.read).length;
-
-  const contextValue: NotificationContextType = {
-    notifications,
-    unreadCount,
-    isLoading,
-    addNotification,
-    markAsRead,
-    markAllAsRead,
-    clearAll,
-    loadFromServer,
-    syncWithServer,
-    refreshNotifications,
-  };
+  const unreadCount = useMemo(
+    () => notifications.filter((n) => !n.read).length,
+    [notifications]
+  );
 
   return (
-    <NotificationContext.Provider value={contextValue}>
+    <NotificationContext.Provider
+      value={{
+        notifications,
+        unreadCount,
+        isLoading,
+        addNotification,
+        markAsRead,
+        markAllAsRead,
+        clearAll,
+        loadFromServer,
+        syncWithServer,
+        refreshNotifications,
+      }}
+    >
       {children}
     </NotificationContext.Provider>
   );
 }
 
-export const useNotifications = (): NotificationContextType => {
-  const context = useContext(NotificationContext);
-  if (context === undefined) {
-    throw new Error('useNotifications must be used within a NotificationProvider');
-  }
-  return context;
-};
+export function useNotifications(): NotificationContextType {
+  const ctx = useContext(NotificationContext);
+  if (!ctx) throw new Error("useNotifications must be in NotificationProvider");
+  return ctx;
+}

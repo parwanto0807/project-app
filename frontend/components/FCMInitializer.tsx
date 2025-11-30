@@ -1,42 +1,81 @@
-// components/FCMInitializer.tsx - SIMPLIFIED VERSION
-'use client';
+// components/FCMInitializer.tsx
+"use client";
 
-import { useEffect, useRef, useCallback } from 'react';
-import { messaging } from '@/lib/firebase';
-import { getToken, deleteToken, onMessage } from 'firebase/messaging';
-import { saveFcmToken } from '@/lib/action/fcm/fcm';
-import { useNotifications } from '@/contexts/NotificationContext';
+import { useEffect, useRef, useCallback } from "react";
+import { messaging } from "@/lib/firebase";
+import {
+  getToken,
+  deleteToken,
+  onMessage,
+  isSupported,
+} from "firebase/messaging";
+import { saveFcmToken } from "@/lib/action/fcm/fcm";
+import { useNotifications } from "@/contexts/NotificationContext";
+import { useAuth } from "@/contexts/AuthContext"; // ⬅ penting
 
 export default function FCMInitializer() {
   const isInitializing = useRef(false);
+  const lastSavedToken = useRef<string | null>(null);
   const { addNotification } = useNotifications();
+  const { isAuthenticated, accessToken } = useAuth(); // ⬅ cek login
 
-  // ✅ FOREGROUND MESSAGE HANDLER
+  // -------------------------------------------------------------------
+  // SAVE TOKEN HANYA JIKA USER LOGIN & TOKEN BERUBAH
+  // -------------------------------------------------------------------
+  const saveTokenIfNeeded = useCallback(
+    async (token: string) => {
+      if (!isAuthenticated || !accessToken) {
+        console.warn("⏳ [FCM] Skip save — user belum login");
+        return;
+      }
+
+      if (token === lastSavedToken.current) return;
+
+      const success = await saveFcmToken(token);
+      if (success) {
+        lastSavedToken.current = token;
+        localStorage.setItem("fcm-token", token);
+        console.log("🔐 [FCM] Token saved/updated:", token);
+      }
+    },
+    [isAuthenticated, accessToken]
+  );
+
+  // -------------------------------------------------------------------
+  // FOREGROUND LISTENER
+  // -------------------------------------------------------------------
   useEffect(() => {
     if (!messaging) return;
 
     const unsubscribe = onMessage(messaging, (payload) => {
-      const newNotification = {
-        id: payload.data?.notificationId || `fcm-${Date.now()}`,
-        userId: 'current-user',
-        title: payload.notification?.title || 'New Notification',
-        body: payload.notification?.body || '',
+      console.log("🔥 [FCM Foreground] Payload:", payload);
+
+      const title =
+        payload.notification?.title || payload.data?.title || "Notification";
+
+      const body = payload.notification?.body || payload.data?.body || "";
+
+      const notification = {
+        id: payload.data?.notificationId ?? `fcm-${Date.now()}`,
+        userId: payload.data?.userId ?? "",
+        title,
+        body,
         timestamp: new Date(),
         read: false,
-        type: payload.data?.type || 'general',
-        imageUrl: payload.notification?.image,
+        type: payload.data?.type ?? "general",
+        imageUrl: payload.notification?.image ?? payload.data?.imageUrl,
         actionUrl: payload.data?.actionUrl,
         data: payload.data,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
 
-      addNotification(newNotification);
+      addNotification(notification);
 
-      if (Notification.permission === 'granted' && payload.notification) {
-        new Notification(payload.notification.title || 'New Notification', {
-          body: payload.notification.body,
-          icon: payload.notification.image || '/icons/icon-192x192.png',
+      if (Notification.permission === "granted") {
+        new Notification(title, {
+          body,
+          icon: notification.imageUrl || "/icons/icon-192x192.png",
         });
       }
     });
@@ -44,126 +83,67 @@ export default function FCMInitializer() {
     return () => unsubscribe();
   }, [addNotification]);
 
-  // ✅ CLEANUP SAAT LOGOUT
-  const handleLogoutCleanup = useCallback(async (): Promise<void> => {
-    if (!messaging) return;
-
-    try {
-      // console.log('🧹 [FCM] Cleaning up FCM tokens...');
-      await deleteToken(messaging);
-      // console.log('✅ [FCM] FCM token deleted from browser');
-    } catch (error) {
-      console.log('🔐 [FCM] Cleanup during logout:', error);
-    }
-  }, []);
-
-  // ✅ FCM INITIALIZATION - SIMPLE & DIRECT
-  const initializeFCM = useCallback(async (): Promise<void> => {
-    if (!messaging) {
-      // console.log('❌ [FCM] Messaging not available');
-      return;
-    }
-
-    if (isInitializing.current) {
-      return;
-    }
-
+  // -------------------------------------------------------------------
+  // INISIALISASI FCM HANYA SETELAH LOGIN
+  // -------------------------------------------------------------------
+  const initializeFCM = useCallback(async () => {
+    if (!isAuthenticated || !accessToken) return; // ⬅ user belum login
+    if (!messaging || isInitializing.current) return;
     isInitializing.current = true;
 
     try {
-      // console.log('🚀 [FCM] Starting FCM initialization...');
+      if (!await isSupported()) return;
 
-      // ✅ SERVICE WORKER REGISTRATION
-      let serviceWorkerRegistration: ServiceWorkerRegistration | undefined;
-
-      if ('serviceWorker' in navigator) {
-        try {
-          serviceWorkerRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-          // console.log('✅ [FCM] Service Worker registered');
-        } catch (error) {
-          console.error('❌ [FCM] Service Worker registration failed:', error);
-          return;
-        }
-      } else {
-        console.log('❌ [FCM] Service Worker not supported');
-        return;
+      if (Notification.permission !== "granted") {
+        const permission = await Notification.requestPermission();
+        if (permission !== "granted") return;
       }
 
-      // ✅ CHECK PERMISSION
-      const currentPermission = Notification.permission;
+      const registration = await navigator.serviceWorker.register(
+        "/firebase-messaging-sw.js"
+      );
 
-      if (currentPermission === 'default') {
-        try {
-          const newPermission = await Notification.requestPermission();
-          console.log('✅ [FCM] Permission result:', newPermission);
-
-          if (newPermission !== 'granted') {
-            // console.log('❌ [FCM] User denied notification permission');
-            return;
-          }
-        } catch (permissionError) {
-          console.error('❌ [FCM] Error requesting permission:', permissionError);
-          return;
-        }
-      } else if (currentPermission !== 'granted') {
-        console.log('❌ [FCM] Notification permission not granted');
-        return;
-      }
-
-      // ✅ GET FCM TOKEN
-      // console.log('🔑 [FCM] Getting FCM token...');
       const token = await getToken(messaging, {
         vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
-        serviceWorkerRegistration
+        serviceWorkerRegistration: registration,
       });
 
-      if (token) {
-        console.log('✅ [FCM] Token obtained:', token.substring(0, 20) + '...');
-
-        // ✅ SAVE TOKEN
-        // console.log('💾 [FCM] Saving token to backend...');
-        const saved = await saveFcmToken(token);
-
-        if (saved) {
-          console.log('✅ [FCM] Token saved to backend');
-        } else {
-          console.log('⚠️ [FCM] Token not saved to backend');
-        }
-      } else {
-        console.error('❌ [FCM] Token is empty');
+      if (!token) {
+        console.warn("⚠️ [FCM] Token unavailable");
+        return;
       }
 
-    } catch (error) {
-      console.error('❌ [FCM] Initialization error:', error);
+      await saveTokenIfNeeded(token);
+    } catch (err) {
+      console.error("❌ [FCM] Initialize error:", err);
     } finally {
       isInitializing.current = false;
     }
+  }, [isAuthenticated, accessToken, saveTokenIfNeeded]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    initializeFCM();
+  }, [isAuthenticated, initializeFCM]);
+
+  // -------------------------------------------------------------------
+  // CLEAR TOKEN SAAT LOGOUT
+  // -------------------------------------------------------------------
+  useEffect(() => {
+    const logoutHandler = async () => {
+      try {
+        if (!messaging) return;
+        await deleteToken(messaging);
+        localStorage.removeItem("fcm-token");
+        console.log("🧹 [FCM] Token removed on logout");
+      } catch (err) {
+        console.error("❌ [FCM] Logout cleanup error:", err);
+      }
+    };
+
+    window.addEventListener("user-logout", logoutHandler);
+    return () => window.removeEventListener("user-logout", logoutHandler);
   }, []);
-
-  // ✅ MAIN EFFECT - LANGSUNG JALAN KARENA USER SUDAH LOGIN
-  useEffect(() => {
-    // console.log('🎯 [FCM] Component mounted - user is logged in, starting FCM...');
-
-    const timer = setTimeout(() => {
-      initializeFCM();
-    }, 1000); // Delay kecil untuk pastikan semuanya ready
-
-    return () => clearTimeout(timer);
-  }, [initializeFCM]);
-
-  // ✅ LISTEN FOR LOGOUT EVENTS
-  useEffect(() => {
-    const handleLogout = (): void => {
-      // console.log('🔐 [FCM] Logout event received');
-      handleLogoutCleanup();
-    };
-
-    window.addEventListener('user-logout', handleLogout);
-
-    return () => {
-      window.removeEventListener('user-logout', handleLogout);
-    };
-  }, [handleLogoutCleanup]);
 
   return null;
 }
