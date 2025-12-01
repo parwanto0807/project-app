@@ -7,7 +7,7 @@ import { getAuthHeaders, getCookieHeader } from "@/lib/cookie-utils";
 import { apiFetch } from "@/lib/apiFetch";
 import { unstable_noStore as noStore } from "next/cache";
 import { serverApi } from "@/lib/server-api";
-import { SalesOrder } from "@/types/salesOrder";
+import { SalesOrder } from "@/schemas";
 
 interface SalesOrderResponse {
   data: SalesOrder[]; // Ganti 'any' dengan tipe 'SalesOrder' jika Anda punya interface-nya
