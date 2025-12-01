@@ -24,7 +24,7 @@ if (!admin.apps.length) {
         const fileContent = readFileSync(filePath, "utf8");
         serviceAccount = JSON.parse(fileContent);
         serviceAccountPath = filePath;
-        console.log(`✅ Found service account file: ${fileName}`);
+        // console.log(`✅ Found service account file: ${fileName}`);
         break;
       } catch (error) {
         // Continue to next file
@@ -51,11 +51,11 @@ if (!admin.apps.length) {
       "❌ Firebase Admin SDK initialization failed:",
       error.message
     );
-    console.log("💡 Make sure:");
-    console.log("   - Service account JSON file is in backend root directory");
-    console.log("   - File name matches one of the expected names");
-    console.log("   - File contains valid JSON format");
-    console.log("⚠️ Push notifications will be disabled");
+    // console.log("💡 Make sure:");
+    // console.log("   - Service account JSON file is in backend root directory");
+    // console.log("   - File name matches one of the expected names");
+    // console.log("   - File contains valid JSON format");
+    // console.log("⚠️ Push notifications will be disabled");
   }
 } else {
   console.log("✅ Firebase Admin SDK already initialized");

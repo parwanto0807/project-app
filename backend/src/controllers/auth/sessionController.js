@@ -99,7 +99,7 @@ export const updateFcmToken = async (req, res) => {
       return res.status(400).json({ error: "FCM token diperlukan" });
     }
 
-    console.log(`[FCM] Updating FCM token for user: ${userId}`);
+    // console.log(`[FCM] Updating FCM token for user: ${userId}`);
 
     // 🚀 Cari session aktif terbaru
     const activeSession = await prisma.userSession.findFirst({
@@ -127,7 +127,7 @@ export const updateFcmToken = async (req, res) => {
       },
     });
 
-    console.log(`[FCM] Updated FCM for active session: ${updatedSession.id}`);
+    // console.log(`[FCM] Updated FCM for active session: ${updatedSession.id}`);
 
     // 🧹 BONUS SECURITY: Bersihkan FCM token di session revoked
     await prisma.userSession.updateMany({
@@ -140,7 +140,7 @@ export const updateFcmToken = async (req, res) => {
       },
     });
 
-    console.log(`[FCM] Cleared token for revoked sessions of user: ${userId}`);
+    // console.log(`[FCM] Cleared token for revoked sessions of user: ${userId}`);
 
     return res.json({
       message: "FCM token berhasil diupdate",

@@ -32,12 +32,12 @@ export default function DashboardPage() {
     if (isLoading) return;
 
     const timer = setTimeout(() => {
-      console.log("🔍 Auth check for Super Admin:", {
-        user: !!user,
-        isAuthenticated,
-        role: authRole,
-        path: window.location.pathname
-      });
+      // console.log("🔍 Auth check for Super Admin:", {
+      //   user: !!user,
+      //   isAuthenticated,
+      //   role: authRole,
+      //   path: window.location.pathname
+      // });
 
       if (!user && !isAuthenticated) {
         console.log("🚫 No user & not authenticated - redirect to login");
@@ -52,7 +52,7 @@ export default function DashboardPage() {
       }
 
       // ✅ Auth successful
-      console.log("✅ Auth successful for Super Admin - showing dashboard");
+      // console.log("✅ Auth successful for Super Admin - showing dashboard");
       setIsChecking(false);
     }, 300);
 

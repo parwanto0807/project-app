@@ -29,17 +29,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     if (isLoading) return;
 
     const timer = setTimeout(() => {
-      console.log("🔍 AdminLayout Auth Check:", {
-        hasUser: !!user,
-        isAuthenticated,
-        userRole: user?.role,
-        authRole: role,
-        path: window.location.pathname
-      });
+      // console.log("🔍 AdminLayout Auth Check:", {
+      //   hasUser: !!user,
+      //   isAuthenticated,
+      //   userRole: user?.role,
+      //   authRole: role,
+      //   path: window.location.pathname
+      // });
 
       // ✅ Check multiple conditions dengan priority
       if (!user && !isAuthenticated) {
-        console.log("🚫 No authentication - redirect to login");
+        // console.log("🚫 No authentication - redirect to login");
         router.push("/auth/login");
         return;
       }
@@ -53,7 +53,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       }
 
       // ✅ Auth successful
-      console.log("✅ AdminLayout - Auth successful, showing content");
+      // console.log("");
       setIsChecking(false);
     }, 500); // ↑↑↑ INCREASE DELAY ↑↑↑
 

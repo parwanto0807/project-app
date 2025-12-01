@@ -123,10 +123,10 @@ export default function ClientSessionProvider({
     if (accessToken && isAuthenticated) {
       hasFetchedRef.current = true;
 
-      console.log("Fetching user profile...");
+      // console.log("Fetching user profile...");
       const userData = await fetchProfile();
       if (userData) {
-        console.log("Profile fetched successfully");
+        // console.log("Profile fetched successfully");
         setUser(userData);
       } else {
         console.log("Profile fetch failed");

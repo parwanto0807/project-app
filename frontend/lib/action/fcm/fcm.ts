@@ -54,8 +54,6 @@ export interface DeviceInfo {
  */
 export const saveFcmToken = async (token: string): Promise<boolean> => {
   try {
-    console.log("✅ [FCM] Mengirim FCM token (via Cookie)...");
-
     const deviceInfo: DeviceInfo = {
       platform: typeof window !== "undefined" ? "web" : "unknown",
       userAgent:
@@ -68,8 +66,7 @@ export const saveFcmToken = async (token: string): Promise<boolean> => {
       headers: {
         "Content-Type": "application/json",
       },
-      // ✅ PENTING: Agar cookie httpOnly terkirim
-      credentials: "include", 
+      credentials: "include",
       body: JSON.stringify({
         fcmToken: token,
         deviceInfo: JSON.stringify(deviceInfo),
@@ -77,17 +74,9 @@ export const saveFcmToken = async (token: string): Promise<boolean> => {
     });
 
     if (!response.ok) {
-      if (response.status === 401) {
-        console.warn("⚠️ [FCM] User unauthorized - cookie token invalid");
-        return false;
-      }
-      const errorData = await response.json().catch(() => ({}));
-      console.error("❌ [FCM] Gagal simpan token:", errorData);
       return false;
     }
 
-    const result = await response.json();
-    console.log("✅ [FCM] Token berhasil disinkronkan:", result);
     return true;
   } catch (error) {
     if (error instanceof Error && error.name === "TypeError") {
@@ -120,7 +109,7 @@ export const getNotifications = async (
         "Content-Type": "application/json",
       },
       // ✅ WAJIB: Tambahkan ini di SEMUA fetch auth
-      credentials: "include", 
+      credentials: "include",
     });
 
     if (!response.ok) {

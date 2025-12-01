@@ -104,22 +104,22 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     // previously there was: if (isLoading) return; <-- this blocks first load since isLoading initial true
     setIsLoading(true);
     try {
-      console.log("🔄 [Notifications] fetching from server...");
+      // console.log("🔄 [Notifications] fetching from server...");
       const serverData = await getNotifications({ limit: 100 });
-      console.log("📥 [Notifications] raw server response:", serverData);
+      // console.log("📥 [Notifications] raw server response:", serverData);
 
       const formatted = serverData.map(convertApiToLocalNotification);
 
       setNotifications(formatted);
       persistToLocalStorage(formatted);
       hasInitialLoad.current = true;
-      console.log(`✅ [Notifications] loaded ${formatted.length} items from server`);
+      // console.log(`✅ [Notifications] loaded ${formatted.length} items from server`);
     } catch (err) {
       console.error("❌ [Notifications] Server load error, using cache", err);
       const cached = loadCacheFallback();
       setNotifications(cached);
       hasInitialLoad.current = true;
-      console.log(`ℹ️ [Notifications] loaded ${cached.length} items from cache`);
+      // console.log(`ℹ️ [Notifications] loaded ${cached.length} items from cache`);
     } finally {
       setIsLoading(false);
     }
@@ -147,7 +147,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const syncWithServer = useCallback(async () => {
     if (!hasInitialLoad.current) return;
 
-    console.log("🔁 [Notifications] Syncing with server...");
+    // console.log("🔁 [Notifications] Syncing with server...");
 
     try {
       const serverData = await getNotifications({ limit: 100 });
@@ -159,38 +159,38 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           prev.every((n, i) => n.id === formatted[i].id && n.read === formatted[i].read);
 
         if (isEqual) {
-          console.log("⏸ No state changes → skip update, skip re-render");
+          // console.log("⏸ No state changes → skip update, skip re-render");
           return prev; // ⛔ prevent infinite re-render
         }
 
-        console.log("🔄 Updating state with new server data...");
+        // console.log("🔄 Updating state with new server data...");
         persistToLocalStorage(formatted);
         return formatted;
       });
 
-      console.log("✅ [Notifications] Sync complete");
+      // console.log("✅ [Notifications] Sync complete");
     } catch (err) {
       console.error("❌ [Notifications] Sync failed:", err);
     }
   }, [convertApiToLocalNotification, persistToLocalStorage]);
 
 
-useEffect(() => {
-  if (!hasInitialLoad.current) return;
+  useEffect(() => {
+    if (!hasInitialLoad.current) return;
 
-  const handleVisibility = () => {
-    if (!document.hidden) syncWithServer();
-  };
+    const handleVisibility = () => {
+      if (!document.hidden) syncWithServer();
+    };
 
-  document.addEventListener("visibilitychange", handleVisibility);
+    document.addEventListener("visibilitychange", handleVisibility);
 
-  const interval = setInterval(syncWithServer, 60000);
+    const interval = setInterval(syncWithServer, 60000);
 
-  return () => {
-    document.removeEventListener("visibilitychange", handleVisibility);
-    clearInterval(interval);
-  };
-}, [syncWithServer]);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      clearInterval(interval);
+    };
+  }, [syncWithServer]);
 
   const markAsRead = useCallback(async (id: string) => {
     updateLocalState((prev) =>

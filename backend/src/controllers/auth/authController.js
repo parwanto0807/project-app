@@ -37,9 +37,9 @@ const COOKIE_CONFIG = {
 
 // ✅ PERBAIKAN: Token generation yang konsisten
 const generateAccessToken = (user) => {
-  console.log(
-    `[TOKEN] Generating access token with version: ${user.tokenVersion}`
-  );
+  // console.log(
+  //   `[TOKEN] Generating access token with version: ${user.tokenVersion}`
+  // );
   return jwt.sign(
     {
       userId: user.id, // ✅ Untuk kompatibilitas backend lama
@@ -54,9 +54,9 @@ const generateAccessToken = (user) => {
 };
 
 const generateRefreshToken = (user) => {
-  console.log(
-    `[TOKEN] Generating refresh token with version: ${user.tokenVersion}`
-  );
+  // console.log(
+  //   `[TOKEN] Generating refresh token with version: ${user.tokenVersion}`
+  // );
   return jwt.sign(
     {
       userId: user.id,
@@ -521,10 +521,10 @@ export const logoutUser = async (req, res) => {
     }
 
     const userId = req.user.id;
-    console.log(`[LOGOUT] Logging out user: ${userId}`);
+    // console.log(`[LOGOUT] Logging out user: ${userId}`);
 
     // 1️⃣ DEBUG: Log cookies sebelum clear
-    console.log("📝 Cookies before logout:", req.cookies);
+    // console.log("📝 Cookies before logout:", req.cookies);
 
     // 2️⃣ Revoke current session berdasarkan refreshToken
     const refreshToken = req.cookies[COOKIE_NAMES.REFRESH_TOKEN];
@@ -540,7 +540,7 @@ export const logoutUser = async (req, res) => {
           revokedAt: new Date(),
         },
       });
-      console.log(`[LOGOUT] Revoked session for user: ${userId}`);
+      // console.log(`[LOGOUT] Revoked session for user: ${userId}`);
     }
 
     // 3️⃣ Increment token version
@@ -692,7 +692,13 @@ export const adminLogin = async (req, res) => {
     setTokenCookies(res, accessToken, refreshToken);
 
     res.header("Access-Control-Allow-Credentials", "true");
-    res.header("Access-Control-Allow-Origin", "http://localhost:3000");
+    const allowedOrigin =
+      process.env.NODE_ENV === "production"
+        ? "https://rylif-app.com"
+        : "http://localhost:3000";
+
+    res.header("Access-Control-Allow-Origin", allowedOrigin);
+    res.header("Access-Control-Allow-Credentials", "true");
 
     return res.json({
       success: true,
