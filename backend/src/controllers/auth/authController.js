@@ -1136,31 +1136,13 @@ export const registerAdmin = async (req, res) => {
 
 export const getProfile = async (req, res) => {
   try {
-    // ✅ Tangkap token dari header Authorization
-    const authHeader = req.headers["authorization"];
-    let tokenFromHeader = null;
-    if (authHeader && typeof authHeader === "string") {
-      // Format: "Bearer <token>"
-      tokenFromHeader = authHeader.split(" ")[1];
-    }
-
-    // ✅ Tangkap token dari cookie (jika menggunakan cookies)
-    const tokenFromCookie = req.cookies?.accessToken || null;
-
-    // ✅ VALIDASI: Pastikan req.user dan req.user.id ada
-    if (!req.user) {
-      console.error("[PROFILE] req.user is missing");
+    // ✅ Middleware 'authenticateToken' sudah menjamin req.user ada.
+    // Tapi pengecekan double ini bagus untuk safety (Defensive Programming).
+    if (!req.user || !req.user.id) {
+      console.error("[PROFILE] req.user is missing. Middleware failed?");
       return res.status(401).json({
         success: false,
         error: "Authentication required",
-      });
-    }
-
-    if (!req.user.id) {
-      console.error("[PROFILE] req.user.id is undefined");
-      return res.status(401).json({
-        success: false,
-        error: "Invalid user data",
       });
     }
 

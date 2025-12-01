@@ -24,7 +24,7 @@ export const setTokenCookies = (
 
   // READABLE cookie (untuk client-side Authorization header)
   res.cookie(COOKIE_NAMES.ACCESS_TOKEN_READABLE, accessToken, {
-    ...getCookieOptions(true), // httpOnly: false
+    ...getCookieOptions(false), // httpOnly: false
     maxAge: 8 * 60 * 60 * 1000,
   });
 
