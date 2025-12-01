@@ -17,28 +17,32 @@ export default function FCMInitializer() {
   const isInitializing = useRef(false);
   const lastSavedToken = useRef<string | null>(null);
   const { addNotification } = useNotifications();
-  const { isAuthenticated, accessToken } = useAuth(); // ⬅ cek login
+  // const { isAuthenticated, accessToken } = useAuth(); // ⬅ cek login
+  const { isAuthenticated } = useAuth();
 
   // -------------------------------------------------------------------
   // SAVE TOKEN HANYA JIKA USER LOGIN & TOKEN BERUBAH
   // -------------------------------------------------------------------
   const saveTokenIfNeeded = useCallback(
     async (token: string) => {
-      if (!isAuthenticated || !accessToken) {
-        console.warn("⏳ [FCM] Skip save — user belum login");
+      // ✅ Cek User/Auth saja, jangan cek string token
+      if (!isAuthenticated) {
         return;
       }
 
       if (token === lastSavedToken.current) return;
 
+      // Panggil Server Action/API
+      // Server akan otomatis membaca cookie httpOnly dari request ini
       const success = await saveFcmToken(token);
+
       if (success) {
         lastSavedToken.current = token;
         localStorage.setItem("fcm-token", token);
-        console.log("🔐 [FCM] Token saved/updated:", token);
+        console.log("🔐 [FCM] Token saved:", token);
       }
     },
-    [isAuthenticated, accessToken]
+    [isAuthenticated] // Hapus dependency accessToken
   );
 
   // -------------------------------------------------------------------
@@ -87,8 +91,9 @@ export default function FCMInitializer() {
   // INISIALISASI FCM HANYA SETELAH LOGIN
   // -------------------------------------------------------------------
   const initializeFCM = useCallback(async () => {
-    if (!isAuthenticated || !accessToken) return; // ⬅ user belum login
-    if (!messaging || isInitializing.current) return;
+    // if (!isAuthenticated || !accessToken) return; // ⬅ user belum login
+    // if (!messaging || isInitializing.current) return;
+    if (!isAuthenticated) return;
     isInitializing.current = true;
 
     try {
@@ -103,6 +108,8 @@ export default function FCMInitializer() {
         "/firebase-messaging-sw.js"
       );
 
+
+      if (!messaging) return;
       const token = await getToken(messaging, {
         vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
         serviceWorkerRegistration: registration,
@@ -119,7 +126,7 @@ export default function FCMInitializer() {
     } finally {
       isInitializing.current = false;
     }
-  }, [isAuthenticated, accessToken, saveTokenIfNeeded]);
+  }, [isAuthenticated, saveTokenIfNeeded]);
 
   useEffect(() => {
     if (!isAuthenticated) return;

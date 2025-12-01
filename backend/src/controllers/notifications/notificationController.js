@@ -12,25 +12,25 @@ export const getUserNotifications = async (req, res) => {
 
     const whereClause = {
       userId: userId,
+      // Logika: Tampilkan jika tidak ada expired date ATAU expired date masih di masa depan
       OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
     };
 
-    // Add read filter if unreadOnly is true
+    // Filter unread jika diminta
     if (unreadOnly === "true") {
       whereClause.read = false;
     }
 
     const notifications = await prisma.notification.findMany({
       where: whereClause,
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: { createdAt: "desc" },
       take: parseInt(limit),
     });
 
     res.json(notifications);
   } catch (error) {
-    console.error("[Notification] Error getting notifications:", error);
+    // Tetap simpan log error agar bisa dipantau di server jika terjadi crash
+    console.error("[Notification] Error:", error);
     res.status(500).json({
       success: false,
       error: "Failed to get notifications",
@@ -90,7 +90,6 @@ export const markNotificationsAsRead = async (req, res) => {
         updatedAt: new Date(),
       },
     });
-
 
     res.json({
       success: true,

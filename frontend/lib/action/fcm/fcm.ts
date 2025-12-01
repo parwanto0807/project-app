@@ -47,39 +47,14 @@ export interface DeviceInfo {
   timestamp: string;
 }
 
-/**
- * Mendapatkan access token dari cookies
- */
-const getAccessToken = (): string | null => {
-  if (typeof document === "undefined") return null;
-
-  const cookies = document.cookie.split(";");
-  const accessTokenCookie = cookies.find((cookie) =>
-    cookie.trim().startsWith("accessTokenReadable=")
-  );
-
-  if (accessTokenCookie) {
-    return accessTokenCookie.split("=")[1];
-  }
-
-  return null;
-};
+// ❌ helper getAccessToken DIHAPUS karena tidak lagi relevan (httpOnly)
 
 /**
  * Mengirim FCM Token ke Backend untuk disimpan di UserSession aktif.
  */
 export const saveFcmToken = async (token: string): Promise<boolean> => {
   try {
-    const accessToken = getAccessToken();
-
-    if (!accessToken) {
-      console.warn(
-        "⚠️ [FCM] Access token tidak ditemukan - user mungkin sedang logout"
-      );
-      return false; // Return false tanpa error
-    }
-
-    console.log("✅ [FCM] Access token ditemukan, mengirim FCM token...");
+    console.log("✅ [FCM] Mengirim FCM token (via Cookie)...");
 
     const deviceInfo: DeviceInfo = {
       platform: typeof window !== "undefined" ? "web" : "unknown",
@@ -92,9 +67,9 @@ export const saveFcmToken = async (token: string): Promise<boolean> => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
       },
-      credentials: "include",
+      // ✅ PENTING: Agar cookie httpOnly terkirim
+      credentials: "include", 
       body: JSON.stringify({
         fcmToken: token,
         deviceInfo: JSON.stringify(deviceInfo),
@@ -102,12 +77,10 @@ export const saveFcmToken = async (token: string): Promise<boolean> => {
     });
 
     if (!response.ok) {
-      // ✅ JANGAN LOG ERROR JIKA STATUS 401 (UNAUTHORIZED)
       if (response.status === 401) {
-        console.warn("⚠️ [FCM] User unauthorized - mungkin sedang logout");
+        console.warn("⚠️ [FCM] User unauthorized - cookie token invalid");
         return false;
       }
-
       const errorData = await response.json().catch(() => ({}));
       console.error("❌ [FCM] Gagal simpan token:", errorData);
       return false;
@@ -117,7 +90,6 @@ export const saveFcmToken = async (token: string): Promise<boolean> => {
     console.log("✅ [FCM] Token berhasil disinkronkan:", result);
     return true;
   } catch (error) {
-    // ✅ JANGAN LOG ERROR JIKA INI ADALAH NETWORK ERROR SAAT LOGOUT
     if (error instanceof Error && error.name === "TypeError") {
       console.warn("⚠️ [FCM] Network error - mungkin sedang logout");
     } else {
@@ -136,15 +108,6 @@ export const getNotifications = async (
   options: GetNotificationsOptions = {}
 ): Promise<Notification[]> => {
   try {
-    const accessToken = getAccessToken();
-
-    if (!accessToken) {
-      console.warn(
-        "⚠️ [Notifications] Access token tidak ditemukan - return empty"
-      );
-      return [];
-    }
-
     const { limit = 50, unreadOnly = false } = options;
     const params = new URLSearchParams({
       limit: limit.toString(),
@@ -154,13 +117,13 @@ export const getNotifications = async (
     const response = await fetch(`${API_URL_NOTIF}?${params}`, {
       method: "GET",
       headers: {
-        Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
+      // ✅ WAJIB: Tambahkan ini di SEMUA fetch auth
+      credentials: "include", 
     });
 
     if (!response.ok) {
-      // ✅ HANDLE UNAUTHORIZED GRACEFULLY
       if (response.status === 401) {
         console.warn("⚠️ [Notifications] Unauthorized - return empty");
         return [];
@@ -184,15 +147,6 @@ export const markNotificationsAsRead = async (
   notificationIds: string[]
 ): Promise<boolean> => {
   try {
-    const accessToken = getAccessToken();
-
-    if (!accessToken) {
-      console.warn(
-        "⚠️ [Notifications] Access token tidak ditemukan - skip mark read"
-      );
-      return false;
-    }
-
     if (!notificationIds || notificationIds.length === 0) {
       return true;
     }
@@ -200,18 +154,16 @@ export const markNotificationsAsRead = async (
     const response = await fetch(`${API_URL_NOTIF}/mark-read`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
+      credentials: "include", // ✅ WAJIB
       body: JSON.stringify({ notificationIds }),
     });
 
     if (!response.ok) {
       if (response.status === 401) {
-        console.warn("⚠️ [Notifications] Unauthorized - skip mark read");
         return false;
       }
-      console.warn(`⚠️ [Notifications] Gagal mark read: ${response.status}`);
       return false;
     }
 
@@ -228,29 +180,15 @@ export const markNotificationsAsRead = async (
  */
 export const markAllNotificationsAsRead = async (): Promise<boolean> => {
   try {
-    const accessToken = getAccessToken();
-
-    if (!accessToken) {
-      console.warn(
-        "⚠️ [Notifications] Access token tidak ditemukan - skip mark all"
-      );
-      return false;
-    }
-
     const response = await fetch(`${API_URL_NOTIF}/mark-all-read`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
+      credentials: "include", // ✅ WAJIB
     });
 
     if (!response.ok) {
-      if (response.status === 401) {
-        console.warn("⚠️ [Notifications] Unauthorized - skip mark all");
-        return false;
-      }
-      console.warn(`⚠️ [Notifications] Gagal mark all: ${response.status}`);
       return false;
     }
 
@@ -269,28 +207,15 @@ export const deleteNotification = async (
   notificationId: string
 ): Promise<boolean> => {
   try {
-    const accessToken = getAccessToken();
-
-    if (!accessToken) {
-      console.warn(
-        "⚠️ [Notifications] Access token tidak ditemukan - skip delete"
-      );
-      return false;
-    }
-
     const response = await fetch(`${API_URL_NOTIF}/${notificationId}`, {
       method: "DELETE",
       headers: {
-        Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
+      credentials: "include", // ✅ WAJIB
     });
 
     if (!response.ok) {
-      if (response.status === 401) {
-        console.warn("⚠️ [Notifications] Unauthorized - skip delete");
-        return false;
-      }
       return false;
     }
 
@@ -304,21 +229,18 @@ export const deleteNotification = async (
 /**
  * Hapus semua notifications
  */
-// lib/action/fcm/fcm.ts - PERBAIKI clearAllNotifications
 export const clearAllNotifications = async (): Promise<boolean> => {
   try {
-    const accessToken = getAccessToken();
-
-    if (!accessToken) {
-      console.warn("⚠️ [Notifications] Access token tidak ditemukan");
-      return false;
-    }
+    // ❌ HAPUS Check accessToken manual di sini, karena pasti null
+    /* const accessToken = getAccessToken();
+    if (!accessToken) return false; */
 
     console.log(
       "🔄 [Notifications] Clearing all notifications using individual delete..."
     );
 
-    // ✅ DAPATKAN SEMUA NOTIFICATIONS
+    // ✅ Fungsi getNotifications di bawah ini sudah pakai credentials: include
+    // Jadi jika unauthorized (401), dia akan return [] dan fungsi berhenti dengan aman.
     const notifications = await getNotifications({ limit: 100 });
 
     if (notifications.length === 0) {
@@ -326,11 +248,6 @@ export const clearAllNotifications = async (): Promise<boolean> => {
       return true;
     }
 
-    console.log(
-      `🗑️ [Notifications] Deleting ${notifications.length} notifications...`
-    );
-
-    // ✅ HAPUS SATU PER SATU
     const deletePromises = notifications.map((notification) =>
       deleteNotification(notification.id)
     );
@@ -341,11 +258,6 @@ export const clearAllNotifications = async (): Promise<boolean> => {
       (result) => result.status === "fulfilled" && result.value === true
     ).length;
 
-    console.log(
-      `✅ [Notifications] Successfully deleted ${successfulDeletes} out of ${notifications.length} notifications`
-    );
-
-    // Return true jika berhasil menghapus setidaknya satu notifikasi
     return successfulDeletes > 0;
   } catch (error) {
     console.error(
@@ -361,24 +273,15 @@ export const clearAllNotifications = async (): Promise<boolean> => {
  */
 export const getUnreadCount = async (): Promise<number> => {
   try {
-    const accessToken = getAccessToken();
-
-    if (!accessToken) {
-      return 0; // Return 0 tanpa warning
-    }
-
     const response = await fetch(`${API_URL_NOTIF}/unread-count`, {
       method: "GET",
       headers: {
-        Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
+      credentials: "include", // ✅ WAJIB
     });
 
     if (!response.ok) {
-      if (response.status === 401) {
-        return 0;
-      }
       return 0;
     }
 
@@ -397,20 +300,11 @@ export const syncNotificationsWithServer = async (
   localNotifications: Notification[]
 ): Promise<boolean> => {
   try {
-    const accessToken = getAccessToken();
-
-    if (!accessToken) {
-      console.error("❌ [Notifications] Access token tidak ditemukan");
-      return false;
-    }
-
-    // Cari notifications yang belum di-mark as read di server
     const unreadNotifications = localNotifications.filter(
       (notif) => !notif.read
     );
 
     if (unreadNotifications.length === 0) {
-      console.log("ℹ️ [Notifications] No unread notifications to sync");
       return true;
     }
 
@@ -431,39 +325,26 @@ export const syncNotificationsWithServer = async (
 
 export const removeFcmToken = async (token: string): Promise<boolean> => {
   try {
-    const accessToken = getAccessToken();
-
-    // ✅ JIKA SUDAH TIDAK ADA ACCESS TOKEN, LANGSUNG RETURN TRUE
-    if (!accessToken) {
-      console.log("🔐 [FCM] User sudah logout - skip remove token");
-      return true;
-    }
-
-    console.log("🔐 [FCM] Menghapus FCM token saat logout...");
-
     const response = await fetch(`${API_URL_NOTIF}/remove-token`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
       },
+      credentials: "include", // ✅ WAJIB
       body: JSON.stringify({ fcmToken: token }),
     });
 
-    // ✅ JANGAN THROW ERROR JIKA UNAUTHORIZED (SUDAH LOGOUT)
     if (!response.ok) {
       if (response.status === 401) {
         console.log("🔐 [FCM] User sudah logout - token cleanup skipped");
         return true;
       }
-      console.warn("⚠️ [FCM] Gagal hapus token:", response.status);
       return false;
     }
 
     console.log("✅ [FCM] Token berhasil dihapus");
     return true;
   } catch (error) {
-    // ✅ JANGAN LOG ERROR UNTUK NETWORK ISSUES SAAT LOGOUT
     if (error instanceof Error && error.name === "TypeError") {
       console.log("🔐 [FCM] Network error selama logout - diabaikan");
     } else {
@@ -473,7 +354,7 @@ export const removeFcmToken = async (token: string): Promise<boolean> => {
   }
 };
 
-// ✅ CREATE NOTIFICATION HELPER
+// ✅ CREATE NOTIFICATION HELPER (Client side only)
 export const createNotification = (data: {
   id?: string;
   title: string;
@@ -522,19 +403,14 @@ export const isNotificationArray = (obj: unknown): obj is Notification[] => {
   return Array.isArray(obj) && obj.every(isNotification);
 };
 
-// lib/action/fcm/fcm.ts - ADD THIS FUNCTION
 export async function getStoredFcmToken(): Promise<string | null> {
   try {
-    const accessToken = localStorage.getItem("accessToken");
-    if (!accessToken) {
-      return null;
-    }
-
     const response = await fetch(`${BASE_DOMAIN}/sessions/cekToken`, {
       method: "GET",
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
       },
+      credentials: "include", // ✅ WAJIB
     });
 
     if (response.ok) {
