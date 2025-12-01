@@ -29,9 +29,9 @@ export type DocType =
 export interface Customer {
   id: string;
   name: string;
-  email?: string;
-  phone?: string;
   address?: string;
+  branch?: string | null;
+  contactPerson?: string | null;
   // tambahkan field lain sesuai schema Customer
 }
 
@@ -54,22 +54,38 @@ export interface User {
 
 export interface SalesOrderItem {
   id: string;
-  salesOrderId: string;
-  productId?: string;
-  description?: string;
-  quantity: number;
-  unitPrice: number;
-  discount?: number;
+  salesOrderId?: string;
+
+  lineNo: number; // urutan baris unik per SO
+  itemType: ItemType;
+
+  // Snapshot & relasi product (optional untuk SERVICE/CUSTOM)
+  productId?: string | null;
+  product?: { id: string; name: string } | null;
+
+  name: string; // snapshot nama saat input
+  description?: string | null;
+  uom?: string | null;
+
+  qty: number; // 4 desimal di DB; FE pakai number
+  unitPrice: number; // 2 desimal di DB
+  discount: number; // nominal, 2 desimal
   tax?: number;
   total: number;
   type: ItemType;
+  lineTotal: number; // total baris (exclusive tax formula)
 }
 
 export interface SalesOrderDocument {
   id: string;
-  salesOrderId: string;
+  salesOrderId?: string;
   docType: DocType;
+  docNumber?: string | null;
+  docDate?: string | null; // ISO string
+  fileUrl?: string | null;
   url: string;
+  meta?: unknown | null;
+  createdAt: string; // ISO string
   uploadedAt: string; // ISO string
 }
 
@@ -103,21 +119,24 @@ export interface BAP {
 export interface SalesOrder {
   id: string;
   soNumber: string;
-  soDate: string; // ISO date string dari backend
+  soDate: Date;
+
   customerId: string;
   projectId: string;
   userId: string;
+
   type: OrderType;
   status: OrderStatus;
   isTaxInclusive: boolean;
-
   currency: string;
+
   subtotal: number;
   discountTotal: number;
   taxTotal: number;
   grandTotal: number;
 
   notes?: string;
+
   createdAt: string; // ISO string
   updatedAt: string; // ISO string
 

@@ -6,20 +6,6 @@ import { cookies } from "next/headers";
 import { getAuthHeaders, getCookieHeader } from "@/lib/cookie-utils";
 import { apiFetch } from "@/lib/apiFetch";
 import { unstable_noStore as noStore } from "next/cache";
-import { serverApi } from "@/lib/server-api";
-import { SalesOrder } from "@/schemas";
-
-interface SalesOrderResponse {
-  data: SalesOrder[]; // Ganti 'any' dengan tipe 'SalesOrder' jika Anda punya interface-nya
-  pagination: {
-    currentPage: number;
-    pageSize: number;
-    totalPages: number;
-    totalCount: number;
-    hasNext: boolean;
-    hasPrev: boolean;
-  };
-}
 
 // form schema utk create/update header+items (tanpa soNumber karena digenerate)
 const formSchema = salesOrderUpdateSchema.omit({ soNumber: true });
@@ -43,76 +29,37 @@ function toRoman(monthIndex: number): string {
   ];
   return romanMonths[monthIndex];
 }
-// function romanToIndex(roman: string): number {
-//   const map: Record<string, number> = {
-//     I: 0,
-//     II: 1,
-//     III: 2,
-//     IV: 3,
-//     V: 4,
-//     VI: 5,
-//     VII: 6,
-//     VIII: 7,
-//     IX: 8,
-//     X: 9,
-//     XI: 10,
-//     XII: 11,
-//   };
-//   return map[roman] ?? -1;
-// }
+function romanToIndex(roman: string): number {
+  const map: Record<string, number> = {
+    I: 0,
+    II: 1,
+    III: 2,
+    IV: 3,
+    V: 4,
+    VI: 5,
+    VII: 6,
+    VIII: 7,
+    IX: 8,
+    X: 9,
+    XI: 10,
+    XII: 11,
+  };
+  return map[roman] ?? -1;
+}
 
 /** Nomor SO baru: NNNN/RYLIF-SO/MM_ROMAN/YYYY, reset tiap bulan */
-// async function generateNewSoNumber(): Promise<string> {
-//   const now = new Date();
-//   const year = now.getFullYear();
-//   const monthIdx = now.getMonth();
-//   const monthRoman = toRoman(monthIdx);
-//   const staticCode = "RYLIF-SO";
-
-//   let lastSO: { soNumber?: string } | null = null;
-//   try {
-//     const res = await fetch(
-//       `${process.env.NEXT_PUBLIC_API_URL}/api/salesOrder/sales-orders-last`,
-//       { cache: "no-store" }
-//     );
-//     if (res.ok) lastSO = await res.json();
-//   } catch (e) {
-//     console.error("Error fetching last SO:", e);
-//   }
-
-//   let nextSeq = 1;
-//   // Contoh format: 0042/RYLIF-SO/VIII/2025
-//   const m = lastSO?.soNumber?.match(
-//     /^(\d{4})\/RYLIF-SO\/([IVXLCDM]+)\/(\d{4})$/
-//   );
-//   if (m) {
-//     const [, seqStr, roman, yStr] = m;
-//     const lastYear = Number(yStr);
-//     const lastMonthIdx = romanToIndex(roman);
-//     if (lastYear === year && lastMonthIdx === monthIdx) {
-//       nextSeq = parseInt(seqStr, 10) + 1;
-//     }
-//   }
-
-//   const seqPadded = String(nextSeq).padStart(4, "0");
-//   return `${seqPadded}/${staticCode}/${monthRoman}/${year}`;
-// }
-
 async function generateNewSoNumber(): Promise<string> {
   const now = new Date();
   const year = now.getFullYear();
   const monthIdx = now.getMonth();
-  const monthRoman = toRoman(monthIdx); // Pastikan helper ini ada
+  const monthRoman = toRoman(monthIdx);
   const staticCode = "RYLIF-SO";
 
   let lastSO: { soNumber?: string } | null = null;
-
-  // 💡 TIPS: Jika ini berjalan di Server Action, gunakan 'serverApi' yang tadi kita buat
-  // agar cookie/token terbawa. Jika di Client Component, fetch ini sudah oke.
   try {
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/salesOrder/sales-orders-last`,
-      { cache: "no-store" } // Pastikan tidak dicache
+      { cache: "no-store" }
     );
     if (res.ok) lastSO = await res.json();
   } catch (e) {
@@ -120,26 +67,17 @@ async function generateNewSoNumber(): Promise<string> {
   }
 
   let nextSeq = 1;
-
-  // Regex parsing: "0042/RYLIF-SO/VIII/2025"
+  // Contoh format: 0042/RYLIF-SO/VIII/2025
   const m = lastSO?.soNumber?.match(
     /^(\d{4})\/RYLIF-SO\/([IVXLCDM]+)\/(\d{4})$/
   );
-
   if (m) {
-    // Ambil seqStr (Group 1) dan yStr (Group 3).
-    // Group 2 (Bulan Romawi) kita abaikan untuk logika reset.
-    const [, seqStr, , yStr] = m;
-
+    const [, seqStr, roman, yStr] = m;
     const lastYear = Number(yStr);
-
-    // ✅ PERUBAHAN UTAMA DI SINI:
-    // Kita HANYA mengecek apakah tahunnya sama.
-    // Tidak peduli bulannya beda, sequence tetap lanjut.
-    if (lastYear === year) {
+    const lastMonthIdx = romanToIndex(roman);
+    if (lastYear === year && lastMonthIdx === monthIdx) {
       nextSeq = parseInt(seqStr, 10) + 1;
     }
-    // Jika (lastYear !== year), maka if ini false, nextSeq tetap 1 (Reset Tahun Baru)
   }
 
   const seqPadded = String(nextSeq).padStart(4, "0");
@@ -264,18 +202,19 @@ export async function fetchAllSalesOrder(
   page: number = 1,
   pageSize: number = 50,
   search: string = "",
-  status: string = ""
+  status: string = "" // Tambahkan parameter status
 ) {
-  noStore();
-
+  noStore(); // ⬅️ memastikan data selalu fresh
   const base = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
 
+  // Build URL dengan parameter status
   const urlParams = new URLSearchParams({
     page: page.toString(),
     pageSize: pageSize.toString(),
     search: encodeURIComponent(search),
   });
 
+  // Tambahkan status ke URL jika tidak "ALL" atau empty
   if (status && status !== "ALL") {
     urlParams.set("status", status);
   }
@@ -283,17 +222,16 @@ export async function fetchAllSalesOrder(
   const url = `${base}/api/salesOrder/sales-orders?${urlParams.toString()}`;
 
   try {
-    // ✅ PERBAIKAN DI SINI:
-    // Kita beritahu TypeScript: "Hei, hasil GET ini bentuknya SalesOrderResponse lho!"
-    const response = await serverApi.get<SalesOrderResponse>(url);
-
-    // Sekarang 'payload' bukan unknown lagi, tapi bertipe 'SalesOrderResponse'
-    const payload = response.data;
+    const response = await apiFetch(url, {
+      method: "GET",
+      headers: {
+        accept: "application/json",
+      },
+    });
 
     return {
-      // TypeScript sekarang tahu bahwa payload punya properti .data dan .pagination
-      data: payload.data ?? [],
-      pagination: payload.pagination ?? {
+      data: response.data ?? [],
+      pagination: response.pagination ?? {
         currentPage: page,
         pageSize,
         totalPages: 1,

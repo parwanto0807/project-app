@@ -1,4 +1,4 @@
-import { SPK } from "@/types/salesOrder";
+import { BAP, Project, SPK, User } from "@/types/salesOrder";
 
 /* ===== Enums (string unions) ===== */
 export type OrderType = "REGULAR" | "SUPPORT";
@@ -28,8 +28,10 @@ export interface SalesOrderDocument {
   docNumber?: string | null;
   docDate?: string | null; // ISO string
   fileUrl?: string | null;
+  url: string;
   meta?: unknown | null;
   createdAt: string; // ISO string
+  uploadedAt: string; // ISO string
 }
 
 /* ===== Items ===== */
@@ -52,7 +54,9 @@ export interface SalesOrderItem {
   unitPrice: number; // 2 desimal di DB
   discount: number; // nominal, 2 desimal
   taxRate: number; // persen (0–100), 2 desimal
-
+  tax?: number;
+  total: number;
+  type: ItemType;
   lineTotal: number; // total baris (exclusive tax formula)
 }
 
@@ -60,7 +64,7 @@ export interface SalesOrderItem {
 export interface SalesOrder {
   id: string;
   soNumber: string;
-  soDate: string; // ISO string
+  soDate: Date;
 
   customerId: string;
   projectId: string; // FK wajib di model
@@ -90,10 +94,12 @@ export interface SalesOrder {
     branch?: string | null;
     contactPerson?: string | null;
   };
-  project: { id: string; name: string };
-  user?: { id: string; name?: string } | null;
+
+  project?: Project;
+  user?: User;
 
   items: SalesOrderItem[];
   documents: SalesOrderDocument[]; // array dokumen terkait (QUOTATION/PO/BAP/INVOICE/PAYMENT_RECEIPT)
   spk?: SPK[];
+  bap?: BAP[];
 }

@@ -255,13 +255,13 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser }:
                                                 <div className="group relative">
                                                     <div className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all duration-200">
                                                         <div className="flex items-center gap-3">
-                                                            <div className={`p-2 rounded-lg ${invoice.salesOrder.project.name ? 'bg-green-50' : 'bg-gray-100'}`}>
-                                                                <FaToolbox className={`h-4 w-4 ${invoice.salesOrder.project.name ? 'text-green-600' : 'text-gray-400'}`} />
+                                                            <div className={`p-2 rounded-lg ${invoice.salesOrder?.project?.name} 'bg-green-50' : 'bg-gray-100'}`}>
+                                                                <FaToolbox className={`h-4 w-4 ${invoice.salesOrder?.project?.name ? 'text-green-600' : 'text-gray-400'}`} />
                                                             </div>
                                                             <div className="flex-1 min-w-0">
                                                                 {/* <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">Project</div> */}
                                                                 <div className="text-xs uppercase font-bold text-gray-900 text-wrap">
-                                                                    {invoice.salesOrder.project.name || (
+                                                                    {invoice.salesOrder?.project?.name || (
                                                                         <span className="text-gray-400 italic font-normal">No Project Assigned</span>
                                                                     )}
                                                                 </div>
