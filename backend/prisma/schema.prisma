@@ -121,16 +121,18 @@ model UserSession {
   id           String    @id @default(uuid())
   userId       String
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sessionToken String?    @unique
-  refreshToken String?    @unique
+  sessionToken String?   @unique
+  refreshToken String?   @unique
   fcmToken     String?   @db.Text
   deviceId     String? // Link to TrustedDevice if recognized
   ipAddress    String
   userAgent    String
+  origin       String?
   country      String? // Geolocation data
   city         String?
   isRevoked    Boolean   @default(false)
   revokedAt    DateTime?
+  lastActiveAt DateTime?
   createdAt    DateTime  @default(now())
   expiresAt    DateTime
 

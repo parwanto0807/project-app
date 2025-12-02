@@ -1,4 +1,4 @@
-// server.js - COMPLETE FIXED VERSION
+// server.js - PRODUCTION FIXED VERSION
 import { connectDB } from "./config/db.js";
 import app from "./app.js";
 import http from "http";
@@ -6,10 +6,17 @@ import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
 import { prisma } from "../src/config/db.js";
 
+// Environment variables
+const isProduction = process.env.NODE_ENV === "production";
+const PORT = process.env.PORT || 5000;
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
+
 // Helper function untuk parse cookies
 const parseCookies = (cookieHeader) => {
+  if (!cookieHeader) return {};
+  
   const cookies = {};
-  if (cookieHeader) {
+  try {
     cookieHeader.split(";").forEach((cookie) => {
       const parts = cookie.trim().split("=");
       if (parts.length >= 2) {
@@ -18,6 +25,8 @@ const parseCookies = (cookieHeader) => {
         cookies[key] = decodeURIComponent(value);
       }
     });
+  } catch (error) {
+    console.error("[Cookie] Parse error:", error);
   }
   return cookies;
 };
@@ -26,8 +35,7 @@ const parseCookies = (cookieHeader) => {
 const server = http.createServer(app);
 
 // Storage untuk pending updates
-const pendingSessionUpdates = new Map();
-const userRoleCache = new Map(); // Cache untuk user roles
+const userRoleCache = new Map();
 
 // Function untuk mendapatkan user role (with cache)
 const getUserRole = async (userId) => {
@@ -43,8 +51,6 @@ const getUserRole = async (userId) => {
 
     const role = user?.role || "user";
     userRoleCache.set(userId, role);
-
-    // Cache expire setelah 5 menit
     setTimeout(() => userRoleCache.delete(userId), 5 * 60 * 1000);
 
     return role;
@@ -54,94 +60,171 @@ const getUserRole = async (userId) => {
   }
 };
 
-// 2️⃣ Buat Socket.IO server
+// 2️⃣ **PRODUCTION FIX: Socket.IO Configuration**
+// List of allowed origins
+const allowedOrigins = isProduction
+  ? [
+      FRONTEND_URL,
+      "https://rylif-app.com",
+      "https://www.rylif-app.com",
+      "https://api.rylif-app.com",
+      "http://localhost:3000",
+      "http://localhost:5173"
+    ]
+  : ["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:3000"];
+
 export const io = new Server(server, {
   cors: {
-    origin: "http://localhost:3000",
-    methods: ["GET", "POST"],
+    origin: (origin, callback) => {
+      // ✅ PRODUCTION FIX: Allow requests with no origin (mobile apps, curl, etc.)
+      if (!origin) {
+        console.log('[CORS] Direct connection (no origin)');
+        return callback(null, true);
+      }
+      
+      // ✅ PRODUCTION FIX: Check if origin is in allowed list
+      if (allowedOrigins.includes(origin)) {
+        console.log(`[CORS] ✅ Allowed origin: ${origin}`);
+        return callback(null, true);
+      }
+      
+      // ✅ PRODUCTION FIX: Check for subdomains in production
+      if (isProduction && origin.endsWith('.rylif-app.com')) {
+        console.log(`[CORS] ✅ Allowed subdomain: ${origin}`);
+        return callback(null, true);
+      }
+      
+      // ✅ PRODUCTION FIX: Development localhost
+      if (!isProduction && origin.startsWith('http://localhost:')) {
+        console.log(`[CORS] ✅ Development: ${origin}`);
+        return callback(null, true);
+      }
+      
+      console.log(`[CORS] ❌ Blocked origin: ${origin}`);
+      return callback(new Error('Not allowed by CORS'), false);
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "Accept",
+      "Origin",
+      "X-Access-Token",
+      "X-Refresh-Token"
+    ]
   },
+  // ✅ PRODUCTION FIX: Cookie settings
   cookie: {
     name: "io",
     httpOnly: true,
-    sameSite: "lax",
-    secure: false,
+    sameSite: isProduction ? "none" : "lax", // ⚠️ Penting untuk cross-domain
+    secure: isProduction, // ⚠️ HTTPS required in production
     path: "/",
+    maxAge: 86400000 // 24 hours
   },
   transports: ["websocket", "polling"],
   allowEIO3: true,
   pingTimeout: 60000,
   pingInterval: 25000,
+  connectTimeout: 45000,
+  maxHttpBufferSize: 1e6,
+  // ✅ PRODUCTION FIX: Connection recovery
+  connectionStateRecovery: {
+    maxDisconnectionDuration: 2 * 60 * 1000,
+    skipMiddlewares: true
+  }
 });
 
-// 3️⃣ Middleware untuk authentication
+// 3️⃣ **PRODUCTION FIX: Trust Proxy**
+if (isProduction) {
+  app.set("trust proxy", 1); // Trust first proxy
+  console.log("[Server] ✅ Production mode: Trust proxy enabled");
+}
+
+// 4️⃣ Middleware untuk authentication - IMPROVED untuk production
 io.use(async (socket, next) => {
   try {
-    console.log("🔑 Authentication attempt for socket:", socket.id);
+    console.log(`[Auth] Attempt for socket: ${socket.id}`);
 
-    const cookieHeader = socket.request.headers.cookie;
-    if (!cookieHeader) {
-      console.log("❌ No cookies in socket handshake");
-      return next(new Error("Authentication error: No cookies provided"));
-    }
-
-    const cookies = parseCookies(cookieHeader);
-    console.log("🍪 Available cookies:", Object.keys(cookies));
-
-    const possibleTokenKeys = [
-      "accessToken",
-      "token",
-      "jwt",
-      "auth_token",
-      "access_token",
-      "auth-token",
-    ];
-
+    // ✅ PRODUCTION FIX: Multiple token sources
     let token = null;
-    for (const key of possibleTokenKeys) {
-      if (cookies[key]) {
-        token = cookies[key];
-        console.log(`✅ Found token in cookie: ${key}`);
-        break;
+    
+    // 1. From cookies (primary)
+    const cookieHeader = socket.request.headers.cookie;
+    if (cookieHeader) {
+      const cookies = parseCookies(cookieHeader);
+      const possibleTokenKeys = [
+        "accessToken", "token", "jwt", 
+        "auth_token", "access_token", "auth-token"
+      ];
+      
+      for (const key of possibleTokenKeys) {
+        if (cookies[key]) {
+          token = cookies[key];
+          console.log(`✅ [${socket.id}] Token from cookie: ${key}`);
+          break;
+        }
       }
+    }
+    
+    // 2. From handshake auth (fallback for mobile/SPA)
+    if (!token && socket.handshake.auth?.token) {
+      token = socket.handshake.auth.token;
+      console.log(`✅ [${socket.id}] Token from handshake auth`);
+    }
+    
+    // 3. From query parameters (additional fallback)
+    if (!token && socket.handshake.query?.token) {
+      token = socket.handshake.query.token;
+      console.log(`✅ [${socket.id}] Token from query params`);
     }
 
     if (!token) {
-      console.log("❌ No access token found in cookies");
-      return next(new Error("Authentication error: No token found in cookies"));
+      console.log(`❌ [${socket.id}] No token found`);
+      return next(new Error("Authentication error: No token provided"));
     }
 
-    console.log("🔑 Token received:", token.substring(0, 20) + "...");
+    // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log("✅ Token verified for user:", decoded.userId || decoded.id);
-
     const userId = decoded.userId || decoded.id;
+    
+    if (!userId) {
+      console.log(`❌ [${socket.id}] No userId in token`);
+      return next(new Error("Authentication error: Invalid token payload"));
+    }
+
     socket.userId = userId;
     socket.user = decoded;
 
-    // Dapatkan role user
+    // Get user role
     try {
       const userRole = await getUserRole(userId);
       socket.userRole = userRole;
-      console.log(`👤 User role determined: ${userRole}`);
+      console.log(`👤 [${socket.id}] User ${userId} role: ${userRole}`);
     } catch (roleError) {
-      console.error("❌ Error getting user role:", roleError);
-      socket.userRole = "user"; // Default ke user
+      console.error(`❌ [${socket.id}] Error getting role:`, roleError);
+      socket.userRole = "user";
     }
 
     console.log(
-      `✅ Authenticated user: ${userId} (${socket.userRole}) for socket: ${socket.id}`
+      `✅ [${socket.id}] Authenticated user: ${userId} (${socket.userRole})`
     );
     next();
   } catch (error) {
-    console.error("❌ Socket authentication error:", error.message);
+    console.error(`❌ [Socket] Authentication error:`, error.message);
+    
+    // Detailed error responses for production
     if (error.name === "JsonWebTokenError") {
-      next(new Error("Authentication error: Invalid token"));
+      return next(new Error("Invalid authentication token"));
     } else if (error.name === "TokenExpiredError") {
-      next(new Error("Authentication error: Token expired"));
-    } else {
-      next(new Error("Authentication error: " + error.message));
+      return next(new Error("Authentication token expired"));
+    } else if (error.name === "NotBeforeError") {
+      return next(new Error("Token not yet valid"));
     }
+    
+    return next(new Error("Authentication failed"));
   }
 });
 
@@ -153,7 +236,6 @@ async function getSessionsBasedOnRole(userId, userRole) {
 
   try {
     if (userRole === "super" || userRole === "admin") {
-      // ✅ ADMIN: Dapatkan SEMUA sessions dengan user info
       const sessions = await prisma.userSession.findMany({
         where: {
           isRevoked: false,
@@ -170,12 +252,12 @@ async function getSessionsBasedOnRole(userId, userRole) {
           },
         },
         orderBy: { createdAt: "desc" },
+        take: 100 // Limit for performance
       });
 
-      console.log(`[Server] 📊 Admin gets ALL sessions: ${sessions.length}`);
+      console.log(`[Server] 📊 Admin gets ${sessions.length} sessions`);
       return sessions;
     } else {
-      // ✅ REGULAR USER: Hanya sessions sendiri
       const sessions = await prisma.userSession.findMany({
         where: {
           userId: userId,
@@ -194,7 +276,7 @@ async function getSessionsBasedOnRole(userId, userRole) {
         orderBy: { createdAt: "desc" },
       });
 
-      console.log(`[Server] 📊 User gets own sessions: ${sessions.length}`);
+      console.log(`[Server] 📊 User gets ${sessions.length} sessions`);
       return sessions;
     }
   } catch (error) {
@@ -202,6 +284,46 @@ async function getSessionsBasedOnRole(userId, userRole) {
     return [];
   }
 }
+
+// ✅ PRODUCTION FIX: Format sessions untuk response
+const formatSessionsForResponse = (sessions, currentSocket = null) => {
+  if (!Array.isArray(sessions)) {
+    console.warn('[Format] Sessions is not an array:', sessions);
+    return [];
+  }
+  
+  return sessions.map((session) => {
+    const isCurrentSession = currentSocket?.userSessionToken === session.sessionToken;
+    
+    // Format yang konsisten untuk frontend
+    return {
+      id: session.id || '',
+      userId: session.userId || '',
+      userAgent: session.userAgent || "Unknown Browser",
+      ipAddress: session.ipAddress || "0.0.0.0",
+      isRevoked: Boolean(session.isRevoked || false),
+      isCurrent: isCurrentSession,
+      createdAt: session.createdAt ? session.createdAt.toISOString() : new Date().toISOString(),
+      expiresAt: session.expiresAt ? session.expiresAt.toISOString() : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      revokedAt: session.revokedAt ? session.revokedAt.toISOString() : null,
+      lastActiveAt: session.lastActiveAt ? session.lastActiveAt.toISOString() : null,
+      fcmToken: session.fcmToken || null,
+      deviceId: session.deviceId || null,
+      location: session.country
+        ? `${session.city || ""}, ${session.country}`.trim()
+        : "Unknown",
+      user: session.user || {
+        id: "unknown",
+        name: "Unknown User",
+        email: "unknown@example.com",
+        role: "user",
+      },
+      sessionTokenPreview: session.sessionToken
+        ? `${session.sessionToken.substring(0, 10)}...${session.sessionToken.substring(session.sessionToken.length - 5)}`
+        : "No token",
+    };
+  });
+};
 
 // Helper function untuk get client IP
 function getClientIP(socket) {
@@ -218,38 +340,41 @@ function getClientIP(socket) {
 }
 
 // Function untuk broadcast session updates ke admin
-const broadcastToAdmins = async (event, data) => {
+const broadcastToAdmins = async (event, data = {}) => {
   try {
     console.log(`📤 [Broadcast] ${event} to all admins`);
 
-    // Dapatkan semua admin sessions
-    if (event === "session:updated") {
-      const allSessions = await prisma.userSession.findMany({
-        where: {
-          isRevoked: false,
-          expiresAt: { gt: new Date() },
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              role: true,
-            },
+    // Get all sessions for admins
+    const allSessions = await prisma.userSession.findMany({
+      where: {
+        isRevoked: false,
+        expiresAt: { gt: new Date() },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
           },
         },
-        orderBy: { createdAt: "desc" },
-      });
+      },
+      orderBy: { createdAt: "desc" },
+      take: 100
+    });
 
-      data = { sessions: allSessions };
-    }
-
-    // Emit ke semua connected sockets yang admin
+    const formattedSessions = formatSessionsForResponse(allSessions);
+    
+    // Emit ke semua connected admin sockets
     let adminCount = 0;
     io.sockets.sockets.forEach((socket) => {
       if (socket.userRole === "super" || socket.userRole === "admin") {
-        socket.emit(event, data);
+        socket.emit(event, { 
+          sessions: formattedSessions,
+          timestamp: new Date().toISOString(),
+          source: "admin-broadcast"
+        });
         adminCount++;
       }
     });
@@ -261,16 +386,23 @@ const broadcastToAdmins = async (event, data) => {
 };
 
 // Function untuk broadcast session updates ke specific user
-const broadcastToUser = async (userId, event, data) => {
+const broadcastToUser = async (userId, event, data = {}) => {
   try {
     console.log(`📤 [User Broadcast] ${event} to user:${userId}`);
+
+    const userSessions = await getSessionsBasedOnRole(userId, "user");
+    const formattedSessions = formatSessionsForResponse(userSessions);
 
     const room = `user:${userId}`;
     const roomSockets = io.sockets.adapter.rooms.get(room);
     const roomSize = roomSockets ? roomSockets.size : 0;
 
     if (roomSize > 0) {
-      io.to(room).emit(event, data);
+      io.to(room).emit(event, { 
+        sessions: formattedSessions,
+        timestamp: new Date().toISOString(),
+        source: "user-broadcast"
+      });
       console.log(
         `✅ [User Broadcast] Sent to user ${userId} (${roomSize} sockets)`
       );
@@ -284,7 +416,6 @@ const broadcastToUser = async (userId, event, data) => {
 
 const revokeSessionById = async (sessionId, currentSocketId = null) => {
   try {
-    // Dapatkan session details
     const session = await prisma.userSession.findUnique({
       where: { id: sessionId },
       include: { user: true },
@@ -294,7 +425,6 @@ const revokeSessionById = async (sessionId, currentSocketId = null) => {
       throw new Error("Session not found");
     }
 
-    // Revoke session
     await prisma.userSession.update({
       where: { id: sessionId },
       data: {
@@ -302,52 +432,42 @@ const revokeSessionById = async (sessionId, currentSocketId = null) => {
         revokedAt: new Date(),
         sessionToken: null,
         refreshToken: null,
+        lastActiveAt: new Date(),
       },
     });
 
     console.log(`✅ Session ${sessionId.substring(0, 8)} revoked`);
 
-    // Jika session sedang aktif, disconnect socket-nya
-    if (session.sessionToken && session.sessionToken.includes("socket-")) {
-      // Cari socket berdasarkan sessionToken
-      let targetSocket = null;
-
+    if (session.sessionToken) {
       io.sockets.sockets.forEach((sock) => {
-        if (
-          sock.userSessionToken === session.sessionToken &&
-          sock.id !== currentSocketId
-        ) {
-          targetSocket = sock;
+        if (sock.userSessionToken === session.sessionToken && sock.id !== currentSocketId) {
+          sock.emit("session:force-logout", {
+            message: "Session revoked by admin/user",
+            timestamp: new Date().toISOString(),
+          });
+
+          setTimeout(() => {
+            sock.disconnect(true);
+            console.log(`🔌 Force disconnected socket ${sock.id}`);
+          }, 1000);
         }
       });
-
-      if (targetSocket) {
-        targetSocket.emit("session:force-logout", {
-          message: "Session revoked by admin/user",
-          timestamp: new Date().toISOString(),
-        });
-
-        setTimeout(() => {
-          targetSocket.disconnect(true);
-          console.log(`🔌 Force disconnected socket ${targetSocket.id}`);
-        }, 1000);
-      }
     }
 
-    // Broadcast updates
+    // Broadcast updates dengan format yang konsisten
     const userSessions = await getSessionsBasedOnRole(
       session.userId,
       session.user?.role || "user"
     );
+    
+    const formattedSessions = formatSessionsForResponse(userSessions);
 
-    // Ke user yang direvoke
     await broadcastToUser(session.userId, "session:updated", {
-      sessions: userSessions,
+      sessions: formattedSessions,
       revokedSessionId: sessionId,
     });
 
-    // Ke semua admin
-    await broadcastToAdmins("session:updated", {});
+    await broadcastToAdmins("session:updated");
 
     return { success: true, session };
   } catch (error) {
@@ -363,13 +483,19 @@ io.on("connection", async (socket) => {
     `✅ Client connected: ${socket.id} (${socket.userRole} ${socket.userId})`
   );
 
+  // ✅ PRODUCTION FIX: Send welcome message immediately
+  socket.emit("welcome", {
+    message: "Connected to real-time server",
+    socketId: socket.id,
+    userId: socket.userId,
+    timestamp: new Date().toISOString()
+  });
+
   // Join rooms berdasarkan role
   if (socket.userId) {
-    // Join personal room
     socket.join(`user:${socket.userId}`);
     console.log(`👤 ${socket.userId} joined personal room`);
 
-    // Join admin room jika admin
     if (socket.userRole === "super" || socket.userRole === "admin") {
       socket.join("room:admins");
       console.log(`👑 ${socket.userId} joined admin room`);
@@ -402,7 +528,8 @@ io.on("connection", async (socket) => {
           where: { id: existingSession.id },
           data: {
             sessionToken: sessionToken,
-            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+            lastActiveAt: new Date(),
           },
         });
         console.log(
@@ -416,12 +543,9 @@ io.on("connection", async (socket) => {
             refreshToken: refreshToken,
             ipAddress: clientIP,
             userAgent: userAgent,
-            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+            lastActiveAt: new Date(),
             isRevoked: false,
-            deviceId: null,
-            fcmToken: null,
-            country: null,
-            city: null,
           },
         });
         console.log(
@@ -431,24 +555,36 @@ io.on("connection", async (socket) => {
 
       socket.userSessionToken = sessionToken;
 
-      // ✅ BROADCAST SESSION UPDATE KE ADMIN
-      if (socket.userRole === "super" || socket.userRole === "admin") {
-        // Admin yang login, dapatkan semua sessions
-        setTimeout(async () => {
-          await broadcastToAdmins("session:updated", {});
-        }, 1000);
-      } else {
-        // Regular user login, broadcast ke admin
-        setTimeout(async () => {
-          await broadcastToAdmins("session:updated", {});
-        }, 1000);
-      }
+      // Send initial sessions to this socket
+      setTimeout(async () => {
+        try {
+          const sessions = await getSessionsBasedOnRole(socket.userId, socket.userRole);
+          const formattedSessions = formatSessionsForResponse(sessions, socket);
+          
+          socket.emit("session:updated", {
+            sessions: formattedSessions,
+            timestamp: new Date().toISOString(),
+            type: "initial",
+            source: "connection"
+          });
+          
+          console.log(`[Server] 📤 Sent ${formattedSessions.length} initial sessions to ${socket.id}`);
+        } catch (error) {
+          console.error("[Server] ❌ Error sending initial sessions:", error);
+        }
+      }, 1000);
+
+      // Broadcast to admins
+      setTimeout(async () => {
+        await broadcastToAdmins("session:updated");
+      }, 1500);
+      
     } catch (error) {
       console.error("[Server] ❌ Error handling session:", error.message);
     }
   }
 
-  // ✅ FIXED: Handle session:get-latest berdasarkan role
+  // ✅ FIXED: Handle session:get-latest dengan format yang konsisten
   socket.on("session:get-latest", async () => {
     console.log(
       `[Server] 📨 ${socket.userRole} ${socket.userId} requesting sessions`
@@ -456,92 +592,81 @@ io.on("connection", async (socket) => {
 
     if (!socket.userId) {
       console.log("[Server] ❌ No userId found");
-      socket.emit("session:updated", { sessions: [] });
+      socket.emit("session:updated", { 
+        sessions: [],
+        timestamp: new Date().toISOString(),
+        error: "User not authenticated"
+      });
       return;
     }
 
     try {
-      const sessions = await getSessionsBasedOnRole(
-        socket.userId,
-        socket.userRole
-      );
-
-      // Format sessions
-      const formattedSessions = sessions.map((session) => {
-        const isCurrentSession =
-          socket.userSessionToken === session.sessionToken;
-
-        return {
-          id: session.id,
-          userId: session.userId,
-          userAgent: session.userAgent || "Unknown Browser",
-          ipAddress: session.ipAddress || "0.0.0.0",
-          isRevoked: session.isRevoked || false,
-          isCurrent: isCurrentSession,
-          createdAt: session.createdAt || new Date(),
-          expiresAt:
-            session.expiresAt || new Date(Date.now() + 24 * 60 * 60 * 1000),
-          fcmToken: session.fcmToken || null,
-          deviceId: session.deviceId || null,
-          location: session.country
-            ? `${session.city || ""}, ${session.country}`.trim()
-            : "Unknown",
-          user: session.user || {
-            id: "unknown",
-            name: "Unknown User",
-            email: "unknown@example.com",
-            role: "user",
-          },
-          sessionTokenPreview: session.sessionToken
-            ? `${session.sessionToken.substring(
-                0,
-                10
-              )}...${session.sessionToken.substring(
-                session.sessionToken.length - 5
-              )}`
-            : "No token",
-        };
-      });
+      const sessions = await getSessionsBasedOnRole(socket.userId, socket.userRole);
+      const formattedSessions = formatSessionsForResponse(sessions, socket);
 
       console.log(
         `[Server] 📤 Sending ${formattedSessions.length} sessions to ${socket.id}`
       );
 
-      socket.emit("session:updated", { sessions: formattedSessions });
+      // ✅ PRODUCTION FIX: Always send with consistent format
+      socket.emit("session:updated", {
+        sessions: formattedSessions,
+        timestamp: new Date().toISOString(),
+        type: "latest",
+        count: formattedSessions.length
+      });
     } catch (error) {
       console.error("[Server] ❌ Error:", error.message);
-      socket.emit("session:updated", { sessions: [] });
+      socket.emit("session:updated", { 
+        sessions: [],
+        timestamp: new Date().toISOString(),
+        error: "Failed to get sessions"
+      });
     }
   });
 
-  // ✅ FIXED: Handle session revoke dengan broadcast
-  // ✅ FIXED: Handle session:revoke dengan revokeSessionById
+  // Handle session:revoke
   socket.on("session:revoke", async (data) => {
-    console.log("🔨 Session revoke request:", data.sessionId);
+    console.log("🔨 Session revoke request:", data?.sessionId);
+
+    if (!data?.sessionId) {
+      socket.emit("session:error", {
+        message: "Session ID is required",
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
 
     try {
-      // Gunakan function revokeSessionById
-      const result = await revokeSessionById(data.sessionId, socket.id);
+      await revokeSessionById(data.sessionId, socket.id);
 
       socket.emit("session:revoke-success", {
         sessionId: data.sessionId,
         message: "Session revoked successfully",
+        timestamp: new Date().toISOString()
       });
     } catch (error) {
       console.error("[Server] ❌ Error revoking session:", error);
       socket.emit("session:error", {
         message: "Failed to revoke session",
         error: error.message,
+        timestamp: new Date().toISOString()
       });
     }
   });
 
-  // ✅ FIXED: Handle logout other dengan broadcast
+  // Handle logout other
   socket.on("session:logout-other", async () => {
     console.log("🚪 Logout other devices request from:", socket.userId);
 
+    if (!socket.userId) {
+      return socket.emit("session:error", {
+        message: "User not authenticated",
+        timestamp: new Date().toISOString()
+      });
+    }
+
     try {
-      // Revoke semua session kecuali session saat ini
       const result = await prisma.userSession.updateMany({
         where: {
           userId: socket.userId,
@@ -553,30 +678,32 @@ io.on("connection", async (socket) => {
           revokedAt: new Date(),
           sessionToken: null,
           refreshToken: null,
+          lastActiveAt: new Date(),
         },
       });
 
       console.log(`[Server] ✅ Revoked ${result.count} other sessions`);
 
-      // Broadcast ke other devices
+      // Broadcast to other devices
       socket.broadcast.emit("session:logout-other", {
         userId: socket.userId,
         timestamp: new Date().toISOString(),
         currentSocketId: socket.id,
+        revokedCount: result.count
       });
 
-      // ✅ BROADCAST UPDATE
-      // 1. Ke user sendiri
-      const userSessions = await getSessionsBasedOnRole(
-        socket.userId,
-        socket.userRole
-      );
+      // Send updated sessions to this user
+      const userSessions = await getSessionsBasedOnRole(socket.userId, socket.userRole);
+      const formattedSessions = formatSessionsForResponse(userSessions, socket);
+      
       await broadcastToUser(socket.userId, "session:updated", {
-        sessions: userSessions,
+        sessions: formattedSessions,
+        type: "logout-other"
       });
 
-      // 2. Ke semua admin
-      await broadcastToAdmins("session:updated", {});
+      // Broadcast to admins
+      await broadcastToAdmins("session:updated");
+      
     } catch (error) {
       console.error("[Server] ❌ Error logging out other devices:", error);
     }
@@ -594,38 +721,26 @@ io.on("connection", async (socket) => {
     console.log("❌ Client disconnected:", socket.id, "Reason:", reason);
     console.log("👤 User was:", socket.userId);
 
-    if (socket.userId) {
+    if (socket.userId && socket.userSessionToken) {
       try {
-        // Hanya update session yang terkait dengan socket ini
-        // Cari session berdasarkan sessionToken socket
-        if (socket.userSessionToken) {
-          await prisma.userSession.updateMany({
-            where: {
-              sessionToken: socket.userSessionToken, // Hanya session ini
-              userId: socket.userId,
-              isRevoked: false,
-            },
-            data: {
-              isRevoked: true,
-              revokedAt: new Date(),
-            },
-          });
-          console.log(
-            `[Server] 📝 Session ${socket.userSessionToken?.substring(
-              0,
-              8
-            )} revoked on disconnect`
-          );
+        await prisma.userSession.updateMany({
+          where: {
+            sessionToken: socket.userSessionToken,
+            userId: socket.userId,
+            isRevoked: false,
+          },
+          data: {
+            isRevoked: true,
+            revokedAt: new Date(),
+            lastActiveAt: new Date(),
+          },
+        });
+        
+        console.log(`[Server] 📝 Session revoked on disconnect`);
 
-          // Broadcast session update ke admin
-          setTimeout(async () => {
-            await broadcastToAdmins("session:updated", {});
-          }, 500);
-        } else {
-          console.log(
-            `[Server] ⚠️ No sessionToken found for socket ${socket.id}`
-          );
-        }
+        setTimeout(async () => {
+          await broadcastToAdmins("session:updated");
+        }, 500);
       } catch (error) {
         console.error(
           "[Server] ❌ Error updating session on disconnect:",
@@ -642,7 +757,6 @@ io.on("connection", async (socket) => {
 
 // ============ EXPORTED FUNCTIONS ============
 
-// Function untuk emit session update dari mana saja (contoh: dari route handler)
 export const emitSessionUpdate = async (
   userId,
   eventType = "session:updated"
@@ -653,105 +767,49 @@ export const emitSessionUpdate = async (
       return;
     }
 
-    // Dapatkan user info
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { role: true },
     });
 
     const userRole = user?.role || "user";
-
-    // Dapatkan sessions berdasarkan role
     const sessions = await getSessionsBasedOnRole(userId, userRole);
+    const formattedSessions = formatSessionsForResponse(sessions);
 
-    // Format sessions
-    const formattedSessions = sessions.map((session) => ({
-      id: session.id,
-      userId: session.userId,
-      userAgent: session.userAgent || "Unknown Browser",
-      ipAddress: session.ipAddress || "0.0.0.0",
-      isRevoked: session.isRevoked || false,
-      createdAt: session.createdAt || new Date(),
-      expiresAt:
-        session.expiresAt || new Date(Date.now() + 24 * 60 * 60 * 1000),
-      fcmToken: session.fcmToken || null,
-      deviceId: session.deviceId || null,
-      user: session.user || {
-        id: "unknown",
-        name: "Unknown User",
-        email: "unknown@example.com",
-      },
-    }));
-
-    // 1. Kirim ke user sendiri
     const userRoom = `user:${userId}`;
     const userRoomSize = io.sockets.adapter.rooms.get(userRoom)?.size || 0;
 
     if (userRoomSize > 0) {
-      io.to(userRoom).emit(eventType, { sessions: formattedSessions });
+      io.to(userRoom).emit(eventType, { 
+        sessions: formattedSessions,
+        timestamp: new Date().toISOString(),
+        source: "external"
+      });
       console.log(`✅ [Emit] Session update sent to user ${userId}`);
     }
 
-    // 2. Jika user adalah admin, mereka sudah dapat update dari broadcastToAdmins
-    // 3. Jika bukan admin, broadcast ke admin room
     if (userRole !== "super" && userRole !== "admin") {
-      await broadcastToAdmins("session:updated", {});
+      await broadcastToAdmins("session:updated");
     }
   } catch (error) {
     console.error("[Emit] Error emitting session update:", error);
   }
 };
 
-// Function untuk broadcast session creation/update ke semua admin
-export const broadcastNewSessionToAdmins = async (sessionData) => {
-  try {
-    console.log(
-      `📤 [Broadcast New] Session created for user: ${sessionData.userId}`
-    );
-
-    // Dapatkan semua sessions untuk admin
-    const allSessions = await prisma.userSession.findMany({
-      where: {
-        isRevoked: false,
-        expiresAt: { gt: new Date() },
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    // Broadcast ke admin room
-    io.to("room:admins").emit("session:updated", {
-      sessions: allSessions,
-      source: "new-session",
-      timestamp: new Date().toISOString(),
-    });
-
-    console.log(`✅ [Broadcast New] Sent to admin room`);
-  } catch (error) {
-    console.error(`❌ [Broadcast New] Error:`, error);
-  }
-};
-
 // 7️⃣ Jalankan server
 connectDB()
   .then(() => {
-    server.listen(5000, () => {
-      console.log("✅ Server + Socket.IO running on port 5000");
-      console.log("🔗 CORS enabled for: http://localhost:3000");
-      console.log("🍪 Cookie authentication: ENABLED");
-      console.log("👥 Multi-role support: ACTIVE");
-      console.log("👑 Admin room: room:admins");
-      console.log("👤 Personal rooms: user:{userId}");
-      console.log("🗄️  Database: PostgreSQL with Prisma");
+    server.listen(PORT, () => {
+      console.log("========================================");
+      console.log("🚀 SERVER STARTED SUCCESSFULLY");
+      console.log(`📡 Port: ${PORT}`);
+      console.log(`🌍 Environment: ${isProduction ? "PRODUCTION" : "DEVELOPMENT"}`);
+      console.log(`🔗 Frontend URL: ${FRONTEND_URL}`);
+      console.log(`🔒 HTTPS: ${isProduction ? "REQUIRED" : "DISABLED"}`);
+      console.log(`🍪 Cookies: ${isProduction ? "SECURE" : "INSECURE"}`);
+      console.log("========================================");
+      console.log(`✅ Socket.IO ready on ws://localhost:${PORT}`);
+      console.log(`✅ CORS enabled for: ${allowedOrigins.join(", ")}`);
     });
   })
   .catch((err) => {
