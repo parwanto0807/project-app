@@ -121,8 +121,8 @@ model UserSession {
   id           String    @id @default(uuid())
   userId       String
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sessionToken String    @unique
-  refreshToken String    @unique
+  sessionToken String?    @unique
+  refreshToken String?    @unique
   fcmToken     String?   @db.Text
   deviceId     String? // Link to TrustedDevice if recognized
   ipAddress    String

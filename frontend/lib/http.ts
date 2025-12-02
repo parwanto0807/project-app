@@ -53,6 +53,10 @@ type RetriableConfig = InternalAxiosRequestConfig & {
 // ====== SINGLE FLIGHT REFRESH STATE ======
 let refreshInFlight: Promise<string> | null = null;
 
+// 🔥 TAMBAHKAN GLOBAL FLAG
+let GLOBAL_LOGOUT_FLAG = false;
+let IS_ON_LOGIN_PAGE = false;
+
 // ====== AXIOS INSTANCES ======
 export const api: AxiosInstance = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL,
@@ -137,9 +141,63 @@ const getErrorMessage = (error: unknown): string => {
   return "Unknown error";
 };
 
+// 🔥 EXPORT FUNCTIONS UNTUK CONTROL
+export const setLogoutInProgress = (value: boolean) => {
+  GLOBAL_LOGOUT_FLAG = value;
+  console.log(`🔧 Global logout flag set to: ${value}`);
+
+  if (value) {
+    // Auto reset setelah 30 detik
+    setTimeout(() => {
+      GLOBAL_LOGOUT_FLAG = false;
+      console.log("🔧 Global logout flag auto-reset");
+    }, 30000);
+  }
+};
+
+export const setOnLoginPage = (value: boolean) => {
+  IS_ON_LOGIN_PAGE = value;
+  console.log(`🔧 Login page flag set to: ${value}`);
+};
+
+// 🔥 FUNGSI UNTUK CEK APAKAH BOLEH REFRESH
+const shouldSkipRefresh = (): boolean => {
+  const skip =
+    GLOBAL_LOGOUT_FLAG ||
+    IS_ON_LOGIN_PAGE ||
+    window.location.pathname.includes("/auth/login");
+
+  if (skip) {
+    console.log("🛑 Skipping refresh due to:", {
+      logoutFlag: GLOBAL_LOGOUT_FLAG,
+      loginPageFlag: IS_ON_LOGIN_PAGE,
+      pathname: window.location.pathname,
+    });
+  }
+
+  return skip;
+};
+
 // ====== SETUP REFRESH EXECUTOR UNTUK AUTOREFRESH ======
 setRefreshExecutor(async (): Promise<string | null> => {
   console.log("🔄 Refresh executor called from autoRefresh system");
+
+  // 🔥 CEK APAKAH BOLEH REFRESH
+  if (shouldSkipRefresh()) {
+    console.log("⏸️ Refresh executor skipped - logout/login page flag active");
+    return null;
+  }
+
+  // 🔥 CEK JIKA DI LOGIN PAGE DENGAN PARAMETER LOGOUT
+  if (window.location.pathname.includes("/auth/login")) {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("logout") || params.has("reason")) {
+      console.log(
+        "⏸️ Refresh executor skipped - on login page with logout param"
+      );
+      return null;
+    }
+  }
 
   try {
     const response = await raw.post<ApiSuccessResponse>(REFRESH_PATH);
@@ -155,11 +213,21 @@ setRefreshExecutor(async (): Promise<string | null> => {
   } catch (error: unknown) {
     console.error("❌ Refresh executor failed:", error);
 
-    // Clear tokens on critical auth errors
+    // 🔥 MODIFIKASI: HANYA LOG, JANGAN CLEAR TOKENS OTOMATIS
     if (isAxiosErrorWithResponse(error)) {
-      if (error.response?.status === 401 || error.response?.status === 403) {
-        console.log("🔒 Auth error during refresh, clearing tokens");
-        clearTokensOnLogout();
+      const status = error.response?.status;
+      console.log(`⚠️ Refresh failed with status: ${status}`);
+
+      // 🔥 PERUBAHAN PENTING: JANGAN CLEAR TOKENS OTOMATIS
+      // if (status === 401 || status === 403) {
+      //   console.log("🔒 Auth error during refresh, clearing tokens");
+      //   clearTokensOnLogout(); // ❌ COMMENT INI
+      // }
+
+      // Sebagai gantinya, hanya log saja
+      if (status === 401 || status === 403) {
+        console.log("🔒 Auth error detected - user should logout manually");
+        // JANGAN panggil clearTokensOnLogout() di sini
       }
     }
 

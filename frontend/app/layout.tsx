@@ -6,6 +6,7 @@ import { NotificationProvider } from '@/contexts/NotificationContext';
 import FCMInitializer from '@/components/FCMInitializer';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 import { AuthProvider } from "@/contexts/AuthContext";
+import { SocketProvider } from "@/contexts/SocketContext";
 
 export const metadata: Metadata = {
   title: "ProyekID",
@@ -89,16 +90,18 @@ export default function RootLayout({
         style={{ scrollBehavior: 'auto' }}
       >
         <AuthProvider>
+          {/* ClientSessionProvider adalah wrapper untuk SessionProvider dari NextAuth */}
           <ClientSessionProvider>
-            <NotificationProvider>
-              {children}
-              
-              {/* ✅ FCMInitializer DIPINDAH SETELAH CHILDREN */}
-              {/* Ini memastikan semua provider sudah fully ready */}
-              <FCMInitializer />
-              
-              <PWAInstallPrompt />
-            </NotificationProvider>
+            {/* ✅ SocketProvider HARUS di DALAM ClientSessionProvider karena pakai useSession() */}
+            <SocketProvider>
+              <NotificationProvider>
+                {children}
+
+                <FCMInitializer />
+
+                <PWAInstallPrompt />
+              </NotificationProvider>
+            </SocketProvider>
           </ClientSessionProvider>
         </AuthProvider>
       </body>

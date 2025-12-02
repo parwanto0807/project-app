@@ -20,6 +20,7 @@ import {
   GOOGLE_CALLBACK_URL,
   MFA_TEMP_SECRET,
 } from "../../config/env.js";
+import { io } from "../../server.js";
 
 // Constants untuk konsistensi
 const TOKEN_CONFIG = {
@@ -37,9 +38,6 @@ const COOKIE_CONFIG = {
 
 // ✅ PERBAIKAN: Token generation yang konsisten
 const generateAccessToken = (user) => {
-  // console.log(
-  //   `[TOKEN] Generating access token with version: ${user.tokenVersion}`
-  // );
   return jwt.sign(
     {
       userId: user.id, // ✅ Untuk kompatibilitas backend lama
@@ -54,9 +52,6 @@ const generateAccessToken = (user) => {
 };
 
 const generateRefreshToken = (user) => {
-  // console.log(
-  //   `[TOKEN] Generating refresh token with version: ${user.tokenVersion}`
-  // );
   return jwt.sign(
     {
       userId: user.id,
@@ -69,6 +64,7 @@ const generateRefreshToken = (user) => {
 };
 
 async function createUserSession(user, req) {
+  console.log("USER SESSION CREATE");
   try {
     const ipAddress =
       req.headers["x-forwarded-for"]?.split(",")[0] || req.socket.remoteAddress;
@@ -125,7 +121,7 @@ async function createUserSession(user, req) {
     const sessionToken = crypto.randomBytes(32).toString("hex");
 
     // ✅ 6. CREATE SESSION BARU
-    await prisma.userSession.create({
+    const newSession = await prisma.userSession.create({
       data: {
         userId: updatedUser.id,
         sessionToken,
@@ -137,7 +133,86 @@ async function createUserSession(user, req) {
       },
     });
 
-    return { accessToken, refreshToken };
+    // 🔥 AMBIL DATA SESSION TERBARU UNTUK DIKIRIM
+    const sessions = await prisma.userSession.findMany({
+      where: { userId: updatedUser.id },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const formattedSessions = sessions.map((session) => {
+      const formatted = {
+        id: session.id,
+        createdAt: session.createdAt
+          ? session.createdAt.toISOString()
+          : new Date().toISOString(),
+        revokedAt: session.revokedAt ? session.revokedAt.toISOString() : null,
+        isRevoked: session.isRevoked || false,
+        ipAddress: session.ipAddress || "Unknown",
+        userAgent: session.userAgent || "Unknown",
+        expiresAt: session.expiresAt
+          ? session.expiresAt.toISOString()
+          : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      };
+
+      console.log(`📋 [Session] Formatted session ${session.id}:`, {
+        id: formatted.id,
+        createdAt: formatted.createdAt,
+        isRevoked: formatted.isRevoked,
+        hasRevokedAt: !!formatted.revokedAt,
+      });
+
+      return formatted;
+    });
+
+    console.log(
+      `📤 [Session] Emitting ${formattedSessions.length} sessions to user ${updatedUser.id}`
+    );
+
+    // 🔥 EMIT KE SEMUA DEVICE USER TERSEBUT
+    // Format sesuai dengan SocketContext
+    if (io) {
+      const room = `user:${updatedUser.id}`;
+      const roomSockets = io.sockets.adapter.rooms.get(room);
+      const roomSize = roomSockets ? roomSockets.size : 0;
+
+      console.log(`🏠 [Socket] Room ${room} has ${roomSize} connected sockets`);
+
+      if (roomSize > 0) {
+        // Format yang konsisten dengan SocketContext
+        const emitData = {
+          sessions: formattedSessions,
+        };
+
+        console.log(`📨 [Socket] Emitting session:updated to room ${room}`);
+        console.log(
+          `📦 [Socket] Emit data:`,
+          JSON.stringify(emitData, null, 2)
+        );
+
+        io.to(room).emit("session:updated", emitData);
+
+        console.log(
+          "✅ [Socket] Session update emitted to user:",
+          updatedUser.id,
+          `(${roomSize} clients)`
+        );
+
+        // DEBUG: Cek socket yang ada di room
+        if (roomSockets) {
+          const socketIds = Array.from(roomSockets);
+          console.log(`👥 [Socket] Sockets in room:`, socketIds);
+        }
+      } else {
+        console.log(
+          `⚠️ [Socket] User ${updatedUser.id} not connected, session update queued`
+        );
+        // Anda bisa simpan di database untuk dikirim nanti
+      }
+    } else {
+      console.warn("⚠️ [Socket] io not available, skipping emit");
+    }
+
+    return { accessToken, refreshToken, session: newSession };
   } catch (error) {
     console.error("[SESSION] Error creating user session:", error);
     throw error;
@@ -413,6 +488,7 @@ export const revokeSession = async (req, res) => {
       });
     }
 
+    // 1. Revoke the session
     const session = await prisma.userSession.updateMany({
       where: {
         id: sessionId,
@@ -421,6 +497,7 @@ export const revokeSession = async (req, res) => {
       data: {
         isRevoked: true,
         revokedAt: new Date(),
+        fcmToken: null,
       },
     });
 
@@ -431,9 +508,64 @@ export const revokeSession = async (req, res) => {
       });
     }
 
+    // 2. Get all updated sessions for this user
+    const updatedSessions = await prisma.userSession.findMany({
+      where: {
+        userId: userId,
+      },
+      select: {
+        id: true,
+        createdAt: true,
+        revokedAt: true,
+        isRevoked: true,
+        ipAddress: true,
+        userAgent: true,
+        expiresAt: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    // 3. Emit socket.io event to update all connected clients
+    // Pastikan Anda punya access ke io instance
+    if (req.io) {
+      // Format data sesuai dengan frontend expectation
+      const formattedSessions = updatedSessions.map((s) => ({
+        ...s,
+        createdAt: s.createdAt.toISOString(),
+        expiresAt: s.expiresAt.toISOString(),
+        revokedAt: s.revokedAt ? s.revokedAt.toISOString() : null,
+      }));
+
+      // Emit ke user room
+      req.io.to(`user:${userId}`).emit("session:updated", {
+        sessions: formattedSessions,
+      });
+
+      // Juga emit specific revoked event
+      req.io.to(`user:${userId}`).emit("session:revoked", {
+        sessionId: sessionId,
+        userId: userId,
+        timestamp: new Date().toISOString(),
+      });
+
+      console.log(
+        `✅ Socket.io: Session ${sessionId} revoked, events emitted to user ${userId}`
+      );
+    } else {
+      console.warn(
+        "⚠️ Socket.io instance not available, skipping real-time update"
+      );
+    }
+
     res.json({
       success: true,
       message: "Session revoked successfully",
+      data: {
+        sessionId,
+        updatedAt: new Date().toISOString(),
+      },
     });
   } catch (err) {
     console.error("[DELETE /sessions/:id ERROR]", err);
@@ -521,43 +653,137 @@ export const logoutUser = async (req, res) => {
     }
 
     const userId = req.user.id;
-    // console.log(`[LOGOUT] Logging out user: ${userId}`);
+    const io = req.app.get("io"); // Dapatkan io instance
 
-    // 1️⃣ DEBUG: Log cookies sebelum clear
-    // console.log("📝 Cookies before logout:", req.cookies);
+    console.log(`[LOGOUT] User ${userId} logging out`);
 
-    // 2️⃣ Revoke current session berdasarkan refreshToken
+    // 1️⃣ Dapatkan session token dari cookies/socket
     const refreshToken = req.cookies[COOKIE_NAMES.REFRESH_TOKEN];
-    if (refreshToken) {
-      await prisma.userSession.updateMany({
-        where: {
-          refreshToken: refreshToken,
-          userId: userId,
-          isRevoked: false,
-        },
-        data: {
-          isRevoked: true,
-          revokedAt: new Date(),
-        },
+
+    // Cari session yang akan di-revoke
+    const currentSession = await prisma.userSession.findFirst({
+      where: {
+        userId: userId,
+        refreshToken: refreshToken,
+        isRevoked: false,
+      },
+    });
+
+    if (!currentSession) {
+      console.log(`[LOGOUT] ❌ No active session found for user ${userId}`);
+      // Tetap clear cookies
+      clearAuthCookies(res);
+      return res.json({
+        success: true,
+        message: "Logout completed (no active session found)",
       });
-      // console.log(`[LOGOUT] Revoked session for user: ${userId}`);
     }
 
-    // 3️⃣ Increment token version
+    // 2️⃣ Revoke session menggunakan function yang benar
+    await prisma.userSession.update({
+      where: { id: currentSession.id },
+      data: {
+        isRevoked: true,
+        revokedAt: new Date(),
+        sessionToken: null,
+        refreshToken: null,
+        fcmToken: null,
+      },
+    });
+
+    console.log(
+      `[LOGOUT] ✅ Session ${currentSession.id.substring(0, 8)} revoked`
+    );
+
+    // 3️⃣ EMIT SOCKET EVENT SEBELUM CLEAR COOKIES
+    if (io) {
+      try {
+        // Get updated sessions untuk user
+        const userSessions = await prisma.userSession.findMany({
+          where: { userId: userId },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        });
+
+        // Format sessions
+        const formattedSessions = userSessions.map((session) => ({
+          id: session.id,
+          userId: session.userId,
+          userAgent: session.userAgent || "Unknown",
+          ipAddress: session.ipAddress || "0.0.0.0",
+          isRevoked: session.isRevoked || false,
+          isCurrent: session.id === currentSession.id, // Tandai yang direvoke
+          createdAt: session.createdAt.toISOString(),
+          expiresAt: session.expiresAt.toISOString(),
+          revokedAt: session.revokedAt ? session.revokedAt.toISOString() : null,
+          user: session.user,
+        }));
+
+        console.log(`[SOCKET] Emitting logout event for user ${userId}`);
+
+        // EMIT ke user room
+        io.to(`user:${userId}`).emit("session:updated", {
+          sessions: formattedSessions,
+          type: "logout",
+          revokedSessionId: currentSession.id,
+          timestamp: new Date().toISOString(),
+        });
+
+        // EMIT ke admin room juga
+        const allSessions = await prisma.userSession.findMany({
+          where: {
+            isRevoked: false,
+            expiresAt: { gt: new Date() },
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        });
+
+        io.to("room:admins").emit("session:updated", {
+          sessions: allSessions,
+          type: "admin-update",
+          affectedUser: userId,
+          timestamp: new Date().toISOString(),
+        });
+
+        console.log(`✅ [LOGOUT] Socket events emitted for user ${userId}`);
+      } catch (socketError) {
+        console.warn("⚠️ Socket emit error during logout:", socketError);
+      }
+    }
+
+    // 4️⃣ Increment token version
     await prisma.user.update({
       where: { id: userId },
       data: { tokenVersion: { increment: 1 } },
     });
 
-    // 4️⃣ CLEAR COOKIES - GUNAKAN FUNGSI YANG SUDAH DIPERBAIKI
+    // 5️⃣ Clear cookies
     clearAuthCookies(res);
 
-    // 5️⃣ DEBUG: Response dengan info clear
     return res.json({
       success: true,
       message: "Logout successful",
-      cookiesCleared: Object.values(COOKIE_NAMES),
-      environment: process.env.NODE_ENV,
+      sessionId: currentSession.id,
+      socketNotified: io ? true : false,
     });
   } catch (err) {
     console.error("[LOGOUT] Error:", err);

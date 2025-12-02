@@ -1,7 +1,6 @@
 "use client";
 
-import { revokeSession } from "@/lib/action/session/session";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -24,7 +23,12 @@ import {
   Smartphone,
   ArrowLeft,
   MapPin,
-  Info
+  Info,
+  Wifi,
+  WifiOff,
+  AlertCircle,
+  RefreshCw,
+  Shield
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -35,8 +39,10 @@ import {
 import PaginationComponent from "@/components/ui/paginationNew";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
+import { useSocket } from '../../contexts/SocketContext';
+import { toast } from "sonner";
 
-// Di file types/session.ts
+// Types
 export interface Session {
   id: string;
   user?: {
@@ -48,39 +54,70 @@ export interface Session {
   isRevoked: boolean;
   createdAt: string;
   expiresAt: string;
-  // Tambahkan properti berikut
-  notificationsEnabled?: boolean;
-  // atau
-  notificationStatus?: 'enabled' | 'disabled';
+  fcmToken?: string | null;
 }
 
-interface SessionListProps {
+interface SessionListTableProps {
   sessions: Session[];
   isLoading: boolean;
+  onRefresh?: () => void;
+  onRevokeSession?: (sessionId: string) => Promise<void>;
+  lastUpdateTime?: string; // ✅ Tambah ini
 }
 
 type ViewMode = 'list' | 'detail';
 
-export default function SessionListTable({ sessions, isLoading }: SessionListProps) {
-  const [data, setData] = useState<Session[]>([]);
+export default function SessionListTable({
+  sessions,
+  isLoading,
+  onRefresh,
+  onRevokeSession,
+  lastUpdateTime,
+}: SessionListTableProps) {
+  // Hanya UI state, tidak ada data state!
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
-  const itemsPerPage = 20;
+  const [loadingRevokeId, setLoadingRevokeId] = useState<string | null>(null);
 
-  // Get current page from URL search params
+  // Gunakan socket HANYA untuk status connection dan revoke (jika tidak ada callback)
+  const {
+    isConnected,
+    revokeSession: socketRevokeSession,
+    sendEvent
+  } = useSocket();
+
+  const itemsPerPage = 20;
   const searchParams = useSearchParams();
   const currentPage = Number(searchParams.get("page")) || 1;
 
+  // Tambah debug log untuk lihat kapan re-render
   useEffect(() => {
-    setData(sessions);
-  }, [sessions]);
+    console.log('📊 SessionListTable re-rendered with', sessions.length, 'sessions');
+    console.log('🕐 Last update:', lastUpdateTime);
+  }, [sessions, lastUpdateTime]);
 
+  // Handle revoke session - gunakan callback dari parent jika ada, jika tidak gunakan socket
   const handleRevoke = async (id: string) => {
-    await revokeSession(id);
-    setData((prev) => prev.filter((s) => s.id !== id));
-    if (selectedSession?.id === id) {
-      setViewMode('list');
-      setSelectedSession(null);
+    setLoadingRevokeId(id);
+    try {
+      if (onRevokeSession) {
+        // Gunakan callback dari parent
+        await onRevokeSession(id);
+      } else {
+        // Fallback: gunakan socket
+        await socketRevokeSession(id);
+      }
+      toast.success('Session revoked successfully');
+
+      // Jika ada selected session yang direvoke, kembali ke list
+      if (selectedSession?.id === id) {
+        handleBackToList();
+      }
+    } catch (error) {
+      console.error('Failed to revoke session:', error);
+      toast.error('Failed to revoke session');
+    } finally {
+      setLoadingRevokeId(null);
     }
   };
 
@@ -94,11 +131,24 @@ export default function SessionListTable({ sessions, isLoading }: SessionListPro
     setSelectedSession(null);
   };
 
-  // Pagination calculations
-  const totalPages = Math.ceil(data.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentSessions = data.slice(startIndex, startIndex + itemsPerPage);
+  // Handle logout other devices via socket
+  const handleLogoutOtherDevices = () => {
+    sendEvent('session:logout-other');
+    toast.info('Logging out from other devices...');
+  };
 
+  // Send ping to server
+  const handlePing = () => {
+    sendEvent('ping');
+    toast.info('Pinging server...');
+  };
+
+  // Pagination calculations - langsung dari prop sessions
+  const totalPages = Math.ceil(sessions.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentSessions = sessions.slice(startIndex, startIndex + itemsPerPage);
+
+  // UI Helper functions
   const formatDeviceInfo = (userAgent: string) => {
     if (userAgent.includes('Mobile')) return 'Mobile';
     if (userAgent.includes('Tablet')) return 'Tablet';
@@ -122,49 +172,39 @@ export default function SessionListTable({ sessions, isLoading }: SessionListPro
     return '💻';
   };
 
-  // Check session and notification status based on business rules
-  const checkSessionStatus = (session: Session & { fcmToken?: string | null }) => {
+  // Check session and notification status
+  const checkSessionStatus = (session: Session) => {
     const isSessionOn = !session.isRevoked;
-
-    // Determine notification status based on business rules
     let isNotifOn = false;
 
     if (session.isRevoked) {
       // Session revoked cases
-      if (session.fcmToken) {
-        isNotifOn = true; // 🔴 OFF / 🟢 ON - Token tertinggal
-      } else {
-        isNotifOn = false; // 🔴 OFF / 🔴 OFF - User diblok
-      }
+      isNotifOn = !!session.fcmToken; // 🔴 OFF / 🟢 ON jika ada token
     } else {
       // Active session cases
-      if (session.fcmToken) {
-        isNotifOn = true; // 🟢 ON / 🟢 ON - Ideal
-      } else {
-        isNotifOn = false; // 🟢 ON / 🔴 OFF - Device baru/putus
-      }
+      isNotifOn = !!session.fcmToken; // 🟢 ON / 🟢 ON jika ada token
     }
 
     return { isSessionOn, isNotifOn };
   };
 
   // Helper function to get status labels
-  const getStatusLabels = (session: Session & { fcmToken?: string | null }) => {
+  const getStatusLabels = (session: Session) => {
     const { isSessionOn, isNotifOn } = checkSessionStatus(session);
-
-    const sessionLabel = isSessionOn ? "ON" : "OFF";
-    const notifLabel = isNotifOn ? "ON" : "OFF";
-
-    return { sessionLabel, notifLabel };
+    return {
+      sessionLabel: isSessionOn ? "ON" : "OFF",
+      notifLabel: isNotifOn ? "ON" : "OFF"
+    };
   };
 
-  // Detail View Component - More Compact
+  // Detail View Component
   const SessionDetailView = ({ session }: { session: Session }) => {
     const { isSessionOn, isNotifOn } = checkSessionStatus(session);
+    const isRevoking = loadingRevokeId === session.id;
 
     return (
       <div className="space-y-3 animate-in fade-in duration-300">
-        {/* Header */}
+        {/* Header with Connection Status */}
         <div className="flex items-center gap-2 mb-2">
           <Button
             variant="ghost"
@@ -175,9 +215,15 @@ export default function SessionListTable({ sessions, isLoading }: SessionListPro
             <ArrowLeft className="h-3 w-3" />
             Back
           </Button>
-          <Badge variant="secondary" className="ml-auto bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 text-xs">
-            Session Details
-          </Badge>
+          <div className="flex items-center gap-2 ml-auto">
+            <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 text-xs">
+              Session Details
+            </Badge>
+            <div className={`flex items-center gap-1 text-xs ${isConnected ? 'text-green-600' : 'text-red-600'}`}>
+              {isConnected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+              {isConnected ? 'Live' : 'Offline'}
+            </div>
+          </div>
         </div>
 
         {/* Compact User Info */}
@@ -298,17 +344,17 @@ export default function SessionListTable({ sessions, isLoading }: SessionListPro
             variant="destructive"
             onClick={() => handleRevoke(session.id)}
             className="flex-1 h-8 text-xs flex items-center gap-1"
-            disabled={session.isRevoked}
+            disabled={session.isRevoked || isRevoking}
           >
             <LogOut className="h-3 w-3" />
-            {session.isRevoked ? 'Revoked' : 'Revoke'}
+            {session.isRevoked ? 'Revoked' : isRevoking ? 'Revoking...' : 'Revoke'}
           </Button>
         </div>
       </div>
     );
   };
 
-  // Mobile view component - Super Compact
+  // Mobile view component
   const MobileSessionCard = ({ session }: { session: Session }) => {
     const { isSessionOn, isNotifOn } = checkSessionStatus(session);
 
@@ -359,10 +405,11 @@ export default function SessionListTable({ sessions, isLoading }: SessionListPro
     );
   };
 
-  // Desktop Table Row - More Compact
-  const DesktopTableRow = ({ session }: { session: Session & { fcmToken?: string | null } }) => {
+  // Desktop Table Row
+  const DesktopTableRow = ({ session }: { session: Session }) => {
     const { isSessionOn, isNotifOn } = checkSessionStatus(session);
     const { sessionLabel, notifLabel } = getStatusLabels(session);
+    const isRevoking = loadingRevokeId === session.id;
 
     return (
       <TableRow
@@ -398,16 +445,6 @@ export default function SessionListTable({ sessions, isLoading }: SessionListPro
             </span>
           </div>
         </TableCell>
-        {/* <TableCell className="py-1">
-          <div className="flex items-center gap-1">
-            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${session.isRevoked
-              ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-              : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-              }`}>
-              {session.isRevoked ? 'Revoked' : 'Active'}
-            </span>
-          </div>
-        </TableCell> */}
         <TableCell className="py-1">
           <div className="flex items-center gap-8">
             {/* Session Status */}
@@ -495,11 +532,11 @@ export default function SessionListTable({ sessions, isLoading }: SessionListPro
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => handleRevoke(session.id)}
-                  disabled={session.isRevoked}
+                  disabled={session.isRevoked || isRevoking}
                   className="text-red-600 dark:text-red-400 focus:text-red-700 dark:focus:text-red-300 focus:bg-red-50 dark:focus:bg-red-950/50 flex items-center gap-2 text-xs"
                 >
                   <LogOut className="h-3 w-3" />
-                  {session.isRevoked ? 'Already Revoked' : 'Revoke Session'}
+                  {session.isRevoked ? 'Already Revoked' : isRevoking ? 'Revoking...' : 'Revoke Session'}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -531,17 +568,90 @@ export default function SessionListTable({ sessions, isLoading }: SessionListPro
             <CardTitle className="text-xl font-bold text-white mb-1">
               Active Sessions
             </CardTitle>
-            <p className="text-blue-100 text-xs">
-              Manage your active login sessions
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-blue-100 text-xs">
+                Manage your active login sessions
+              </p>
+              {/* Connection Status Badge */}
+              <Badge
+                variant={isConnected ? "default" : "destructive"}
+                className={`px-2 py-0.5 text-xs ${isConnected ? 'bg-green-500 hover:bg-green-600' : ''}`}
+              >
+                <div className="flex items-center gap-1">
+                  {isConnected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+                  {isConnected ? 'Live Updates' : 'Offline'}
+                </div>
+              </Badge>
+            </div>
           </div>
-          <Badge variant="secondary" className="px-2 py-1 bg-white/20 text-white border-white/30 text-xs">
-            {data.length} Active
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="px-2 py-1 bg-white/20 text-white border-white/30 text-xs">
+              {sessions.filter(s => !s.isRevoked).length} Active
+            </Badge>
+
+            {/* Refresh Button */}
+            {onRefresh && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 px-2 text-xs bg-white/10 border-white/30 text-white hover:bg-white/20"
+                onClick={onRefresh}
+              >
+                <RefreshCw className="h-3 w-3 mr-1" />
+                Refresh
+              </Button>
+            )}
+
+            {/* Action Buttons */}
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2 text-xs bg-white/10 border-white/30 text-white hover:bg-white/20"
+              onClick={handlePing}
+              disabled={!isConnected}
+            >
+              Ping
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2 text-xs bg-white/10 border-white/30 text-white hover:bg-white/20"
+              onClick={handleLogoutOtherDevices}
+              disabled={!isConnected || sessions.filter(s => !s.isRevoked).length <= 1}
+            >
+              <Shield className="h-3 w-3 mr-1" />
+              Logout Others
+            </Button>
+          </div>
         </div>
       </CardHeader>
 
       <CardContent className="p-0">
+        {/* Connection Status Banner */}
+        {!isConnected && (
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800 p-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                <span className="text-xs text-yellow-700 dark:text-yellow-300">
+                  Disconnected from real-time updates
+                </span>
+              </div>
+              {onRefresh && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-5 px-2 text-xs text-yellow-700 dark:text-yellow-300 hover:bg-yellow-100 dark:hover:bg-yellow-800/30"
+                  onClick={onRefresh}
+                >
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                  Retry
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Desktop Table View */}
         <div className="hidden md:block">
           <Table>
@@ -565,14 +675,9 @@ export default function SessionListTable({ sessions, isLoading }: SessionListPro
                     Device
                   </div>
                 </TableHead>
-                {/* <TableHead className="py-2">
-                  <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400 text-xs">
-                    Status
-                  </div>
-                </TableHead> */}
                 <TableHead className="py-2">
                   <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400 text-xs">
-                    Sesion & Broadcast Status
+                    Session & Notification Status
                   </div>
                 </TableHead>
                 <TableHead className="py-2">
@@ -599,15 +704,28 @@ export default function SessionListTable({ sessions, isLoading }: SessionListPro
           ))}
         </div>
 
-        {data.length === 0 && (
+        {sessions.length === 0 && !isLoading && (
           <div className="text-center py-8">
             <div className="text-gray-400 dark:text-gray-500 mb-2">
               <Monitor className="h-12 w-12 mx-auto mb-2 opacity-40" />
             </div>
             <p className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-1">No active sessions</p>
             <p className="text-gray-400 dark:text-gray-500 text-xs">
-              No active sessions to display
+              {isConnected ? 'Waiting for session data...' : 'Connect to server to see sessions'}
             </p>
+            <div className="flex gap-2 justify-center mt-3">
+              {onRefresh && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                  onClick={onRefresh}
+                >
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                  Refresh
+                </Button>
+              )}
+            </div>
           </div>
         )}
       </CardContent>
@@ -621,7 +739,7 @@ export default function SessionListTable({ sessions, isLoading }: SessionListPro
   );
 }
 
-// More Compact Skeleton Loader
+// Skeleton Loader
 function SessionListSkeleton() {
   return (
     <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-gray-50/50 dark:from-gray-900 dark:to-gray-950/50 backdrop-blur-sm">

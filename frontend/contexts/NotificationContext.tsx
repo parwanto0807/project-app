@@ -46,6 +46,7 @@ interface NotificationContextType {
   loadFromServer: () => Promise<void>;
   syncWithServer: () => Promise<void>;
   refreshNotifications: () => Promise<void>;
+  stopAllNotificationOperations: () => void; // 🔥 NEW
 }
 
 const NotificationContext = createContext<
@@ -56,10 +57,49 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const hasInitialLoad = useRef(false);
+  const isMountedRef = useRef(true);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // 🔥 NEW: Flags untuk kontrol
+  const shouldSkipOperationsRef = useRef(false);
+  const logoutInProgressRef = useRef(false);
+
+  // 🔥 NEW: Function untuk stop semua operations
+  const stopAllNotificationOperations = useCallback(() => {
+    console.log('[Notifications] 🛑 Stopping all operations');
+
+    logoutInProgressRef.current = true;
+    shouldSkipOperationsRef.current = true;
+
+    // Clear polling interval
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+
+    // Clear state
+    setNotifications([]);
+    setIsLoading(false);
+
+    // Auto reset setelah 30 detik
+    setTimeout(() => {
+      logoutInProgressRef.current = false;
+      shouldSkipOperationsRef.current = false;
+    }, 30000);
+  }, []);
+
+  // 🔥 NEW: Function untuk cek apakah boleh operasi
+  const shouldProceed = useCallback(() => {
+    return (
+      isMountedRef.current &&
+      !logoutInProgressRef.current &&
+      !shouldSkipOperationsRef.current &&
+      !window.location.pathname.includes('/auth/login')
+    );
+  }, []);
 
   const convertApiToLocalNotification = useCallback(
     (apiNotif: ApiNotification): Notification => ({
-      // make sure required fields exist; provide safe defaults
       id: apiNotif.id ?? `srv-${Date.now()}`,
       userId: apiNotif.userId ?? "",
       title: apiNotif.title ?? "",
@@ -99,37 +139,69 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   }, []);
 
-  // ----------------- FIXED: removed early-return guard -----------------
+  // 🔥 PERBAIKAN: loadFromServer dengan auth check
   const loadFromServer = useCallback(async () => {
-    // previously there was: if (isLoading) return; <-- this blocks first load since isLoading initial true
+    // 🔥 SKIP JIKA SEDANG LOGOUT ATAU DI LOGIN PAGE
+    if (!shouldProceed()) {
+      console.log('[Notifications] ⏸️ Skipping load - logout in progress or on login page');
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
-      // console.log("🔄 [Notifications] fetching from server...");
+      console.log("🔄 [Notifications] fetching from server...");
       const serverData = await getNotifications({ limit: 100 });
-      // console.log("📥 [Notifications] raw server response:", serverData);
+
+      // 🔥 CHECK: Jika unauthorized, stop operations
+      if (serverData === null || (Array.isArray(serverData) && serverData.length === 0)) {
+        console.log('[Notifications] ⚠️ Unauthorized or empty response');
+
+        // Clear cache dan stop polling jika unauthorized
+        setNotifications([]);
+        persistToLocalStorage([]);
+
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+
+        setIsLoading(false);
+        return;
+      }
 
       const formatted = serverData.map(convertApiToLocalNotification);
 
       setNotifications(formatted);
       persistToLocalStorage(formatted);
       hasInitialLoad.current = true;
-      // console.log(`✅ [Notifications] loaded ${formatted.length} items from server`);
+
+      console.log(`✅ [Notifications] loaded ${formatted.length} items from server`);
     } catch (err) {
       console.error("❌ [Notifications] Server load error, using cache", err);
-      const cached = loadCacheFallback();
-      setNotifications(cached);
-      hasInitialLoad.current = true;
-      // console.log(`ℹ️ [Notifications] loaded ${cached.length} items from cache`);
+
+      // 🔥 SKIP CACHE JIKA SEDANG LOGOUT
+      if (!logoutInProgressRef.current) {
+        const cached = loadCacheFallback();
+        setNotifications(cached);
+        hasInitialLoad.current = true;
+        console.log(`ℹ️ [Notifications] loaded ${cached.length} items from cache`);
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [convertApiToLocalNotification, loadCacheFallback, persistToLocalStorage]);
+  }, [convertApiToLocalNotification, loadCacheFallback, persistToLocalStorage, shouldProceed]);
 
   const refreshNotifications = useCallback(async () => {
+    // 🔥 SKIP JIKA TIDAK BOLEH
+    if (!shouldProceed()) return;
     await loadFromServer();
-  }, [loadFromServer]);
+  }, [loadFromServer, shouldProceed]);
 
   const updateLocalState = useCallback((updater: (prev: Notification[]) => Notification[]) => {
+    // 🔥 SKIP JIKA SEDANG LOGOUT
+    if (logoutInProgressRef.current) return;
+
     setNotifications((prev) => {
       const updated = updater(prev);
       persistToLocalStorage(updated);
@@ -138,19 +210,30 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, [persistToLocalStorage]);
 
   const addNotification = useCallback((notif: Notification) => {
+    if (!shouldProceed()) return;
+
     updateLocalState((prev) => {
       if (prev.some((n) => n.id === notif.id)) return prev;
       return [notif, ...prev];
     });
-  }, [updateLocalState]);
+  }, [updateLocalState, shouldProceed]);
 
+  // 🔥 PERBAIKAN: syncWithServer dengan proper cleanup
   const syncWithServer = useCallback(async () => {
-    if (!hasInitialLoad.current) return;
+    if (!shouldProceed() || !hasInitialLoad.current) return;
 
-    // console.log("🔁 [Notifications] Syncing with server...");
+    console.log("🔁 [Notifications] Syncing with server...");
 
     try {
       const serverData = await getNotifications({ limit: 100 });
+
+      // 🔥 CHECK: Jika unauthorized, stop sync
+      if (serverData === null) {
+        console.log('[Notifications] ⚠️ Unauthorized during sync');
+        stopAllNotificationOperations();
+        return;
+      }
+
       const formatted = serverData.map(convertApiToLocalNotification);
 
       setNotifications(prev => {
@@ -159,40 +242,86 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           prev.every((n, i) => n.id === formatted[i].id && n.read === formatted[i].read);
 
         if (isEqual) {
-          // console.log("⏸ No state changes → skip update, skip re-render");
-          return prev; // ⛔ prevent infinite re-render
+          return prev;
         }
 
-        // console.log("🔄 Updating state with new server data...");
         persistToLocalStorage(formatted);
         return formatted;
       });
 
-      // console.log("✅ [Notifications] Sync complete");
+      console.log("✅ [Notifications] Sync complete");
     } catch (err) {
       console.error("❌ [Notifications] Sync failed:", err);
+
+      // 🔥 JIKA 401 ERROR, STOP POLLING
+      if (err && typeof err === 'object' && 'response' in err) {
+        const errorWithResponse = err as { response?: { status?: number } };
+        if (errorWithResponse.response?.status === 401) {
+          console.log('[Notifications] 🔒 401 detected, stopping polling');
+          stopAllNotificationOperations();
+        }
+      }
     }
-  }, [convertApiToLocalNotification, persistToLocalStorage]);
+  }, [convertApiToLocalNotification, persistToLocalStorage, shouldProceed, stopAllNotificationOperations]);
 
-
+  // 🔥 PERBAIKAN: useEffect dengan proper cleanup
   useEffect(() => {
-    if (!hasInitialLoad.current) return;
+    isMountedRef.current = true;
+    logoutInProgressRef.current = false;
+    shouldSkipOperationsRef.current = false;
 
+    // 🔥 TUNDA INITIAL LOAD - tunggu auth check selesai
+    const initialLoadTimer = setTimeout(() => {
+      if (isMountedRef.current && !hasInitialLoad.current) {
+        loadFromServer();
+      }
+    }, 1000); // Delay 1 detik
+
+    // Setup polling hanya jika authenticated
+    const setupPolling = () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+
+      // 🔥 ONLY POLL JIKA BOLEH
+      if (shouldProceed()) {
+        pollingIntervalRef.current = setInterval(() => {
+          if (shouldProceed()) {
+            syncWithServer();
+          }
+        }, 60000); // 1 menit
+      }
+    };
+
+    // Visibility change handler
     const handleVisibility = () => {
-      if (!document.hidden) syncWithServer();
+      if (!document.hidden && shouldProceed()) {
+        syncWithServer();
+      }
     };
 
     document.addEventListener("visibilitychange", handleVisibility);
 
-    const interval = setInterval(syncWithServer, 60000);
+    // Setup polling setelah delay
+    const pollingTimer = setTimeout(setupPolling, 2000);
 
     return () => {
+      isMountedRef.current = false;
+      clearTimeout(initialLoadTimer);
+      clearTimeout(pollingTimer);
+
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+
       document.removeEventListener("visibilitychange", handleVisibility);
-      clearInterval(interval);
     };
-  }, [syncWithServer]);
+  }, [loadFromServer, syncWithServer, shouldProceed]);
 
   const markAsRead = useCallback(async (id: string) => {
+    if (!shouldProceed()) return;
+
     updateLocalState((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
@@ -201,13 +330,18 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       const success = await markNotificationsAsRead([id]);
       if (!success) throw new Error();
     } catch {
-      updateLocalState((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, read: false } : n))
-      );
+      // Rollback hanya jika masih mounted dan tidak logout
+      if (isMountedRef.current && !logoutInProgressRef.current) {
+        updateLocalState((prev) =>
+          prev.map((n) => (n.id === id ? { ...n, read: false } : n))
+        );
+      }
     }
-  }, [updateLocalState]);
+  }, [updateLocalState, shouldProceed]);
 
   const markAllAsRead = useCallback(async () => {
+    if (!shouldProceed()) return;
+
     updateLocalState((prev) => prev.map((n) => ({ ...n, read: true })));
 
     try {
@@ -216,9 +350,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     } catch {
       await loadFromServer();
     }
-  }, [updateLocalState, loadFromServer]);
+  }, [updateLocalState, loadFromServer, shouldProceed]);
 
   const clearAll = useCallback(async () => {
+    if (!shouldProceed()) return;
+
     updateLocalState(() => []);
 
     try {
@@ -227,34 +363,56 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     } catch {
       await loadFromServer();
     }
-  }, [updateLocalState, loadFromServer]);
+  }, [updateLocalState, loadFromServer, shouldProceed]);
 
+  // 🔥 LISTENER UNTUK LOGOUT EVENT
   useEffect(() => {
-    if (!hasInitialLoad.current) {
-      loadFromServer();
-    }
-  }, [loadFromServer]);
+    const handleLogout = () => {
+      console.log('[Notifications] Received logout event');
+      stopAllNotificationOperations();
+    };
+
+    // Listen untuk custom logout event
+    window.addEventListener('app:logout', handleLogout);
+
+    return () => {
+      window.removeEventListener('app:logout', handleLogout);
+    };
+  }, [stopAllNotificationOperations]);
 
   const unreadCount = useMemo(
     () => notifications.filter((n) => !n.read).length,
     [notifications]
   );
 
+  const value = useMemo(() => ({
+    notifications,
+    unreadCount,
+    isLoading,
+    addNotification,
+    markAsRead,
+    markAllAsRead,
+    clearAll,
+    loadFromServer,
+    syncWithServer,
+    refreshNotifications,
+    stopAllNotificationOperations, // 🔥 EXPORT
+  }), [
+    notifications,
+    unreadCount,
+    isLoading,
+    addNotification,
+    markAsRead,
+    markAllAsRead,
+    clearAll,
+    loadFromServer,
+    syncWithServer,
+    refreshNotifications,
+    stopAllNotificationOperations,
+  ]);
+
   return (
-    <NotificationContext.Provider
-      value={{
-        notifications,
-        unreadCount,
-        isLoading,
-        addNotification,
-        markAsRead,
-        markAllAsRead,
-        clearAll,
-        loadFromServer,
-        syncWithServer,
-        refreshNotifications,
-      }}
-    >
+    <NotificationContext.Provider value={value}>
       {children}
     </NotificationContext.Provider>
   );
