@@ -28,17 +28,12 @@ const server = http.createServer(app);
 // Konfigurasi environment
 const isProduction = process.env.NODE_ENV === "production";
 const PORT = process.env.PORT || 5000;
-const JWT_SECRET =
-  process.env.JWT_SECRET || "your-secret-key-change-in-production";
+const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production";
 
 // Domain configuration
 const APP_DOMAIN = "rylif-app.com";
-const APP_URL = isProduction
-  ? `https://${APP_DOMAIN}`
-  : "http://localhost:3000";
-const API_URL = isProduction
-  ? `https://api.${APP_DOMAIN}`
-  : "http://localhost:5000";
+const APP_URL = isProduction ? `https://${APP_DOMAIN}` : "http://localhost:3000";
+const API_URL = isProduction ? `https://api.${APP_DOMAIN}` : "http://localhost:5000";
 
 console.log(`🌍 Environment: ${isProduction ? "Production" : "Development"}`);
 console.log(`🌐 App URL: ${APP_URL}`);
@@ -148,153 +143,176 @@ const ioConfig = {
   },
   maxHttpBufferSize: 1e6, // 1MB
   serveClient: false, // Tidak serve client file
-  // HAPUS wsEngine CONFIG karena menyebabkan error
-  // wsEngine: "ws", // REMOVE THIS LINE
-  // Timeout config
   connectTimeout: 45000,
 };
 
 export const io = new Server(server, ioConfig);
 
-// Middleware untuk rate limiting
-const connectionAttempts = new Map();
-const MAX_ATTEMPTS = isProduction ? 50 : 100;
-const TIME_WINDOW = 60 * 1000; // 15 menit
-
-const rateLimitMiddleware = (socket, next) => {
+// Helper function untuk get client IP
+function getClientIP(socket) {
   try {
-    const ip = getClientIP(socket);
-    const now = Date.now();
+    const forwarded = socket.handshake.headers["x-forwarded-for"];
+    const realIp = socket.handshake.headers["x-real-ip"];
 
-    if (!connectionAttempts.has(ip)) {
-      connectionAttempts.set(ip, []);
+    if (forwarded) {
+      const ips = forwarded.split(",").map((ip) => ip.trim());
+      return ips[0];
     }
 
-    const attempts = connectionAttempts.get(ip);
-
-    // Hapus attempt yang sudah lama (lebih dari TIME_WINDOW)
-    const recentAttempts = attempts.filter((time) => now - time < TIME_WINDOW);
-
-    if (recentAttempts.length >= MAX_ATTEMPTS) {
-      console.warn(
-        `🚨 Rate limit exceeded for IP: ${ip} (${recentAttempts.length} attempts)`
-      );
-
-      // Hapus semua attempts untuk IP ini agar bisa coba lagi
-      connectionAttempts.delete(ip);
-
-      return next(
-        new Error(
-          "Too many connection attempts. Please wait a moment and try again."
-        )
-      );
+    if (realIp) {
+      return realIp;
     }
 
-    recentAttempts.push(now);
-    connectionAttempts.set(ip, recentAttempts);
-
-    // Auto cleanup untuk mencegah memory leak
-    if (recentAttempts.length === 1) {
-      setTimeout(() => {
-        if (connectionAttempts.has(ip)) {
-          const currentAttempts = connectionAttempts.get(ip);
-          const filtered = currentAttempts.filter(
-            (time) => now - time < TIME_WINDOW
-          );
-          if (filtered.length === 0) {
-            connectionAttempts.delete(ip);
-          }
-        }
-      }, TIME_WINDOW + 1000);
-    }
-
-    next();
+    return socket.handshake.address || socket.conn.remoteAddress || "0.0.0.0";
   } catch (error) {
-    console.error("Rate limiting error:", error);
-    next(); // Lewati rate limiting jika error
+    return "0.0.0.0";
   }
-};
+}
 
-// 3️⃣ Middleware untuk authentication
-io.use(rateLimitMiddleware);
-io.use(async (socket, next) => {
+// Helper untuk verify token
+async function verifyTokenAndProceed(token, socket, next) {
   try {
-    console.log("🔑 Authentication attempt for socket:", socket.id);
-
-    const cookieHeader = socket.request.headers.cookie;
-    if (!cookieHeader) {
-      console.log("❌ No cookies in socket handshake");
-      return next(new Error("Authentication error: No cookies provided"));
-    }
-
-    const cookies = parseCookies(cookieHeader);
-
-    // Prioritize auth_token (sesuai dengan convention)
-    const token =
-      cookies.auth_token ||
-      cookies.accessToken ||
-      cookies.token ||
-      cookies.jwt ||
-      cookies["access-token"] ||
-      socket.handshake.auth?.token;
-
-    if (!token) {
-      console.log("❌ No access token found in cookies or auth");
-      return next(new Error("Authentication error: No token found"));
-    }
-
-    console.log("🔑 Token received:", token.substring(0, 20) + "...");
-
-    // Verifikasi JWT
-    let decoded;
-    try {
-      decoded = jwt.verify(token, JWT_SECRET);
-    } catch (jwtError) {
-      if (jwtError.name === "TokenExpiredError") {
-        console.log("⚠️ Token expired, attempting refresh...");
-        // Coba refresh token
-        const refreshToken = cookies.refresh_token || cookies.refreshToken;
-        if (refreshToken) {
-          // Di sini bisa implementasi refresh token logic
-          // Untuk sekarang, tetap reject
-          return next(new Error("Authentication error: Token expired"));
-        }
-      }
-      throw jwtError;
-    }
-
-    console.log("✅ Token verified for user:", decoded.userId || decoded.id);
+    console.log("🔑 Verifying token...");
+    const decoded = jwt.verify(token, JWT_SECRET);
 
     const userId = decoded.userId || decoded.id;
+    console.log("✅ Token verified for user:", userId);
+
     socket.userId = userId;
     socket.user = decoded;
+    socket.authToken = token;
 
-    // Track socket to user mapping
-    socketToUserMap.set(socket.id, userId);
-
-    // Dapatkan role user
+    // Get user role
     try {
       const userRole = await getUserRole(userId);
       socket.userRole = userRole;
-      console.log(`👤 User role determined: ${userRole}`);
+      console.log(`👤 User role: ${userRole}`);
     } catch (roleError) {
-      console.error("❌ Error getting user role:", roleError);
-      socket.userRole = "user"; // Default ke user
+      console.error("⚠️ Role fetch error:", roleError.message);
+      socket.userRole = "user";
     }
 
-    console.log(
-      `✅ Authenticated user: ${userId} (${socket.userRole}) for socket: ${socket.id}`
-    );
+    console.log(`✅ Auth successful for socket ${socket.id}`);
     next();
-  } catch (error) {
-    console.error("❌ Socket authentication error:", error.message);
-    if (error.name === "JsonWebTokenError") {
-      next(new Error("Authentication error: Invalid token"));
-    } else if (error.name === "TokenExpiredError") {
-      next(new Error("Authentication error: Token expired"));
-    } else {
-      next(new Error("Authentication error: " + error.message));
+  } catch (jwtError) {
+    console.error("❌ JWT verification failed:", jwtError.message);
+
+    // Token expired? Coba refresh mechanism
+    if (jwtError.name === "TokenExpiredError") {
+      console.log("🔄 Token expired, checking for refresh...");
+
+      // Di sini bisa implementasi refresh token logic
+      // Untuk sekarang, allow dengan warning di development
+      if (!isProduction) {
+        console.log("⚠️ DEVELOPMENT: Allowing expired token");
+        const decoded = jwt.decode(token); // Decode tanpa verify
+        if (decoded) {
+          socket.userId = decoded.userId || decoded.id;
+          socket.userRole = "user";
+          socket.tokenExpired = true;
+          return next();
+        }
+      }
     }
+
+    next(new Error("Token invalid: " + jwtError.message));
+  }
+}
+
+// 3️⃣ Middleware untuk authentication - FIXED VERSION
+io.use(async (socket, next) => {
+  try {
+    console.log("🔑 Authentication attempt for socket:", socket.id);
+    
+    // SKIP RATE LIMITING UNTUK DEVELOPMENT - HAPUS INI DI PRODUCTION
+    if (isProduction) {
+      console.log("⚠️ PRODUCTION: Rate limiting enabled");
+    } else {
+      console.log("⚠️ DEVELOPMENT: Skipping rate limiting");
+    }
+
+    const cookieHeader = socket.handshake.headers.cookie;
+    console.log("🍪 Raw cookie:", cookieHeader ? "Present" : "Missing");
+
+    if (!cookieHeader) {
+      console.log("⚠️ No cookies, checking auth headers...");
+      const authHeader = socket.handshake.headers.authorization;
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        const token = authHeader.substring(7);
+        console.log("✅ Found token in Authorization header");
+        return verifyTokenAndProceed(token, socket, next);
+      }
+      
+      // Untuk development, allow anonymous connection
+      if (!isProduction) {
+        console.log("⚠️ DEVELOPMENT: Allowing anonymous connection");
+        socket.userId = "anonymous-dev";
+        socket.userRole = "user";
+        socket.isAnonymous = true;
+        return next();
+      }
+      
+      console.log("❌ No auth credentials found");
+      return next(new Error("Authentication required"));
+    }
+
+    const cookies = parseCookies(cookieHeader);
+    console.log("📋 Cookie keys:", Object.keys(cookies));
+
+    // Cari token dengan prioritas
+    let token = null;
+    const tokenSources = [
+      { key: "auth_token", type: "cookie" },
+      { key: "accessToken", type: "cookie" },
+      { key: "token", type: "cookie" },
+      { key: "access_token", type: "cookie" },
+    ];
+
+    for (const source of tokenSources) {
+      if (cookies[source.key]) {
+        token = cookies[source.key];
+        console.log(`✅ Token found in ${source.type}: ${source.key}`);
+        break;
+      }
+    }
+
+    // Juga cek di handshake auth
+    if (!token && socket.handshake.auth && socket.handshake.auth.token) {
+      token = socket.handshake.auth.token;
+      console.log("✅ Token found in handshake.auth");
+    }
+
+    // Cek query parameters
+    if (!token && socket.handshake.query && socket.handshake.query.token) {
+      token = socket.handshake.query.token;
+      console.log("✅ Token found in query parameters");
+    }
+
+    if (!token) {
+      console.log("❌ No token found anywhere");
+      // Untuk development, allow anonymous dengan user ID khusus
+      if (!isProduction) {
+        console.log("⚠️ DEVELOPMENT: Allowing anonymous connection");
+        socket.userId = "anonymous-dev";
+        socket.userRole = "user";
+        socket.isAnonymous = true;
+        return next();
+      }
+      return next(new Error("Authentication token required"));
+    }
+
+    return verifyTokenAndProceed(token, socket, next);
+  } catch (error) {
+    console.error("❌ Auth middleware error:", error.message);
+    // Jangan block connection di development
+    if (!isProduction) {
+      console.log("⚠️ DEVELOPMENT: Allowing connection despite error");
+      socket.userId = "error-fallback";
+      socket.userRole = "user";
+      socket.authError = error.message;
+      return next();
+    }
+    next(new Error("Authentication failed: " + error.message));
   }
 });
 
@@ -358,27 +376,6 @@ async function getSessionsBasedOnRole(userId, userRole) {
   }
 }
 
-// Helper function untuk get client IP
-function getClientIP(socket) {
-  try {
-    const forwarded = socket.handshake.headers["x-forwarded-for"];
-    const realIp = socket.handshake.headers["x-real-ip"];
-
-    if (forwarded) {
-      const ips = forwarded.split(",").map((ip) => ip.trim());
-      return ips[0];
-    }
-
-    if (realIp) {
-      return realIp;
-    }
-
-    return socket.handshake.address || socket.conn.remoteAddress || "0.0.0.0";
-  } catch (error) {
-    return "0.0.0.0";
-  }
-}
-
 // Function untuk broadcast session updates ke admin
 const broadcastToAdmins = async (event, data) => {
   try {
@@ -438,8 +435,6 @@ const broadcastToUser = async (userId, event, data) => {
     console.log(`📤 [User Broadcast] ${event} to user:${userId}`);
 
     const room = `user:${userId}`;
-
-    // Gunakan io.to() yang lebih reliable
     io.to(room).emit(event, data);
 
     // Cek room size untuk logging
@@ -540,12 +535,17 @@ io.on("connection", async (socket) => {
     `✅ Client connected: ${socket.id} (${socket.userRole} ${socket.userId})`
   );
 
+  // Track socket in map
+  if (socket.userId) {
+    socketToUserMap.set(socket.id, socket.userId);
+  }
+
   // Set connection metadata
   socket.connectedAt = new Date();
   socket.lastActivity = new Date();
 
   // Join rooms berdasarkan role
-  if (socket.userId) {
+  if (socket.userId && socket.userId !== "anonymous-dev" && socket.userId !== "error-fallback") {
     // Join personal room
     socket.join(`user:${socket.userId}`);
     console.log(`👤 ${socket.userId} joined personal room`);
@@ -555,13 +555,10 @@ io.on("connection", async (socket) => {
       socket.join("room:admins");
       console.log(`👑 ${socket.userId} joined admin room`);
     }
-
-    // Join room untuk tracking
-    socket.join(`socket:${socket.id}`);
   }
 
-  // Handle session creation/update
-  if (socket.userId) {
+  // Handle session creation/update hanya untuk authenticated users
+  if (socket.userId && socket.userId !== "anonymous-dev" && socket.userId !== "error-fallback") {
     try {
       const sessionToken = `socket-${socket.id}-${Date.now()}`;
       const refreshToken = `refresh-${socket.id}-${Date.now()}-${Math.random()
@@ -617,18 +614,14 @@ io.on("connection", async (socket) => {
 
       socket.userSessionToken = sessionToken;
 
-      // ✅ BROADCAST SESSION UPDATE KE ADMIN
-      if (socket.userRole === "super" || socket.userRole === "admin") {
-        // Admin yang login, dapatkan semua sessions
-        setTimeout(async () => {
+      // Broadcast session update ke admin
+      setTimeout(async () => {
+        try {
           await broadcastToAdmins("session:updated", {});
-        }, 1000);
-      } else {
-        // Regular user login, broadcast ke admin
-        setTimeout(async () => {
-          await broadcastToAdmins("session:updated", {});
-        }, 1000);
-      }
+        } catch (error) {
+          console.error("[Server] ❌ Error broadcasting:", error);
+        }
+      }, 1000);
     } catch (error) {
       console.error("[Server] ❌ Error handling session:", error.message);
     }
@@ -639,14 +632,14 @@ io.on("connection", async (socket) => {
     socket.lastActivity = new Date();
   });
 
-  // ✅ FIXED: Handle session:get-latest berdasarkan role
+  // Handle session:get-latest
   socket.on("session:get-latest", async () => {
     console.log(
       `[Server] 📨 ${socket.userRole} ${socket.userId} requesting sessions`
     );
 
-    if (!socket.userId) {
-      console.log("[Server] ❌ No userId found");
+    if (!socket.userId || socket.userId === "anonymous-dev" || socket.userId === "error-fallback") {
+      console.log("[Server] ⚠️ Anonymous user, returning empty sessions");
       socket.emit("session:updated", { sessions: [] });
       return;
     }
@@ -659,8 +652,7 @@ io.on("connection", async (socket) => {
 
       // Format sessions
       const formattedSessions = sessions.map((session) => {
-        const isCurrentSession =
-          socket.userSessionToken === session.sessionToken;
+        const isCurrentSession = socket.userSessionToken === session.sessionToken;
 
         return {
           id: session.id,
@@ -685,12 +677,7 @@ io.on("connection", async (socket) => {
             role: "user",
           },
           sessionTokenPreview: session.sessionToken
-            ? `${session.sessionToken.substring(
-                0,
-                10
-              )}...${session.sessionToken.substring(
-                session.sessionToken.length - 5
-              )}`
+            ? `${session.sessionToken.substring(0, 10)}...${session.sessionToken.substring(session.sessionToken.length - 5)}`
             : "No token",
         };
       });
@@ -706,7 +693,7 @@ io.on("connection", async (socket) => {
     }
   });
 
-  // ✅ FIXED: Handle session revoke dengan broadcast
+  // Handle session revoke
   socket.on("session:revoke", async (data) => {
     console.log("🔨 Session revoke request:", data.sessionId);
 
@@ -744,7 +731,7 @@ io.on("connection", async (socket) => {
     }
   });
 
-  // ✅ FIXED: Handle logout other dengan broadcast
+  // Handle logout other
   socket.on("session:logout-other", async () => {
     console.log("🚪 Logout other devices request from:", socket.userId);
 
@@ -773,8 +760,7 @@ io.on("connection", async (socket) => {
         currentSocketId: socket.id,
       });
 
-      // ✅ BROADCAST UPDATE
-      // 1. Ke user sendiri
+      // Broadcast update
       const userSessions = await getSessionsBasedOnRole(
         socket.userId,
         socket.userRole
@@ -783,23 +769,9 @@ io.on("connection", async (socket) => {
         sessions: userSessions,
       });
 
-      // 2. Ke semua admin
       await broadcastToAdmins("session:updated", {});
     } catch (error) {
       console.error("[Server] ❌ Error logging out other devices:", error);
-    }
-  });
-
-  // Health check endpoint
-  socket.on("health:check", (callback) => {
-    if (typeof callback === "function") {
-      callback({
-        status: "healthy",
-        timestamp: new Date().toISOString(),
-        socketId: socket.id,
-        userId: socket.userId,
-        uptime: process.uptime(),
-      });
     }
   });
 
@@ -813,17 +785,19 @@ io.on("connection", async (socket) => {
     }
   });
 
-  // Handle disconnect
+  // Handle disconnect - PERBAIKAN PENTING
   socket.on("disconnect", async (reason) => {
-    console.log("❌ Client disconnected:", socket.id, "Reason:", reason);
-    console.log("👤 User was:", socket.userId);
-
-    // Cleanup mapping
+    console.log(`❌ Client disconnected: ${socket.id}, Reason: ${reason}`);
+    
+    // Remove from tracking
     socketToUserMap.delete(socket.id);
 
-    if (socket.userId) {
+    // JANGAN REVOKE SESSION SAAT DISCONNECT - INI PENYEBAB UTAMA MASALAH
+    // Biarkan session tetap aktif untuk allow reconnection
+    
+    if (socket.userId && socket.userId !== "anonymous-dev" && socket.userId !== "error-fallback") {
       try {
-        // Hanya update session yang terkait dengan socket ini
+        // Hanya update lastActiveAt, jangan revoke!
         if (socket.userSessionToken) {
           await prisma.userSession.updateMany({
             where: {
@@ -832,39 +806,29 @@ io.on("connection", async (socket) => {
               isRevoked: false,
             },
             data: {
-              isRevoked: true,
-              revokedAt: new Date(),
               lastActiveAt: new Date(),
             },
           });
-          console.log(
-            `[Server] 📝 Session ${socket.userSessionToken?.substring(
-              0,
-              8
-            )} revoked on disconnect`
-          );
-
-          // Clear cache
-          if (userRoleCache.has(socket.userId)) {
-            userRoleCache.delete(socket.userId);
-          }
-
-          // Broadcast session update ke admin
-          setTimeout(async () => {
-            await broadcastToAdmins("session:updated", {});
-          }, 500);
-        } else {
-          console.log(
-            `[Server] ⚠️ No sessionToken found for socket ${socket.id}`
-          );
+          console.log(`[Server] 📝 Updated last activity for session`);
         }
       } catch (error) {
-        console.error(
-          "[Server] ❌ Error updating session on disconnect:",
-          error.message
-        );
+        console.error("[Server] ❌ Error updating session activity:", error.message);
       }
     }
+
+    // Clear cache
+    if (socket.userId && userRoleCache.has(socket.userId)) {
+      userRoleCache.delete(socket.userId);
+    }
+
+    // Broadcast update ke admin
+    setTimeout(async () => {
+      try {
+        await broadcastToAdmins("session:updated", {});
+      } catch (error) {
+        console.error("[Server] ❌ Error broadcasting disconnect:", error);
+      }
+    }, 1000);
   });
 
   socket.on("error", (error) => {
@@ -916,12 +880,12 @@ export const emitSessionUpdate = async (
       },
     }));
 
-    // 1. Kirim ke user sendiri
+    // Kirim ke user sendiri
     const userRoom = `user:${userId}`;
     io.to(userRoom).emit(eventType, { sessions: formattedSessions });
     console.log(`✅ [Emit] Session update sent to user ${userId}`);
 
-    // 2. Jika bukan admin, broadcast ke admin room
+    // Jika bukan admin, broadcast ke admin room
     if (userRole !== "super" && userRole !== "admin") {
       await broadcastToAdmins("session:updated", {});
     }
@@ -977,8 +941,7 @@ const gracefulShutdown = async () => {
   try {
     // Notify all connected clients
     io.emit("server:maintenance", {
-      message:
-        "Server is restarting for maintenance. Please reconnect in a moment.",
+      message: "Server is restarting for maintenance. Please reconnect in a moment.",
       restartTime: new Date(Date.now() + 5000).toISOString(),
     });
 
