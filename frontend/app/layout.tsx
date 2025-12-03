@@ -96,9 +96,7 @@ export default function RootLayout({
             <SocketProvider>
               <NotificationProvider>
                 {children}
-
                 <FCMInitializer />
-
                 <PWAInstallPrompt />
               </NotificationProvider>
             </SocketProvider>

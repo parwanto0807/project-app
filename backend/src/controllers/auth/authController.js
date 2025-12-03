@@ -63,81 +63,64 @@ const generateRefreshToken = (user) => {
   );
 };
 
-export async function createUserSession(user, req) {
+async function createUserSession(user, req) {
   console.log("USER SESSION CREATE");
-
   try {
     const ipAddress =
       req.headers["x-forwarded-for"]?.split(",")[0] || req.socket.remoteAddress;
     const userAgent = req.headers["user-agent"] || "Unknown";
 
+    // ✅ Validasi user data
     if (!user?.id) {
       throw new Error("Invalid user data for session creation");
     }
 
-    // =========================
-    // 0. CEK DAN REVOKE SESSION AKTIF
-    // =========================
-    const activeSessions = await prisma.userSession.findMany({
-      where: {
-        userId: user.id,
-        isRevoked: false,
-      },
-    });
-
-    if (activeSessions.length > 0) {
-      console.log(
-        `⚠️ [SESSION] User ${user.id} masih memiliki session aktif, revoking...`
-      );
-
-      // Update semua session aktif menjadi revoked
-      await prisma.userSession.updateMany({
-        where: { userId: user.id, isRevoked: false },
-        data: { isRevoked: true, revokedAt: new Date() },
-      });
-
-      console.log(
-        `✅ [SESSION] Semua session aktif user ${user.id} telah di-revoke`
-      );
-    }
-
-    // =========================
-    // 1. DELETE SESSION > 7 HARI / EXPIRED
-    // =========================
+    // ✅ 1. DELETE SESSIONS YANG SUDAH LEBIH DARI 7 HARI
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
     await prisma.userSession.deleteMany({
       where: {
         userId: user.id,
         OR: [
-          { createdAt: { lt: sevenDaysAgo } },
-          { expiresAt: { lt: new Date() } },
+          {
+            createdAt: { lt: sevenDaysAgo }, // Session lama (> 7 hari)
+          },
+          {
+            expiresAt: { lt: new Date() }, // Session expired
+          },
         ],
       },
     });
 
-    // =========================
-    // 2. INCREMENT TOKEN VERSION
-    // =========================
-    const updatedUser = await prisma.user.update({
-      where: { id: user.id },
-      data: { tokenVersion: { increment: 1 }, lastLoginAt: new Date() },
+    // ✅ 2. REVOKE ALL PREVIOUS SESSIONS YANG MASIH AKTIF
+    await prisma.userSession.updateMany({
+      where: {
+        userId: user.id,
+        isRevoked: false,
+      },
+      data: {
+        isRevoked: true,
+        revokedAt: new Date(),
+      },
     });
 
-    // =========================
-    // 3. GENERATE TOKENS
-    // =========================
+    // ✅ 3. INCREMENT TOKEN VERSION
+    const updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        tokenVersion: { increment: 1 },
+        lastLoginAt: new Date(),
+      },
+    });
+
+    // ✅ 4. GENERATE TOKENS SETELAH INCREMENT
     const accessToken = generateAccessToken(updatedUser);
     const refreshToken = generateRefreshToken(updatedUser);
 
-    // =========================
-    // 4. GENERATE SESSION TOKEN
-    // =========================
+    // ✅ 5. Generate session token
     const sessionToken = crypto.randomBytes(32).toString("hex");
 
-    // =========================
-    // 5. CREATE SESSION BARU
-    // =========================
+    // ✅ 6. CREATE SESSION BARU
     const newSession = await prisma.userSession.create({
       data: {
         userId: updatedUser.id,
@@ -145,38 +128,48 @@ export async function createUserSession(user, req) {
         refreshToken,
         ipAddress: ipAddress?.toString().substring(0, 255) || "Unknown",
         userAgent: userAgent.substring(0, 500),
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 hari dari sekarang
         isRevoked: false,
       },
     });
 
-    // =========================
-    // 6. AMBIL SEMUA SESSION TERBARU
-    // =========================
+    // 🔥 AMBIL DATA SESSION TERBARU UNTUK DIKIRIM
     const sessions = await prisma.userSession.findMany({
       where: { userId: updatedUser.id },
       orderBy: { createdAt: "desc" },
     });
 
-    const formattedSessions = sessions.map((session) => ({
-      id: session.id,
-      createdAt: session.createdAt?.toISOString() || new Date().toISOString(),
-      revokedAt: session.revokedAt?.toISOString() || null,
-      isRevoked: session.isRevoked || false,
-      ipAddress: session.ipAddress || "Unknown",
-      userAgent: session.userAgent || "Unknown",
-      expiresAt:
-        session.expiresAt?.toISOString() ||
-        new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    }));
+    const formattedSessions = sessions.map((session) => {
+      const formatted = {
+        id: session.id,
+        createdAt: session.createdAt
+          ? session.createdAt.toISOString()
+          : new Date().toISOString(),
+        revokedAt: session.revokedAt ? session.revokedAt.toISOString() : null,
+        isRevoked: session.isRevoked || false,
+        ipAddress: session.ipAddress || "Unknown",
+        userAgent: session.userAgent || "Unknown",
+        expiresAt: session.expiresAt
+          ? session.expiresAt.toISOString()
+          : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      };
+
+      console.log(`📋 [Session] Formatted session ${session.id}:`, {
+        id: formatted.id,
+        createdAt: formatted.createdAt,
+        isRevoked: formatted.isRevoked,
+        hasRevokedAt: !!formatted.revokedAt,
+      });
+
+      return formatted;
+    });
 
     console.log(
       `📤 [Session] Emitting ${formattedSessions.length} sessions to user ${updatedUser.id}`
     );
 
-    // =========================
-    // 7. EMIT VIA SOCKET
-    // =========================
+    // 🔥 EMIT KE SEMUA DEVICE USER TERSEBUT
+    // Format sesuai dengan SocketContext
     if (io) {
       const room = `user:${updatedUser.id}`;
       const roomSockets = io.sockets.adapter.rooms.get(room);
@@ -185,15 +178,35 @@ export async function createUserSession(user, req) {
       console.log(`🏠 [Socket] Room ${room} has ${roomSize} connected sockets`);
 
       if (roomSize > 0) {
-        io.to(room).emit("session:updated", { sessions: formattedSessions });
+        // Format yang konsisten dengan SocketContext
+        const emitData = {
+          sessions: formattedSessions,
+        };
+
+        console.log(`📨 [Socket] Emitting session:updated to room ${room}`);
+        console.log(
+          `📦 [Socket] Emit data:`,
+          JSON.stringify(emitData, null, 2)
+        );
+
+        io.to(room).emit("session:updated", emitData);
+
         console.log(
           "✅ [Socket] Session update emitted to user:",
-          updatedUser.id
+          updatedUser.id,
+          `(${roomSize} clients)`
         );
+
+        // DEBUG: Cek socket yang ada di room
+        if (roomSockets) {
+          const socketIds = Array.from(roomSockets);
+          console.log(`👥 [Socket] Sockets in room:`, socketIds);
+        }
       } else {
         console.log(
           `⚠️ [Socket] User ${updatedUser.id} not connected, session update queued`
         );
+        // Anda bisa simpan di database untuk dikirim nanti
       }
     } else {
       console.warn("⚠️ [Socket] io not available, skipping emit");
@@ -1408,15 +1421,24 @@ export const getProfile = async (req, res) => {
 };
 
 export const refreshHandler = async (req, res) => {
+  console.log("🔄 [REFRESH HANDLER] Dimulai");
+
   const token = req.cookies.refreshToken;
 
   if (!token) {
-    return res.status(401).json({ error: "Refresh token missing" });
+    console.log("❌ Refresh token tidak ditemukan");
+    return res.status(401).json({
+      error: "NO_TOKEN",
+      message: "Token tidak ditemukan",
+    });
   }
 
   try {
+    // 1️⃣ VERIFIKASI TOKEN
     const payload = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+    console.log("✅ Token valid, user ID:", payload.userId);
 
+    // 2️⃣ CEK SESSION DALAM DATABASE
     const session = await prisma.userSession.findFirst({
       where: {
         userId: payload.userId,
@@ -1427,32 +1449,50 @@ export const refreshHandler = async (req, res) => {
     });
 
     if (!session) {
-      return res.status(401).json({ error: "Invalid or expired session" });
+      console.log("❌ Session sudah di-revoke atau tidak ada");
+
+      clearAuthCookies(res); // ⬅️ Hapus cookie jika session tidak valid
+
+      return res.status(401).json({
+        error: "SESSION_REVOKED",
+        message: "Akun sedang digunakan di perangkat lain",
+        code: "DEVICE_CONFLICT",
+      });
     }
 
+    // 3️⃣ CEK USER MASIH ADA
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
     });
 
     if (!user) {
-      return res.status(404).json({ error: "User not found" });
+      console.log("❌ User tidak ditemukan di database");
+
+      clearAuthCookies(res); // ⬅️ Hapus cookie bila user tidak ada
+
+      return res.status(404).json({
+        error: "USER_NOT_FOUND",
+        message: "User tidak ditemukan di server",
+      });
     }
 
-    // Generate token baru
+    // 4️⃣ BUAT TOKEN BARU
     const newAccessToken = generateAccessToken(user);
     const newRefreshToken = generateRefreshToken(user);
 
-    // Update session refresh token di DB
+    // 5️⃣ UPDATE SESSION REFRESH TOKEN DI DB
     await prisma.userSession.update({
       where: { id: session.id },
       data: {
         refreshToken: newRefreshToken,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 hari lagi
       },
     });
 
-    // ✅ STANDARDIZED: GUNAKAN setTokenCookies UNTUK KONSISTENSI
+    // 6️⃣ SET COOKIE BARU
     setTokenCookies(res, newAccessToken, newRefreshToken);
+
+    console.log("🔐 Token berhasil diperbarui");
 
     return res.status(200).json({
       success: true,
@@ -1460,15 +1500,22 @@ export const refreshHandler = async (req, res) => {
       message: "Token refreshed successfully",
     });
   } catch (err) {
+    console.error("🔥 [REFRESH ERROR]", err.name, err.message);
+
+    // Hapus cookie untuk error token
+    clearAuthCookies(res);
+
     if (err.name === "TokenExpiredError") {
-      return res.status(401).json({ error: "Refresh token expired" });
+      return res.status(401).json({
+        error: "TOKEN_EXPIRED",
+        message: "Token telah kadaluarsa",
+      });
     }
 
-    if (err.name === "JsonWebTokenError") {
-      return res.status(401).json({ error: "Invalid refresh token" });
-    }
-
-    return res.status(401).json({ error: "Invalid refresh token" });
+    return res.status(401).json({
+      error: "INVALID_REFRESH_TOKEN",
+      message: "Refresh token tidak valid",
+    });
   }
 };
 

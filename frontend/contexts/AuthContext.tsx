@@ -45,7 +45,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const executeRefreshRef = useRef<(() => Promise<boolean>) | null>(null);
     const isMountedRef = useRef(true);
-    const logoutInProgressRef = useRef(false); // 🔥 TAMBAHKAN INI
+    const logoutInProgressRef = useRef(false);
+    const hasRedirectedRef = useRef(false); // 🔹 pastikan redirect hanya sekali
 
     const getCookie = (name: string) => {
         if (typeof document === 'undefined') return null;
@@ -66,12 +67,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             clearTimeout(refreshTimerRef.current);
             refreshTimerRef.current = null;
         }
-        isMountedRef.current = false;
         executeRefreshRef.current = null;
+        isMountedRef.current = false;
     }, []);
 
     const logout = useCallback(async (): Promise<void> => {
-        // 🔥 CEK JIKA SUDAH DALAM PROSES LOGOUT
         if (logoutInProgressRef.current) return;
         logoutInProgressRef.current = true;
 
@@ -85,14 +85,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         clearAuthCookies();
 
-        // 🔥 HAPUS CALL BACKEND LOGOUT JIKA TOKEN SUDAH INVALID
-        // Tidak perlu call logout endpoint jika token sudah 401
-        // Karena akan dapat error lagi
+        if (!hasRedirectedRef.current) {
+            hasRedirectedRef.current = true;
+            router.replace("/auth/login?reason=logout");
+        }
 
-        // Redirect langsung tanpa menunggu
-        router.replace("/auth/login?reason=logout");
-
-        // 🔥 RESET FLAG SETELAH REDIRECT
         setTimeout(() => {
             logoutInProgressRef.current = false;
         }, 1000);
@@ -141,8 +138,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }, []);
 
     const executeRefresh = useCallback(async (): Promise<boolean> => {
-        // 🔥 CEK JIKA SEDANG LOGOUT ATAU TIDAK MOUNTED
-        if (!isMountedRef.current || logoutInProgressRef.current) {
+        // CEK: Jika sudah di halaman unauthorized, JANGAN jalankan refresh
+        if (typeof window !== 'undefined' &&
+            (window.location.pathname === '/unauthorized' ||
+                localStorage.getItem('refreshDisabled') === 'true')) {
+            return false;
+        }
+
+        if (!isMountedRef.current || logoutInProgressRef.current || hasRedirectedRef.current) {
             return false;
         }
 
@@ -155,15 +158,38 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             });
 
             if (res.status === 401) {
-                // 🔥 JANGAN PANGGIL LOGOUT() LAGI - LANGSUNG CLEANUP SAJA
-                cleanup();
+                console.log('[Auth] 401 - Handling unauthorized');
+                const errorData = await res.json().catch(() => ({}));
+
+                // Handle device conflict
+                if (errorData.error === "SESSION_REVOKED" || errorData.code === "DEVICE_CONFLICT") {
+                    console.log('[Auth] 🚫 Device conflict detected!');
+
+                    // 1. Clear semua state dan cookies
+                    cleanup();
+                    clearAuthCookies();
+
+                    // 2. Set flag untuk mencegah loop
+                    if (typeof window !== 'undefined') {
+                        localStorage.setItem('hasDeviceConflict', 'true');
+
+                        // 3. Redirect hanya jika belum di halaman unauthorized
+                        if (window.location.pathname !== '/unauthorized') {
+                            console.log('[Auth] 🔀 Redirecting to /unauthorized');
+                            window.location.href = '/unauthorized';
+                        }
+                    }
+
+                    return false;
+                }
+
+                // Untuk error 401 lainnya
                 if (isMountedRef.current) {
                     setAccessToken(null);
                     setAuthState({ isAuthenticated: false, role: null });
                     setLoading(false);
                 }
-                clearAuthCookies();
-                router.replace("/auth/login?reason=session_expired");
+
                 return false;
             }
 
@@ -187,12 +213,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 });
 
                 scheduleRefreshFromToken(data.accessToken);
+
+                // Clear conflict flag jika berhasil refresh
+                if (typeof window !== 'undefined') {
+                    localStorage.removeItem('hasDeviceConflict');
+                }
             }
 
             return true;
 
-        } catch {
-            // 🔥 JANGAN PANGGIL LOGOUT() - LANGSUNG CLEANUP
+        } catch (error) {
+            console.error('[Auth] Refresh error:', error);
             cleanup();
             if (isMountedRef.current) {
                 setAccessToken(null);
@@ -200,6 +231,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 setLoading(false);
             }
             clearAuthCookies();
+
+            // Hanya redirect jika bukan di halaman unauthorized
+            if (!hasRedirectedRef.current &&
+                typeof window !== 'undefined' &&
+                window.location.pathname !== '/unauthorized') {
+                hasRedirectedRef.current = true;
+                router.replace("/auth/login?reason=session_error");
+            }
             return false;
         }
     }, [setAuth, scheduleRefreshFromToken, cleanup, router]);
@@ -225,7 +264,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const initCheck = useCallback(async () => {
         if (logoutInProgressRef.current) {
-            return setLoading(false);
+            setLoading(false);
+            return;
         }
 
         const tokenReadable = getCookie("accessTokenReadable");
@@ -239,7 +279,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                     role: decoded.role
                 });
                 scheduleRefreshFromToken(tokenReadable);
-                return setLoading(false);
+                setLoading(false);
+                return;
             }
         }
 
@@ -249,13 +290,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setAuthState({ isAuthenticated: false, role: null });
         }
 
-        setLoading(false); // 🔥 PASTIKAN INI HANYA DI SINI
+        setLoading(false);
     }, [executeRefresh, validateAndDecodeToken, setAuth, scheduleRefreshFromToken]);
-
 
     useEffect(() => {
         isMountedRef.current = true;
         logoutInProgressRef.current = false;
+        hasRedirectedRef.current = false;
 
         initCheck();
 
@@ -277,5 +318,4 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             {children}
         </AuthContext.Provider>
     );
-
 };
