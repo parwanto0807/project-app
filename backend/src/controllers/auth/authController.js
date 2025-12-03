@@ -63,64 +63,81 @@ const generateRefreshToken = (user) => {
   );
 };
 
-async function createUserSession(user, req) {
+export async function createUserSession(user, req) {
   console.log("USER SESSION CREATE");
+
   try {
     const ipAddress =
       req.headers["x-forwarded-for"]?.split(",")[0] || req.socket.remoteAddress;
     const userAgent = req.headers["user-agent"] || "Unknown";
 
-    // ✅ Validasi user data
     if (!user?.id) {
       throw new Error("Invalid user data for session creation");
     }
 
-    // ✅ 1. DELETE SESSIONS YANG SUDAH LEBIH DARI 7 HARI
+    // =========================
+    // 0. CEK DAN REVOKE SESSION AKTIF
+    // =========================
+    const activeSessions = await prisma.userSession.findMany({
+      where: {
+        userId: user.id,
+        isRevoked: false,
+      },
+    });
+
+    if (activeSessions.length > 0) {
+      console.log(
+        `⚠️ [SESSION] User ${user.id} masih memiliki session aktif, revoking...`
+      );
+
+      // Update semua session aktif menjadi revoked
+      await prisma.userSession.updateMany({
+        where: { userId: user.id, isRevoked: false },
+        data: { isRevoked: true, revokedAt: new Date() },
+      });
+
+      console.log(
+        `✅ [SESSION] Semua session aktif user ${user.id} telah di-revoke`
+      );
+    }
+
+    // =========================
+    // 1. DELETE SESSION > 7 HARI / EXPIRED
+    // =========================
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
     await prisma.userSession.deleteMany({
       where: {
         userId: user.id,
         OR: [
-          {
-            createdAt: { lt: sevenDaysAgo }, // Session lama (> 7 hari)
-          },
-          {
-            expiresAt: { lt: new Date() }, // Session expired
-          },
+          { createdAt: { lt: sevenDaysAgo } },
+          { expiresAt: { lt: new Date() } },
         ],
       },
     });
 
-    // ✅ 2. REVOKE ALL PREVIOUS SESSIONS YANG MASIH AKTIF
-    await prisma.userSession.updateMany({
-      where: {
-        userId: user.id,
-        isRevoked: false,
-      },
-      data: {
-        isRevoked: true,
-        revokedAt: new Date(),
-      },
-    });
-
-    // ✅ 3. INCREMENT TOKEN VERSION
+    // =========================
+    // 2. INCREMENT TOKEN VERSION
+    // =========================
     const updatedUser = await prisma.user.update({
       where: { id: user.id },
-      data: {
-        tokenVersion: { increment: 1 },
-        lastLoginAt: new Date(),
-      },
+      data: { tokenVersion: { increment: 1 }, lastLoginAt: new Date() },
     });
 
-    // ✅ 4. GENERATE TOKENS SETELAH INCREMENT
+    // =========================
+    // 3. GENERATE TOKENS
+    // =========================
     const accessToken = generateAccessToken(updatedUser);
     const refreshToken = generateRefreshToken(updatedUser);
 
-    // ✅ 5. Generate session token
+    // =========================
+    // 4. GENERATE SESSION TOKEN
+    // =========================
     const sessionToken = crypto.randomBytes(32).toString("hex");
 
-    // ✅ 6. CREATE SESSION BARU
+    // =========================
+    // 5. CREATE SESSION BARU
+    // =========================
     const newSession = await prisma.userSession.create({
       data: {
         userId: updatedUser.id,
@@ -128,48 +145,38 @@ async function createUserSession(user, req) {
         refreshToken,
         ipAddress: ipAddress?.toString().substring(0, 255) || "Unknown",
         userAgent: userAgent.substring(0, 500),
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 hari dari sekarang
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         isRevoked: false,
       },
     });
 
-    // 🔥 AMBIL DATA SESSION TERBARU UNTUK DIKIRIM
+    // =========================
+    // 6. AMBIL SEMUA SESSION TERBARU
+    // =========================
     const sessions = await prisma.userSession.findMany({
       where: { userId: updatedUser.id },
       orderBy: { createdAt: "desc" },
     });
 
-    const formattedSessions = sessions.map((session) => {
-      const formatted = {
-        id: session.id,
-        createdAt: session.createdAt
-          ? session.createdAt.toISOString()
-          : new Date().toISOString(),
-        revokedAt: session.revokedAt ? session.revokedAt.toISOString() : null,
-        isRevoked: session.isRevoked || false,
-        ipAddress: session.ipAddress || "Unknown",
-        userAgent: session.userAgent || "Unknown",
-        expiresAt: session.expiresAt
-          ? session.expiresAt.toISOString()
-          : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      };
-
-      console.log(`📋 [Session] Formatted session ${session.id}:`, {
-        id: formatted.id,
-        createdAt: formatted.createdAt,
-        isRevoked: formatted.isRevoked,
-        hasRevokedAt: !!formatted.revokedAt,
-      });
-
-      return formatted;
-    });
+    const formattedSessions = sessions.map((session) => ({
+      id: session.id,
+      createdAt: session.createdAt?.toISOString() || new Date().toISOString(),
+      revokedAt: session.revokedAt?.toISOString() || null,
+      isRevoked: session.isRevoked || false,
+      ipAddress: session.ipAddress || "Unknown",
+      userAgent: session.userAgent || "Unknown",
+      expiresAt:
+        session.expiresAt?.toISOString() ||
+        new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    }));
 
     console.log(
       `📤 [Session] Emitting ${formattedSessions.length} sessions to user ${updatedUser.id}`
     );
 
-    // 🔥 EMIT KE SEMUA DEVICE USER TERSEBUT
-    // Format sesuai dengan SocketContext
+    // =========================
+    // 7. EMIT VIA SOCKET
+    // =========================
     if (io) {
       const room = `user:${updatedUser.id}`;
       const roomSockets = io.sockets.adapter.rooms.get(room);
@@ -178,35 +185,15 @@ async function createUserSession(user, req) {
       console.log(`🏠 [Socket] Room ${room} has ${roomSize} connected sockets`);
 
       if (roomSize > 0) {
-        // Format yang konsisten dengan SocketContext
-        const emitData = {
-          sessions: formattedSessions,
-        };
-
-        console.log(`📨 [Socket] Emitting session:updated to room ${room}`);
-        console.log(
-          `📦 [Socket] Emit data:`,
-          JSON.stringify(emitData, null, 2)
-        );
-
-        io.to(room).emit("session:updated", emitData);
-
+        io.to(room).emit("session:updated", { sessions: formattedSessions });
         console.log(
           "✅ [Socket] Session update emitted to user:",
-          updatedUser.id,
-          `(${roomSize} clients)`
+          updatedUser.id
         );
-
-        // DEBUG: Cek socket yang ada di room
-        if (roomSockets) {
-          const socketIds = Array.from(roomSockets);
-          console.log(`👥 [Socket] Sockets in room:`, socketIds);
-        }
       } else {
         console.log(
           `⚠️ [Socket] User ${updatedUser.id} not connected, session update queued`
         );
-        // Anda bisa simpan di database untuk dikirim nanti
       }
     } else {
       console.warn("⚠️ [Socket] io not available, skipping emit");
