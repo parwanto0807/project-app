@@ -1608,3 +1608,45 @@ export const getUserLoginProfile = async (req, res) => {
     });
   }
 };
+
+export const authMe = async (req, res) => {
+  try {
+    const token = req.cookies.accessTokenReadable;
+
+    if (!token) {
+      return res.status(401).json({ message: "No token" });
+    }
+
+    // Decode tanpa verify agar tidak error jika expired
+    const decoded = jwt.decode(token);
+
+    if (!decoded || !decoded.userId) {
+      return res.status(401).json({ message: "Invalid token" });
+    }
+
+    const session = await prisma.userSession.findFirst({
+      where: {
+        userId: decoded.userId,
+        isRevoked: false,
+        expiresAt: { gt: new Date() },
+      },
+    });
+
+    if (!session) {
+      return res.status(401).json({ message: "Session expired" });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: { id: true, name: true, email: true, role: true },
+    });
+
+    return res.json({
+      success: true,
+      user,
+    });
+  } catch (error) {
+    console.error("[authMe ERROR]", error);
+    return res.status(500).json({ message: "Internal error" });
+  }
+};

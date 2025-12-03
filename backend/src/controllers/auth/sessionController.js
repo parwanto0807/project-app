@@ -155,3 +155,4 @@ export const updateFcmToken = async (req, res) => {
     });
   }
 };
+

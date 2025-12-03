@@ -15,6 +15,7 @@ import {
   getSessions,
   activateMfaSetup,
   completeMfaSetup,
+  authMe,
 } from "../../controllers/auth/authController.js";
 
 import {
@@ -36,6 +37,8 @@ router.post("/mfa/complete-setup", authenticateToken, completeMfaSetup);
 router.get("/mfa/setup", authenticateToken, setupMFA);
 router.post("/mfa/verify", verifyMFA);
 router.post("/mfa/newVerify", newVerifyMFA);
+
+router.get("/me", authMe);
 
 // 🔐 Google OAuth
 router.get("/google", (req, res) => {

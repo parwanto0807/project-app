@@ -141,117 +141,68 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }, []);
 
     const executeRefresh = useCallback(async (): Promise<boolean> => {
-        // 🔴 CEK APAKAH PERLU SKIP
+        // 🔥 CEK JIKA SEDANG LOGOUT ATAU TIDAK MOUNTED
         if (!isMountedRef.current || logoutInProgressRef.current) {
-            console.log('[Auth] ⏸️ Skipping refresh - logout in progress');
-            return false;
-        }
-
-        // 🔴 CEK APAKAH DI LOGIN PAGE
-        if (window.location.pathname.includes('/auth/login')) {
-            console.log('[Auth] ⏸️ Skipping refresh - on login page');
             return false;
         }
 
         try {
             const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
 
-            console.log('[Auth] 🔄 Attempting token refresh...');
-
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 detik timeout
-
             const res = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
                 method: "POST",
                 credentials: "include",
-                signal: controller.signal,
             });
 
-            clearTimeout(timeoutId);
-
-            // ✅ 401: TOKEN INVALID/EXPIRED
             if (res.status === 401) {
-                console.log('[Auth] ❌ Refresh failed - token invalid (401)');
-
-                // HANYA update state, JANGAN langsung redirect
+                // 🔥 JANGAN PANGGIL LOGOUT() LAGI - LANGSUNG CLEANUP SAJA
+                cleanup();
                 if (isMountedRef.current) {
                     setAccessToken(null);
                     setAuthState({ isAuthenticated: false, role: null });
                     setLoading(false);
                 }
-
-                // ✅ JANGAN hapus cookies di sini - biarkan user logout manual
-                // ✅ JANGAN redirect otomatis - biarkan UI handle
-
+                clearAuthCookies();
+                router.replace("/auth/login?reason=session_expired");
                 return false;
             }
 
-            // ✅ 500, 502, dll: SERVER ERROR
             if (!res.ok) {
-                console.log(`[Auth] ⚠️ Refresh failed with status: ${res.status}`);
-
-                // Untuk server error, jangan ubah auth state
-                // Biarkan user tetap authenticated dengan token lama
                 return false;
             }
 
             const data = await res.json();
 
             if (!data.success || !data.accessToken) {
-                console.log('[Auth] ⚠️ Refresh failed - invalid response format');
                 return false;
             }
 
-            // ✅ SUCCESS
             if (isMountedRef.current) {
                 setAccessToken(data.accessToken);
 
-                try {
-                    const decoded = jwtDecode<{ exp: number; role: string }>(data.accessToken);
-                    setAuth({
-                        isAuthenticated: true,
-                        role: decoded.role
-                    });
+                const decoded = jwtDecode<{ exp: number; role: string }>(data.accessToken);
+                setAuth({
+                    isAuthenticated: true,
+                    role: decoded.role
+                });
 
-                    scheduleRefreshFromToken(data.accessToken);
-                } catch (decodeError) {
-                    console.error('[Auth] Failed to decode token:', decodeError);
-                    return false;
-                }
-
-                console.log('[Auth] ✅ Token refreshed successfully');
+                scheduleRefreshFromToken(data.accessToken);
             }
 
             return true;
 
-        } catch (error: unknown) {
-            // ✅ HANDLE BERBAGAI JENIS ERROR DENGAN BEDA CARA
-
-            // 1. ABORT ERROR (timeout/user action)
-            if (error instanceof Error && error.name === 'AbortError') {
-                console.log('[Auth] ⏹️ Refresh aborted (timeout/user action)');
-                return false;
+        } catch {
+            // 🔥 JANGAN PANGGIL LOGOUT() - LANGSUNG CLEANUP
+            cleanup();
+            if (isMountedRef.current) {
+                setAccessToken(null);
+                setAuthState({ isAuthenticated: false, role: null });
+                setLoading(false);
             }
-
-            // 2. NETWORK ERROR (no internet, CORS, dll)
-            if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-                console.log('[Auth] 🌐 Network error during refresh');
-                // Jangan ubah state - biarkan user tetap dengan token lama
-                return false;
-            }
-
-            // 3. UNKNOWN ERROR
-            console.error('[Auth] ❌ Unknown error during refresh:', error);
-
-            // Untuk unknown error, tetap jangan logout user
-            // Hanya return false, biarkan sistem lain handle
+            clearAuthCookies();
             return false;
-
-            // ❌ JANGAN PANGGIL cleanup() di sini!
-            // ❌ JANGAN hapus cookies!
-            // ❌ JANGAN redirect!
         }
-    }, [setAuth, scheduleRefreshFromToken]); // ✅ HAPUS cleanup dan router dari dependencies
+    }, [setAuth, scheduleRefreshFromToken, cleanup, router]);
 
     useEffect(() => {
         executeRefreshRef.current = executeRefresh;
