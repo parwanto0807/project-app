@@ -5,6 +5,7 @@ import http from "http";
 import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
 import { prisma } from "../src/config/db.js";
+// import sessionCleanupJob from './config/sessionCleanUp.js';
 
 // Helper function untuk parse cookies
 const parseCookies = (cookieHeader) => {
@@ -28,12 +29,17 @@ const server = http.createServer(app);
 // Konfigurasi environment
 const isProduction = process.env.NODE_ENV === "production";
 const PORT = process.env.PORT || 5000;
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production";
+const JWT_SECRET =
+  process.env.JWT_SECRET || "your-secret-key-change-in-production";
 
 // Domain configuration
 const APP_DOMAIN = "rylif-app.com";
-const APP_URL = isProduction ? `https://${APP_DOMAIN}` : "http://localhost:3000";
-const API_URL = isProduction ? `https://api.${APP_DOMAIN}` : "http://localhost:5000";
+const APP_URL = isProduction
+  ? `https://${APP_DOMAIN}`
+  : "http://localhost:3000";
+const API_URL = isProduction
+  ? `https://api.${APP_DOMAIN}`
+  : "http://localhost:5000";
 
 console.log(`🌍 Environment: ${isProduction ? "Production" : "Development"}`);
 console.log(`🌐 App URL: ${APP_URL}`);
@@ -53,6 +59,9 @@ const allowedOrigins = isProduction
       "http://localhost:3000", // Untuk development
     ]
   : ["http://localhost:3000", "http://localhost:5173"];
+
+// Setup jobs
+// const cleanupJob = sessionCleanupJob();
 
 // Storage untuk pending updates
 const userRoleCache = new Map(); // Cache untuk user roles
@@ -223,7 +232,7 @@ async function verifyTokenAndProceed(token, socket, next) {
 io.use(async (socket, next) => {
   try {
     console.log("🔑 Authentication attempt for socket:", socket.id);
-    
+
     // SKIP RATE LIMITING UNTUK DEVELOPMENT - HAPUS INI DI PRODUCTION
     if (isProduction) {
       console.log("⚠️ PRODUCTION: Rate limiting enabled");
@@ -242,7 +251,7 @@ io.use(async (socket, next) => {
         console.log("✅ Found token in Authorization header");
         return verifyTokenAndProceed(token, socket, next);
       }
-      
+
       // Untuk development, allow anonymous connection
       if (!isProduction) {
         console.log("⚠️ DEVELOPMENT: Allowing anonymous connection");
@@ -251,7 +260,7 @@ io.use(async (socket, next) => {
         socket.isAnonymous = true;
         return next();
       }
-      
+
       console.log("❌ No auth credentials found");
       return next(new Error("Authentication required"));
     }
@@ -545,7 +554,11 @@ io.on("connection", async (socket) => {
   socket.lastActivity = new Date();
 
   // Join rooms berdasarkan role
-  if (socket.userId && socket.userId !== "anonymous-dev" && socket.userId !== "error-fallback") {
+  if (
+    socket.userId &&
+    socket.userId !== "anonymous-dev" &&
+    socket.userId !== "error-fallback"
+  ) {
     // Join personal room
     socket.join(`user:${socket.userId}`);
     console.log(`👤 ${socket.userId} joined personal room`);
@@ -558,7 +571,11 @@ io.on("connection", async (socket) => {
   }
 
   // Handle session creation/update hanya untuk authenticated users
-  if (socket.userId && socket.userId !== "anonymous-dev" && socket.userId !== "error-fallback") {
+  if (
+    socket.userId &&
+    socket.userId !== "anonymous-dev" &&
+    socket.userId !== "error-fallback"
+  ) {
     try {
       const sessionToken = `socket-${socket.id}-${Date.now()}`;
       const refreshToken = `refresh-${socket.id}-${Date.now()}-${Math.random()
@@ -638,7 +655,11 @@ io.on("connection", async (socket) => {
       `[Server] 📨 ${socket.userRole} ${socket.userId} requesting sessions`
     );
 
-    if (!socket.userId || socket.userId === "anonymous-dev" || socket.userId === "error-fallback") {
+    if (
+      !socket.userId ||
+      socket.userId === "anonymous-dev" ||
+      socket.userId === "error-fallback"
+    ) {
       console.log("[Server] ⚠️ Anonymous user, returning empty sessions");
       socket.emit("session:updated", { sessions: [] });
       return;
@@ -652,7 +673,8 @@ io.on("connection", async (socket) => {
 
       // Format sessions
       const formattedSessions = sessions.map((session) => {
-        const isCurrentSession = socket.userSessionToken === session.sessionToken;
+        const isCurrentSession =
+          socket.userSessionToken === session.sessionToken;
 
         return {
           id: session.id,
@@ -677,7 +699,12 @@ io.on("connection", async (socket) => {
             role: "user",
           },
           sessionTokenPreview: session.sessionToken
-            ? `${session.sessionToken.substring(0, 10)}...${session.sessionToken.substring(session.sessionToken.length - 5)}`
+            ? `${session.sessionToken.substring(
+                0,
+                10
+              )}...${session.sessionToken.substring(
+                session.sessionToken.length - 5
+              )}`
             : "No token",
         };
       });
@@ -788,14 +815,18 @@ io.on("connection", async (socket) => {
   // Handle disconnect - PERBAIKAN PENTING
   socket.on("disconnect", async (reason) => {
     console.log(`❌ Client disconnected: ${socket.id}, Reason: ${reason}`);
-    
+
     // Remove from tracking
     socketToUserMap.delete(socket.id);
 
     // JANGAN REVOKE SESSION SAAT DISCONNECT - INI PENYEBAB UTAMA MASALAH
     // Biarkan session tetap aktif untuk allow reconnection
-    
-    if (socket.userId && socket.userId !== "anonymous-dev" && socket.userId !== "error-fallback") {
+
+    if (
+      socket.userId &&
+      socket.userId !== "anonymous-dev" &&
+      socket.userId !== "error-fallback"
+    ) {
       try {
         // Hanya update lastActiveAt, jangan revoke!
         if (socket.userSessionToken) {
@@ -812,7 +843,10 @@ io.on("connection", async (socket) => {
           console.log(`[Server] 📝 Updated last activity for session`);
         }
       } catch (error) {
-        console.error("[Server] ❌ Error updating session activity:", error.message);
+        console.error(
+          "[Server] ❌ Error updating session activity:",
+          error.message
+        );
       }
     }
 
@@ -941,7 +975,8 @@ const gracefulShutdown = async () => {
   try {
     // Notify all connected clients
     io.emit("server:maintenance", {
-      message: "Server is restarting for maintenance. Please reconnect in a moment.",
+      message:
+        "Server is restarting for maintenance. Please reconnect in a moment.",
       restartTime: new Date(Date.now() + 5000).toISOString(),
     });
 

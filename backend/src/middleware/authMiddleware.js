@@ -309,6 +309,82 @@ function authorizeAdminOrSuper(req, res, next) {
     .json({ message: "Forbidden - Admin or Super Admin only" });
 }
 
+// Middleware untuk update lastActiveAt tiap request
+// src/middleware/authMiddleware.js - Perbaikan updateSessionActivity
+export const updateSessionActivity = async (req, res, next) => {
+  try {
+    // Cari session ID dari berbagai sumber
+    const sessionId =
+      req.session?.id ||
+      req.headers["x-session-id"] ||
+      req.headers["session-id"] ||
+      req.cookies?.sessionId;
+
+    if (!sessionId || !req.user?.id) {
+      console.log(`⚠️ [ACTIVITY] No valid session/user: ${sessionId}`);
+      return next();
+    }
+
+    // Validasi format session ID (UUID harus 36 karakter)
+    if (sessionId.length < 10 || sessionId.length > 100) {
+      console.log(`⚠️ [ACTIVITY] Invalid session ID format: ${sessionId}`);
+      return next();
+    }
+
+    console.log(
+      `🔄 [ACTIVITY] Updating session: ${sessionId.substring(0, 8)}...`
+    );
+
+    // Update dengan error handling yang lebih baik
+    const updatePromise = prisma.userSession.update({
+      where: {
+        id: sessionId,
+        userId: req.user.id,
+        isRevoked: false,
+        expiresAt: { gt: new Date() },
+      },
+      data: {
+        lastActiveAt: new Date(),
+      },
+    });
+
+    // Gunakan timeout untuk mencegah blocking
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Update timeout")), 3000)
+    );
+
+    await Promise.race([updatePromise, timeoutPromise])
+      .then(() => {
+        // console.log(`✅ [ACTIVITY] Updated: ${sessionId.substring(0, 8)}`);
+      })
+      .catch((error) => {
+        // Handle specific error cases
+        if (error.code === "P2025") {
+          console.log(
+            `⚠️ [ACTIVITY] Session not found/revoked: ${sessionId.substring(
+              0,
+              8
+            )}`
+          );
+        } else if (error.message === "Update timeout") {
+          console.log(
+            `⏰ [ACTIVITY] Timeout updating: ${sessionId.substring(0, 8)}`
+          );
+        } else {
+          console.log(
+            `❌ [ACTIVITY] Error updating ${sessionId.substring(0, 8)}:`,
+            error.message
+          );
+        }
+        // Don't throw, continue request
+      });
+  } catch (error) {
+    console.error("[ACTIVITY] Unexpected error:", error.message);
+  } finally {
+    next(); // Always continue
+  }
+};
+
 export {
   // authenticateToken,
   checkMFAStatus,

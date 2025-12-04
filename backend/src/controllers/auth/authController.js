@@ -64,159 +64,338 @@ const generateRefreshToken = (user) => {
 };
 
 async function createUserSession(user, req) {
-  console.log("USER SESSION CREATE");
+  console.log("🔄 USER SESSION CREATE");
   try {
     const ipAddress =
       req.headers["x-forwarded-for"]?.split(",")[0] || req.socket.remoteAddress;
     const userAgent = req.headers["user-agent"] || "Unknown";
+    const origin = req.headers["origin"] || null;
 
     // ✅ Validasi user data
     if (!user?.id) {
       throw new Error("Invalid user data for session creation");
     }
 
-    // ✅ 1. DELETE SESSIONS YANG SUDAH LEBIH DARI 7 HARI
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    console.log(
+      `👤 User: ${user.id} | IP: ${ipAddress} | Device: ${userAgent}`
+    );
 
-    await prisma.userSession.deleteMany({
-      where: {
-        userId: user.id,
-        OR: [
-          {
-            createdAt: { lt: sevenDaysAgo }, // Session lama (> 7 hari)
-          },
-          {
-            expiresAt: { lt: new Date() }, // Session expired
-          },
-        ],
-      },
-    });
+    // ✅ Gunakan TRANSACTION untuk atomic operation
+    const result = await prisma.$transaction(async (tx) => {
+      const now = new Date();
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
-    // ✅ 2. REVOKE ALL PREVIOUS SESSIONS YANG MASIH AKTIF
-    await prisma.userSession.updateMany({
-      where: {
-        userId: user.id,
-        isRevoked: false,
-      },
-      data: {
-        isRevoked: true,
-        revokedAt: new Date(),
-      },
-    });
+      // ✅ 1. DELETE SESSIONS YANG SUDAH LEBIH DARI 7 HARI ATAU EXPIRED
+      const deletedSessions = await tx.userSession.deleteMany({
+        where: {
+          userId: user.id,
+          OR: [
+            { createdAt: { lt: sevenDaysAgo } }, // Session lama (> 7 hari)
+            { expiresAt: { lt: now } }, // Session expired
+          ],
+        },
+      });
 
-    // ✅ 3. INCREMENT TOKEN VERSION
-    const updatedUser = await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        tokenVersion: { increment: 1 },
-        lastLoginAt: new Date(),
-      },
-    });
+      console.log(`🗑️ Deleted ${deletedSessions.count} old/expired sessions`);
 
-    // ✅ 4. GENERATE TOKENS SETELAH INCREMENT
-    const accessToken = generateAccessToken(updatedUser);
-    const refreshToken = generateRefreshToken(updatedUser);
+      // ✅ 2. REVOKE ALL PREVIOUS SESSIONS YANG MASIH AKTIF
+      const revokedSessions = await tx.userSession.updateMany({
+        where: {
+          userId: user.id,
+          isRevoked: false,
+        },
+        data: {
+          isRevoked: true,
+          revokedAt: now,
+        },
+      });
 
-    // ✅ 5. Generate session token
-    const sessionToken = crypto.randomBytes(32).toString("hex");
+      console.log(`🔒 Revoked ${revokedSessions.count} active sessions`);
 
-    // ✅ 6. CREATE SESSION BARU
-    const newSession = await prisma.userSession.create({
-      data: {
-        userId: updatedUser.id,
-        sessionToken,
+      // ✅ 3. INCREMENT TOKEN VERSION
+      const updatedUser = await tx.user.update({
+        where: { id: user.id },
+        data: {
+          tokenVersion: { increment: 1 },
+          lastLoginAt: now,
+        },
+      });
+
+      console.log(
+        `📈 User ${user.id} tokenVersion: ${updatedUser.tokenVersion}`
+      );
+
+      // ✅ 4. GENERATE TOKENS SETELAH INCREMENT
+      const accessToken = generateAccessToken(updatedUser);
+      const refreshToken = generateRefreshToken(updatedUser);
+
+      // ✅ 5. Generate session token
+      const sessionToken = crypto.randomBytes(32).toString("hex");
+
+      // ✅ 6. CREATE SESSION BARU DENGAN lastActiveAt
+      const newSession = await tx.userSession.create({
+        data: {
+          userId: updatedUser.id,
+          sessionToken,
+          refreshToken,
+          ipAddress: ipAddress?.toString().substring(0, 255) || "Unknown",
+          userAgent: userAgent.substring(0, 500),
+          origin: origin ? origin.substring(0, 255) : null,
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 hari dari sekarang
+          isRevoked: false,
+          lastActiveAt: now, // ✅ TAMBAHKAN lastActiveAt
+          // Tambahkan location sederhana jika ingin
+          ...(ipAddress === "127.0.0.1" || ipAddress === "::1"
+            ? {
+                country: "Local",
+                city: "Localhost",
+              }
+            : {}),
+        },
+      });
+
+      console.log(`✅ New session created: ${newSession.id}`);
+
+      // ✅ 7. Ambil semua sessions untuk return (dalam transaction)
+      const allSessions = await tx.userSession.findMany({
+        where: { userId: updatedUser.id },
+        orderBy: { lastActiveAt: "desc" }, // Urutkan berdasarkan lastActiveAt
+      });
+
+      return {
+        accessToken,
         refreshToken,
-        ipAddress: ipAddress?.toString().substring(0, 255) || "Unknown",
-        userAgent: userAgent.substring(0, 500),
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 hari dari sekarang
-        isRevoked: false,
-      },
+        session: newSession,
+        user: updatedUser,
+        allSessions,
+      };
     });
 
-    // 🔥 AMBIL DATA SESSION TERBARU UNTUK DIKIRIM
-    const sessions = await prisma.userSession.findMany({
-      where: { userId: updatedUser.id },
-      orderBy: { createdAt: "desc" },
-    });
-
-    const formattedSessions = sessions.map((session) => {
+    // ✅ 8. FORMAT SESSIONS UNTUK EMIT
+    const formattedSessions = result.allSessions.map((session) => {
       const formatted = {
         id: session.id,
-        createdAt: session.createdAt
-          ? session.createdAt.toISOString()
-          : new Date().toISOString(),
+        user: {
+          name: user.name,
+          email: user.email,
+        },
+        createdAt: session.createdAt.toISOString(),
+        lastActiveAt: session.lastActiveAt
+          ? session.lastActiveAt.toISOString()
+          : session.createdAt.toISOString(), // Fallback ke createdAt jika null
         revokedAt: session.revokedAt ? session.revokedAt.toISOString() : null,
         isRevoked: session.isRevoked || false,
         ipAddress: session.ipAddress || "Unknown",
         userAgent: session.userAgent || "Unknown",
-        expiresAt: session.expiresAt
-          ? session.expiresAt.toISOString()
-          : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        expiresAt: session.expiresAt.toISOString(),
+        fcmToken: session.fcmToken || null,
+        location: session.country
+          ? {
+              country: session.country,
+              city: session.city,
+            }
+          : null,
+        deviceInfo: extractDeviceInfo(session.userAgent),
       };
 
-      console.log(`📋 [Session] Formatted session ${session.id}:`, {
+      console.log(`📋 Session ${session.id}:`, {
         id: formatted.id,
-        createdAt: formatted.createdAt,
+        lastActiveAt: formatted.lastActiveAt,
         isRevoked: formatted.isRevoked,
-        hasRevokedAt: !!formatted.revokedAt,
+        ip: formatted.ipAddress,
       });
 
       return formatted;
     });
 
     console.log(
-      `📤 [Session] Emitting ${formattedSessions.length} sessions to user ${updatedUser.id}`
+      `📤 Emitting ${formattedSessions.length} sessions to user ${result.user.id}`
     );
 
-    // 🔥 EMIT KE SEMUA DEVICE USER TERSEBUT
-    // Format sesuai dengan SocketContext
+    // ✅ 9. VALIDASI: Pastikan hanya ada 1 session aktif
+    const activeSessionCount = formattedSessions.filter(
+      (s) => !s.isRevoked
+    ).length;
+    if (activeSessionCount > 1) {
+      console.error(
+        `❌ CRITICAL: User ${user.id} has ${activeSessionCount} active sessions!`
+      );
+
+      // Auto-fix dalam transaction terpisah
+      await prisma.$transaction(async (tx) => {
+        const activeSessions = await tx.userSession.findMany({
+          where: {
+            userId: user.id,
+            isRevoked: false,
+          },
+          orderBy: { lastActiveAt: "desc" },
+        });
+
+        if (activeSessions.length > 1) {
+          const [latestSession, ...otherSessions] = activeSessions;
+
+          await tx.userSession.updateMany({
+            where: {
+              id: { in: otherSessions.map((s) => s.id) },
+            },
+            data: {
+              isRevoked: true,
+              revokedAt: new Date(),
+            },
+          });
+
+          console.log(
+            `🛠️ Auto-fixed: Kept session ${latestSession.id}, revoked ${otherSessions.length} others`
+          );
+
+          // Update formattedSessions
+          otherSessions.forEach((session) => {
+            const formattedSession = formattedSessions.find(
+              (s) => s.id === session.id
+            );
+            if (formattedSession) {
+              formattedSession.isRevoked = true;
+              formattedSession.revokedAt = new Date().toISOString();
+            }
+          });
+        }
+      });
+    }
+
+    // ✅ 10. EMIT KE SEMUA DEVICE USER
     if (io) {
-      const room = `user:${updatedUser.id}`;
+      const room = `user:${result.user.id}`;
       const roomSockets = io.sockets.adapter.rooms.get(room);
       const roomSize = roomSockets ? roomSockets.size : 0;
 
-      console.log(`🏠 [Socket] Room ${room} has ${roomSize} connected sockets`);
+      console.log(`🏠 Room ${room} has ${roomSize} connected sockets`);
 
       if (roomSize > 0) {
         // Format yang konsisten dengan SocketContext
         const emitData = {
           sessions: formattedSessions,
+          timestamp: new Date().toISOString(),
         };
 
-        console.log(`📨 [Socket] Emitting session:updated to room ${room}`);
-        console.log(
-          `📦 [Socket] Emit data:`,
-          JSON.stringify(emitData, null, 2)
-        );
+        console.log(`📨 Emitting session:updated to room ${room}`);
 
         io.to(room).emit("session:updated", emitData);
 
         console.log(
-          "✅ [Socket] Session update emitted to user:",
-          updatedUser.id,
+          "✅ Session update emitted to user:",
+          result.user.id,
           `(${roomSize} clients)`
         );
 
         // DEBUG: Cek socket yang ada di room
         if (roomSockets) {
           const socketIds = Array.from(roomSockets);
-          console.log(`👥 [Socket] Sockets in room:`, socketIds);
+          console.log(`👥 Sockets in room:`, socketIds);
         }
       } else {
         console.log(
-          `⚠️ [Socket] User ${updatedUser.id} not connected, session update queued`
+          `⚠️ User ${result.user.id} not connected, session update queued`
         );
-        // Anda bisa simpan di database untuk dikirim nanti
+        // Optional: Save to notification queue
       }
     } else {
-      console.warn("⚠️ [Socket] io not available, skipping emit");
+      console.warn("⚠️ io not available, skipping emit");
     }
 
-    return { accessToken, refreshToken, session: newSession };
+    return {
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      session: result.session,
+    };
   } catch (error) {
     console.error("[SESSION] Error creating user session:", error);
+
+    // Log error untuk debugging
+    console.error("Error details:", {
+      message: error.message,
+      stack: error.stack,
+      userId: user?.id,
+    });
+
     throw error;
   }
+}
+
+// ✅ HELPER FUNCTION: Extract device info
+function extractDeviceInfo(userAgent) {
+  try {
+    const ua = userAgent.toLowerCase();
+
+    const info = {
+      isMobile: ua.includes("mobile"),
+      isTablet: ua.includes("tablet"),
+      isDesktop: !ua.includes("mobile") && !ua.includes("tablet"),
+      os: "Unknown",
+      browser: "Unknown",
+    };
+
+    // Deteksi OS
+    if (ua.includes("windows")) info.os = "Windows";
+    else if (ua.includes("mac os")) info.os = "macOS";
+    else if (ua.includes("linux")) info.os = "Linux";
+    else if (ua.includes("android")) info.os = "Android";
+    else if (ua.includes("ios") || ua.includes("iphone")) info.os = "iOS";
+
+    // Deteksi Browser
+    if (ua.includes("chrome")) info.browser = "Chrome";
+    else if (ua.includes("firefox")) info.browser = "Firefox";
+    else if (ua.includes("safari") && !ua.includes("chrome"))
+      info.browser = "Safari";
+    else if (ua.includes("edge")) info.browser = "Edge";
+
+    return info;
+  } catch {
+    return {
+      isMobile: false,
+      isTablet: false,
+      isDesktop: true,
+      os: "Unknown",
+      browser: "Unknown",
+    };
+  }
+}
+
+// ✅ FUNCTION UNTUK UPDATE lastActiveAt (bisa dipanggil tiap request)
+async function updateSessionLastActive(sessionId) {
+  try {
+    await prisma.userSession.update({
+      where: { id: sessionId },
+      data: { lastActiveAt: new Date() },
+    });
+  } catch (error) {
+    console.error(
+      `[SESSION] Error updating lastActiveAt for ${sessionId}:`,
+      error
+    );
+  }
+}
+
+// ✅ FUNCTION UNTUK GET USER SESSIONS (untuk API)
+async function getUserSessionsForAPI(userId) {
+  const sessions = await prisma.userSession.findMany({
+    where: { userId },
+    orderBy: { lastActiveAt: "desc" },
+  });
+
+  return sessions.map((session) => ({
+    id: session.id,
+    userAgent: session.userAgent,
+    ipAddress: session.ipAddress,
+    origin: session.origin,
+    country: session.country,
+    city: session.city,
+    isRevoked: session.isRevoked,
+    createdAt: session.createdAt,
+    expiresAt: session.expiresAt,
+    lastActiveAt: session.lastActiveAt,
+    fcmToken: session.fcmToken,
+    deviceId: session.deviceId,
+  }));
 }
 
 // Constants untuk error messages
@@ -481,97 +660,152 @@ export const revokeSession = async (req, res) => {
     const { sessionId } = req.params;
     const userId = req.user.id;
 
-    if (!sessionId) {
-      return res.status(400).json({
-        success: false,
-        error: "Session ID is required",
-      });
-    }
-
-    // 1. Revoke the session
-    const session = await prisma.userSession.updateMany({
+    // Pastikan session yang akan di-revoke milik user yang sama
+    const session = await prisma.userSession.findFirst({
       where: {
         id: sessionId,
         userId: userId,
       },
-      data: {
-        isRevoked: true,
-        revokedAt: new Date(),
-        fcmToken: null,
-      },
     });
 
-    if (session.count === 0) {
+    if (!session) {
       return res.status(404).json({
         success: false,
-        error: "Session not found or already revoked",
+        error: "Session not found or unauthorized",
       });
     }
 
-    // 2. Get all updated sessions for this user
-    const updatedSessions = await prisma.userSession.findMany({
-      where: {
-        userId: userId,
-      },
-      select: {
-        id: true,
-        createdAt: true,
-        revokedAt: true,
+    if (session.isRevoked) {
+      return res.status(400).json({
+        success: false,
+        error: "Session already revoked",
+      });
+    }
+
+    // Update session menjadi revoked
+    const updatedSession = await prisma.userSession.update({
+      where: { id: sessionId },
+      data: {
         isRevoked: true,
-        ipAddress: true,
-        userAgent: true,
-        expiresAt: true,
-      },
-      orderBy: {
-        createdAt: "desc",
+        revokedAt: new Date(),
       },
     });
 
-    // 3. Emit socket.io event to update all connected clients
-    // Pastikan Anda punya access ke io instance
-    if (req.io) {
-      // Format data sesuai dengan frontend expectation
-      const formattedSessions = updatedSessions.map((s) => ({
-        ...s,
-        createdAt: s.createdAt.toISOString(),
-        expiresAt: s.expiresAt.toISOString(),
-        revokedAt: s.revokedAt ? s.revokedAt.toISOString() : null,
-      }));
+    // Ambil semua sessions terbaru untuk emit ke socket
+    const allSessions = await prisma.userSession.findMany({
+      where: { userId },
+      orderBy: { lastActiveAt: "desc" },
+    });
 
-      // Emit ke user room
+    // Format untuk socket emit
+    const formattedSessions = allSessions.map((s) => ({
+      id: s.id,
+      userAgent: s.userAgent,
+      ipAddress: s.ipAddress,
+      isRevoked: s.isRevoked,
+      createdAt: s.createdAt.toISOString(),
+      lastActiveAt: s.lastActiveAt?.toISOString() || s.createdAt.toISOString(),
+      expiresAt: s.expiresAt.toISOString(),
+      fcmToken: s.fcmToken,
+    }));
+
+    // Emit ke socket room user
+    if (req.io) {
       req.io.to(`user:${userId}`).emit("session:updated", {
         sessions: formattedSessions,
-      });
-
-      // Juga emit specific revoked event
-      req.io.to(`user:${userId}`).emit("session:revoked", {
-        sessionId: sessionId,
-        userId: userId,
         timestamp: new Date().toISOString(),
+        action: "session_revoked",
+        revokedSessionId: sessionId,
       });
-
-      console.log(
-        `✅ Socket.io: Session ${sessionId} revoked, events emitted to user ${userId}`
-      );
-    } else {
-      console.warn(
-        "⚠️ Socket.io instance not available, skipping real-time update"
-      );
     }
 
     res.json({
       success: true,
       message: "Session revoked successfully",
       data: {
-        sessionId,
-        updatedAt: new Date().toISOString(),
+        id: updatedSession.id,
+        revokedAt: updatedSession.revokedAt.toISOString(),
       },
     });
-  } catch (err) {
-    console.error("[DELETE /sessions/:id ERROR]", err);
+  } catch (error) {
+    console.error("[SESSION] Error revoking session:", error);
     res.status(500).json({
       success: false,
       error: "Failed to revoke session",
+    });
+  }
+};
+
+/**
+ * Revoke all other sessions except current one
+ */
+export const revokeAllOtherSessions = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const currentSessionId = req.session?.id || req.headers["x-session-id"];
+
+    if (!currentSessionId) {
+      return res.status(400).json({
+        success: false,
+        error: "Current session ID not found",
+      });
+    }
+
+    // Revoke semua session kecuali yang sedang aktif
+    const revoked = await prisma.userSession.updateMany({
+      where: {
+        userId,
+        isRevoked: false,
+        id: { not: currentSessionId },
+      },
+      data: {
+        isRevoked: true,
+        revokedAt: new Date(),
+      },
+    });
+
+    // Ambil semua sessions terbaru
+    const allSessions = await prisma.userSession.findMany({
+      where: { userId },
+      orderBy: { lastActiveAt: "desc" },
+    });
+
+    // Format untuk response dan socket
+    const formattedSessions = allSessions.map((session) => ({
+      id: session.id,
+      userAgent: session.userAgent,
+      ipAddress: session.ipAddress,
+      isRevoked: session.isRevoked,
+      createdAt: session.createdAt.toISOString(),
+      lastActiveAt:
+        session.lastActiveAt?.toISOString() || session.createdAt.toISOString(),
+      expiresAt: session.expiresAt.toISOString(),
+      fcmToken: session.fcmToken,
+    }));
+
+    // Emit ke socket
+    if (req.io) {
+      req.io.to(`user:${userId}`).emit("session:updated", {
+        sessions: formattedSessions,
+        timestamp: new Date().toISOString(),
+        action: "revoked_all_others",
+        revokedCount: revoked.count,
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Revoked ${revoked.count} other sessions`,
+      data: {
+        revokedCount: revoked.count,
+        sessions: formattedSessions,
+      },
+    });
+  } catch (error) {
+    console.error("[SESSION] Error revoking other sessions:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to revoke other sessions",
     });
   }
 };

@@ -4,20 +4,38 @@ import {
   getActiveSessions,
   revokeSession,
   updateFcmToken,
+  revokeAllOtherSessions,
+  getCurrentSession,
 } from "../../controllers/auth/sessionController.js";
-import { authenticateToken } from "../../middleware/authMiddleware.js";
+import { 
+  authenticateToken, 
+  updateSessionActivity,
+  authorizeAdminOrSuper 
+} from "../../middleware/authMiddleware.js";
 
 const router = Router();
 
-// GET /sessions → semua sesi
-router.get("/", authenticateToken, getAllSessions);
+// ✅ GET /api/sessions → semua sesi user yang sedang login
+router.get("/", authenticateToken, updateSessionActivity, getAllSessions);
 
-// GET /sessions/active → sesi masih valid
-router.get("/active", getActiveSessions);
+// ✅ GET /api/sessions/current → session yang sedang aktif (current device)
+router.get("/current", authenticateToken, updateSessionActivity, getCurrentSession);
 
-// PATCH /sessions/revoke/:id → logout paksa
-router.patch("/revoke/:id", revokeSession);
+// ✅ GET /api/sessions/active → sesi masih valid (non-revoked)
+router.get("/active", authenticateToken, updateSessionActivity, getActiveSessions);
 
-router.post("/update-session-fcm", authenticateToken, updateFcmToken);
+// ✅ PATCH /api/sessions/revoke/:sessionId → revoke session tertentu
+router.patch("/revoke/:sessionId", authenticateToken, updateSessionActivity, revokeSession);
+
+// ✅ PATCH /api/sessions/revoke-others → revoke semua session kecuali yang sedang aktif
+router.patch("/revoke-others", authenticateToken, updateSessionActivity, revokeAllOtherSessions);
+
+// ✅ POST /api/sessions/fcm → update FCM token untuk session saat ini
+router.post("/fcm", authenticateToken, updateSessionActivity, updateFcmToken);
+
+// ✅ ADMIN ONLY: GET /api/sessions/all-users → semua session dari semua users
+router.get("/all-users", authenticateToken, authorizeAdminOrSuper, async (req, res) => {
+  // Controller logic untuk admin
+});
 
 export default router;
