@@ -618,7 +618,6 @@ io.on("connection", async (socket) => {
             expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
             isRevoked: false,
             deviceId: null,
-            fcmToken: null,
             country: null,
             city: null,
             lastActiveAt: new Date(),
