@@ -1,7 +1,7 @@
-// page.tsx - COMPLETE FIXED VERSION
+// page.tsx - FIXED VERSION WITH PROPER ERROR HANDLING
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { Badge } from "@/components/ui/badge";
@@ -12,8 +12,10 @@ import { getAllSessions } from "@/lib/action/session/session";
 import SessionListTable, { Session } from "@/components/session/tableData";
 import { SocketProvider } from "@/contexts/SocketContext";
 import { toast } from "sonner";
+import { AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
-// Define proper types for session data from API
+// Define proper types
 interface ApiSession {
     id: string;
     userId: string;
@@ -30,76 +32,221 @@ interface ApiSession {
     };
 }
 
+interface ApiResponse {
+    success: boolean;
+    data?: ApiSession[];
+    message?: string;
+    sessions?: ApiSession[];
+    error?: string;
+    items?: string;
+}
+
 interface CustomSessionsEvent extends Event {
     detail: ApiSession[];
 }
 
+// Helper functions
+const formatSession = (session: ApiSession): Session => ({
+    id: session.id || '',
+    userAgent: session.userAgent || '',
+    ipAddress: session.ipAddress || '',
+    isRevoked: session.isRevoked || false,
+    createdAt: session.createdAt || new Date().toISOString(),
+    lastActiveAt: session.lastActiveAt || new Date().toISOString(),
+    expiresAt: session.expiresAt || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    fcmToken: session.fcmToken || null,
+    user: session.user || {
+        name: 'Unknown User',
+        email: 'unknown@example.com'
+    }
+});
+
+const sortSessions = (sessions: Session[]): Session[] => {
+    return [...sessions].sort((a, b) => {
+        if (a.isRevoked !== b.isRevoked) {
+            return a.isRevoked ? 1 : -1;
+        }
+
+        const dateA = new Date(a.lastActiveAt || a.createdAt).getTime();
+        const dateB = new Date(b.lastActiveAt || b.createdAt).getTime();
+
+        if (dateA !== dateB) {
+            return dateB - dateA;
+        }
+
+        const createA = new Date(a.createdAt).getTime();
+        const createB = new Date(b.createdAt).getTime();
+
+        if (createA !== createB) {
+            return createB - createA;
+        }
+
+        const nameA = a.user?.name || '';
+        const nameB = b.user?.name || '';
+
+        if (nameA && nameB) {
+            return nameA.localeCompare(nameB);
+        }
+
+        return 0;
+    });
+};
+
+// Helper untuk extract sessions dari berbagai format response
+const extractSessionsFromResponse = (result: ApiResponse): ApiSession[] => {
+    console.log('[Extract] Raw result:', result);
+
+    // Jika sudah array langsung return
+    if (Array.isArray(result)) {
+        console.log('[Extract] Result is already array');
+        return result;
+    }
+
+    // Jika result adalah object dengan property data
+    if (result && typeof result === 'object') {
+        // Coba berbagai kemungkinan property
+        if (Array.isArray(result.data)) {
+            console.log('[Extract] Found sessions in result.data');
+            return result.data;
+        }
+
+        if (Array.isArray(result.sessions)) {
+            console.log('[Extract] Found sessions in result.sessions');
+            return result.sessions;
+        }
+
+        if (Array.isArray(result.items)) {
+            console.log('[Extract] Found sessions in result.items');
+            return result.items;
+        }
+
+        // Jika ada success property (standard API response)
+        if (result.success && Array.isArray(result.data)) {
+            console.log('[Extract] Found sessions in result.data (success response)');
+            return result.data;
+        }
+
+        // Jika response adalah error
+        if (result.error || result.message) {
+            console.error('[Extract] API returned error:', result);
+            throw new Error(result.message || result.error || 'API error');
+        }
+    }
+
+    // Jika tidak ada format yang cocok, log warning dan return empty array
+    console.warn('[Extract] Unexpected response format, returning empty array:', result);
+    return [];
+};
+
 export default function SessionPage() {
     const [sessions, setSessions] = useState<Session[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [lastFetchTime, setLastFetchTime] = useState<Date | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
     const router = useRouter();
     const userRole = "super";
     const hasInitializedRef = useRef(false);
+    const isProcessingRef = useRef(false);
 
-    // Refs untuk debugging
     const sessionUpdateCountRef = useRef(0);
     const sessionsRef = useRef<Session[]>([]);
-    const lastServerUpdateRef = useRef<Session[]>([]);
 
-    // Sync ref dengan state
     useEffect(() => {
         sessionsRef.current = sessions;
     }, [sessions]);
 
-    // Fetch data function
-    const fetchData = useCallback(async () => {
+    const sortedSessions = useMemo(() => {
+        console.log('[Page] Sorting sessions:', sessions.length);
+        return sortSessions(sessions);
+    }, [sessions]);
+
+    // Fetch data dengan handling berbagai format response
+    const fetchData = useCallback(async (isManualRefresh: boolean = false) => {
         if (typeof window === "undefined") return;
+        if (isProcessingRef.current && !isManualRefresh) return;
+
+        isProcessingRef.current = true;
+        setIsLoading(true);
+        setError(null);
 
         try {
-            // console.log('[Page] 📥 Fetching sessions via API...');
+            console.log('[Page] 📥 Fetching sessions...', {
+                manual: isManualRefresh,
+                currentCount: sessionsRef.current.length
+            });
 
             const result = await getAllSessions();
-            // console.log('[Page] API Response:', {
-            //     isArray: Array.isArray(result),
-            //     length: Array.isArray(result) ? result.length : 'N/A',
-            //     sample: Array.isArray(result) ? result[0] : result
-            // });
+            console.log('[Page] Raw API result:', {
+                type: typeof result,
+                isArray: Array.isArray(result),
+                keys: result && typeof result === 'object' ? Object.keys(result) : 'N/A'
+            });
 
-            const formattedSessions: Session[] = Array.isArray(result)
-                ? result.map((item: ApiSession) => ({
-                    id: item.id || '',
-                    userId: item.userId || '',
-                    userAgent: item.userAgent || '',
-                    ipAddress: item.ipAddress || '',
-                    isRevoked: item.isRevoked || false,
-                    createdAt: item.createdAt || new Date().toISOString(),
-                    lastActiveAt: item.lastActiveAt || new Date().toISOString(),
-                    expiresAt: item.expiresAt || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-                    fcmToken: item.fcmToken || null,
-                    user: item.user || {
-                        name: 'Unknown User',
-                        email: 'unknown@example.com'
-                    }
-                }))
-                : [];
+            // Extract sessions dari berbagai format response
+            const extractedSessions = extractSessionsFromResponse(result);
 
-            // console.log('[Page] ✅ Formatted sessions:', formattedSessions.length);
+            console.log('[Page] Extracted sessions:', {
+                count: extractedSessions.length,
+                sample: extractedSessions[0]
+            });
 
-            setSessions(formattedSessions);
+            const formattedSessions: Session[] = extractedSessions.map(formatSession);
 
-            // Debug: Simpan ke localStorage
+            // Jika tidak ada data, tampilkan warning
+            if (formattedSessions.length === 0) {
+                console.warn('[Page] No sessions found in response');
+                toast.warning('No sessions found', {
+                    description: 'The server returned an empty list',
+                    duration: 3000,
+                });
+            }
+
+            const finalSessions = sortSessions(formattedSessions);
+
+            setSessions(finalSessions);
+            setLastFetchTime(new Date());
+            setIsLoading(false);
+            setError(null);
+
+            // Debug storage
             localStorage.setItem('lastManualFetch', JSON.stringify({
-                count: formattedSessions.length,
+                count: finalSessions.length,
                 time: new Date().toISOString(),
-                firstId: formattedSessions[0]?.id
+                rawResultType: typeof result,
+                extractedCount: extractedSessions.length
             }));
 
-            toast.success(`${formattedSessions.length} sessions loaded`);
+            if (isManualRefresh) {
+                toast.success(`Refreshed: ${finalSessions.length} sessions`);
+            }
 
         } catch (err) {
-            console.error("[Page] ❌ Failed to fetch sessions:", err);
-            toast.error("Failed to load sessions");
+            console.error("[Page] ❌ Fetch failed:", err);
+
+            const errorMessage = err instanceof Error
+                ? err.message
+                : 'Failed to load sessions';
+
+            setError(errorMessage);
+
+            toast.error("Failed to load sessions", {
+                description: errorMessage,
+                duration: 5000,
+            });
+
+            // Fallback: Jika ada data sebelumnya, pertahankan
+            if (sessionsRef.current.length > 0) {
+                console.log('[Page] Using cached data due to error');
+                toast.info('Using cached data', {
+                    description: 'Showing previously loaded sessions',
+                    duration: 3000,
+                });
+            }
+
+            setIsLoading(false);
+        } finally {
+            isProcessingRef.current = false;
         }
     }, []);
 
@@ -112,108 +259,57 @@ export default function SessionPage() {
 
         if (!hasInitializedRef.current) {
             hasInitializedRef.current = true;
-            // console.log('[Page] 🚀 Initial fetch');
+            console.log('[Page] Initializing...');
             fetchData();
         }
     }, [router, userRole, fetchData]);
 
     // Real-time handler
     useEffect(() => {
-        // console.log('🎯 [PAGE] Setting up REAL-TIME event listener');
+        console.log('[PAGE] Setting up real-time listener');
 
         const handleSessionsUpdated = (event: Event) => {
             const updateId = ++sessionUpdateCountRef.current;
-            console.log(`📡 [PAGE] REAL-TIME EVENT #${updateId}`);
+            console.log(`[PAGE] Real-time event #${updateId}`);
 
             const customEvent = event as CustomSessionsEvent;
             const serverSessions = customEvent.detail;
 
-            // console.log('📡 [PAGE] Server data:', {
-            //     hasDetail: !!serverSessions,
-            //     isArray: Array.isArray(serverSessions),
-            //     serverCount: serverSessions?.length || 0,
-            //     clientCount: sessionsRef.current.length,
-            //     timestamp: new Date().toISOString(),
-            //     sampleSession: serverSessions?.[0]
-            // });
-
             if (!Array.isArray(serverSessions)) {
-                console.error('📡 [PAGE] Server data is not an array:', serverSessions);
+                console.error('[PAGE] Invalid real-time data:', serverSessions);
                 return;
             }
 
-            // Simpan data server untuk debugging
-            lastServerUpdateRef.current = serverSessions;
-            localStorage.setItem('lastServerUpdate', JSON.stringify({
-                count: serverSessions.length,
-                time: new Date().toISOString(),
-                data: serverSessions.slice(0, 3)
-            }));
+            const formattedSessions: Session[] = serverSessions.map(formatSession);
+            const sortedServerSessions = sortSessions(formattedSessions);
 
-            // REPLACE ALL strategy
-            const formattedSessions: Session[] = serverSessions.map((session: ApiSession) => ({
-                id: session.id || '',
-                userId: session.userId || '',
-                userAgent: session.userAgent || '',
-                ipAddress: session.ipAddress || '',
-                isRevoked: session.isRevoked || false,
-                createdAt: session.createdAt || new Date().toISOString(),
-                lastActiveAt: session.lastActiveAt || new Date().toISOString(),
-                expiresAt: session.expiresAt || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-                fcmToken: session.fcmToken || null,
-                user: session.user || {
-                    name: 'Unknown User',
-                    email: 'unknown@example.com'
-                }
-            }));
-
-            // console.log('🔄 [PAGE] Updating client sessions:', {
-            //     from: sessionsRef.current.length,
-            //     to: formattedSessions.length,
-            //     strategy: 'REPLACE_ALL'
-            // });
-
-            // UPDATE STATE - GANTI SEMUA
-            setSessions(formattedSessions);
-            setIsLoading(false);
-
-            // Show success toast
-            toast.success('Real-time Update', {
-                description: `${formattedSessions.length} sessions updated`,
-                duration: 3000,
+            console.log('[PAGE] Applying real-time update:', {
+                updateId,
+                from: sessionsRef.current.length,
+                to: sortedServerSessions.length
             });
 
-            // Debug log
-            setTimeout(() => {
-                console.log('✅ [PAGE] State updated:', {
-                    sessionsCount: formattedSessions.length,
-                    active: formattedSessions.filter(s => !s.isRevoked).length,
-                    updateTime: new Date().toLocaleTimeString()
-                });
-            }, 100);
+            setSessions(sortedServerSessions);
+            setIsLoading(false);
+
+            toast.success('Real-time Update', {
+                description: `${sortedServerSessions.length} sessions updated`,
+                duration: 2000,
+            });
         };
 
-        // Add event listener
         window.addEventListener('sessions:updated', handleSessionsUpdated);
-        // console.log('✅ [PAGE] Event listener registered');
+        console.log('[PAGE] Event listener registered');
 
-        // Cleanup
         return () => {
-            // console.log('🧹 [PAGE] Removing event listener');
             window.removeEventListener('sessions:updated', handleSessionsUpdated);
         };
-    }, []); // Empty dependency array - setup sekali saja
+    }, []);
 
-    // DEBUG: Log state changes
-    useEffect(() => {
-        // console.log('📊 [PAGE] Sessions state changed:', {
-        //     count: sessions.length,
-        //     active: sessions.filter(s => !s.isRevoked).length
-        // });
-
-        // Update ref
-        sessionsRef.current = sessions;
-    }, [sessions]);
+    const handleRefresh = useCallback(() => {
+        console.log('[Page] Manual refresh');
+        fetchData(true);
+    }, [fetchData]);
 
     const layoutProps: LayoutProps = {
         title: "Session Management",
@@ -246,11 +342,31 @@ export default function SessionPage() {
 
                 <div className="h-full w-full mt-4">
                     <div className="flex-1 space-y-4">
+                        {error && (
+                            <div className="bg-destructive/10 border border-destructive rounded-lg p-4">
+                                <div className="flex items-center gap-2 text-destructive">
+                                    <AlertCircle className="h-5 w-5" />
+                                    <h3 className="font-semibold">Error Loading Sessions</h3>
+                                </div>
+                                <p className="text-sm mt-1">{error}</p>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="mt-2"
+                                    onClick={() => fetchData(true)}
+                                >
+                                    Try Again
+                                </Button>
+                            </div>
+                        )}
+
                         <SocketProvider>
                             <SessionListTable
-                                sessions={sessions}
+                                sessions={sortedSessions}
                                 isLoading={isLoading}
-                                onRefresh={fetchData}
+                                onRefresh={handleRefresh}
+                                lastUpdated={lastFetchTime}
+                                error={error}
                             />
                         </SocketProvider>
                     </div>

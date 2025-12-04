@@ -91,6 +91,8 @@ interface SessionListTableProps {
   currentSessionId?: string;
   showCurrentSessionIndicator?: boolean;
   defaultSortDirection?: 'asc' | 'desc';
+  lastUpdated?: Date | null;
+  error?: string | null;
 }
 
 type ViewMode = 'list' | 'detail';
@@ -104,6 +106,7 @@ export default function SessionListTable({
   lastUpdateTime,
   currentSessionId,
   defaultSortDirection = 'desc',
+  // lastUpdated,
 }: SessionListTableProps) {
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
@@ -125,13 +128,13 @@ export default function SessionListTable({
   const formatTimeAgo = useCallback((dateString: string) => {
     try {
       if (!dateString) return 'Never';
-      
+
       const date = new Date(dateString);
       if (isNaN(date.getTime())) {
         console.error('Invalid date string:', dateString);
         return 'Invalid date';
       }
-      
+
       const now = new Date();
       const diffMs = now.getTime() - date.getTime();
       const diffSeconds = Math.floor(diffMs / 1000);
@@ -182,14 +185,14 @@ export default function SessionListTable({
 
     // Buat salinan array
     const sessionsCopy = [...sessions];
-    
+
     // Sort dengan comparator yang robust
     const sorted = sessionsCopy.sort((a, b) => {
       try {
         // Gunakan lastActiveAt sebagai primary, fallback ke createdAt jika tidak ada
         const timeA = a.lastActiveAt ? new Date(a.lastActiveAt).getTime() : new Date(a.createdAt).getTime();
         const timeB = b.lastActiveAt ? new Date(b.lastActiveAt).getTime() : new Date(b.createdAt).getTime();
-        
+
         // Untuk descending (terbaru dulu): timeB - timeA
         return timeB - timeA;
       } catch (error) {
@@ -198,7 +201,7 @@ export default function SessionListTable({
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       }
     });
-    
+
     return sorted;
   }, [sessions]);
 
