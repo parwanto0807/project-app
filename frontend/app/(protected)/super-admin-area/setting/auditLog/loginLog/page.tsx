@@ -23,6 +23,7 @@ interface ApiSession {
     createdAt: string;
     expiresAt: string;
     fcmToken: string | null;
+    lastActiveAt: string;
     user?: {
         name: string;
         email: string;
@@ -56,14 +57,14 @@ export default function SessionPage() {
         if (typeof window === "undefined") return;
 
         try {
-            console.log('[Page] 📥 Fetching sessions via API...');
+            // console.log('[Page] 📥 Fetching sessions via API...');
 
             const result = await getAllSessions();
-            console.log('[Page] API Response:', {
-                isArray: Array.isArray(result),
-                length: Array.isArray(result) ? result.length : 'N/A',
-                sample: Array.isArray(result) ? result[0] : result
-            });
+            // console.log('[Page] API Response:', {
+            //     isArray: Array.isArray(result),
+            //     length: Array.isArray(result) ? result.length : 'N/A',
+            //     sample: Array.isArray(result) ? result[0] : result
+            // });
 
             const formattedSessions: Session[] = Array.isArray(result)
                 ? result.map((item: ApiSession) => ({
@@ -73,6 +74,7 @@ export default function SessionPage() {
                     ipAddress: item.ipAddress || '',
                     isRevoked: item.isRevoked || false,
                     createdAt: item.createdAt || new Date().toISOString(),
+                    lastActiveAt: item.lastActiveAt || new Date().toISOString(),
                     expiresAt: item.expiresAt || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
                     fcmToken: item.fcmToken || null,
                     user: item.user || {
@@ -82,7 +84,7 @@ export default function SessionPage() {
                 }))
                 : [];
 
-            console.log('[Page] ✅ Formatted sessions:', formattedSessions.length);
+            // console.log('[Page] ✅ Formatted sessions:', formattedSessions.length);
 
             setSessions(formattedSessions);
 
@@ -110,14 +112,14 @@ export default function SessionPage() {
 
         if (!hasInitializedRef.current) {
             hasInitializedRef.current = true;
-            console.log('[Page] 🚀 Initial fetch');
+            // console.log('[Page] 🚀 Initial fetch');
             fetchData();
         }
     }, [router, userRole, fetchData]);
 
     // Real-time handler
     useEffect(() => {
-        console.log('🎯 [PAGE] Setting up REAL-TIME event listener');
+        // console.log('🎯 [PAGE] Setting up REAL-TIME event listener');
 
         const handleSessionsUpdated = (event: Event) => {
             const updateId = ++sessionUpdateCountRef.current;
@@ -126,14 +128,14 @@ export default function SessionPage() {
             const customEvent = event as CustomSessionsEvent;
             const serverSessions = customEvent.detail;
 
-            console.log('📡 [PAGE] Server data:', {
-                hasDetail: !!serverSessions,
-                isArray: Array.isArray(serverSessions),
-                serverCount: serverSessions?.length || 0,
-                clientCount: sessionsRef.current.length,
-                timestamp: new Date().toISOString(),
-                sampleSession: serverSessions?.[0]
-            });
+            // console.log('📡 [PAGE] Server data:', {
+            //     hasDetail: !!serverSessions,
+            //     isArray: Array.isArray(serverSessions),
+            //     serverCount: serverSessions?.length || 0,
+            //     clientCount: sessionsRef.current.length,
+            //     timestamp: new Date().toISOString(),
+            //     sampleSession: serverSessions?.[0]
+            // });
 
             if (!Array.isArray(serverSessions)) {
                 console.error('📡 [PAGE] Server data is not an array:', serverSessions);
@@ -156,6 +158,7 @@ export default function SessionPage() {
                 ipAddress: session.ipAddress || '',
                 isRevoked: session.isRevoked || false,
                 createdAt: session.createdAt || new Date().toISOString(),
+                lastActiveAt: session.lastActiveAt || new Date().toISOString(),
                 expiresAt: session.expiresAt || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
                 fcmToken: session.fcmToken || null,
                 user: session.user || {
@@ -164,11 +167,11 @@ export default function SessionPage() {
                 }
             }));
 
-            console.log('🔄 [PAGE] Updating client sessions:', {
-                from: sessionsRef.current.length,
-                to: formattedSessions.length,
-                strategy: 'REPLACE_ALL'
-            });
+            // console.log('🔄 [PAGE] Updating client sessions:', {
+            //     from: sessionsRef.current.length,
+            //     to: formattedSessions.length,
+            //     strategy: 'REPLACE_ALL'
+            // });
 
             // UPDATE STATE - GANTI SEMUA
             setSessions(formattedSessions);
@@ -192,21 +195,21 @@ export default function SessionPage() {
 
         // Add event listener
         window.addEventListener('sessions:updated', handleSessionsUpdated);
-        console.log('✅ [PAGE] Event listener registered');
+        // console.log('✅ [PAGE] Event listener registered');
 
         // Cleanup
         return () => {
-            console.log('🧹 [PAGE] Removing event listener');
+            // console.log('🧹 [PAGE] Removing event listener');
             window.removeEventListener('sessions:updated', handleSessionsUpdated);
         };
     }, []); // Empty dependency array - setup sekali saja
 
     // DEBUG: Log state changes
     useEffect(() => {
-        console.log('📊 [PAGE] Sessions state changed:', {
-            count: sessions.length,
-            active: sessions.filter(s => !s.isRevoked).length
-        });
+        // console.log('📊 [PAGE] Sessions state changed:', {
+        //     count: sessions.length,
+        //     active: sessions.filter(s => !s.isRevoked).length
+        // });
 
         // Update ref
         sessionsRef.current = sessions;
