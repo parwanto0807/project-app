@@ -36,9 +36,9 @@ import {
   Smartphone,
   Laptop,
   Tablet,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown
+  // ArrowUpDown,
+  // ArrowUp,
+  // ArrowDown
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -93,11 +93,12 @@ interface SessionListTableProps {
   lastUpdateTime?: string;
   currentSessionId?: string;
   showCurrentSessionIndicator?: boolean;
+  // Tambahkan properti untuk sort dari backend
+  defaultSortField?: 'lastActiveAt' | 'createdAt' | 'device' | 'status' | 'user';
+  defaultSortDirection?: 'asc' | 'desc';
 }
 
 type ViewMode = 'list' | 'detail';
-type SortField = 'lastActiveAt' | 'createdAt' | 'device' | 'status' | 'user';
-type SortDirection = 'asc' | 'desc';
 
 export default function SessionListTable({
   sessions,
@@ -107,12 +108,12 @@ export default function SessionListTable({
   onRevokeAllOtherSessions,
   lastUpdateTime,
   currentSessionId,
+  defaultSortField = 'lastActiveAt',
+  defaultSortDirection = 'desc',
 }: SessionListTableProps) {
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [loadingRevokeId, setLoadingRevokeId] = useState<string | null>(null);
-  const [sortField, setSortField] = useState<SortField>('lastActiveAt');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [isRevokingAll, setIsRevokingAll] = useState(false);
   const [timeAgoUpdate, setTimeAgoUpdate] = useState<string>('');
 
@@ -140,79 +141,12 @@ export default function SessionListTable({
     }
   }, [lastUpdateTime]);
 
-  // Sort sessions based on sortField and sortDirection
+  // Sessions sudah di-sort dari backend, gunakan langsung
   const sortedSessions = useMemo(() => {
-    const sessionsCopy = [...sessions];
-
-    return sessionsCopy.sort((a, b) => {
-      let aValue: string | number, bValue: string | number;
-
-      switch (sortField) {
-        case 'lastActiveAt':
-          aValue = new Date(a.lastActiveAt || a.createdAt).getTime();
-          bValue = new Date(b.lastActiveAt || b.createdAt).getTime();
-          break;
-        case 'createdAt':
-          aValue = new Date(a.createdAt).getTime();
-          bValue = new Date(b.createdAt).getTime();
-          break;
-        case 'device':
-          aValue = formatDeviceInfo(a.userAgent).toLowerCase();
-          bValue = formatDeviceInfo(b.userAgent).toLowerCase();
-          break;
-        case 'user':
-          aValue = a.user?.name?.toLowerCase() || a.user?.email?.toLowerCase() || '';
-          bValue = b.user?.name?.toLowerCase() || b.user?.email?.toLowerCase() || '';
-          break;
-        case 'status':
-          aValue = a.isRevoked ? 1 : 0;
-          bValue = b.isRevoked ? 1 : 0;
-          break;
-        default:
-          aValue = 0;
-          bValue = 0;
-      }
-
-      if (sortDirection === 'asc') {
-        return aValue > bValue ? 1 : -1;
-      } else {
-        return aValue < bValue ? 1 : -1;
-      }
-    });
-  }, [sessions, sortField, sortDirection]);
-
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('desc');
-    }
-  };
-
-  const SortableHeader = ({
-    field,
-    children
-  }: {
-    field: SortField;
-    children: React.ReactNode;
-  }) => (
-    <div
-      className="flex items-center gap-1 cursor-pointer hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
-      onClick={() => handleSort(field)}
-    >
-      {children}
-      {sortField === field ? (
-        sortDirection === 'asc' ? (
-          <ArrowUp className="h-3 w-3" />
-        ) : (
-          <ArrowDown className="h-3 w-3" />
-        )
-      ) : (
-        <ArrowUpDown className="h-3 w-3 opacity-50" />
-      )}
-    </div>
-  );
+    // Jika backend sudah menyediakan data terurut, gunakan langsung
+    // Atau jika perlu sorting tambahan di frontend:
+    return [...sessions]; // Gunakan data asli dari backend
+  }, [sessions]);
 
   // Handle revoke session
   const handleRevoke = async (id: string) => {
@@ -264,17 +198,12 @@ export default function SessionListTable({
     setSelectedSession(null);
   };
 
-  // const handleLogoutOtherDevices = () => {
-  //   sendEvent('session:logout-other');
-  //   toast.info('Logging out from other devices...');
-  // };
-
   const handlePing = () => {
     sendEvent('ping');
     toast.info('Pinging server...');
   };
 
-  // Pagination calculations
+  // Pagination calculations - menggunakan sortedSessions dari backend
   const totalPages = Math.ceil(sortedSessions.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentSessions = sortedSessions.slice(startIndex, startIndex + itemsPerPage);
@@ -361,7 +290,7 @@ export default function SessionListTable({
 
   const getTimeAgo = useCallback((dateString: string) => {
     return formatTimeAgo(dateString);
-  }, []); // Add dependencies if formatTimeAgo uses variables from component scope
+  }, []);
 
   useEffect(() => {
     if (lastUpdateTime) {
@@ -370,11 +299,12 @@ export default function SessionListTable({
       };
 
       updateTimeAgo();
-      const interval = setInterval(updateTimeAgo, 60000); // Update every minute
+      const interval = setInterval(updateTimeAgo, 60000);
 
       return () => clearInterval(interval);
     }
   }, [lastUpdateTime, getTimeAgo]);
+
   const formatDetailedTime = (dateString: string) => {
     const date = new Date(dateString);
     return {
@@ -911,7 +841,7 @@ export default function SessionListTable({
                     </span>
                     <span>•</span>
                     <span className="flex items-center gap-1">
-                      <Timer className="h-3 w-3" />
+                      <Timer className="h-4 w-4 text-orange-400" />
                       Last Active : {lastActiveTime}
                     </span>
                   </div>
@@ -973,7 +903,7 @@ export default function SessionListTable({
                     </div>
 
                     <div className="ml-auto flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
-                      <Clock className="h-3 w-3" />
+                      <Clock className="h-4 w-4 text-green-400" />
                       Last Login : {timeSinceLogin}
                     </div>
                   </div>
@@ -1037,7 +967,6 @@ export default function SessionListTable({
     const { isSessionOn, isNotifOn, isCurrentSession, isRecentlyActive } = checkSessionStatus(session);
     const { sessionLabel, notifLabel } = getStatusLabels(session);
     const isRevoking = loadingRevokeId === session.id;
-    // const timeSinceLogin = getTimeSince(session.createdAt);
     const lastActiveTime = formatTimeAgo(session.lastActiveAt || session.createdAt);
 
     return (
@@ -1231,7 +1160,11 @@ export default function SessionListTable({
               </Badge>
             </div>
             <p className="text-blue-100 text-sm">
-              Manage your active login sessions and devices • Sorted by Last Active
+              Manage your active login sessions and devices • Sorted by {defaultSortField === 'lastActiveAt' ? 'Last Active' : 
+                defaultSortField === 'createdAt' ? 'Login Time' :
+                defaultSortField === 'device' ? 'Device Type' :
+                defaultSortField === 'status' ? 'Status' : 'User'}
+              {defaultSortDirection === 'desc' ? ' (Newest first)' : ' (Oldest first)'}
             </p>
             {lastUpdateTime && (
               <p className="text-blue-200 text-xs mt-1">
@@ -1324,12 +1257,10 @@ export default function SessionListTable({
             <TableHeader>
               <TableRow className="hover:bg-transparent border-b border-gray-100 dark:border-gray-800 bg-gray-50/80 dark:bg-gray-800/50 h-12">
                 <TableHead className="w-[200px] py-3 pl-6">
-                  <SortableHeader field="user">
-                    <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300 text-sm font-semibold">
-                      <User className="h-4 w-4" />
-                      User Information
-                    </div>
-                  </SortableHeader>
+                  <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300 text-sm font-semibold">
+                    <User className="h-4 w-4" />
+                    User Information
+                  </div>
                 </TableHead>
                 <TableHead className="py-3">
                   <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300 text-sm font-semibold">
@@ -1338,40 +1269,27 @@ export default function SessionListTable({
                   </div>
                 </TableHead>
                 <TableHead className="py-3">
-                  <SortableHeader field="device">
-                    <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300 text-sm font-semibold">
-                      <Monitor className="h-4 w-4" />
-                      Device & Browser
-                    </div>
-                  </SortableHeader>
+                  <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300 text-sm font-semibold">
+                    <Monitor className="h-4 w-4" />
+                    Device & Browser
+                  </div>
                 </TableHead>
                 <TableHead className="py-3">
-                  <SortableHeader field="status">
-                    <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300 text-sm font-semibold">
-                      Status Indicators
-                    </div>
-                  </SortableHeader>
+                  <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300 text-sm font-semibold">
+                    Status Indicators
+                  </div>
                 </TableHead>
                 <TableHead className="py-3">
-                  <SortableHeader field="createdAt">
-                    <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300 text-sm font-semibold">
-                      <Calendar className="h-4 w-4" />
-                      Login Time
-                    </div>
-                  </SortableHeader>
+                  <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300 text-sm font-semibold">
+                    <Calendar className="h-4 w-4" />
+                    Login Time
+                  </div>
                 </TableHead>
                 <TableHead className="py-3">
-                  <SortableHeader field="lastActiveAt">
-                    <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300 text-sm font-semibold">
-                      <Timer className="h-4 w-4" />
-                      Last Active
-                      {sortField === 'lastActiveAt' && (
-                        <span className="text-xs font-normal ml-1">
-                          ({sortDirection === 'desc' ? 'Newest' : 'Oldest'})
-                        </span>
-                      )}
-                    </div>
-                  </SortableHeader>
+                  <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300 text-sm font-semibold">
+                    <Timer className="h-4 w-4" />
+                    Last Active
+                  </div>
                 </TableHead>
                 <TableHead className="text-right py-3 pr-6 text-sm font-semibold">Actions</TableHead>
               </TableRow>
@@ -1418,19 +1336,12 @@ export default function SessionListTable({
                   Active Sessions ({currentSessions.length})
                 </h3>
                 <p className="text-xs text-gray-500 dark:text-gray-500">
-                  Sorted by Last Active • {sortDirection === 'desc' ? 'Newest first' : 'Oldest first'}
+                  Sorted by {defaultSortField === 'lastActiveAt' ? 'Last Active' : 
+                    defaultSortField === 'createdAt' ? 'Login Time' : 'Device'}
+                  • {defaultSortDirection === 'desc' ? 'Newest first' : 'Oldest first'}
                 </p>
               </div>
               <div className="flex items-center gap-1">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 px-2 text-xs"
-                  onClick={() => handleSort('lastActiveAt')}
-                >
-                  <Timer className="h-3 w-3" />
-                  {sortDirection === 'desc' ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />}
-                </Button>
                 {onRefresh && (
                   <Button
                     size="sm"
