@@ -310,78 +310,50 @@ function authorizeAdminOrSuper(req, res, next) {
 }
 
 // Middleware untuk update lastActiveAt tiap request
-// src/middleware/authMiddleware.js - Perbaikan updateSessionActivity
 export const updateSessionActivity = async (req, res, next) => {
   try {
-    // Cari session ID dari berbagai sumber
-    const sessionId =
-      req.session?.id ||
-      req.headers["x-session-id"] ||
-      req.headers["session-id"] ||
-      req.cookies?.sessionId;
+    const userId = req.user?.id;
 
-    if (!sessionId || !req.user?.id) {
-      console.log(`⚠️ [ACTIVITY] No valid session/user: ${sessionId}`);
+    if (!userId) {
       return next();
     }
 
-    // Validasi format session ID (UUID harus 36 karakter)
-    if (sessionId.length < 10 || sessionId.length > 100) {
-      console.log(`⚠️ [ACTIVITY] Invalid session ID format: ${sessionId}`);
-      return next();
-    }
-
-    console.log(
-      `🔄 [ACTIVITY] Updating session: ${sessionId.substring(0, 8)}...`
-    );
-
-    // Update dengan error handling yang lebih baik
-    const updatePromise = prisma.userSession.update({
+    // 🎯 CARI SESSION AKTIF TERBARU USER
+    const activeSession = await prisma.userSession.findFirst({
       where: {
-        id: sessionId,
-        userId: req.user.id,
+        userId: userId,
         isRevoked: false,
         expiresAt: { gt: new Date() },
       },
-      data: {
-        lastActiveAt: new Date(),
-      },
+      orderBy: { lastActiveAt: "desc" },
+      select: { id: true },
     });
 
-    // Gunakan timeout untuk mencegah blocking
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Update timeout")), 3000)
-    );
+    if (!activeSession) {
+      console.log(
+        `[ACTIVITY] ⚠️ No active session for user: ${userId.substring(0, 8)}...`
+      );
+      return next();
+    }
 
-    await Promise.race([updatePromise, timeoutPromise])
+    // UPDATE lastActiveAt
+    await prisma.userSession
+      .update({
+        where: { id: activeSession.id },
+        data: { lastActiveAt: new Date() },
+      })
       .then(() => {
-        // console.log(`✅ [ACTIVITY] Updated: ${sessionId.substring(0, 8)}`);
+        console.log(
+          `[ACTIVITY] ✅ Updated: ${activeSession.id.substring(0, 8)}...`
+        );
       })
       .catch((error) => {
-        // Handle specific error cases
-        if (error.code === "P2025") {
-          console.log(
-            `⚠️ [ACTIVITY] Session not found/revoked: ${sessionId.substring(
-              0,
-              8
-            )}`
-          );
-        } else if (error.message === "Update timeout") {
-          console.log(
-            `⏰ [ACTIVITY] Timeout updating: ${sessionId.substring(0, 8)}`
-          );
-        } else {
-          console.log(
-            `❌ [ACTIVITY] Error updating ${sessionId.substring(0, 8)}:`,
-            error.message
-          );
-        }
-        // Don't throw, continue request
+        console.log(`[ACTIVITY] ⚠️ Update failed: ${error.message}`);
       });
   } catch (error) {
-    console.error("[ACTIVITY] Unexpected error:", error.message);
+    console.error("[ACTIVITY] Error:", error.message);
   } finally {
-    next(); // Always continue
+    next();
   }
 };
 

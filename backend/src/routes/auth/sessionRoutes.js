@@ -31,7 +31,7 @@ router.patch("/revoke/:sessionId", authenticateToken, updateSessionActivity, rev
 router.patch("/revoke-others", authenticateToken, updateSessionActivity, revokeAllOtherSessions);
 
 // ✅ POST /api/sessions/fcm → update FCM token untuk session saat ini
-router.post("/fcm", authenticateToken, updateSessionActivity, updateFcmToken);
+router.post("/update-session-fcm", authenticateToken, updateSessionActivity, updateFcmToken);
 
 // ✅ ADMIN ONLY: GET /api/sessions/all-users → semua session dari semua users
 router.get("/all-users", authenticateToken, authorizeAdminOrSuper, async (req, res) => {

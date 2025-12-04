@@ -360,44 +360,6 @@ function extractDeviceInfo(userAgent) {
   }
 }
 
-// ✅ FUNCTION UNTUK UPDATE lastActiveAt (bisa dipanggil tiap request)
-async function updateSessionLastActive(sessionId) {
-  try {
-    await prisma.userSession.update({
-      where: { id: sessionId },
-      data: { lastActiveAt: new Date() },
-    });
-  } catch (error) {
-    console.error(
-      `[SESSION] Error updating lastActiveAt for ${sessionId}:`,
-      error
-    );
-  }
-}
-
-// ✅ FUNCTION UNTUK GET USER SESSIONS (untuk API)
-async function getUserSessionsForAPI(userId) {
-  const sessions = await prisma.userSession.findMany({
-    where: { userId },
-    orderBy: { lastActiveAt: "desc" },
-  });
-
-  return sessions.map((session) => ({
-    id: session.id,
-    userAgent: session.userAgent,
-    ipAddress: session.ipAddress,
-    origin: session.origin,
-    country: session.country,
-    city: session.city,
-    isRevoked: session.isRevoked,
-    createdAt: session.createdAt,
-    expiresAt: session.expiresAt,
-    lastActiveAt: session.lastActiveAt,
-    fcmToken: session.fcmToken,
-    deviceId: session.deviceId,
-  }));
-}
-
 // Constants untuk error messages
 const ERROR_MESSAGES = {
   INVALID_CODE: "Authorization+code+is+missing+or+invalid",
