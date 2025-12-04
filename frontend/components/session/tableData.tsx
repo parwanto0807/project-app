@@ -36,9 +36,6 @@ import {
   Smartphone,
   Laptop,
   Tablet,
-  // ArrowUpDown,
-  // ArrowUp,
-  // ArrowDown
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -66,7 +63,7 @@ export interface Session {
   isRevoked: boolean;
   createdAt: string;
   expiresAt: string;
-  lastActiveAt: string; // Last active timestamp
+  lastActiveAt: string;
   fcmToken?: string | null;
   location?: {
     country?: string;
@@ -93,8 +90,6 @@ interface SessionListTableProps {
   lastUpdateTime?: string;
   currentSessionId?: string;
   showCurrentSessionIndicator?: boolean;
-  // Tambahkan properti untuk sort dari backend
-  defaultSortField?: 'lastActiveAt' | 'createdAt' | 'device' | 'status' | 'user';
   defaultSortDirection?: 'asc' | 'desc';
 }
 
@@ -108,7 +103,6 @@ export default function SessionListTable({
   onRevokeAllOtherSessions,
   lastUpdateTime,
   currentSessionId,
-  defaultSortField = 'lastActiveAt',
   defaultSortDirection = 'desc',
 }: SessionListTableProps) {
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
@@ -127,7 +121,48 @@ export default function SessionListTable({
   const searchParams = useSearchParams();
   const currentPage = Number(searchParams.get("page")) || 1;
 
-  // Update time ago for last update
+  // PERBAIKAN: Gunakan useCallback untuk formatTimeAgo
+  const formatTimeAgo = useCallback((dateString: string) => {
+    try {
+      if (!dateString) return 'Never';
+      
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        console.error('Invalid date string:', dateString);
+        return 'Invalid date';
+      }
+      
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffSeconds = Math.floor(diffMs / 1000);
+      const diffMinutes = Math.floor(diffSeconds / 60);
+      const diffHours = Math.floor(diffMinutes / 60);
+      const diffDays = Math.floor(diffHours / 24);
+
+      if (diffDays > 30) {
+        return new Date(dateString).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric'
+        });
+      } else if (diffDays > 0) {
+        return `${diffDays}d ago`;
+      } else if (diffHours > 0) {
+        return `${diffHours}h ago`;
+      } else if (diffMinutes > 0) {
+        return `${diffMinutes}m ago`;
+      } else if (diffSeconds > 30) {
+        return `${diffSeconds}s ago`;
+      } else {
+        return 'Just now';
+      }
+    } catch (error) {
+      console.error('Error in formatTimeAgo:', error);
+      return 'Just now';
+    }
+  }, []);
+
+  // PERBAIKAN: Update time ago for last update dengan dependency yang benar
   useEffect(() => {
     if (lastUpdateTime) {
       const updateTimeAgo = () => {
@@ -135,17 +170,36 @@ export default function SessionListTable({
       };
 
       updateTimeAgo();
-      const interval = setInterval(updateTimeAgo, 60000); // Update every minute
+      const interval = setInterval(updateTimeAgo, 60000);
 
       return () => clearInterval(interval);
     }
-  }, [lastUpdateTime]);
+  }, [lastUpdateTime, formatTimeAgo]);
 
-  // Sessions sudah di-sort dari backend, gunakan langsung
+  // PERBAIKAN: Sorting dengan fallback untuk memastikan urutan benar
   const sortedSessions = useMemo(() => {
-    // Jika backend sudah menyediakan data terurut, gunakan langsung
-    // Atau jika perlu sorting tambahan di frontend:
-    return [...sessions]; // Gunakan data asli dari backend
+    if (!sessions || sessions.length === 0) return [];
+
+    // Buat salinan array
+    const sessionsCopy = [...sessions];
+    
+    // Sort dengan comparator yang robust
+    const sorted = sessionsCopy.sort((a, b) => {
+      try {
+        // Gunakan lastActiveAt sebagai primary, fallback ke createdAt jika tidak ada
+        const timeA = a.lastActiveAt ? new Date(a.lastActiveAt).getTime() : new Date(a.createdAt).getTime();
+        const timeB = b.lastActiveAt ? new Date(b.lastActiveAt).getTime() : new Date(b.createdAt).getTime();
+        
+        // Untuk descending (terbaru dulu): timeB - timeA
+        return timeB - timeA;
+      } catch (error) {
+        console.error('Error sorting sessions:', error);
+        // Fallback: urutkan berdasarkan createdAt
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+    });
+    
+    return sorted;
   }, [sessions]);
 
   // Handle revoke session
@@ -203,13 +257,13 @@ export default function SessionListTable({
     toast.info('Pinging server...');
   };
 
-  // Pagination calculations - menggunakan sortedSessions dari backend
+  // Pagination calculations - menggunakan sortedSessions
   const totalPages = Math.ceil(sortedSessions.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const currentSessions = sortedSessions.slice(startIndex, startIndex + itemsPerPage);
 
   // Utility Functions
-  const formatDeviceInfo = (userAgent: string) => {
+  const formatDeviceInfo = useCallback((userAgent: string) => {
     if (userAgent.includes('Mobile')) return 'Mobile';
     if (userAgent.includes('Tablet')) return 'Tablet';
     if (userAgent.includes('Windows')) return 'Windows';
@@ -218,18 +272,18 @@ export default function SessionListTable({
     if (userAgent.includes('Android')) return 'Android';
     if (userAgent.includes('iOS')) return 'iOS';
     return 'Desktop';
-  };
+  }, []);
 
-  const getBrowserInfo = (userAgent: string) => {
+  const getBrowserInfo = useCallback((userAgent: string) => {
     if (userAgent.includes('Chrome')) return 'Chrome';
     if (userAgent.includes('Firefox')) return 'Firefox';
     if (userAgent.includes('Safari') && !userAgent.includes('Chrome')) return 'Safari';
     if (userAgent.includes('Edge')) return 'Edge';
     if (userAgent.includes('Opera')) return 'Opera';
     return 'Browser';
-  };
+  }, []);
 
-  const getDeviceIcon = (userAgent: string, className: string = "h-5 w-5") => {
+  const getDeviceIcon = useCallback((userAgent: string, className: string = "h-5 w-5") => {
     if (userAgent.includes('Mobile')) {
       return <Smartphone className={`text-blue-500 ${className}`} />;
     }
@@ -237,44 +291,16 @@ export default function SessionListTable({
       return <Tablet className={`text-purple-500 ${className}`} />;
     }
     return <Laptop className={`text-green-500 ${className}`} />;
-  };
+  }, []);
 
-  const getDeviceIconComponent = (userAgent: string) => {
+  const getDeviceIconComponent = useCallback((userAgent: string) => {
     if (userAgent.includes('Mobile')) return '📱';
     if (userAgent.includes('Tablet')) return '📱';
     return '💻';
-  };
+  }, []);
 
-  // Time formatting functions
-  const formatTimeAgo = (dateString: string) => {
-    const now = new Date();
-    const date = new Date(dateString);
-    const diffMs = now.getTime() - date.getTime();
-    const diffSeconds = Math.floor(diffMs / 1000);
-    const diffMinutes = Math.floor(diffSeconds / 60);
-    const diffHours = Math.floor(diffMinutes / 60);
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffDays > 30) {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-      });
-    } else if (diffDays > 0) {
-      return `${diffDays}d ago`;
-    } else if (diffHours > 0) {
-      return `${diffHours}h ago`;
-    } else if (diffMinutes > 0) {
-      return `${diffMinutes}m ago`;
-    } else if (diffSeconds > 30) {
-      return `${diffSeconds}s ago`;
-    } else {
-      return 'Just now';
-    }
-  };
-
-  const getTimeSince = (dateString: string) => {
+  // PERBAIKAN: getTimeSince dengan useCallback
+  const getTimeSince = useCallback((dateString: string) => {
     const now = new Date();
     const date = new Date(dateString);
     const diffMs = now.getTime() - date.getTime();
@@ -286,26 +312,9 @@ export default function SessionListTable({
     if (diffHours > 0) return `${diffHours}h`;
     if (diffMins > 0) return `${diffMins}m`;
     return '<1m';
-  };
-
-  const getTimeAgo = useCallback((dateString: string) => {
-    return formatTimeAgo(dateString);
   }, []);
 
-  useEffect(() => {
-    if (lastUpdateTime) {
-      const updateTimeAgo = () => {
-        setTimeAgoUpdate(getTimeAgo(lastUpdateTime));
-      };
-
-      updateTimeAgo();
-      const interval = setInterval(updateTimeAgo, 60000);
-
-      return () => clearInterval(interval);
-    }
-  }, [lastUpdateTime, getTimeAgo]);
-
-  const formatDetailedTime = (dateString: string) => {
+  const formatDetailedTime = useCallback((dateString: string) => {
     const date = new Date(dateString);
     return {
       date: date.toLocaleDateString('en-US', {
@@ -329,9 +338,9 @@ export default function SessionListTable({
         hour12: true
       })
     };
-  };
+  }, []);
 
-  const calculateIdleTime = (lastActiveAt: string) => {
+  const calculateIdleTime = useCallback((lastActiveAt: string) => {
     const now = new Date();
     const lastActive = new Date(lastActiveAt);
     const diffMs = now.getTime() - lastActive.getTime();
@@ -343,9 +352,9 @@ export default function SessionListTable({
     if (diffHours > 0) return { value: diffHours, unit: 'hours' };
     if (diffMins > 0) return { value: diffMins, unit: 'minutes' };
     return { value: Math.floor(diffMs / 1000), unit: 'seconds' };
-  };
+  }, []);
 
-  const getIdleBadgeVariant = (lastActiveAt: string) => {
+  const getIdleBadgeVariant = useCallback((lastActiveAt: string) => {
     const idleTime = calculateIdleTime(lastActiveAt);
 
     if (idleTime.unit === 'days' && idleTime.value > 7) return 'destructive';
@@ -353,10 +362,10 @@ export default function SessionListTable({
     if (idleTime.unit === 'hours' && idleTime.value > 12) return 'secondary';
     if (idleTime.unit === 'minutes' && idleTime.value > 30) return 'outline';
     return 'default';
-  };
+  }, [calculateIdleTime]);
 
   // Check session and notification status
-  const checkSessionStatus = (session: Session) => {
+  const checkSessionStatus = useCallback((session: Session) => {
     const isSessionOn = !session.isRevoked;
     const isNotifOn = !!session.fcmToken;
     const isCurrentSession = currentSessionId === session.id;
@@ -367,10 +376,10 @@ export default function SessionListTable({
     const isRecentlyActive = (now.getTime() - lastActive.getTime()) < 5 * 60 * 1000;
 
     return { isSessionOn, isNotifOn, isCurrentSession, isRecentlyActive };
-  };
+  }, [currentSessionId]);
 
   // Helper function to get status labels
-  const getStatusLabels = (session: Session) => {
+  const getStatusLabels = useCallback((session: Session) => {
     const { isSessionOn, isNotifOn, isCurrentSession, isRecentlyActive } = checkSessionStatus(session);
 
     return {
@@ -378,7 +387,7 @@ export default function SessionListTable({
       notifLabel: isNotifOn ? "Enabled" : "Disabled",
       activityLabel: isRecentlyActive ? "Recently Active" : "Idle"
     };
-  };
+  }, [checkSessionStatus]);
 
   // Enhanced Status Indicator Component
   const StatusIndicator = ({
@@ -1160,11 +1169,7 @@ export default function SessionListTable({
               </Badge>
             </div>
             <p className="text-blue-100 text-sm">
-              Manage your active login sessions and devices • Sorted by {defaultSortField === 'lastActiveAt' ? 'Last Active' : 
-                defaultSortField === 'createdAt' ? 'Login Time' :
-                defaultSortField === 'device' ? 'Device Type' :
-                defaultSortField === 'status' ? 'Status' : 'User'}
-              {defaultSortDirection === 'desc' ? ' (Newest first)' : ' (Oldest first)'}
+              Manage your active login sessions and devices • Sorted by Last Active (Newest first)
             </p>
             {lastUpdateTime && (
               <p className="text-blue-200 text-xs mt-1">
@@ -1336,9 +1341,7 @@ export default function SessionListTable({
                   Active Sessions ({currentSessions.length})
                 </h3>
                 <p className="text-xs text-gray-500 dark:text-gray-500">
-                  Sorted by {defaultSortField === 'lastActiveAt' ? 'Last Active' : 
-                    defaultSortField === 'createdAt' ? 'Login Time' : 'Device'}
-                  • {defaultSortDirection === 'desc' ? 'Newest first' : 'Oldest first'}
+                  Sorted by Last Active • {defaultSortDirection === 'desc' ? 'Newest first' : 'Oldest first'}
                 </p>
               </div>
               <div className="flex items-center gap-1">
@@ -1412,7 +1415,6 @@ function SessionListSkeleton() {
       </CardHeader>
 
       <CardContent className="p-0">
-        {/* Desktop Skeleton */}
         <div className="hidden md:block p-4">
           <div className="space-y-2">
             {Array.from({ length: 5 }).map((_, i) => (
@@ -1442,7 +1444,6 @@ function SessionListSkeleton() {
           </div>
         </div>
 
-        {/* Mobile Skeleton */}
         <div className="md:hidden p-3 space-y-2">
           {Array.from({ length: 3 }).map((_, i) => (
             <Card key={i} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800">
