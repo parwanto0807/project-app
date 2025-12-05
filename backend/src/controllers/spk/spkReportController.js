@@ -690,30 +690,183 @@ export const getReportsBySpkIdBap = async (req, res) => {
   try {
     const { spkId } = req.params;
 
+    // console.log(`🔍 [API] Fetching reports for SPK ID: ${spkId}`);
+
     if (!spkId) {
-      return res.status(400).json({ error: "spkId diperlukan" });
+      return res.status(400).json({
+        success: false,
+        error: "spkId diperlukan",
+      });
     }
 
-    const reports = await prisma.sPKFieldReport.findMany({
-      where: { spkId },
-      include: {
-        karyawan: true,
-        photos: true, // ✅ ambil semua foto terkait
-      },
-      orderBy: { reportedAt: "desc" }, // opsional: urutkan terbaru
+    // 1. CEK APAKAH SPK ADA
+    const spkExists = await prisma.sPK.findUnique({
+      where: { id: spkId },
+      select: { id: true, spkNumber: true },
     });
 
-    // console.log("Data:", reports);
+    // console.log(`📋 SPK Check:`, spkExists ? `Found - ${spkExists.spkNumber}` : 'Not found');
+
+    if (!spkExists) {
+      return res.status(404).json({
+        success: false,
+        error: "SPK tidak ditemukan",
+        spkId,
+      });
+    }
+
+    // 2. AMBIL SEMUA REPORT UNTUK SPK INI
+    const reports = await prisma.sPKFieldReport.findMany({
+      where: {
+        spkId: spkId,
+        // Optional: hanya report yang ada photos
+        // photos: { some: {} }
+      },
+      include: {
+        karyawan: {
+          select: {
+            id: true,
+            namaLengkap: true,
+          },
+        },
+        photos: true,
+        soDetail: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+              },
+            },
+          },
+        },
+        spk: {
+          select: {
+            spkNumber: true,
+            spkDate: true,
+          },
+        },
+      },
+      orderBy: { reportedAt: "desc" },
+    });
+
+    // console.log(`📊 Found ${reports.length} reports for SPK ${spkId}`);
+
+    // Debug setiap report
+    // reports.forEach((report, idx) => {
+    //   console.log(`  Report ${idx + 1}:`, {
+    //     id: report.id,
+    //     type: report.type,
+    //     photosCount: report.photos?.length || 0,
+    //     hasSoDetail: !!report.soDetail,
+    //     productName: report.soDetail?.product?.name || 'No product'
+    //   });
+    // });
+
+    // 3. JIKA TIDAK ADA REPORT SAMA SEKALI
+    if (reports.length === 0) {
+      // Cek apakah ada SPKDetail yang terkait
+      const spkDetails = await prisma.sPKDetail.findMany({
+        where: { spkId: spkId },
+        include: {
+          salesOrderItem: {
+            include: {
+              product: true,
+            },
+          },
+        },
+      });
+
+      return res.json({
+        success: true,
+        data: [],
+        metadata: {
+          message: "Tidak ada laporan field untuk SPK ini",
+          spkNumber: spkExists.spkNumber,
+          spkDetailsCount: spkDetails.length,
+          spkDetails: spkDetails.map((d) => ({
+            id: d.id,
+            productName: d.salesOrderItem?.product?.name,
+            salesOrderItemId: d.salesOrderItemId,
+          })),
+        },
+      });
+    }
+
+    // 4. FORMAT DATA
+    const allPhotos = reports.flatMap((report) => {
+      const photos = report.photos || [];
+
+      return photos.map((photo) => ({
+        // Photo data
+        id: photo.id,
+        imageUrl: photo.imageUrl,
+        caption: photo.caption,
+        uploadedBy: photo.uploadedBy,
+        uploadedAt: photo.uploadedAt,
+        createdAt: photo.createdAt,
+        updatedAt: photo.updatedAt,
+        reportId: photo.reportId,
+
+        // Report info
+        reportInfo: {
+          id: report.id,
+          type: report.type,
+          reportedAt: report.reportedAt,
+          status: report.status,
+          progress: report.progress,
+          note: report.note,
+          karyawanName: report.karyawan?.namaLengkap,
+        },
+
+        // Product info
+        productInfo: report.soDetail?.product
+          ? {
+              id: report.soDetail.product.id,
+              name: report.soDetail.product.name,
+              code: report.soDetail.product.code,
+            }
+          : null,
+
+        // Sales order item info
+        salesOrderItemInfo: report.soDetail
+          ? {
+              id: report.soDetail.id,
+              qty: report.soDetail.qty,
+              price: report.soDetail.price,
+              total: report.soDetail.qty * report.soDetail.price,
+            }
+          : null,
+
+        // SPK info
+        spkInfo: {
+          spkNumber: report.spk?.spkNumber,
+          spkDate: report.spk?.spkDate,
+        },
+      }));
+    });
 
     res.json({
       success: true,
-      data: reports,
+      data: allPhotos,
+      metadata: {
+        totalReports: reports.length,
+        totalPhotos: allPhotos.length,
+        spkNumber: spkExists.spkNumber,
+        reportsWithPhotos: reports.filter((r) => r.photos?.length > 0).length,
+        reportsWithProduct: reports.filter((r) => r.soDetail?.product).length,
+      },
     });
   } catch (error) {
-    console.error("Error fetching reports:", error);
+    console.error("❌ Error fetching reports:", error);
+    console.error("Error stack:", error.stack);
+
     res.status(500).json({
+      success: false,
       error: "Gagal mengambil laporan",
-      details: error.message,
+      message: error.message,
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
     });
   }
 };

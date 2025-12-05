@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Upload, FileText, Package, Loader2, ZoomIn, Plus, Trash2, Calendar } from "lucide-react";
+import { Upload, FileText, Package, Loader2, ZoomIn, Plus, Trash2, Calendar, Check, Square, CheckSquare } from "lucide-react";
 import Image from "next/image";
 import { Karyawan } from "@/lib/validations/karyawan";
 import { BAPCreateSchema } from "@/schemas/bap";
@@ -106,16 +106,45 @@ export interface SalesOrder {
     user: User;
 }
 
+export enum ReportType {
+    PROGRESS = "PROGRESS",
+    FINAL = "FINAL"
+}
+
+export enum ReportStatus {
+    PENDING = "PENDING",
+    APPROVED = "APPROVED",
+    REJECTED = "REJECTED"
+}
+
 export interface SpkFieldReport {
     id: string;
     spkId: string;
-    userId: string;
-    reportDate: string;
-    description: string;
-    location: string;
+    karyawanId: string;
+    type: "PROGRESS" | "FINAL";
+    note?: string;
+    reportedAt: string;
+    progress?: number;
+    status: "PENDING" | "APPROVED" | "REJECTED";
     photos: SpkPhoto[];
     createdAt: string;
     updatedAt: string;
+    soDetailId?: string;
+    soDetail?: {
+        id: string;
+        productId: string;
+        qty: number;
+        price: number;
+        product?: {
+            id: string;
+            name: string;
+            code: string;
+        }
+    };
+    karyawan?: {
+        id: string;
+        namaLengkap: string;
+    };
 }
 
 export interface BAPPhoto {
@@ -131,19 +160,36 @@ export interface BAPPhoto {
 interface BAPPhotoFrontend extends BAPPhoto {
     file?: File;
     source?: "manual" | "spk";
-    tempId?: string; // Untuk identifikasi di frontend
+    tempId?: string;
 }
 
-type SpkPhoto = {
-    id: string
-    caption: string
-    imageUrl: string
-    reportId: string
-    uploadedBy: string
-    createdAt: string
-    updatedAt: string
-    uploadedAt: string
-};
+// 🎯 PERBAIKAN: Extended SpkPhoto interface dengan tambahan fields untuk frontend
+interface SpkPhoto {
+    id: string;
+    caption?: string;
+    imageUrl: string;
+    reportId: string;
+    uploadedBy: string;
+    createdAt: string;
+    updatedAt: string;
+    uploadedAt: string;
+    // 🎯 Tambahan untuk enrichment data
+    productName?: string;
+    productCode?: string;
+    reportType?: string;
+    karyawanName?: string;
+    // Untuk backward compatibility - menggunakan union type
+    [key: string]: string | number | boolean | null | undefined | Record<string, unknown> | unknown[];
+}
+
+// 🎯 Extended interface untuk enriched photos
+interface EnrichedSpkPhoto extends SpkPhoto {
+    productName?: string;
+    productCode?: string;
+    reportType?: string;
+    karyawanName?: string;
+    isSelected?: boolean;
+}
 
 type CreateBAPFormProps = {
     currentUser: { id: string; name: string };
@@ -155,7 +201,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export const getReportsBySpkId = async (
     spkId: string,
-): Promise<{ success: boolean; data: SpkFieldReport[] }> => {
+): Promise<{ success: boolean; data: SpkPhoto[] }> => { // 🎯 Ubah return type ke SpkPhoto[]
     try {
         const url = `${API_URL}/api/spk/report/getReportsBySpkIdBap/${encodeURIComponent(spkId)}`;
 
@@ -167,12 +213,11 @@ export const getReportsBySpkId = async (
         });
 
         if (!response.ok) {
-            const text = await response.text();
-            console.error("[getReportsBySpkId] Error response text:", text);
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const json = await response.json();
+
 
         return json;
     } catch (error) {
@@ -217,7 +262,6 @@ function BAPPhotoForm({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Preview Foto */}
                 <div className="space-y-2">
                     <Label>Preview Foto</Label>
                     <div className="relative w-full h-32 border rounded-md overflow-hidden">
@@ -239,9 +283,7 @@ function BAPPhotoForm({
                     </div>
                 </div>
 
-                {/* Form Input */}
                 <div className="space-y-3">
-                    {/* Category */}
                     <div>
                         <Label htmlFor={`category-${index}`}>Kategori</Label>
                         <Select
@@ -261,7 +303,6 @@ function BAPPhotoForm({
                         </Select>
                     </div>
 
-                    {/* Caption */}
                     <div>
                         <Label htmlFor={`caption-${index}`}>Keterangan (Opsional)</Label>
                         <Input
@@ -272,7 +313,6 @@ function BAPPhotoForm({
                         />
                     </div>
 
-                    {/* Upload File - hanya untuk foto manual */}
                     {source === "manual" && (
                         <div>
                             <Label htmlFor={`file-${index}`}>Upload Foto</Label>
@@ -306,15 +346,19 @@ export function CreateBAPForm({
 }: CreateBAPFormProps) {
     const [isPending, startTransition] = useTransition();
     const [selectedSalesOrder, setSelectedSalesOrder] = useState<SalesOrder | null>(null);
-    const [spkPhotos, setSpkPhotos] = useState<SpkPhoto[]>([]);
+    const [spkPhotos, setSpkPhotos] = useState<EnrichedSpkPhoto[]>([]); // 🎯 Update type
     const [dialogOpen, setDialogOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [fetchingPhotos, setFetchingPhotos] = useState(false);
     const [zoomedImage, setZoomedImage] = useState<string | null>(null);
     const [bapPhotos, setBapPhotos] = useState<BAPPhotoFrontend[]>([]);
     const [isAddingManual, setIsAddingManual] = useState(false);
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
+
+    // State untuk filter & selection
+    const [selectedPhotos, setSelectedPhotos] = useState<EnrichedSpkPhoto[]>([]); // 🎯 Update type
+    const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+    const [lastSelectedIndex, setLastSelectedIndex] = useState<number | null>(null);
 
     const router = useRouter();
     const form = useForm({
@@ -334,47 +378,102 @@ export function CreateBAPForm({
         },
     });
 
-
     useEffect(() => {
-        const handleResize = () => setIsMobile(window.innerWidth < 768); // misal <768px = mobile
-        handleResize(); // set awal
+        const handleResize = () => setIsMobile(window.innerWidth < 768);
+        handleResize();
         window.addEventListener("resize", handleResize);
         return () => window.removeEventListener("resize", handleResize);
     }, []);
 
-    // Fetch SPK reports when selected sales order changes
+    // 🎯 PERBAIKAN: fetchSpkReports dengan type yang benar
     useEffect(() => {
         const fetchSpkReports = async () => {
             if (selectedSalesOrder && selectedSalesOrder.spk.length > 0) {
                 setFetchingPhotos(true);
                 try {
                     const spkId = selectedSalesOrder.spk[0].id;
-                    const result = await getReportsBySpkId(spkId);
 
-                    if (result.success) {
-                        const allPhotos: SpkPhoto[] = result.data.flatMap(
-                            (report: SpkFieldReport) => report.photos || []
-                        );
+                    const result = await getReportsBySpkId(spkId);
+                    if (result.success && result.data && Array.isArray(result.data)) {
+                        // 🎯 Define type untuk photo dengan nested properties
+                        interface PhotoWithExtra extends SpkPhoto {
+                            reportInfo?: {
+                                id: string;
+                                type: string;
+                                reportedAt: string;
+                                status: string;
+                                progress?: number;
+                                note?: string;
+                                karyawanName?: string;
+                            };
+                            productInfo?: {
+                                id: string;
+                                name: string;
+                                code: string;
+                            };
+                            spkInfo?: {
+                                spkNumber: string;
+                                spkDate: string;
+                            };
+                        }
+
+                        const allPhotos: EnrichedSpkPhoto[] = result.data.map((photo: PhotoWithExtra) => {
+                            // 🎯 Build full image URL
+                            let fullImageUrl = photo.imageUrl;
+                            if (photo.imageUrl && !photo.imageUrl.startsWith('http') && !photo.imageUrl.startsWith('blob:')) {
+                                fullImageUrl = `${API_URL}${photo.imageUrl.startsWith('/') ? photo.imageUrl : '/' + photo.imageUrl}`;
+                            }
+
+                            return {
+                                id: photo.id,
+                                caption: photo.caption,
+                                imageUrl: fullImageUrl,
+                                reportId: photo.reportId,
+                                uploadedBy: photo.uploadedBy,
+                                createdAt: photo.createdAt,
+                                updatedAt: photo.updatedAt,
+                                uploadedAt: photo.uploadedAt,
+                                // 🎯 Extract enriched data dari nested objects
+                                productName: photo.productInfo?.name,
+                                productCode: photo.productInfo?.code,
+                                reportType: photo.reportInfo?.type,
+                                karyawanName: photo.reportInfo?.karyawanName,
+                                // 🎯 Tambahkan data tambahan untuk filter
+                                _reportId: photo.reportId,
+                                _productId: photo.productInfo?.id,
+                                _spkNumber: photo.spkInfo?.spkNumber
+                            };
+                        });
+
                         setSpkPhotos(allPhotos);
+
+                        if (allPhotos.length === 0) {
+                            toast.warning("Tidak ada foto yang ditemukan dalam SPK ini");
+                        }
                     } else {
-                        console.warn("No photos found or API returned unsuccessful");
+                        console.warn("No photos found in API response");
                         setSpkPhotos([]);
                     }
                 } catch (error) {
                     console.error("Error fetching SPK reports:", error);
                     setSpkPhotos([]);
+                    toast.error("Gagal mengambil foto dari SPK");
                 } finally {
                     setFetchingPhotos(false);
+                    setSelectedPhotos([]);
+                    setSelectedReportId(null);
+                    setLastSelectedIndex(null);
                 }
             } else {
                 setSpkPhotos([]);
+                setSelectedPhotos([]);
             }
         };
 
         fetchSpkReports();
     }, [selectedSalesOrder]);
 
-    const { setValue } = form; // atau useFormContext()
+    const { setValue } = form;
 
     useEffect(() => {
         if (selectedSalesOrder?.project.name) {
@@ -385,7 +484,55 @@ export function CreateBAPForm({
         }
     }, [selectedSalesOrder, setValue]);
 
-    // Fungsi untuk menambah foto BAP baru (manual upload)
+    // 🎯 Update filteredPhotos dengan type yang benar
+    const filteredPhotos = selectedReportId
+        ? spkPhotos.filter(photo => photo.reportId === selectedReportId)
+        : spkPhotos;
+
+    // 🎯 Update togglePhotoSelection dengan type yang benar
+    const togglePhotoSelection = (photo: EnrichedSpkPhoto, index: number, e?: React.MouseEvent) => {
+        setSelectedPhotos(prev => {
+            const isSelected = prev.some(p => p.id === photo.id);
+
+            if (e?.shiftKey && lastSelectedIndex !== null) {
+                const start = Math.min(lastSelectedIndex, index);
+                const end = Math.max(lastSelectedIndex, index);
+                const photosInRange = filteredPhotos.slice(start, end + 1);
+
+                if (isSelected) {
+                    return prev.filter(p =>
+                        !photosInRange.some(rangePhoto => rangePhoto.id === p.id)
+                    );
+                } else {
+                    const newSelection = [...prev];
+                    photosInRange.forEach(rangePhoto => {
+                        if (!newSelection.some(p => p.id === rangePhoto.id)) {
+                            newSelection.push(rangePhoto);
+                        }
+                    });
+                    return newSelection;
+                }
+            }
+
+            if (isSelected) {
+                return prev.filter(p => p.id !== photo.id);
+            } else {
+                return [...prev, photo];
+            }
+        });
+
+        setLastSelectedIndex(index);
+    };
+
+    const selectAllFiltered = () => {
+        setSelectedPhotos(filteredPhotos);
+    };
+
+    const deselectAll = () => {
+        setSelectedPhotos([]);
+        setLastSelectedIndex(null);
+    };
+
     const addBAPPhoto = () => {
         setIsAddingManual(true);
         setBapPhotos(prev => [...prev, {
@@ -397,22 +544,24 @@ export function CreateBAPForm({
         }]);
     };
 
-    // Fungsi untuk mengupdate foto BAP
     const updateBAPPhoto = (index: number, updates: Partial<BAPPhotoFrontend>) => {
         setBapPhotos(prev => prev.map((photo, i) =>
             i === index ? { ...photo, ...updates } : photo
         ));
     };
 
-    // Fungsi untuk menghapus foto BAP
     const removeBAPPhoto = (index: number) => {
         setBapPhotos(prev => prev.filter((_, i) => i !== index));
     };
 
-    // Fungsi untuk menambah foto dari SPK ke BAP
-    const addPhotosFromSPK = (selectedSpkPhotos: SpkPhoto[]) => {
-        setIsDialogOpen(true);
-        const newBAPPhotos: BAPPhotoFrontend[] = selectedSpkPhotos.map(spkPhoto => {
+    // 🎯 Update addPhotosFromSPK dengan type yang benar
+    const addPhotosFromSPK = (photosToAdd: EnrichedSpkPhoto[]) => {
+        if (photosToAdd.length === 0) {
+            toast.warning("Pilih foto terlebih dahulu");
+            return;
+        }
+
+        const newBAPPhotos: BAPPhotoFrontend[] = photosToAdd.map(spkPhoto => {
             const imageUrl = spkPhoto.imageUrl?.startsWith("http")
                 ? spkPhoto.imageUrl
                 : `${API_URL}${spkPhoto.imageUrl}`;
@@ -420,14 +569,19 @@ export function CreateBAPForm({
             return {
                 photoUrl: imageUrl,
                 category: "PROCESS" as const,
-                caption: spkPhoto.caption || `Foto dari SPK - ${new Date(spkPhoto.createdAt).toLocaleDateString()}`,
+                caption: spkPhoto.caption ||
+                    (spkPhoto.productName
+                        ? `Foto ${spkPhoto.productName} - ${new Date(spkPhoto.createdAt).toLocaleDateString("id-ID")}`
+                        : `Foto dari SPK - ${new Date(spkPhoto.createdAt).toLocaleDateString("id-ID")}`),
                 source: "spk",
                 tempId: `spk-${spkPhoto.id}`
             };
         });
 
         setBapPhotos(prev => [...prev, ...newBAPPhotos]);
+        setSelectedPhotos([]);
         setDialogOpen(false);
+        toast.success(`${photosToAdd.length} foto berhasil ditambahkan`);
     };
 
     const onSubmit = async (values: z.infer<typeof BAPCreateSchema>) => {
@@ -438,7 +592,6 @@ export function CreateBAPForm({
                 ...values,
                 photos: bapPhotos.map((photo) => {
                     if (photo.file instanceof File) {
-                        // manual → kirim File
                         return {
                             photoUrl: photo.file,
                             category: photo.category,
@@ -446,7 +599,6 @@ export function CreateBAPForm({
                         };
                     }
 
-                    // SPK → string path
                     let safeUrl = photo.photoUrl || "";
                     if (safeUrl.startsWith("blob:")) safeUrl = "";
                     else if (safeUrl.startsWith("http")) safeUrl = new URL(safeUrl).pathname;
@@ -464,21 +616,17 @@ export function CreateBAPForm({
             if (result.success) {
                 handleSuccess();
             } else {
-                // ❌ Ganti alert error dengan toast.error
                 toast.error(`Error: ${result.error}`);
             }
         } catch (error) {
             console.error("Error creating BAP:", error);
-            // ❌ Ganti alert dengan toast.error
             toast.error("Failed to create BAP");
         } finally {
             setLoading(false);
         }
     };
 
-    // Helper untuk reset form setelah sukses
     const handleSuccess = () => {
-        // ✅ Ganti alert sukses dengan toast.success
         toast.success("BAP created successfully!");
 
         startTransition(() => {
@@ -497,11 +645,12 @@ export function CreateBAPForm({
             });
             setBapPhotos([]);
             setSelectedSalesOrder(null);
+            setSelectedPhotos([]);
+            setSelectedReportId(null);
 
             router.push("/admin-area/logistic/bap");
         });
     };
-
 
     if (!salesOrders.length || !users.length) {
         return (
@@ -520,7 +669,6 @@ export function CreateBAPForm({
 
     return (
         <form onSubmit={form.handleSubmit(onSubmit)} className="max-w-4xl mx-auto px-1 py-4">
-            {/* Header Section - Mobile Friendly */}
             <div className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 mb-6">
                 <div className="p-3 rounded-full bg-blue-100 text-blue-600 self-start sm:self-center">
                     <FileSignature className="h-6 w-6" />
@@ -531,7 +679,6 @@ export function CreateBAPForm({
                 </div>
             </div>
 
-            {/* Informasi Penting */}
             <Alert className="mb-6 sm:mb-8 bg-gradient-to-r from-cyan-600 to-purple-600 text-xs sm:text-sm">
                 <Info className="h-4 w-4 text-blue-600" />
                 <AlertTitle className="font-bold text-sm text-white">Informasi</AlertTitle>
@@ -542,8 +689,6 @@ export function CreateBAPForm({
 
             <Card className="border-none shadow-lg">
                 <CardContent className="space-y-6 sm:space-y-8 p-4 sm:p-6">
-
-                    {/* SECTION 1: Informasi Dasar */}
                     <section>
                         <div className="flex items-center space-x-2 mb-4">
                             <ClipboardList className="h-5 w-5 text-blue-600 flex-shrink-0" />
@@ -552,7 +697,6 @@ export function CreateBAPForm({
                         </div>
 
                         <div className="grid grid-cols-1 gap-4 sm:gap-6">
-                            {/* Tanggal BAP */}
                             <div className="space-y-2">
                                 <Label htmlFor="bapDate" className="flex items-center space-x-2 text-sm">
                                     <Calendar className="h-4 w-4 text-gray-500 flex-shrink-0" />
@@ -562,13 +706,7 @@ export function CreateBAPForm({
                                     id="bapDate"
                                     type="date"
                                     required
-                                    {...form.register("bapDate", {
-                                        required: "Tanggal BAP wajib diisi",
-                                    })}
-                                    onChange={(e) => {
-                                        const value = e.target.value;
-                                        form.setValue("bapDate", value);
-                                    }}
+                                    {...form.register("bapDate")}
                                     className="border-gray-300 focus:ring-blue-500 focus:border-blue-500 py-2"
                                 />
                                 {form.formState.errors.bapDate && (
@@ -576,7 +714,6 @@ export function CreateBAPForm({
                                 )}
                             </div>
 
-                            {/* Sales Order */}
                             <div className="space-y-2 w-full ">
                                 <Label className="flex items-center space-x-2 text-sm">
                                     <Package className="h-4 w-4 text-gray-500 flex-shrink-0" />
@@ -589,6 +726,8 @@ export function CreateBAPForm({
                                         form.setValue("salesOrderId", val);
                                         form.setValue("projectId", so?.projectId || "");
                                         setBapPhotos([]);
+                                        setSelectedPhotos([]);
+                                        setSelectedReportId(null);
                                     }}
                                 >
                                     <SelectTrigger className="border-gray-300 py-2 h-auto">
@@ -604,7 +743,6 @@ export function CreateBAPForm({
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
-
                                 </Select>
                                 {form.formState.errors.salesOrderId && (
                                     <p className="text-red-500 text-xs mt-1">{form.formState.errors.salesOrderId.message}</p>
@@ -615,7 +753,6 @@ export function CreateBAPForm({
 
                     <Separator className="my-4 sm:my-6" />
 
-                    {/* SECTION 2: Detail Proyek & Penanggung Jawab */}
                     {selectedSalesOrder && (
                         <section>
                             <div className="flex items-center space-x-2 mb-4">
@@ -625,7 +762,6 @@ export function CreateBAPForm({
                             </div>
 
                             <div className="grid grid-cols-1 gap-4 sm:gap-6">
-                                {/* SPK Number */}
                                 <div className="space-y-2">
                                     <Label className="flex items-center space-x-2 text-sm">
                                         <FileText className="h-4 w-4 text-gray-500 flex-shrink-0" />
@@ -636,11 +772,6 @@ export function CreateBAPForm({
                                         disabled
                                         className="bg-gray-50 py-2 text-sm"
                                     />
-                                    {selectedSalesOrder.spk.length === 0 && (
-                                        <p className="text-xs text-red-500 mt-1">
-                                            Sales Order ini tidak memiliki SPK
-                                        </p>
-                                    )}
                                 </div>
 
                                 <div className="space-y-2">
@@ -648,7 +779,6 @@ export function CreateBAPForm({
                                         <FileText className="h-4 w-4 text-gray-500 flex-shrink-0" />
                                         <span>SPK Created</span>
                                     </Label>
-
                                     <Input
                                         value={selectedSalesOrder.spk?.[0]?.spkDate
                                             ? new Date(selectedSalesOrder.spk[0].spkDate).toLocaleDateString("id-ID", {
@@ -657,18 +787,11 @@ export function CreateBAPForm({
                                                 year: "numeric",
                                             })
                                             : "Tidak ada SPK"}
-
                                         disabled
                                         className="bg-gray-50 py-2 text-sm"
                                     />
-                                    {selectedSalesOrder.spk.length === 0 && (
-                                        <p className="text-xs text-red-500 mt-1">
-                                            Sales Order ini tidak memiliki SPK
-                                        </p>
-                                    )}
                                 </div>
 
-                                {/* Created By */}
                                 <div className="space-y-2">
                                     <Label className="flex items-center space-x-2 text-sm">
                                         <User className="h-4 w-4 text-gray-500 flex-shrink-0" />
@@ -677,7 +800,6 @@ export function CreateBAPForm({
                                     <Input value={currentUser?.name || ""} disabled className="bg-gray-50 py-2 text-sm" />
                                 </div>
 
-                                {/* Penanggung Jawab */}
                                 <div className="space-y-2">
                                     <Label className="flex items-center space-x-2 text-sm">
                                         <Users className="h-4 w-4 text-gray-500 flex-shrink-0" />
@@ -702,7 +824,6 @@ export function CreateBAPForm({
                                     )}
                                 </div>
 
-                                {/* Lokasi */}
                                 <div className="space-y-2">
                                     <Label className="flex items-center space-x-2 text-sm">
                                         <MapPin className="h-4 w-4 text-gray-500 flex-shrink-0" />
@@ -723,7 +844,6 @@ export function CreateBAPForm({
 
                     <Separator className="my-4 sm:my-6" />
 
-                    {/* SECTION 3: Deskripsi & Catatan */}
                     <section>
                         <div className="flex items-center space-x-2 mb-4">
                             <ClipboardList className="h-5 w-5 text-purple-600 flex-shrink-0" />
@@ -732,7 +852,6 @@ export function CreateBAPForm({
                         </div>
 
                         <div className="grid grid-cols-1 gap-4 sm:gap-6">
-                            {/* Work Description */}
                             <div className="space-y-2">
                                 <Label className="flex items-center space-x-2 text-sm">
                                     <CheckCircle2 className="h-4 w-4 text-gray-500 flex-shrink-0" />
@@ -743,12 +862,8 @@ export function CreateBAPForm({
                                     {...form.register("workDescription")}
                                     className="border-gray-300 py-2 text-sm"
                                 />
-                                {form.formState.errors.workDescription && (
-                                    <p className="text-red-500 text-xs mt-1">{form.formState.errors.workDescription.message}</p>
-                                )}
                             </div>
 
-                            {/* Notes */}
                             <div className="space-y-2">
                                 <Label className="flex items-center space-x-2 text-sm">
                                     <Info className="h-4 w-4 text-gray-500 flex-shrink-0" />
@@ -765,7 +880,6 @@ export function CreateBAPForm({
 
                     <Separator className="my-4 sm:my-6" />
 
-                    {/* SECTION 4: Foto BAP */}
                     <section>
                         <Card className="border border-gray-200">
                             <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-t-lg gap-3">
@@ -781,7 +895,6 @@ export function CreateBAPForm({
                                         type="button"
                                         onClick={addBAPPhoto}
                                         variant="outline"
-                                        disabled={isDialogOpen}
                                         size="sm"
                                         className="border-orange-500 text-orange-700 dark:text-orange-200 hover:bg-orange-50 hover:text-orange-400 text-xs sm:text-sm h-8 sm:h-9 px-2 sm:px-3"
                                     >
@@ -833,10 +946,8 @@ export function CreateBAPForm({
                         </Card>
                     </section>
 
-                    {/* Submit Button - Full Width & Responsive */}
                     <div className="fixed bottom-0 left-0 right-0 bg-background/90 backdrop-blur-xl border-t border-border/50 p-3 sm:p-4 z-50">
                         <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 px-2">
-                            {/* Tombol Batal — Diperbaiki untuk Dark Mode */}
                             <Button
                                 type="button"
                                 variant="outline"
@@ -852,10 +963,8 @@ export function CreateBAPForm({
                                 <span className="ml-2">Batal</span>
                             </Button>
 
-                            {/* Divider Vertikal (hanya di desktop) — Lebih halus */}
                             <div className="hidden sm:block w-px h-8 bg-border/40"></div>
 
-                            {/* Tombol Simpan — Gradient Responsif & Glow Elegan */}
                             <Button
                                 type="submit"
                                 size="lg"
@@ -875,10 +984,8 @@ export function CreateBAPForm({
             `}
                                 disabled={loading || isPending}
                             >
-                                {/* Inner Glow Ring (Terlihat di Dark & Light) */}
                                 <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-300/30 via-transparent to-violet-300/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur"></div>
 
-                                {/* Icon + Text */}
                                 {loading || isPending ? (
                                     <>
                                         <Loader2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
@@ -888,7 +995,7 @@ export function CreateBAPForm({
                                 ) : (
                                     <>
                                         <FileSignature className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
-                                        <span>Simpan Dokumen BAST</span>
+                                        <span>Buat BAST</span>
                                     </>
                                 )}
                             </Button>
@@ -897,105 +1004,313 @@ export function CreateBAPForm({
                 </CardContent>
             </Card>
 
-            {/* Dialog untuk lihat & pilih foto dari SPK */}
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen} >
-                <DialogContent className="max-w-full sm:max-w-4xl max-h-[80vh] overflow-y-auto p-4 sm:p-6">
-                    <DialogHeader>
-                        <DialogTitle className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 text-base sm:text-lg">
-                            <ImageIcon className="h-5 w-5 text-blue-600" />
-                            <span>Pilih Foto dari SPK: {selectedSalesOrder?.spk[0]?.spkNumber}</span>
+            {/* Dialog untuk memilih foto dari SPK */}
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <DialogContent className="min-w-6xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+                    <DialogHeader className="p-6 pb-0">
+                        <DialogTitle className="flex items-center gap-2">
+                            <Package className="h-5 w-5" />
+                            Pilih Foto dari SPK
+                            <Badge variant="outline" className="ml-2">
+                                {spkPhotos.length} foto tersedia
+                            </Badge>
                         </DialogTitle>
                     </DialogHeader>
 
-                    {fetchingPhotos ? (
-                        <div className="flex flex-col items-center justify-center py-10 sm:py-16 space-y-3">
-                            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-                            <span className="text-gray-600 text-sm">Loading photos...</span>
-                        </div>
-                    ) : spkPhotos.length === 0 ? (
-                        <div className="text-center py-10 sm:py-16 text-gray-500">
-                            <ImageIcon className="h-10 w-10 mx-auto mb-3 opacity-50" />
-                            <p className="text-sm">Tidak ada foto ditemukan untuk SPK ini</p>
-                        </div>
-                    ) : (
-                        <>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 mt-4">
-                                {spkPhotos.map((photo, idx) => {
-                                    const imageUrl = photo.imageUrl?.startsWith("http")
-                                        ? photo.imageUrl
-                                        : `${API_URL}${photo.imageUrl}`;
-
-                                    return (
-                                        <div
-                                            key={photo.id || idx}
-                                            className="group relative border-2 border-gray-200 rounded-lg overflow-hidden hover:border-blue-400 transition-all duration-200 cursor-pointer"
-                                            onClick={() => addPhotosFromSPK([photo])}
+                    <div className="flex-1 overflow-hidden flex flex-col p-6 pt-4">
+                        {fetchingPhotos ? (
+                            <div className="flex-1 flex items-center justify-center">
+                                <div className="text-center">
+                                    <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+                                    <p>Memuat foto dari SPK...</p>
+                                </div>
+                            </div>
+                        ) : spkPhotos.length === 0 ? (
+                            <div className="flex-1 flex items-center justify-center">
+                                <div className="text-center text-gray-500">
+                                    <ImageIcon className="h-12 w-12 mx-auto mb-4" />
+                                    <p>Tidak ada foto tersedia</p>
+                                    <p className="text-sm mt-1">SPK ini belum memiliki laporan dengan foto</p>
+                                </div>
+                            </div>
+                        ) : (
+                            <>
+                                {/* Filter controls */}
+                                <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <Select
+                                            value={selectedReportId || "all"}
+                                            onValueChange={(val) => setSelectedReportId(val === "all" ? null : val)}
                                         >
-                                            <div className="relative w-full pt-[75%]"> {/* 4:3 Aspect Ratio */}
+                                            <SelectTrigger className="w-[250px]">
+                                                <SelectValue placeholder="Filter berdasarkan laporan" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">Semua Laporan</SelectItem>
+                                                {Array.from(new Set(spkPhotos.map(p => p.reportId))).map(reportId => {
+                                                    const photoWithReport = spkPhotos.find(p => p.reportId === reportId);
+                                                    return (
+                                                        <SelectItem key={reportId} value={reportId}>
+                                                            {photoWithReport?.productName || `Laporan ${reportId.substring(0, 8)}`}
+                                                        </SelectItem>
+                                                    );
+                                                })}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex gap-2">
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={selectAllFiltered}
+                                                className="h-8"
+                                            >
+                                                <CheckSquare className="h-3 w-3 mr-1" />
+                                                Pilih Semua ({filteredPhotos.length})
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={deselectAll}
+                                                className="h-8"
+                                            >
+                                                <Square className="h-3 w-3 mr-1" />
+                                                Batal Pilih
+                                            </Button>
+                                        </div>
+                                        <Badge variant="secondary" className="h-8 px-3">
+                                            Terpilih: {selectedPhotos.length}
+                                        </Badge>
+                                    </div>
+                                </div>
+
+                                {/* Photos grid */}
+                                <div className="flex-1 overflow-auto">
+                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                        {filteredPhotos.map((photo, index) => {
+                                            const isSelected = selectedPhotos.some(p => p.id === photo.id);
+                                            return (
+                                                <div
+                                                    key={photo.id}
+                                                    className={`
+                                            relative group cursor-pointer rounded-lg overflow-hidden border-2
+                                            ${isSelected
+                                                            ? 'border-blue-500 ring-2 ring-blue-200 shadow-md'
+                                                            : 'border-gray-200 hover:border-blue-300'
+                                                        }
+                                            transition-all duration-200
+                                        `}
+                                                    onClick={(e) => togglePhotoSelection(photo, index, e)}
+                                                >
+                                                    {/* Checkbox overlay */}
+                                                    <div className={`
+                                            absolute top-2 left-2 z-10 w-5 h-5 flex items-center justify-center 
+                                            rounded-md border transition-all duration-200
+                                            ${isSelected
+                                                            ? 'bg-blue-500 border-blue-500 text-white'
+                                                            : 'bg-white/90 border-gray-300 text-transparent'
+                                                        }
+                                        `}>
+                                                        {isSelected && <Check className="h-3 w-3" />}
+                                                    </div>
+
+                                                    {/* Image container */}
+                                                    <div className="aspect-square relative bg-gray-100">
+                                                        <Image
+                                                            src={photo.imageUrl}
+                                                            alt={photo.caption || 'SPK Photo'}
+                                                            fill
+                                                            className="object-cover"
+                                                            onError={(e) => {
+                                                                (e.target as HTMLImageElement).src = "/placeholder.jpg";
+                                                            }}
+                                                        />
+
+                                                        {/* Hover overlay */}
+                                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 
+                                                transition-all duration-200 flex items-center justify-center">
+                                                            <Button
+                                                                type="button"
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="opacity-0 group-hover:opacity-100 
+                                                        bg-white/90 hover:bg-white transition-all duration-200
+                                                        absolute bottom-2 right-2"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setZoomedImage(photo.imageUrl);
+                                                                }}
+                                                            >
+                                                                <ZoomIn className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Info overlay */}
+                                                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t 
+                                            from-black/80 via-black/50 to-transparent p-3 text-white">
+                                                        <div className="font-medium text-sm truncate">
+                                                            {photo.productName || 'Unknown Product'}
+                                                        </div>
+                                                        <div className="text-xs opacity-90 truncate mt-0.5">
+                                                            {photo.reportType} • {photo.karyawanName}
+                                                        </div>
+                                                        {photo.caption && (
+                                                            <div className="text-xs opacity-70 truncate mt-1">
+                                                                {photo.caption}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                    </div>
+
+                    {/* Dialog footer dengan preview foto yang dipilih */}
+                    <div className="border-t">
+                        {/* Bagian preview foto yang dipilih */}
+                        {selectedPhotos.length > 0 && (
+                            <div className="p-4 border-b bg-gray-50">
+                                <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-medium text-sm">Foto Terpilih:</span>
+                                        <Badge variant="secondary" className="text-xs">
+                                            {selectedPhotos.length} foto
+                                        </Badge>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={deselectAll}
+                                        className="h-7 text-xs"
+                                    >
+                                        <Trash2 className="h-3 w-3 mr-1" />
+                                        Hapus Semua
+                                    </Button>
+                                </div>
+
+                                {/* Container preview foto yang dipilih */}
+                                <div className="flex gap-3 overflow-x-auto pb-2">
+                                    {selectedPhotos.map((photo, index) => (
+                                        <div
+                                            key={photo.id}
+                                            className="flex-shrink-0 relative group w-20 h-20"
+                                        >
+                                            <div className="relative w-full h-full rounded-md overflow-hidden border border-blue-300">
                                                 <Image
-                                                    src={imageUrl || "/placeholder.jpg"}
-                                                    alt={photo.caption || `SPK photo ${idx + 1}`}
+                                                    src={photo.imageUrl}
+                                                    alt={photo.caption || `Selected ${index + 1}`}
                                                     fill
-                                                    className="object-cover transition-transform duration-300 group-hover:scale-105"
-                                                    sizes="(max-width: 200px) 100vw, 200px"
-                                                    onError={(e) => {
-                                                        (e.target as HTMLImageElement).src = "/placeholder.jpg";
-                                                    }}
+                                                    className="object-cover"
                                                 />
-                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                    <Plus className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+                                                {/* Overlay untuk hapus */}
+                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 
+                                        transition-opacity duration-200 flex items-center justify-center">
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-6 w-6 bg-red-500 hover:bg-red-600 text-white"
+                                                        onClick={() => {
+                                                            setSelectedPhotos(prev =>
+                                                                prev.filter(p => p.id !== photo.id)
+                                                            );
+                                                        }}
+                                                    >
+                                                        <Trash2 className="h-3 w-3" />
+                                                    </Button>
                                                 </div>
                                             </div>
-                                            {photo.caption && (
-                                                <div className="p-2 bg-white border-t">
-                                                    <p className="text-xs text-gray-700 line-clamp-2">{photo.caption}</p>
-                                                </div>
-                                            )}
+                                            {/* Badge nomor */}
+                                            <div className="absolute -top-1 -right-1 bg-blue-500 text-white 
+                                    text-xs font-semibold rounded-full w-5 h-5 flex items-center 
+                                    justify-center">
+                                                {index + 1}
+                                            </div>
                                         </div>
-                                    );
-                                })}
+                                    ))}
+                                </div>
                             </div>
+                        )}
 
-                            <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                        {/* Bagian action buttons */}
+                        <div className="p-4 flex justify-between items-center">
+                            <div className="text-sm text-gray-600">
+                                <span className="font-medium">{selectedPhotos.length}</span> foto terpilih •
+                                Total: <span className="font-medium">{spkPhotos.length}</span> foto
+                            </div>
+                            <div className="flex gap-2">
                                 <Button
                                     type="button"
-                                    onClick={() => addPhotosFromSPK(spkPhotos)}
-                                    variant="default"
-                                    className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-sm py-2"
+                                    variant="outline"
+                                    onClick={() => setDialogOpen(false)}
+                                    className="min-w-[80px]"
+                                >
+                                    Batal
+                                </Button>
+                                <Button
+                                    type="button"
+                                    onClick={() => addPhotosFromSPK(selectedPhotos)}
+                                    disabled={selectedPhotos.length === 0}
+                                    className="min-w-[120px] bg-blue-600 hover:bg-blue-700"
                                 >
                                     <Plus className="h-4 w-4 mr-2" />
-                                    Tambah Semua ({spkPhotos.length})
+                                    Tambahkan ({selectedPhotos.length})
                                 </Button>
-                                <span className="text-xs sm:text-sm text-gray-600 text-center sm:text-left">
-                                    Klik pada foto untuk menambahkannya
-                                </span>
                             </div>
-                        </>
-                    )}
+                        </div>
+
+                        {/* Tips */}
+                        {selectedPhotos.length > 0 && (
+                            <div className="px-4 pb-4">
+                                <div className="text-xs text-gray-500 flex items-center gap-1">
+                                    <Info className="h-3 w-3" />
+                                    <span>
+                                        Tip: Gunakan <kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">Shift</kbd> + klik
+                                        untuk memilih multiple foto sekaligus
+                                    </span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </DialogContent>
             </Dialog>
 
-            {/* Modal Zoom Image */}
+            {/* Zoom modal */}
             {zoomedImage && (
-                <Dialog open={!!zoomedImage} onOpenChange={() => setZoomedImage(null)}>
-                    <DialogContent className="max-w-full sm:max-w-4xl max-h-[90vh] p-2 sm:p-6">
-                        <DialogHeader>
-                            <DialogTitle className="flex items-center space-x-2 text-base">
-                                <ZoomIn className="h-5 w-5" />
-                                <span>Preview Gambar</span>
-                            </DialogTitle>
-                        </DialogHeader>
-                        <div className="relative w-full h-64 sm:h-96 bg-gray-100 rounded-lg overflow-hidden">
-                            <Image
-                                src={zoomedImage}
-                                alt="Zoomed preview"
-                                fill
-                                className="object-contain p-2 sm:p-4"
-                                sizes="100vw"
-                            />
-                        </div>
-                    </DialogContent>
-                </Dialog>
+                <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+                    onClick={() => setZoomedImage(null)}>
+                    <div className="relative max-w-4xl max-h-[90vh]">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute -top-10 right-0 text-white hover:bg-white/20"
+                            onClick={() => setZoomedImage(null)}
+                        >
+                            ×
+                        </Button>
+                        <Image
+                            src={zoomedImage}
+                            alt="Zoomed"
+                            width={1200}
+                            height={800}
+                            className="object-contain max-h-[90vh]"
+                            onError={(e) => {
+                                (e.target as HTMLImageElement).src = "/placeholder.jpg";
+                            }}
+                        />
+                    </div>
+                </div>
             )}
         </form>
     );
