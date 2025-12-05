@@ -138,13 +138,29 @@ export class NotificationService {
       const result = await prisma.userSession.updateMany({
         where: {
           fcmToken: { in: invalidTokens },
+          // 🎯 HANYA cleanup jika:
+          OR: [
+            { isRevoked: true }, // Session dicabut
+            {
+              user: {
+                active: false, // User tidak aktif (boolean)
+              },
+            },
+            {
+              lastActiveAt: {
+                lt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // > 30 hari
+              },
+            },
+          ],
         },
         data: {
           fcmToken: null,
         },
       });
 
-      // console.log(`[Notification] 🧹 Cleaned ${result.count} invalid tokens`);
+      if (result.count > 0) {
+        console.log(`[Notification] 🧹 Cleaned ${result.count} invalid tokens`);
+      }
     } catch (error) {
       console.error("[Notification] Cleanup error:", error.message);
     }

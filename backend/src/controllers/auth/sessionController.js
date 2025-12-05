@@ -533,13 +533,13 @@ export const updateFcmToken = async (req, res) => {
       );
 
       // Clear token dari user lain (jika policy mengizinkan)
-      await prisma.userSession.updateMany({
-        where: {
-          fcmToken: fcmToken,
-          userId: { not: userId },
-        },
-        data: { fcmToken: null },
-      });
+      // await prisma.userSession.updateMany({
+      //   where: {
+      //     fcmToken: fcmToken,
+      //     userId: { not: userId },
+      //   },
+      //   data: { fcmToken: null },
+      // });
     }
 
     // 6. UPDATE FCM TOKEN (hanya jika berbeda)

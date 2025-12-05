@@ -109,7 +109,7 @@ async function createUserSession(user, req) {
         },
       });
 
-      console.log(`🗑️ Deleted ${deletedSessions.count} old/expired sessions`);
+      // console.log(`🗑️ Deleted ${deletedSessions.count} old/expired sessions`);
 
       // ✅ 2. ENFORCE 1 SESSION: Revoke ALL other active sessions FIRST
       const revokedSessions = await tx.userSession.updateMany({
