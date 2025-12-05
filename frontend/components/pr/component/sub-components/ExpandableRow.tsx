@@ -19,6 +19,7 @@ import {
     User,
     Calendar,
     BanknoteArrowUp,
+    FileCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -127,28 +128,108 @@ export const ExpandableRow = forwardRef<HTMLTableRowElement, ExpandableRowProps>
 
                     <TableCell className="min-w-[400px]">
                         <div className="group relative">
-                            <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-4 hover:shadow-md transition-all duration-200">
+                            {/* ✅ Background berbeda berdasarkan status */}
+                            <div className={`border rounded-xl p-4 hover:shadow-md transition-all duration-200 ${pr.projectId && pr.project?.name
+                                    ? 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700'
+                                    : 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/50'
+                                }`}>
                                 <div className="flex items-center gap-3">
-                                    <div className={`p-2 rounded-lg ${pr.project?.name ? 'bg-green-50 dark:bg-green-900/30' : 'bg-gray-100 dark:bg-gray-800'}`}>
-                                        <Building className={`h-4 w-4 ${pr.project?.name ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500'}`} />
+                                    {/* ✅ Icon dengan warna berbeda */}
+                                    <div className={`p-2 rounded-lg ${pr.projectId && pr.project?.name
+                                            ? 'bg-green-50 dark:bg-green-900/30'
+                                            : 'bg-amber-100 dark:bg-amber-900/50'
+                                        }`}>
+                                        {pr.projectId && pr.project?.name ? (
+                                            <Building className="h-4 w-4 text-green-600 dark:text-green-400" />
+                                        ) : (
+                                            <FileText className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                                        )}
                                     </div>
+
                                     <div className="flex-1 min-w-0">
                                         <TooltipProvider>
                                             <Tooltip>
                                                 <TooltipTrigger asChild>
-                                                    <div className="text-sm uppercase font-bold text-gray-900 dark:text-white text-wrap cursor-help">
-                                                        {pr.project?.name || (
-                                                            <span className="text-gray-400 dark:text-gray-500 italic font-normal">No Project Assigned</span>
+                                                    <div className="cursor-help">
+                                                        {/* ✅ Text color berbeda berdasarkan status */}
+                                                        <div className={`text-sm uppercase font-bold text-wrap ${pr.projectId && pr.project?.name
+                                                                ? 'text-gray-900 dark:text-white'
+                                                                : 'text-amber-800 dark:text-amber-300'
+                                                            }`}>
+                                                            {pr.projectId && pr.project?.name
+                                                                ? pr.project.name
+                                                                : (pr.keterangan || "No Project Assigned")
+                                                            }
+                                                        </div>
+
+                                                        {/* ✅ Subtext untuk keterangan tambahan */}
+                                                        {!pr.projectId && !pr.keterangan && (
+                                                            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                                                                PR tanpa referensi project
+                                                            </p>
                                                         )}
                                                     </div>
                                                 </TooltipTrigger>
                                                 <TooltipContent side="top" className="max-w-xs">
-                                                    <p className="text-xs text-wrap">
-                                                        {pr.project?.name || pr.projectId || "No Project Assigned"}
-                                                    </p>
+                                                    <div className="space-y-2">
+                                                        <div>
+                                                            <p className="text-xs font-semibold mb-1 text-gray-500 dark:text-gray-400">
+                                                                {pr.projectId && pr.project?.name ? "PROJECT" : "KETERANGAN"}
+                                                            </p>
+                                                            <p className="text-sm font-medium text-wrap">
+                                                                {pr.projectId && pr.project?.name
+                                                                    ? pr.project.name
+                                                                    : (pr.keterangan || "No Project Assigned")
+                                                                }
+                                                            </p>
+                                                        </div>
+
+                                                        {/* ✅ Info status di tooltip */}
+                                                        {!pr.projectId && (
+                                                            <div className={`p-2 rounded-md text-xs ${pr.keterangan
+                                                                    ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
+                                                                    : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+                                                                }`}>
+                                                                {pr.keterangan
+                                                                    ? "⚠️ PR dibuat tanpa referensi project"
+                                                                    : "ℹ️ PR tanpa project dan keterangan"
+                                                                }
+                                                            </div>
+                                                        )}
+
+                                                        {/* SPK info */}
+                                                        {pr.spk?.spkNumber && (
+                                                            <div>
+                                                                <p className="text-xs font-semibold mb-1">SPK</p>
+                                                                <p className="text-xs">{pr.spk.spkNumber}</p>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </TooltipContent>
                                             </Tooltip>
                                         </TooltipProvider>
+                                    </div>
+
+                                    {/* ✅ Badge dengan warna matching */}
+                                    <div className="flex flex-col gap-1">
+                                        {pr.projectId && pr.project?.name ? (
+                                            <Badge variant="outline" className="text-[10px] px-2 py-0.5 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300">
+                                                <Building className="h-2.5 w-2.5 mr-1" />
+                                                PROJECT
+                                            </Badge>
+                                        ) : (
+                                            <Badge variant="outline" className="text-[10px] px-2 py-0.5 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800">
+                                                <FileText className="h-2.5 w-2.5 mr-1" />
+                                                UMUM
+                                            </Badge>
+                                        )}
+
+                                        {pr.spk?.spkNumber && (
+                                            <Badge variant="outline" className="text-[10px] px-2 py-0.5">
+                                                <FileCheck className="h-2.5 w-2.5 mr-1" />
+                                                SPK
+                                            </Badge>
+                                        )}
                                     </div>
                                 </div>
                             </div>

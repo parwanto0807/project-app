@@ -400,8 +400,8 @@ export function TabelUpdatePR({
 
     const validateForm = useCallback((): boolean => {
         const newErrors: Record<string, string> = {};
-        if (!formData.spkId) newErrors.spkId = "SPK is required";
-        if (!formData.projectId) newErrors.projectId = "Project is required";
+        // if (!formData.spkId) newErrors.spkId = "SPK is required";
+        // if (!formData.projectId) newErrors.projectId = "Project is required";
         if (!formData.tanggalPr) newErrors.tanggalPr = "Tanggal PR is required";
         if (items.length === 0) newErrors.items = "At least one item is required";
 
@@ -1072,7 +1072,7 @@ export function TabelUpdatePR({
                             <CardFooter className="flex flex-col gap-3 pt-6">
                                 <Button
                                     type="submit"
-                                    disabled={submitting || items.length === 0 || !formData.spkId}
+                                    disabled={submitting || items.length === 0}
                                     className="w-full h-11 gap-2 bg-green-600 hover:bg-green-700 dark:text-white font-semibold"
                                 >
                                     {submitting ? (

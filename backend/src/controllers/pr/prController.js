@@ -240,14 +240,19 @@ export class PurchaseRequestController {
         catatanItem: detail.catatanItem,
       }));
 
-      const purchaseRequest = await prisma.purchaseRequest.create({
-        data: {
-          ...validatedData,
-          nomorPr,
-          details: {
-            create: detailsWithTotal,
-          },
+      // ✅ PENTING: Handle nullable spkId
+      const prData = {
+        ...validatedData,
+        nomorPr,
+        // Pastikan spkId null jika tidak diisi
+        spkId: validatedData.spkId || null,
+        details: {
+          create: detailsWithTotal,
         },
+      };
+
+      const purchaseRequest = await prisma.purchaseRequest.create({
+        data: prData,
         include: {
           project: {
             select: { id: true, name: true },
@@ -311,11 +316,17 @@ export class PurchaseRequestController {
           "../../utils/firebase/notificationService.js"
         );
 
+        // Tambahkan informasi apakah PR punya SPK atau tidak
+        const hasSPK = purchaseRequest.spk !== null;
+        const spkInfo = hasSPK
+          ? ` untuk SPK: ${purchaseRequest.spk?.spkNumber || "N/A"}`
+          : " (Tanpa SPK)";
+
         // Kirim notifikasi ke setiap admin dan pic
         for (const admin of adminUsers) {
           await NotificationService.sendToUser(admin.id, {
             title: "Purchase Request Baru Dibuat 📝",
-            body: `PR ${nomorPr} dengan total estimasi ${formattedBudget} berhasil dibuat oleh ${karyawanName}`,
+            body: `PR ${nomorPr}${spkInfo} dengan total estimasi ${formattedBudget} berhasil dibuat oleh ${karyawanName}`,
             data: {
               type: "purchase_request_created",
               prId: purchaseRequest.id,
@@ -324,6 +335,8 @@ export class PurchaseRequestController {
               karyawanName: karyawanName,
               totalItems: detailsWithTotal.length,
               totalBudget: totalEstimasiBudget.toString(),
+              hasSPK: hasSPK.toString(),
+              spkNumber: purchaseRequest.spk?.spkNumber || "",
               action: `/purchase-requests/${purchaseRequest.id}`,
               timestamp: new Date().toISOString(),
             },
@@ -345,6 +358,9 @@ export class PurchaseRequestController {
         success: true,
         message: "Purchase Request created successfully",
         data: purchaseRequest,
+        warning: !validatedData.spkId
+          ? "Purchase Request dibuat tanpa referensi SPK. Pastikan ini sesuai dengan kebijakan perusahaan."
+          : undefined,
       });
     } catch (error) {
       console.error("Create PR error:", error);
@@ -362,6 +378,18 @@ export class PurchaseRequestController {
           success: false,
           message: "Purchase Request number already exists",
         });
+      }
+
+      // Tambahkan handling untuk error relasional
+      if (error.code === "P2003") {
+        const field = error.meta?.field_name || "";
+        if (field.includes("spkId")) {
+          return res.status(400).json({
+            success: false,
+            message:
+              "SPK tidak ditemukan. Pastikan SPK ID valid atau kosongkan field ini.",
+          });
+        }
       }
 
       res.status(500).json({
@@ -401,11 +429,60 @@ export class PurchaseRequestController {
             "Only DRAFT or REVISION_NEEDED Purchase Request can be updated",
         });
       }
+
       const updateData = { ...validatedData };
       delete updateData.details;
 
+      // ✅ PENTING: Handle nullable spkId untuk update
+      if (updateData.spkId !== undefined) {
+        // Jika spkId diubah menjadi string kosong, set null
+        updateData.spkId = updateData.spkId || null;
+      }
+
       if (existingPR.status === "REVISION_NEEDED") {
         updateData.status = "DRAFT";
+      }
+
+      // ✅ VALIDASI BISNIS TAMBAHAN untuk update
+      // Jika menghapus SPK (mengubah dari ada ke null)
+      if (updateData.spkId === null && existingPR.spkId) {
+        // Cek apakah ada keterangan yang cukup
+        if (
+          !updateData.keterangan &&
+          (!existingPR.keterangan || existingPR.keterangan.trim().length < 10)
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              "Untuk menghapus referensi SPK, wajib memberikan keterangan minimal 10 karakter",
+            error: "INSUFFICIENT_DESCRIPTION_FOR_SPK_REMOVAL",
+          });
+        }
+
+        // Cek apakah ada item dengan tipe JASA
+        const existingJasaItems = existingPR.details.filter(
+          (detail) =>
+            detail.sourceProduct === "JASA_PEMBELIAN" ||
+            detail.sourceProduct === "JASA_INTERNAL"
+        );
+
+        if (existingJasaItems.length > 0 && validatedData.details) {
+          // Cek jika ada item JASA di update baru
+          const newJasaItems = validatedData.details.filter(
+            (detail) =>
+              detail.sourceProduct === "JASA_PEMBELIAN" ||
+              detail.sourceProduct === "JASA_INTERNAL"
+          );
+
+          if (newJasaItems.length > 0) {
+            return res.status(400).json({
+              success: false,
+              message:
+                "Tidak dapat menghapus SPK karena terdapat item dengan tipe JASA",
+              error: "JASA_ITEMS_REQUIRE_SPK",
+            });
+          }
+        }
       }
 
       const transaction = await prisma.$transaction(async (tx) => {
@@ -432,6 +509,23 @@ export class PurchaseRequestController {
           await tx.purchaseRequestDetail.deleteMany({
             where: { purchaseRequestId: id },
           });
+
+          // ✅ VALIDASI: Jika tanpa SPK, cek details yang diupdate
+          if (
+            (updateData.spkId === null || existingPR.spkId === null) &&
+            !updateData.keterangan
+          ) {
+            // Cek apakah semua item valid tanpa SPK
+            const invalidDetails = validatedData.details.filter(
+              (detail) =>
+                detail.sourceProduct === "JASA_PEMBELIAN" ||
+                detail.sourceProduct === "JASA_INTERNAL"
+            );
+
+            if (invalidDetails.length > 0) {
+              throw new Error("Item dengan tipe JASA memerlukan referensi SPK");
+            }
+          }
 
           // Buat details baru
           const detailsWithTotal = validatedData.details.map((detail) => ({
@@ -472,10 +566,49 @@ export class PurchaseRequestController {
         return updatedPR;
       });
 
+      // ✅ Kirim notifikasi update jika perlu
+      try {
+        if (updateData.spkId === null && existingPR.spkId) {
+          // Notifikasi jika SPK dihapus
+          const { NotificationService } = await import(
+            "../../utils/firebase/notificationService.js"
+          );
+
+          // Dapatkan admin/pic untuk notifikasi
+          const adminUsers = await prisma.user.findMany({
+            where: {
+              role: { in: ["admin", "pic"] },
+              active: true,
+            },
+            select: { id: true },
+          });
+
+          for (const admin of adminUsers) {
+            await NotificationService.sendToUser(admin.id, {
+              title: "Referensi SPK Dihapus dari PR",
+              body: `SPK telah dihapus dari PR ${transaction.nomorPr}`,
+              data: {
+                type: "purchase_request_spk_removed",
+                prId: transaction.id,
+                prNumber: transaction.nomorPr,
+                action: `/purchase-requests/${transaction.id}`,
+                timestamp: new Date().toISOString(),
+              },
+            });
+          }
+        }
+      } catch (notificationError) {
+        console.error("Error sending update notification:", notificationError);
+      }
+
       res.json({
         success: true,
         message: "Purchase Request updated successfully",
         data: transaction,
+        warning:
+          updateData.spkId === null && existingPR.spkId
+            ? "Referensi SPK telah dihapus dari Purchase Request. Pastikan ini sesuai kebijakan."
+            : undefined,
       });
     } catch (error) {
       console.error("Update PR error:", error);
@@ -485,6 +618,26 @@ export class PurchaseRequestController {
           success: false,
           message: "Validation error",
           error: error.errors,
+        });
+      }
+
+      // ✅ Tambahkan handling untuk foreign key error
+      if (error.code === "P2003") {
+        const field = error.meta?.field_name || "";
+        if (field.includes("spkId")) {
+          return res.status(400).json({
+            success: false,
+            message: "SPK tidak ditemukan. Pastikan SPK ID valid.",
+          });
+        }
+      }
+
+      // ✅ Handle custom validation error dari transaction
+      if (error.message === "Item dengan tipe JASA memerlukan referensi SPK") {
+        return res.status(400).json({
+          success: false,
+          message: error.message,
+          error: "JASA_ITEMS_REQUIRE_SPK",
         });
       }
 

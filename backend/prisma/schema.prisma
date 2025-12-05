@@ -1175,16 +1175,16 @@ model PurchaseRequest {
   keterangan String?
   status     PurchaseRequestStatus @default(DRAFT)
 
-  projectId String
-  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   // Relasi ke Karyawan yang mengajukan
   karyawanId String
   karyawan   Karyawan @relation(fields: [karyawanId], references: [id])
 
   // Relasi ke SPK tujuan
-  spkId String
-  spk   SPK    @relation(fields: [spkId], references: [id])
+  spkId String?
+  spk   SPK?    @relation(fields: [spkId], references: [id])
 
   // Relasi ke detail permintaan
   details  PurchaseRequestDetail[]

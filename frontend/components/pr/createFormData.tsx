@@ -446,16 +446,23 @@ export function TabelInputPR({
 
     const validateForm = useCallback((): boolean => {
         const newErrors: Record<string, string> = {};
-        if (!formData.spkId) newErrors.spkId = "SPK is required";
-        if (!formData.projectId) newErrors.projectId = "Project is required";
+
+        // Validasi wajib
+        // if (!formData.projectId) newErrors.projectId = "Project is required";
         if (!formData.tanggalPr) newErrors.tanggalPr = "Tanggal PR is required";
+
+        // ✅ SPK tidak wajib lagi (optional)
+        // if (!formData.spkId) newErrors.spkId = "SPK is required"; // ❌ Dihapus
+
+        // Validasi minimal 1 item
         if (items.length === 0) newErrors.items = "At least one item is required";
 
+        // Validasi detail items
         items.forEach((item, index) => {
             if (!item.productId) newErrors[`productId-${index}`] = "Product is required";
-            if (item.jumlah <= 0) newErrors[`quantity-${index}`] = "Qty > 0";
-            if (item.estimasiHargaSatuan < 0) newErrors[`estimatedUnitCost-${index}`] = "Cost >= 0";
-            if (!item.satuan.trim()) newErrors[`unit-${index}`] = "Unit required";
+            if (item.jumlah <= 0) newErrors[`quantity-${index}`] = "Quantity must be greater than 0";
+            if (item.estimasiHargaSatuan < 0) newErrors[`estimatedUnitCost-${index}`] = "Unit cost cannot be negative";
+            if (!item.satuan.trim()) newErrors[`unit-${index}`] = "Unit is required";
         });
 
         setErrors(newErrors);
@@ -1113,7 +1120,7 @@ export function TabelInputPR({
                             <CardFooter className="flex flex-col gap-3 pt-6">
                                 <Button
                                     type="submit"
-                                    disabled={submitting || items.length === 0 || !formData.spkId}
+                                    disabled={submitting || items.length === 0}
                                     className="w-full h-11 gap-2 bg-blue-600 hover:bg-blue-700 dark:text-white font-semibold"
                                 >
                                     {submitting ? (

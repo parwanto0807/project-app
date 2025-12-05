@@ -25,25 +25,19 @@ export interface PurchaseRequestDetail {
   estimasiHargaSatuan: number;
   estimasiTotalHarga: number;
   catatanItem?: string;
-  sourceProduct?: SourceProductType | null; // ✅ Tambahan baru
+  sourceProduct?: SourceProductType | null;
 }
 
 export interface PurchaseRequest {
   id: string;
   nomorPr: string;
-  projectId: string;
-  spkId: string;
-  spkIds: string;
+  projectId: string | null;
+  spkId: string | null; // ✅ Ubah dari string ke string | null
+  spkIds?: string; // ✅ Tambahkan ? karena ini optional (tidak ada di model)
   karyawanId: string;
   tanggalPr: Date;
   keterangan?: string;
-  status:
-    | "DRAFT"
-    | "REVISION_NEEDED"
-    | "SUBMITTED"
-    | "APPROVED"
-    | "REJECTED"
-    | "COMPLETED";
+  status: PRStatus;
 
   // Relasi opsional
   project?: {
@@ -59,7 +53,7 @@ export interface PurchaseRequest {
         name: string;
       };
     };
-  };
+  } | null; // ✅ Tambahkan | null karena bisa null
   karyawan?: {
     id: string;
     namaLengkap: string;
@@ -83,7 +77,7 @@ export interface PurchaseRequest {
     namaEwalletTujuan?: string;
     purchaseRequestId: string;
     karyawanId: string;
-    spkId: string;
+    spkId: string; // ❗ Perlu cek apakah ini juga optional?
     createdAt: Date;
     updatedAt: Date;
     pertanggungjawaban?: Pertanggungjawaban[];
@@ -133,43 +127,44 @@ export interface FotoBuktiPertanggungjawaban {
   createdAt: Date;
 }
 
-// Untuk backward compatibility
 export type PurchaseRequestItem = PurchaseRequestDetail;
 
 export interface CreatePurchaseRequestData {
-  projectId: string;
-  spkId: string;
+  projectId?: string | null;
+  spkId?: string | null; // ✅ Ubah menjadi optional
   karyawanId: string;
-  tanggalPr: Date;
+  tanggalPr?: Date; // ✅ Tambahkan ? karena biasanya auto-generated
   keterangan?: string;
-  details: Omit<PurchaseRequestDetail, "id" | "estimasiTotalHarga">[]; // ✅ sudah termasuk sourceProduct
+  details: Omit<PurchaseRequestDetail, "id" | "estimasiTotalHarga">[];
 }
 
 export interface UpdatePurchaseRequestData {
+  spkId?: string | null; // ✅ Tambahkan field ini
   tanggalPr?: Date;
   keterangan?: string;
-  details?: Omit<PurchaseRequestDetail, "id" | "estimasiTotalHarga">[]; // ✅ sudah termasuk sourceProduct
+  details?: Omit<PurchaseRequestDetail, "id" | "estimasiTotalHarga">[];
 }
 
 export interface UpdatePurchaseRequestStatusData {
-  status: PurchaseRequest["status"];
+  status: PRStatus;
   reviewedBy?: string;
   approvedBy?: string;
   remarks?: string;
 }
 
 export interface PurchaseRequestFilters {
-  projectId?: string;
-  status?: PurchaseRequest["status"];
+  projectId?: string | "null";
+  status?: PRStatus;
   dateFrom?: Date;
   dateTo?: Date;
   karyawanId?: string;
-  spkId?: string;
+  spkId?: string | "null"; // ✅ Ubah untuk support filter "null"
   page?: number;
   limit?: number;
   totalCount?: number;
   totalPages?: number;
   search?: string;
+  includeWithoutSPK?: boolean; // ✅ Tambahkan filter khusus
 }
 
 export interface PaginationInfo {
@@ -184,6 +179,7 @@ export interface PurchaseRequestResponse {
   data: PurchaseRequest | PurchaseRequest[];
   message?: string;
   pagination?: PaginationInfo;
+  warning?: string; // ✅ Tambahkan untuk warning
 }
 
 export interface PurchaseRequestError {
@@ -208,7 +204,7 @@ export interface PurchaseRequestWithRelations extends PurchaseRequest {
         name: string;
       };
     };
-  };
+  } | null; // ✅ Tambahkan | null
   karyawan?: {
     id: string;
     namaLengkap: string;
@@ -243,7 +239,7 @@ export interface UangMuka {
   namaEwalletTujuan?: string;
   purchaseRequestId: string;
   karyawanId: string;
-  spkId: string;
+  spkId: string; // ❗ Perlu cek: apakah ini juga optional?
   createdAt: Date;
   updatedAt: Date;
 }
@@ -254,4 +250,92 @@ export interface UangMukaWithRelations extends UangMuka {
 
 export interface PertanggungjawabanWithDetails extends Pertanggungjawaban {
   details: RincianPertanggungjawaban[];
+}
+
+// ============== TYPES BARU ==============
+
+// ✅ Type untuk PR tanpa SPK
+export interface PurchaseRequestWithoutSPK extends Omit<PurchaseRequest, 'spkId' | 'spk'> {
+  spkId: null;
+  spk: null;
+}
+
+// ✅ Type guard untuk cek apakah PR punya SPK
+export function hasSPK(pr: PurchaseRequest): pr is PurchaseRequest & { spkId: string; spk: NonNullable<PurchaseRequest['spk']> } {
+  return pr.spkId !== null && pr.spk !== null;
+}
+
+// ✅ Type guard untuk PR tanpa SPK
+export function isWithoutSPK(pr: PurchaseRequest): pr is PurchaseRequestWithoutSPK {
+  return pr.spkId === null;
+}
+
+// ✅ Type untuk validasi business rules
+export interface PurchaseRequestValidationResult {
+  isValid: boolean;
+  error?: string;
+  warnings?: string[];
+}
+
+// ✅ Type untuk response create/update
+export interface PurchaseRequestOperationResult {
+  success: boolean;
+  data: PurchaseRequestWithRelations;
+  message: string;
+  warning?: string;
+  requiresSpecialApproval?: boolean;
+}
+
+// ✅ Enum untuk approval level jika tanpa SPK
+export enum ApprovalLevel {
+  NORMAL = 'NORMAL',
+  MANAGER = 'MANAGER',
+  DIRECTOR = 'DIRECTOR',
+  FINANCE = 'FINANCE'
+}
+
+// ✅ Type untuk menentukan approval level berdasarkan kondisi
+export interface ApprovalRequirements {
+  level: ApprovalLevel;
+  reason: string;
+  thresholds?: {
+    maxAmount: number;
+    requiresManager: boolean;
+    requiresDirector: boolean;
+    requiresFinance: boolean;
+  }[];
+}
+
+// ✅ Helper type untuk form input
+export interface PurchaseRequestFormData {
+  projectId?: string | null;
+  spkId?: string | null;
+  karyawanId: string;
+  keterangan?: string;
+  details: Array<{
+    productId: string;
+    projectBudgetId?: string;
+    jumlah: number | string;
+    satuan: string;
+    estimasiHargaSatuan: number | string;
+    catatanItem?: string;
+    sourceProduct?: SourceProductType | null;
+  }>;
+}
+
+// ✅ Type untuk summary report
+export interface PurchaseRequestSummary {
+  totalPR: number;
+  totalWithSPK: number;
+  totalWithoutSPK: number;
+  totalAmount: number;
+  totalAmountWithSPK: number;
+  totalAmountWithoutSPK: number;
+  byStatus: Record<PRStatus, number>;
+  byMonth: Array<{
+    month: string;
+    withSPK: number;
+    withoutSPK: number;
+    totalAmount: number;
+  }>;
 }

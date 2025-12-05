@@ -39,7 +39,8 @@ import {
     CheckCircle,
     ThumbsUp,
     ThumbsDown,
-    Eye
+    Eye,
+    FileCheck
 } from "lucide-react";
 import { PurchaseRequest, PurchaseRequestFilters, PurchaseRequestWithRelations } from "@/types/pr";
 import { PaginationInfo } from "@/types/pr";
@@ -413,7 +414,7 @@ export function PurchaseRequestTable({
                                         </SelectTrigger>
                                         <SelectContent>
                                             {projects.map((project) => (
-                                                <SelectItem key={project.id} value={project.id} className="text-xs sm:text-sm">
+                                                <SelectItem key={project.id} value={project.id || ""} className="text-xs sm:text-sm">
                                                     {project.name}
                                                 </SelectItem>
                                             ))}
@@ -600,17 +601,86 @@ export function PurchaseRequestTable({
                                                         </div>
                                                     </TableCell>
                                                     <TableCell className="min-w-[350px]">
-                                                        <div className="flex items-center gap-2">
-                                                            <Building className="h-4 w-4 text-green-500 shrink-0" />
+                                                        <div className="flex flex-col gap-1">
+                                                            {/* Badge untuk menandakan status project */}
+                                                            <div className="flex items-center gap-1">
+                                                                {/* ✅ PERBAIKAN: Cek pr.projectId DAN pr.project?.name */}
+                                                                {pr.projectId && pr.project?.name ? (
+                                                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
+                                                                        <Building className="h-2.5 w-2.5 mr-1" />
+                                                                        Project
+                                                                    </Badge>
+                                                                ) : (
+                                                                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 bg-amber-50 border-amber-200 text-amber-700">
+                                                                        <FileText className="h-2.5 w-2.5 mr-1" />
+                                                                        Umum
+                                                                    </Badge>
+                                                                )}
+
+                                                                {pr.spk?.spkNumber && (
+                                                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5">
+                                                                        <FileCheck className="h-2.5 w-2.5 mr-1" />
+                                                                        SPK
+                                                                    </Badge>
+                                                                )}
+                                                            </div>
+
+                                                            {/* Menampilkan nama project ATAU keterangan */}
                                                             <TooltipProvider>
                                                                 <Tooltip>
                                                                     <TooltipTrigger asChild>
-                                                                        <span className="text-sm font-bold uppercase cursor-help text-wrap block w-full">
-                                                                            {pr.project?.name || pr.projectId}
-                                                                        </span>
+                                                                        <div className="cursor-help">
+                                                                            {/* ✅ PERBAIKAN: Tampilkan project name jika ada projectId DAN project name */}
+                                                                            <p className="text-sm font-medium text-wrap line-clamp-1">
+                                                                                {pr.projectId && pr.project?.name ? pr.project.name : "NO PROJECT ASSIGNED"}
+                                                                            </p>
+
+                                                                            {/* ✅ PERBAIKAN: Tampilkan keterangan jika TIDAK ada projectId atau project name */}
+                                                                            {(!pr.projectId || !pr.project?.name) && pr.keterangan && (
+                                                                                <p className="text-xs text-gray-600 mt-1 line-clamp-2">
+                                                                                    {pr.keterangan}
+                                                                                </p>
+                                                                            )}
+                                                                        </div>
                                                                     </TooltipTrigger>
                                                                     <TooltipContent side="top" className="max-w-xs">
-                                                                        <p className="text-xs text-wrap">{pr.project?.name || pr.projectId}</p>
+                                                                        <div className="space-y-2">
+                                                                            <div>
+                                                                                <p className="text-xs font-semibold mb-1">
+                                                                                    {/* ✅ PERBAIKAN: Label berdasarkan keberadaan project */}
+                                                                                    {pr.projectId && pr.project?.name ? "PROJECT" : "TANPA PROJECT"}
+                                                                                </p>
+                                                                                <p className="text-sm">
+                                                                                    {/* ✅ PERBAIKAN: Tampilkan project name atau "NO PROJECT ASSIGNED" */}
+                                                                                    {pr.projectId && pr.project?.name ? pr.project.name : "NO PROJECT ASSIGNED"}
+                                                                                </p>
+                                                                            </div>
+
+                                                                            {/* ✅ PERBAIKAN: Tampilkan keterangan jika ada, terutama jika tanpa project */}
+                                                                            {pr.keterangan && (
+                                                                                <div>
+                                                                                    <p className="text-xs font-semibold mb-1 text-gray-500">KETERANGAN</p>
+                                                                                    <p className="text-xs text-wrap">{pr.keterangan}</p>
+                                                                                </div>
+                                                                            )}
+
+                                                                            {pr.spk?.spkNumber && (
+                                                                                <div>
+                                                                                    <p className="text-xs font-semibold mb-1">SPK</p>
+                                                                                    <p className="text-xs">{pr.spk.spkNumber}</p>
+                                                                                </div>
+                                                                            )}
+
+                                                                            {/* ✅ TAMBAHAN: Info debug untuk melihat data sebenarnya */}
+                                                                            {process.env.NODE_ENV === 'development' && (
+                                                                                <div className="mt-2 pt-2 border-t border-gray-200">
+                                                                                    <p className="text-[10px] text-gray-400 font-mono">
+                                                                                        projectId: {pr.projectId || 'null'}<br />
+                                                                                        hasProject: {pr.project ? 'true' : 'false'}
+                                                                                    </p>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
                                                                     </TooltipContent>
                                                                 </Tooltip>
                                                             </TooltipProvider>
@@ -901,19 +971,40 @@ export function PurchaseRequestTable({
                                             {/* Project and SPK - Compact */}
                                             <div className="grid grid-cols-2 gap-2 text-xs">
                                                 <div className="space-y-1">
-                                                    <p className="font-medium text-muted-foreground">Project</p>
                                                     <div className="flex items-center gap-1">
-                                                        <Building className="h-3 w-3 text-green-500 flex-shrink-0" />
-                                                        <span className="text-wrap text-xs">
-                                                            {pr.project?.name || pr.projectId}
-                                                        </span>
+                                                        {pr.project?.name ? (
+                                                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                                                                <Building className="h-2.5 w-2.5 mr-1" />
+                                                                Project
+                                                            </Badge>
+                                                        ) : (
+                                                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                                                                <FileText className="h-2.5 w-2.5 mr-1" />
+                                                                Umum
+                                                            </Badge>
+                                                        )}
                                                     </div>
+                                                    <p className="text-wrap text-xs mt-1">
+                                                        {pr.project?.name || pr.keterangan || pr.projectId || "Tidak ada project"}
+                                                    </p>
                                                 </div>
+
                                                 <div className="space-y-1">
-                                                    <p className="font-medium text-muted-foreground">SPK</p>
-                                                    <div className="text-xs truncate">
-                                                        {pr.spk?.spkNumber || pr.spkId}
+                                                    <div className="flex items-center gap-1">
+                                                        {pr.spk?.spkNumber ? (
+                                                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                                                                <FileCheck className="h-2.5 w-2.5 mr-1" />
+                                                                SPK
+                                                            </Badge>
+                                                        ) : (
+                                                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-gray-100">
+                                                                Tanpa SPK
+                                                            </Badge>
+                                                        )}
                                                     </div>
+                                                    <p className="text-xs truncate">
+                                                        {pr.spk?.spkNumber || "-"}
+                                                    </p>
                                                 </div>
                                             </div>
 

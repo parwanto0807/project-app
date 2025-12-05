@@ -212,7 +212,8 @@ export async function createPurchaseRequest(
       ...validatedData,
       details: detailsWithTotalCost,
       totalAmount,
-      // Generate nomorPr akan dilakukan di backend
+      // Pastikan spkId null jika undefined atau empty string
+      spkId: validatedData.spkId || null,
     };
 
     const response = await fetch(
@@ -265,6 +266,11 @@ export async function updatePurchaseRequest(
         ...updateData,
         details: detailsWithTotalCost,
       };
+    }
+
+    // Pastikan spkId null jika undefined atau empty string
+    if (updateData.spkId !== undefined) {
+      updateData.spkId = updateData.spkId || null;
     }
 
     const response = await fetch(

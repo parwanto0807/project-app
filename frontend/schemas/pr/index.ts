@@ -36,8 +36,8 @@ export const PurchaseRequestDetailSchema = z.object({
 
 // ======================= CREATE =======================
 export const CreatePurchaseRequestSchema = z.object({
-  projectId: z.string().min(1, "Project is required"),
-  spkId: z.string().min(1, "SPK is required"),
+  projectId: z.string().optional().nullable(),
+  spkId: z.string().optional().nullable(),
   karyawanId: z.string().min(1, "Karyawan is required"),
   tanggalPr: z.date().optional(), // Optional karena default di model Prisma
   keterangan: z.string().max(1000, "Keterangan too long").optional(),
@@ -48,6 +48,7 @@ export const CreatePurchaseRequestSchema = z.object({
 
 // ======================= UPDATE =======================
 export const UpdatePurchaseRequestSchema = z.object({
+  spkId: z.string().optional().nullable(),
   keterangan: z.string().max(1000, "Keterangan too long").optional(),
   status: z
     .enum([

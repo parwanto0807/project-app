@@ -17,7 +17,10 @@ interface TableHeaderProps {
   localDateTo: string;
   currentStatus?: PRStatus;
   currentProjectId?: string;
-  projects: Array<{ id: string; name: string }>;
+  projects?: Array<{
+    id: string | null;
+    name: string | null;
+  }>;
   onSearchSubmit: (e: React.FormEvent) => void;
   onSearchChange: (value: string) => void;
   onShowFiltersChange: (show: boolean) => void;
@@ -143,10 +146,10 @@ export function TableHeader({
                 } />
               </SelectTrigger>
               <SelectContent className="bg-white text-black border-gray-300 shadow-lg">
-                {projects.map((project) => (
+                {projects?.map((project) => (
                   <SelectItem
                     key={project.id}
-                    value={project.id}
+                    value={project.id || ""}
                     className="text-xs sm:text-sm text-black hover:bg-blue-50 hover:text-black focus:bg-blue-50 focus:text-black"
                   >
                     {project.name}
