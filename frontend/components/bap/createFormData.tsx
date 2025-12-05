@@ -1006,7 +1006,7 @@ export function CreateBAPForm({
 
             {/* Dialog untuk memilih foto dari SPK */}
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+                <DialogContent className="md:max-w-6xl md:min-w-2xl max-h-[90vh] overflow-hidden flex flex-col p-0">
                     <DialogHeader className="p-6 pb-0">
                         <DialogTitle className="flex items-center gap-2">
                             <Package className="h-5 w-5" />
