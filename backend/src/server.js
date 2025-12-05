@@ -570,7 +570,7 @@ io.on("connection", async (socket) => {
     }
   }
 
-  // 🎯 **PERBAIKAN UTAMA:** Handle session creation/update
+  // Handle session creation/update hanya untuk authenticated users
   if (
     socket.userId &&
     socket.userId !== "anonymous-dev" &&
@@ -580,83 +580,98 @@ io.on("connection", async (socket) => {
       const sessionToken = `socket-${socket.id}-${Date.now()}`;
       const clientIP = getClientIP(socket);
       const userAgent = socket.handshake.headers["user-agent"] || "Unknown";
-      
-      // 🎯 **PERBAIKAN 1:** Ambil deviceId dari client
-      const deviceId = socket.handshake.query.deviceId || 
-                      socket.handshake.headers['x-device-id'] || 
-                      null;
-      
-      console.log(`[Socket] 🔍 User: ${socket.userId.substring(0, 8)} | IP: ${clientIP} | Device: ${deviceId?.substring(0, 10) || 'No ID'}`);
 
-      // 🎯 **PERBAIKAN 2:** Cari session dengan STRATEGI PRIORITAS
+      const deviceId =
+        socket.handshake.query.deviceId ||
+        socket.handshake.headers["x-device-id"] ||
+        null;
+
+      console.log(
+        `[Socket] 🔍 User: ${socket.userId.substring(
+          0,
+          8
+        )} | IP: ${clientIP} | Device: ${deviceId?.substring(0, 10) || "No ID"}`
+      );
+
+      // 🎯 CARI SESSION DENGAN STRATEGI PRIORITAS
       let existingSession;
-      
-      // STRATEGI 1: Cari dengan deviceId (jika ada)
+
       if (deviceId) {
         existingSession = await prisma.userSession.findFirst({
           where: {
             userId: socket.userId,
-            deviceId: deviceId, // ← Pakai deviceId, bukan IP
+            deviceId: deviceId,
             isRevoked: false,
             expiresAt: { gt: new Date() },
           },
-          orderBy: { lastActiveAt: 'desc' },
+          orderBy: { lastActiveAt: "desc" },
         });
-        
+
         if (existingSession) {
-          console.log(`[Socket] 📱 Found session by deviceId: ${deviceId.substring(0, 10)}...`);
+          console.log(
+            `[Socket] 📱 Found session by deviceId: ${deviceId.substring(
+              0,
+              10
+            )}...`
+          );
         }
       }
-      
-      // STRATEGI 2: Cari session aktif terbaru (tanpa filter IP)
+
       if (!existingSession) {
         existingSession = await prisma.userSession.findFirst({
           where: {
             userId: socket.userId,
             isRevoked: false,
             expiresAt: { gt: new Date() },
-            // 💡 HAPUS filter ipAddress dan userAgent yang strict!
           },
-          orderBy: { lastActiveAt: 'desc' }, // Ambil yang paling baru
+          orderBy: { lastActiveAt: "desc" },
         });
-        
+
         if (existingSession) {
           console.log(`[Socket] 🔍 Found latest active session`);
         }
       }
-      
-      // 🎯 **PERBAIKAN 3:** JANGAN BUAT SESSION BARU!
-      // Jika tidak ada session aktif, berarti user belum login
+
+      // 🚨 JIKA TIDAK ADA SESSION AKTIF
       if (!existingSession) {
-        console.log(`[Socket] ⚠️ No active session found for ${socket.userId.substring(0, 8)}`);
-        // Kirim event ke client untuk trigger re-login
-        socket.emit("session:expired", { 
-          message: "Session expired, please login again" 
+        console.log(
+          `[Socket] ⚠️ No active session found for ${socket.userId.substring(
+            0,
+            8
+          )}`
+        );
+        socket.emit("session:expired", {
+          message: "Session expired, please login again",
         });
         return;
       }
 
-      // 🎯 **PERBAIKAN 4:** UPDATE SESSION YANG ADA
-      await prisma.userSession.update({
+      // UPDATE SESSION YANG ADA
+      const updatedSession = await prisma.userSession.update({
         where: { id: existingSession.id },
         data: {
           sessionToken: sessionToken,
-          ipAddress: clientIP, // 💡 Update IP baru
-          userAgent: userAgent, // 💡 Update userAgent baru
+          ipAddress: clientIP,
+          userAgent: userAgent,
           lastActiveAt: new Date(),
-          // 💡 Update deviceId jika belum ada
-          ...(deviceId && !existingSession.deviceId ? { deviceId: deviceId } : {}),
+          ...(deviceId && !existingSession.deviceId
+            ? { deviceId: deviceId }
+            : {}),
         },
       });
-      
-      console.log(
-        `[Server] 🔄 Updated existing session: ${existingSession.id.substring(0, 8)}`
-      );
-      console.log(`[Server] 📍 IP updated: ${existingSession.ipAddress} → ${clientIP}`);
 
+      console.log(
+        `[Server] 🔄 Updated existing session: ${existingSession.id.substring(
+          0,
+          8
+        )}`
+      );
+
+      // 💡 SIMPAN SESSION INFO DI SOCKET
       socket.userSessionToken = sessionToken;
       socket.sessionId = existingSession.id;
       socket.deviceId = deviceId;
+      socket.isSessionActive = true; // Flag untuk cek status
 
       // Broadcast session update ke admin
       setTimeout(async () => {
@@ -666,9 +681,10 @@ io.on("connection", async (socket) => {
           console.error("[Server] ❌ Error broadcasting:", error);
         }
       }, 1000);
-
     } catch (error) {
       console.error("[Server] ❌ Error handling session:", error.message);
+      // Jika error, set flag session tidak aktif
+      socket.isSessionActive = false;
     }
   }
 
@@ -753,7 +769,6 @@ io.on("connection", async (socket) => {
     console.log("🔨 Session revoke request:", data.sessionId);
 
     try {
-      // Validasi role
       const session = await prisma.userSession.findUnique({
         where: { id: data.sessionId },
         include: { user: true },
@@ -770,15 +785,20 @@ io.on("connection", async (socket) => {
         }
       }
 
-      // 🎯 **PERBAIKAN 5:** Gunakan revokeSessionById dengan policy check
-      const result = await revokeSessionById(data.sessionId, socket.id, socket.userId);
+      // 🎯 PERBAIKAN: Update socket flag sebelum revoke
+      if (socket.sessionId === data.sessionId) {
+        socket.isSessionActive = false; // Tandai session tidak aktif
+        socket.sessionId = null;
+        socket.userSessionToken = null;
+      }
+
+      const result = await revokeSessionById(data.sessionId, socket.id);
 
       // Jika session yang direvoke adalah session aktif user ini
       if (result.revokedSessionId === socket.sessionId) {
-        // Kirim event untuk force client logout
         socket.emit("session:force-logout", {
           message: "Your session has been revoked",
-          reason: "admin_action"
+          reason: "admin_action",
         });
       }
 
@@ -800,11 +820,11 @@ io.on("connection", async (socket) => {
     console.log("🚪 Logout other devices request from:", socket.userId);
 
     try {
-      // 🎯 **PERBAIKAN 6:** Revoke semua session kecuali session saat ini
+      // Revoke semua session kecuali session saat ini
       const result = await prisma.userSession.updateMany({
         where: {
           userId: socket.userId,
-          id: { not: socket.sessionId }, // Pakai sessionId, bukan sessionToken
+          id: { not: socket.sessionId }, // Pakai sessionId
           isRevoked: false,
         },
         data: {
@@ -812,7 +832,7 @@ io.on("connection", async (socket) => {
           revokedAt: new Date(),
           sessionToken: null,
           refreshToken: null,
-          fcmToken: null, // 💡 Clear FCM token juga
+          fcmToken: null,
         },
       });
 
@@ -850,7 +870,7 @@ io.on("connection", async (socket) => {
     }
   });
 
-  // Handle disconnect
+  // 🎯 PERBAIKAN UTAMA: Handle disconnect dengan error handling
   socket.on("disconnect", async (reason) => {
     console.log(`❌ Client disconnected: ${socket.id}, Reason: ${reason}`);
 
@@ -863,25 +883,60 @@ io.on("connection", async (socket) => {
       socket.userId !== "error-fallback"
     ) {
       try {
-        // Hanya update lastActiveAt
-        if (socket.sessionId) { // Pakai sessionId, bukan sessionToken
-          await prisma.userSession.update({
+        // 🎯 CEK: Hanya update jika session masih aktif
+        if (socket.isSessionActive && socket.sessionId) {
+          // Gunakan updateMany dengan try-catch untuk handle record not found
+          const result = await prisma.userSession.updateMany({
             where: {
               id: socket.sessionId,
               userId: socket.userId,
-              isRevoked: false,
+              isRevoked: false, // Hanya update yang belum direvoke
             },
             data: {
               lastActiveAt: new Date(),
             },
           });
-          console.log(`[Server] 📝 Updated last activity for session ${socket.sessionId.substring(0, 8)}`);
+
+          if (result.count > 0) {
+            console.log(
+              `[Server] 📝 Updated last activity for session ${socket.sessionId.substring(
+                0,
+                8
+              )}`
+            );
+          } else {
+            console.log(
+              `[Server] ⚠️ Session ${socket.sessionId?.substring(
+                0,
+                8
+              )} already revoked or not found`
+            );
+          }
+        } else {
+          console.log(
+            `[Server] ⏭️ Skipping update - session not active: ${
+              socket.sessionId?.substring(0, 8) || "none"
+            }`
+          );
         }
       } catch (error) {
-        console.error(
-          "[Server] ❌ Error updating session activity:",
-          error.message
-        );
+        // 🎯 TANGANI ERROR KHUSUS "Record not found"
+        if (
+          error.code === "P2025" ||
+          error.message.includes("Record to update not found")
+        ) {
+          console.log(
+            `[Server] ⚠️ Session ${socket.sessionId?.substring(
+              0,
+              8
+            )} not found during disconnect (already revoked)`
+          );
+        } else {
+          console.error(
+            "[Server] ❌ Error updating session activity:",
+            error.message
+          );
+        }
       }
     }
 

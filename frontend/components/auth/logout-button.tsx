@@ -250,7 +250,7 @@ export const LogoutButton = ({ children }: LogoutButtonProps) => {
       }}
       disabled={isLoading}
       data-logout-button="true"
-      className={`cursor-pointer ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}
+      className={`w-full cursor-pointer ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}
       type="button"
     >
       {isLoading ? "Logging out..." : children}
