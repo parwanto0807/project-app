@@ -932,7 +932,7 @@ export function CreateBAPForm({
                                     <div className="space-y-3">
                                         {bapPhotos.map((photo, index) => (
                                             <BAPPhotoForm
-                                                key={photo.tempId || index}
+                                                key={photo.tempId || photo.id || `photo-${index}`}
                                                 photo={photo}
                                                 index={index}
                                                 onUpdate={updateBAPPhoto}
@@ -1006,7 +1006,7 @@ export function CreateBAPForm({
 
             {/* Dialog untuk memilih foto dari SPK */}
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogContent className="min-w-6xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+                <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col p-0">
                     <DialogHeader className="p-6 pb-0">
                         <DialogTitle className="flex items-center gap-2">
                             <Package className="h-5 w-5" />
