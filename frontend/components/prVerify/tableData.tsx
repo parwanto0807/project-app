@@ -402,7 +402,7 @@ export function PurchaseRequestVerifyTable({
                                         </SelectTrigger>
                                         <SelectContent>
                                             {projects.map((project) => (
-                                                <SelectItem key={project.id} value={project.id} className="text-xs sm:text-sm">
+                                                <SelectItem key={project.id} value={project.id || ""} className="text-xs sm:text-sm">
                                                     {project.name}
                                                 </SelectItem>
                                             ))}
