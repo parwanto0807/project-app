@@ -64,103 +64,198 @@ const generateRefreshToken = (user) => {
 };
 
 async function createUserSession(user, req) {
-  console.log("🔄 USER SESSION CREATE");
+  console.log("🔄 [SESSION] Creating session for user:", user.id);
+
   try {
     const ipAddress =
-      req.headers["x-forwarded-for"]?.split(",")[0] || req.socket.remoteAddress;
+      req.headers["x-forwarded-for"]?.split(",")[0].trim() ||
+      req.ip ||
+      req.socket.remoteAddress ||
+      "unknown";
+
     const userAgent = req.headers["user-agent"] || "Unknown";
     const origin = req.headers["origin"] || null;
+    const deviceId = req.headers["x-device-id"] || req.body?.deviceId || null;
 
-    // ✅ Validasi user data
+    // ✅ Validasi
     if (!user?.id) {
       throw new Error("Invalid user data for session creation");
     }
 
     console.log(
-      `👤 User: ${user.id} | IP: ${ipAddress} | Device: ${userAgent}`
+      `👤 User ${user.id.substring(
+        0,
+        8
+      )} | IP: ${ipAddress} | Device: ${userAgent?.substring(0, 50)}`
     );
 
-    // ✅ Gunakan TRANSACTION untuk atomic operation
+    // ✅ SEMUA DALAM 1 TRANSACTION (ATOMIC)
     const result = await prisma.$transaction(async (tx) => {
       const now = new Date();
-      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-      // ✅ 1. DELETE SESSIONS YANG SUDAH LEBIH DARI 7 HARI ATAU EXPIRED
+      // ✅ 1. CLEANUP: Delete VERY old sessions (>30 hari) dan expired
       const deletedSessions = await tx.userSession.deleteMany({
         where: {
           userId: user.id,
           OR: [
-            { createdAt: { lt: sevenDaysAgo } }, // Session lama (> 7 hari)
-            { expiresAt: { lt: now } }, // Session expired
+            {
+              createdAt: {
+                lt: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
+              },
+            }, // >30 hari
+            { expiresAt: { lt: now } }, // Expired
           ],
         },
       });
 
       console.log(`🗑️ Deleted ${deletedSessions.count} old/expired sessions`);
 
-      // ✅ 2. REVOKE ALL PREVIOUS SESSIONS YANG MASIH AKTIF
+      // ✅ 2. ENFORCE 1 SESSION: Revoke ALL other active sessions FIRST
       const revokedSessions = await tx.userSession.updateMany({
         where: {
           userId: user.id,
           isRevoked: false,
+          expiresAt: { gt: now }, // Hanya yang belum expired
         },
         data: {
           isRevoked: true,
           revokedAt: now,
+          fcmToken: null, // Clear FCM token dari session yang direvoke
         },
       });
 
-      console.log(`🔒 Revoked ${revokedSessions.count} active sessions`);
+      console.log(
+        `🔒 Revoked ${revokedSessions.count} active sessions (1-device policy)`
+      );
 
-      // ✅ 3. INCREMENT TOKEN VERSION
+      // ✅ 3. INCREMENT TOKEN VERSION (Optional - jika mau force logout semua)
+      // Hapus ini jika tidak perlu force logout global
       const updatedUser = await tx.user.update({
         where: { id: user.id },
         data: {
           tokenVersion: { increment: 1 },
           lastLoginAt: now,
+          // lastLoginIp: ipAddress,
+          // lastLoginDevice: userAgent?.substring(0, 100),
         },
       });
 
-      console.log(
-        `📈 User ${user.id} tokenVersion: ${updatedUser.tokenVersion}`
-      );
+      console.log(`📈 Token version: ${updatedUser.tokenVersion}`);
 
-      // ✅ 4. GENERATE TOKENS SETELAH INCREMENT
+      // ✅ 4. GENERATE TOKENS
       const accessToken = generateAccessToken(updatedUser);
       const refreshToken = generateRefreshToken(updatedUser);
-
-      // ✅ 5. Generate session token
       const sessionToken = crypto.randomBytes(32).toString("hex");
 
-      // ✅ 6. CREATE SESSION BARU DENGAN lastActiveAt
+      // ✅ 5. EXTRACT DEVICE INFO
+      const deviceInfo = extractDeviceInfo(userAgent);
+
+      // ✅ 6. CREATE NEW SESSION
       const newSession = await tx.userSession.create({
         data: {
           userId: updatedUser.id,
           sessionToken,
           refreshToken,
-          ipAddress: ipAddress?.toString().substring(0, 255) || "Unknown",
+          ipAddress: ipAddress.substring(0, 45), // IPv6 max 45 chars
           userAgent: userAgent.substring(0, 500),
-          origin: origin ? origin.substring(0, 255) : null,
-          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 hari dari sekarang
+          deviceId: deviceId?.substring(0, 255) || null,
+          // deviceType: deviceInfo.deviceType,
+          // deviceName: deviceInfo.deviceName,
+          origin: origin?.substring(0, 255) || null,
+          expiresAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000), // 7 hari
           isRevoked: false,
-          lastActiveAt: now, // ✅ TAMBAHKAN lastActiveAt
-          // Tambahkan location sederhana jika ingin
-          ...(ipAddress === "127.0.0.1" || ipAddress === "::1"
+          lastActiveAt: now,
+          // Geolocation (optional)
+          ...(ipAddress !== "127.0.0.1" &&
+          ipAddress !== "::1" &&
+          ipAddress !== "unknown"
             ? {
+                country: "ID", // Default, bisa diisi dari IP lookup
+                city: "Unknown",
+              }
+            : {
                 country: "Local",
                 city: "Localhost",
-              }
-            : {}),
+              }),
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatar: true,
+            },
+          },
         },
       });
 
-      console.log(`✅ New session created: ${newSession.id}`);
+      console.log(`✅ New session: ${newSession.id.substring(0, 8)}...`);
 
-      // ✅ 7. Ambil semua sessions untuk return (dalam transaction)
+      // ✅ 7. GET ALL SESSIONS untuk emit
       const allSessions = await tx.userSession.findMany({
-        where: { userId: updatedUser.id },
-        orderBy: { lastActiveAt: "desc" }, // Urutkan berdasarkan lastActiveAt
+        where: {
+          userId: updatedUser.id,
+          createdAt: { gte: sevenDaysAgo }, // Hanya 7 hari terakhir
+        },
+        orderBy: { lastActiveAt: "desc" },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatar: true,
+            },
+          },
+        },
       });
+
+      // ✅ 8. VALIDASI: Pastikan HANYA 1 session aktif
+      const activeSessions = allSessions.filter(
+        (s) => !s.isRevoked && s.expiresAt > now
+      );
+      if (activeSessions.length > 1) {
+        console.error(
+          `❌ CRITICAL: Still ${activeSessions.length} active sessions after cleanup!`
+        );
+
+        // Auto-fix DALAM TRANSACTION YANG SAMA
+        const sessionsToRevoke = activeSessions.slice(1); // Keep first one
+        await tx.userSession.updateMany({
+          where: {
+            id: { in: sessionsToRevoke.map((s) => s.id) },
+          },
+          data: {
+            isRevoked: true,
+            revokedAt: now,
+            fcmToken: null,
+            revokeReason: "auto_fix_multiple_active",
+          },
+        });
+
+        console.log(
+          `🛠️ Auto-fixed: Revoked ${sessionsToRevoke.length} extra sessions`
+        );
+
+        // Update allSessions array
+        sessionsToRevoke.forEach((session) => {
+          session.isRevoked = true;
+          session.revokedAt = now;
+          session.fcmToken = null;
+        });
+      }
+
+      // ✅ 9. VALIDASI FINAL
+      const finalActiveCount = allSessions.filter(
+        (s) => !s.isRevoked && s.expiresAt > now
+      ).length;
+      if (finalActiveCount !== 1) {
+        throw new Error(
+          `Session policy violation: ${finalActiveCount} active sessions for user ${user.id}`
+        );
+      }
 
       return {
         accessToken,
@@ -168,197 +263,180 @@ async function createUserSession(user, req) {
         session: newSession,
         user: updatedUser,
         allSessions,
+        activeSessionCount: finalActiveCount,
       };
     });
 
-    // ✅ 8. FORMAT SESSIONS UNTUK EMIT
-    const formattedSessions = result.allSessions.map((session) => {
-      const formatted = {
-        id: session.id,
-        user: {
-          name: user.name,
-          email: user.email,
-        },
-        createdAt: session.createdAt.toISOString(),
-        lastActiveAt: session.lastActiveAt
-          ? session.lastActiveAt.toISOString()
-          : session.createdAt.toISOString(), // Fallback ke createdAt jika null
-        revokedAt: session.revokedAt ? session.revokedAt.toISOString() : null,
-        isRevoked: session.isRevoked || false,
-        ipAddress: session.ipAddress || "Unknown",
-        userAgent: session.userAgent || "Unknown",
-        expiresAt: session.expiresAt.toISOString(),
-        fcmToken: session.fcmToken || null,
-        location: session.country
-          ? {
-              country: session.country,
-              city: session.city,
-            }
-          : null,
-        deviceInfo: extractDeviceInfo(session.userAgent),
-      };
-
-      console.log(`📋 Session ${session.id}:`, {
-        id: formatted.id,
-        lastActiveAt: formatted.lastActiveAt,
-        isRevoked: formatted.isRevoked,
-        ip: formatted.ipAddress,
-      });
-
-      return formatted;
-    });
+    // ✅ 10. FORMAT SESSIONS UNTUK EMIT (konsisten dengan frontend)
+    const formattedSessions = result.allSessions.map((session) => ({
+      id: session.id,
+      userId: session.userId,
+      user: {
+        id: session.user?.id,
+        name: session.user?.name || user.name,
+        email: session.user?.email || user.email,
+        avatar: session.user?.avatar,
+      },
+      ipAddress: session.ipAddress,
+      userAgent: session.userAgent,
+      deviceInfo: extractDeviceInfo(session.userAgent),
+      createdAt: session.createdAt.toISOString(),
+      lastActiveAt:
+        session.lastActiveAt?.toISOString() || session.createdAt.toISOString(),
+      expiresAt: session.expiresAt.toISOString(),
+      isRevoked: session.isRevoked,
+      revokedAt: session.revokedAt?.toISOString() || null,
+      fcmToken: session.fcmToken,
+      location: session.country
+        ? {
+            country: session.country,
+            city: session.city,
+          }
+        : null,
+      status:
+        !session.isRevoked && session.expiresAt > new Date()
+          ? "active"
+          : "revoked",
+    }));
 
     console.log(
-      `📤 Emitting ${formattedSessions.length} sessions to user ${result.user.id}`
+      `📋 Total sessions: ${formattedSessions.length}, Active: ${result.activeSessionCount}`
     );
 
-    // ✅ 9. VALIDASI: Pastikan hanya ada 1 session aktif
-    const activeSessionCount = formattedSessions.filter(
-      (s) => !s.isRevoked
-    ).length;
-    if (activeSessionCount > 1) {
-      console.error(
-        `❌ CRITICAL: User ${user.id} has ${activeSessionCount} active sessions!`
-      );
-
-      // Auto-fix dalam transaction terpisah
-      await prisma.$transaction(async (tx) => {
-        const activeSessions = await tx.userSession.findMany({
-          where: {
-            userId: user.id,
-            isRevoked: false,
-          },
-          orderBy: { lastActiveAt: "desc" },
-        });
-
-        if (activeSessions.length > 1) {
-          const [latestSession, ...otherSessions] = activeSessions;
-
-          await tx.userSession.updateMany({
-            where: {
-              id: { in: otherSessions.map((s) => s.id) },
-            },
-            data: {
-              isRevoked: true,
-              revokedAt: new Date(),
-            },
-          });
-
-          console.log(
-            `🛠️ Auto-fixed: Kept session ${latestSession.id}, revoked ${otherSessions.length} others`
-          );
-
-          // Update formattedSessions
-          otherSessions.forEach((session) => {
-            const formattedSession = formattedSessions.find(
-              (s) => s.id === session.id
-            );
-            if (formattedSession) {
-              formattedSession.isRevoked = true;
-              formattedSession.revokedAt = new Date().toISOString();
-            }
-          });
-        }
-      });
-    }
-
-    // ✅ 10. EMIT KE SEMUA DEVICE USER
+    // ✅ 11. EMIT KE SOCKET
     if (io) {
       const room = `user:${result.user.id}`;
-      const roomSockets = io.sockets.adapter.rooms.get(room);
-      const roomSize = roomSockets ? roomSockets.size : 0;
 
-      console.log(`🏠 Room ${room} has ${roomSize} connected sockets`);
+      // Wait a bit untuk pastikan client sudah connect
+      setTimeout(() => {
+        const roomSockets = io.sockets.adapter.rooms.get(room);
+        const socketCount = roomSockets ? roomSockets.size : 0;
 
-      if (roomSize > 0) {
-        // Format yang konsisten dengan SocketContext
         const emitData = {
+          type: "sessions_updated",
           sessions: formattedSessions,
+          activeSessionId: result.session.id,
           timestamp: new Date().toISOString(),
+          policy: "one_session_per_user",
         };
 
-        console.log(`📨 Emitting session:updated to room ${room}`);
+        if (socketCount > 0) {
+          console.log(
+            `📨 Emitting to ${socketCount} socket(s) in room ${room}`
+          );
+          io.to(room).emit("sessions:updated", emitData);
 
-        io.to(room).emit("session:updated", emitData);
-
-        console.log(
-          "✅ Session update emitted to user:",
-          result.user.id,
-          `(${roomSize} clients)`
-        );
-
-        // DEBUG: Cek socket yang ada di room
-        if (roomSockets) {
-          const socketIds = Array.from(roomSockets);
-          console.log(`👥 Sockets in room:`, socketIds);
+          // Juga emit event khusus untuk frontend admin panel
+          io.emit("admin:sessions:updated", {
+            userId: result.user.id,
+            sessionCount: formattedSessions.length,
+            timestamp: new Date().toISOString(),
+          });
+        } else {
+          console.log(
+            `⏳ User ${result.user.id} not connected, session data ready`
+          );
         }
-      } else {
-        console.log(
-          `⚠️ User ${result.user.id} not connected, session update queued`
-        );
-        // Optional: Save to notification queue
-      }
-    } else {
-      console.warn("⚠️ io not available, skipping emit");
+      }, 100); // Delay 100ms
     }
+
+    // ✅ 12. LOG ACTIVITY
+    // await prisma.auditLog.create({
+    //   data: {
+    //     action: "USER_LOGIN",
+    //     userId: user.id,
+    //     entityType: "UserSession",
+    //     entityId: result.session.id,
+    //     details: JSON.stringify({
+    //       ip: ipAddress,
+    //       device: userAgent?.substring(0, 100),
+    //       sessionCount: formattedSessions.length,
+    //       policy: "single_session",
+    //     }),
+    //     ipAddress: ipAddress,
+    //     userAgent: userAgent,
+    //   },
+    // });
 
     return {
       accessToken: result.accessToken,
       refreshToken: result.refreshToken,
       session: result.session,
+      user: result.user,
+      sessions: formattedSessions,
     };
   } catch (error) {
-    console.error("[SESSION] Error creating user session:", error);
-
-    // Log error untuk debugging
-    console.error("Error details:", {
+    console.error("[SESSION] ❌ Error:", {
       message: error.message,
-      stack: error.stack,
       userId: user?.id,
+      stack: error.stack?.split("\n")[0],
     });
 
-    throw error;
+    // Re-throw untuk ditangani oleh caller
+    throw new Error(`Session creation failed: ${error.message}`);
   }
+}
+
+// Helper function
+function extractDeviceInfo(userAgent) {
+  const ua = userAgent || "";
+  let deviceType = "unknown";
+  let deviceName = "Unknown";
+
+  if (ua.includes("Mobile")) deviceType = "mobile";
+  else if (ua.includes("Tablet")) deviceType = "tablet";
+  else if (ua.includes("Windows")) deviceType = "desktop";
+  else if (ua.includes("Mac")) deviceType = "desktop";
+  else if (ua.includes("Linux")) deviceType = "desktop";
+
+  // Extract browser/device name
+  if (ua.includes("Chrome")) deviceName = "Chrome";
+  else if (ua.includes("Firefox")) deviceName = "Firefox";
+  else if (ua.includes("Safari")) deviceName = "Safari";
+  else if (ua.includes("Android")) deviceName = "Android";
+  else if (ua.includes("iPhone")) deviceName = "iPhone";
+
+  return { deviceType, deviceName };
 }
 
 // ✅ HELPER FUNCTION: Extract device info
-function extractDeviceInfo(userAgent) {
-  try {
-    const ua = userAgent.toLowerCase();
+// function extractDeviceInfo(userAgent) {
+//   try {
+//     const ua = userAgent.toLowerCase();
 
-    const info = {
-      isMobile: ua.includes("mobile"),
-      isTablet: ua.includes("tablet"),
-      isDesktop: !ua.includes("mobile") && !ua.includes("tablet"),
-      os: "Unknown",
-      browser: "Unknown",
-    };
+//     const info = {
+//       isMobile: ua.includes("mobile"),
+//       isTablet: ua.includes("tablet"),
+//       isDesktop: !ua.includes("mobile") && !ua.includes("tablet"),
+//       os: "Unknown",
+//       browser: "Unknown",
+//     };
 
-    // Deteksi OS
-    if (ua.includes("windows")) info.os = "Windows";
-    else if (ua.includes("mac os")) info.os = "macOS";
-    else if (ua.includes("linux")) info.os = "Linux";
-    else if (ua.includes("android")) info.os = "Android";
-    else if (ua.includes("ios") || ua.includes("iphone")) info.os = "iOS";
+//     // Deteksi OS
+//     if (ua.includes("windows")) info.os = "Windows";
+//     else if (ua.includes("mac os")) info.os = "macOS";
+//     else if (ua.includes("linux")) info.os = "Linux";
+//     else if (ua.includes("android")) info.os = "Android";
+//     else if (ua.includes("ios") || ua.includes("iphone")) info.os = "iOS";
 
-    // Deteksi Browser
-    if (ua.includes("chrome")) info.browser = "Chrome";
-    else if (ua.includes("firefox")) info.browser = "Firefox";
-    else if (ua.includes("safari") && !ua.includes("chrome"))
-      info.browser = "Safari";
-    else if (ua.includes("edge")) info.browser = "Edge";
+//     // Deteksi Browser
+//     if (ua.includes("chrome")) info.browser = "Chrome";
+//     else if (ua.includes("firefox")) info.browser = "Firefox";
+//     else if (ua.includes("safari") && !ua.includes("chrome"))
+//       info.browser = "Safari";
+//     else if (ua.includes("edge")) info.browser = "Edge";
 
-    return info;
-  } catch {
-    return {
-      isMobile: false,
-      isTablet: false,
-      isDesktop: true,
-      os: "Unknown",
-      browser: "Unknown",
-    };
-  }
-}
+//     return info;
+//   } catch {
+//     return {
+//       isMobile: false,
+//       isTablet: false,
+//       isDesktop: true,
+//       os: "Unknown",
+//       browser: "Unknown",
+//     };
+//   }
+// }
 
 // Constants untuk error messages
 const ERROR_MESSAGES = {
