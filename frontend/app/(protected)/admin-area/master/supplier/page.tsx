@@ -15,34 +15,40 @@ import { fetchSuppliers } from "@/lib/action/supplier/supplierAction";
 import { SupplierListResponse } from "@/types/supplierType";
 import SupplierClientWrapper from "@/components/supplier/component/supplier-wrapper";
 
+// 1. Definisikan tipe SearchParams dengan lebih fleksibel untuk Next.js
 interface SearchParams {
     page?: string;
     limit?: string;
     search?: string;
     activeOnly?: string;
+    [key: string]: string | string[] | undefined; // Tambahkan index signature
 }
 
+// 2. Props halaman sekarang menerima Promise
 interface SupplierPageProps {
-    searchParams?: SearchParams;
+    searchParams: Promise<SearchParams>;
 }
 
-function parseNumber(value: string | undefined, defaultValue: number): number {
-    if (!value) return defaultValue;
+function parseNumber(value: string | string[] | undefined, defaultValue: number): number {
+    if (!value || Array.isArray(value)) return defaultValue;
     const parsed = parseInt(value);
     return isNaN(parsed) ? defaultValue : parsed;
 }
 
-export default async function SupplierPageAdmin({ searchParams }: SupplierPageProps) {
+// 3. Ubah signature fungsi komponen
+export default async function SupplierPageAdmin(props: SupplierPageProps) {
+    // 4. Await searchParams sebelum mengakses propertinya
+    const searchParams = await props.searchParams;
+
     // Role check → Could be replaced with real auth middleware
     const userRole = "admin";
     if (userRole !== "admin") redirect("/unauthorized");
 
-    const resolved = await searchParams || {};
-
-    const page = parseNumber(resolved.page, 1);
-    const limit = parseNumber(resolved.limit, 10);
-    const search = resolved.search || "";
-    const activeOnly = resolved.activeOnly ?? "true";
+    // 5. Gunakan searchParams yang sudah di-await
+    const page = parseNumber(searchParams.page, 1);
+    const limit = parseNumber(searchParams.limit, 10);
+    const search = (typeof searchParams.search === 'string' ? searchParams.search : "") || "";
+    const activeOnly = (typeof searchParams.activeOnly === 'string' ? searchParams.activeOnly : "true");
 
     let initialData: SupplierListResponse | null = null;
 
