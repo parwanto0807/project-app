@@ -8,6 +8,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { LoadingScreen } from "@/components/ui/loading-gears";
+import { SocketProvider } from "@/contexts/SocketContext";
 
 // ✅ Import type Role dari file yang sesuai
 type Role = "user" | "admin" | "super";
@@ -24,12 +25,13 @@ export default function SuperLayout({ children }: { children: React.ReactNode })
     if (isLoading) return;
 
     const timer = setTimeout(() => {
-
+      // Cek apakah user login
       if (!user && !isAuthenticated) {
         router.replace("/auth/login");
         return;
       }
 
+      // Cek apakah role sesuai (Super Admin)
       if (user && user.role !== "super" && authRole !== "super") {
         router.replace("/unauthorized");
         return;
@@ -45,6 +47,7 @@ export default function SuperLayout({ children }: { children: React.ReactNode })
     return <LoadingScreen />;
   }
 
+  // Double check sebelum render untuk keamanan
   if (!user || !isAuthenticated || (user.role !== "super" && authRole !== "super")) {
     return null;
   }
@@ -54,10 +57,15 @@ export default function SuperLayout({ children }: { children: React.ReactNode })
 
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-      <AdminPanelLayout role={displayRole}>
-        <Toaster />
-        {children}
-      </AdminPanelLayout>
+      {/* 🔥 SocketProvider diletakkan di SINI (membungkus AdminPanelLayout).
+          Ini memastikan socket hanya aktif jika user berhasil masuk ke layout ini (Authenticated & Role Super).
+      */}
+      <SocketProvider>
+        <AdminPanelLayout role={displayRole}>
+          <Toaster />
+          {children}
+        </AdminPanelLayout>
+      </SocketProvider>
     </ThemeProvider>
   );
 }

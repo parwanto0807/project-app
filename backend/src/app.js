@@ -26,6 +26,9 @@ import umRoutes from "./routes/um/umRouters.js";
 import lppRouter from "./routes/lpp/lppRouters.js";
 import sessionRoute from "./routes/auth/sessionRoutes.js";
 import notifications from "./routes/notifications/notificationRoutes.js";
+import supplier from "./routes/supplier/supplierRoutes.js";
+import categorySupplier from "./routes/supplier/categorySupplierRoutes.js";
+import termOfPaymentRoutes from "./routes/supplier/termPaymentRoutes.js";
 
 import path from "path";
 
@@ -125,6 +128,9 @@ app.use("/api/pr", prRoutes);
 app.use("/api/um", umRoutes);
 app.use("/api/lpp", lppRouter);
 app.use("/api/notifications", notifications);
+app.use("/api/supplier", supplier);
+app.use("/api/supplier-categories", categorySupplier);
+app.use("/api/term-of-payments", termOfPaymentRoutes);
 
 // Health Check Endpoint
 app.get("/api/health", (req, res) => {

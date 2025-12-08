@@ -26,6 +26,7 @@ import {
     getSortedRowModel,
     SortingState,
 } from "@tanstack/react-table"
+import { motion } from "framer-motion";
 
 import { type SalesOrder } from "@/lib/validations/sales-order"
 import { Card, CardContent } from "@/components/ui/card"
@@ -959,15 +960,31 @@ export function SalesOrderTable({
                 ),
                 cell: ({ row }) => {
                     const order = row.original
+                    const isSupport = order.type === "SUPPORT"
+
                     return (
                         <div className="flex items-center gap-3">
-                            <div className="flex items-center justify-center h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/50">
-                                <FileTextIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                            <div className={`flex items-center justify-center h-10 w-10 rounded-full ${isSupport
+                                ? "bg-red-100 dark:bg-red-900/50"
+                                : "bg-blue-100 dark:bg-blue-900/50"
+                                }`}>
+                                <FileTextIcon className={`h-5 w-5 ${isSupport
+                                    ? "text-red-600 dark:text-red-400"
+                                    : "text-blue-600 dark:text-blue-400"
+                                    }`} />
                             </div>
-                            <div>
-                                <p className="font-medium text-base">{order.soNumber}</p>
+                            <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                    <p className="font-medium text-base">{order.soNumber}</p>
+
+                                </div>
                                 <p className="text-sm text-muted-foreground">
                                     {format(new Date(order.soDate), "dd MMM yyyy")}
+                                    {isSupport && (
+                                        <span className="inline-flex items-center rounded-full bg-red-100 dark:bg-red-900/50 px-2.5 py-0.5 text-xs text-red-800 dark:text-red-300 font-bold uppercase">
+                                            No Charge
+                                        </span>
+                                    )}
                                 </p>
                             </div>
                         </div>
@@ -1007,21 +1024,91 @@ export function SalesOrderTable({
                     const has = (t: "QUOTATION" | "PO" | "BAP" | "INVOICE" | "PAYMENT_RECEIPT") =>
                         docs.some((d) => d.docType === t);
 
+                    const isSupport = order.type === "SUPPORT";
+
                     if (has("PAYMENT_RECEIPT")) {
                         return (
-                            <Badge className="bg-green-100 text-green-700 hover:bg-green-200 border-green-200 rounded-md px-2.5 py-0.5">
-                                <CheckCircle2 className="mr-1 h-3 w-3" />
-                                Paid
-                            </Badge>
+                            <div className="flex items-center">
+                                <Badge className="bg-green-100 text-green-700 hover:bg-green-200 border-green-200 rounded-md px-2.5 py-0.5 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800">
+                                    <CheckCircle2 className="mr-1 h-3 w-3" />
+                                    Paid
+                                </Badge>
+                                {isSupport && (
+                                    <div className="ml-1 relative">
+                                        <motion.div
+                                            className="h-2 w-2 rounded-full bg-red-500"
+                                            animate={{
+                                                opacity: [0.6, 1, 0.6],
+                                                scale: [1, 1.2, 1],
+                                                boxShadow: [
+                                                    "0 0 0 0 rgba(239, 68, 68, 0)",
+                                                    "0 0 0 4px rgba(239, 68, 68, 0.3)",
+                                                    "0 0 0 0 rgba(239, 68, 68, 0)"
+                                                ]
+                                            }}
+                                            transition={{
+                                                duration: 2,
+                                                repeat: Infinity,
+                                                ease: "easeInOut"
+                                            }}
+                                        />
+                                        <motion.div
+                                            className="absolute inset-0 h-2 w-2 rounded-full bg-red-500"
+                                            animate={{
+                                                scale: [1, 1.8],
+                                                opacity: [0.7, 0]
+                                            }}
+                                            transition={{
+                                                duration: 1.5,
+                                                repeat: Infinity
+                                            }}
+                                        />
+                                    </div>
+                                )}
+                            </div>
                         );
                     }
 
                     if (has("INVOICE")) {
                         return (
-                            <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200 rounded-md px-2.5 py-0.5">
-                                <ReceiptText className="mr-1 h-3 w-3" />
-                                Invoiced
-                            </Badge>
+                            <div className="flex items-center">
+                                <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-blue-200 rounded-md px-2.5 py-0.5 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">
+                                    <ReceiptText className="mr-1 h-3 w-3" />
+                                    Invoiced
+                                </Badge>
+                                {isSupport && (
+                                    <div className="ml-1 relative">
+                                        <motion.div
+                                            className="h-2 w-2 rounded-full bg-red-500"
+                                            animate={{
+                                                opacity: [0.6, 1, 0.6],
+                                                scale: [1, 1.2, 1],
+                                                boxShadow: [
+                                                    "0 0 0 0 rgba(239, 68, 68, 0)",
+                                                    "0 0 0 4px rgba(239, 68, 68, 0.3)",
+                                                    "0 0 0 0 rgba(239, 68, 68, 0)"
+                                                ]
+                                            }}
+                                            transition={{
+                                                duration: 2,
+                                                repeat: Infinity,
+                                                ease: "easeInOut"
+                                            }}
+                                        />
+                                        <motion.div
+                                            className="absolute inset-0 h-2 w-2 rounded-full bg-red-500"
+                                            animate={{
+                                                scale: [1, 1.8],
+                                                opacity: [0.7, 0]
+                                            }}
+                                            transition={{
+                                                duration: 1.5,
+                                                repeat: Infinity
+                                            }}
+                                        />
+                                    </div>
+                                )}
+                            </div>
                         );
                     }
 
@@ -1029,9 +1116,43 @@ export function SalesOrderTable({
                     const config = statusConfig[status] || statusConfig.DRAFT;
 
                     return (
-                        <Badge className={`rounded-md px-3.5 py-1.5 uppercase font-bold ${config.className}`}>
-                            {config.label}
-                        </Badge>
+                        <div className="flex items-center">
+                            <Badge className={`rounded-md px-3.5 py-1.5 uppercase font-bold ${config.className}`}>
+                                {config.label}
+                            </Badge>
+                            {isSupport && (
+                                <div className="ml-1 relative">
+                                    <motion.div
+                                        className="h-2 w-2 rounded-full bg-red-500"
+                                        animate={{
+                                            opacity: [0.6, 1, 0.6],
+                                            scale: [1, 1.2, 1],
+                                            boxShadow: [
+                                                "0 0 0 0 rgba(239, 68, 68, 0)",
+                                                "0 0 0 4px rgba(239, 68, 68, 0.3)",
+                                                "0 0 0 0 rgba(239, 68, 68, 0)"
+                                            ]
+                                        }}
+                                        transition={{
+                                            duration: 2,
+                                            repeat: Infinity,
+                                            ease: "easeInOut"
+                                        }}
+                                    />
+                                    <motion.div
+                                        className="absolute inset-0 h-2 w-2 rounded-full bg-red-500"
+                                        animate={{
+                                            scale: [1, 1.8],
+                                            opacity: [0.7, 0]
+                                        }}
+                                        transition={{
+                                            duration: 1.5,
+                                            repeat: Infinity
+                                        }}
+                                    />
+                                </div>
+                            )}
+                        </div>
                     );
                 },
             },

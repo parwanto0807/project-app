@@ -68,7 +68,6 @@ export const getSpkByEmail = async (req, res) => {
   }
 };
 
-// ✅ CREATE SPK
 export const createSPK = async (req, res) => {
   try {
     const spkCodeNumber = await getNextSpkCode();
@@ -599,7 +598,6 @@ export const getAllSPKAdmin = async (req, res) => {
   }
 };
 
-// ✅ GET ALL SPK
 export const getAllSPK = async (req, res) => {
   try {
     const spkList = await prisma.sPK.findMany({
@@ -688,7 +686,6 @@ export const getAllSPKPr = async (req, res) => {
   }
 };
 
-// ✅ GET SPK BY ID
 export const getSPKById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -727,7 +724,6 @@ export const getSPKById = async (req, res) => {
   }
 };
 
-// ✅ UPDATE SPK
 export const updateSPK = async (req, res) => {
   try {
     const { id } = req.params;
@@ -780,16 +776,36 @@ export const updateSPK = async (req, res) => {
   }
 };
 
-// ✅ DELETE SPK
 export const deleteSPK = async (req, res) => {
   try {
     const { id } = req.params;
 
+    // 1️⃣ Cari SPK dulu agar bisa ambil salesOrderId
+    const spk = await prisma.sPK.findUnique({
+      where: { id },
+      select: { salesOrderId: true },
+    });
+
+    if (!spk) {
+      return res.status(404).json({ error: "SPK not found" });
+    }
+
+    // 2️⃣ Hapus SPK
     await prisma.sPK.delete({
       where: { id },
     });
 
-    res.json({ message: "SPK deleted successfully" });
+    // 3️⃣ Update Sales Order kembali ke status DRAFT
+    await prisma.salesOrder.update({
+      where: { id: spk.salesOrderId },
+      data: {
+        status: "DRAFT",
+      },
+    });
+
+    res.json({
+      message: "SPK deleted successfully and Sales Order reverted to DRAFT",
+    });
   } catch (error) {
     console.error("Error deleteSPK:", error);
     res.status(500).json({ error: "Failed to delete SPK" });
