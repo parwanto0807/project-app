@@ -81,26 +81,103 @@ function formatSessionResponse(session) {
   return formatted;
 }
 
+export const getAllActiveSessionsForAdmin = async (req, res) => {
+  try {
+    // ⚠️ PENTING: Pastikan hanya Admin/Super Admin yang bisa akses
+    // Jika middleware auth Anda belum mengecek role, lakukan manual di sini:
+    if (req.user.role !== "admin" && req.user.role !== "super") {
+      return res.status(403).json({
+        success: false,
+        message: "Forbidden: Access reserved for administrators",
+      });
+    }
+
+    // Ambil parameter pagination (Opsional tapi sangat disarankan untuk Admin)
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    // Filter Global: Hanya sesi yang aktif
+    const activeFilter = {
+      isRevoked: false,
+      expiresAt: { gt: new Date() }, // Masih berlaku
+    };
+
+    // 1. Hitung Total Data (untuk pagination frontend)
+    const totalCount = await prisma.userSession.count({
+      where: activeFilter,
+    });
+
+    // 2. Ambil Data Sesi (Tanpa filter userId)
+    const sessions = await prisma.userSession.findMany({
+      where: activeFilter, // 👈 HANYA filter aktif/tidak, TANPA userId tertentu
+      take: limit, // Batasi jumlah biar server gak berat
+      skip: skip,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true, // Admin butuh tau role user ini apa
+            image: true, // Opsional: foto profil
+          },
+        },
+      },
+      orderBy: { lastActiveAt: "desc" }, // Yang baru aktif muncul paling atas
+    });
+
+    // Format data
+    const formattedSessions = sessions.map((session) =>
+      formatSessionResponse(session)
+    );
+
+    res.json({
+      success: true,
+      data: formattedSessions,
+      pagination: {
+        total: totalCount,
+        page: page,
+        limit: limit,
+        totalPages: Math.ceil(totalCount / limit),
+      },
+      message: "All active user sessions retrieved successfully",
+    });
+  } catch (error) {
+    console.error("[ADMIN-SESSION] Error fetching all active sessions:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch active sessions",
+      details:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+};
+
 /**
  * Ambil semua session untuk user yang sedang login
  * Optional query: ?activeOnly=true
  */
 export const getAllSessions = async (req, res) => {
   try {
-    const { activeOnly = "false" } = req.query;
-    const userId = req.user.id;
+    // 🛡️ SECURITY CHECK: Karena filter userId dihapus, endpoint ini berbahaya
+    // jika diakses user biasa. Pastikan hanya Admin/Super yang bisa akses.
+    if (req.user.role !== "admin" && req.user.role !== "super") {
+      return res.status(403).json({
+        success: false,
+        message: "Forbidden: Access reserved for administrators",
+      });
+    }
 
-    // Filter berdasarkan activeOnly
+    // 1. Filter Global: Tanpa userId, hanya sesi aktif
     const filter = {
-      userId: userId,
-      ...(activeOnly === "true" && {
-        isRevoked: false,
-        expiresAt: { gt: new Date() },
-      }),
+      isRevoked: false, // Syarat 1: Tidak sedang dicabut/logout
+      expiresAt: { gt: new Date() }, // Syarat 2: Token belum expired
     };
 
+    // 2. Query ke Database
     const sessions = await prisma.userSession.findMany({
-      where: filter,
+      where: filter, // 👈 Filter diterapkan disini
       include: {
         user: {
           select: {
@@ -108,13 +185,14 @@ export const getAllSessions = async (req, res) => {
             name: true,
             email: true,
             role: true,
+            // image: true, // Opsional: jika butuh foto profil
           },
         },
       },
-      orderBy: { lastActiveAt: "desc" }, // Urutkan berdasarkan lastActiveAt
+      orderBy: { lastActiveAt: "desc" }, // Urutkan dari yang paling baru aktif
     });
 
-    // Format response untuk frontend
+    // 3. Format response
     const formattedSessions = sessions.map((session) =>
       formatSessionResponse(session)
     );
@@ -123,16 +201,13 @@ export const getAllSessions = async (req, res) => {
       success: true,
       data: formattedSessions,
       count: formattedSessions.length,
-      activeCount: formattedSessions.filter(
-        (s) => !s.isRevoked && new Date(s.expiresAt) > new Date()
-      ).length,
-      message: "Sessions retrieved successfully",
+      message: "All active user sessions retrieved successfully",
     });
   } catch (error) {
-    console.error("[SESSION] Error in getAllSessions:", error);
+    console.error("[SESSION] Error in getAllActiveSessions:", error);
     res.status(500).json({
       success: false,
-      error: "Failed to fetch sessions",
+      error: "Failed to fetch active sessions",
       details:
         process.env.NODE_ENV === "development" ? error.message : undefined,
     });
