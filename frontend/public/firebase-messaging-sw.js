@@ -9,8 +9,8 @@ importScripts(
 // (Kita harus copy-paste ke sini karena file ini tidak bisa membaca file .ts di luar folder public)
 const firebaseConfig = {
   apiKey: "AIzaSyBR2CWIcT2i80RoerJi3nRVreUcN7izgG0",
-  authDomain: "rylif-app.com",
-  // authDomain: "project-app-7225a.firebaseapp.com",
+  // authDomain: "rylif-app.com",
+  authDomain: "project-app-7225a.firebaseapp.com",
   projectId: "project-app-7225a",
   storageBucket: "project-app-7225a.firebasestorage.app",
   messagingSenderId: "192039876000",
@@ -53,7 +53,6 @@ self.addEventListener("install", (event) => {
 
 // ✅ ACTIVATE EVENT - Clean up
 self.addEventListener("activate", (event) => {
-
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -72,7 +71,6 @@ self.addEventListener("activate", (event) => {
 
 // ✅ BACKGROUND MESSAGE HANDLER
 messaging.onBackgroundMessage((payload) => {
-
   const notificationTitle = payload.notification?.title || "New Notification";
   const notificationBody = payload.notification?.body || "";
   const notificationImage = payload.notification?.image;
@@ -109,7 +107,6 @@ messaging.onBackgroundMessage((payload) => {
 
 // ✅ NOTIFICATION CLICK HANDLER
 self.addEventListener("notificationclick", (event) => {
-
   event.notification.close();
   const action = event.action;
   const notificationData = event.notification.data;
@@ -139,4 +136,3 @@ self.addEventListener("notificationclick", (event) => {
       })
   );
 });
-
