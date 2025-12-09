@@ -4,18 +4,22 @@
 import React, { createContext, useContext, useEffect, useState, useRef, ReactNode, useCallback } from 'react';
 import ioClient from 'socket.io-client';
 import { api } from '@/lib/http';
+import { User } from '@/hooks/use-current-user';
 
 const io = ioClient;
 
 // Types (same as before)
 export interface SessionData {
     id: string;
+    userId: string;
     createdAt: Date;
     revokedAt: Date | null;
     isRevoked: boolean;
     ipAddress: string;
     userAgent: string;
     expiresAt: Date;
+    lastActiveAt: Date;
+    user: User;
 }
 
 export interface SocketEventMap {
@@ -46,6 +50,8 @@ export interface EmitEventMap {
     'session:revoke': { sessionId: string };
     'session:logout-other': void;
     'session:logout-all': void;
+    'session:get-latest': void; // Tambahkan ini
+    'join-admin-room': string;   // Tambahkan ini
 }
 
 type Socket = ReturnType<typeof io>;

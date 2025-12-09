@@ -10,7 +10,7 @@ import { SuperLayout } from "@/components/admin-panel/super-layout";
 import { LayoutProps } from "@/types/layout";
 import { getAllSessions } from "@/lib/action/session/session";
 import SessionListTable, { Session } from "@/components/session/tableData";
-import { SocketProvider } from "@/contexts/SocketContext";
+// import { SocketProvider } from "@/contexts/SocketContext";
 import { toast } from "sonner";
 import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -360,15 +360,15 @@ export default function SessionPage() {
                             </div>
                         )}
 
-                        <SocketProvider>
-                            <SessionListTable
-                                sessions={sortedSessions}
-                                isLoading={isLoading}
-                                onRefresh={handleRefresh}
-                                lastUpdated={lastFetchTime}
-                                error={error}
-                            />
-                        </SocketProvider>
+                        {/* <SocketProvider> */}
+                        <SessionListTable
+                            sessions={sortedSessions}
+                            isLoading={isLoading}
+                            onRefresh={handleRefresh}
+                            lastUpdated={lastFetchTime}
+                            error={error}
+                        />
+                        {/* </SocketProvider> */}
                     </div>
                 </div>
             </>
