@@ -17,7 +17,6 @@ import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { LayoutProps } from "@/types/layout";
 import TabelDataSpk from "@/components/spk/tabelData";
 import { toast } from "sonner";
-import ioClient from "socket.io-client";
 import { useSession } from "@/components/clientSessionProvider";
 import HeaderCard from "@/components/ui/header-card";
 import { MessageSquareQuoteIcon } from "lucide-react";
@@ -133,12 +132,6 @@ interface SPKResponse {
   data: SPK[];
   pagination: PaginationMeta;
 }
-
-const io = ioClient;
-const socket = io(process.env.NEXT_PUBLIC_SOCKET_URL!, {
-  transports: ["websocket"],
-  autoConnect: true,
-});
 
 export default function SpkPageAdmin() {
   const [dataSpk, setDataSpk] = useState<SPK[]>([]);
@@ -320,25 +313,6 @@ export default function SpkPageAdmin() {
     return [...new Set(teams)];
   }, [dataSpk]);
 
-  // ===============================
-  //    REALTIME UPDATE
-  // ===============================
-  useEffect(() => {
-    socket.on("connect", () => {
-      console.log("✅ Socket connected to server");
-    });
-
-    const handler = () => {
-      console.log("Realtime: SPK updated → refresh data");
-      fetchData();
-    };
-
-    socket.on("spk_updated", handler);
-
-    return () => {
-      socket.off("spk_updated", handler);
-    };
-  }, [fetchData]);
 
   // ===============================
   //    REFRESH HANDLER
