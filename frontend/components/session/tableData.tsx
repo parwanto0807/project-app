@@ -24,8 +24,8 @@ import {
   MapPin,
   Info,
   Wifi,
-  WifiOff,
-  AlertCircle,
+  // WifiOff,
+  // AlertCircle,
   RefreshCw,
   Shield,
   Clock,
@@ -46,7 +46,7 @@ import {
 import PaginationComponent from "@/components/ui/paginationNew";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { useSocket } from '../../contexts/SocketContext';
+// import { useSocket } from '../../contexts/SocketContext';
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -114,11 +114,11 @@ export default function SessionListTable({
   const [isRevokingAll, setIsRevokingAll] = useState(false);
   const [timeAgoUpdate, setTimeAgoUpdate] = useState<string>('');
 
-  const {
-    isConnected,
-    revokeSession: socketRevokeSession,
-    sendEvent
-  } = useSocket();
+  // const {
+  //   isConnected,
+  //   revokeSession: socketRevokeSession,
+  //   sendEvent
+  // } = useSocket();
 
   const itemsPerPage = 20;
   const searchParams = useSearchParams();
@@ -212,7 +212,7 @@ export default function SessionListTable({
       if (onRevokeSession) {
         await onRevokeSession(id);
       } else {
-        await socketRevokeSession(id);
+        // await socketRevokeSession(id);
       }
       toast.success('Session revoked successfully');
 
@@ -255,10 +255,10 @@ export default function SessionListTable({
     setSelectedSession(null);
   };
 
-  const handlePing = () => {
-    sendEvent('ping');
-    toast.info('Pinging server...');
-  };
+  // const handlePing = () => {
+  //   sendEvent('ping');
+  //   toast.info('Pinging server...');
+  // };
 
   // Pagination calculations - menggunakan sortedSessions
   const totalPages = Math.ceil(sortedSessions.length / itemsPerPage);
@@ -519,10 +519,10 @@ export default function SessionListTable({
                 Session Details
               </div>
             </Badge>
-            <div className={`flex items-center gap-1 text-xs ${isConnected ? 'text-green-600' : 'text-red-600'}`}>
+            {/* <div className={`flex items-center gap-1 text-xs ${isConnected ? 'text-green-600' : 'text-red-600'}`}>
               {isConnected ? <Wifi className="h-4 w-4" /> : <WifiOff className="h-4 w-4" />}
               {isConnected ? 'Live' : 'Offline'}
-            </div>
+            </div> */}
           </div>
         </div>
 
@@ -1161,7 +1161,7 @@ export default function SessionListTable({
               <CardTitle className="text-xl md:text-2xl font-bold text-white">
                 Active Sessions
               </CardTitle>
-              <Badge
+              {/* <Badge
                 variant={isConnected ? "default" : "destructive"}
                 className={`px-2 py-0.5 text-xs ${isConnected ? 'bg-green-500 hover:bg-green-600' : ''}`}
               >
@@ -1169,7 +1169,7 @@ export default function SessionListTable({
                   {isConnected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
                   {isConnected ? 'Live' : 'Offline'}
                 </div>
-              </Badge>
+              </Badge> */}
             </div>
             <p className="text-blue-100 text-sm">
               Manage your active login sessions and devices • Sorted by Last Active (Newest first)
@@ -1202,8 +1202,8 @@ export default function SessionListTable({
                 size="sm"
                 variant="outline"
                 className="h-9 px-3 text-xs md:text-sm bg-white/10 border-white/30 text-white hover:bg-white/20"
-                onClick={handlePing}
-                disabled={!isConnected}
+              // onClick={handlePing}
+              // disabled={!isConnected}
               >
                 Ping
               </Button>
@@ -1213,7 +1213,7 @@ export default function SessionListTable({
                   variant="outline"
                   className="h-9 px-3 text-xs md:text-sm bg-white/10 border-white/30 text-white hover:bg-white/20"
                   onClick={handleRevokeAllOther}
-                  disabled={!isConnected || sessions.filter(s => !s.isRevoked && s.id !== currentSessionId).length === 0 || isRevokingAll}
+                  disabled={sessions.filter(s => !s.isRevoked && s.id !== currentSessionId).length === 0 || isRevokingAll}
                 >
                   <Shield className="h-4 w-4 mr-1" />
                   {isRevokingAll ? 'Revoking...' : 'Logout Others'}
@@ -1226,7 +1226,7 @@ export default function SessionListTable({
 
       <CardContent className="p-0">
         {/* Connection Status Banner */}
-        {!isConnected && (
+        {/* {!isConnected && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1257,7 +1257,7 @@ export default function SessionListTable({
               )}
             </div>
           </motion.div>
-        )}
+        )} */}
 
         {/* Desktop Table View */}
         <div className="hidden md:block overflow-x-auto">
@@ -1314,10 +1314,10 @@ export default function SessionListTable({
                       <Monitor className="h-8 w-8 text-blue-500 dark:text-blue-400" />
                     </div>
                     <p className="text-gray-700 dark:text-gray-300 text-sm font-medium mb-1">No active sessions found</p>
-                    <p className="text-gray-500 dark:text-gray-500 text-xs">
+                    {/* <p className="text-gray-500 dark:text-gray-500 text-xs">
                       {isConnected ? 'Start a new session to see it here' : 'Connect to server to view sessions'}
-                    </p>
-                    {!isConnected && onRefresh && (
+                    </p> */}
+                    {onRefresh && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -1371,10 +1371,10 @@ export default function SessionListTable({
                   <Monitor className="h-8 w-8 text-blue-500 dark:text-blue-400" />
                 </div>
                 <p className="text-gray-700 dark:text-gray-300 text-sm font-medium mb-1">No active sessions found</p>
-                <p className="text-gray-500 dark:text-gray-500 text-xs">
+                {/* <p className="text-gray-500 dark:text-gray-500 text-xs">
                   {isConnected ? 'Start a new session to see it here' : 'Connect to server to view sessions'}
-                </p>
-                {!isConnected && onRefresh && (
+                </p> */}
+                {onRefresh && (
                   <Button
                     variant="outline"
                     size="sm"

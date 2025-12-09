@@ -158,9 +158,18 @@ export const getAllInvoice = async (req, res) => {
   try {
     const salesOrders = await prisma.salesOrder.findMany({
       where: {
-        status: {
-          in: ["FULFILLED", "BAST"], // hanya ambil status ini
-        },
+        AND: [
+          {
+            status: {
+              in: ["FULFILLED", "BAST"],
+            },
+          },
+          {
+            type: {
+              not: "SUPPORT", // exclude type SUPPORT
+            },
+          },
+        ],
       },
       include: {
         customer: true,
@@ -189,9 +198,18 @@ export const getAllBap = async (req, res) => {
   try {
     const salesOrders = await prisma.salesOrder.findMany({
       where: {
-        status: {
-          in: ["FULFILLED"], // hanya ambil status ini
-        },
+        AND: [
+          {
+            status: {
+              in: ["FULFILLED"],
+            },
+          },
+          {
+            type: {
+              not: "SUPPORT", // exclude type SUPPORT
+            },
+          },
+        ],
       },
       include: {
         customer: true,
@@ -1467,3 +1485,53 @@ export async function getMonthlySales(req, res) {
     res.status(500).json({ success: false, message: "Internal server error" });
   }
 }
+
+export const cancelSalesOrder = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ message: "SalesOrder ID is required" });
+    }
+
+    const existingSO = await prisma.salesOrder.findUnique({
+      where: { id },
+      include: {
+        spk: true,
+      },
+    });
+
+    if (!existingSO) {
+      return res.status(404).json({ message: "SalesOrder not found" });
+    }
+
+    // Transaction update SO + SPK
+    const result = await prisma.$transaction(async (tx) => {
+      const updatedSO = await tx.salesOrder.update({
+        where: { id },
+        data: {
+          status: "CANCELLED",
+        },
+      });
+
+      // Update semua SPK yg terkait SO ini
+      const updatedSPK = await tx.sPK.updateMany({
+        where: { salesOrderId: id },
+        data: {
+          spkStatus: true,
+          spkStatusClose: true,
+        },
+      });
+
+      return { updatedSO, updatedSPK };
+    });
+
+    return res.status(200).json({
+      message: "SalesOrder di-CANCEL dan SPK terkait ditutup",
+      data: result,
+    });
+  } catch (error) {
+    console.error("❌ Error cancelling SO:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};

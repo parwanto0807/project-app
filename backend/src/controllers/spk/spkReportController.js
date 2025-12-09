@@ -3,9 +3,11 @@
 import { prisma } from "../../config/db.js";
 import fs from "fs";
 import path from "path";
-import { io } from "../../server.js";
+// controllers/spkController.js
 
-// const prisma = new PrismaClient();
+import { NotificationService } from "../../utils/firebase/notificationService.js";
+
+const notificationService = new NotificationService();
 
 // 💡 Membuat laporan lapangan (Progress atau Final)
 export const createSpkFieldReport = async (req, res) => {
@@ -185,7 +187,6 @@ export const createSpkFieldReport = async (req, res) => {
     });
 
     // ✅ TAMBAHKAN: BROADCAST NOTIFICATION HANYA KE ADMIN & PIC SAJA
-    // ✅ TAMBAHKAN: BROADCAST NOTIFICATION HANYA KE ADMIN & PIC SAJA
     try {
       // Dapatkan semua user dengan role admin dan pic
       const adminUsers = await prisma.user.findMany({
@@ -201,9 +202,9 @@ export const createSpkFieldReport = async (req, res) => {
         },
       });
 
-      console.log(
-        `📢 Sending SPK Field Report notification to ${adminUsers.length} admin/pic users`
-      );
+      // console.log(
+      //   `📢 Sending SPK Field Report notification to ${adminUsers.length} admin/pic users`
+      // );
 
       // CARA LEBIH EFISIEN: Ambil product name dari soDetail yang sudah ada di report
       let productName = "Unknown Product";
@@ -265,14 +266,9 @@ export const createSpkFieldReport = async (req, res) => {
       const customerName =
         spkInfo?.salesOrder?.customer?.branch || "Unknown Customer";
 
-      // Import NotificationService
-      const { NotificationService } = await import(
-        "../../utils/firebase/notificationService.js"
-      );
-
       // Kirim notifikasi ke setiap admin dan pic
       for (const admin of adminUsers) {
-        await NotificationService.sendToUser(admin.id, {
+        await notificationService.sendToUser(admin.id, {
           title:
             type === "FINAL"
               ? "Laporan Final SPK Selesai 🎯"

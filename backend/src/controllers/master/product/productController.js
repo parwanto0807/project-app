@@ -198,7 +198,7 @@ export const createProduct = async (req, res) => {
       data: productData,
     });
 
-    console.log(`✅ Product created: ${created.code} - ${created.name}`);
+    // console.log(`✅ Product created: ${created.code} - ${created.name}`);
 
     // ✅ KIRIM NOTIFIKASI SETELAH PRODUCT BERHASIL DIBUAT
     try {
@@ -215,9 +215,9 @@ export const createProduct = async (req, res) => {
         },
       });
 
-      console.log(
-        `📢 Sending notification to ${adminUsers.length} admin users`
-      );
+      // console.log(
+      //   `📢 Sending notification to ${adminUsers.length} admin users`
+      // );
 
       // Kirim notifikasi ke setiap admin
       for (const admin of adminUsers) {

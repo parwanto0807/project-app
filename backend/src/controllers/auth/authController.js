@@ -20,7 +20,7 @@ import {
   GOOGLE_CALLBACK_URL,
   MFA_TEMP_SECRET,
 } from "../../config/env.js";
-import { io } from "../../server.js";
+// import { io } from "../../server.js";
 
 // Constants untuk konsistensi
 const TOKEN_CONFIG = {
@@ -193,7 +193,7 @@ async function createUserSession(user, req) {
 
       console.log(`✅ New session: ${newSession.id.substring(0, 8)}...`);
 
-      // ✅ 7. GET ALL SESSIONS untuk emit
+      // ✅ 7. GET ALL SESSIONS untuk analytics
       const allSessions = await tx.userSession.findMany({
         where: {
           userId: updatedUser.id,
@@ -267,7 +267,7 @@ async function createUserSession(user, req) {
       };
     });
 
-    // ✅ 10. FORMAT SESSIONS UNTUK EMIT (konsisten dengan frontend)
+    // ✅ 10. FORMAT SESSIONS UNTUK RESPONSE (konsisten dengan frontend)
     const formattedSessions = result.allSessions.map((session) => ({
       id: session.id,
       userId: session.userId,
@@ -303,44 +303,7 @@ async function createUserSession(user, req) {
       `📋 Total sessions: ${formattedSessions.length}, Active: ${result.activeSessionCount}`
     );
 
-    // ✅ 11. EMIT KE SOCKET
-    if (io) {
-      const room = `user:${result.user.id}`;
-
-      // Wait a bit untuk pastikan client sudah connect
-      setTimeout(() => {
-        const roomSockets = io.sockets.adapter.rooms.get(room);
-        const socketCount = roomSockets ? roomSockets.size : 0;
-
-        const emitData = {
-          type: "sessions_updated",
-          sessions: formattedSessions,
-          activeSessionId: result.session.id,
-          timestamp: new Date().toISOString(),
-          policy: "one_session_per_user",
-        };
-
-        if (socketCount > 0) {
-          console.log(
-            `📨 Emitting to ${socketCount} socket(s) in room ${room}`
-          );
-          io.to(room).emit("sessions:updated", emitData);
-
-          // Juga emit event khusus untuk frontend admin panel
-          io.emit("admin:sessions:updated", {
-            userId: result.user.id,
-            sessionCount: formattedSessions.length,
-            timestamp: new Date().toISOString(),
-          });
-        } else {
-          console.log(
-            `⏳ User ${result.user.id} not connected, session data ready`
-          );
-        }
-      }, 100); // Delay 100ms
-    }
-
-    // ✅ 12. LOG ACTIVITY
+    // ✅ 11. LOG ACTIVITY
     // await prisma.auditLog.create({
     //   data: {
     //     action: "USER_LOGIN",
@@ -731,34 +694,6 @@ export const revokeSession = async (req, res) => {
       },
     });
 
-    // Ambil semua sessions terbaru untuk emit ke socket
-    const allSessions = await prisma.userSession.findMany({
-      where: { userId },
-      orderBy: { lastActiveAt: "desc" },
-    });
-
-    // Format untuk socket emit
-    const formattedSessions = allSessions.map((s) => ({
-      id: s.id,
-      userAgent: s.userAgent,
-      ipAddress: s.ipAddress,
-      isRevoked: s.isRevoked,
-      createdAt: s.createdAt.toISOString(),
-      lastActiveAt: s.lastActiveAt?.toISOString() || s.createdAt.toISOString(),
-      expiresAt: s.expiresAt.toISOString(),
-      fcmToken: s.fcmToken,
-    }));
-
-    // Emit ke socket room user
-    if (req.io) {
-      req.io.to(`user:${userId}`).emit("session:updated", {
-        sessions: formattedSessions,
-        timestamp: new Date().toISOString(),
-        action: "session_revoked",
-        revokedSessionId: sessionId,
-      });
-    }
-
     res.json({
       success: true,
       message: "Session revoked successfully",
@@ -775,7 +710,6 @@ export const revokeSession = async (req, res) => {
     });
   }
 };
-
 /**
  * Revoke all other sessions except current one
  */
@@ -804,13 +738,13 @@ export const revokeAllOtherSessions = async (req, res) => {
       },
     });
 
-    // Ambil semua sessions terbaru
+    // Ambil semua sessions terbaru untuk response
     const allSessions = await prisma.userSession.findMany({
       where: { userId },
       orderBy: { lastActiveAt: "desc" },
     });
 
-    // Format untuk response dan socket
+    // Format untuk response
     const formattedSessions = allSessions.map((session) => ({
       id: session.id,
       userAgent: session.userAgent,
@@ -822,16 +756,6 @@ export const revokeAllOtherSessions = async (req, res) => {
       expiresAt: session.expiresAt.toISOString(),
       fcmToken: session.fcmToken,
     }));
-
-    // Emit ke socket
-    if (req.io) {
-      req.io.to(`user:${userId}`).emit("session:updated", {
-        sessions: formattedSessions,
-        timestamp: new Date().toISOString(),
-        action: "revoked_all_others",
-        revokedCount: revoked.count,
-      });
-    }
 
     res.json({
       success: true,

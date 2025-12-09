@@ -43,6 +43,8 @@ router.put(
 // Update SO + replace all items (editor tabel)
 router.put("/sales-orders/:id/with-items", salesOrder.updateWithItems);
 
+router.put("/:id/cancel", salesOrder.cancelSalesOrder);
+
 // Hapus SO (cascade hapus items & documents)
 router.delete("/sales-orders/remove/:id", salesOrder.remove);
 

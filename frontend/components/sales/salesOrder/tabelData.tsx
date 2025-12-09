@@ -57,6 +57,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { SalesOrderSummary } from "./salesOrderSummary"
+import { CancelSOButton } from "./CancelSOButton"
 
 type OrderStatus = z.infer<typeof OrderStatusEnum>;
 
@@ -503,7 +504,9 @@ function renderDocumentStatus(documents: { docType: "QUOTATION" | "PO" | "BAP" |
 }
 
 // Helper component untuk detail order
-function SalesOrderDetail({ order, role }: { order: SalesOrder, role: string }) {
+function SalesOrderDetail({ order, role }: {
+    order: SalesOrder, role: string
+}) {
     const total = order.items.reduce((sum, item) => {
         const itemQty = new Decimal(item.qty.toString())
         const itemPrice = new Decimal(item.unitPrice.toString())
@@ -520,8 +523,8 @@ function SalesOrderDetail({ order, role }: { order: SalesOrder, role: string }) 
 
     return (
         <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-slate-900 dark:to-slate-800 p-4 md:p-6 rounded-lg">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-6 mb-4 md:mb-6">
-                {/* Customer Details */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6 mb-4 md:mb-6">
+                {/* Customer Details - Grid Col 1 */}
                 <div className="space-y-2">
                     <h4 className="font-semibold text-sm text-primary flex items-center gap-2">
                         <UserCheck2Icon className="h-4 w-4" />
@@ -535,7 +538,7 @@ function SalesOrderDetail({ order, role }: { order: SalesOrder, role: string }) 
                     </p>
                 </div>
 
-                {/* Order Info */}
+                {/* Order Info - Grid Col 2 */}
                 <div className="space-y-2">
                     <h4 className="font-semibold text-sm text-primary">
                         <span className="hidden md:inline">Order Info</span>
@@ -556,7 +559,7 @@ function SalesOrderDetail({ order, role }: { order: SalesOrder, role: string }) 
                     </p>
                 </div>
 
-                {/* Document Status */}
+                {/* Document Status - Grid Col 3 */}
                 <div className="space-y-2">
                     <h4 className="font-semibold text-sm text-primary">
                         <span className="hidden md:inline">Document Status</span>
@@ -569,6 +572,14 @@ function SalesOrderDetail({ order, role }: { order: SalesOrder, role: string }) 
                     ) : (
                         <p className="text-xs md:text-sm text-muted-foreground">No documents yet</p>
                     )}
+                </div>
+
+                {/* Cancel Button - Grid Col 4 */}
+                <div className="flex md:justify-end items-start md:items-center">
+                    <CancelSOButton
+                        id={order.id}
+                        disabled={order.status === "PAID" || order.status === "PARTIALLY_PAID"}
+                    />
                 </div>
             </div>
 
@@ -1004,7 +1015,7 @@ export function SalesOrderTable({
                                 <FaToolbox className="h-5 w-5 text-red-600 dark:text-red-400" />
                             </div>
                             <div>
-                                <p className="font-bold uppercase">{order.project?.name || "No Project"}</p>
+                                <p className="font-bold uppercase text-wrap">{order.project?.name || "No Project"}</p>
                                 <p className="text-sm text-muted-foreground">
                                     {order.customer.name} - Cabang : {order.customer.branch ?? "-"}
                                 </p>

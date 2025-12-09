@@ -6,10 +6,17 @@ import { cookies } from "next/headers";
 import { getAuthHeaders, getCookieHeader } from "@/lib/cookie-utils";
 import { apiFetch } from "@/lib/apiFetch";
 import { unstable_noStore as noStore } from "next/cache";
+import { api } from "@/lib/http";
 
 // form schema utk create/update header+items (tanpa soNumber karena digenerate)
 const formSchema = salesOrderUpdateSchema.omit({ soNumber: true });
 type UpdateSalesOrderPayload = z.infer<typeof formSchema>;
+
+interface CancelSOResponse {
+  success: boolean;
+  message: string;
+  data?: unknown;
+}
 
 // bulan -> Romawi (0..11)
 function toRoman(monthIndex: number): string {
@@ -339,5 +346,38 @@ export async function fetchAllSalesOrderSPK() {
   } catch (error) {
     console.error("Error fetching sales orders:", error);
     throw error;
+  }
+}
+
+export async function cancelSalesOrder(id: string): Promise<CancelSOResponse> {
+  if (!id) {
+    return {
+      success: false,
+      message: "SalesOrder ID required",
+    };
+  }
+
+  try {
+    const response = await api.put(`/api/salesOrder/${id}/cancel`);
+
+    return {
+      success: true,
+      message: response.data?.message ?? "SalesOrder cancelled",
+      data: response.data?.data,
+    };
+  } catch (error) {
+    console.error("❌ Error Cancel SalesOrder:", error);
+
+    const apiError = error as Error & {
+      response?: { data?: { message?: string } };
+    };
+
+    return {
+      success: false,
+      message:
+        apiError.response?.data?.message ??
+        apiError.message ??
+        "Failed to cancel SalesOrder",
+    };
   }
 }
