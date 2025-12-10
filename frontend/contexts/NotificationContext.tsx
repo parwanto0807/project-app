@@ -150,7 +150,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     setIsLoading(true);
     try {
-      console.log("🔄 [Notifications] fetching from server...");
+      // console.log("🔄 [Notifications] fetching from server...");
       const serverData = await getNotifications({ limit: 100 });
 
       // 🔥 CHECK: Jika unauthorized, stop operations
@@ -176,7 +176,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       persistToLocalStorage(formatted);
       hasInitialLoad.current = true;
 
-      console.log(`✅ [Notifications] loaded ${formatted.length} items from server`);
+      // console.log(`✅ [Notifications] loaded ${formatted.length} items from server`);
     } catch (err) {
       console.error("❌ [Notifications] Server load error, using cache", err);
 
@@ -222,7 +222,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const syncWithServer = useCallback(async () => {
     if (!shouldProceed() || !hasInitialLoad.current) return;
 
-    console.log("🔁 [Notifications] Syncing with server...");
+    // console.log("🔁 [Notifications] Syncing with server...");
 
     try {
       const serverData = await getNotifications({ limit: 100 });
@@ -249,7 +249,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         return formatted;
       });
 
-      console.log("✅ [Notifications] Sync complete");
+      // console.log("✅ [Notifications] Sync complete");
     } catch (err) {
       console.error("❌ [Notifications] Sync failed:", err);
 

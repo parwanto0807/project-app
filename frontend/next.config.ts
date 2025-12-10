@@ -1,20 +1,22 @@
 import type { NextConfig } from "next";
 
-// Deteksi apakah sedang mode development atau production
+// Deteksi mode development vs production
 const isDev = process.env.NODE_ENV !== "production";
 
-// Tentukan aturan koneksi berdasarkan mode
+// Aturan koneksi (Connect-src)
 const connectSrc = isDev 
-  ? "connect-src 'self' https: http://localhost:5000;" // Dev: Boleh localhost
-  : "connect-src 'self' https:;";                      // Prod: HANYA HTTPS (Aman & Bersih)
+  ? "connect-src 'self' https: http://localhost:5000;" 
+  : "connect-src 'self' https:;";
 
-// Tentukan aturan gambar (opsional, biar rapi juga)
+// Aturan gambar (Img-src)
 const imgSrc = isDev
   ? "img-src 'self' data: https: blob: http://localhost:5000;" 
   : "img-src 'self' data: https: blob:;";
 
 const nextConfig: NextConfig = {
   images: {
+    formats: ['image/webp'],
+    minimumCacheTTL: 60,
     remotePatterns: [
       { protocol: "https", hostname: "lh3.googleusercontent.com" },
       { protocol: "https", hostname: "www.google.com" },
@@ -35,8 +37,23 @@ const nextConfig: NextConfig = {
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           {
             key: 'Content-Security-Policy',
-            // Kita gabungkan variabel di atas ke dalam string CSP
-            value: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com; style-src 'self' 'unsafe-inline'; font-src 'self' data: https:; ${imgSrc} ${connectSrc}`.replace(/\s{2,}/g, ' ').trim() 
+            // PERUBAHAN ADA DI SINI:
+            // 1. Menambahkan "object-src 'none';" (Sangat penting untuk keamanan)
+            // 2. Menambahkan "base-uri 'self';" (Mencegah pembajakan base tag)
+            // 3. Menambahkan "form-action 'self';" (Mencegah form dikirim ke web lain)
+            value: `
+              default-src 'self'; 
+              script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com; 
+              style-src 'self' 'unsafe-inline'; 
+              font-src 'self' data: https:; 
+              object-src 'none'; 
+              base-uri 'self'; 
+              form-action 'self'; 
+              frame-ancestors 'none'; 
+              block-all-mixed-content; 
+              upgrade-insecure-requests; 
+              ${imgSrc} ${connectSrc}
+            `.replace(/\s{2,}/g, ' ').trim() 
           }
         ]
       }
