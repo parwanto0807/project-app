@@ -2,7 +2,7 @@
 'use client';
 
 import { useState } from 'react';
-import * as XLSX from 'xlsx';
+// import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -87,21 +87,21 @@ const DashboardExport = () => {
   ];
 
   // Function to export data to Excel
-  const exportToExcel = (data: ExportData, fileName: string) => {
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
-    XLSX.writeFile(workbook, `${fileName}.xlsx`);
-  };
+  // const exportToExcel = (data: ExportData, fileName: string) => {
+  //   const worksheet = XLSX.utils.json_to_sheet(data);
+  //   const workbook = XLSX.utils.book_new();
+  //   XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
+  //   XLSX.writeFile(workbook, `${fileName}.xlsx`);
+  // };
 
   // Function to export data to PDF
   const exportToPDF = (data: ExportData, headers: string[], fileName: string) => {
     const doc = new jsPDF();
     doc.text(`${fileName}`, 14, 15);
-    
+
     // Convert data to format suitable for autoTable
     const body = data.map(item => Object.values(item));
-    
+
     autoTable(doc, {
       head: [headers],
       body: body,
@@ -111,20 +111,20 @@ const DashboardExport = () => {
   };
 
   // Function to export data to CSV
-  const exportToCSV = (data: ExportData, fileName: string) => {
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const csv = XLSX.utils.sheet_to_csv(worksheet);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `${fileName}.csv`;
-    link.click();
-  };
+  // const exportToCSV = (data: ExportData, fileName: string) => {
+  //   const worksheet = XLSX.utils.json_to_sheet(data);
+  //   const csv = XLSX.utils.sheet_to_csv(worksheet);
+  //   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  //   const link = document.createElement('a');
+  //   link.href = URL.createObjectURL(blob);
+  //   link.download = `${fileName}.csv`;
+  //   link.click();
+  // };
 
   // Handle export based on selected format and report type
   const handleExport = () => {
     setExporting(true);
-    
+
     let data: ExportData = [];
     let headers: string[] = [];
     let fileName = '';
@@ -149,12 +149,8 @@ const DashboardExport = () => {
 
     setTimeout(() => {
       try {
-        if (selectedFormat === 'excel') {
-          exportToExcel(data, fileName);
-        } else if (selectedFormat === 'pdf') {
+        if (selectedFormat === 'pdf') {
           exportToPDF(data, headers, fileName);
-        } else if (selectedFormat === 'csv') {
-          exportToCSV(data, fileName);
         }
       } catch (error) {
         console.error('Export error:', error);
@@ -189,7 +185,7 @@ const DashboardExport = () => {
             <div className="bg-white p-4 rounded-lg shadow">
               <h2 className="text-lg font-semibold mb-3">Data Order Feature</h2>
               <p className="text-sm text-red-500 mb-3">3 sales order indicate zero chanel</p>
-              
+
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
@@ -234,11 +230,11 @@ const DashboardExport = () => {
           {/* Export Sidebar */}
           <div className="bg-white p-6 rounded-lg shadow">
             <h2 className="text-xl font-bold mb-6 text-center text-blue-700">Ekspor Laporan</h2>
-            
+
             {/* Report Type Selection */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">Pilih Jenis Laporan</label>
-              <select 
+              <select
                 value={selectedReport}
                 onChange={(e) => setSelectedReport(e.target.value)}
                 className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
@@ -248,7 +244,7 @@ const DashboardExport = () => {
                 ))}
               </select>
             </div>
-            
+
             {/* Format Selection */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">Pilih Format</label>
@@ -257,11 +253,10 @@ const DashboardExport = () => {
                   <div
                     key={format.id}
                     onClick={() => setSelectedFormat(format.id)}
-                    className={`p-3 border rounded-md text-center cursor-pointer transition-colors ${
-                      selectedFormat === format.id
+                    className={`p-3 border rounded-md text-center cursor-pointer transition-colors ${selectedFormat === format.id
                         ? 'border-blue-500 bg-blue-50'
                         : 'border-gray-300 hover:border-blue-300'
-                    }`}
+                      }`}
                   >
                     <div className="text-2xl">{format.icon}</div>
                     <div className="text-sm mt-1">{format.name}</div>
@@ -269,16 +264,15 @@ const DashboardExport = () => {
                 ))}
               </div>
             </div>
-            
+
             {/* Export Button */}
             <button
               onClick={handleExport}
               disabled={exporting}
-              className={`w-full py-3 px-4 rounded-md text-white font-medium transition-colors ${
-                exporting
+              className={`w-full py-3 px-4 rounded-md text-white font-medium transition-colors ${exporting
                   ? 'bg-blue-400 cursor-not-allowed'
                   : 'bg-blue-600 hover:bg-blue-700'
-              }`}
+                }`}
             >
               {exporting ? (
                 <span>Mengekspor...</span>
@@ -286,7 +280,7 @@ const DashboardExport = () => {
                 <span>Ekspor Laporan</span>
               )}
             </button>
-            
+
             {/* Help Text */}
             <div className="mt-6 p-4 bg-gray-50 rounded-md">
               <h3 className="font-medium text-gray-700 mb-2">Petunjuk Ekspor:</h3>
