@@ -96,12 +96,12 @@ interface ReportProgressTabProps {
 // Helper untuk resize image
 async function resizeImage(
     file: File,
-    maxWidth = 1280,
+    maxWidth = 1280, // Default HD
     maxHeight = 1280,
-    quality = 0.8
+    quality = 0.75   // Turunkan dikit ke 75% (Sweet spot)
 ): Promise<File> {
     return new Promise((resolve, reject) => {
-        const img = document.createElement("img") as HTMLImageElement
+        const img = document.createElement("img")
         const reader = new FileReader()
 
         reader.onload = (e) => {
@@ -112,6 +112,7 @@ async function resizeImage(
             const canvas = document.createElement("canvas")
             let { width, height } = img
 
+            // Logika aspek rasio tetap sama
             if (width > maxWidth || height > maxHeight) {
                 const aspect = width / height
                 if (width > height) {
@@ -126,14 +127,25 @@ async function resizeImage(
             canvas.width = width
             canvas.height = height
             const ctx = canvas.getContext("2d")
-            ctx?.drawImage(img, 0, 0, width, height)
 
+            // Tips: Image Smoothing agar hasil resize tidak pecah/pixelated
+            if (ctx) {
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.drawImage(img, 0, 0, width, height)
+            }
+
+            // OUTPUT KE WEBP (Lebih kecil & modern)
             canvas.toBlob(
                 (blob) => {
                     if (!blob) return reject(new Error("Resize gagal"))
-                    resolve(new File([blob], file.name, { type: "image/jpeg" }))
+
+                    // Ganti ekstensi nama file asli ke .webp
+                    const newName = file.name.replace(/\.[^/.]+$/, "") + ".webp"
+
+                    resolve(new File([blob], newName, { type: "image/webp" }))
                 },
-                "image/jpeg",
+                "image/webp",
                 quality
             )
         }
