@@ -5,8 +5,8 @@ const isDev = process.env.NODE_ENV !== "production";
 // 1. Config CSP
 // Tambahkan 'https:' di mode DEV agar bisa fetch/load gambar dari VPS Production
 const connectSrc = isDev
-  ? "connect-src 'self' https: http://localhost:5000 http://localhost:3000 ws://localhost:3000;"
-  : "connect-src 'self' https: https://api.rylif-app.com;";
+  ? "connect-src 'self' data: https: http://localhost:5000 http://localhost:3000 ws://localhost:3000;"
+  : "connect-src 'self' data: https: https://api.rylif-app.com;";
 
 const imgSrc = isDev
   ? "img-src 'self' data: blob: https: http://localhost:5000;" // <--- TAMBAH 'https:' DISINI
