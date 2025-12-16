@@ -1,17 +1,15 @@
 import type { NextConfig } from "next";
 
-// Deteksi mode development vs production
 const isDev = process.env.NODE_ENV !== "production";
 
-// Aturan koneksi (Connect-src)
+// --- KONFIGURASI PORT 5000 (SESUAI REQUEST) ---
 const connectSrc = isDev 
-  ? "connect-src 'self' https: http://localhost:5000;" 
-  : "connect-src 'self' https:;";
+  ? "connect-src 'self' https: http://localhost:5000 http://localhost:3000 ws://localhost:3000;" 
+  : "connect-src 'self' https: https://api.rylif-app.com;";
 
-// Aturan gambar (Img-src)
 const imgSrc = isDev
-  ? "img-src 'self' data: https: blob: http://localhost:5000;" 
-  : "img-src 'self' data: https: blob:;";
+  ? "img-src 'self' data: blob: https: http://localhost:5000;" 
+  : "img-src 'self' data: blob: https: https://api.rylif-app.com;";
 
 const nextConfig: NextConfig = {
   images: {
@@ -20,7 +18,8 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       { protocol: "https", hostname: "lh3.googleusercontent.com" },
       { protocol: "https", hostname: "www.google.com" },
-      { protocol: "http", hostname: "localhost", port: "5000", pathname: "/images/**" },
+      // Update Port ke 5000
+      { protocol: "http", hostname: "localhost", port: "5000", pathname: "/images/**" }, 
       { protocol: "https", hostname: "api.rylif-app.com", pathname: "/images/**" },
     ],
   },
@@ -37,16 +36,17 @@ const nextConfig: NextConfig = {
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           {
             key: 'Content-Security-Policy',
-            // PERUBAHAN ADA DI SINI:
-            // 1. Menambahkan "object-src 'none';" (Sangat penting untuk keamanan)
-            // 2. Menambahkan "base-uri 'self';" (Mencegah pembajakan base tag)
-            // 3. Menambahkan "form-action 'self';" (Mencegah form dikirim ke web lain)
             value: `
               default-src 'self'; 
               script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com; 
               style-src 'self' 'unsafe-inline'; 
               font-src 'self' data: https:; 
-              object-src 'none'; 
+              
+              # Izinkan Blob untuk PDF
+              object-src 'self' blob: data:;
+              frame-src 'self' blob: data: https://accounts.google.com;
+              worker-src 'self' blob:;
+              
               base-uri 'self'; 
               form-action 'self'; 
               frame-ancestors 'none'; 
