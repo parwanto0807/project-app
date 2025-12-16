@@ -37,16 +37,19 @@ const nextConfig: NextConfig = {
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           {
             key: 'Content-Security-Policy',
-            // PERUBAHAN ADA DI SINI:
-            // 1. Menambahkan "object-src 'none';" (Sangat penting untuk keamanan)
-            // 2. Menambahkan "base-uri 'self';" (Mencegah pembajakan base tag)
-            // 3. Menambahkan "form-action 'self';" (Mencegah form dikirim ke web lain)
+            // PERBAIKAN DI SINI:
             value: `
               default-src 'self'; 
               script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com; 
               style-src 'self' 'unsafe-inline'; 
               font-src 'self' data: https:; 
-              object-src 'none'; 
+              
+              /* IZINKAN PDF VIEWER (Ganti 'none' jadi ini) */
+              object-src 'self' data: blob:; 
+              
+              /* Tambahkan frame-src agar bisa iframe PDF jika perlu */
+              frame-src 'self' data: blob:;
+
               base-uri 'self'; 
               form-action 'self'; 
               frame-ancestors 'none'; 
