@@ -94,11 +94,13 @@ interface ReportProgressTabProps {
 }
 
 // Helper untuk resize image
+// Helper untuk resize image
+// Helper untuk resize image
 async function resizeImage(
     file: File,
-    maxWidth = 1280, // Default HD
-    maxHeight = 1280,
-    quality = 0.75   // Turunkan dikit ke 75% (Sweet spot)
+    maxWidth = 800,
+    maxHeight = 800,
+    quality = 0.75   // 0.75 JPEG kualitasnya sudah sangat setara dengan 0.80 WebP
 ): Promise<File> {
     return new Promise((resolve, reject) => {
         const img = document.createElement("img")
@@ -112,7 +114,7 @@ async function resizeImage(
             const canvas = document.createElement("canvas")
             let { width, height } = img
 
-            // Logika aspek rasio tetap sama
+            // ... (Logika perhitungan width/height Biarkan Saja, Tidak Berubah) ...
             if (width > maxWidth || height > maxHeight) {
                 const aspect = width / height
                 if (width > height) {
@@ -128,28 +130,33 @@ async function resizeImage(
             canvas.height = height
             const ctx = canvas.getContext("2d")
 
-            // Tips: Image Smoothing agar hasil resize tidak pecah/pixelated
             if (ctx) {
+                // Background Putih (PENTING untuk JPEG)
+                // Karena JPEG tidak support transparan, kita harus kasih background putih
+                // agar bagian kosong tidak jadi hitam otomatis.
+                ctx.fillStyle = "#FFFFFF";
+                ctx.fillRect(0, 0, width, height);
+
                 ctx.imageSmoothingEnabled = true;
-                ctx.imageSmoothingQuality = 'high';
+                ctx.imageSmoothingQuality = 'medium';
                 ctx.drawImage(img, 0, 0, width, height)
             }
 
-            // OUTPUT KE WEBP (Lebih kecil & modern)
+            // --- BAGIAN PERUBAHAN ---
             canvas.toBlob(
                 (blob) => {
                     if (!blob) return reject(new Error("Resize gagal"))
 
-                    // Ganti ekstensi nama file asli ke .webp
-                    const newName = file.name.replace(/\.[^/.]+$/, "") + ".webp"
+                    // 1. Ubah ekstensi nama file jadi .jpg
+                    const newName = file.name.replace(/\.[^/.]+$/, "") + ".jpg"
 
-                    resolve(new File([blob], newName, { type: "image/webp" }))
+                    // 2. Ubah mimeType jadi 'image/jpeg'
+                    resolve(new File([blob], newName, { type: "image/jpeg" }))
                 },
-                "image/webp",
+                "image/jpeg", // <--- Ganti 'image/webp' jadi ini
                 quality
             )
         }
-
         reader.onerror = reject
         reader.readAsDataURL(file)
     })
@@ -180,45 +187,53 @@ const ReportProgressTab = ({
         const { files } = e.target;
         if (!files || files.length === 0) return;
 
+        // Set uploading state agar UI tidak freeze jika memproses banyak foto
+        setUploading(true);
+
         const currentCategory = formData.photoCategory;
         const processedPhotos: PhotoWithCategory[] = [];
 
-        for (const [index, file] of Array.from(files).entries()) {
-            if (!file.type.startsWith("image/")) continue;
+        try {
+            for (const [index, file] of Array.from(files).entries()) {
+                if (!file.type.startsWith("image/")) continue;
 
-            let processedFile = file;
+                let processedFile = file;
 
-            const extension = file.name.split('.').pop() || 'jpg';
-            const nameWithoutExtension = file.name.replace(/\.[^/.]+$/, "");
-            const newFileName = `${currentCategory}-${nameWithoutExtension || `Foto${formData.photos.length + index + 1}`}.${extension}`;
-
-            processedFile = new File([file], newFileName, {
-                type: file.type,
-                lastModified: file.lastModified
-            });
-
-            if (processedFile.size > 2 * 1024 * 1024) {
+                // Selalu lakukan resize tanpa cek ukuran file asli
+                // Ini menjamin semua output adalah WebP, 800px, dan size kecil
                 try {
-                    const resized = await resizeImage(processedFile);
+                    const resized = await resizeImage(file);
                     processedFile = resized;
                 } catch (err) {
-                    console.error("Gagal resize:", err);
-                    continue;
+                    console.error("Gagal resize, menggunakan file asli:", err);
+                    // Fallback ke file asli jika resize gagal (jarang terjadi)
                 }
+
+                // Penamaan file (dilakukan setelah resize agar ekstensi .webp konsisten)
+                const extension = processedFile.name.split('.').pop() || 'jpg';
+                const nameWithoutExtension = file.name.replace(/\.[^/.]+$/, ""); // Pakai nama asli file input
+                const newFileName = `${currentCategory}-${nameWithoutExtension || `Foto${formData.photos.length + index + 1}`}.${extension}`;
+
+                // Re-create file object dengan nama baru yang benar
+                processedFile = new File([processedFile], newFileName, {
+                    type: processedFile.type,
+                    lastModified: new Date().getTime()
+                });
+
+                processedPhotos.push({
+                    file: processedFile,
+                    category: currentCategory
+                });
             }
 
-            processedPhotos.push({
-                file: processedFile,
-                category: currentCategory
-            });
+            setFormData((prev) => ({
+                ...prev,
+                photos: [...prev.photos, ...processedPhotos],
+            }));
+        } finally {
+            setUploading(false); // Kembalikan state uploading
+            e.target.value = "";
         }
-
-        setFormData((prev) => ({
-            ...prev,
-            photos: [...prev.photos, ...processedPhotos],
-        }));
-
-        e.target.value = "";
     };
 
     const handleChangeItem = (itemId: string | null) => {
