@@ -2,17 +2,18 @@ import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV !== "production";
 
-// Aturan koneksi (Connect-src)
-const connectSrc = isDev 
-  ? "connect-src 'self' https: http://localhost:5000 http://localhost:3000 ws://localhost:3000;" 
+// 1. Config CSP
+// Tambahkan 'https:' di mode DEV agar bisa fetch/load gambar dari VPS Production
+const connectSrc = isDev
+  ? "connect-src 'self' https: http://localhost:5000 http://localhost:3000 ws://localhost:3000;"
   : "connect-src 'self' https: https://api.rylif-app.com;";
 
-// Aturan gambar (Img-src)
 const imgSrc = isDev
-  ? "img-src 'self' data: blob: https: http://localhost:5000;" 
+  ? "img-src 'self' data: blob: https: http://localhost:5000;" // <--- TAMBAH 'https:' DISINI
   : "img-src 'self' data: blob: https: https://api.rylif-app.com;";
 
 const nextConfig: NextConfig = {
+  // 2. Config Image Domain
   images: {
     formats: ['image/webp'],
     minimumCacheTTL: 60,
@@ -21,11 +22,13 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "www.google.com" },
       { protocol: "http", hostname: "localhost", port: "5000", pathname: "/images/**" },
       { protocol: "https", hostname: "api.rylif-app.com", pathname: "/images/**" },
+      // Jika pakai domain solusiit.id, pastikan ada disini juga:
+      // { protocol: "https", hostname: "solusiit.id", pathname: "/images/**" },
     ],
   },
 
   async headers() {
-    // Kita buat string CSP yang bersih tanpa komentar '#' di dalamnya
+    // 3. String CSP Bersih (Tanpa komentar di dalam string)
     const cspHeader = `
       default-src 'self';
       script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://www.gstatic.com;
@@ -54,12 +57,20 @@ const nextConfig: NextConfig = {
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           {
             key: 'Content-Security-Policy',
-            // .replace menghapus newline dan spasi berlebih menjadi satu baris
-            value: cspHeader.replace(/\s{2,}/g, ' ').trim() 
+            // Hapus spasi ganda dan newline
+            value: cspHeader.replace(/\s{2,}/g, ' ').trim()
           }
         ]
       }
     ]
+  },
+  async rewrites() {
+    return [
+      {
+        source: "/api-proxy/images/:path*",
+        destination: "https://api.rylif-app.com/images/:path*",
+      },
+    ];
   }
 };
 

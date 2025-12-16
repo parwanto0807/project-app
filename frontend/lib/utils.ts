@@ -21,10 +21,10 @@ export function formatDateToDDMMMYYYY(date: Date | string | number): string {
 
 // lib/utils.ts
 export const getFullImageUrl = (path: string | undefined): string => {
-  if (!path) return "/placeholder-image.jpg"; // fallback image
+  if (!path) return "/placeholder.jpg"; // fallback image
 
-  // Jika sudah full URL (http://...), biarkan
-  if (path.startsWith("http")) return path;
+  // Jika sudah full URL (http://...) atau data base64, biarkan
+  if (path.startsWith("http") || path.startsWith("data:")) return path;
 
   // Jika path relatif (misal: /images/spk/xxx.jpg), prefix dengan base URL
   const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";

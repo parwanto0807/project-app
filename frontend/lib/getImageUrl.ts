@@ -1,57 +1,56 @@
-// lib/getImageUrl.ts
-export const getImageUrl = (url: string): string => {
-  // Jika sudah URL lengkap, kembalikan langsung
-  if (url.startsWith("http://") || url.startsWith("https://")) {
+// GANTI INI dengan domain VPS tempat gambar aslinya berada
+const VPS_BASE_URL = "https://api.rylif-app.com";
+
+// Helper internal untuk menentukan Base URL
+const getBaseUrl = () => {
+  // JIKA DEV (Laptop): Paksa ambil dari VPS karena file ada disana
+  if (process.env.NODE_ENV === "development") {
+    return VPS_BASE_URL;
+  }
+
+  // JIKA PROD (Server): Gunakan URL sendiri (env) atau localhost server
+  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+};
+
+// 1. Get Image URL General
+export const getImageUrl = (url: string | null | undefined): string => {
+  if (!url) return "/images/placeholder.jpg"; // Default jika null
+
+  // Jika sudah URL lengkap (http/https) atau base64, kembalikan langsung
+  if (url.startsWith("http") || url.startsWith("data:")) {
     return url;
   }
 
-  // Pastikan url dimulai dengan `/images/` (sesuai struktur Anda)
-  if (url.startsWith("/images/")) {
-    if (process.env.NODE_ENV === "development") {
-      return `http://localhost:5000${url}`;
-    } else {
-      // Ganti dengan domain backend production Anda
-      return `https://api.rylif-app.com${url}`;
-      // atau jika pakai domain utama: `https://solusiit.net${url}`
-    }
-  }
+  const baseUrl = getBaseUrl().replace(/\/$/, ""); // Hapus slash di akhir jika ada
+  const cleanPath = url.startsWith("/") ? url : `/${url}`;
 
-  // Fallback: kembalikan apa adanya (misal: URL eksternal)
-  return url;
+  return `${baseUrl}${cleanPath}`;
 };
 
+// 2. Get Image URL Transaction
 export const getImageUrlTransaction = (url: string): string => {
-  if (
-    process.env.NODE_ENV === "development" &&
-    url.startsWith("/transaction/")
-  ) {
-    return `http://localhost${url}`;
-  }
-  return url;
+  if (!url) return "";
+  // Gunakan logika helper utama agar konsisten ambil dari VPS saat dev
+  return getImageUrl(url);
 };
 
-// lib/getImageUrl.ts
-// lib/getImageUrl.ts
-export const getImageUrlBap = (imagePath: string): string => {
-    if (!imagePath) return "/placeholder.jpg";
-    
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-    
-    // Jika sudah full URL, return langsung
-    if (imagePath.startsWith('http')) {
-        return imagePath;
-    }
-    
-    // Jika path sudah lengkap (dimulai dengan /images/)
-    if (imagePath.startsWith('/images/')) {
-        return `${API_URL}${imagePath}`;
-    }
-    
-    // Jika path dimulai dengan / tapi bukan /images/
-    if (imagePath.startsWith('/')) {
-        return `${API_URL}/images${imagePath}`;
-    }
-    
-    // Untuk filename saja (kasus error) - tambahkan path lengkap
-    return `${API_URL}/images/spk/${imagePath}`;
+// 3. Get Image URL BAP (Khusus Logic SPK)
+export const getImageUrlBap = (imagePath: string | null | undefined): string => {
+  if (!imagePath) return "/placeholder.jpg"; // Ganti dengan path placeholder valid Anda
+
+  // Jika sudah full URL atau Base64
+  if (imagePath.startsWith('http') || imagePath.startsWith('data:')) {
+    return imagePath;
+  }
+
+  const baseUrl = getBaseUrl().replace(/\/$/, "");
+
+  // Skenario 1: Path sudah lengkap (misal: /images/spk/foto.jpg)
+  if (imagePath.startsWith('/images/') || imagePath.startsWith('/')) {
+    const cleanPath = imagePath.startsWith("/") ? imagePath : `/${imagePath}`;
+    return `${baseUrl}${cleanPath}`;
+  }
+
+  // Skenario 2: Hanya nama file (misal: foto.jpg), asumsikan folder SPK
+  return `${baseUrl}/images/spk/${imagePath}`;
 };

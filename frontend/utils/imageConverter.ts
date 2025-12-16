@@ -1,39 +1,52 @@
-// utils/imageConverter.ts
+// utils/makeImageSrc.ts
 
-export const convertImgUrlToPngBase64 = async (url: string): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    // Penting: Mengizinkan akses gambar beda domain (CORS)
-    img.crossOrigin = "Anonymous"; 
-    
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = img.width;
-      canvas.height = img.height;
-      
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        reject(new Error("Gagal membuat canvas context"));
-        return;
-      }
+// URL VPS Production Anda (Tempat file gambar fisik berada)
+const VPS_ASSET_URL = "https://solusiit.id";
 
-      // Gambar ulang image (WebP) ke dalam Canvas
-      ctx.drawImage(img, 0, 0);
+export const makeImageSrc = (val?: string | null): string => {
+  // 1. Validasi Input
+  if (!val) return "/images/placeholder.png"; // Return placeholder lokal jika null
 
-      // Export paksa menjadi PNG Base64
-      // PNG dipilih karena lossless dan support transparansi (aman untuk semua PDF lib)
-      const dataURL = canvas.toDataURL("image/png");
-      
-      resolve(dataURL);
-    };
+  // 2. Jika sudah URL lengkap (http/https) atau Base64, kembalikan langsung
+  if (val.startsWith("http") || val.startsWith("data:")) return val;
 
-    img.onerror = (error) => {
-      console.error("Gagal memuat gambar untuk konversi:", url, error);
-      // Return gambar placeholder transparan atau statis jika gagal
-      resolve("/images/placeholder-error.png"); 
-    };
+  // 3. Tentukan Base URL
+  // Logic: Jika sedang Development, "pinjam" gambar dari VPS.
+  //        Jika sedang Production, gunakan API URL sendiri.
+  const isDev = process.env.NODE_ENV === "development";
 
-    // Trigger load gambar
-    img.src = url;
-  });
+  const baseUrl = isDev
+    ? VPS_ASSET_URL
+    : (process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "");
+
+  // 4. Pastikan path diawali slash '/'
+  const cleanPath = val.startsWith("/") ? val : `/${val}`;
+
+  return `${baseUrl}${cleanPath}`;
+};
+
+export const makeImageSrcEmployee = (val?: string | null): string => {
+  if (!val) return "";
+  if (val.startsWith("http")) return val;
+
+  // Kita gunakan ulang fungsi makeImageSrc agar logikanya satu pintu
+  // Asumsi: Foto karyawan ada di folder /images/employee/
+  return makeImageSrc(`/images/employee/${val}`);
+};
+
+export const urlToBase64 = async (url: string): Promise<string> => {
+  try {
+    // Tambahkan mode 'cors' agar browser mengizinkan request ke domain lain
+    const response = await fetch(url, { mode: 'cors' });
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error("Gagal convert gambar:", error);
+    return "";
+  }
 };

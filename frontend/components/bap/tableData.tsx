@@ -69,6 +69,7 @@ import { BAPDetailDrawer } from "./bapDetailDialog";
 import { DeleteConfirmationDialog } from "./alertDeleteDialog";
 import { useDeleteBAP } from "@/hooks/use-delete-bap";
 import { toast } from "sonner";
+import { processBapImagesForPdf } from "./pdfUtils";
 
 export interface BAPData {
     id: string;
@@ -174,9 +175,27 @@ export function BAPDataTable({
         return () => window.removeEventListener("resize", checkMobile);
     }, []);
 
-    const handlePdfPreview = (bap: BAPData) => {
+    const [processedBap, setProcessedBap] = useState<BAPData | null>(null);
+    const [isProcessingPdf, setIsProcessingPdf] = useState(false);
+
+    const handlePdfPreview = async (bap: BAPData) => {
         setSelectedBap(bap);
+        setProcessedBap(null); // Reset previous state
         setIsPdfPreviewOpen(true);
+        setIsProcessingPdf(true);
+
+        try {
+            // Process images (convert WebP to JPG)
+            const processed = await processBapImagesForPdf(bap);
+            setProcessedBap(processed);
+        } catch (error) {
+            console.error("Error processing BAP for PDF:", error);
+            toast.error("Gagal memproses gambar untuk PDF");
+            // Fallback to original BAP if processing fails, but images might not show
+            setProcessedBap(bap);
+        } finally {
+            setIsProcessingPdf(false);
+        }
     };
 
     const handleViewDetail = (bap: BAPData) => {
@@ -778,46 +797,57 @@ export function BAPDataTable({
                     </DialogHeader>
                     {selectedBap && (
                         <div className="py-4 space-y-4">
-                            <div className="flex gap-3">
-                                <PDFDownloadLink
-                                    document={<BAPPdfDocument bap={selectedBap} />}
-                                    fileName={`BAP-${selectedBap.bapNumber}.pdf`}
-                                >
-                                    {({ loading }) =>
-                                        loading ? (
-                                            <Button disabled className="bg-gradient-to-r from-blue-500 to-cyan-600">
-                                                <Download className="h-4 w-4 mr-2" />
-                                                Memuat PDF...
-                                            </Button>
-                                        ) : (
-                                            <Button className="bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700">
-                                                <Download className="h-4 w-4 mr-2" />
-                                                Unduh PDF
-                                            </Button>
-                                        )
-                                    }
-                                </PDFDownloadLink>
-                                <Button
-                                    variant="outline"
-                                    onClick={() => handleViewDetail(selectedBap)}
-                                    className="border-green-200 text-green-700 hover:bg-green-50"
-                                >
-                                    <Eye className="h-4 w-4 mr-2" />
-                                    Lihat Detail Lengkap
-                                </Button>
-                            </div>
-
-                            <div className="border-t border-slate-200 pt-4">
-                                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                                    <FileText className="h-5 w-5 text-slate-600" />
-                                    Preview Dokumen
-                                </h3>
-                                <div className="bg-white rounded-lg shadow-lg border" style={{ height: "700px" }}>
-                                    <PDFViewer width="100%" height="100%">
-                                        <BAPPdfDocument bap={selectedBap} />
-                                    </PDFViewer>
+                            {isProcessingPdf ? (
+                                <div className="flex flex-col items-center justify-center p-8 space-y-4">
+                                    <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+                                    <p className="text-sm text-slate-500 font-medium animate-pulse">
+                                        Sedang memproses gambar untuk PDF...
+                                    </p>
                                 </div>
-                            </div>
+                            ) : (
+                                <>
+                                    <div className="flex gap-3">
+                                        <PDFDownloadLink
+                                            document={<BAPPdfDocument bap={processedBap || selectedBap} />}
+                                            fileName={`BAP-${selectedBap.bapNumber}.pdf`}
+                                        >
+                                            {({ loading }) =>
+                                                loading ? (
+                                                    <Button disabled className="bg-gradient-to-r from-blue-500 to-cyan-600">
+                                                        <Download className="h-4 w-4 mr-2" />
+                                                        Memuat PDF...
+                                                    </Button>
+                                                ) : (
+                                                    <Button className="bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700">
+                                                        <Download className="h-4 w-4 mr-2" />
+                                                        Unduh PDF
+                                                    </Button>
+                                                )
+                                            }
+                                        </PDFDownloadLink>
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => handleViewDetail(selectedBap)}
+                                            className="border-green-200 text-green-700 hover:bg-green-50"
+                                        >
+                                            <Eye className="h-4 w-4 mr-2" />
+                                            Lihat Detail Lengkap
+                                        </Button>
+                                    </div>
+
+                                    <div className="border-t border-slate-200 pt-4">
+                                        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                                            <FileText className="h-5 w-5 text-slate-600" />
+                                            Preview Dokumen
+                                        </h3>
+                                        <div className="bg-white rounded-lg shadow-lg border" style={{ height: "700px" }}>
+                                            <PDFViewer width="100%" height="100%">
+                                                <BAPPdfDocument bap={processedBap || selectedBap} />
+                                            </PDFViewer>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     )}
                 </DialogContent>
