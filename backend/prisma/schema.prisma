@@ -99,6 +99,7 @@ model User {
   rab              RAB[]
   auditLogs        AuditLog[]
   notifications    Notification[]
+  stockOpnames     StockOpname[]   @relation("OpnamePetugas")
 }
 
 model LoginAttempt {
@@ -202,15 +203,17 @@ model Karyawan {
   teamKaryawan TeamKaryawan[]
 
   // Relasi ke penggajian
-  gaji             Gaji[]
-  spkDetail        SPKDetail[]
-  spk              SPK[]             @relation("SPKCreatedBy")
-  spkFieldReport   SPKFieldReport[]
-  approvedBAP      BAP[]             @relation("BAPApprovedBy") // semua BAP yang di-approve user ini
-  approvedInvoices Invoice[]         @relation("InvoiceApprovedBy")
-  purchaseOrder    PurchaseOrder[]
-  purchaseRequest  PurchaseRequest[]
-  uangMuka         UangMuka[]
+  gaji              Gaji[]
+  spkDetail         SPKDetail[]
+  spk               SPK[]             @relation("SPKCreatedBy")
+  spkFieldReport    SPKFieldReport[]
+  approvedBAP       BAP[]             @relation("BAPApprovedBy") // semua BAP yang di-approve user ini
+  approvedInvoices  Invoice[]         @relation("InvoiceApprovedBy")
+  purchaseOrder     PurchaseOrder[]
+  purchaseRequest   PurchaseRequest[]
+  uangMuka          UangMuka[]
+  sentTransfers     StockTransfer[]   @relation("Sender")
+  receivedTransfers StockTransfer[]   @relation("Receiver")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -323,6 +326,350 @@ model Product {
   rabDetail                 RABDetail[]
   purchaseRequestDetail     PurchaseRequestDetail[]
   rincianPertanggungJawaban RincianPertanggungjawaban[]
+  stockBalances             StockBalance[]
+  stockDetails              StockDetail[]
+  MaterialRequisitionItem   MaterialRequisitionItem[]
+  PurchaseOrderLine         PurchaseOrderLine[]
+  StockOpnameItem           StockOpnameItem[]
+  stockTransferItems        StockTransferItem[]
+}
+
+enum OpnameType {
+  INITIAL // Untuk input saldo awal pertama kali
+  PERIODIC // Untuk pemeriksaan rutin (bulanan/tahunan)
+  AD_HOC // Untuk pengecekan mendadak/insidentil
+}
+
+enum OpnameStatus {
+  DRAFT // Masih input data, belum memotong stok
+  ADJUSTED // Sudah selesai, angka stok di sistem sudah berubah
+  CANCELLED // Dibatalkan
+}
+
+model StockOpname {
+  id            String       @id @default(uuid())
+  nomorOpname   String       @unique // Contoh: SO-202501-001
+  tanggalOpname DateTime     @default(now())
+  type          OpnameType   @default(PERIODIC)
+  status        OpnameStatus @default(DRAFT)
+  keterangan    String? // Contoh: "Opname awal tahun 2025"
+
+  // Personil yang bertanggung jawab
+  petugasId String
+  petugas   User   @relation("OpnamePetugas", fields: [petugasId], references: [id])
+
+  // Lokasi Gudang (Jika ada multiple warehouse)
+  warehouseId String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+
+  items StockOpnameItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model StockOpnameItem {
+  id            String      @id @default(uuid())
+  stockOpnameId String
+  stockOpname   StockOpname @relation(fields: [stockOpnameId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  // Data Perhitungan
+  stokSistem Decimal @default(0) @db.Decimal(18, 4) // Angka di komputer saat ini
+  stokFisik  Decimal @db.Decimal(18, 4) // Angka hasil hitung di gudang
+  selisih    Decimal @db.Decimal(18, 4) // Otomatis: stokFisik - stokSistem
+
+  // Valuasi (Penting untuk saldo awal & audit keuangan)
+  hargaSatuan Decimal @db.Decimal(19, 2) // Harga modal per unit
+  totalNilai  Decimal @db.Decimal(19, 2) // hargaSatuan * stokFisik
+
+  catatanItem String? // Alasan selisih (misal: barang rusak/patah)
+
+  createdAt DateTime @default(now())
+}
+
+model Warehouse {
+  id       String  @id @default(uuid())
+  code     String  @unique // Contoh: WH-JKT-01
+  name     String // Contoh: Gudang Utama, Gudang Proyek A
+  address  String?
+  isMain   Boolean @default(false) // Penanda gudang utama
+  isActive Boolean @default(true)
+
+  // --- Relasi Balik ---
+  stockBalances        StockBalance[]
+  stockDetails         StockDetail[]
+  stockOpnames         StockOpname[]
+  materialRequisitions MaterialRequisition[]
+  goodsReceipts        GoodsReceipt[]
+  transfersFrom        StockTransfer[]       @relation("FromWarehouse")
+  transfersTo          StockTransfer[]       @relation("ToWarehouse")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==========================================
+// 2. STOCK BALANCE (Monthly Snapshot)
+// ==========================================
+model StockBalance {
+  id        String  @id @default(uuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  period DateTime
+
+  stockAwal Decimal @default(0) @db.Decimal(18, 4)
+  stockIn   Decimal @default(0) @db.Decimal(18, 4)
+  stockOut  Decimal @default(0) @db.Decimal(18, 4)
+
+  justIn  Decimal @default(0) @db.Decimal(18, 4)
+  justOut Decimal @default(0) @db.Decimal(18, 4)
+
+  // =============================================================
+  // PERBAIKAN UNTUK AVAILABLE STOCK
+  // =============================================================
+
+  // onPR: Permintaan yang masuk tapi belum tentu disetujui
+  onPR Decimal @default(0) @db.Decimal(18, 4)
+
+  // bookedStock: Barang yang sudah di-APPROVE di PR/MR tapi belum keluar gudang
+  // Inilah yang mengurangi "Available Stock" Anda secara riil
+  bookedStock Decimal @default(0) @db.Decimal(18, 4)
+
+  // stockAkhir: JUMLAH FISIK yang ada di rak gudang saat ini
+  stockAkhir Decimal @default(0) @db.Decimal(18, 4)
+
+  // availableStock: Secara teknis adalah (stockAkhir - bookedStock)
+  // Anda bisa menyimpannya di sini (denormalisasi) atau menghitungnya via logic
+  availableStock Decimal @default(0) @db.Decimal(18, 4)
+
+  // =============================================================
+
+  inventoryValue Decimal   @default(0) @db.Decimal(18, 2)
+  warehouseId    String
+  warehouse      Warehouse @relation(fields: [warehouseId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([productId, period])
+}
+
+// ==========================================
+// 3. STOCK DETAIL (Transaction & FIFO Ledger)
+// ==========================================
+model StockDetail {
+  id        String  @id @default(uuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  // Audit Trail: Running Balance
+  stockAwalSnapshot  Decimal @db.Decimal(18, 4)
+  stockAkhirSnapshot Decimal @db.Decimal(18, 4)
+
+  // Data Transaksi
+  transQty  Decimal @db.Decimal(18, 4) // Qty Nota
+  transUnit String // Satuan Nota
+  baseQty   Decimal @db.Decimal(18, 4) // Qty Satuan Terkecil
+
+  // FIFO LOGIC FIELDS
+  // Untuk transaksi IN: menyimpan berapa sisa barang dari batch ini yang belum keluar
+  residualQty     Decimal @default(0) @db.Decimal(18, 4)
+  isFullyConsumed Boolean @default(false) // True jika residualQty = 0
+
+  type   TransactionType
+  source SourceType
+
+  pricePerUnit Decimal @db.Decimal(18, 2)
+  referenceNo  String?
+  notes        String?
+
+  // Relasi Return (Tracing kembali ke pemakaian awal)
+  originalTransactionId String?
+  originalTransaction   StockDetail?  @relation("ReturnReference", fields: [originalTransactionId], references: [id])
+  returns               StockDetail[] @relation("ReturnReference")
+  warehouseId           String
+  warehouse             Warehouse     @relation(fields: [warehouseId], references: [id])
+
+  createdAt                 DateTime                 @default(now())
+  GoodsReceiptItem          GoodsReceiptItem?
+  MaterialRequisitionItem   MaterialRequisitionItem? @relation(fields: [materialRequisitionItemId], references: [id])
+  materialRequisitionItemId String?
+}
+
+enum TransferStatus {
+  DRAFT
+  PENDING // Barang disiapkan di gudang asal
+  IN_TRANSIT // Barang dalam perjalanan
+  RECEIVED // Sudah sampai dan dikonfirmasi gudang tujuan
+  CANCELLED
+}
+
+model StockTransfer {
+  id             String         @id @default(uuid())
+  transferNumber String         @unique // Contoh: TR-202512-001
+  transferDate   DateTime       @default(now())
+  status         TransferStatus @default(DRAFT)
+  notes          String?
+
+  // Gudang Asal
+  fromWarehouseId String
+  fromWarehouse   Warehouse @relation("FromWarehouse", fields: [fromWarehouseId], references: [id])
+
+  // Gudang Tujuan
+  toWarehouseId String
+  toWarehouse   Warehouse @relation("ToWarehouse", fields: [toWarehouseId], references: [id])
+
+  // Personil
+  senderId   String // Yang mengirim
+  sender     Karyawan  @relation("Sender", fields: [senderId], references: [id])
+  receiverId String? // Yang menerima (diisi saat status RECEIVED)
+  receiver   Karyawan? @relation("Receiver", fields: [receiverId], references: [id])
+
+  items StockTransferItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model StockTransferItem {
+  id         String        @id @default(uuid())
+  transferId String
+  transfer   StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  quantity Decimal @db.Decimal(18, 4)
+  unit     String // Satuan barang (Meter, Sak, dll)
+
+  // Opsi: Jika ingin melacak batch mana yang dipindahkan (FIFO)
+  // stockDetailId String?
+}
+
+enum TransactionType {
+  IN
+  OUT
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
+}
+
+enum SourceType {
+  PO
+  DIRECT
+  PROJECT
+  RETURN
+  OPNAME
+  WASTAGE
+}
+
+// 1. HEADER: Dokumen Penerimaan Barang
+model GoodsReceipt {
+  id           String   @id @default(uuid())
+  grNumber     String   @unique // Contoh: GRN/2025/12/001
+  receivedDate DateTime @default(now())
+
+  // Referensi Dokumen Fisik
+  vendorDeliveryNote String // Nomor Surat Jalan Vendor
+  vehicleNumber      String? // No Polisi Kendaraan
+  driverName         String?
+
+  // Hubungan ke Purchase Order (PO)
+  purchaseOrderId String?
+  // purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+
+  items GoodsReceiptItem[]
+
+  receivedById String // User ID yang menerima
+  status       DocumentStatus @default(COMPLETED)
+  notes        String?
+  Warehouse    Warehouse?     @relation(fields: [warehouseId], references: [id])
+  warehouseId  String?
+}
+
+// 2. DETAIL: Item yang diterima
+model GoodsReceiptItem {
+  id             String       @id @default(uuid())
+  goodsReceiptId String
+  goodsReceipt   GoodsReceipt @relation(fields: [goodsReceiptId], references: [id])
+
+  productId String
+  // product     Product      @relation(fields: [productId], references: [id])
+
+  qtyReceived Decimal @db.Decimal(18, 4) // Qty dalam satuan transUnit
+  unit        String // Satuan saat diterima (misal: Roll)
+
+  // Link ke StockDetail untuk mencatat mutasi stok
+  stockDetailId           String?                @unique
+  stockDetail             StockDetail?           @relation(fields: [stockDetailId], references: [id])
+  PurchaseRequestDetail   PurchaseRequestDetail? @relation(fields: [purchaseRequestDetailId], references: [id])
+  purchaseRequestDetailId String?
+  PurchaseOrderLine       PurchaseOrderLine?     @relation(fields: [purchaseOrderLineId], references: [id])
+  purchaseOrderLineId     String?
+}
+
+enum DocumentStatus {
+  DRAFT
+  COMPLETED
+  CANCELLED
+}
+
+// HEADER: Dokumen Pengeluaran Barang
+model MaterialRequisition {
+  id         String   @id @default(uuid())
+  mrNumber   String   @unique // Contoh: MR-2023-0001
+  issuedDate DateTime @default(now())
+
+  // Referensi Pengambil
+  projectId     String
+  projectName   String? // Denormalisasi untuk pencarian cepat
+  requestedById String // User ID Mandor/Engineer
+  status        MRStatus @default(PENDING)
+
+  notes String?
+  items MaterialRequisitionItem[]
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  Warehouse   Warehouse? @relation(fields: [warehouseId], references: [id])
+  warehouseId String?
+}
+
+// DETAIL: Item yang dikeluarkan
+model MaterialRequisitionItem {
+  id String @id @default(uuid())
+
+  // Relasi ke Header MR
+  materialRequisitionId String
+  materialRequisition   MaterialRequisition @relation(fields: [materialRequisitionId], references: [id], onDelete: Cascade)
+
+  // Relasi ke PR asal (PENTING: untuk update jumlahTerpenuhi di PR)
+  purchaseRequestDetailId String?
+  purchaseRequestDetail   PurchaseRequestDetail? @relation(fields: [purchaseRequestDetailId], references: [id])
+
+  // Identitas Produk
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  // Data Pengeluaran (Gunakan 18,4 untuk akurasi konversi unit)
+  qtyIssued Decimal @db.Decimal(18, 4)
+  unit      String // Satuan pemakaian (e.g., Meter)
+
+  // Relasi ke Mutasi Stok (FIFO)
+  // Satu item MR bisa memotong beberapa batch masuk di StockDetail
+  stockDetails StockDetail[]
+
+  createdAt DateTime @default(now())
+}
+
+enum MRStatus {
+  PENDING // Baru diajukan
+  APPROVED // Disetujui PM/Logistik
+  ISSUED // Barang resmi keluar (Stok terpotong)
+  CANCELLED // Dibatalkan
 }
 
 model RAB {
@@ -1187,8 +1534,9 @@ model PurchaseRequest {
   spk   SPK?    @relation(fields: [spkId], references: [id])
 
   // Relasi ke detail permintaan
-  details  PurchaseRequestDetail[]
-  uangMuka UangMuka[]
+  details        PurchaseRequestDetail[]
+  uangMuka       UangMuka[]
+  purchaseOrders PurchaseOrder[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1226,8 +1574,29 @@ model PurchaseRequestDetail {
   catatanItem               String?
   rincianPertanggungjawaban RincianPertanggungjawaban[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  // =============================================================
+  // PERBAIKAN: FIELD INTEGRASI STOK & TRACKING (ADD-ONS)
+  // =============================================================
+
+  // 1. Snapshot untuk Cek Stok (Audit Trail)
+  stokTersediaSaatIni Decimal? @default(0) @db.Decimal(18, 4)
+
+  // 2. Tracking Realisasi (Integrasi PO & Gudang)
+  jumlahDipesan   Decimal? @default(0) @db.Decimal(18, 4) // Qty di Purchase Order
+  jumlahTerpenuhi Decimal? @default(0) @db.Decimal(18, 4) // Qty di Goods Receipt / Mat. Requisition
+
+  // 3. Relasi Balik ke Dokumen Eksekusi (Virtual/Relation)
+  // Relasi ini tidak menambah kolom di tabel DB, jadi aman bagi data lama
+  // purchaseOrderItems       PurchaseOrderItem[]       // Link ke Pembelian
+  // materialRequisitionItems MaterialRequisitionItem[] // Link ke Pengambilan Gudang
+  goodsReceiptItems GoodsReceiptItem[] // Link ke Penerimaan Barang
+
+  // =============================================================
+
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+  MaterialRequisitionItem MaterialRequisitionItem[]
+  PurchaseOrderLine       PurchaseOrderLine[]
 }
 
 // File: schema.prisma
@@ -1685,6 +2054,15 @@ enum SupplierPaymentMethod {
 //               1. MODUL PEMBELIAN (PURCHASE ORDER)
 // ==========================================================
 
+enum PaymentTermPurchaseOrder {
+  CASH
+  COD // Cash on Delivery
+  NET_7 // 7 Hari setelah invoice
+  NET_14
+  NET_30
+  DP_PERCENTAGE // Down Payment (misal 50% di awal)
+}
+
 model PurchaseOrder {
   id                   String              @id @default(uuid())
   poNumber             String              @unique // Nomor PO internal, misal: PO/2025/10/001
@@ -1704,10 +2082,17 @@ model PurchaseOrder {
   orderedBy   Karyawan @relation(fields: [orderedById], references: [id])
 
   // --- Finansial ---
-  subtotal     Decimal @default(0) @db.Decimal(18, 2)
-  taxAmount    Decimal @default(0) @db.Decimal(18, 2)
-  shippingCost Decimal @default(0) @db.Decimal(18, 2)
-  totalAmount  Decimal @default(0) @db.Decimal(18, 2)
+  paymentMethod String? // Transfer, Cash, dll
+  paymentTerm   PaymentTermPurchaseOrder @default(COD)
+  dueDate       DateTime? // Tanggal jatuh tempo bayar
+  subtotal      Decimal                  @default(0) @db.Decimal(18, 2)
+  taxAmount     Decimal                  @default(0) @db.Decimal(18, 2)
+  shippingCost  Decimal                  @default(0) @db.Decimal(18, 2)
+  totalAmount   Decimal                  @default(0) @db.Decimal(18, 2)
+
+  // --- Integrasi PR (Opsional: Jika PO merujuk ke 1 PR utuh) ---
+  purchaseRequestId String?
+  purchaseRequest   PurchaseRequest? @relation(fields: [purchaseRequestId], references: [id])
 
   // --- Lain-lain ---
   notes           String? // Catatan untuk supplier
@@ -1726,14 +2111,31 @@ model PurchaseOrderLine {
   description String // Deskripsi barang/jasa
   quantity    Decimal @db.Decimal(18, 4)
   unitPrice   Decimal @db.Decimal(18, 2)
-  taxRate     Decimal @default(0) @db.Decimal(5, 2) // Tarif pajak dalam persen, misal: 11.00
+  taxRate     Decimal @default(0) @db.Decimal(5, 2)
   totalAmount Decimal @db.Decimal(18, 2)
 
   poId          String
   purchaseOrder PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
 
-  // productId    String?  // Opsional: jika terhubung ke modul Master Barang/Produk
-  // product      Product? @relation(fields: [productId], references: [id])
+  // =============================================================
+  // PENAMBAHAN UNTUK INTEGRASI STOK & PR
+  // =============================================================
+
+  // 1. Wajib hubungkan ke Product (karena kita akan mengelola stoknya)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  // 2. Hubungkan ke PR Detail (untuk update field 'jumlahDipesan')
+  prDetailId String?
+  prDetail   PurchaseRequestDetail? @relation(fields: [prDetailId], references: [id])
+
+  // 3. Tracking Realisasi Penerimaan (GRN)
+  // Berapa banyak yang sudah sampai di gudang dari total qty di PO ini
+  receivedQuantity Decimal @default(0) @db.Decimal(18, 4)
+
+  // 4. Relasi ke GoodsReceipt (Penerimaan Barang)
+  grItems GoodsReceiptItem[]
+  // =============================================================
 }
 
 // ==========================================================
@@ -1816,5 +2218,3 @@ model PaymentAllocation {
 
   @@unique([paymentVoucherId, supplierInvoiceId])
 }
-
-

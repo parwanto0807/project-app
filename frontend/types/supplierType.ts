@@ -94,6 +94,25 @@ export interface CreateSupplierInput {
 
   termOfPaymentId?: string;
   supplierCategoryId?: string;
+
+  contacts?: SupplierContactInput[];
+  bankAccounts?: SupplierBankAccountInput[];
+}
+
+export interface SupplierContactInput {
+  name: string;
+  position?: string;
+  email?: string;
+  phone?: string;
+  isPrimary?: boolean;
+}
+
+export interface SupplierBankAccountInput {
+  bankName: string;
+  accountHolderName: string;
+  accountNumber: string;
+  branch?: string;
+  isPrimary?: boolean;
 }
 
 export type UpdateSupplierInput = Partial<CreateSupplierInput>;

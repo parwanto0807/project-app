@@ -7,21 +7,44 @@ import { generatePagination } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
+interface PaginationProps {
+  totalPages: number;
+  currentPage?: number;
+  pageSize?: number;
+  totalItems?: number;
+  onPageChange?: (page: number) => void;
+  showPageSize?: boolean;
+  className?: string;
+}
+
 // Ganti nama komponen untuk menghindari konflik
-export default function PaginationComponent({ totalPages }: { totalPages: number }) {
+export default function PaginationComponent({
+  totalPages,
+  currentPage: controlledPage,
+  onPageChange,
+  className: customClassName
+}: PaginationProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const [currentPage, setCurrentPage] = useState(1);
+  const isControlled = controlledPage !== undefined && onPageChange !== undefined;
+
+  const [internalPage, setInternalPage] = useState(1);
 
   useEffect(() => {
-    const page = Number(searchParams.get("page")) || 1;
-    setCurrentPage(page);
-  }, [searchParams]);
+    if (!isControlled) {
+      const page = Number(searchParams.get("page")) || 1;
+      setInternalPage(page);
+    }
+  }, [searchParams, isControlled]);
+
+  const currentPage = isControlled ? controlledPage : internalPage;
 
   if (totalPages <= 1) return null;
 
   const createPageURL = (pageNumber: string | number) => {
+    if (isControlled) return "#";
+
     const params = new URLSearchParams(searchParams);
 
     // Pastikan pageSize tetap dikirim
@@ -32,6 +55,13 @@ export default function PaginationComponent({ totalPages }: { totalPages: number
     params.set("page", pageNumber.toString());
 
     return `${pathname}?${params.toString()}`;
+  };
+
+  const handlePageClick = (pageNumber: number, e: React.MouseEvent) => {
+    if (isControlled && onPageChange) {
+      e.preventDefault();
+      onPageChange(pageNumber);
+    }
   };
 
   const allPages = generatePagination(currentPage, totalPages);
@@ -100,62 +130,68 @@ export default function PaginationComponent({ totalPages }: { totalPages: number
   // 🔹 FIRST / LAST BUTTON
   const PaginationEdgeButton = ({
     label,
-    href,
+    page,
     disabled,
   }: {
     label: string;
-    href: string;
+    page: number;
     disabled: boolean;
-  }) => (
-    disabled ? (
-      <motion.div
-        variants={itemVariants}
-        className="flex h-8 px-3 items-center justify-center rounded-lg 
-                   border border-gray-200 dark:border-gray-700 
-                   bg-gray-100 dark:bg-gray-800 
-                   text-gray-400 dark:text-gray-500 
-                   text-xs font-medium cursor-not-allowed"
-      >
+  }) => {
+    const href = createPageURL(page);
+
+    const content = (
+      <div className={clsx(
+        "flex h-8 px-3 items-center justify-center rounded-lg border text-xs font-medium transition-all duration-200",
+        disabled
+          ? "border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 cursor-not-allowed"
+          : "border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 dark:hover:from-blue-900/20 dark:hover:to-purple-900/20 hover:border-blue-300 dark:hover:border-blue-500 hover:text-blue-700 dark:hover:text-blue-300 shadow-sm hover:shadow-md cursor-pointer"
+      )}>
         {label}
-      </motion.div>
-    ) : (
+      </div>
+    );
+
+    if (disabled) {
+      return (
+        <motion.div variants={itemVariants}>
+          {content}
+        </motion.div>
+      );
+    }
+
+    return (
       <motion.div
         variants={itemVariants}
         whileHover="hover"
         whileTap="tap"
       >
-        <Link
-          href={href}
-          className="flex h-8 px-3 items-center justify-center rounded-lg 
-                     border border-gray-300 dark:border-gray-600
-                     text-gray-700 dark:text-gray-300 
-                     bg-white dark:bg-gray-800
-                     hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 
-                     dark:hover:from-blue-900/20 dark:hover:to-purple-900/20
-                     hover:border-blue-300 dark:hover:border-blue-500
-                     hover:text-blue-700 dark:hover:text-blue-300
-                     text-xs font-medium shadow-sm hover:shadow-md
-                     transition-all duration-200"
-          scroll={false}
-        >
-          {label}
-        </Link>
+        {isControlled ? (
+          <div onClick={(e) => handlePageClick(page, e as any)}>
+            {content}
+          </div>
+        ) : (
+          <Link href={href} scroll={false}>
+            {content}
+          </Link>
+        )}
       </motion.div>
-    )
-  );
+    );
+  };
 
   // 🔹 PAGE NUMBER
   const PaginationNumber = ({
     page,
-    href,
     position,
     isActive
   }: {
     page: number | string;
-    href: string;
     position?: "first" | "last" | "single" | "middle";
     isActive: boolean;
   }) => {
+    // If it's ellipsis ("..."), page is a string
+    const isEllipsis = position === "middle";
+    const pageNum = typeof page === 'number' ? page : 0;
+    const href = createPageURL(pageNum);
+
     const className = clsx(
       "flex h-8 w-8 items-center justify-center text-xs font-medium transition-all duration-200",
       {
@@ -168,52 +204,64 @@ export default function PaginationComponent({ totalPages }: { totalPages: number
         "z-10 bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/25": isActive,
 
         // Inactive state
-        "border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-blue-700 dark:hover:text-blue-300 hover:border-blue-300 dark:hover:border-blue-500": !isActive && position !== "middle",
+        "border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-blue-700 dark:hover:text-blue-300 hover:border-blue-300 dark:hover:border-blue-500 cursor-pointer": !isActive && !isEllipsis,
 
         // Ellipsis state
-        "text-gray-400 dark:text-gray-500 cursor-default bg-transparent border-none": position === "middle",
+        "text-gray-400 dark:text-gray-500 cursor-default bg-transparent border-none": isEllipsis,
 
         // Border adjustments
-        "border-l-0": position === "last" || position === "middle",
-        "border-r-0": position === "first" || position === "middle",
+        "border-l-0": position === "last" || isEllipsis,
+        "border-r-0": position === "first" || isEllipsis,
       }
     );
 
-    return position === "middle" ? (
-      <motion.div
-        variants={itemVariants}
-        className={className}
-      >
+    if (isEllipsis) {
+      return (
+        <motion.div
+          variants={itemVariants}
+          className={className}
+        >
+          {page}
+        </motion.div>
+      );
+    }
+
+    const content = (
+      <div className={className} aria-current={isActive ? "page" : undefined}>
         {page}
-      </motion.div>
-    ) : (
+      </div>
+    );
+
+    return (
       <motion.div
         variants={itemVariants}
         whileHover={!isActive ? "hover" : undefined}
         whileTap="tap"
       >
-        <Link
-          href={href}
-          className={className}
-          scroll={false}
-          aria-current={isActive ? "page" : undefined}
-        >
-          {page}
-        </Link>
+        {isControlled ? (
+          <div onClick={(e) => handlePageClick(pageNum, e as any)}>
+            {content}
+          </div>
+        ) : (
+          <Link href={href} scroll={false}>
+            {content}
+          </Link>
+        )}
       </motion.div>
     );
   };
 
   // 🔹 NEXT / PREV BUTTON
   const PaginationArrow = ({
-    href,
     direction,
     isDisabled,
   }: {
-    href: string;
     direction: "left" | "right";
     isDisabled?: boolean;
   }) => {
+    const targetPage = direction === "left" ? currentPage - 1 : currentPage + 1;
+    const href = createPageURL(targetPage);
+
     const className = clsx(
       "flex h-8 w-8 items-center justify-center rounded-lg border transition-all duration-200",
       {
@@ -221,7 +269,7 @@ export default function PaginationComponent({ totalPages }: { totalPages: number
         "pointer-events-none text-gray-300 dark:text-gray-600 bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 cursor-not-allowed": isDisabled,
 
         // Enabled state
-        "text-gray-600 dark:text-gray-400 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 dark:hover:from-blue-900/20 dark:hover:to-purple-900/20 hover:text-blue-700 dark:hover:text-blue-300 hover:border-blue-300 dark:hover:border-blue-500 shadow-sm hover:shadow-md": !isDisabled,
+        "text-gray-600 dark:text-gray-400 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 dark:hover:from-blue-900/20 dark:hover:to-purple-900/20 hover:text-blue-700 dark:hover:text-blue-300 hover:border-blue-300 dark:hover:border-blue-500 shadow-sm hover:shadow-md cursor-pointer": !isDisabled,
 
         // Spacing
         "md:mr-2": direction === "left",
@@ -236,28 +284,40 @@ export default function PaginationComponent({ totalPages }: { totalPages: number
         <ChevronRightIcon className="w-4 h-4" />
       );
 
-    return isDisabled ? (
-      <motion.div
-        variants={itemVariants}
-        className={className}
-        aria-disabled="true"
-      >
-        {icon}
-      </motion.div>
-    ) : (
+    if (isDisabled) {
+      return (
+        <motion.div
+          variants={itemVariants}
+          className={className}
+          aria-disabled="true"
+        >
+          {icon}
+        </motion.div>
+      );
+    }
+
+    return (
       <motion.div
         variants={itemVariants}
         whileHover="hover"
         whileTap="tap"
       >
-        <Link
-          href={href}
-          className={className}
-          scroll={false}
-          aria-label={`Go to ${direction} page`}
-        >
-          {icon}
-        </Link>
+        {isControlled ? (
+          <div onClick={(e) => handlePageClick(targetPage, e as any)}>
+            <div className={className}>
+              {icon}
+            </div>
+          </div>
+        ) : (
+          <Link
+            href={href}
+            className={className}
+            scroll={false}
+            aria-label={`Go to ${direction} page`}
+          >
+            {icon}
+          </Link>
+        )}
       </motion.div>
     );
   };
@@ -267,13 +327,13 @@ export default function PaginationComponent({ totalPages }: { totalPages: number
       initial="hidden"
       animate="visible"
       variants={containerVariants}
-      className="flex items-center justify-center gap-1 md:gap-2 py-0"
+      className={clsx("flex items-center justify-center gap-1 md:gap-2 py-0", customClassName)}
     >
       {/* 🔹 FIRST PAGE BUTTON - Hidden on mobile */}
       <div className="hidden md:block">
         <PaginationEdgeButton
           label="First"
-          href={createPageURL(1)}
+          page={1}
           disabled={currentPage === 1}
         />
       </div>
@@ -281,7 +341,6 @@ export default function PaginationComponent({ totalPages }: { totalPages: number
       {/* ← PREVIOUS */}
       <PaginationArrow
         direction="left"
-        href={createPageURL(currentPage - 1)}
         isDisabled={currentPage <= 1}
       />
 
@@ -314,7 +373,6 @@ export default function PaginationComponent({ totalPages }: { totalPages: number
                 }}
               >
                 <PaginationNumber
-                  href={createPageURL(page)}
                   page={page}
                   position={position}
                   isActive={currentPage === page}
@@ -328,7 +386,6 @@ export default function PaginationComponent({ totalPages }: { totalPages: number
       {/* → NEXT */}
       <PaginationArrow
         direction="right"
-        href={createPageURL(currentPage + 1)}
         isDisabled={currentPage >= totalPages}
       />
 
@@ -336,7 +393,7 @@ export default function PaginationComponent({ totalPages }: { totalPages: number
       <div className="hidden md:block">
         <PaginationEdgeButton
           label="Last"
-          href={createPageURL(totalPages)}
+          page={totalPages}
           disabled={currentPage === totalPages}
         />
       </div>

@@ -133,3 +133,40 @@ export const registerServiceWorker =
     }
     return null;
   };
+
+// lib/utils.ts
+export const formatDate = (dateString: string, format: 'short' | 'long' | 'time' = 'short'): string => {
+  const date = new Date(dateString);
+
+  if (isNaN(date.getTime())) return '-';
+
+  switch (format) {
+    case 'long':
+      return date.toLocaleDateString('id-ID', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    case 'time':
+      return date.toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    default:
+      return date.toLocaleDateString('id-ID');
+  }
+};
+
+export const formatCurrency = (amount: number): string => {
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
+
+export const formatNumber = (num: number): string => {
+  return new Intl.NumberFormat('id-ID').format(num);
+};

@@ -66,61 +66,61 @@ export default function InvoicePageAdmin() {
     //    FETCH INVOICE DATA - DENGAN FILTER
     // ===============================
     const fetchData = useCallback(async () => {
-    if (userLoading) return;
-    if (!user || user.role !== "admin") return;
+        if (userLoading) return;
+        if (!user || user.role !== "admin") return;
 
-    try {
-        setIsDataFetching(true);
+        try {
+            setIsDataFetching(true);
 
-        // DEBUG: Pastikan urlDateFilter ada nilainya
-        console.log('🔄 fetchData URL parameters:', {
-            urlPage,
-            urlPageSize,
-            urlSearch,
-            urlStatusFilter,
-            urlDateFilter // Pastikan ini ada nilainya
-        });
-
-        const [result, resultBank] = await Promise.all([
-            getInvoices(
-                {},
+            // DEBUG: Pastikan urlDateFilter ada nilainya
+            console.log('🔄 fetchData URL parameters:', {
                 urlPage,
                 urlPageSize,
-                urlSearch || undefined,
-                urlStatusFilter !== "all" ? urlStatusFilter : undefined,
-                "createdAt",
-                "desc",
-                urlDateFilter !== "all" ? urlDateFilter : undefined // Parameter ke-8 untuk date
-            ),
-            getBankAccounts()
-        ]);
+                urlSearch,
+                urlStatusFilter,
+                urlDateFilter // Pastikan ini ada nilainya
+            });
 
-        if (result.success) {
-            setInvoiceData(result.data);
-            setBanks(resultBank || []);
+            const [result, resultBank] = await Promise.all([
+                getInvoices(
+                    {},
+                    urlPage,
+                    urlPageSize,
+                    urlSearch || undefined,
+                    urlStatusFilter !== "all" ? urlStatusFilter : undefined,
+                    "createdAt",
+                    "desc",
+                    urlDateFilter !== "all" ? urlDateFilter : undefined // Parameter ke-8 untuk date
+                ),
+                getBankAccounts()
+            ]);
 
-            if (result.pagination) {
-                setPaginationMeta(result.pagination);
+            if (result.success) {
+                setInvoiceData(result.data);
+                setBanks(resultBank || []);
+
+                if (result.pagination) {
+                    setPaginationMeta(result.pagination);
+                } else {
+                    setPaginationMeta({
+                        page: urlPage,
+                        limit: urlPageSize,
+                        total: result.data?.length || 0,
+                        pages: Math.ceil((result.data?.length || 0) / urlPageSize)
+                    });
+                }
             } else {
-                setPaginationMeta({
-                    page: urlPage,
-                    limit: urlPageSize,
-                    total: result.data?.length || 0,
-                    pages: Math.ceil((result.data?.length || 0) / urlPageSize)
-                });
+                toast.error(result.message || "Gagal memuat data invoice");
             }
-        } else {
-            toast.error(result.message || "Gagal memuat data invoice");
-        }
 
-    } catch (error) {
-        console.error("❌ Error fetching invoice data:", error);
-        toast.error("Gagal memuat data invoice");
-    } finally {
-        setIsDataFetching(false);
-        setIsLoading(false);
-    }
-}, [urlPage, urlPageSize, urlSearch, urlStatusFilter, urlDateFilter, user, userLoading]);
+        } catch (error) {
+            console.error("❌ Error fetching invoice data:", error);
+            toast.error("Gagal memuat data invoice");
+        } finally {
+            setIsDataFetching(false);
+            setIsLoading(false);
+        }
+    }, [urlPage, urlPageSize, urlSearch, urlStatusFilter, urlDateFilter, user, userLoading]);
 
     // ===============================
     //    DATA FETCHING EFFECT

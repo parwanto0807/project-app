@@ -221,7 +221,7 @@ export const getSuppliers = async (req, res) => {
 export const getSupplierById = async (req, res) => {
   try {
     const { id } = req.params;
-
+    
     const supplier = await prisma.supplier.findUnique({
       where: { id },
       include: {
@@ -237,7 +237,7 @@ export const getSupplierById = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Supplier tidak ditemukan" });
     }
-
+    
     return res.status(200).json({ success: true, data: supplier });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
@@ -254,7 +254,37 @@ export const updateSupplier = async (req, res) => {
 
     // Hapus field yang tidak boleh diupdate langsung di root level (seperti contacts array)
     // Update contacts biasanya lewat endpoint terpisah atau logic khusus
-    const { contacts, bankAccounts, ...updateData } = data;
+    const { contacts, bankAccounts, ...baseUpdateData } = data;
+
+    const updateData = { ...baseUpdateData };
+
+    // Update contacts (Replace all strategy)
+    if (contacts && Array.isArray(contacts)) {
+      updateData.contacts = {
+        deleteMany: {},
+        create: contacts.map((contact) => ({
+          name: contact.name,
+          position: contact.position,
+          email: contact.email,
+          phone: contact.phone,
+          isPrimary: contact.isPrimary,
+        })),
+      };
+    }
+
+    // Update bank accounts (Replace all strategy)
+    if (bankAccounts && Array.isArray(bankAccounts)) {
+      updateData.bankAccounts = {
+        deleteMany: {},
+        create: bankAccounts.map((bank) => ({
+          bankName: bank.bankName,
+          accountHolderName: bank.accountHolderName,
+          accountNumber: bank.accountNumber,
+          branch: bank.branch,
+          isPrimary: bank.isPrimary,
+        })),
+      };
+    }
 
     const updatedSupplier = await prisma.supplier.update({
       where: { id },

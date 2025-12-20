@@ -40,6 +40,17 @@ import {
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import React, { useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
 
 export interface SupplierTableProps {
   suppliers: Supplier[];
@@ -57,6 +68,9 @@ export function SupplierTable({
   onExport,
 }: SupplierTableProps) {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [supplierToDelete, setSupplierToDelete] = useState<string | null>(null);
+
 
   const toggleRow = (id: string) => {
     const newExpanded = new Set(expandedRows);
@@ -431,37 +445,32 @@ export function SupplierTable({
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem asChild>
-                            <Link href={`/admin-area/master/supplier/${supplier.id}/edit`}>
-                              <Edit className="h-4 w-4 mr-2" />
-                              Edit Supplier
-                            </Link>
-                          </DropdownMenuItem>
+                      <div className="flex items-center justify-end gap-2">
+                        {/* Edit Button */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 border border-blue-200 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/40"
+                          asChild
+                        >
+                          <Link href={`/admin-area/master/supplier/update/${supplier.id}`}>
+                            <Edit className="h-4.5 w-4.5" />
+                          </Link>
+                        </Button>
 
-                          {/* Export Data */}
-                          <DropdownMenuItem onClick={() => onExport?.(supplier)}>
-                            <Download className="h-4 w-4 mr-2" />
-                            Export Data
-                          </DropdownMenuItem>
-
-                          {/* Delete Supplier */}
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            onClick={() => onDelete?.(supplier.id)}
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete Supplier
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                        {/* Delete Button */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 border border-red-200 text-red-600 hover:text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/40"
+                          onClick={() => {
+                            setSupplierToDelete(supplier.id);
+                            setDeleteDialogOpen(true);
+                          }}
+                        >
+                          <Trash2 className="h-4.5 w-4.5" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
 
@@ -497,6 +506,32 @@ export function SupplierTable({
           Total Suppliers: {suppliers.length}
         </div>
       </div>
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the supplier
+              and remove their data from our servers.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSupplierToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (supplierToDelete && onDelete) {
+                  onDelete(supplierToDelete);
+                }
+                setDeleteDialogOpen(false);
+                setSupplierToDelete(null);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

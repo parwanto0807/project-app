@@ -70,6 +70,10 @@ const nextConfig: NextConfig = {
         source: "/api-proxy/images/:path*",
         destination: "https://api.rylif-app.com/images/:path*",
       },
+      {
+        source: "/api/:path*",
+        destination: "http://localhost:5000/api/:path*",
+      },
     ];
   }
 };

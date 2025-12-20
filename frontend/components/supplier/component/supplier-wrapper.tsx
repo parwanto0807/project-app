@@ -19,6 +19,8 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import CreateSupplierButton from "./createSupplierButton";
 import SupplierStatusDropdown from "./statusFilterDropdown";
 import { WalletCardsIcon } from "lucide-react";
+import { deleteSupplier } from "@/lib/action/supplier/supplierAction";
+import { toast } from "sonner";
 
 // Konfigurasi status sama seperti SalesOrder (pilih label & class sesuai desain Anda)
 export enum SupplierStatus {
@@ -42,10 +44,10 @@ export const statusConfig: Record<SupplierStatus, { label: string; className: st
     },
 };
 
-
 interface SupplierClientWrapperProps {
     initialData: SupplierListResponse | null;
 }
+
 
 export default function SupplierClientWrapper({ initialData }: SupplierClientWrapperProps) {
     const router = useRouter();
@@ -58,6 +60,27 @@ export default function SupplierClientWrapper({ initialData }: SupplierClientWra
     const urlPage = Number(searchParams.get("page")) || 1;
     const urlPageSize = Number(searchParams.get("pageSize")) || 10;
     const highlightId = searchParams.get("highlightId") || null;
+
+    // handlers
+    const handleDelete = async (id: string) => {
+        try {
+            const result = await deleteSupplier(id);
+            if (result.success) {
+                toast.success("Supplier inActive successfully", {
+                    description: "Supplier has been inActive",
+                });
+                handleRefresh();
+            } else {
+                throw new Error("Failed to delete supplier");
+            }
+        } catch (error) {
+            toast.error("Error", {
+                description: error instanceof Error ? error.message : "Failed to delete supplier",
+            });
+        }
+    };
+
+
 
     // Local state
     const [itemsPerPage, setItemsPerPage] = useState(urlPageSize);
@@ -312,7 +335,12 @@ export default function SupplierClientWrapper({ initialData }: SupplierClientWra
 
             {/* Table */}
             <div className="border rounded-lg bg-card" data-table-container>
-                <SupplierTable suppliers={suppliers} isLoading={isFetching} highlightId={highlightId} />
+                <SupplierTable
+                    suppliers={suppliers}
+                    isLoading={isFetching}
+                    highlightId={highlightId}
+                    onDelete={handleDelete}
+                />
             </div>
 
             {/* Bottom pagination & info */}

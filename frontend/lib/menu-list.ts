@@ -20,6 +20,7 @@ import {
   PackageCheckIcon,
   Wallet2,
   Banknote,
+  Warehouse,
 } from "lucide-react";
 
 interface Submenu {
@@ -53,8 +54,8 @@ export function getMenuList(pathname: string, role: string) {
     role === "super"
       ? "/super-admin-area"
       : role === "admin"
-      ? "/admin-area"
-      : "/pic-area";
+        ? "/admin-area"
+        : "/pic-area";
   const allMenus: MenuGroup[] = [
     {
       groupLabel: "DASHBOARD SUPER ADMIN",
@@ -142,7 +143,7 @@ export function getMenuList(pathname: string, role: string) {
           label: "Logistic Management",
           href: "#",
           icon: PackageOpen,
-          active: isActive("#", pathname),
+          active: isActive(`${basePath}/logistic`, pathname),
           submenus: [
             {
               href: `${basePath}/logistic/spk`,
@@ -157,6 +158,12 @@ export function getMenuList(pathname: string, role: string) {
               disabled: role === "user",
             },
             {
+              href: `${basePath}/logistic/po`,
+              label: "Purchase Order (PO)",
+              active: isActive(`${basePath}/logistic/po`, pathname),
+              disabled: role === "pic", // Biasanya PIC hanya buat PR, Admin yang buat PO
+            },
+            {
               href: `${basePath}/logistic/bap`,
               label: "Berita Acara Pekerjaan",
               active: isActive(`${basePath}/logistic/bap`, pathname),
@@ -167,6 +174,46 @@ export function getMenuList(pathname: string, role: string) {
               label: "Rancangan Anggaran Biaya",
               active: isActive(`${basePath}/logistic/rab`, pathname),
               disabled: role === "user" || role === "pic",
+            },
+          ],
+        },
+        // --- TAMBAHAN MENU INVENTORY ---
+        {
+          label: "Inventory Control",
+          href: "#",
+          icon: Warehouse,
+          active: isActive(`${basePath}/inventory`, pathname),
+          submenus: [
+            {
+              href: `${basePath}/inventory/dashboard`,
+              label: "Stock Monitor",
+              active: isActive(`${basePath}/inventory/dashboard`, pathname),
+            },
+            {
+              href: `${basePath}/inventory/wh`,
+              label: "Data Gudang",
+              active: isActive(`${basePath}/inventory/wh`, pathname),
+              disabled: role === "pic",
+            },
+            {
+              href: `${basePath}/inventory/stock-opname`,
+              label: "Stock Opname",
+              active: isActive(`${basePath}/inventory/stock-opname`, pathname),
+            },
+            {
+              href: `${basePath}/inventory/receipt`,
+              label: "Penerimaan Barang (GR)",
+              active: isActive(`${basePath}/inventory/receipt`, pathname),
+            },
+            {
+              href: `${basePath}/inventory/requisition`,
+              label: "Pengambilan Barang (MR)",
+              active: isActive(`${basePath}/inventory/requisition`, pathname),
+            },
+            {
+              href: `${basePath}/inventory/transfer`,
+              label: "Transfer Gudang",
+              active: isActive(`${basePath}/inventory/transfer`, pathname),
             },
           ],
         },

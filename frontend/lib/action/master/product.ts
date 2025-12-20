@@ -8,29 +8,46 @@ export async function generateProductCode() {
   return `PRD-${shortId}`;
 }
 
-export async function fetchAllProducts() {
+export async function fetchAllProducts(options?: {
+  page?: number;
+  limit?: number;
+  isActive?: boolean;
+}) {
   try {
-    const data = await apiFetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/master/product/getAllProducts?includePagination=false`,
-      {
-        method: "GET",
-      }
-    );
+    let url = `${process.env.NEXT_PUBLIC_API_URL}/api/master/product/getAllProducts?includePagination=false`;
+
+    const data = await apiFetch(url, {
+      method: "GET",
+    });
+
+    let products = [];
     // Jika backend mengembalikan array langsung
     if (Array.isArray(data)) {
-      return {
-        products: data,
-        isLoading: false,
-      };
+      products = data;
     } else {
-      return {
-        products: data?.products || [],
-        isLoading: false,
-      };
+      products = data?.products || [];
     }
+
+    // Client-side filtering if options provided (temporary solution until backend supports params)
+    if (options?.isActive !== undefined) {
+      products = products.filter((p: any) => p.isActive === options.isActive);
+    }
+
+    return {
+      products: products,
+      isLoading: false,
+      // Additional properties for compatibility with Stock Opname page
+      success: true,
+      data: { data: products },
+    };
   } catch (error) {
     console.error("[fetchAllProducts]", error);
-    return { products: [], isLoading: false };
+    return {
+      products: [],
+      isLoading: false,
+      success: false,
+      data: { data: [] },
+    };
   }
 }
 

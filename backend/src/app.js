@@ -29,6 +29,8 @@ import notifications from "./routes/notifications/notificationRoutes.js";
 import supplier from "./routes/supplier/supplierRoutes.js";
 import categorySupplier from "./routes/supplier/categorySupplierRoutes.js";
 import termOfPaymentRoutes from "./routes/supplier/termPaymentRoutes.js";
+import whRoute from "./routes/wh/whRoute.js";
+import soRoutes from './routes/stockOpname/soRoutes.js';
 
 import path from "path";
 
@@ -59,7 +61,7 @@ app.use(
       }
     },
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: [
       "Content-Type",
       "Authorization",
@@ -131,6 +133,8 @@ app.use("/api/notifications", notifications);
 app.use("/api/supplier", supplier);
 app.use("/api/supplier-categories", categorySupplier);
 app.use("/api/term-of-payments", termOfPaymentRoutes);
+app.use("/api/warehouse", whRoute);
+app.use('/api/stock-opname', soRoutes);
 
 // Health Check Endpoint
 app.get("/api/health", (req, res) => {

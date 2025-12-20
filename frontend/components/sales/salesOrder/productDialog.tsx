@@ -32,8 +32,9 @@ import { toast } from "sonner";
 export type Option = { id: string; name: string };
 
 type BaseProps = {
-    onCreated: (option: Option) => void; // Called on successful creation
+    onCreated: (option: Option) => void;
     createEndpoint: string;
+    trigger?: React.ReactNode; // Optional custom trigger
 };
 
 // NOTE: ProductType enum values are assumed from your schema comment.
@@ -72,7 +73,7 @@ const productSchema = z.object({
 // ======================================================
 // ============== Product Create Dialog =================
 // ======================================================
-export function ProductCreateDialog({ onCreated, createEndpoint }: BaseProps) {
+export function ProductCreateDialog({ onCreated, createEndpoint, trigger }: BaseProps) {
     const [dialogOpen, setDialogOpen] = useState(false);
     const [pending, setPending] = useState(false);
 
@@ -93,12 +94,14 @@ export function ProductCreateDialog({ onCreated, createEndpoint }: BaseProps) {
     });
 
     useEffect(() => {
-        fetch("/api/product/generate-code")
-            .then((res) => res.json())
-            .then((data) => {
-                form.setValue("code", data.code); // ✅ set ke form
-            });
-    }, [form]);
+        if (dialogOpen) {
+            fetch("/api/product/generate-code")
+                .then((res) => res.json())
+                .then((data) => {
+                    form.setValue("code", data.code); // ✅ set ke form
+                });
+        }
+    }, [dialogOpen, form]);
 
     const submit = async (data: z.input<typeof productSchema>) => {
         setPending(true);
@@ -136,22 +139,17 @@ export function ProductCreateDialog({ onCreated, createEndpoint }: BaseProps) {
             form.setValue("usageUnit", purchaseUnitValue);
         }
     }, [purchaseUnitValue, form]);
+
     return (
-        <Dialog open={dialogOpen} onOpenChange={(open) => {
-            setDialogOpen(open);
-            if (open) {
-                fetch("/api/product/generate-code")
-                    .then((res) => res.json())
-                    .then((data) => {
-                        form.setValue("code", data.code);
-                    });
-            }
-        }}>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
-                <Button type="button" variant="outline" size="sm" className="h-8 w-8 p-0 md:h-9 md:w-9">
-                    <Plus className="h-4 w-4" />
-                </Button>
+                {trigger ? trigger : (
+                    <Button type="button" variant="outline" size="sm" className="h-8 w-8 p-0 md:h-9 md:w-9">
+                        <Plus className="h-4 w-4" />
+                    </Button>
+                )}
             </DialogTrigger>
+            {/* ... */}
             <DialogContent className="max-w-[95vw] h-[90vh] flex flex-col rounded-lg md:rounded-xl md:h-auto md:max-w-2xl">
                 <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-4 md:flex-col md:items-start md:justify-start md:space-y-2 md:pb-0">
                     <div className="flex flex-col space-y-1.5">

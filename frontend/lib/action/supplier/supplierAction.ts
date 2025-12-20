@@ -25,24 +25,24 @@ export async function createSupplier(
 ): Promise<SupplierDetailResponse> {
   try {
     console.log('📤 [createSupplier] Sending data:', data);
-    
+
     const response = await api.post<SupplierDetailResponse>(
       "/api/supplier",
       data
     );
-    
+
     console.log('✅ [createSupplier] Success:', response.data);
     return response.data;
-    
+
   } catch (error) {
     if (error instanceof AxiosError) {
       const responseData = error.response?.data as BackendErrorResponse;
-      
+
       console.group('❌ VALIDATION ERRORS');
       console.error('Status:', error.response?.status);
       console.error('Message:', responseData?.message);
       console.error('Full Response:', responseData);
-      
+
       // Jika ada array errors
       if (responseData?.errors && Array.isArray(responseData.errors)) {
         console.error('Validation Errors:');
@@ -50,12 +50,12 @@ export async function createSupplier(
           console.error(`  ${index + 1}. ${err.field}: ${err.message}`);
         });
       }
-      
+
       console.groupEnd();
-      
+
       // Extract error message
       let errorMessage = responseData?.message || 'Validasi Gagal';
-      
+
       // Tambah detail validation errors jika ada
       if (responseData?.errors) {
         const errorDetails = responseData.errors
@@ -63,15 +63,15 @@ export async function createSupplier(
           .join(', ');
         errorMessage += ` (${errorDetails})`;
       }
-      
+
       throw new Error(errorMessage);
     }
-    
+
     // Handle unknown error
-    const errorMessage = error instanceof Error 
-      ? error.message 
+    const errorMessage = error instanceof Error
+      ? error.message
       : 'Failed to create supplier: Unknown error';
-    
+
     throw new Error(errorMessage);
   }
 }
@@ -102,6 +102,7 @@ export async function fetchSupplierById(
 ): Promise<SupplierDetailResponse> {
   const response = await api.get<SupplierDetailResponse>(`/api/supplier/${id}`);
   return response.data;
+
 }
 
 
