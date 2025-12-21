@@ -1,3 +1,4 @@
+import ExcelJS from 'exceljs';
 import { prisma } from "../../config/db.js";
 
 export const stockOpnameController = {
@@ -52,16 +53,62 @@ export const stockOpnameController = {
     }
   },
 
-  // --- READ (List with Pagination) ---
   getAll: async (req, res) => {
     try {
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 10;
       const skip = (page - 1) * limit;
 
+      let { search, status, warehouseId, type, startDate, endDate } = req.query;
+
+      // Sanitize params
+      if (search === 'undefined') search = undefined;
+      if (status === 'undefined') status = undefined;
+      if (warehouseId === 'undefined') warehouseId = undefined;
+      if (type === 'undefined') type = undefined;
+      if (startDate === 'undefined') startDate = undefined;
+      if (endDate === 'undefined') endDate = undefined;
+
+      // Build WHERE clause
+      const where = {};
+      // ... (rest of logic)
+
+      if (search) {
+        where.OR = [
+          { nomorOpname: { contains: search } }, // Hapus mode: 'insensitive' jika error (MySQL default case insensitive collation biasanya aman)
+          { items: { some: { product: { name: { contains: search } } } } }
+        ];
+      }
+
+      if (status) {
+        where.status = status;
+      }
+
+      if (type) {
+        where.type = type;
+      }
+
+      if (warehouseId) {
+        where.warehouseId = warehouseId;
+      }
+
+      if (startDate || endDate) {
+        where.tanggalOpname = {};
+        if (startDate) {
+          where.tanggalOpname.gte = new Date(startDate);
+        }
+        if (endDate) {
+          // Tambah 1 hari untuk cover sampai akhir hari jika endDate sama dengan startDate atau sekedar tanggal
+          const end = new Date(endDate);
+          end.setHours(23, 59, 59, 999); 
+          where.tanggalOpname.lte = end;
+        }
+      }
+
       const [totalCount, data] = await Promise.all([
-        prisma.stockOpname.count(),
+        prisma.stockOpname.count({ where }),
         prisma.stockOpname.findMany({
+          where,
           skip,
           take: limit,
           include: {
@@ -191,6 +238,7 @@ export const stockOpnameController = {
     try {
       const { id } = req.params;
       const result = await prisma.$transaction(async (tx) => {
+        // 1. Ambil data opname beserta itemnya
         const opname = await tx.stockOpname.findUnique({
           where: { id },
           include: { items: true },
@@ -198,17 +246,201 @@ export const stockOpnameController = {
 
         if (!opname || opname.status !== 'DRAFT') throw new Error("Invalid status");
 
-        // Logic update stok di sini (jika ada tabel ProductStock) bisa ditambahkan
+        // 2. Loop setiap item untuk adjustment
+        for (const item of opname.items) {
+          const selisih = Number(item.selisih);
+
+          // Jika ada selisih, buat StockDetail (Movement) dan Update StockBalance
+          if (selisih !== 0) {
+            const isAddition = selisih > 0;
+            const absSelisih = Math.abs(selisih);
+
+            // A. Buat Record StockDetail (History Transaksi)
+            await tx.stockDetail.create({
+              data: {
+                productId: item.productId,
+                warehouseId: opname.warehouseId,
+                
+                // Transaksi
+                transQty: selisih, // Bisa negatif/positif sesuai selisih
+                transUnit: 'UNIT', // Default unit, idealnya ambil dari Product
+                baseQty: absSelisih,
+                
+                type: isAddition ? 'ADJUSTMENT_IN' : 'ADJUSTMENT_OUT',
+                source: 'OPNAME',
+                referenceNo: opname.nomorOpname,
+                notes: `Adjustment from Stock Opname: ${opname.nomorOpname}`,
+                
+                pricePerUnit: item.hargaSatuan,
+                
+                // Snapshot saldo untuk audit (bisa diisi 0 dulu atau ambil saldo terakhir)
+                stockAwalSnapshot: 0, 
+                stockAkhirSnapshot: 0 
+              }
+            });
+
+            // B. Update/Create StockBalance
+            const currentPeriod = new Date();
+            const startOfMonth = new Date(currentPeriod.getFullYear(), currentPeriod.getMonth(), 1);
+
+            // Upsert StockBalance bulan ini
+            const balance = await tx.stockBalance.findUnique({
+              where: {
+                productId_period: {
+                  productId: item.productId,
+                  period: startOfMonth
+                }
+              }
+            });
+
+            if (balance) {
+              await tx.stockBalance.update({
+                where: { id: balance.id },
+                data: {
+                    stockAkhir: { increment: selisih },
+                    availableStock: { increment: selisih } // Asumsi available juga update
+                }
+              });
+            } else {
+              // Jika belum ada balance bulan ini, buat baru (biasanya dicopy dari bulan lalu, tapi ini simplifikasi)
+               await tx.stockBalance.create({
+                data: {
+                  productId: item.productId,
+                  warehouseId: opname.warehouseId,
+                  period: startOfMonth,
+                  stockAkhir: Number(item.stokFisik), // Set langsung ke fisik jika baru
+                  availableStock: Number(item.stokFisik),
+                  stockAwal: 0 // Simplifikasi
+                }
+              });
+            }
+            
+            // C. Update stok sistem di StockOpnameItem agar merefleksikan 'Before' state yang valid (Optional)
+            // item.stokSistem sudah tersimpan saat create/update opname
+          }
+        }
         
+        // 3. Update status Opname jadi ADJUSTED
         return await tx.stockOpname.update({
           where: { id },
           data: { status: 'ADJUSTED' },
         });
       });
 
-      return res.status(200).json({ success: true, data: result, message: "Status updated to ADJUSTED" });
+      return res.status(200).json({ success: true, data: result, message: "Stock adjusted successfully" });
     } catch (error) {
+      console.error("Adjustment Error:", error);
       return res.status(400).json({ success: false, message: error.message });
+    }
+  },
+
+
+
+  // --- EXPORT TO EXCEL ---
+  exportData: async (req, res) => {
+    try {
+      let { search, status, warehouseId, type, startDate, endDate } = req.query;
+
+      // Sanitize params
+      if (search === 'undefined') search = undefined;
+      if (status === 'undefined') status = undefined;
+      if (warehouseId === 'undefined') warehouseId = undefined;
+      if (type === 'undefined') type = undefined;
+      if (startDate === 'undefined') startDate = undefined;
+      if (endDate === 'undefined') endDate = undefined;
+
+      // Build WHERE clause (Same as getAll)
+      const where = {};
+
+      if (search) {
+        where.OR = [
+          { nomorOpname: { contains: search } },
+          { items: { some: { product: { name: { contains: search } } } } }
+        ];
+      }
+
+      if (status) {
+        where.status = status;
+      }
+
+      if (type) {
+        where.type = type;
+      }
+
+      if (warehouseId) {
+        where.warehouseId = warehouseId;
+      }
+
+      if (startDate || endDate) {
+        where.tanggalOpname = {};
+        if (startDate) {
+          where.tanggalOpname.gte = new Date(startDate);
+        }
+        if (endDate) {
+          const end = new Date(endDate);
+          end.setHours(23, 59, 59, 999); 
+          where.tanggalOpname.lte = end;
+        }
+      }
+
+      const data = await prisma.stockOpname.findMany({
+        where,
+        include: {
+          petugas: { select: { name: true } },
+          warehouse: { select: { name: true } },
+          items: true
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      // Create Workbook
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Stock Opname');
+
+      // Define Columns
+      worksheet.columns = [
+        { header: 'No. Opname', key: 'nomorOpname', width: 25 },
+        { header: 'Tanggal', key: 'tanggalOpname', width: 15 },
+        { header: 'Tipe', key: 'type', width: 15 },
+        { header: 'Status', key: 'status', width: 15 },
+        { header: 'Gudang', key: 'warehouse', width: 20 },
+        { header: 'Petugas', key: 'petugas', width: 20 },
+        { header: 'Keterangan', key: 'keterangan', width: 30 },
+        { header: 'Total Item', key: 'totalItem', width: 15 },
+        { header: 'Total Nilai (Rp)', key: 'totalNilai', width: 20 },
+      ];
+
+      // Add Data
+      data.forEach((so) => {
+        const totalItems = so.items.length;
+        const totalNilai = so.items.reduce((sum, item) => sum + Number(item.totalNilai || 0), 0);
+
+        worksheet.addRow({
+          nomorOpname: so.nomorOpname,
+          tanggalOpname: so.tanggalOpname ? new Date(so.tanggalOpname).toISOString().split('T')[0] : '-',
+          type: so.type,
+          status: so.status,
+          warehouse: so.warehouse?.name || '-',
+          petugas: so.petugas?.name || '-',
+          keterangan: so.keterangan || '-',
+          totalItem: totalItems,
+          totalNilai: totalNilai
+        });
+      });
+
+      // Style Header
+      worksheet.getRow(1).font = { bold: true };
+
+      // Set Response Headers
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename=stock-opname-${Date.now()}.xlsx`);
+
+      await workbook.xlsx.write(res);
+      res.end();
+
+    } catch (error) {
+      console.error("Export Error:", error);
+      return res.status(500).json({ success: false, error: error.message });
     }
   },
 

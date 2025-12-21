@@ -8,6 +8,68 @@ export async function generateProductCode() {
   return `PRD-${shortId}`;
 }
 
+export async function fetchAllProductsOpname(options?: {
+  page?: number;
+  limit?: number;
+  isActive?: boolean;
+  forOpname?: boolean; // Tambahkan opsi ini
+}) {
+  try {
+    // Gunakan endpoint khusus Opname yang baru
+    const baseUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/master/product/getAllProductsOpname`;
+
+    // Membangun Query Params
+    const params = new URLSearchParams();
+    params.append("includePagination", "false"); // Sesuai permintaan Anda
+
+    if (options?.isActive !== undefined) {
+      params.append("activeOnly", options.isActive.toString());
+    }
+
+    // Default true jika memanggil fetchAllProducts untuk konteks opname
+    const forOpname = options?.forOpname ?? true;
+    params.append("forOpname", forOpname.toString());
+
+    const url = `${baseUrl}?${params.toString()}`;
+
+    const data = await apiFetch(url, {
+      method: "GET",
+    });
+
+    // Standarisasi pengambilan data
+    let products = [];
+    if (Array.isArray(data)) {
+      products = data;
+    } else {
+      products = data?.products || [];
+    }
+
+    /**
+     * Catatan: Client-side filtering dihapus karena sudah ditangani oleh 
+     * endpoint 'getAllProductsOpname' di sisi server.
+     */
+
+    return {
+      products: products,
+      isLoading: false,
+      success: true,
+      // Struktur data untuk kompatibilitas Stock Opname page
+      data: {
+        data: products,
+        totalCount: products.length
+      },
+    };
+  } catch (error) {
+    console.error("[fetchAllProductsOpname]", error);
+    return {
+      products: [],
+      isLoading: false,
+      success: false,
+      data: { data: [] },
+    };
+  }
+}
+
 export async function fetchAllProducts(options?: {
   page?: number;
   limit?: number;

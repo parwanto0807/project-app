@@ -31,6 +31,7 @@ import categorySupplier from "./routes/supplier/categorySupplierRoutes.js";
 import termOfPaymentRoutes from "./routes/supplier/termPaymentRoutes.js";
 import whRoute from "./routes/wh/whRoute.js";
 import soRoutes from './routes/stockOpname/soRoutes.js';
+import stockMonitoringRoutes from './routes/inventory/stockMonitoringRoutes.js';
 
 import path from "path";
 
@@ -135,6 +136,7 @@ app.use("/api/supplier-categories", categorySupplier);
 app.use("/api/term-of-payments", termOfPaymentRoutes);
 app.use("/api/warehouse", whRoute);
 app.use('/api/stock-opname', soRoutes);
+app.use('/api/inventory', stockMonitoringRoutes);
 
 // Health Check Endpoint
 app.get("/api/health", (req, res) => {

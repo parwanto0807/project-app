@@ -9,6 +9,7 @@ import {
   deleteProduct,
   getProductCount,
   getAllProductsByType,
+  getAllProductsOpname,
 } from "../../../controllers/master/product/productController.js";
 
 // 1. Konfigurasi Multer untuk menyimpan image di /public/images
@@ -26,6 +27,7 @@ const upload = multer({ storage });
 const router = express.Router();
 
 router.get("/getAllProducts", getAllProducts);
+router.get("/getAllProductsOpname", getAllProductsOpname);
 router.get("/getAllProductsByType/:type", getAllProductsByType);
 router.get("/getProductById/:id", getProductById);
 router.get("/getProductCount", getProductCount);

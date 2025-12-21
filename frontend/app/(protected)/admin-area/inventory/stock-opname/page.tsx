@@ -52,6 +52,11 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover";
 
 import { stockOpnameActions } from "@/lib/action/stockOpname/soAction";
 import type {
@@ -175,11 +180,18 @@ export default function StockOpnamePage() {
 
     const handleExport = async () => {
         try {
-            const response = await fetch(`/api/stock-opname/export?${new URLSearchParams({
-                ...filters,
-                page: filters.page?.toString() || '1',
-                limit: filters.limit?.toString() || '10'
-            } as any)}`);
+            const queryParams = new URLSearchParams();
+            queryParams.append('page', filters.page?.toString() || '1');
+            queryParams.append('limit', filters.limit?.toString() || '10');
+
+            if (filters.search) queryParams.append('search', filters.search);
+            if (filters.status && filters.status !== 'ALL') queryParams.append('status', filters.status);
+            if (filters.type && filters.type !== 'ALL') queryParams.append('type', filters.type);
+            if (filters.warehouseId && filters.warehouseId !== 'ALL') queryParams.append('warehouseId', filters.warehouseId);
+            if (filters.startDate) queryParams.append('startDate', filters.startDate);
+            if (filters.endDate) queryParams.append('endDate', filters.endDate);
+
+            const response = await fetch(`/api/stock-opname/export?${queryParams.toString()}`);
 
             if (response.ok) {
                 const blob = await response.blob();
@@ -333,222 +345,246 @@ export default function StockOpnamePage() {
                     />
 
                     {/* Stats Overview */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <Card>
-                            <CardContent className="p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <Card className="bg-purple-50/30 dark:bg-purple-900/10 border-purple-100/50 dark:border-purple-800/30 shadow-none transition-colors duration-200">
+                            <CardContent className="py-2 px-4">
                                 <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm font-medium text-muted-foreground">Total Stock Opname</p>
-                                        <p className="text-2xl font-bold">{formatNumber(pagination.total)}</p>
-                                    </div>
-                                    <div className="p-2 bg-purple-100 rounded-lg">
-                                        <FileText className="h-5 w-5 text-purple-600" />
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-1.5 bg-purple-100/80 dark:bg-purple-900/40 rounded-md">
+                                            <FileText className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-semibold text-purple-950/40 dark:text-purple-100/30 uppercase tracking-widest leading-none mb-0.5">Total Opname</p>
+                                            <p className="text-lg font-bold text-purple-950 dark:text-purple-50 leading-none">{formatNumber(pagination.total)}</p>
+                                        </div>
                                     </div>
                                 </div>
                             </CardContent>
                         </Card>
 
-                        <Card>
-                            <CardContent className="p-4">
+                        <Card className="bg-blue-50/30 dark:bg-blue-900/10 border-blue-100/50 dark:border-blue-800/30 shadow-none transition-colors duration-200">
+                            <CardContent className="py-2 px-4">
                                 <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm font-medium text-muted-foreground">Total Items</p>
-                                        <p className="text-2xl font-bold">{formatNumber(totalItems)}</p>
-                                    </div>
-                                    <div className="p-2 bg-blue-100 rounded-lg">
-                                        <Warehouse className="h-5 w-5 text-blue-600" />
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-1.5 bg-blue-100/80 dark:bg-blue-900/40 rounded-md">
+                                            <Warehouse className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-semibold text-blue-950/40 dark:text-blue-100/30 uppercase tracking-widest leading-none mb-0.5">Total Items</p>
+                                            <p className="text-lg font-bold text-blue-950 dark:text-blue-50 leading-none">{formatNumber(totalItems)}</p>
+                                        </div>
                                     </div>
                                 </div>
                             </CardContent>
                         </Card>
 
-                        <Card>
-                            <CardContent className="p-4">
+                        <Card className="bg-green-50/30 dark:bg-green-900/10 border-green-100/50 dark:border-green-800/30 shadow-none transition-colors duration-200">
+                            <CardContent className="py-2 px-4">
                                 <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm font-medium text-muted-foreground">Total Nilai</p>
-                                        <p className="text-2xl font-bold">{formatCurrency(totalValue)}</p>
-                                    </div>
-                                    <div className="p-2 bg-green-100 rounded-lg">
-                                        <CheckCircle className="h-5 w-5 text-green-600" />
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-1.5 bg-green-100/80 dark:bg-green-900/40 rounded-md">
+                                            <CheckCircle className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-semibold text-green-950/40 dark:text-green-100/30 uppercase tracking-widest leading-none mb-0.5">Total Nilai</p>
+                                            <p className="text-lg font-bold text-green-950 dark:text-green-50 leading-none">{formatCurrency(totalValue)}</p>
+                                        </div>
                                     </div>
                                 </div>
                             </CardContent>
                         </Card>
                     </div>
 
-                    {/* Filters Card */}
-                    <Card>
-                        <CardContent className="p-6">
-                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-                                <div>
-                                    <h3 className="text-lg font-semibold">Filter Data</h3>
-                                    <p className="text-sm text-muted-foreground">
-                                        Filter stock opname berdasarkan kriteria tertentu
-                                    </p>
-                                </div>
-
-                                <div className="flex items-center gap-2">
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={handleRefresh}
-                                        className="gap-1"
-                                    >
-                                        <RefreshCw className="h-4 w-4" />
-                                        Refresh
-                                    </Button>
-
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={handleExport}
-                                        className="gap-1"
-                                    >
-                                        <Download className="h-4 w-4" />
-                                        Export
-                                    </Button>
-
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button
-                                                size="sm"
-                                                className="gap-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md transition-all duration-200"
-                                            >
-                                                <Plus className="h-4 w-4" />
-                                                Stock Opname Baru
-                                                <ChevronDown className="h-3 w-3 ml-1 opacity-70" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end" className="w-56 p-2">
-                                            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                                                Pilih Tipe Opname
-                                            </div>
-                                            <DropdownMenuItem
-                                                onClick={() => router.push("/admin-area/inventory/stock-opname/create?type=PERIODIC")}
-                                                className="flex flex-col items-start gap-1 p-3 cursor-pointer"
-                                            >
-                                                <div className="flex items-center gap-2 font-bold text-blue-600">
-                                                    <Calendar className="h-4 w-4" />
-                                                    PERIODIC
-                                                </div>
-                                                <span className="text-[10px] text-muted-foreground leading-tight">
-                                                    Pemeriksaan stok rutin bulanan atau terjadwal.
-                                                </span>
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem
-                                                onClick={() => router.push("/admin-area/inventory/stock-opname/create?type=AD_HOC")}
-                                                className="flex flex-col items-start gap-1 p-3 cursor-pointer"
-                                            >
-                                                <div className="flex items-center gap-2 font-bold text-orange-600">
-                                                    <AlertCircle className="h-4 w-4" />
-                                                    AD-HOC
-                                                </div>
-                                                <span className="text-[10px] text-muted-foreground leading-tight">
-                                                    Pengecekan mendadak atau investigasi selisih.
-                                                </span>
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem
-                                                onClick={() => router.push("/admin-area/inventory/stock-opname/create?type=INITIAL")}
-                                                className="flex flex-col items-start gap-1 p-3 cursor-pointer"
-                                            >
-                                                <div className="flex items-center gap-2 font-bold text-purple-600">
-                                                    <FileText className="h-4 w-4" />
-                                                    INITIAL
-                                                </div>
-                                                <span className="text-[10px] text-muted-foreground leading-tight">
-                                                    Setup stok awal untuk produk atau sistem baru.
-                                                </span>
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                {/* Search */}
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Cari Nomor/Produk</label>
-                                    <SearchInput
-                                        placeholder="Cari nomor opname atau produk..."
-                                        initialValue={filters.search || ""}
-                                        onSearch={handleSearch}
-                                        className="w-full"
-                                    />
-                                </div>
-
-                                {/* Status Filter */}
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Status</label>
-                                    <Select
-                                        value={filters.status || ""}
-                                        onValueChange={handleStatusFilter}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Semua Status" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="ALL">Semua Status</SelectItem>
-                                            <SelectItem value="DRAFT">Draft</SelectItem>
-                                            <SelectItem value="ADJUSTED">Adjusted</SelectItem>
-                                            <SelectItem value="CANCELLED">Cancelled</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                {/* Type Filter */}
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Tipe Opname</label>
-                                    <Select
-                                        value={filters.type || ""}
-                                        onValueChange={handleTypeFilter}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Semua Tipe" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="ALL">Semua Tipe</SelectItem>
-                                            <SelectItem value="INITIAL">Initial</SelectItem>
-                                            <SelectItem value="PERIODIC">Periodic</SelectItem>
-                                            <SelectItem value="AD_HOC">Ad-hoc</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                {/* Warehouse Filter */}
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Gudang</label>
-                                    <Select
-                                        value={filters.warehouseId || ""}
-                                        onValueChange={handleWarehouseFilter}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Semua Gudang" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="ALL">Semua Gudang</SelectItem>
-                                            {warehouses.map((warehouse) => (
-                                                <SelectItem key={warehouse.id} value={warehouse.id}>
-                                                    {warehouse.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-
-                            {/* Date Range Filter */}
-                            <div className="mt-4">
-                                <label className="text-sm font-medium">Tanggal Opname</label>
-                                <DateRangePicker
-                                    startDate={filters.startDate}
-                                    endDate={filters.endDate}
-                                    onChange={handleDateRangeChange}
-                                    className="mt-2"
+                    {/* Modern Toolbar */}
+                    <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between mb-6">
+                        {/* Left: Search & Filter */}
+                        <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto flex-1">
+                            <div className="w-full sm:w-72 relative">
+                                <SearchInput
+                                    placeholder="Cari nomor opname atau produk..."
+                                    initialValue={filters.search || ""}
+                                    onSearch={handleSearch}
+                                    className="w-full"
                                 />
                             </div>
-                        </CardContent>
-                    </Card>
+
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" className="gap-2 w-full sm:w-auto bg-background/50 backdrop-blur-sm border-dashed">
+                                        <div className="flex items-center gap-2">
+                                            <div className="bg-primary/10 p-1 rounded-md">
+                                                <FileText className="h-3 w-3 text-primary" />
+                                            </div>
+                                            <span>Filter</span>
+                                        </div>
+                                        {(filters.status || filters.type || filters.warehouseId || filters.startDate) && (
+                                            <Badge variant="secondary" className="h-5 px-1.5 text-[10px] bg-primary/10 text-primary hover:bg-primary/20">
+                                                Active
+                                            </Badge>
+                                        )}
+                                        <ChevronDown className="h-3 w-3 opacity-50" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent align="start" className="w-80 p-4 space-y-4">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status & Tipe</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <Select
+                                                value={filters.status || "ALL"}
+                                                onValueChange={handleStatusFilter}
+                                            >
+                                                <SelectTrigger className="h-8 text-xs">
+                                                    <SelectValue placeholder="Status" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="ALL">Semua Status</SelectItem>
+                                                    <SelectItem value="DRAFT">Draft</SelectItem>
+                                                    <SelectItem value="ADJUSTED">Adjusted</SelectItem>
+                                                    <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+
+                                            <Select
+                                                value={filters.type || "ALL"}
+                                                onValueChange={handleTypeFilter}
+                                            >
+                                                <SelectTrigger className="h-8 text-xs">
+                                                    <SelectValue placeholder="Tipe" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="ALL">Semua Tipe</SelectItem>
+                                                    <SelectItem value="INITIAL">Initial</SelectItem>
+                                                    <SelectItem value="PERIODIC">Periodic</SelectItem>
+                                                    <SelectItem value="AD_HOC">Ad-hoc</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Gudang</label>
+                                        <Select
+                                            value={filters.warehouseId || "ALL"}
+                                            onValueChange={handleWarehouseFilter}
+                                        >
+                                            <SelectTrigger className="h-8 text-xs">
+                                                <SelectValue placeholder="Pilih Gudang" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="ALL">Semua Gudang</SelectItem>
+                                                {warehouses.map((warehouse) => (
+                                                    <SelectItem key={warehouse.id} value={warehouse.id}>
+                                                        {warehouse.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tanggal</label>
+                                        <DateRangePicker
+                                            startDate={filters.startDate}
+                                            endDate={filters.endDate}
+                                            onChange={handleDateRangeChange}
+                                            className="w-full"
+                                            label=""
+                                        />
+                                    </div>
+
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="w-full h-8 text-xs text-muted-foreground hover:text-foreground"
+                                        onClick={() => setFilters({
+                                            page: 1,
+                                            limit: 10,
+                                            search: filters.search // Keep search
+                                        })}
+                                    >
+                                        Reset Filter
+                                    </Button>
+                                </PopoverContent>
+                            </Popover>
+
+                            <div className="flex items-center gap-1">
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={handleRefresh}
+                                    className="h-9 w-9 text-muted-foreground hover:text-foreground"
+                                    title="Refresh"
+                                >
+                                    <RefreshCw className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={handleExport}
+                                    className="h-9 w-9 text-muted-foreground hover:text-foreground"
+                                    title="Export"
+                                >
+                                    <Download className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
+
+                        {/* Right: Primary Action */}
+                        <div className="flex items-center gap-2 w-full md:w-auto">
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        className="gap-2 w-full md:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/20 transition-all duration-200 dark:text-white"
+                                    >
+                                        <Plus className="h-4 w-4" />
+                                        Stock Opname Baru
+                                        <ChevronDown className="h-3 w-3 ml-1 opacity-70" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-56 p-2">
+                                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                        Pilih Tipe Opname
+                                    </div>
+                                    <DropdownMenuItem
+                                        onClick={() => router.push("/admin-area/inventory/stock-opname/create?type=PERIODIC")}
+                                        className="flex flex-col items-start gap-1 p-3 cursor-pointer"
+                                    >
+                                        <div className="flex items-center gap-2 font-bold text-blue-600">
+                                            <Calendar className="h-4 w-4" />
+                                            PERIODIC
+                                        </div>
+                                        <span className="text-[10px] text-muted-foreground leading-tight">
+                                            Pemeriksaan stok rutin bulanan atau terjadwal.
+                                        </span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        onClick={() => router.push("/admin-area/inventory/stock-opname/create?type=AD_HOC")}
+                                        className="flex flex-col items-start gap-1 p-3 cursor-pointer"
+                                    >
+                                        <div className="flex items-center gap-2 font-bold text-orange-600">
+                                            <AlertCircle className="h-4 w-4" />
+                                            AD-HOC
+                                        </div>
+                                        <span className="text-[10px] text-muted-foreground leading-tight">
+                                            Pengecekan mendadak atau investigasi selisih.
+                                        </span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        onClick={() => router.push("/admin-area/inventory/stock-opname/create?type=INITIAL")}
+                                        className="flex flex-col items-start gap-1 p-3 cursor-pointer"
+                                    >
+                                        <div className="flex items-center gap-2 font-bold text-purple-600">
+                                            <FileText className="h-4 w-4" />
+                                            INITIAL
+                                        </div>
+                                        <span className="text-[10px] text-muted-foreground leading-tight">
+                                            Setup stok awal untuk produk atau sistem baru.
+                                        </span>
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
+                    </div>
 
                     {/* Main Content - Tabel Stock Opname */}
                     <Card>

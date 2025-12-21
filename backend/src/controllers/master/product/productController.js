@@ -5,6 +5,100 @@ import { prisma } from "../../../config/db.js";
 import { ProductType } from "../../../../prisma/generated/prisma/index.js";
 import { NotificationService } from "../../../utils/firebase/notificationService.js";
 
+
+export const getAllProductsOpname = async (req, res) => {
+  try {
+    const {
+      activeOnly = "true",
+      page,
+      limit,
+      includePagination = "false",
+      forOpname = "false", 
+    } = req.query;
+
+    // 1. Filter Dasar
+    let filter = {
+      ...(activeOnly === "true" ? { isActive: true } : {}),
+    };
+
+    // 2. Logic Stock Opname (Fallback jika inventoryAccountId belum konsisten)
+    if (forOpname === "true") {
+      filter = {
+        ...filter,
+        isActive: true,
+        // Kita gunakan filter TYPE sebagai pertahanan utama
+        type: {
+          // Hanya ambil tipe yang fisiknya ada di gudang
+          in: [
+            "Material", 
+            "Alat", 
+            "FinishedGoods", 
+            "SparePart", 
+            "Consumable", 
+            "Asset", 
+            "Packaging", 
+            "MRO", 
+            "Scrap", 
+            "Refurbished", 
+            "Return"
+          ], 
+        },
+        // Opsi tambahan: Jika isConsumable=true, hampir pasti itu barang stok
+        OR: [
+          { isConsumable: true },
+          { inventoryAccountId: { not: null } }
+        ]
+      };
+    }
+
+    // --- Eksekusi Query ---
+    if (includePagination === "true") {
+      const totalCount = await prisma.product.count({ where: filter });
+      
+      const pageNumber = parseInt(page) || 1;
+      const pageSize = parseInt(limit) || 10;
+      const skip = (pageNumber - 1) * pageSize;
+      const totalPages = Math.ceil(totalCount / pageSize);
+
+      const products = await prisma.product.findMany({
+        where: filter,
+        include: {
+          category: true,
+        },
+        // Penting: Nama Ascending memudahkan petugas mencocokkan form dengan rak
+        orderBy: { name: "asc" }, 
+        skip: skip,
+        take: pageSize,
+      });
+
+      res.json({
+        products,
+        pagination: {
+          totalCount,
+          totalPages,
+          currentPage: pageNumber,
+          pageSize,
+          hasNext: pageNumber < totalPages,
+          hasPrev: pageNumber > 1,
+        },
+      });
+    } else {
+      const products = await prisma.product.findMany({
+        where: filter,
+        include: {
+          category: true,
+        },
+        orderBy: { name: "asc" },
+      });
+
+      res.json(products);
+    }
+  } catch (error) {
+    console.error("Error fetching products:", error);
+    res.status(500).json({ message: "Gagal mengambil data produk" });
+  }
+};
+
 // [GET] /products - Ambil semua produk (opsional: hanya aktif)
 export const getAllProducts = async (req, res) => {
   try {

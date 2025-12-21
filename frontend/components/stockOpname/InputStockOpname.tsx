@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
     CalendarIcon,
     Package,
-    User,
+    User as UserIcon,
     Warehouse as WarehouseIcon,
     Plus,
     Trash2,
@@ -21,7 +21,8 @@ import {
     DollarSign,
     TrendingUp,
     TrendingDown,
-    PackagePlus
+    PackagePlus,
+    Lightbulb
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -35,7 +36,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
     Popover,
     PopoverContent,
@@ -65,7 +66,7 @@ import { createStockOpnameSchema, CreateStockOpnameInput } from "@/schemas/stock
 import { OpnameType } from "@/types/soType";
 import { Warehouse } from "@/types/whType";
 
-interface Product {
+export interface Product {
     id: string;
     code: string;
     name: string;
@@ -75,11 +76,22 @@ interface Product {
     hargaSatuan?: number;
 }
 
+export interface User {
+    id: string;
+    name: string;
+    userId?: string;
+    role?: string;
+    email?: string;
+    namaLengkap?: string;
+    username?: string;
+    // Add other fields as necessary based on fetchAllKaryawan response
+}
+
 interface StockOpnameFormProps {
     initialType?: OpnameType;
     products: Product[];
     warehouses: Warehouse[];
-    users: any[];
+    users: User[];
     currentUserId?: string;
     onSuccess?: () => void;
     onCancel?: () => void;
@@ -403,74 +415,56 @@ export default function StockOpnameForm({
         <div className="w-full mx-auto px-6 space-y-8 animate-in fade-in duration-500">
 
             {/* --- HEADER GRADIENT DESIGN 2025 --- */}
-            <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-900 p-8 text-white shadow-2xl">
+            {/* <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-900 dark:from-slate-800 dark:via-blue-900 dark:to-indigo-800 p-8 text-white shadow-2xl">
                 <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-4">
                     <div>
                         <div className="flex items-center gap-2 mb-2">
-                            <Badge variant="outline" className="text-blue-300 border-blue-400 bg-blue-400/10 backdrop-blur-md">
+                            <Badge variant="outline" className="text-blue-300 dark:text-blue-200 border-blue-400 dark:border-blue-300 bg-blue-400/10 dark:bg-blue-300/10 backdrop-blur-md">
                                 v2.0 Inventory System
                             </Badge>
-                            <Badge variant="secondary" className="bg-emerald-500/20 text-emerald-300 border-none">
+                            <Badge variant="secondary" className="bg-emerald-500/20 dark:bg-emerald-400/20 text-emerald-300 dark:text-emerald-200 border-none">
                                 Keyboard Mode Enabled
                             </Badge>
                         </div>
-                        <h1 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-b from-white to-slate-400">
+                        <h1 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-b from-white via-slate-100 to-slate-400 dark:from-slate-50 dark:via-slate-200 dark:to-slate-500">
                             Stock Opname Entry
                         </h1>
-                        <p className="text-slate-400 mt-1 max-w-md">
+                        <p className="text-slate-400 dark:text-slate-300 mt-1 max-w-md">
                             Gunakan Tab, Enter, dan Arrow keys untuk navigasi cepat tanpa mouse.
                         </p>
                     </div>
-                    {/* <div className="flex gap-3">
+                    <div className="flex gap-3">
                         <Button variant="outline" className="bg-white/5 border-white/10 hover:bg-white/10 text-white">
                             <History className="w-4 h-4 mr-2" /> History
                         </Button>
                         <Button className="bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/20">
                             <Save className="w-4 h-4 mr-2" /> Draft Opname
                         </Button>
-                    </div> */}
+                    </div>
                 </div>
-                {/* Abstract Background Element */}
                 <div className="absolute -right-20 -top-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl" />
-            </header>
+            </header> */}
 
             {/* Keyboard Shortcuts Guide */}
-            <Alert className="bg-blue-50 border-blue-200">
-                <AlertCircle className="h-4 w-4 text-blue-600" />
-                <AlertDescription className="flex flex-wrap gap-4 text-sm">
+            <Alert className="flex flex-row bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800/50 mb-6">
+                <Lightbulb className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                <AlertTitle className="text-blue-900 dark:text-blue-300 font-semibold">Keyboard Shortcuts : </AlertTitle>
+                <AlertDescription className="flex flex-row gap-4 text-blue-700 dark:text-blue-400 text-sm space-y-1">
                     <div className="flex items-center gap-1">
-                        <kbd className="px-2 py-1 bg-white border rounded text-xs font-mono">Tab</kbd>
-                        <span className="text-blue-700 ml-1">→ Next Field (Product → Stok → Harga → Keterangan)</span>
+                        <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded text-xs font-mono dark:text-slate-300">Tab</kbd>
+                        <span className="text-blue-700 dark:text-blue-400 ml-1">Next Field</span>
                     </div>
                     <div className="flex items-center gap-1">
-                        <kbd className="px-2 py-1 bg-white border rounded text-xs font-mono">Shift</kbd>
-                        <span className="text-blue-700 ml-1">+</span>
-                        <kbd className="px-2 py-1 bg-white border rounded text-xs font-mono">Tab</kbd>
-                        <span className="text-blue-700 ml-1">← Previous Field</span>
+                        <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded text-xs font-mono dark:text-slate-300">Enter</kbd>
+                        <span className="text-blue-700 dark:text-blue-400 ml-1">Add Item / Confirm</span>
                     </div>
                     <div className="flex items-center gap-1">
-                        <kbd className="px-2 py-1 bg-white border rounded text-xs font-mono">Enter</kbd>
-                        <span className="text-blue-700 ml-1">Select/Next Field</span>
+                        <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded text-xs font-mono dark:text-slate-300">Ctrl+S</kbd>
+                        <span className="text-blue-700 dark:text-blue-400 ml-1">Save</span>
                     </div>
                     <div className="flex items-center gap-1">
-                        <kbd className="px-2 py-1 bg-white border rounded text-xs font-mono">↑↓</kbd>
-                        <span className="text-blue-700 ml-1">Move Between Rows</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                        <kbd className="px-2 py-1 bg-white border rounded text-xs font-mono">Ctrl</kbd>
-                        <span className="text-blue-700 ml-1">+</span>
-                        <kbd className="px-2 py-1 bg-white border rounded text-xs font-mono">Insert</kbd>
-                        <span className="text-blue-700 ml-1">Add Item</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                        <kbd className="px-2 py-1 bg-white border rounded text-xs font-mono">Ctrl</kbd>
-                        <span className="text-blue-700 ml-1">+</span>
-                        <kbd className="px-2 py-1 bg-white border rounded text-xs font-mono">S</kbd>
-                        <span className="text-blue-700 ml-1">Save</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                        <kbd className="px-2 py-1 bg-white border rounded text-xs font-mono">Esc</kbd>
-                        <span className="text-blue-700 ml-1">Cancel</span>
+                        <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border dark:border-slate-600 rounded text-xs font-mono dark:text-slate-300">Esc</kbd>
+                        <span className="text-blue-700 dark:text-blue-400 ml-1">Cancel</span>
                     </div>
                 </AlertDescription>
             </Alert>
@@ -478,15 +472,15 @@ export default function StockOpnameForm({
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
 
-                    <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-6 gap-8">
 
                         {/* --- GROUP 1: INFORMASI UTAMA --- */}
                         <div className="lg:col-span-1 space-y-6">
-                            <Card className="border-slate-200 shadow-sm overflow-hidden">
-                                <CardHeader className="bg-slate-50/50 border-b">
+                            <Card className="border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden dark:bg-slate-900/50">
+                                <CardHeader className="bg-slate-50/50 dark:bg-slate-800/50 border-b dark:border-slate-700">
                                     <div className="flex items-center gap-2">
-                                        <Info className="w-4 h-4 text-blue-600" />
-                                        <CardTitle className="text-sm font-semibold uppercase tracking-wider text-slate-500">
+                                        <Info className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                                        <CardTitle className="text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-300">
                                             Informasi Utama
                                         </CardTitle>
                                     </div>
@@ -500,7 +494,7 @@ export default function StockOpnameForm({
                                                 <FormLabel>Tanggal Pelaksanaan</FormLabel>
                                                 <FormControl>
                                                     <div className="relative">
-                                                        <CalendarIcon className="absolute left-3 top-2.5 h-4 h-4 text-slate-400" />
+                                                        <CalendarIcon className="absolute left-3 top-2.5 h-4 h-4 text-slate-400 dark:text-slate-500" />
                                                         <Input
                                                             type="date"
                                                             className="pl-10"
@@ -561,7 +555,7 @@ export default function StockOpnameForm({
                                                     <FormControl>
                                                         <SelectTrigger>
                                                             <div className="flex items-center gap-2">
-                                                                <WarehouseIcon className="w-4 h-4 text-slate-400" />
+                                                                <WarehouseIcon className="w-4 h-4 text-slate-400 dark:text-slate-500" />
                                                                 <SelectValue placeholder="Pilih Gudang" />
                                                             </div>
                                                         </SelectTrigger>
@@ -584,7 +578,7 @@ export default function StockOpnameForm({
                                 </CardContent>
                             </Card>
 
-                            <Card>
+                            <Card className="dark:bg-slate-900/50 dark:border-slate-700">
                                 <CardContent className="pt-6">
                                     <FormField
                                         control={form.control}
@@ -609,12 +603,12 @@ export default function StockOpnameForm({
                         </div>
 
                         {/* --- GROUP 2: ITEM PRODUK --- */}
-                        <div className="lg:col-span-4 flex flex-col">
-                            <Card className="border-slate-200 shadow-lg flex-1 mb-4">
-                                <CardHeader className="flex flex-row items-center justify-between bg-slate-50/50 border-b py-2">
+                        <div className="lg:col-span-5 flex flex-col">
+                            <Card className="border-slate-200 dark:border-slate-600 dark:bg-slate-800/30 shadow-lg flex-1 mb-4">
+                                <CardHeader className="flex flex-row items-center justify-between bg-slate-50/50 dark:bg-slate-800/50 border-b dark:border-b-gray-600 py-2">
                                     <div className="flex items-center gap-2">
                                         <Package className="w-4 h-4 text-blue-600" />
-                                        <CardTitle className="text-sm font-semibold uppercase tracking-wider text-slate-500">
+                                        <CardTitle className="text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-300">
                                             Daftar Barang (Stock Items)
                                         </CardTitle>
                                     </div>
@@ -622,15 +616,15 @@ export default function StockOpnameForm({
                                 <CardContent className="p-0">
                                     <div className="overflow-x-auto">
                                         <Table>
-                                            <TableHeader className="bg-slate-100/50 sticky top-0 z-10">
+                                            <TableHeader className="bg-slate-100/50 dark:bg-slate-800/50 sticky top-0 z-10">
                                                 <TableRow>
-                                                    <TableHead className="w-[300px]">Produk</TableHead>
-                                                    <TableHead className="w-[100px] text-center">Stok Sistem</TableHead>
-                                                    <TableHead className="w-[120px] text-center">Stok Fisik</TableHead>
-                                                    <TableHead className="w-[120px] text-center">Selisih</TableHead>
-                                                    <TableHead className="w-[120px] text-center">Harga Satuan</TableHead>
-                                                    <TableHead className="w-[140px] text-center">Harga Total</TableHead>
-                                                    <TableHead className="min-w-[200px]">Keterangan Item</TableHead>
+                                                    <TableHead className="w-[600px] text-slate-900 dark:text-slate-300">Produk</TableHead>
+                                                    <TableHead className="w-[100px] text-center text-slate-900 dark:text-slate-300">Stok Sistem</TableHead>
+                                                    <TableHead className="w-[120px] text-center text-slate-900 dark:text-slate-300">Stok Fisik</TableHead>
+                                                    <TableHead className="w-[120px] text-center text-slate-900 dark:text-slate-300">Selisih</TableHead>
+                                                    <TableHead className="w-[120px] text-center text-slate-900 dark:text-slate-300">Harga Satuan</TableHead>
+                                                    <TableHead className="w-[140px] text-center text-slate-900 dark:text-slate-300">Harga Total</TableHead>
+                                                    <TableHead className="min-w-[50px] text-slate-900 dark:text-slate-300">Keterangan Item</TableHead>
                                                     <TableHead className="w-[50px]"></TableHead>
                                                 </TableRow>
                                             </TableHeader>
@@ -651,11 +645,14 @@ export default function StockOpnameForm({
                                                         <TableRow
                                                             key={field.id}
                                                             className={cn(
-                                                                "hover:bg-slate-50/50 transition-colors",
-                                                                activeInputIndex?.row === index && "bg-blue-50"
+                                                                "hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors",
+                                                                activeInputIndex?.row === index && "bg-blue-50 dark:bg-blue-900"
                                                             )}
                                                         >
-                                                            <TableCell className="align-top p-2">
+                                                            <TableCell className={cn(
+                                                                "align-top p-2",
+                                                                "dark:text-slate-300"
+                                                            )}>
                                                                 <FormField
                                                                     control={form.control}
                                                                     name={`items.${index}.productId`}
@@ -789,7 +786,7 @@ export default function StockOpnameForm({
                                                                                                             )}
                                                                                                         />
                                                                                                         <div className="flex-1">
-                                                                                                            <div className="font-medium">
+                                                                                                            <div className="font-medium dark:text-slate-200">
                                                                                                                 {product.code} - {product.name}
                                                                                                             </div>
                                                                                                             <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
@@ -798,7 +795,7 @@ export default function StockOpnameForm({
                                                                                                                     <span>•</span>
                                                                                                                     <span>Stok: {product.stokSistem || 0}</span>
                                                                                                                 </div>
-                                                                                                                <span className="font-semibold text-green-600">
+                                                                                                                <span className="font-semibold text-green-600 dark:text-green-400">
                                                                                                                     {product.hargaSatuan ? formatCurrency(product.hargaSatuan) : "Rp 0"}
                                                                                                                 </span>
                                                                                                             </div>
@@ -817,11 +814,11 @@ export default function StockOpnameForm({
                                                             </TableCell>
                                                             <TableCell className="align-top p-2 text-center">
                                                                 <div className="flex flex-col gap-1 py-2">
-                                                                    <span className="font-medium text-gray-900 text-sm">
+                                                                    <span className="font-medium text-gray-900 text-sm dark:text-white">
                                                                         {formatNumber(productInfo.stokSistem)}
                                                                     </span>
                                                                     {productInfo.satuan && (
-                                                                        <span className="text-xs text-gray-500">
+                                                                        <span className="text-xs text-gray-500 dark:text-white">
                                                                             {productInfo.satuan}
                                                                         </span>
                                                                     )}
@@ -869,10 +866,10 @@ export default function StockOpnameForm({
                                                             <TableCell className="align-top p-2 text-center">
                                                                 <div className="flex flex-col items-center justify-center gap-1 py-2">
                                                                     <div className={cn(
-                                                                        "flex items-center gap-1 font-bold text-sm",
-                                                                        selisihInfo.isPositive && "text-green-600",
-                                                                        selisihInfo.isNegative && "text-red-600",
-                                                                        selisihInfo.isZero && "text-gray-600"
+                                                                        "flex items-center gap-1 font-bold text-sm dark:text-white",
+                                                                        selisihInfo.isPositive && "text-green-600 dark:text-green-400",
+                                                                        selisihInfo.isNegative && "text-red-600 dark:text-red-400",
+                                                                        selisihInfo.isZero && "text-gray-600 dark:text-gray-400"
                                                                     )}>
                                                                         {selisihInfo.isPositive && <TrendingUp className="w-3 h-3" />}
                                                                         {selisihInfo.isNegative && <TrendingDown className="w-3 h-3" />}
@@ -881,10 +878,10 @@ export default function StockOpnameForm({
                                                                         </span>
                                                                     </div>
                                                                     <div className={cn(
-                                                                        "text-xs",
-                                                                        selisihInfo.isPositive && "text-green-500",
-                                                                        selisihInfo.isNegative && "text-red-500",
-                                                                        selisihInfo.isZero && "text-gray-500"
+                                                                        "text-xs dark:text-white",
+                                                                        selisihInfo.isPositive && "text-green-500 dark:text-green-400",
+                                                                        selisihInfo.isNegative && "text-red-500 dark:text-red-400",
+                                                                        selisihInfo.isZero && "text-gray-500 dark:text-gray-400"
                                                                     )}>
                                                                         {selisihInfo.selisihPersen !== 0 && (
                                                                             <span>{selisihInfo.selisihPersen > 0 ? '+' : ''}{selisihInfo.selisihPersen.toFixed(1)}%</span>
@@ -937,10 +934,10 @@ export default function StockOpnameForm({
                                                             </TableCell>
                                                             <TableCell className="align-top p-2 text-center">
                                                                 <div className="flex flex-col gap-1 py-2">
-                                                                    <span className="font-bold text-gray-900 text-sm">
+                                                                    <span className="font-bold text-gray-900 text-sm dark:text-white">
                                                                         {formatCurrency(hargaTotal)}
                                                                     </span>
-                                                                    <span className="text-xs text-green-600">
+                                                                    <span className="text-xs text-green-600 dark:text-green-400">
                                                                         {stokFisik} × {formatCurrency(hargaSatuan)}
                                                                     </span>
                                                                 </div>
@@ -1108,7 +1105,7 @@ export default function StockOpnameForm({
                     <div className="flex items-center justify-between p-6 bg-white border rounded-2xl shadow-sm">
                         <div className="flex items-center gap-4 text-sm text-slate-500">
                             <div className="flex items-center gap-1">
-                                <User className="w-4 h-4" />
+                                <UserIcon className="w-4 h-4" />
                                 <span>Petugas:</span>
                                 <span className="font-semibold text-slate-900 ml-1">{user?.namaLengkap || user?.name || user?.username || "-"}</span>
                             </div>
@@ -1138,7 +1135,7 @@ export default function StockOpnameForm({
                             <Button
                                 type="submit"
                                 size="lg"
-                                className="bg-blue-600 hover:bg-blue-700 px-10 shadow-lg shadow-blue-200"
+                                className="bg-blue-600 hover:bg-blue-700 px-10 shadow-lg shadow-blue-200 dark:text-white"
                                 disabled={!form.watch('warehouseId') || fields.length === 0 || isSubmitting}
                             >
                                 {isSubmitting ? (
@@ -1176,6 +1173,6 @@ export default function StockOpnameForm({
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </div>
+        </div >
     );
 }

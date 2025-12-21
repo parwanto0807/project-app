@@ -12,6 +12,9 @@ router.route('/')
   .get(stockOpnameController.getAll)
   .post(stockOpnameController.create);
 
+// Endpoint Export
+router.get('/export', stockOpnameController.exportData);
+
 // Endpoint Detail, Update, & Delete
 router.route('/:id')
   .get(stockOpnameController.getById)

@@ -66,6 +66,7 @@ import {
 import type { StockOpname, OpnameType, OpnameStatus } from "@/types/soType";
 import { formatDate, formatCurrency, formatNumber } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { useSession } from "../clientSessionProvider";
 
 interface TabelStockOpnameProps {
     data: StockOpname[];
@@ -98,9 +99,11 @@ export default function TabelStockOpname({
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [adjustDialogOpen, setAdjustDialogOpen] = useState(false);
     const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+    const [syncDialogOpen, setSyncDialogOpen] = useState(false); // New state for Sync Dialog
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [selectedItem, setSelectedItem] = useState<StockOpname | null>(null);
     const [viewDetailsOpen, setViewDetailsOpen] = useState(false);
+    const session = useSession(); // Get session data for role check
 
     const handleDeleteClick = (id: string, item: StockOpname) => {
         setSelectedId(id);
@@ -118,6 +121,12 @@ export default function TabelStockOpname({
         setSelectedId(id);
         setSelectedItem(item);
         setCancelDialogOpen(true);
+    };
+
+    const handleSyncClick = (id: string, item: StockOpname) => {
+        setSelectedId(id);
+        setSelectedItem(item);
+        setSyncDialogOpen(true);
     };
 
     const handleViewDetails = (item: StockOpname) => {
@@ -147,6 +156,15 @@ export default function TabelStockOpname({
         if (selectedId) {
             onCancel(selectedId);
             setCancelDialogOpen(false);
+            setSelectedId(null);
+            setSelectedItem(null);
+        }
+    };
+
+    const confirmSync = () => {
+        if (selectedId) {
+            onAdjust(selectedId);
+            setSyncDialogOpen(false);
             setSelectedId(null);
             setSelectedItem(null);
         }
@@ -363,7 +381,7 @@ export default function TabelStockOpname({
 
                                     <TableCell>
                                         <div className="space-y-2">
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-2 font-bold">
                                                 <Warehouse className="h-3 w-3 text-blue-500" />
                                                 <span className="text-sm">
                                                     {item.warehouse?.name || "Unknown"}
@@ -380,14 +398,14 @@ export default function TabelStockOpname({
 
                                     <TableCell>
                                         <div className="space-y-2">
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-2 font-bold">
                                                 <Package className="h-3 w-3 text-purple-500" />
                                                 <span className="text-sm">
                                                     {item.items?.length || 0} items
                                                 </span>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                <div className="h-3 w-3 flex items-center justify-center">
+                                                <div className="h-3 w-3 flex items-center justify-center font-bold">
                                                     {getSelisihIcon(totals.totalSelisih)}
                                                 </div>
                                                 <span className={cn(
@@ -398,7 +416,7 @@ export default function TabelStockOpname({
                                                     {formatNumber(totals.totalSelisih)} selisih
                                                 </span>
                                             </div>
-                                            <div className="text-xs text-muted-foreground">
+                                            <div className="text-xs font-bold">
                                                 Total: {formatCurrency(totals.totalNilai)}
                                             </div>
                                         </div>
@@ -456,7 +474,7 @@ export default function TabelStockOpname({
                                                         </Tooltip>
                                                     </TooltipProvider>
 
-                                                    <TooltipProvider>
+                                                    {/* <TooltipProvider>
                                                         <Tooltip>
                                                             <TooltipTrigger asChild>
                                                                 <Button
@@ -470,7 +488,7 @@ export default function TabelStockOpname({
                                                             </TooltipTrigger>
                                                             <TooltipContent>Adjust Stok</TooltipContent>
                                                         </Tooltip>
-                                                    </TooltipProvider>
+                                                    </TooltipProvider> */}
 
                                                     <TooltipProvider>
                                                         <Tooltip>
@@ -504,6 +522,25 @@ export default function TabelStockOpname({
                                                         </Tooltip>
                                                     </TooltipProvider>
                                                 </>
+                                            )}
+
+                                            {/* Sync to Balance Button - Admin Only */}
+                                            {session?.user?.role === "admin" && item.status === "DRAFT" && (
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="icon"
+                                                                onClick={() => handleSyncClick(item.id, item)}
+                                                                className="h-8 w-8 text-purple-600 hover:text-purple-700 hover:bg-purple-50 transition-colors duration-200 border-purple-200"
+                                                            >
+                                                                <TrendingUp className="h-4 w-4" />
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>Sync to Balance (Admin)</TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
                                             )}
                                         </div>
                                     </TableCell>
@@ -658,6 +695,71 @@ export default function TabelStockOpname({
                             className="bg-orange-600 hover:bg-orange-700"
                         >
                             Ya, Batalkan
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Sync to Balance Confirmation Dialog */}
+            <AlertDialog open={syncDialogOpen} onOpenChange={setSyncDialogOpen}>
+                <AlertDialogContent className="sm:max-w-[500px]">
+                    <AlertDialogHeader>
+                        <div className="flex items-center gap-3">
+                            <div className="rounded-full bg-blue-100 p-2">
+                                <TrendingUp className="h-6 w-6 text-blue-600" />
+                            </div>
+                            <AlertDialogTitle className="text-xl">Konfirmasi Sync to Balance</AlertDialogTitle>
+                        </div>
+                        <div className="pt-4 space-y-3">
+                            <div className="p-3 bg-red-50 border border-red-100 rounded-lg text-red-700 flex items-start gap-2">
+                                <Trash2 className="h-5 w-5 shrink-0 mt-0.5" />
+                                <div className="text-sm font-medium">
+                                    PERINGATAN: Tindakan ini TIDAK DAPAT DIBATALKAN (IRREVERSIBLE).
+                                </div>
+                            </div>
+                            <AlertDialogDescription className="text-base">
+                                Anda akan melakukan sinkronisasi hasil Stock Opname ini ke saldo sistem.
+                            </AlertDialogDescription>
+                            <ul className="list-disc list-inside text-sm text-slate-600 space-y-1 pl-2">
+                                <li>Stok Sistem saat ini akan ditimpa dengan Stok Fisik hasil opname.</li>
+                                <li>Akan tercatat jurnal penyesuaian/adjustment secara otomatis.</li>
+                                <li>Status akan berubah menjadi <strong>COMPLETED/ADJUSTED</strong>.</li>
+                            </ul>
+                        </div>
+                    </AlertDialogHeader>
+
+                    {selectedItem && (
+                        <div className="bg-slate-50 p-4 rounded-lg mt-2 border border-slate-200">
+                            <div className="flex justify-between items-center mb-2 pb-2 border-b border-slate-200">
+                                <span className="text-sm font-semibold text-slate-700">Detail Opname:</span>
+                                <span className="font-mono font-bold text-slate-900">{selectedItem.nomorOpname}</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4 text-sm_">
+                                <div>
+                                    <p className="text-xs text-slate-500 uppercase font-bold">Total Item</p>
+                                    <p className="font-medium text-slate-900">{selectedItem.items?.length || 0} Products</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-xs text-slate-500 uppercase font-bold">Total Selisih Nilai</p>
+                                    <p className={cn(
+                                        "font-bold",
+                                        calculateTotals(selectedItem.items).totalSelisih > 0 ? "text-green-600" : "text-red-600"
+                                    )}>
+                                        {formatCurrency(calculateTotals(selectedItem.items).totalNilai)}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <AlertDialogFooter className="mt-6 gap-2 sm:gap-0">
+                        <AlertDialogCancel className="h-11">Batal</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={confirmSync}
+                            className="h-11 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 shadow-md shadow-blue-200/50"
+                        >
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            Ya, Lakukan Sync
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
