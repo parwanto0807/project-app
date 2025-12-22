@@ -28,6 +28,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
+import { api } from "@/lib/http";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -194,14 +195,42 @@ export default function StockOpnameForm({
         }
     };
 
-    const handleProductSelect = (index: number, productId: string) => {
+    const handleProductSelect = async (index: number, productId: string) => {
         const selectedProduct = localProducts.find(p => p.id === productId);
         if (selectedProduct) {
-            // Set default stok fisik sama dengan stok sistem jika ada
-            form.setValue(`items.${index}.stokFisik`, selectedProduct.stokSistem || 0);
-            form.setValue(`items.${index}.stokSistem`, selectedProduct.stokSistem || 0);
-            // Set harga satuan dari produk jika ada
+            // Optimistic update first with local data (if any)
             form.setValue(`items.${index}.hargaSatuan`, selectedProduct.hargaSatuan || 0);
+
+            // Fetch latest stock balance from backend
+            const warehouseId = form.getValues("warehouseId");
+            if (warehouseId) {
+                try {
+                    const response = await api.get('/api/inventory/latest-stock', {
+                        params: { productId, warehouseId }
+                    });
+
+                    if (response.data.success) {
+                        const latestStock = response.data.data;
+                        form.setValue(`items.${index}.stokSistem`, latestStock);
+                        // Default stok fisik to system stock
+                        form.setValue(`items.${index}.stokFisik`, latestStock);
+
+                        toast.success(`Stok sistem diperbarui: ${latestStock}`);
+                    }
+                } catch (error) {
+                    console.error("Failed to fetch latest stock:", error);
+                    toast.error("Gagal mengambil stok sistem terbaru");
+
+                    // Fallback to local product data
+                    form.setValue(`items.${index}.stokSistem`, selectedProduct.stokSistem || 0);
+                    form.setValue(`items.${index}.stokFisik`, selectedProduct.stokSistem || 0);
+                }
+            } else {
+                // Fallback if no warehouse selected (should be prevented by earlier checks but safe to have)
+                form.setValue(`items.${index}.stokSistem`, selectedProduct.stokSistem || 0);
+                form.setValue(`items.${index}.stokFisik`, selectedProduct.stokSistem || 0);
+            }
+
             // Focus on stok fisik input after product selection
             setTimeout(() => {
                 inputRefs.current[index]?.[1]?.focus?.();
@@ -226,8 +255,7 @@ export default function StockOpnameForm({
     const getSelisihInfo = (index: number) => {
         const productId = form.watch(`items.${index}.productId`);
         const stokFisik = form.watch(`items.${index}.stokFisik`) || 0;
-        const productInfo = getProductInfo(productId, index);
-        const stokSistem = productInfo.stokSistem || 0;
+        const stokSistem = form.watch(`items.${index}.stokSistem`) || 0;
 
         const selisih = stokFisik - stokSistem;
         const selisihPersen = stokSistem > 0 ? ((selisih / stokSistem) * 100) : 0;
@@ -413,37 +441,6 @@ export default function StockOpnameForm({
 
     return (
         <div className="w-full mx-auto px-6 space-y-8 animate-in fade-in duration-500">
-
-            {/* --- HEADER GRADIENT DESIGN 2025 --- */}
-            {/* <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-900 dark:from-slate-800 dark:via-blue-900 dark:to-indigo-800 p-8 text-white shadow-2xl">
-                <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-4">
-                    <div>
-                        <div className="flex items-center gap-2 mb-2">
-                            <Badge variant="outline" className="text-blue-300 dark:text-blue-200 border-blue-400 dark:border-blue-300 bg-blue-400/10 dark:bg-blue-300/10 backdrop-blur-md">
-                                v2.0 Inventory System
-                            </Badge>
-                            <Badge variant="secondary" className="bg-emerald-500/20 dark:bg-emerald-400/20 text-emerald-300 dark:text-emerald-200 border-none">
-                                Keyboard Mode Enabled
-                            </Badge>
-                        </div>
-                        <h1 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-b from-white via-slate-100 to-slate-400 dark:from-slate-50 dark:via-slate-200 dark:to-slate-500">
-                            Stock Opname Entry
-                        </h1>
-                        <p className="text-slate-400 dark:text-slate-300 mt-1 max-w-md">
-                            Gunakan Tab, Enter, dan Arrow keys untuk navigasi cepat tanpa mouse.
-                        </p>
-                    </div>
-                    <div className="flex gap-3">
-                        <Button variant="outline" className="bg-white/5 border-white/10 hover:bg-white/10 text-white">
-                            <History className="w-4 h-4 mr-2" /> History
-                        </Button>
-                        <Button className="bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/20">
-                            <Save className="w-4 h-4 mr-2" /> Draft Opname
-                        </Button>
-                    </div>
-                </div>
-                <div className="absolute -right-20 -top-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl" />
-            </header> */}
 
             {/* Keyboard Shortcuts Guide */}
             <Alert className="flex flex-row bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800/50 mb-6">
@@ -632,6 +629,7 @@ export default function StockOpnameForm({
                                                 {fields.map((field, index) => {
                                                     const selectedProductId = form.watch(`items.${index}.productId`);
                                                     const stokFisik = form.watch(`items.${index}.stokFisik`) || 0;
+                                                    const stokSistem = form.watch(`items.${index}.stokSistem`) || 0;
                                                     const hargaSatuan = form.watch(`items.${index}.hargaSatuan`) || 0;
                                                     const productInfo = getProductInfo(selectedProductId, index);
                                                     const selisihInfo = getSelisihInfo(index);
@@ -815,7 +813,7 @@ export default function StockOpnameForm({
                                                             <TableCell className="align-top p-2 text-center">
                                                                 <div className="flex flex-col gap-1 py-2">
                                                                     <span className="font-medium text-gray-900 text-sm dark:text-white">
-                                                                        {formatNumber(productInfo.stokSistem)}
+                                                                        {formatNumber(form.getValues(`items.${index}.stokSistem`) || 0)}
                                                                     </span>
                                                                     {productInfo.satuan && (
                                                                         <span className="text-xs text-gray-500 dark:text-white">

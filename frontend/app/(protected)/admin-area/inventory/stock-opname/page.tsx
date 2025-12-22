@@ -93,7 +93,7 @@ export default function StockOpnamePage() {
 
     // 🔐 Guard role
     useEffect(() => {
-        if (!sessionLoading && user?.role !== "admin" && user?.role !== "inventory_manager") {
+        if (!sessionLoading && user?.role !== "admin" && user?.role !== "inventory_manager" && user?.role !== "super") {
             toast.error("Anda tidak memiliki akses ke halaman ini");
             router.push("/admin");
         }
@@ -101,7 +101,7 @@ export default function StockOpnamePage() {
 
     // Load initial data
     useEffect(() => {
-        if (user?.role === "admin" || user?.role === "inventory_manager") {
+        if (user?.role === "admin" || user?.role === "inventory_manager" || user?.role === "super") {
             fetchStockOpnames();
             fetchWarehouses();
         }
@@ -299,7 +299,7 @@ export default function StockOpnamePage() {
         return <AdminLoading />;
     }
 
-    if (user?.role !== "admin" && user?.role !== "inventory_manager") {
+    if (user?.role !== "admin" && user?.role !== "inventory_manager" && user?.role !== "super") {
         return null;
     }
 
@@ -530,60 +530,62 @@ export default function StockOpnamePage() {
                         </div>
 
                         {/* Right: Primary Action */}
-                        <div className="flex items-center gap-2 w-full md:w-auto">
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button
-                                        className="gap-2 w-full md:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/20 transition-all duration-200 dark:text-white"
-                                    >
-                                        <Plus className="h-4 w-4" />
-                                        Stock Opname Baru
-                                        <ChevronDown className="h-3 w-3 ml-1 opacity-70" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-56 p-2">
-                                    <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                                        Pilih Tipe Opname
-                                    </div>
-                                    <DropdownMenuItem
-                                        onClick={() => router.push("/admin-area/inventory/stock-opname/create?type=PERIODIC")}
-                                        className="flex flex-col items-start gap-1 p-3 cursor-pointer"
-                                    >
-                                        <div className="flex items-center gap-2 font-bold text-blue-600">
-                                            <Calendar className="h-4 w-4" />
-                                            PERIODIC
+                        {(user?.role === "admin" || user?.role === "super") && (
+                            <div className="flex items-center gap-2 w-full md:w-auto">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button
+                                            className="gap-2 w-full md:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/20 transition-all duration-200 dark:text-white"
+                                        >
+                                            <Plus className="h-4 w-4" />
+                                            Stock Opname Baru
+                                            <ChevronDown className="h-3 w-3 ml-1 opacity-70" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-56 p-2">
+                                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                            Pilih Tipe Opname
                                         </div>
-                                        <span className="text-[10px] text-muted-foreground leading-tight">
-                                            Pemeriksaan stok rutin bulanan atau terjadwal.
-                                        </span>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                        onClick={() => router.push("/admin-area/inventory/stock-opname/create?type=AD_HOC")}
-                                        className="flex flex-col items-start gap-1 p-3 cursor-pointer"
-                                    >
-                                        <div className="flex items-center gap-2 font-bold text-orange-600">
-                                            <AlertCircle className="h-4 w-4" />
-                                            AD-HOC
-                                        </div>
-                                        <span className="text-[10px] text-muted-foreground leading-tight">
-                                            Pengecekan mendadak atau investigasi selisih.
-                                        </span>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                        onClick={() => router.push("/admin-area/inventory/stock-opname/create?type=INITIAL")}
-                                        className="flex flex-col items-start gap-1 p-3 cursor-pointer"
-                                    >
-                                        <div className="flex items-center gap-2 font-bold text-purple-600">
-                                            <FileText className="h-4 w-4" />
-                                            INITIAL
-                                        </div>
-                                        <span className="text-[10px] text-muted-foreground leading-tight">
-                                            Setup stok awal untuk produk atau sistem baru.
-                                        </span>
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        </div>
+                                        <DropdownMenuItem
+                                            onClick={() => router.push("/admin-area/inventory/stock-opname/create?type=PERIODIC")}
+                                            className="flex flex-col items-start gap-1 p-3 cursor-pointer"
+                                        >
+                                            <div className="flex items-center gap-2 font-bold text-blue-600">
+                                                <Calendar className="h-4 w-4" />
+                                                PERIODIC
+                                            </div>
+                                            <span className="text-[10px] text-muted-foreground leading-tight">
+                                                Pemeriksaan stok rutin bulanan atau terjadwal.
+                                            </span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                            onClick={() => router.push("/admin-area/inventory/stock-opname/create?type=AD_HOC")}
+                                            className="flex flex-col items-start gap-1 p-3 cursor-pointer"
+                                        >
+                                            <div className="flex items-center gap-2 font-bold text-orange-600">
+                                                <AlertCircle className="h-4 w-4" />
+                                                AD-HOC
+                                            </div>
+                                            <span className="text-[10px] text-muted-foreground leading-tight">
+                                                Pengecekan mendadak atau investigasi selisih.
+                                            </span>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                            onClick={() => router.push("/admin-area/inventory/stock-opname/create?type=INITIAL")}
+                                            className="flex flex-col items-start gap-1 p-3 cursor-pointer"
+                                        >
+                                            <div className="flex items-center gap-2 font-bold text-purple-600">
+                                                <FileText className="h-4 w-4" />
+                                                INITIAL
+                                            </div>
+                                            <span className="text-[10px] text-muted-foreground leading-tight">
+                                                Setup stok awal untuk produk atau sistem baru.
+                                            </span>
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+                        )}
                     </div>
 
                     {/* Main Content - Tabel Stock Opname */}

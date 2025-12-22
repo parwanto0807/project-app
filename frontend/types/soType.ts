@@ -9,6 +9,7 @@ export enum OpnameType {
 
 export enum OpnameStatus {
     DRAFT = 'DRAFT',
+    COMPLETED = 'COMPLETED',
     ADJUSTED = 'ADJUSTED',
     CANCELLED = 'CANCELLED'
 }

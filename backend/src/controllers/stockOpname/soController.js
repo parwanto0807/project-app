@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs';
+import { startOfMonth } from 'date-fns';
 import { prisma } from "../../config/db.js";
 
 export const stockOpnameController = {
@@ -237,6 +238,7 @@ export const stockOpnameController = {
   adjust: async (req, res) => {
     try {
       const { id } = req.params;
+
       const result = await prisma.$transaction(async (tx) => {
         // 1. Ambil data opname beserta itemnya
         const opname = await tx.stockOpname.findUnique({
@@ -244,82 +246,90 @@ export const stockOpnameController = {
           include: { items: true },
         });
 
-        if (!opname || opname.status !== 'DRAFT') throw new Error("Invalid status");
+        if (!opname || opname.status !== 'DRAFT') {
+          throw new Error("Data opname tidak ditemukan atau status sudah bukan DRAFT");
+        }
 
         // 2. Loop setiap item untuk adjustment
         for (const item of opname.items) {
           const selisih = Number(item.selisih);
-
-          // Jika ada selisih, buat StockDetail (Movement) dan Update StockBalance
+          const hargaSatuan = Number(item.hargaSatuan || 0);
+          
           if (selisih !== 0) {
             const isAddition = selisih > 0;
             const absSelisih = Math.abs(selisih);
 
-            // A. Buat Record StockDetail (History Transaksi)
+            const currentPeriod = new Date();
+            const startOfPeriod = startOfMonth(currentPeriod);
+
+            // Cari balance untuk periode, produk, dan gudang yang sesuai
+            const balance = await tx.stockBalance.findFirst({
+              where: {
+                productId: item.productId,
+                period: startOfPeriod,
+                warehouseId: opname.warehouseId
+              }
+            });
+
+            const stockAwalBeforeAdj = balance ? Number(balance.stockAkhir) : 0;
+            const stockAkhirAfterAdj = stockAwalBeforeAdj + selisih;
+
+            // A. Buat Record StockDetail (History Transaksi untuk Audit Trail)
             await tx.stockDetail.create({
               data: {
                 productId: item.productId,
                 warehouseId: opname.warehouseId,
-                
-                // Transaksi
-                transQty: selisih, // Bisa negatif/positif sesuai selisih
-                transUnit: 'UNIT', // Default unit, idealnya ambil dari Product
+                transQty: selisih,
+                transUnit: 'UNIT', 
                 baseQty: absSelisih,
-                
                 type: isAddition ? 'ADJUSTMENT_IN' : 'ADJUSTMENT_OUT',
                 source: 'OPNAME',
                 referenceNo: opname.nomorOpname,
                 notes: `Adjustment from Stock Opname: ${opname.nomorOpname}`,
-                
-                pricePerUnit: item.hargaSatuan,
-                
-                // Snapshot saldo untuk audit (bisa diisi 0 dulu atau ambil saldo terakhir)
-                stockAwalSnapshot: 0, 
-                stockAkhirSnapshot: 0 
+                pricePerUnit: hargaSatuan,
+                stockAwalSnapshot: stockAwalBeforeAdj,
+                stockAkhirSnapshot: stockAkhirAfterAdj
               }
             });
 
-            // B. Update/Create StockBalance
-            const currentPeriod = new Date();
-            const startOfMonth = new Date(currentPeriod.getFullYear(), currentPeriod.getMonth(), 1);
-
-            // Upsert StockBalance bulan ini
-            const balance = await tx.stockBalance.findUnique({
-              where: {
-                productId_period: {
-                  productId: item.productId,
-                  period: startOfMonth
-                }
-              }
-            });
-
+            // B. Update/Create StockBalance dengan kolom JustIn/JustOut
             if (balance) {
+              // Revaluasi: Total Stok Baru * Harga Satuan saat ini
+              const revaluedInventory = stockAkhirAfterAdj * hargaSatuan;
+
               await tx.stockBalance.update({
                 where: { id: balance.id },
                 data: {
-                    stockAkhir: { increment: selisih },
-                    availableStock: { increment: selisih } // Asumsi available juga update
+                  stockAkhir: { increment: selisih },
+                  availableStock: { increment: selisih },
+                  inventoryValue: revaluedInventory,
+                  
+                  // Mencatat selisih ke kolom adjustment agar mudah ditelusuri
+                  justIn: isAddition ? { increment: absSelisih } : undefined,
+                  justOut: !isAddition ? { increment: absSelisih } : undefined,
                 }
               });
             } else {
-              // Jika belum ada balance bulan ini, buat baru (biasanya dicopy dari bulan lalu, tapi ini simplifikasi)
-               await tx.stockBalance.create({
+              // Jika record balance belum ada di periode ini
+              await tx.stockBalance.create({
                 data: {
                   productId: item.productId,
                   warehouseId: opname.warehouseId,
-                  period: startOfMonth,
-                  stockAkhir: Number(item.stokFisik), // Set langsung ke fisik jika baru
+                  period: startOfPeriod,
+                  stockAwal: 0,
+                  stockAkhir: Number(item.stokFisik),
                   availableStock: Number(item.stokFisik),
-                  stockAwal: 0 // Simplifikasi
+                  inventoryValue: Number(item.stokFisik) * hargaSatuan,
+                  
+                  // Inisialisasi kolom adjustment
+                  justIn: isAddition ? absSelisih : 0,
+                  justOut: !isAddition ? absSelisih : 0,
                 }
               });
             }
-            
-            // C. Update stok sistem di StockOpnameItem agar merefleksikan 'Before' state yang valid (Optional)
-            // item.stokSistem sudah tersimpan saat create/update opname
           }
         }
-        
+
         // 3. Update status Opname jadi ADJUSTED
         return await tx.stockOpname.update({
           where: { id },
@@ -327,14 +337,16 @@ export const stockOpnameController = {
         });
       });
 
-      return res.status(200).json({ success: true, data: result, message: "Stock adjusted successfully" });
+      return res.status(200).json({ 
+        success: true, 
+        data: result, 
+        message: "Stok berhasil disesuaikan dan dicatat di kolom Adjustment" 
+      });
     } catch (error) {
       console.error("Adjustment Error:", error);
       return res.status(400).json({ success: false, message: error.message });
     }
   },
-
-
 
   // --- EXPORT TO EXCEL ---
   exportData: async (req, res) => {

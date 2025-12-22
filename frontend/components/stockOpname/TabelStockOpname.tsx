@@ -16,7 +16,14 @@ import {
     Package,
     TrendingUp,
     TrendingDown,
-    Minus
+    Minus,
+    ArrowRightCircle,
+    CheckCircle2,
+    RefreshCw,
+    Database,
+    TrendingUp as TrendingUpIcon,
+    AlertTriangle,
+    BadgeCheck
 } from "lucide-react";
 import {
     Tooltip,
@@ -99,11 +106,11 @@ export default function TabelStockOpname({
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [adjustDialogOpen, setAdjustDialogOpen] = useState(false);
     const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
-    const [syncDialogOpen, setSyncDialogOpen] = useState(false); // New state for Sync Dialog
+    const [syncDialogOpen, setSyncDialogOpen] = useState(false);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [selectedItem, setSelectedItem] = useState<StockOpname | null>(null);
     const [viewDetailsOpen, setViewDetailsOpen] = useState(false);
-    const session = useSession(); // Get session data for role check
+    const session = useSession();
 
     const handleDeleteClick = (id: string, item: StockOpname) => {
         setSelectedId(id);
@@ -188,6 +195,74 @@ export default function TabelStockOpname({
         return <Minus className="h-4 w-4 text-gray-500" />;
     };
 
+    // Fungsi untuk mendapatkan status sync/penyesuaian
+    const getSyncStatusDisplay = (item: StockOpname) => {
+        if (item.status === "ADJUSTED") {
+            return (
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-700 rounded-full border border-emerald-200 shadow-sm">
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                <span className="text-xs font-semibold">✓ Synced to Balance</span>
+                            </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                            <p className="font-medium">Stok sudah disesuaikan ke sistem</p>
+                            <p className="text-xs text-muted-foreground">
+                                Data stok fisik telah terupdate di database
+                            </p>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+            );
+        }
+
+        if (item.status === "COMPLETED") {
+            return (
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 rounded-full border border-blue-200 shadow-sm">
+                                <Database className="h-3.5 w-3.5" />
+                                <span className="text-xs font-semibold">● Ready to Sync</span>
+                            </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                            <p className="font-medium">Siap untuk sinkronisasi ke sistem</p>
+                            <p className="text-xs text-muted-foreground">
+                                Klik tombol sync untuk update stok database
+                            </p>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+            );
+        }
+
+        if (item.status === "DRAFT") {
+            return (
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 rounded-full border border-amber-200 shadow-sm">
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                                <span className="text-xs font-semibold">○ Draft Mode</span>
+                            </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                            <p className="font-medium">Belum disinkronkan ke sistem</p>
+                            <p className="text-xs text-muted-foreground">
+                                Masih dalam tahap pengisian data
+                            </p>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+            );
+        }
+
+        return null;
+    };
+
     if (loading) {
         return <LoadingSkeleton />;
     }
@@ -208,7 +283,7 @@ export default function TabelStockOpname({
 
     return (
         <div className="space-y-4">
-            {/* Mobile View (Card Layout) - Visible on small screens, hidden on md and above */}
+            {/* Mobile View (Card Layout) */}
             <div className="grid grid-cols-1 gap-4 md:hidden">
                 {data.map((item, index) => {
                     const totals = calculateTotals(item.items);
@@ -246,19 +321,30 @@ export default function TabelStockOpname({
                                                 <DropdownMenuItem onClick={() => handleAdjustClick(item.id, item)}>
                                                     <CheckCircle className="h-4 w-4 mr-2 text-green-500" /> Adjust Stok
                                                 </DropdownMenuItem>
-                                                <DropdownMenuItem onClick={() => handleCancelClick(item.id, item)}>
-                                                    <XCircle className="h-4 w-4 mr-2 text-orange-500" /> Batalkan
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem onClick={() => handleDeleteClick(item.id, item)} className="text-red-600">
-                                                    <Trash2 className="h-4 w-4 mr-2" /> Hapus
-                                                </DropdownMenuItem>
+                                                {(session?.user?.role === "admin" || session?.user?.role === "super") && (
+                                                    <DropdownMenuItem onClick={() => handleCancelClick(item.id, item)}>
+                                                        <XCircle className="h-4 w-4 mr-2 text-orange-500" /> Batalkan
+                                                    </DropdownMenuItem>
+                                                )}
+                                                {(session?.user?.role === "admin" || session?.user?.role === "super") && (
+                                                    <>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem onClick={() => handleDeleteClick(item.id, item)} className="text-red-600">
+                                                            <Trash2 className="h-4 w-4 mr-2" /> Hapus
+                                                        </DropdownMenuItem>
+                                                    </>
+                                                )}
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     )}
                                 </div>
                             </div>
                             <CardContent className="p-4 space-y-4">
+                                {/* Sync Status Indicator - Mobile */}
+                                <div className="flex justify-center">
+                                    {getSyncStatusDisplay(item)}
+                                </div>
+
                                 <div className="grid grid-cols-2 gap-3 pb-3 border-b border-dashed border-slate-200">
                                     <div className="space-y-1">
                                         <p className="text-[10px] font-semibold text-slate-500 uppercase">Status & Tipe</p>
@@ -314,13 +400,26 @@ export default function TabelStockOpname({
                                         <p className="text-[10px] font-bold pt-1 truncate">{formatCurrency(totals.totalNilai)}</p>
                                     </div>
                                 </div>
+
+                                {/* Sync Status Badge for Completed Items - Mobile */}
+                                {item.status === "COMPLETED" && session?.user?.role === "admin" && (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleSyncClick(item.id, item)}
+                                        className="w-full border-purple-200 text-purple-700 hover:bg-purple-50 hover:text-purple-800 hover:border-purple-300"
+                                    >
+                                        <RefreshCw className="h-3.5 w-3.5 mr-2" />
+                                        Sync ke Balance
+                                    </Button>
+                                )}
                             </CardContent>
                         </Card>
                     );
                 })}
             </div>
 
-            {/* Desktop View (Table Layout) - Hidden on small screens, visible on md and above */}
+            {/* Desktop View (Table Layout) */}
             <div className="hidden md:block rounded-md border overflow-hidden">
                 <Table>
                     <TableHeader className="bg-muted/50">
@@ -330,6 +429,7 @@ export default function TabelStockOpname({
                             <TableHead className="min-w-[150px]">Status & Tipe</TableHead>
                             <TableHead>Gudang & Petugas</TableHead>
                             <TableHead>Items & Nilai</TableHead>
+                            <TableHead className="text-center min-w-[160px]">Sync Status</TableHead>
                             <TableHead>Tanggal</TableHead>
                             <TableHead className="text-right min-w-[150px]">Actions</TableHead>
                         </TableRow>
@@ -422,6 +522,35 @@ export default function TabelStockOpname({
                                         </div>
                                     </TableCell>
 
+
+                                    <TableCell className="text-center">
+                                        <div className="flex flex-col items-center justify-center gap-2">
+                                            {getSyncStatusDisplay(item)}
+
+                                            {item.status === "COMPLETED" && session?.user?.role === "admin" && (
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => handleSyncClick(item.id, item)}
+                                                                className="h-8 px-3 text-purple-600 hover:text-purple-700 hover:bg-purple-50 border-purple-200 transition-colors duration-200"
+                                                            >
+                                                                <RefreshCw className="h-3.5 w-3.5 mr-1" />
+                                                                Sync
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>Sync hasil opname ke balance stok</p>
+                                                            <p className="text-xs text-muted-foreground">Admin only</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            )}
+                                        </div>
+                                    </TableCell>
+
                                     <TableCell>
                                         <div className="space-y-1">
                                             <div className="flex items-center gap-2">
@@ -474,58 +603,46 @@ export default function TabelStockOpname({
                                                         </Tooltip>
                                                     </TooltipProvider>
 
-                                                    {/* <TooltipProvider>
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="icon"
-                                                                    onClick={() => handleAdjustClick(item.id, item)}
-                                                                    className="h-8 w-8 text-green-500 hover:text-green-600 hover:bg-green-50 transition-colors duration-200"
-                                                                >
-                                                                    <CheckCircle className="h-4 w-4" />
-                                                                </Button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>Adjust Stok</TooltipContent>
-                                                        </Tooltip>
-                                                    </TooltipProvider> */}
+                                                    {(session?.user?.role === "admin" || session?.user?.role === "super") && (
+                                                        <>
+                                                            <TooltipProvider>
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <Button
+                                                                            variant="outline"
+                                                                            size="icon"
+                                                                            onClick={() => handleCancelClick(item.id, item)}
+                                                                            className="h-8 w-8 text-orange-500 hover:text-orange-600 hover:bg-orange-50 transition-colors duration-200"
+                                                                        >
+                                                                            <XCircle className="h-4 w-4" />
+                                                                        </Button>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent>Batalkan</TooltipContent>
+                                                                </Tooltip>
+                                                            </TooltipProvider>
 
-                                                    <TooltipProvider>
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="icon"
-                                                                    onClick={() => handleCancelClick(item.id, item)}
-                                                                    className="h-8 w-8 text-orange-500 hover:text-orange-600 hover:bg-orange-50 transition-colors duration-200"
-                                                                >
-                                                                    <XCircle className="h-4 w-4" />
-                                                                </Button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>Batalkan</TooltipContent>
-                                                        </Tooltip>
-                                                    </TooltipProvider>
-
-                                                    <TooltipProvider>
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="icon"
-                                                                    onClick={() => handleDeleteClick(item.id, item)}
-                                                                    className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 transition-colors duration-200"
-                                                                >
-                                                                    <Trash2 className="h-4 w-4" />
-                                                                </Button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>Hapus</TooltipContent>
-                                                        </Tooltip>
-                                                    </TooltipProvider>
+                                                            <TooltipProvider>
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <Button
+                                                                            variant="outline"
+                                                                            size="icon"
+                                                                            onClick={() => handleDeleteClick(item.id, item)}
+                                                                            className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 transition-colors duration-200"
+                                                                        >
+                                                                            <Trash2 className="h-4 w-4" />
+                                                                        </Button>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent>Hapus</TooltipContent>
+                                                                </Tooltip>
+                                                            </TooltipProvider>
+                                                        </>
+                                                    )}
                                                 </>
                                             )}
 
                                             {/* Sync to Balance Button - Admin Only */}
-                                            {session?.user?.role === "admin" && item.status === "DRAFT" && (
+                                            {session?.user?.role === "admin" && item.status === "COMPLETED" && (
                                                 <TooltipProvider>
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
@@ -535,7 +652,7 @@ export default function TabelStockOpname({
                                                                 onClick={() => handleSyncClick(item.id, item)}
                                                                 className="h-8 w-8 text-purple-600 hover:text-purple-700 hover:bg-purple-50 transition-colors duration-200 border-purple-200"
                                                             >
-                                                                <TrendingUp className="h-4 w-4" />
+                                                                <TrendingUpIcon className="h-4 w-4" />
                                                             </Button>
                                                         </TooltipTrigger>
                                                         <TooltipContent>Sync to Balance (Admin)</TooltipContent>
@@ -550,6 +667,7 @@ export default function TabelStockOpname({
                     </TableBody>
                 </Table>
             </div>
+
             {/* Delete Confirmation Dialog */}
             <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
                 <AlertDialogContent className="sm:max-w-[425px]">
@@ -706,7 +824,7 @@ export default function TabelStockOpname({
                     <AlertDialogHeader>
                         <div className="flex items-center gap-3">
                             <div className="rounded-full bg-blue-100 p-2">
-                                <TrendingUp className="h-6 w-6 text-blue-600" />
+                                <TrendingUpIcon className="h-6 w-6 text-blue-600" />
                             </div>
                             <AlertDialogTitle className="text-xl">Konfirmasi Sync to Balance</AlertDialogTitle>
                         </div>
@@ -723,7 +841,7 @@ export default function TabelStockOpname({
                             <ul className="list-disc list-inside text-sm text-slate-600 space-y-1 pl-2">
                                 <li>Stok Sistem saat ini akan ditimpa dengan Stok Fisik hasil opname.</li>
                                 <li>Akan tercatat jurnal penyesuaian/adjustment secara otomatis.</li>
-                                <li>Status akan berubah menjadi <strong>COMPLETED/ADJUSTED</strong>.</li>
+                                <li>Status akan berubah menjadi <strong>ADJUSTED</strong>.</li>
                             </ul>
                         </div>
                     </AlertDialogHeader>
@@ -756,10 +874,10 @@ export default function TabelStockOpname({
                         <AlertDialogCancel className="h-11">Batal</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={confirmSync}
-                            className="h-11 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 shadow-md shadow-blue-200/50"
+                            className="h-11 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold px-6 shadow-md shadow-blue-200/50"
                         >
-                            <CheckCircle className="w-4 h-4 mr-2" />
-                            Ya, Lakukan Sync
+                            <BadgeCheck className="w-4 h-4 mr-2" />
+                            Ya, Sync ke Balance
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
@@ -785,6 +903,11 @@ export default function TabelStockOpname({
                             </DialogHeader>
 
                             <div className="space-y-6">
+                                {/* Sync Status Banner */}
+                                <div className="flex justify-center">
+                                    {getSyncStatusDisplay(selectedItem)}
+                                </div>
+
                                 {/* Header Info */}
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
@@ -918,6 +1041,19 @@ export default function TabelStockOpname({
                                         </div>
                                     </div>
                                 </div>
+
+                                {/* Sync Button for Admins */}
+                                {selectedItem.status === "COMPLETED" && session?.user?.role === "admin" && (
+                                    <div className="flex justify-center pt-4">
+                                        <Button
+                                            onClick={() => handleSyncClick(selectedItem.id, selectedItem)}
+                                            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold px-8 py-6 shadow-lg"
+                                        >
+                                            <RefreshCw className="h-5 w-5 mr-2" />
+                                            Sync ke Stock Balance
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                         </>
                     )}
@@ -941,7 +1077,7 @@ function LoadingSkeleton() {
             <div className="rounded-md border">
                 <div className="p-4 border-b bg-muted/50">
                     <div className="flex justify-between">
-                        {Array.from({ length: 7 }).map((_, i) => (
+                        {Array.from({ length: 8 }).map((_, i) => (
                             <Skeleton key={i} className="h-4 w-24" />
                         ))}
                     </div>
@@ -950,7 +1086,7 @@ function LoadingSkeleton() {
                 {Array.from({ length: 5 }).map((_, rowIndex) => (
                     <div key={rowIndex} className="p-4 border-b">
                         <div className="flex justify-between items-center">
-                            {Array.from({ length: 7 }).map((_, colIndex) => (
+                            {Array.from({ length: 8 }).map((_, colIndex) => (
                                 <div key={colIndex} className="flex items-center">
                                     {colIndex === 0 ? (
                                         <Skeleton className="h-4 w-4 rounded-full" />
