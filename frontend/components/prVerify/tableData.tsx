@@ -46,6 +46,8 @@ import { PaginationInfo } from "@/types/pr";
 import SimplePurchaseRequestPdfDialog from "../pr/prPdfDialog"
 import { PurchaseRequestSheet } from "./statusActions";
 import { PurchaseRequestDetailSheet } from "../pr/detailSheetPr";
+import { api } from "@/lib/http";
+import toast from "react-hot-toast";
 
 interface PurchaseRequestTableProps {
     purchaseRequests: PurchaseRequest[];
@@ -241,6 +243,63 @@ export function PurchaseRequestVerifyTable({
         onStatusUpdate(id, status, catatan, warehouseAllocations);
         setDetailSheetOpen(false);
     }, [onStatusUpdate]);
+
+    const handleDeleteItem = async (detailId: string) => {
+        if (!selectedPurchaseRequest) return;
+
+        // Optimistic update state local
+        const currentDetails = selectedPurchaseRequest.details || [];
+        const updatedDetails = currentDetails.filter(d => d.id !== detailId);
+
+        const updatedPR = {
+            ...selectedPurchaseRequest,
+            details: updatedDetails
+        };
+
+        setSelectedPurchaseRequest(updatedPR as PurchaseRequest);
+
+        try {
+            // Build payload that matches updatePurchaseRequestSchema
+            // Only send fields that the backend validation schema expects
+            const payload = {
+                projectId: selectedPurchaseRequest.projectId,
+                spkId: selectedPurchaseRequest.spkId,
+                keterangan: selectedPurchaseRequest.keterangan,
+                details: updatedDetails.map(detail => {
+                    const detailPayload: any = {
+                        id: detail.id,
+                        productId: detail.productId,
+                        jumlah: detail.jumlah,
+                        satuan: detail.satuan,
+                        estimasiHargaSatuan: detail.estimasiHargaSatuan,
+                        catatanItem: detail.catatanItem,
+                        sourceProduct: detail.sourceProduct,
+                    };
+                    // Only include projectBudgetId if it's not null
+                    if (detail.projectBudgetId) {
+                        detailPayload.projectBudgetId = detail.projectBudgetId;
+                    }
+                    return detailPayload;
+                })
+            };
+
+            const response = await api.put(`/api/pr/updatePurchaseRequest/${selectedPurchaseRequest.id}`, payload);
+
+            if (response.data.success) {
+                toast.success("Item successfully deleted");
+                // Refresh data tabel utama
+                onPageChange(pagination.page);
+            } else {
+                throw new Error("Failed to update PR");
+            }
+        } catch (error) {
+            console.error("Error deleting item:", error);
+            toast.error("Failed to delete item");
+            // Revert state on error (optional, but good practice)
+            // Bisa fetch ulang data original atau simpan ref
+            onPageChange(pagination.page); // Refresh to revert
+        }
+    };
 
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('id-ID', {
@@ -940,6 +999,7 @@ export function PurchaseRequestVerifyTable({
                 setDetailSheetOpen={setDetailSheetOpen}
                 selectedPurchaseRequest={selectedPurchaseRequest}
                 onStatusUpdate={handleStatusUpdate}
+                onDeleteItem={handleDeleteItem}
             />
 
             <SimplePurchaseRequestPdfDialog

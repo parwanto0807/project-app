@@ -423,11 +423,11 @@ export class PurchaseRequestController {
       }
 
       // Validasi status untuk update
-      if (!["DRAFT", "REVISION_NEEDED"].includes(existingPR.status)) {
+      if (!["DRAFT", "REVISION_NEEDED", "SUBMITTED"].includes(existingPR.status)) {
         return res.status(400).json({
           success: false,
           message:
-            "Only DRAFT or REVISION_NEEDED Purchase Request can be updated",
+            "Only DRAFT, REVISION_NEEDED, or SUBMITTED Purchase Request can be updated",
         });
       }
 
@@ -679,7 +679,7 @@ export class PurchaseRequestController {
       const validTransitions = {
         DRAFT: ["SUBMITTED"],
         SUBMITTED: ["APPROVED", "REJECTED", "REVISION_NEEDED"], // REMOVE REVISION_NEEDED sementara
-        APPROVED: ["COMPLETED"],
+        APPROVED: ["COMPLETED", "SUBMITTED"], // Allow cancel approve (APPROVED → SUBMITTED)
         REJECTED: ["SUBMITTED"],
         REVISION_NEEDED: ["SUBMITTED", "DRAFT"],
         COMPLETED: [],
@@ -747,89 +747,121 @@ export class PurchaseRequestController {
           delete warehouseAllocations['__splitItems__'];
         }
 
-        // 2b. Auto-create Material Requisition if PR is APPROVED and has PENGAMBILAN_STOK items
-        if (status === 'APPROVED' && warehouseAllocations) {
-          // Group items by warehouse from warehouseAllocations
-          const warehouseGroups = {}; // { warehouseId: [{ detailId, productId, qty, unit, allocations }] }
+        // 2b. Auto-create Material Requisition - MOVED TO AFTER SECTION 3
+        // (MR creation now happens after warehouse allocations are saved,
+        //  so we can read the correct allocatedQty from warehouseAllocation JSON)
 
-          // Get all PR details
+        // 2c. Handle Cancel Approve (APPROVED → SUBMITTED)
+        // Reverse stock balance changes: decrease bookedStock, increase availableStock
+        if (existingPR.status === 'APPROVED' && status === 'SUBMITTED') {
+          // Get all PR details with warehouse allocations
           const prDetails = await tx.purchaseRequestDetail.findMany({
-            where: { purchaseRequestId: id },
-            include: { product: true }
+            where: { 
+              purchaseRequestId: id,
+              sourceProduct: 'PENGAMBILAN_STOK' // Only process stock withdrawal items
+            }
           });
 
-          // Process warehouse allocations to group by warehouse
-          Object.entries(warehouseAllocations).forEach(([detailId, allocations]) => {
-            const detail = prDetails.find(d => d.id === detailId);
-            
-            if (detail && detail.sourceProduct === 'PENGAMBILAN_STOK' && allocations && allocations.length > 0) {
-              allocations.forEach(allocation => {
-                const warehouseId = allocation.warehouseId;
-                
-                if (!warehouseGroups[warehouseId]) {
-                  warehouseGroups[warehouseId] = [];
+          const period = startOfMonth(new Date());
+
+          for (const detail of prDetails) {
+            // Parse warehouse allocations from JSON field
+            if (!detail.warehouseAllocation) continue;
+
+            const allocations = typeof detail.warehouseAllocation === 'string' 
+              ? JSON.parse(detail.warehouseAllocation) 
+              : detail.warehouseAllocation;
+
+            if (!Array.isArray(allocations)) continue;
+
+            // Reverse stock balance for each warehouse allocation
+            for (const allocation of allocations) {
+              const { warehouseId, allocatedQty } = allocation;
+              
+              if (!warehouseId || !allocatedQty) continue;
+
+              // Find stock balance
+              const stockBalance = await tx.stockBalance.findUnique({
+                where: {
+                  productId_warehouseId_period: {
+                    productId: detail.productId,
+                    warehouseId,
+                    period
+                  }
                 }
-                
-                warehouseGroups[warehouseId].push({
-                  detailId: detail.id,
-                  productId: detail.productId,
-                  qty: allocation.stock, // Quantity allocated from this warehouse
-                  unit: detail.satuan,
+              });
+
+              if (stockBalance) {
+                // Reverse the booking: decrease bookedStock, increase availableStock
+                await tx.stockBalance.update({
+                  where: {
+                    productId_warehouseId_period: {
+                      productId: detail.productId,
+                      warehouseId,
+                      period
+                    }
+                  },
+                  data: {
+                    bookedStock: { decrement: allocatedQty },
+                    availableStock: { increment: allocatedQty }
+                  }
                 });
-              });
+              }
+            }
+          }
+
+          // Delete auto-split items created during approval
+          // Auto-split items have BOTH:
+          // 1. sourceProduct = 'PEMBELIAN_BARANG'
+          // 2. catatanItem contains "Auto-split"
+          await tx.purchaseRequestDetail.deleteMany({
+            where: {
+              purchaseRequestId: id,
+              sourceProduct: 'PEMBELIAN_BARANG',
+              catatanItem: {
+                contains: 'Auto-split'
+              }
             }
           });
 
-          // Create MR for each warehouse
-          for (const [warehouseId, items] of Object.entries(warehouseGroups)) {
-            if (items.length === 0) continue;
-
-            // Generate MR Number
-            const today = new Date();
-            const year = today.getFullYear();
-            const month = String(today.getMonth() + 1).padStart(2, '0');
-            
-            // Get last MR number for this month
-            const lastMR = await tx.materialRequisition.findFirst({
-              where: {
-                mrNumber: {
-                  startsWith: `MR-${year}${month}-`
+          // Delete Material Requisitions created during approval
+          // Only delete if MR is still PENDING and has no issued items
+          const relatedMRs = await tx.materialRequisition.findMany({
+            where: {
+              items: {
+                some: {
+                  purchaseRequestDetail: {
+                    purchaseRequestId: id
+                  }
                 }
-              },
-              orderBy: { mrNumber: 'desc' }
-            });
-
-            let sequence = 1;
-            if (lastMR) {
-              const lastSequence = parseInt(lastMR.mrNumber.split('-')[2]);
-              sequence = lastSequence + 1;
-            }
-
-            const mrNumber = `MR-${year}${month}-${String(sequence).padStart(4, '0')}`;
-
-            // Create Material Requisition for this warehouse
-            const materialRequisition = await tx.materialRequisition.create({
-              data: {
-                mrNumber,
-                projectId: existingPR.projectId,
-                requestedById: existingPR.karyawanId,
-                status: 'PENDING',
-                warehouseId: warehouseId, // Set warehouse ID
               }
-            });
+            },
+            include: {
+              items: true
+            }
+          });
 
-            // Create MR Items for this warehouse
-            for (const item of items) {
-              await tx.materialRequisitionItem.create({
-                data: {
-                  materialRequisitionId: materialRequisition.id,
-                  productId: item.productId,
-                  qtyRequested: item.qty,
-                  qtyIssued: 0, // Will be updated when items are actually issued
-                  unit: item.unit,
-                  purchaseRequestDetailId: item.detailId,
-                }
+          for (const mr of relatedMRs) {
+            // Check if MR is safe to delete
+            const canDelete = mr.status === 'PENDING' && 
+                             mr.items.every(item => Number(item.qtyIssued) === 0);
+
+            if (canDelete) {
+              // Delete MR items first (foreign key constraint)
+              await tx.materialRequisitionItem.deleteMany({
+                where: { materialRequisitionId: mr.id }
               });
+
+              // Delete MR
+              await tx.materialRequisition.delete({
+                where: { id: mr.id }
+              });
+            } else {
+              // Log warning but don't block the cancel approve
+              console.warn(
+                `Cannot delete MR ${mr.mrNumber} - Status: ${mr.status}, ` +
+                `Has issued items: ${mr.items.some(item => Number(item.qtyIssued) > 0)}`
+              );
             }
           }
         }
@@ -1022,6 +1054,101 @@ export class PurchaseRequestController {
                         }
                     });
                }
+            }
+          }
+        }
+
+        // 4. Create Material Requisitions AFTER warehouse allocations are saved
+        if (status === 'APPROVED') {
+          // Get all PR details with warehouse allocations
+          const prDetailsWithAllocations = await tx.purchaseRequestDetail.findMany({
+            where: {
+              purchaseRequestId: id,
+              sourceProduct: 'PENGAMBILAN_STOK',
+              warehouseAllocation: { not: null }
+            },
+            include: { product: true }
+          });
+
+          // Group by warehouse
+          const warehouseGroups = {}; // { warehouseId: [{ detailId, productId, qty, unit }] }
+
+          for (const detail of prDetailsWithAllocations) {
+            const allocations = typeof detail.warehouseAllocation === 'string'
+              ? JSON.parse(detail.warehouseAllocation)
+              : detail.warehouseAllocation;
+
+            if (Array.isArray(allocations)) {
+              for (const allocation of allocations) {
+                const warehouseId = allocation.warehouseId;
+                const allocatedQty = allocation.allocatedQty || 0;
+
+                if (allocatedQty > 0) {
+                  if (!warehouseGroups[warehouseId]) {
+                    warehouseGroups[warehouseId] = [];
+                  }
+
+                  warehouseGroups[warehouseId].push({
+                    detailId: detail.id,
+                    productId: detail.productId,
+                    qty: allocatedQty, // Use the actual allocated quantity
+                    unit: detail.satuan,
+                  });
+                }
+              }
+            }
+          }
+
+          // Create MR for each warehouse
+          for (const [warehouseId, items] of Object.entries(warehouseGroups)) {
+            if (items.length === 0) continue;
+
+            // Generate MR Number
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+
+            // Get last MR number for this month
+            const lastMR = await tx.materialRequisition.findFirst({
+              where: {
+                mrNumber: {
+                  startsWith: `MR-${year}${month}-`
+                }
+              },
+              orderBy: { mrNumber: 'desc' }
+            });
+
+            let sequence = 1;
+            if (lastMR) {
+              const lastSequence = parseInt(lastMR.mrNumber.split('-')[2]);
+              sequence = lastSequence + 1;
+            }
+
+            const mrNumber = `MR-${year}${month}-${String(sequence).padStart(4, '0')}`;
+
+            // Create Material Requisition for this warehouse
+            const materialRequisition = await tx.materialRequisition.create({
+              data: {
+                mrNumber,
+                projectId: existingPR.projectId,
+                requestedById: existingPR.karyawanId,
+                status: 'PENDING',
+                warehouseId: warehouseId,
+              }
+            });
+
+            // Create MR Items for this warehouse
+            for (const item of items) {
+              await tx.materialRequisitionItem.create({
+                data: {
+                  materialRequisitionId: materialRequisition.id,
+                  productId: item.productId,
+                  qtyRequested: item.qty, // Now uses correct allocatedQty
+                  qtyIssued: 0,
+                  unit: item.unit,
+                  purchaseRequestDetailId: item.detailId,
+                }
+              });
             }
           }
         }

@@ -15,7 +15,8 @@ import {
     X,
     ChevronDown,
     Info,
-    Check
+    Check,
+    Trash2
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/http";
@@ -29,6 +30,7 @@ import {
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import {
     Select,
     SelectContent,
@@ -136,6 +138,27 @@ function StatusActions({ currentStatus, onStatusUpdate }: StatusActionsProps) {
                     </Button>
                 );
             })}
+
+            {/* Cancel Approve Button - Only visible when status is APPROVED */}
+            {currentStatus === 'APPROVED' && (
+                <Button
+                    onClick={() => {
+                        if (window.confirm('Apakah Anda yakin ingin membatalkan approval? Stock yang sudah di-booking akan dikembalikan.')) {
+                            onStatusUpdate('SUBMITTED', 'Approval dibatalkan');
+                        }
+                    }}
+                    variant="outline"
+                    className="flex items-center gap-2 px-3 sm:px-4 py-2 border-2 font-medium
+                        transition-all duration-200 hover:scale-105
+                        rounded-lg text-xs sm:text-sm
+                        bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100 hover:text-amber-800 
+                        dark:bg-amber-950 dark:text-amber-300 dark:border-amber-700 dark:hover:bg-amber-900 dark:hover:text-amber-200"
+                >
+                    <X className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <span className="hidden sm:inline">Cancel Approve</span>
+                    <span className="sm:hidden">Cancel</span>
+                </Button>
+            )}
         </div>
     );
 }
@@ -204,13 +227,15 @@ interface PurchaseRequestSheetProps {
     setDetailSheetOpen: (open: boolean) => void;
     selectedPurchaseRequest: PurchaseRequest | null;
     onStatusUpdate: (id: string, status: PurchaseRequestStatus, catatan?: string, warehouseAllocations?: Record<string, any[]>) => void;
+    onDeleteItem?: (detailId: string) => void;
 }
 
 export function PurchaseRequestSheet({
     detailSheetOpen,
     setDetailSheetOpen,
     selectedPurchaseRequest,
-    onStatusUpdate
+    onStatusUpdate,
+    onDeleteItem
 }: PurchaseRequestSheetProps): React.ReactElement {
     const contentRef = useRef<HTMLDivElement>(null);
 
@@ -225,6 +250,9 @@ export function PurchaseRequestSheet({
 
     // State for auto-split items (when stock is insufficient, create additional item for shortage)
     const [splitItems, setSplitItems] = useState<Record<string, PurchaseRequestDetailWithRelations>>({});
+
+    // State for manual overrides of split item quantities
+    const [splitQuantityOverrides, setSplitQuantityOverrides] = useState<Record<string, number>>({});
 
     // Derived details with live price calculation (replacing localDetails state)
     const localDetails = React.useMemo(() => {
@@ -269,23 +297,34 @@ export function PurchaseRequestSheet({
                 // Check if stock is insufficient - create split item for shortage
                 if (totalAllocated > 0 && totalAllocated < Number(detail.jumlah)) {
                     const shortage = Number(detail.jumlah) - totalAllocated;
-                    const newUnitPrice = totalCost / totalAllocated;
+                    const splitItemId = `split-${detailId}`;
+
+                    // Check if user has manually overridden the split quantity
+                    const splitQty = splitQuantityOverrides[detailId] !== undefined
+                        ? splitQuantityOverrides[detailId]
+                        : shortage;
+
+                    // IMPORTANT: Parent quantity should ALWAYS equal totalAllocated (available stock)
+                    // It should NOT change when user edits split quantity
+                    const parentQty = totalAllocated;
+
+                    // Calculate cost for parent item based on available stock
+                    const newUnitPrice = parentQty > 0 ? totalCost / parentQty : 0;
 
                     // Create split item for shortage (Pembelian Barang)
-                    const splitItemId = `split-${detailId}`;
                     newSplitItems[detailId] = {
                         ...detail,
                         id: splitItemId,
-                        jumlah: shortage,
+                        jumlah: splitQty,
                         sourceProduct: SourceProductType.PEMBELIAN_BARANG,
-                        estimasiHargaSatuan: detail.estimasiHargaSatuan || 0, // Use original price or 0
-                        estimasiTotalHarga: (detail.estimasiHargaSatuan || 0) * shortage,
+                        estimasiHargaSatuan: detail.estimasiHargaSatuan || 0,
+                        estimasiTotalHarga: (detail.estimasiHargaSatuan || 0) * splitQty,
                     } as PurchaseRequestDetailWithRelations;
 
-                    // Return original item with adjusted quantity (only what's available from stock)
+                    // Return original item with quantity = totalAllocated (available stock)
                     return {
                         ...detail,
-                        jumlah: totalAllocated,
+                        jumlah: parentQty,
                         estimasiHargaSatuan: newUnitPrice,
                         estimasiTotalHarga: totalCost
                     } as PurchaseRequestDetailWithRelations;
@@ -327,7 +366,7 @@ export function PurchaseRequestSheet({
         });
 
         return allDetails;
-    }, [selectedPurchaseRequest, warehouseSelections, stockData, sourceProductChanges]);
+    }, [selectedPurchaseRequest, warehouseSelections, stockData, sourceProductChanges, splitQuantityOverrides]);
 
     // Fungsi untuk menghitung summary
     const calculateSummary = () => {
@@ -453,7 +492,7 @@ export function PurchaseRequestSheet({
             <Toaster />
             <SheetContent
                 side="bottom"
-                className="overflow-y-auto sm:max-w-4xl lg:max-w-5xl ml-auto rounded-t-2xl rounded-b-none sm:mb-4 w-full sm:w-auto sm:mr-36 dark:bg-slate-800 md:px-2 max-h-[95vh]"
+                className="overflow-y-auto sm:max-w-5xl lg:max-w-6xl ml-auto rounded-t-2xl rounded-b-none sm:mb-4 w-full sm:w-auto sm:mr-36 dark:bg-slate-800 md:px-2 max-h-[95vh]"
             >
                 <div className="flex flex-col h-full px-2 sm:px-2">
                     {/* Header dengan close button mobile-friendly */}
@@ -649,12 +688,13 @@ export function PurchaseRequestSheet({
                                                     {/* Table Header - Desktop */}
                                                     <div className="hidden sm:grid sm:grid-cols-12 bg-gray-50 text-xs font-semibold px-4 py-3 text-gray-700 border-b border-gray-200">
                                                         <div className="col-span-1 text-center">No</div>
-                                                        <div className="col-span-3 pl-2">Item Description</div>
+                                                        <div className="col-span-2 pl-2">Item Description</div>
                                                         <div className="col-span-2 text-center">Source</div>
                                                         <div className="col-span-1 text-center">Availbl. Stock</div>
                                                         <div className="col-span-1 text-center">Qty</div>
                                                         <div className="col-span-2 text-right pr-4">Unit Price</div>
                                                         <div className="col-span-2 text-right pr-4">Total</div>
+                                                        <div className="col-span-1 text-center">Action</div>
                                                     </div>
 
                                                     {/* Mobile Table Header */}
@@ -776,8 +816,39 @@ export function PurchaseRequestSheet({
                                                                                 </div>
                                                                                 <div className="flex justify-between items-center">
                                                                                     <div className="text-xs text-gray-700">
-                                                                                        <span className="font-semibold">{detail.jumlah}</span>
-                                                                                        <span className="text-gray-500 ml-1">{detail.satuan}</span>
+                                                                                        {detail.id?.startsWith('split-') ? (
+                                                                                            <div className="flex items-center gap-1">
+                                                                                                <Input
+                                                                                                    type="number"
+                                                                                                    value={detail.jumlah || ''}
+                                                                                                    onChange={(e) => {
+                                                                                                        const newQty = parseFloat(e.target.value);
+                                                                                                        const parentId = detail.id?.replace('split-', '') || '';
+                                                                                                        const originalDetail = selectedPurchaseRequest?.details.find(d => d.id === parentId);
+
+                                                                                                        if (!isNaN(newQty) && newQty > 0) {
+                                                                                                            setSplitQuantityOverrides(prev => ({
+                                                                                                                ...prev,
+                                                                                                                [parentId]: newQty
+                                                                                                            }));
+                                                                                                        }
+                                                                                                    }}
+                                                                                                    onKeyDown={(e) => {
+                                                                                                        // Prevent arrow keys from affecting parent elements
+                                                                                                        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                                                                                                            e.stopPropagation();
+                                                                                                        }
+                                                                                                    }}
+                                                                                                    className="h-7 w-24 text-center text-xs font-semibold border-blue-300 focus:border-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                                                                />
+                                                                                                <span className="text-gray-500">{detail.satuan}</span>
+                                                                                            </div>
+                                                                                        ) : (
+                                                                                            <>
+                                                                                                <span className="font-semibold">{detail.jumlah}</span>
+                                                                                                <span className="text-gray-500 ml-1">{detail.satuan}</span>
+                                                                                            </>
+                                                                                        )}
                                                                                     </div>
                                                                                     <div className="text-right">
                                                                                         <div className="text-xs text-gray-700">
@@ -789,6 +860,27 @@ export function PurchaseRequestSheet({
                                                                                     </div>
                                                                                 </div>
                                                                             </div>
+                                                                            {/* Mobile Actions */}
+                                                                            <div className="mt-2 flex justify-end gap-2 border-t pt-2 border-gray-100">
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="sm"
+                                                                                    className="h-7 px-3 text-xs bg-red-50 hover:bg-red-100 text-red-600 rounded-full"
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        if (onDeleteItem && detail.id) {
+                                                                                            // Add confirmation
+                                                                                            if (window.confirm('Are you sure you want to delete this item?')) {
+                                                                                                onDeleteItem(detail.id);
+                                                                                            }
+                                                                                        }
+                                                                                    }}
+                                                                                    disabled={!detail.id || detail.id.startsWith('split-') || selectedPurchaseRequest.status === 'APPROVED' || selectedPurchaseRequest.status === 'COMPLETED'}
+                                                                                >
+                                                                                    <Trash2 className="h-3 w-3 mr-1" />
+                                                                                    Delete
+                                                                                </Button>
+                                                                            </div>
                                                                         </div>
 
                                                                         {/* Desktop View - Fixed */}
@@ -796,7 +888,7 @@ export function PurchaseRequestSheet({
                                                                             <div className="col-span-1 text-center text-xs font-medium text-gray-500">
                                                                                 {index + 1}
                                                                             </div>
-                                                                            <div className="col-span-3 text-sm font-medium text-gray-900 pl-2 pr-2 truncate">
+                                                                            <div className="col-span-2 text-sm font-medium text-gray-900 pl-2 pr-2 truncate">
                                                                                 <TooltipProvider>
                                                                                     <Tooltip>
                                                                                         <TooltipTrigger asChild>
@@ -1060,14 +1152,63 @@ export function PurchaseRequestSheet({
                                                                                 )}
                                                                             </div>
                                                                             <div className="col-span-1 text-center text-sm text-gray-700">
-                                                                                <span className="font-semibold">{detail.jumlah}</span>
-                                                                                <span className="text-xs text-gray-500 ml-1">{detail.satuan}</span>
+                                                                                {detail.id?.startsWith('split-') ? (
+                                                                                    <div className="flex items-center justify-center gap-1">
+                                                                                        <Input
+                                                                                            type="number"
+                                                                                            value={detail.jumlah || ''}
+                                                                                            onChange={(e) => {
+                                                                                                const newQty = parseFloat(e.target.value);
+                                                                                                const parentId = detail.id?.replace('split-', '') || '';
+                                                                                                const originalDetail = selectedPurchaseRequest?.details.find(d => d.id === parentId);
+
+                                                                                                if (!isNaN(newQty) && newQty > 0) {
+                                                                                                    setSplitQuantityOverrides(prev => ({
+                                                                                                        ...prev,
+                                                                                                        [parentId]: newQty
+                                                                                                    }));
+                                                                                                }
+                                                                                            }}
+                                                                                            onKeyDown={(e) => {
+                                                                                                // Prevent arrow keys from affecting parent elements
+                                                                                                if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                                                                                                    e.stopPropagation();
+                                                                                                }
+                                                                                            }}
+                                                                                            className="h-8 w-32 text-center font-semibold border-blue-300 focus:border-blue-500 focus:ring-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                                                        />
+                                                                                        <span className="text-xs text-gray-500">{detail.satuan}</span>
+                                                                                    </div>
+                                                                                ) : (
+                                                                                    <>
+                                                                                        <span className="font-semibold">{detail.jumlah}</span>
+                                                                                        <span className="text-xs text-gray-500 ml-1">{detail.satuan}</span>
+                                                                                    </>
+                                                                                )}
                                                                             </div>
                                                                             <div className="col-span-2 text-right text-sm text-gray-700 pr-4">
                                                                                 {formatCurrency(detail.estimasiHargaSatuan)}
                                                                             </div>
                                                                             <div className="col-span-2 text-right text-sm font-semibold text-green-600 pr-4">
                                                                                 {formatCurrency(detail.estimasiTotalHarga)}
+                                                                            </div>
+                                                                            <div className="col-span-1 text-center">
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="icon"
+                                                                                    className="h-8 w-8 bg-red-50 hover:bg-red-100 text-red-600 rounded-full transition-colors duration-200"
+                                                                                    onClick={() => {
+                                                                                        if (onDeleteItem && detail.id) {
+                                                                                            // Add confirmation
+                                                                                            if (window.confirm('Are you sure you want to delete this item?')) {
+                                                                                                onDeleteItem(detail.id);
+                                                                                            }
+                                                                                        }
+                                                                                    }}
+                                                                                    disabled={!detail.id || detail.id.startsWith('split-') || selectedPurchaseRequest.status === 'APPROVED' || selectedPurchaseRequest.status === 'COMPLETED'}
+                                                                                >
+                                                                                    <Trash2 className="h-4 w-4" />
+                                                                                </Button>
                                                                             </div>
                                                                         </div>
                                                                     </div>
@@ -1128,10 +1269,45 @@ export function PurchaseRequestSheet({
 
                     {/* Action Buttons - Sticky di bagian bawah untuk mobile */}
                     {selectedPurchaseRequest && (
-                        <div className="border-t bg-white py-4 dark:py-4 sticky bottom-0 -mx-4 sm:-mx-6 px-4 sm:px-6 pb-4 sm:pb-0 -mb-4 sm:mb-0 rounded-lg mt-auto flex-shrink-0">
+                        <div className="border-t bg-white py-4 dark:py-4 sticky bottom-0 -mx-4 sm:-mx-6 px-4 sm:px-6 pb-4 sm:pb-0 mb-4 sm:mb-4 rounded-lg mt-auto flex-shrink-0">
                             <StatusActions
                                 currentStatus={selectedPurchaseRequest.status}
                                 onStatusUpdate={(status) => {
+                                    // Validation: Check if all PENGAMBILAN_STOK items have warehouse selections
+                                    if (status === 'APPROVED') {
+                                        const pengambilanStokItems = localDetails.filter(detail =>
+                                            detail.sourceProduct === SourceProductType.PENGAMBILAN_STOK &&
+                                            !detail.id?.startsWith('split-') // Exclude split items
+                                        );
+
+                                        const itemsWithoutWarehouse = pengambilanStokItems.filter(detail => {
+                                            const detailId = detail.id || '';
+                                            const selections = warehouseSelections[detailId];
+                                            return !selections || selections.length === 0;
+                                        });
+
+                                        if (itemsWithoutWarehouse.length > 0) {
+                                            const itemNames = itemsWithoutWarehouse
+                                                .map(item => item.product?.name || 'Unknown')
+                                                .join(', ');
+
+                                            toast.error(
+                                                `Tidak dapat approve! Pilih gudang terlebih dahulu untuk item: ${itemNames}`,
+                                                {
+                                                    duration: 5000,
+                                                    position: 'top-center',
+                                                    style: {
+                                                        background: '#FEE2E2',
+                                                        color: '#991B1B',
+                                                        border: '1px solid #FCA5A5',
+                                                        fontWeight: '600',
+                                                    },
+                                                }
+                                            );
+                                            return; // Stop execution
+                                        }
+                                    }
+
                                     // Transform warehouseSelections to the expected format
                                     const warehouseAllocations: Record<string, any[]> = {};
 
