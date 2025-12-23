@@ -642,7 +642,7 @@ export default function TabelStockOpname({
                                             )}
 
                                             {/* Sync to Balance Button - Admin Only */}
-                                            {session?.user?.role === "admin" && item.status === "COMPLETED" && (
+                                            {/* {session?.user?.role === "admin" && item.status === "COMPLETED" && (
                                                 <TooltipProvider>
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
@@ -658,7 +658,7 @@ export default function TabelStockOpname({
                                                         <TooltipContent>Sync to Balance (Admin)</TooltipContent>
                                                     </Tooltip>
                                                 </TooltipProvider>
-                                            )}
+                                            )} */}
                                         </div>
                                     </TableCell>
                                 </TableRow>

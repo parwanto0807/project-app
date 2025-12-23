@@ -638,6 +638,12 @@ export default function TabelMonitoring({
                                                 Stok Akhir
                                             </div>
                                         </TableHead>
+                                        <TableHead className="text-right font-bold text-slate-900 dark:text-slate-200 text-[10px] uppercase tracking-[0.2em]">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <Package className="w-3 h-3" />
+                                                On Request
+                                            </div>
+                                        </TableHead>
                                         <TableHead className="text-right font-bold text-slate-900 dark:text-slate-200 text-[10px] uppercase tracking-[0.2em]">Dialokasikan</TableHead>
                                         <TableHead className="text-right font-bold text-slate-900 dark:text-slate-200 text-[10px] uppercase tracking-[0.2em]">
                                             <div className="flex items-center justify-end gap-2">
@@ -820,8 +826,14 @@ export default function TabelMonitoring({
                                                     </TableCell>
                                                     <TableCell className="text-right">
                                                         <div className="space-y-1">
-                                                            <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{formatNumber(item.bookedStock)}</p>
-                                                            <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-tighter">Approved PR</p>
+                                                            <p className="text-sm font-bold text-yellow-500 dark:text-yellow-300">{formatNumber(item.onPR)}</p>
+                                                            <p className="text-[9px] text-blue-500 dark:text-blue-500 font-bold uppercase tracking-tighter">Purchase Req</p>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        <div className="space-y-1">
+                                                            <p className="text-sm font-bold text-orange-400 dark:text-orange-500">{formatNumber(item.bookedStock)}</p>
+                                                            <p className="text-[9px] text-blue-500 dark:text-blue-500 font-bold uppercase tracking-tighter">Booked PR</p>
                                                         </div>
                                                     </TableCell>
 
@@ -900,7 +912,7 @@ export default function TabelMonitoring({
                 onClose={() => setIsSheetOpen(false)}
                 item={selectedItem}
                 period={period || format(new Date(), "yyyy-MM")}
-                warehouseId={warehouseFilter}
+                warehouseId={selectedItem?.warehouseId || warehouseFilter}
             />
 
             {/* FOOTER NOTES */}

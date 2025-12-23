@@ -23,8 +23,6 @@ import {
     History
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
 interface StockDetailSheetProps {
@@ -49,7 +47,7 @@ export default function StockDetailSheet({
         if (isOpen && item) {
             fetchHistory();
         }
-    }, [isOpen, item]);
+    }, [isOpen, item, period, warehouseId]);
 
     const fetchHistory = async () => {
         if (!item) return;

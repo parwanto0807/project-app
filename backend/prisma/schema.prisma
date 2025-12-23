@@ -342,6 +342,7 @@ enum OpnameType {
 
 enum OpnameStatus {
   DRAFT // Masih input data, belum memotong stok
+  COMPLETED // Sudah dilock/disetujui, siap untuk di-adjust
   ADJUSTED // Sudah selesai, angka stok di sistem sudah berubah
   CANCELLED // Dibatalkan
 }
@@ -455,7 +456,7 @@ model StockBalance {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([productId, period])
+  @@unique([productId, warehouseId, period])
 }
 
 // ==========================================
@@ -498,6 +499,7 @@ model StockDetail {
   GoodsReceiptItem          GoodsReceiptItem?
   MaterialRequisitionItem   MaterialRequisitionItem? @relation(fields: [materialRequisitionItemId], references: [id])
   materialRequisitionItemId String?
+  StockAllocation           StockAllocation[]
 }
 
 enum TransferStatus {
@@ -620,56 +622,66 @@ enum DocumentStatus {
 // HEADER: Dokumen Pengeluaran Barang
 model MaterialRequisition {
   id         String   @id @default(uuid())
-  mrNumber   String   @unique // Contoh: MR-2023-0001
+  mrNumber   String   @unique
+  qrToken    String   @unique @default(cuid()) // Token untuk Scan QRCode
   issuedDate DateTime @default(now())
 
-  // Referensi Pengambil
   projectId     String
-  projectName   String? // Denormalisasi untuk pencarian cepat
-  requestedById String // User ID Mandor/Engineer
-  status        MRStatus @default(PENDING)
+  requestedById String
 
-  notes String?
-  items MaterialRequisitionItem[]
+  // Status yang lebih detail untuk workflow gudang
+  status MRStatus @default(PENDING)
 
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  Warehouse   Warehouse? @relation(fields: [warehouseId], references: [id])
+  items       MaterialRequisitionItem[]
   warehouseId String?
+  Warehouse   Warehouse?                @relation(fields: [warehouseId], references: [id])
+
+  // Tracking siapa yang scan/verifikasi
+  preparedById String? // Petugas Gudang yang nyiapin
+  issuedById   String? // Petugas yang scan saat serah terima
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
-// DETAIL: Item yang dikeluarkan
 model MaterialRequisitionItem {
-  id String @id @default(uuid())
-
-  // Relasi ke Header MR
+  id                    String              @id @default(uuid())
   materialRequisitionId String
   materialRequisition   MaterialRequisition @relation(fields: [materialRequisitionId], references: [id], onDelete: Cascade)
 
-  // Relasi ke PR asal (PENTING: untuk update jumlahTerpenuhi di PR)
-  purchaseRequestDetailId String?
-  purchaseRequestDetail   PurchaseRequestDetail? @relation(fields: [purchaseRequestDetailId], references: [id])
-
-  // Identitas Produk
   productId String
   product   Product @relation(fields: [productId], references: [id])
 
-  // Data Pengeluaran (Gunakan 18,4 untuk akurasi konversi unit)
-  qtyIssued Decimal @db.Decimal(18, 4)
-  unit      String // Satuan pemakaian (e.g., Meter)
+  qtyRequested Decimal @db.Decimal(18, 4) // Jumlah yang diminta di dokumen
+  qtyIssued    Decimal @db.Decimal(18, 4) // Jumlah yang benar-benar keluar saat scan
+  unit         String
 
-  // Relasi ke Mutasi Stok (FIFO)
-  // Satu item MR bisa memotong beberapa batch masuk di StockDetail
-  stockDetails StockDetail[]
+  // Tabel perantara untuk mencatat pemotongan Batch FIFO secara detail
+  stockAllocations StockAllocation[]
 
-  createdAt DateTime @default(now())
+  purchaseRequestDetailId String?
+  purchaseRequestDetail   PurchaseRequestDetail? @relation(fields: [purchaseRequestDetailId], references: [id])
+  StockDetail             StockDetail[]
+}
+
+// TABEL BARU: Mencatat batch mana saja yang dipakai oleh MR ini
+model StockAllocation {
+  id       String                  @id @default(uuid())
+  mrItemId String
+  mrItem   MaterialRequisitionItem @relation(fields: [mrItemId], references: [id])
+
+  stockDetailId String
+  stockDetail   StockDetail @relation(fields: [stockDetailId], references: [id])
+
+  qtyTaken Decimal @db.Decimal(18, 4) // Berapa yang diambil dari batch ini
 }
 
 enum MRStatus {
-  PENDING // Baru diajukan
-  APPROVED // Disetujui PM/Logistik
-  ISSUED // Barang resmi keluar (Stok terpotong)
-  CANCELLED // Dibatalkan
+  PENDING
+  APPROVED
+  READY_TO_PICKUP // Barang sudah disiapkan petugas gudang
+  ISSUED // Sudah discan dan dibawa pengambil
+  CANCELLED
 }
 
 model RAB {
@@ -1590,6 +1602,10 @@ model PurchaseRequestDetail {
   // purchaseOrderItems       PurchaseOrderItem[]       // Link ke Pembelian
   // materialRequisitionItems MaterialRequisitionItem[] // Link ke Pengambilan Gudang
   goodsReceiptItems GoodsReceiptItem[] // Link ke Penerimaan Barang
+
+  // 4. Warehouse Allocation (Untuk PENGAMBILAN_STOK)
+  // Menyimpan JSON: [{ warehouseId, warehouseName, stock: number }]
+  warehouseAllocation Json?
 
   // =============================================================
 

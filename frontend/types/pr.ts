@@ -150,6 +150,7 @@ export interface UpdatePurchaseRequestStatusData {
   reviewedBy?: string;
   approvedBy?: string;
   remarks?: string;
+  warehouseAllocations?: Record<string, any[]>;
 }
 
 export interface PurchaseRequestFilters {

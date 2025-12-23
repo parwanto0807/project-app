@@ -10,6 +10,7 @@ import {
   queryParamsSchema,
 } from "../../validations/prValidations.js";
 import { generatePRNumber } from "../../utils/prGenerateNumber.js";
+import { startOfMonth } from "date-fns";
 
 export class PurchaseRequestController {
   /**
@@ -655,7 +656,13 @@ export class PurchaseRequestController {
   async updatePurchaseRequestStatus(req, res) {
     try {
       const { id } = idParamSchema.parse(req.params);
-      const { status, catatan } = updateStatusSchema.parse(req.body);
+      const { status, catatan, warehouseAllocations } = req.body; // Manual extraction for extra fields
+
+      // Validate status using schema manually or extend schema
+      const statusValidation = updateStatusSchema.safeParse({ status, catatan });
+      if (!statusValidation.success) {
+        throw statusValidation.error;
+      }
 
       const existingPR = await prisma.purchaseRequest.findUnique({
         where: { id },
@@ -685,33 +692,341 @@ export class PurchaseRequestController {
         });
       }
 
-      const updatedPR = await prisma.purchaseRequest.update({
-        where: { id },
-        data: {
-          status,
-          ...(catatan && { keterangan: catatan }),
-        },
-        include: {
-          project: {
-            select: { id: true, name: true },
+      // Use transaction to update PR status and allocations
+      const updatedPR = await prisma.$transaction(async (tx) => {
+        // 1. Update PR Status
+        const pr = await tx.purchaseRequest.update({
+          where: { id },
+          data: {
+            status,
+            ...(catatan && { keterangan: catatan }),
           },
-          karyawan: {
-            select: { id: true, namaLengkap: true, jabatan: true },
-          },
-          spk: {
-            select: { id: true, spkNumber: true, notes: true },
-          },
-          details: {
-            include: {
-              product: {
-                select: { id: true, name: true, description: true },
-              },
-              projectBudget: {
-                select: { id: true, description: true, amount: true },
+          include: {
+            project: {
+              select: { id: true, name: true },
+            },
+            karyawan: {
+              select: { id: true, namaLengkap: true, jabatan: true },
+            },
+            spk: {
+              select: { id: true, spkNumber: true, notes: true },
+            },
+            details: {
+              include: {
+                product: {
+                  select: { id: true, name: true, description: true },
+                },
+                projectBudget: {
+                  select: { id: true, description: true, amount: true },
+                },
               },
             },
           },
-        },
+        });
+
+        // 2. Handle Split Items (created when stock is insufficient)
+        if (warehouseAllocations && warehouseAllocations['__splitItems__']) {
+          const splitItemsData = warehouseAllocations['__splitItems__'];
+          
+          for (const splitItem of splitItemsData) {
+            await tx.purchaseRequestDetail.create({
+              data: {
+                purchaseRequestId: id,
+                productId: splitItem.productId,
+                jumlah: splitItem.jumlah,
+                satuan: splitItem.satuan,
+                sourceProduct: splitItem.sourceProduct,
+                estimasiHargaSatuan: splitItem.estimasiHargaSatuan,
+                estimasiTotalHarga: splitItem.estimasiTotalHarga,
+                catatanItem: splitItem.catatanItem || 'Auto-split from insufficient stock',
+              }
+            });
+          }
+          
+          // Remove __splitItems__ from warehouseAllocations to avoid processing it as a detail
+          delete warehouseAllocations['__splitItems__'];
+        }
+
+        // 2b. Auto-create Material Requisition if PR is APPROVED and has PENGAMBILAN_STOK items
+        if (status === 'APPROVED' && warehouseAllocations) {
+          // Group items by warehouse from warehouseAllocations
+          const warehouseGroups = {}; // { warehouseId: [{ detailId, productId, qty, unit, allocations }] }
+
+          // Get all PR details
+          const prDetails = await tx.purchaseRequestDetail.findMany({
+            where: { purchaseRequestId: id },
+            include: { product: true }
+          });
+
+          // Process warehouse allocations to group by warehouse
+          Object.entries(warehouseAllocations).forEach(([detailId, allocations]) => {
+            const detail = prDetails.find(d => d.id === detailId);
+            
+            if (detail && detail.sourceProduct === 'PENGAMBILAN_STOK' && allocations && allocations.length > 0) {
+              allocations.forEach(allocation => {
+                const warehouseId = allocation.warehouseId;
+                
+                if (!warehouseGroups[warehouseId]) {
+                  warehouseGroups[warehouseId] = [];
+                }
+                
+                warehouseGroups[warehouseId].push({
+                  detailId: detail.id,
+                  productId: detail.productId,
+                  qty: allocation.stock, // Quantity allocated from this warehouse
+                  unit: detail.satuan,
+                });
+              });
+            }
+          });
+
+          // Create MR for each warehouse
+          for (const [warehouseId, items] of Object.entries(warehouseGroups)) {
+            if (items.length === 0) continue;
+
+            // Generate MR Number
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            
+            // Get last MR number for this month
+            const lastMR = await tx.materialRequisition.findFirst({
+              where: {
+                mrNumber: {
+                  startsWith: `MR-${year}${month}-`
+                }
+              },
+              orderBy: { mrNumber: 'desc' }
+            });
+
+            let sequence = 1;
+            if (lastMR) {
+              const lastSequence = parseInt(lastMR.mrNumber.split('-')[2]);
+              sequence = lastSequence + 1;
+            }
+
+            const mrNumber = `MR-${year}${month}-${String(sequence).padStart(4, '0')}`;
+
+            // Create Material Requisition for this warehouse
+            const materialRequisition = await tx.materialRequisition.create({
+              data: {
+                mrNumber,
+                projectId: existingPR.projectId,
+                requestedById: existingPR.karyawanId,
+                status: 'PENDING',
+                warehouseId: warehouseId, // Set warehouse ID
+              }
+            });
+
+            // Create MR Items for this warehouse
+            for (const item of items) {
+              await tx.materialRequisitionItem.create({
+                data: {
+                  materialRequisitionId: materialRequisition.id,
+                  productId: item.productId,
+                  qtyRequested: item.qty,
+                  qtyIssued: 0, // Will be updated when items are actually issued
+                  unit: item.unit,
+                  purchaseRequestDetailId: item.detailId,
+                }
+              });
+            }
+          }
+        }
+
+        // 3. Save Warehouse Allocations if provided
+        if (warehouseAllocations && (status === 'APPROVED' || status === 'SUBMITTED')) {
+          const detailIds = Object.keys(warehouseAllocations);
+          
+          for (const detailId of detailIds) {
+            const requestedAllocations = warehouseAllocations[detailId]; // Candidates: [{ warehouseId, ... }]
+            
+            // 2a. Verify detail belongs to this PR
+            const detail = await tx.purchaseRequestDetail.findFirst({
+              where: { id: detailId, purchaseRequestId: id },
+              include: { product: true }
+            });
+
+            if (!detail) continue;
+
+            const productId = detail.productId;
+            let remainingNeeded = Number(detail.jumlah);
+            let totalCost = 0;
+            let totalAllocatedQty = 0;
+            
+            // Final allocations to be saved (with specific quantities)
+            const finalAllocations = [];
+
+            // 2b. Iterate through requested warehouses (priority order)
+            for (const reqAlloc of requestedAllocations) {
+              if (remainingNeeded <= 0) break;
+
+              const warehouseId = reqAlloc.warehouseId;
+
+              // Get Current Stock Balance (Start of Month)
+              const period = startOfMonth(new Date());
+              
+              const stockBalance = await tx.stockBalance.findUnique({
+                where: {
+                  productId_warehouseId_period: {
+                    productId,
+                    warehouseId,
+                    period
+                  }
+                }
+              });
+
+              // Calculate available stock (Available - Booked is handled by availableStock field logic? 
+              // Schema says: availableStock = stockAkhir - bookedStock. 
+              // We trust availableStock field in DB to be up to date.)
+              const availableQty = stockBalance ? Number(stockBalance.availableStock) : 0;
+              
+              if (availableQty <= 0) continue;
+
+              // Determine how much to take from this warehouse
+              const takeQty = Math.min(remainingNeeded, availableQty);
+              
+              if (takeQty > 0) {
+                // --- FIFO PRICING LOGIC ---
+                // We need to calculate the cost of 'takeQty' units, 
+                // skipping the units that are already booked/consumed.
+                // NOTE: 'bookedStock' represents the quantity already promised to other PRs.
+                // We assume bookedStock corresponds to the oldest batches.
+                
+                const currentBooked = stockBalance ? Number(stockBalance.bookedStock) : 0;
+                let usageOffset = currentBooked; // Skip this many units (FIFO)
+                let qtyToPrice = takeQty;
+                let currentBatchCost = 0;
+
+                // Fetch StockDetails (Batches)
+                const batches = await tx.stockDetail.findMany({
+                  where: {
+                    productId,
+                    warehouseId,
+                    residualQty: { gt: 0 },
+                    isFullyConsumed: false
+                  },
+                  orderBy: { createdAt: 'asc' }
+                });
+
+                // ✅ VALIDATION: Check if physical batches are sufficient
+                const totalPhysicalStock = batches.reduce((sum, b) => sum + Number(b.residualQty), 0);
+                const availablePhysical = totalPhysicalStock - currentBooked;
+
+                if (availablePhysical < takeQty) {
+                  // Get product and warehouse names for better error message
+                  const product = await tx.product.findUnique({
+                    where: { id: productId },
+                    select: { name: true, code: true }
+                  });
+                  
+                  const warehouse = await tx.warehouse.findUnique({
+                    where: { id: warehouseId },
+                    select: { name: true }
+                  });
+
+                  throw new Error(
+                    `Stok fisik tidak mencukupi untuk produk "${product?.name || productId}" (${product?.code || ''}) ` +
+                    `di gudang "${warehouse?.name || warehouseId}". ` +
+                    `Dibutuhkan: ${takeQty} unit, ` +
+                    `Tersedia di StockBalance: ${availableQty} unit, ` +
+                    `Tersedia di batch fisik: ${availablePhysical} unit. ` +
+                    `Silakan lakukan Stock Opname untuk menyesuaikan data stok.`
+                  );
+                }
+
+                for (const batch of batches) {
+                   if (qtyToPrice <= 0) break;
+
+                   const batchQty = Number(batch.residualQty);
+                   
+                   // If we still need to skip units (because they are booked by others)
+                   if (usageOffset >= batchQty) {
+                     usageOffset -= batchQty;
+                     continue; // Skip this batch completely
+                   }
+
+                   // If logic reaches here, this batch has available units for US.
+                   // Available in this batch = batchQty - usageOffset
+                   const availableInBatch = batchQty - usageOffset;
+                   
+                   // We take what we need, or what's available
+                   const takeFromBatch = Math.min(qtyToPrice, availableInBatch);
+                   
+                   currentBatchCost += takeFromBatch * Number(batch.pricePerUnit);
+                   
+                   qtyToPrice -= takeFromBatch;
+                   usageOffset = 0; // Usage offset is fully consumed by this batch or previous
+                }
+
+                // If 'qtyToPrice' is still > 0, it means we ran out of batches (shouldn't happen if availableQty is correct)
+                // Fallback: use last batch price or 0
+                if (qtyToPrice > 0 && batches.length > 0) {
+                    const lastPrice = Number(batches[batches.length - 1].pricePerUnit);
+                    currentBatchCost += qtyToPrice * lastPrice;
+                }
+
+                totalCost += currentBatchCost;
+                totalAllocatedQty += takeQty;
+                remainingNeeded -= takeQty;
+
+                // --- UPDATE STOCK BALANCE ---
+                // Increase Booked, Decrease Available
+                await tx.stockBalance.update({
+                  where: { 
+                     productId_warehouseId_period: {
+                        productId,
+                        warehouseId,
+                        period
+                     }
+                  },
+                  data: {
+                    bookedStock: { increment: takeQty },
+                    availableStock: { decrement: takeQty }
+                  }
+                });
+
+                // Add to final allocations list
+                finalAllocations.push({
+                   warehouseId,
+                   warehouseName: reqAlloc.warehouseName,
+                   stock: reqAlloc.stock, // Original snapshot
+                   allocatedQty: takeQty,
+                   costAttribute: currentBatchCost
+                });
+              }
+            }
+
+            // 2c. Update PR Detail with new Price and Allocations
+            // Only update if we actually allocated something
+            if (totalAllocatedQty > 0) {
+               const newUnitPrice = totalCost / totalAllocatedQty;
+
+               await tx.purchaseRequestDetail.update({
+                 where: { id: detailId },
+                 data: {
+                   estimasiTotalHarga: totalCost,
+                   estimasiHargaSatuan: newUnitPrice,
+                   warehouseAllocation: finalAllocations
+                 }
+               });
+            } else {
+                // If nothing allocated (no stock?), just save the intention? 
+                // Currently just saving the raw selection if logic fails or no stock
+               if (remainingNeeded === Number(detail.jumlah)) {
+                   // No stock found at all
+                    await tx.purchaseRequestDetail.update({
+                        where: { id: detailId },
+                        data: {
+                        warehouseAllocation: requestedAllocations
+                        }
+                    });
+               }
+            }
+          }
+        }
+
+        return pr;
       });
 
       res.json({

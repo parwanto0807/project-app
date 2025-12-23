@@ -7,6 +7,12 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
     Select,
     SelectContent,
     SelectItem,
@@ -61,6 +67,7 @@ import { fetchKaryawanByEmail } from "@/lib/action/master/karyawan";
 import { usePurchaseRequestsBySpkId } from "@/hooks/use-pr";
 import { SourceProductType } from "@/schemas/pr";
 import { ProductCombobox } from "./productCombobox";
+import { api } from "@/lib/http";
 
 
 interface Product {
@@ -188,6 +195,8 @@ interface FormItem extends Omit<PurchaseRequestDetail, "id" | "estimasiTotalHarg
     itemName?: string;
     urgencyLevel?: "low" | "medium" | "high";
     sourceProduct?: SourceProductType; // Field baru untuk source product
+    availableStock?: number;
+    stockBreakdown?: { warehouseName: string; stock: number }[];
 }
 
 export function TabelUpdatePR({
@@ -213,7 +222,7 @@ export function TabelUpdatePR({
     const [selectedSpk, setSelectedSpk] = useState<SPK | null>(null);
     const [karyawanData, setKaryawanData] = useState<Karyawan | null>(null);
     const [loadingKaryawan, setLoadingKaryawan] = useState(false);
-    
+
 
     // Hook untuk mendapatkan histori PR berdasarkan SPK
     const {
@@ -224,41 +233,68 @@ export function TabelUpdatePR({
 
     // Initialize form dengan existing data
     useEffect(() => {
-        if (existingData) {
-            // Set form data
-            setFormData({
-                projectId: existingData.projectId || "",
-                spkId: existingData.spkId || "",
-                keterangan: existingData.keterangan || "",
-                tanggalPr: existingData.tanggalPr ? new Date(existingData.tanggalPr) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-            });
+        const loadExistingData = async () => {
+            if (existingData) {
+                // Set form data
+                setFormData({
+                    projectId: existingData.projectId || "",
+                    spkId: existingData.spkId || "",
+                    keterangan: existingData.keterangan || "",
+                    tanggalPr: existingData.tanggalPr ? new Date(existingData.tanggalPr) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+                });
 
-            // Set items dari existing details
-            if (existingData.details && existingData.details.length > 0) {
-                const initialItems: FormItem[] = existingData.details.map((detail, index) => ({
-                    tempId: `existing-${detail.id}-${index}`,
-                    productId: detail.productId,
-                    projectBudgetId: detail.projectBudgetId || "",
-                    jumlah: detail.jumlah,
-                    satuan: detail.satuan,
-                    estimasiHargaSatuan: detail.estimasiHargaSatuan,
-                    catatanItem: detail.catatanItem || "",
-                    itemName: products.find(p => p.id === detail.productId)?.name || "",
-                    urgencyLevel: "medium",
-                    sourceProduct: detail.sourceProduct as SourceProductType || SourceProductType.PEMBELIAN_BARANG,
-                }));
-                setItems(initialItems);
-            }
+                // Set items dari existing details
+                if (existingData.details && existingData.details.length > 0) {
+                    // Create base items
+                    const baseItems: FormItem[] = existingData.details.map((detail, index) => ({
+                        tempId: `existing-${detail.id}-${index}`,
+                        productId: detail.productId,
+                        projectBudgetId: detail.projectBudgetId || "",
+                        jumlah: detail.jumlah,
+                        satuan: detail.satuan,
+                        estimasiHargaSatuan: detail.estimasiHargaSatuan,
+                        catatanItem: detail.catatanItem || "",
+                        itemName: products.find(p => p.id === detail.productId)?.name || "",
+                        urgencyLevel: "medium",
+                        sourceProduct: detail.sourceProduct as SourceProductType || SourceProductType.PEMBELIAN_BARANG,
+                    }));
 
-            // Cari SPK yang sesuai dengan existing data
-            if (existingData.spkId && dataSpk.length > 0) {
-                const spk = dataSpk.find(s => s.id === existingData.spkId);
-                if (spk) {
-                    setSelectedSpk(spk);
-                    setSelectedProject(spk.salesOrder?.project || null);
+                    // Fetch stock data significantly improves UX
+                    const itemsWithStock = await Promise.all(baseItems.map(async (item) => {
+                        if (!item.productId) return item;
+
+                        try {
+                            const response = await api.get('/api/inventory/latest-stock', {
+                                params: { productId: item.productId, detail: 'true' }
+                            });
+                            if (response.data.success) {
+                                return {
+                                    ...item,
+                                    availableStock: response.data.data,
+                                    stockBreakdown: response.data.breakdown || []
+                                };
+                            }
+                        } catch (e) {
+                            console.error("Failed to fetch initial stock for item", item.productId, e);
+                        }
+                        return item;
+                    }));
+
+                    setItems(itemsWithStock);
+                }
+
+                // Cari SPK yang sesuai dengan existing data
+                if (existingData.spkId && dataSpk.length > 0) {
+                    const spk = dataSpk.find(s => s.id === existingData.spkId);
+                    if (spk) {
+                        setSelectedSpk(spk);
+                        setSelectedProject(spk.salesOrder?.project || null);
+                    }
                 }
             }
-        }
+        };
+
+        loadExistingData();
     }, [existingData, dataSpk, products]);
 
     useEffect(() => {
@@ -339,7 +375,25 @@ export function TabelUpdatePR({
     }, []);
 
     const updateItem = useCallback(
-        (tempId: string, field: keyof FormItem, value: string | number | SourceProductType) => {
+        async (tempId: string, field: keyof FormItem, value: string | number | SourceProductType) => {
+            // Fetch stock if product changes
+            let stockValue = 0;
+            let stockBreakdown: { warehouseName: string; stock: number }[] = [];
+
+            if (field === "productId" && value) {
+                try {
+                    const response = await api.get('/api/inventory/latest-stock', {
+                        params: { productId: value, detail: 'true' }
+                    });
+                    if (response.data.success) {
+                        stockValue = response.data.data;
+                        stockBreakdown = response.data.breakdown || [];
+                    }
+                } catch (err) {
+                    console.error("Error fetching stock:", err);
+                }
+            }
+
             setItems((prev) =>
                 prev.map((item) => {
                     if (item.tempId === tempId) {
@@ -351,6 +405,8 @@ export function TabelUpdatePR({
                                 updatedItem.catatanItem = selectedProduct.description || "";
                                 updatedItem.satuan = selectedProduct.usageUnit || "pcs";
                                 updatedItem.estimasiHargaSatuan = selectedProduct.price || 0;
+                                updatedItem.availableStock = stockValue;
+                                updatedItem.stockBreakdown = stockBreakdown;
                             }
                         }
                         return updatedItem;
@@ -622,10 +678,11 @@ export function TabelUpdatePR({
                                         <Table>
                                             <TableHeader className="bg-muted/50">
                                                 <TableRow>
-                                                    <TableHead className="w-[25%]">Product</TableHead>
+                                                    <TableHead className="w-[20%]">Product</TableHead>
                                                     <TableHead className="w-[15%]">Source</TableHead>
                                                     <TableHead className="w-[10%]">Qty</TableHead>
-                                                    <TableHead className="w-[15%]">Unit</TableHead>
+                                                    <TableHead className="w-[10%]">Available</TableHead>
+                                                    <TableHead className="w-[10%]">Unit</TableHead>
                                                     <TableHead className="w-[15%]">Unit Cost</TableHead>
                                                     <TableHead className="w-[15%]">Total</TableHead>
                                                     <TableHead className="w-[5%]"></TableHead>
@@ -676,6 +733,57 @@ export function TabelUpdatePR({
                                                                 onChange={(e) => updateItem(item.tempId, "jumlah", parseInt(e.target.value) || 1)}
                                                                 className={cn("w-20", errors[`quantity-${index}`] && "border-red-500")}
                                                             />
+                                                        </TableCell>
+
+                                                        {/* Stock Breakdown Tooltip */}
+                                                        <TableCell className="align-top">
+                                                            {(item.sourceProduct === SourceProductType.PEMBELIAN_BARANG || item.sourceProduct === SourceProductType.PENGAMBILAN_STOK) ? (
+                                                                <TooltipProvider>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <div className="py-2 px-3 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 rounded-md text-center font-bold text-sm cursor-help hover:bg-emerald-200 transition-colors">
+                                                                                {item.availableStock !== undefined ? item.availableStock : '-'}
+                                                                            </div>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent className="p-0 border-none shadow-xl">
+                                                                            <Card className="w-64 border-slate-200 dark:border-slate-800">
+                                                                                <CardHeader className="py-3 px-4 bg-slate-50 dark:bg-slate-900 border-b">
+                                                                                    <CardTitle className="text-sm font-bold flex items-center gap-2">
+                                                                                        <Package className="w-4 h-4 text-emerald-600" />
+                                                                                        Stock Details
+                                                                                    </CardTitle>
+                                                                                </CardHeader>
+                                                                                <CardContent className="p-0">
+                                                                                    {item.stockBreakdown && item.stockBreakdown.length > 0 ? (
+                                                                                        <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                                                                                            {item.stockBreakdown.map((wh, idx) => (
+                                                                                                <div key={idx} className="flex items-center justify-between py-2 px-4 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
+                                                                                                    <span className="text-xs font-medium text-slate-600 dark:text-slate-400">{wh.warehouseName}</span>
+                                                                                                    <Badge variant="outline" className="text-xs font-bold font-mono h-5 bg-white dark:bg-slate-950">
+                                                                                                        {wh.stock}
+                                                                                                    </Badge>
+                                                                                                </div>
+                                                                                            ))}
+                                                                                            <div className="flex items-center justify-between py-2 px-4 bg-emerald-50/50 dark:bg-emerald-900/10 font-bold border-t">
+                                                                                                <span className="text-xs text-emerald-700 dark:text-emerald-400">Total Valid</span>
+                                                                                                <span className="text-xs text-emerald-700 dark:text-emerald-400">{item.availableStock}</span>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    ) : (
+                                                                                        <div className="p-4 text-center text-xs text-slate-400">
+                                                                                            No Details
+                                                                                        </div>
+                                                                                    )}
+                                                                                </CardContent>
+                                                                            </Card>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                </TooltipProvider>
+                                                            ) : (
+                                                                <div className="py-2 px-3 text-center text-gray-400 font-medium text-sm">
+                                                                    -
+                                                                </div>
+                                                            )}
                                                         </TableCell>
 
                                                         <TableCell className="align-top">

@@ -246,8 +246,8 @@ export const stockOpnameController = {
           include: { items: true },
         });
 
-        if (!opname || opname.status !== 'DRAFT') {
-          throw new Error("Data opname tidak ditemukan atau status sudah bukan DRAFT");
+        if (!opname || (opname.status !== 'DRAFT' && opname.status !== 'COMPLETED')) {
+          throw new Error("Data opname tidak ditemukan atau status bukan DRAFT/COMPLETED");
         }
 
         // 2. Loop setiap item untuk adjustment
@@ -259,7 +259,7 @@ export const stockOpnameController = {
             const isAddition = selisih > 0;
             const absSelisih = Math.abs(selisih);
 
-            const currentPeriod = new Date();
+            const currentPeriod = opname.tanggalOpname ? new Date(opname.tanggalOpname) : new Date();
             const startOfPeriod = startOfMonth(currentPeriod);
 
             // Cari balance untuk periode, produk, dan gudang yang sesuai
@@ -287,8 +287,11 @@ export const stockOpnameController = {
                 referenceNo: opname.nomorOpname,
                 notes: `Adjustment from Stock Opname: ${opname.nomorOpname}`,
                 pricePerUnit: hargaSatuan,
+                residualQty: isAddition ? absSelisih : 0, // Set residualQty for FIFO tracking
+                isFullyConsumed: !isAddition, // Only IN transactions have residual stock
                 stockAwalSnapshot: stockAwalBeforeAdj,
-                stockAkhirSnapshot: stockAkhirAfterAdj
+                stockAkhirSnapshot: stockAkhirAfterAdj,
+                createdAt: currentPeriod
               }
             });
 
@@ -475,6 +478,30 @@ export const stockOpnameController = {
 
       return res.status(200).json({ success: true, data: result, message: "Status updated to CANCELLED" });
     } catch (error) {
+      return res.status(400).json({ success: false, message: error.message });
+    }
+  },
+
+  // --- STATUS CHANGE (Complete/Lock) ---
+  complete: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const result = await prisma.$transaction(async (tx) => {
+        const opname = await tx.stockOpname.findUnique({
+          where: { id },
+        });
+
+        if (!opname || opname.status !== 'DRAFT') throw new Error("Data opname tidak ditemukan atau status sudah bukan DRAFT");
+
+        return await tx.stockOpname.update({
+          where: { id },
+          data: { status: 'COMPLETED' },
+        });
+      });
+
+      return res.status(200).json({ success: true, data: result, message: "Status updated to COMPLETED" });
+    } catch (error) {
+        console.error("Complete Error:", error);
       return res.status(400).json({ success: false, message: error.message });
     }
   }

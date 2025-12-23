@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
     Calendar,
@@ -20,13 +20,15 @@ import {
     AlertCircle,
     Info,
     Layers,
+    Lock,
 } from "lucide-react";
+import { api } from "@/lib/http";
+import { toast } from "sonner";
 
 import { cn, formatCurrency, formatNumber, formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import {
     Table,
     TableBody,
@@ -35,7 +37,8 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { StockOpname, OpnameType, OpnameStatus } from "@/types/soType";
+import { StockOpname, OpnameStatus } from "@/types/soType";
+
 
 interface DetailStockOpnameProps {
     data: StockOpname;
@@ -49,6 +52,35 @@ export default function DetailStockOpname({
     onEdit,
 }: DetailStockOpnameProps) {
     const router = useRouter();
+    const [isLoading, setIsLoading] = React.useState(false);
+
+    // Local state for immediate UI update
+    const [opname, setOpname] = useState<StockOpname>(data);
+
+    // Sync prop changes
+    useEffect(() => {
+        setOpname(data);
+    }, [data]);
+
+    const handleLock = async () => {
+        if (!confirm("Apakah Anda yakin ingin mengunci data ini? Data yang sudah dikunci tidak dapat diedit kembali.")) return;
+
+        setIsLoading(true);
+        try {
+            await api.patch(`/api/stock-opname/${opname.id}/complete`);
+            toast.success("Stock Opname berhasil dikunci.");
+
+            // Optimistic Update
+            setOpname(prev => ({ ...prev, status: OpnameStatus.COMPLETED }));
+
+            router.refresh(); // Still call refresh just in case
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || "Terjadi kesalahan saat mengunci data.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
 
     const handlePrint = () => window.print();
 
@@ -59,6 +91,8 @@ export default function DetailStockOpname({
                 return { color: "text-blue-600 bg-blue-50 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20", icon: FileText, label: "Draft" };
             case OpnameStatus.ADJUSTED:
                 return { color: "text-emerald-600 bg-emerald-50 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20", icon: CheckCircle, label: "Selesai (Adjusted)" };
+            case OpnameStatus.COMPLETED:
+                return { color: "text-purple-600 bg-purple-50 border-purple-200 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20", icon: Lock, label: "Terkunci (Locked)" };
             case OpnameStatus.CANCELLED:
                 return { color: "text-rose-600 bg-rose-50 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20", icon: XCircle, label: "Dibatalkan" };
             default:
@@ -66,14 +100,14 @@ export default function DetailStockOpname({
         }
     };
 
-    const statusCfg = getStatusConfig(data.status);
+    const statusCfg = getStatusConfig(opname.status);
     const StatusIcon = statusCfg.icon;
 
     // Totals
-    const totalItems = data.items.length;
-    const totalNilai = data.items.reduce((acc, item) => acc + Number(item.totalNilai || 0), 0);
-    const totalSelisih = data.items.reduce((acc, item) => acc + Number(item.selisih || 0), 0);
-    const totalSelisihValue = data.items.reduce((acc, item) => acc + (Number(item.selisih || 0) * Number(item.hargaSatuan || 0)), 0);
+    const totalItems = opname.items.length;
+    const totalNilai = opname.items.reduce((acc, item) => acc + Number(item.totalNilai || 0), 0);
+    const totalSelisih = opname.items.reduce((acc, item) => acc + Number(item.selisih || 0), 0);
+    const totalSelisihValue = opname.items.reduce((acc, item) => acc + (Number(item.selisih || 0) * Number(item.hargaSatuan || 0)), 0);
 
     return (
         <div className="max-w-7xl mx-auto space-y-6 pb-12 animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -99,14 +133,25 @@ export default function DetailStockOpname({
                         <Printer className="w-4 h-4" />
                         Cetak Laporan
                     </Button>
-                    {data.status === OpnameStatus.DRAFT && (
-                        <Button
-                            className="flex-1 sm:flex-none gap-2 bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-200 dark:shadow-none transition-all active:scale-95 p-6"
-                            onClick={() => onEdit ? onEdit(data.id) : router.push(`/admin-area/inventory/stock-opname/${data.id}/edit`)}
-                        >
-                            <Edit className="w-4 h-4" />
-                            Edit Data
-                        </Button>
+                    {opname.status === OpnameStatus.DRAFT && (
+                        <>
+                            <Button
+                                className="flex-1 sm:flex-none gap-2 bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-200 dark:shadow-none transition-all active:scale-95 p-6"
+                                onClick={() => onEdit ? onEdit(opname.id) : router.push(`/admin-area/inventory/stock-opname/${opname.id}/edit`)}
+                                disabled={isLoading}
+                            >
+                                <Edit className="w-4 h-4" />
+                                Edit Data
+                            </Button>
+                            <Button
+                                className="flex-1 sm:flex-none gap-2 bg-purple-600 hover:bg-purple-700 shadow-md shadow-purple-200 dark:shadow-none transition-all active:scale-95 p-6"
+                                onClick={handleLock}
+                                disabled={isLoading}
+                            >
+                                {isLoading ? <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" /> : <Lock className="w-4 h-4" />}
+                                Lock / Approve
+                            </Button>
+                        </>
                     )}
                 </div>
             </div>
@@ -117,7 +162,7 @@ export default function DetailStockOpname({
                 {/* --- DYNAMIC HEADER CARD --- */}
                 <div className={cn(
                     "relative overflow-hidden rounded-3xl p-4 sm:p-6 text-white shadow-2xl transition-all duration-700",
-                    data.status === OpnameStatus.ADJUSTED ? "bg-slate-900" : "bg-gradient-to-br from-indigo-950 via-slate-900 to-blue-950"
+                    opname.status === OpnameStatus.ADJUSTED ? "bg-slate-900" : "bg-gradient-to-br from-indigo-950 via-slate-900 to-blue-950"
                 )}>
                     {/* Background Patterns */}
                     <div className="absolute top-0 right-0 w-1/2 h-full opacity-10 pointer-events-none">
@@ -132,22 +177,22 @@ export default function DetailStockOpname({
                                     {statusCfg.label}
                                 </div>
                                 <Badge variant="secondary" className="bg-white/10 text-white hover:bg-white/20 border-white/20 backdrop-blur-md px-4 py-1.5 rounded-full uppercase text-[10px] tracking-widest font-bold">
-                                    {data.type} Opname
+                                    {opname.type} Opname
                                 </Badge>
                             </div>
 
                             <div>
                                 <h1 className="text-xl sm:text-3xl font-extrabold tracking-tighter mb-3 drop-shadow-md">
-                                    {data.nomorOpname}
+                                    {opname.nomorOpname}
                                 </h1>
                                 <div className="flex flex-wrap items-center gap-6 text-blue-100/80">
                                     <div className="flex items-center gap-2">
                                         <Calendar className="w-5 h-5 text-blue-400" />
-                                        <span className="font-medium">{formatDate(data.tanggalOpname, 'long')}</span>
+                                        <span className="font-medium">{formatDate(opname.tanggalOpname, 'long')}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <Warehouse className="w-5 h-5 text-blue-400" />
-                                        <span className="font-medium">{data.warehouse?.name}</span>
+                                        <span className="font-medium">{opname.warehouse?.name}</span>
                                     </div>
                                 </div>
                             </div>
@@ -188,10 +233,10 @@ export default function DetailStockOpname({
                                     <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Petugas Lapangan</p>
                                     <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800 transition-colors hover:border-blue-200">
                                         <div className="h-10 w-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold shadow-inner">
-                                            {data.petugas?.name?.charAt(0) || <User className="w-5 h-5" />}
+                                            {opname.petugas?.name?.charAt(0) || <User className="w-5 h-5" />}
                                         </div>
                                         <div>
-                                            <p className="font-bold text-slate-900 dark:text-white leading-none mb-1">{data.petugas?.name || 'Unassigned'}</p>
+                                            <p className="font-bold text-slate-900 dark:text-white leading-none mb-1">{opname.petugas?.name || 'Unassigned'}</p>
                                             <p className="text-xs text-slate-500 italic">Inventory Officer</p>
                                         </div>
                                     </div>
@@ -204,8 +249,8 @@ export default function DetailStockOpname({
                                             <Warehouse className="w-5 h-5" />
                                         </div>
                                         <div>
-                                            <p className="font-bold text-slate-900 dark:text-white leading-none mb-1">{data.warehouse?.name}</p>
-                                            <p className="text-xs text-slate-500">{data.warehouse?.code}</p>
+                                            <p className="font-bold text-slate-900 dark:text-white leading-none mb-1">{opname.warehouse?.name}</p>
+                                            <p className="text-xs text-slate-500">{opname.warehouse?.code}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -217,7 +262,7 @@ export default function DetailStockOpname({
                                 </p>
                                 <div className="p-4 rounded-xl bg-blue-50/30 dark:bg-slate-900/50 border border-blue-100/50 dark:border-slate-800 min-h-[80px]">
                                     <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">
-                                        {data.keterangan || "Tidak ada instruksi atau catatan khusus untuk sesi opname ini."}
+                                        {opname.keterangan || "Tidak ada instruksi atau catatan khusus untuk sesi opname ini."}
                                     </p>
                                 </div>
                             </div>
@@ -291,7 +336,7 @@ export default function DetailStockOpname({
                     <CardContent className="p-0">
                         {/* Mobile View */}
                         <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
-                            {data.items.map((item, index) => (
+                            {opname.items.map((item, index) => (
                                 <div key={item.id} className="p-5 space-y-4 hover:bg-slate-50 dark:hover:bg-slate-900/40 transition-colors">
                                     <div className="flex justify-between items-start">
                                         <div className="flex gap-4">
@@ -347,7 +392,7 @@ export default function DetailStockOpname({
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {data.items.map((item, index) => (
+                                    {opname.items.map((item, index) => (
                                         <TableRow key={item.id} className="group hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors border-b dark:border-slate-800">
                                             <TableCell className="text-center font-mono text-xs text-slate-400">
                                                 {(index + 1).toString().padStart(2, '0')}
@@ -412,7 +457,7 @@ export default function DetailStockOpname({
                     <div className="text-center space-y-20">
                         <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Dibuat Oleh (Petugas)</p>
                         <div className="space-y-1">
-                            <p className="font-bold underline text-sm">{data.petugas?.name}</p>
+                            <p className="font-bold underline text-sm">{opname.petugas?.name}</p>
                             <p className="text-[10px] text-slate-400 italic">Inventory Clerk</p>
                         </div>
                     </div>

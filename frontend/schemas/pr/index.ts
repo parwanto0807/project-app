@@ -79,6 +79,7 @@ export const UpdatePurchaseRequestStatusSchema = z.object({
   reviewedBy: z.string().min(1, "Reviewed by is required").optional(),
   approvedBy: z.string().min(1, "Approved by is required").optional(),
   remarks: z.string().max(500, "Remarks too long").optional(),
+  warehouseAllocations: z.record(z.array(z.any())).optional(),
 });
 
 // ======================= TYPES =======================

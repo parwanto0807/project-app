@@ -197,6 +197,7 @@ export const stockMonitoringController = {
           storageUnit: balance.product.storageUnit,
           isActive: balance.product.isActive,
           warehouse: balance.warehouse?.name || 'Unknown',
+          warehouseId: balance.warehouseId,
           period: balance.period,
           stockAwal: toNumber(balance.stockAwal),
           stockIn: toNumber(balance.stockIn),
@@ -324,27 +325,85 @@ export const stockMonitoringController = {
     try {
       const { productId, warehouseId } = req.query;
 
-      if (!productId || !warehouseId) {
-        return res.status(400).json({ success: false, message: "ProductId and WarehouseId are required" });
+      if (!productId) {
+        return res.status(400).json({ success: false, message: "ProductId is required" });
       }
 
       // Period bulan ini
       const currentPeriod = startOfMonth(new Date());
 
-      const balance = await prisma.stockBalance.findFirst({
-        where: {
-          productId: productId,
-          warehouseId: warehouseId,
-          period: currentPeriod
-        },
-        select: {
-            stockAkhir: true
-        }
-      });
+      let stockValue = 0;
+      let breakdown = [];
+
+      if (req.query.detail === 'true') {
+         const balances = await prisma.stockBalance.findMany({
+           where: {
+             productId: productId,
+             period: currentPeriod
+           },
+           include: {
+             warehouse: { select: { name: true } }
+           }
+         });
+         
+         // Fetch prices for each warehouse (FIFO basis - oldest available batch)
+         breakdown = await Promise.all(balances.map(async (b) => {
+             // Find the oldest batch that still has stock for this product in this warehouse
+             const oldestBatch = await prisma.stockDetail.findFirst({
+                 where: {
+                     productId: productId,
+                     warehouseId: b.warehouseId,
+                     residualQty: { gt: 0 },
+                     isFullyConsumed: false
+                 },
+                 orderBy: { createdAt: 'asc' },
+                 select: { pricePerUnit: true, residualQty: true, type: true, source: true }
+             });
+             
+             return {
+                 warehouseId: b.warehouseId,
+                 warehouseName: b.warehouse?.name || 'Unknown',
+                 stock: Number(b.availableStock),
+                 price: oldestBatch ? Number(oldestBatch.pricePerUnit) : 0
+             };
+         }));
+
+         // Calculate total from breakdown to ensure consistency
+         stockValue = breakdown.reduce((sum, item) => sum + item.stock, 0);
+
+         return res.status(200).json({
+          success: true,
+          data: stockValue,
+          breakdown: breakdown // Return breakdown explicitly
+        });
+      }
+
+      if (warehouseId) {
+        // Specific Warehouse
+        const balance = await prisma.stockBalance.findFirst({
+          where: {
+            productId: productId,
+            warehouseId: warehouseId,
+            period: currentPeriod
+          },
+          select: { availableStock: true }
+        });
+        stockValue = balance ? Number(balance.availableStock) : 0;
+      } else {
+        // All Warehouses (Aggregate)
+        const aggregation = await prisma.stockBalance.aggregate({
+           where: {
+             productId: productId,
+             period: currentPeriod
+           },
+           _sum: { availableStock: true }
+        });
+        stockValue = aggregation._sum.availableStock ? Number(aggregation._sum.availableStock) : 0;
+      }
 
       return res.status(200).json({
         success: true,
-        data: balance ? Number(balance.stockAkhir) : 0
+        data: stockValue
       });
 
     } catch (error) {

@@ -114,7 +114,7 @@ export default function PurchaseRequestPageAdmin() {
     };
 
     // Handle status update - disesuaikan dengan signature fungsi yang ada
-    const handleStatusUpdate = async (id: string, status: PurchaseRequest['status']) => {
+    const handleStatusUpdate = async (id: string, status: PurchaseRequest['status'], catatan?: string, warehouseAllocations?: Record<string, any[]>) => {
         try {
             // Cek jika status sudah COMPLETE
             if (status === "COMPLETED") {
@@ -130,7 +130,11 @@ export default function PurchaseRequestPageAdmin() {
             const toastId = toast.loading(`Updating status to ${status}...`);
 
             // Jalankan update status hanya jika bukan COMPLETE
-            await updatePurchaseRequestStatus(id, { status });
+            await updatePurchaseRequestStatus(id, {
+                status,
+                remarks: catatan,
+                warehouseAllocations
+            });
 
             // Update toast menjadi success
             toast.success(`Purchase request status updated to ${status}`, {

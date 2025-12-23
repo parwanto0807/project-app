@@ -24,5 +24,6 @@ router.route('/:id')
 // Endpoint Khusus Adjustment
 router.patch('/:id/adjust', stockOpnameController.adjust);
 router.patch('/:id/cancel', stockOpnameController.cancel);
+router.patch('/:id/complete', stockOpnameController.complete);
 
 export default router;

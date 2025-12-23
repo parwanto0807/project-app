@@ -7,6 +7,7 @@ export interface StockMonitoringItem {
     storageUnit: string;
     isActive: boolean;
     warehouse: string;
+    warehouseId: string;
     stockAwal: number;
     stockIn: number;
     stockOut: number;

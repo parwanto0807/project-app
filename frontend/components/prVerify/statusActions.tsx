@@ -12,15 +12,36 @@ import {
     CheckCircle,
     ThumbsUp,
     ThumbsDown,
-    X
+    X,
+    ChevronDown,
+    Info,
+    Check
 } from "lucide-react";
-import { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { api } from "@/lib/http";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import toast, { Toaster } from 'react-hot-toast';
 
 // Import type dari @/types/pr
 import { PurchaseRequest, PurchaseRequestDetail } from "@/types/pr";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-// Enum untuk Source Product Type
 enum SourceProductType {
     PEMBELIAN_BARANG = "PEMBELIAN_BARANG",
     PENGAMBILAN_STOK = "PENGAMBILAN_STOK",
@@ -45,7 +66,7 @@ type PurchaseRequestStatus = PurchaseRequest['status'];
 // Definisikan props untuk StatusActions
 interface StatusActionsProps {
     currentStatus: PurchaseRequestStatus;
-    onStatusUpdate: (status: PurchaseRequestStatus) => void;
+    onStatusUpdate: (status: PurchaseRequestStatus, catatan?: string, warehouseAllocations?: Record<string, any[]>) => void;
 }
 
 // Komponen StatusActions yang terpisah dengan desain lebih profesional
@@ -102,12 +123,12 @@ function StatusActions({ currentStatus, onStatusUpdate }: StatusActionsProps) {
                         variant="outline"
                         disabled={isButtonDisabled(status as PurchaseRequestStatus)}
                         className={`
-                            flex items-center gap-2 px-3 sm:px-4 py-2 border-2 font-medium
-                            transition-all duration-200 hover:scale-105 disabled:opacity-50 
-                            disabled:cursor-not-allowed disabled:hover:scale-100
-                            rounded-lg text-xs sm:text-sm
-                            ${config.className}
-                        `}
+                        flex items-center gap-2 px-3 sm:px-4 py-2 border-2 font-medium
+                        transition-all duration-200 hover:scale-105 disabled:opacity-50 
+                        disabled:cursor-not-allowed disabled:hover:scale-100
+                        rounded-lg text-xs sm:text-sm
+                        ${config.className}
+                    `}
                     >
                         <IconComponent className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         <span className="hidden sm:inline">{config.label}</span>
@@ -182,7 +203,7 @@ interface PurchaseRequestSheetProps {
     detailSheetOpen: boolean;
     setDetailSheetOpen: (open: boolean) => void;
     selectedPurchaseRequest: PurchaseRequest | null;
-    onStatusUpdate: (id: string, status: PurchaseRequestStatus) => void;
+    onStatusUpdate: (id: string, status: PurchaseRequestStatus, catatan?: string, warehouseAllocations?: Record<string, any[]>) => void;
 }
 
 export function PurchaseRequestSheet({
@@ -190,19 +211,136 @@ export function PurchaseRequestSheet({
     setDetailSheetOpen,
     selectedPurchaseRequest,
     onStatusUpdate
-}: PurchaseRequestSheetProps) {
+}: PurchaseRequestSheetProps): React.ReactElement {
     const contentRef = useRef<HTMLDivElement>(null);
+
+    // State for stock data
+    const [stockData, setStockData] = useState<Record<string, { available: number, breakdown: { warehouseId: string; warehouseName: string; stock: number; price: number }[] }>>({});
+
+    // State for selected warehouses per item (checklist)
+    const [warehouseSelections, setWarehouseSelections] = useState<Record<string, string[]>>({});
+
+    // State for source product changes (when stock is 0, allow changing from PENGAMBILAN_STOK to PEMBELIAN_BARANG)
+    const [sourceProductChanges, setSourceProductChanges] = useState<Record<string, SourceProductType>>({});
+
+    // State for auto-split items (when stock is insufficient, create additional item for shortage)
+    const [splitItems, setSplitItems] = useState<Record<string, PurchaseRequestDetailWithRelations>>({});
+
+    // Derived details with live price calculation (replacing localDetails state)
+    const localDetails = React.useMemo(() => {
+        if (!selectedPurchaseRequest?.details) return [];
+
+        const newSplitItems: Record<string, PurchaseRequestDetailWithRelations> = {};
+
+        const processedDetails = selectedPurchaseRequest.details.map(detail => {
+            const detailId = detail.id || '';
+            const selections = warehouseSelections[detailId];
+            const detailStock = stockData[detailId];
+
+            // Use changed source if exists, otherwise use original
+            const effectiveSource = sourceProductChanges[detailId] || detail.sourceProduct;
+
+            // Only recalculate if we have selections and stock data for this stok pengambilan item
+            if (
+                effectiveSource === SourceProductType.PENGAMBILAN_STOK &&
+                selections &&
+                selections.length > 0 &&
+                detailStock
+            ) {
+                let remainingNeeded = Number(detail.jumlah);
+                let totalCost = 0;
+                let totalAllocated = 0;
+
+                // Prioritize selections based on the order in breakdown (availability)
+                const sortedSelections = detailStock.breakdown.filter(wh => selections.includes(wh.warehouseId));
+
+                for (const wh of sortedSelections) {
+                    if (remainingNeeded <= 0) break;
+
+                    const takeQty = Math.min(remainingNeeded, wh.stock);
+                    if (takeQty > 0) {
+                        // wh.price corresponds to pricePerUnit from StockDetail (fetched by backend)
+                        totalCost += takeQty * (wh.price || 0);
+                        totalAllocated += takeQty;
+                        remainingNeeded -= takeQty;
+                    }
+                }
+
+                // Check if stock is insufficient - create split item for shortage
+                if (totalAllocated > 0 && totalAllocated < Number(detail.jumlah)) {
+                    const shortage = Number(detail.jumlah) - totalAllocated;
+                    const newUnitPrice = totalCost / totalAllocated;
+
+                    // Create split item for shortage (Pembelian Barang)
+                    const splitItemId = `split-${detailId}`;
+                    newSplitItems[detailId] = {
+                        ...detail,
+                        id: splitItemId,
+                        jumlah: shortage,
+                        sourceProduct: SourceProductType.PEMBELIAN_BARANG,
+                        estimasiHargaSatuan: detail.estimasiHargaSatuan || 0, // Use original price or 0
+                        estimasiTotalHarga: (detail.estimasiHargaSatuan || 0) * shortage,
+                    } as PurchaseRequestDetailWithRelations;
+
+                    // Return original item with adjusted quantity (only what's available from stock)
+                    return {
+                        ...detail,
+                        jumlah: totalAllocated,
+                        estimasiHargaSatuan: newUnitPrice,
+                        estimasiTotalHarga: totalCost
+                    } as PurchaseRequestDetailWithRelations;
+                } else if (totalAllocated > 0) {
+                    // Stock is sufficient
+                    const newUnitPrice = totalCost / totalAllocated;
+                    return {
+                        ...detail,
+                        estimasiHargaSatuan: newUnitPrice,
+                        estimasiTotalHarga: totalCost
+                    } as PurchaseRequestDetailWithRelations;
+                }
+            } else if (
+                effectiveSource === SourceProductType.PENGAMBILAN_STOK &&
+                (!selections || selections.length === 0)
+            ) {
+                // If no warehouse selected, keep the original values from database
+                return {
+                    ...detail,
+                    estimasiHargaSatuan: detail.estimasiHargaSatuan || 0,
+                    estimasiTotalHarga: detail.estimasiTotalHarga || 0
+                } as PurchaseRequestDetailWithRelations;
+            }
+
+            return detail as PurchaseRequestDetailWithRelations;
+        });
+
+        // Update split items state
+        setSplitItems(newSplitItems);
+
+        // Combine original items with split items
+        const allDetails = [...processedDetails];
+        Object.entries(newSplitItems).forEach(([parentId, splitItem]) => {
+            // Insert split item right after its parent
+            const parentIndex = allDetails.findIndex(d => d.id === parentId);
+            if (parentIndex !== -1) {
+                allDetails.splice(parentIndex + 1, 0, splitItem);
+            }
+        });
+
+        return allDetails;
+    }, [selectedPurchaseRequest, warehouseSelections, stockData, sourceProductChanges]);
 
     // Fungsi untuk menghitung summary
     const calculateSummary = () => {
-        if (!selectedPurchaseRequest?.details) {
+        const detailsToUse = localDetails.length > 0 ? localDetails : (selectedPurchaseRequest?.details || []);
+
+        if (detailsToUse.length === 0) {
             return { totalBiaya: 0, totalHPP: 0, grandTotal: 0 };
         }
 
         let totalBiaya = 0;
         let totalHPP = 0;
 
-        selectedPurchaseRequest.details.forEach((detail) => {
+        detailsToUse.forEach((detail) => {
             const subtotal = Number(detail.estimasiTotalHarga || 0);
 
             switch (detail.sourceProduct) {
@@ -228,6 +366,74 @@ export function PurchaseRequestSheet({
     // Gunakan di dalam komponen
     const { totalBiaya, totalHPP, grandTotal } = calculateSummary();
 
+
+    const handleToggleWarehouse = (detailId: string, warehouseId: string) => {
+        setWarehouseSelections(prev => {
+            const currentSelections = prev[detailId] || [];
+            let newSelections;
+            if (currentSelections.includes(warehouseId)) {
+                newSelections = currentSelections.filter(id => id !== warehouseId);
+            } else {
+                newSelections = [...currentSelections, warehouseId];
+            }
+
+            return { ...prev, [detailId]: newSelections };
+        });
+    };
+
+    const handleSourceProductChange = (detailId: string, newSource: SourceProductType) => {
+        setSourceProductChanges(prev => ({
+            ...prev,
+            [detailId]: newSource
+        }));
+
+        // Clear warehouse selections if changing away from PENGAMBILAN_STOK
+        if (newSource !== SourceProductType.PENGAMBILAN_STOK) {
+            setWarehouseSelections(prev => ({
+                ...prev,
+                [detailId]: []
+            }));
+        }
+    };
+
+
+
+    // Fetch stock data when selectedPurchaseRequest changes
+    useEffect(() => {
+        const fetchStockData = async () => {
+            if (selectedPurchaseRequest?.details) {
+                const newStockData: Record<string, { available: number, breakdown: any[] }> = {};
+
+                await Promise.all(selectedPurchaseRequest.details.map(async (detail) => {
+                    if (detail.productId) {
+                        try {
+                            const response = await api.get('/api/inventory/latest-stock', {
+                                params: { productId: detail.productId, detail: 'true' }
+                            });
+
+                            if (response.data.success && detail.id) {
+                                newStockData[detail.id] = {
+                                    available: response.data.data,
+                                    breakdown: response.data.breakdown || []
+                                };
+                            }
+                        } catch (error) {
+                            console.error("Error fetching stock for item:", detail.productId, error);
+                        }
+                    }
+                }));
+
+                setStockData(newStockData);
+            }
+        };
+
+        if (selectedPurchaseRequest) {
+            fetchStockData();
+        } else {
+            setStockData({});
+        }
+    }, [selectedPurchaseRequest]);
+
     const handleStatusUpdateFromActions = (status: PurchaseRequestStatus) => {
         if (selectedPurchaseRequest) {
             onStatusUpdate(selectedPurchaseRequest.id, status);
@@ -244,6 +450,7 @@ export function PurchaseRequestSheet({
 
     return (
         <Sheet open={detailSheetOpen} onOpenChange={setDetailSheetOpen}>
+            <Toaster />
             <SheetContent
                 side="bottom"
                 className="overflow-y-auto sm:max-w-4xl lg:max-w-5xl ml-auto rounded-t-2xl rounded-b-none sm:mb-4 w-full sm:w-auto sm:mr-36 dark:bg-slate-800 md:px-2 max-h-[95vh]"
@@ -275,22 +482,22 @@ export function PurchaseRequestSheet({
                                     <Badge
                                         variant="outline"
                                         className={`
-                                            ${premiumStatusColors[selectedPurchaseRequest.status]}
-                                            border font-semibold text-xs px-2 sm:px-3 py-1 sm:py-1.5 rounded-full 
-                                            flex items-center gap-1.5 backdrop-blur-sm 
-                                            transition-all duration-200 hover:scale-105
-                                            shadow-sm hover:shadow-md whitespace-nowrap
-                                        `}
+                                        ${premiumStatusColors[selectedPurchaseRequest.status as keyof typeof premiumStatusColors]}
+                                        border font-semibold text-xs px-2 sm:px-3 py-1 sm:py-1.5 rounded-full 
+                                        flex items-center gap-1.5 backdrop-blur-sm 
+                                        transition-all duration-200 hover:scale-105
+                                        shadow-sm hover:shadow-md whitespace-nowrap
+                                    `}
                                     >
                                         {(() => {
-                                            const IconComponent = statusIcons[selectedPurchaseRequest.status];
+                                            const IconComponent = statusIcons[selectedPurchaseRequest.status as keyof typeof statusIcons];
                                             return <IconComponent className="h-3 w-3 sm:h-3.5 sm:w-3.5" />;
                                         })()}
                                         <span className="hidden xs:inline">
-                                            {statusLabels[selectedPurchaseRequest.status]}
+                                            {statusLabels[selectedPurchaseRequest.status as keyof typeof statusLabels]}
                                         </span>
                                         <span className="xs:hidden">
-                                            {statusLabels[selectedPurchaseRequest.status].split(' ')[0]}
+                                            {statusLabels[selectedPurchaseRequest.status as keyof typeof statusLabels].split(' ')[0]}
                                         </span>
                                     </Badge>
                                 )}
@@ -371,7 +578,7 @@ export function PurchaseRequestSheet({
 
                                 <div className="flex flex-col lg:flex-row gap-4 sm:gap-6">
                                     {/* Left Column - Information */}
-                                    <div className="lg:w-1/3 space-y-4 sm:space-y-6">
+                                    <div className="lg:w-1/5 space-y-4 sm:space-y-6">
                                         {/* Project Information Card */}
                                         <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 shadow-sm">
                                             <CardHeader className="pb-3">
@@ -383,7 +590,7 @@ export function PurchaseRequestSheet({
                                             <CardContent className="space-y-3 sm:space-y-4">
                                                 <div className="space-y-1">
                                                     <p className="text-xs text-gray-500 font-medium">Project Name</p>
-                                                    <p className="text-sm font-semibold text-gray-900 truncate">
+                                                    <p className="text-sm font-semibold text-gray-900 text-wrap">
                                                         {selectedPurchaseRequest.project?.name || selectedPurchaseRequest.projectId}
                                                     </p>
                                                 </div>
@@ -429,7 +636,7 @@ export function PurchaseRequestSheet({
                                     </div>
 
                                     {/* Right Column - Items Table */}
-                                    <div className="lg:w-2/3">
+                                    <div className="lg:w-4/3">
                                         <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 shadow-sm h-full">
                                             <CardHeader className="pb-3">
                                                 <CardTitle className="text-sm font-semibold text-gray-900 flex items-center gap-2">
@@ -444,7 +651,8 @@ export function PurchaseRequestSheet({
                                                         <div className="col-span-1 text-center">No</div>
                                                         <div className="col-span-3 pl-2">Item Description</div>
                                                         <div className="col-span-2 text-center">Source</div>
-                                                        <div className="col-span-2 text-center">Quantity</div>
+                                                        <div className="col-span-1 text-center">Availbl. Stock</div>
+                                                        <div className="col-span-1 text-center">Qty</div>
                                                         <div className="col-span-2 text-right pr-4">Unit Price</div>
                                                         <div className="col-span-2 text-right pr-4">Total</div>
                                                     </div>
@@ -455,10 +663,11 @@ export function PurchaseRequestSheet({
                                                     </div>
 
                                                     {/* Table Body dengan Scroll */}
-                                                    {selectedPurchaseRequest.details && selectedPurchaseRequest.details.length > 0 ? (
+                                                    {/* Table Body dengan Scroll */}
+                                                    {localDetails && localDetails.length > 0 ? (
                                                         <>
                                                             <div className="max-h-72 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-                                                                {(selectedPurchaseRequest.details as PurchaseRequestDetailWithRelations[]).map((detail, index) => (
+                                                                {localDetails.map((detail, index) => (
                                                                     <div
                                                                         key={detail.id}
                                                                         className="border-b border-gray-100 last:border-b-0"
@@ -470,20 +679,100 @@ export function PurchaseRequestSheet({
                                                                                     <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">
                                                                                         {index + 1}
                                                                                     </span>
-                                                                                    <span className="font-medium text-gray-900 text-xs line-clamp-2">
+                                                                                    <span className="font-medium text-gray-900 text-xs line-clamp-2 flex items-center gap-2">
                                                                                         {detail.product?.name || "Unnamed Item"}
+                                                                                        {detail.id?.startsWith('split-') && (
+                                                                                            <Badge variant="outline" className="text-[9px] bg-blue-50 text-blue-700 border-blue-200 px-1 py-0">
+                                                                                                Auto-Split
+                                                                                            </Badge>
+                                                                                        )}
                                                                                     </span>
                                                                                 </div>
                                                                             </div>
                                                                             <div className="space-y-2">
                                                                                 <div className="flex justify-between">
                                                                                     <span className="text-xs text-gray-500">Source</span>
-                                                                                    <Badge
-                                                                                        variant="outline"
-                                                                                        className="text-xs"
-                                                                                    >
-                                                                                        {getSourceProductLabel(detail.sourceProduct as SourceProductType)}
-                                                                                    </Badge>
+                                                                                    <div className="flex flex-col gap-2">
+                                                                                        <Badge
+                                                                                            variant="outline"
+                                                                                            className="text-xs w-fit"
+                                                                                        >
+                                                                                            {getSourceProductLabel(detail.sourceProduct as SourceProductType)}
+                                                                                        </Badge>
+
+                                                                                        {/* Mobile Warehouse Selection */}
+                                                                                        {(detail.sourceProduct === SourceProductType.PENGAMBILAN_STOK && stockData[detail.id || '']?.breakdown?.length > 0) && (
+                                                                                            <Dialog>
+                                                                                                <DialogTrigger asChild>
+                                                                                                    <Button variant="outline" size="sm" className="h-8 text-xs flex items-center gap-1 w-full justify-between">
+                                                                                                        <span>
+                                                                                                            {warehouseSelections[detail.id || '']?.length
+                                                                                                                ? `${warehouseSelections[detail.id || '']?.length} WH Selected`
+                                                                                                                : "Select Stock"}
+                                                                                                        </span>
+                                                                                                        <ChevronDown className="h-3 w-3 opacity-50" />
+                                                                                                    </Button>
+                                                                                                </DialogTrigger>
+                                                                                                <DialogContent className="w-[90%] max-w-[400px] p-0 gap-0">
+                                                                                                    <div className="p-4 bg-gray-50 border-b rounded-t-lg">
+                                                                                                        <DialogHeader>
+                                                                                                            <DialogTitle className="text-base font-semibold">Select Warehouse</DialogTitle>
+                                                                                                            <DialogDescription className="text-xs text-gray-500">
+                                                                                                                Pick source warehouses for this item
+                                                                                                            </DialogDescription>
+                                                                                                        </DialogHeader>
+                                                                                                    </div>
+                                                                                                    <div className="p-4 space-y-2 max-h-[60vh] overflow-y-auto">
+                                                                                                        {stockData[detail.id || '']?.breakdown.map((wh) => (
+                                                                                                            <div
+                                                                                                                key={wh.warehouseId}
+                                                                                                                className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                                                                                                                onClick={() => handleToggleWarehouse(detail.id || '', wh.warehouseId)}
+                                                                                                            >
+                                                                                                                <Checkbox
+                                                                                                                    checked={(warehouseSelections[detail.id || ''] || []).includes(wh.warehouseId)}
+                                                                                                                    onCheckedChange={() => handleToggleWarehouse(detail.id || '', wh.warehouseId)}
+                                                                                                                    onClick={(e) => e.stopPropagation()}
+                                                                                                                    id={`mobile-${detail.id}-${wh.warehouseId}`}
+                                                                                                                    className="mt-1"
+                                                                                                                />
+                                                                                                                <div className="grid gap-1 w-full">
+                                                                                                                    <label
+                                                                                                                        htmlFor={`mobile-${detail.id}-${wh.warehouseId}`}
+                                                                                                                        className="text-sm font-medium leading-none cursor-pointer"
+                                                                                                                        onClick={(e) => e.stopPropagation()}
+                                                                                                                    >
+                                                                                                                        {wh.warehouseName}
+                                                                                                                    </label>
+                                                                                                                    <div className="flex justify-between items-center text-xs text-gray-500">
+                                                                                                                        <span>Stock: {wh.stock}</span>
+                                                                                                                        {((warehouseSelections[detail.id || ''] || []).includes(wh.warehouseId)) && (
+                                                                                                                            <Check className="h-3 w-3 text-green-600" />
+                                                                                                                        )}
+                                                                                                                    </div>
+                                                                                                                </div>
+                                                                                                            </div>
+                                                                                                        ))}
+                                                                                                    </div>
+                                                                                                    <div className="p-4 border-t bg-gray-50 rounded-b-lg">
+                                                                                                        <div className="flex justify-between items-center text-sm font-medium">
+                                                                                                            <span>Total Selected Stock:</span>
+                                                                                                            <span className="text-green-600 font-bold">
+                                                                                                                {stockData[detail.id || '']?.breakdown
+                                                                                                                    .filter(wh => (warehouseSelections[detail.id || ''] || []).includes(wh.warehouseId))
+                                                                                                                    .reduce((sum, wh) => sum + wh.stock, 0)
+                                                                                                                }
+                                                                                                            </span>
+                                                                                                        </div>
+                                                                                                        <div className="flex justify-between items-center text-xs text-gray-500 mt-1">
+                                                                                                            <span>Required:</span>
+                                                                                                            <span>{detail.jumlah} {detail.satuan}</span>
+                                                                                                        </div>
+                                                                                                    </div>
+                                                                                                </DialogContent>
+                                                                                            </Dialog>
+                                                                                        )}
+                                                                                    </div>
                                                                                 </div>
                                                                                 <div className="flex justify-between items-center">
                                                                                     <div className="text-xs text-gray-700">
@@ -503,7 +792,7 @@ export function PurchaseRequestSheet({
                                                                         </div>
 
                                                                         {/* Desktop View - Fixed */}
-                                                                        <div className="hidden sm:grid sm:grid-cols-12 w-full items-center px-4 py-3 hover:bg-gray-50/50 transition-colors">
+                                                                        <div className={`hidden sm:grid sm:grid-cols-12 w-full items-center px-4 py-3 hover:bg-gray-50/50 transition-colors ${detail.id?.startsWith('split-') ? 'bg-blue-50/30 border-l-4 border-blue-400' : ''}`}>
                                                                             <div className="col-span-1 text-center text-xs font-medium text-gray-500">
                                                                                 {index + 1}
                                                                             </div>
@@ -511,23 +800,31 @@ export function PurchaseRequestSheet({
                                                                                 <TooltipProvider>
                                                                                     <Tooltip>
                                                                                         <TooltipTrigger asChild>
-                                                                                            <span className="cursor-default truncate block hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors duration-200">
-                                                                                                {detail.product?.name || "Unnamed Item"}
-                                                                                            </span>
+                                                                                            <div className="flex items-center gap-2">
+                                                                                                <span className="cursor-default truncate block hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors duration-200">
+                                                                                                    {detail.product?.name || "Unnamed Item"}
+                                                                                                </span>
+                                                                                                {/* Show badge if this is a split item */}
+                                                                                                {detail.id?.startsWith('split-') && (
+                                                                                                    <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200 px-1 py-0">
+                                                                                                        Auto-Split
+                                                                                                    </Badge>
+                                                                                                )}
+                                                                                            </div>
                                                                                         </TooltipTrigger>
 
                                                                                         <TooltipContent
                                                                                             className="
-        rounded-2xl 
-        shadow-xl 
-        bg-gradient-to-br from-emerald-50 to-cyan-50 
-        dark:from-emerald-950/80 dark:to-cyan-950/80 
-        backdrop-blur-xl 
-        border border-white/20 
-        dark:border-emerald-500/20
-        text-[13px]
-        p-3
-      "
+            rounded-2xl 
+            shadow-xl 
+            bg-gradient-to-br from-emerald-50 to-cyan-50 
+            dark:from-emerald-950/80 dark:to-cyan-950/80 
+            backdrop-blur-xl 
+            border border-white/20 
+            dark:border-emerald-500/20
+            text-[13px]
+            p-3
+          "
                                                                                         >
                                                                                             <p className="max-w-xs text-emerald-900 dark:text-emerald-100 font-semibold">
                                                                                                 {detail.product?.name || "Unnamed Item"}
@@ -537,22 +834,232 @@ export function PurchaseRequestSheet({
                                                                                 </TooltipProvider>
                                                                             </div>
                                                                             <div className="col-span-2 text-center">
-                                                                                <Badge
-                                                                                    variant="outline"
-                                                                                    className={`
-                                        text-xs
-                                        ${detail.sourceProduct === SourceProductType.PEMBELIAN_BARANG ||
-                                                                                            detail.sourceProduct === SourceProductType.OPERATIONAL ||
-                                                                                            detail.sourceProduct === SourceProductType.JASA_PEMBELIAN
-                                                                                            ? "bg-blue-50 text-blue-700 border-blue-200"
-                                                                                            : "bg-green-50 text-green-700 border-green-200"
-                                                                                        }
-                                    `}
-                                                                                >
-                                                                                    {getSourceProductLabel(detail.sourceProduct as SourceProductType)}
-                                                                                </Badge>
+                                                                                {/* Show dropdown if stock is 0 and source is PENGAMBILAN_STOK */}
+                                                                                {(detail.sourceProduct === SourceProductType.PENGAMBILAN_STOK && stockData[detail.id || '']?.available === 0) ? (
+                                                                                    <Select
+                                                                                        value={sourceProductChanges[detail.id || ''] || detail.sourceProduct}
+                                                                                        onValueChange={(value) => handleSourceProductChange(detail.id || '', value as SourceProductType)}
+                                                                                        disabled={selectedPurchaseRequest?.status === 'APPROVED' ||
+                                                                                            selectedPurchaseRequest?.status === 'COMPLETED' ||
+                                                                                            selectedPurchaseRequest?.status === 'REJECTED'}
+                                                                                    >
+                                                                                        <SelectTrigger className="h-auto p-1 border-orange-300 bg-orange-50 hover:bg-orange-100">
+                                                                                            <SelectValue>
+                                                                                                <Badge
+                                                                                                    variant="outline"
+                                                                                                    className="text-xs bg-orange-50 text-orange-700 border-orange-200 pointer-events-none"
+                                                                                                >
+                                                                                                    {getSourceProductLabel((sourceProductChanges[detail.id || ''] || detail.sourceProduct) as SourceProductType)}
+                                                                                                    <ChevronDown className="h-3 w-3 ml-1" />
+                                                                                                </Badge>
+                                                                                            </SelectValue>
+                                                                                        </SelectTrigger>
+                                                                                        <SelectContent>
+                                                                                            <SelectItem value={SourceProductType.PENGAMBILAN_STOK}>
+                                                                                                Pengambilan Stok (Stok: 0)
+                                                                                            </SelectItem>
+                                                                                            <SelectItem value={SourceProductType.PEMBELIAN_BARANG}>
+                                                                                                Pembelian Barang
+                                                                                            </SelectItem>
+                                                                                        </SelectContent>
+                                                                                    </Select>
+                                                                                ) : (detail.sourceProduct === SourceProductType.PENGAMBILAN_STOK && stockData[detail.id || '']?.breakdown?.length > 0) ? (
+                                                                                    <Dialog>
+                                                                                        <DialogTrigger asChild>
+                                                                                            <Button
+                                                                                                variant="ghost"
+                                                                                                className="h-auto p-1 hover:bg-gray-100 flex flex-col gap-1 items-center group"
+                                                                                                onClick={(e) => {
+                                                                                                    // Prevent dialog from opening if PR is already approved/completed/rejected
+                                                                                                    if (selectedPurchaseRequest?.status === 'APPROVED' ||
+                                                                                                        selectedPurchaseRequest?.status === 'COMPLETED' ||
+                                                                                                        selectedPurchaseRequest?.status === 'REJECTED') {
+                                                                                                        e.preventDefault();
+                                                                                                        toast.error('Purchase Request ini sudah disetujui dan tidak dapat dilakukan perubahan pemilihan stok.', {
+                                                                                                            duration: 4000,
+                                                                                                            position: 'top-center',
+                                                                                                            style: {
+                                                                                                                background: '#dc2626',
+                                                                                                                color: '#fff',
+                                                                                                                padding: '16px',
+                                                                                                                borderRadius: '8px',
+                                                                                                                fontSize: '14px',
+                                                                                                                fontWeight: '500',
+                                                                                                            },
+                                                                                                            icon: '🚫',
+                                                                                                        });
+                                                                                                        return;
+                                                                                                    }
+                                                                                                }}
+                                                                                            >
+                                                                                                <Badge
+                                                                                                    variant="outline"
+                                                                                                    className="text-xs bg-green-50 text-green-700 border-green-200 group-hover:bg-green-100 transition-colors pointer-events-none"
+                                                                                                >
+                                                                                                    {getSourceProductLabel(detail.sourceProduct as SourceProductType)}
+                                                                                                    <ChevronDown className="h-3 w-3 ml-1" />
+                                                                                                </Badge>
+                                                                                                {(warehouseSelections[detail.id || '']?.length > 0) && (
+                                                                                                    <span className="text-[10px] text-green-600 font-medium">
+                                                                                                        {warehouseSelections[detail.id || ''].length} WH Selected
+                                                                                                    </span>
+                                                                                                )}
+                                                                                            </Button>
+                                                                                        </DialogTrigger>
+                                                                                        <DialogContent className="max-w-[400px] p-0 gap-0">
+                                                                                            <div className="p-4 bg-gray-50 border-b rounded-t-lg">
+                                                                                                <DialogHeader>
+                                                                                                    <DialogTitle className="text-base font-semibold flex items-center gap-2">
+                                                                                                        <Package className="h-4 w-4 text-blue-500" />
+                                                                                                        Allocate Stock
+                                                                                                    </DialogTitle>
+                                                                                                    <DialogDescription className="text-xs text-gray-500">
+                                                                                                        Select warehouses to fulfill <strong>{detail.jumlah} {detail.satuan}</strong>
+                                                                                                    </DialogDescription>
+                                                                                                </DialogHeader>
+                                                                                            </div>
+                                                                                            <div className="p-4 space-y-2 max-h-[60vh] overflow-y-auto">
+                                                                                                {stockData[detail.id || '']?.breakdown.map((wh) => (
+                                                                                                    <div
+                                                                                                        key={wh.warehouseId}
+                                                                                                        className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer group"
+                                                                                                        onClick={() => handleToggleWarehouse(detail.id || '', wh.warehouseId)}
+                                                                                                    >
+                                                                                                        <Checkbox
+                                                                                                            checked={(warehouseSelections[detail.id || ''] || []).includes(wh.warehouseId)}
+                                                                                                            onCheckedChange={() => handleToggleWarehouse(detail.id || '', wh.warehouseId)}
+                                                                                                            onClick={(e) => e.stopPropagation()}
+                                                                                                            id={`desktop-${detail.id}-${wh.warehouseId}`}
+                                                                                                            className="mt-1 bg-white data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                                                                                                        />
+                                                                                                        <div className="grid gap-1 w-full">
+                                                                                                            <label
+                                                                                                                htmlFor={`desktop-${detail.id}-${wh.warehouseId}`}
+                                                                                                                className="text-sm font-medium leading-none group-hover:text-blue-600 transition-colors cursor-pointer"
+                                                                                                                onClick={(e) => e.stopPropagation()}
+                                                                                                            >
+                                                                                                                {wh.warehouseName}
+                                                                                                            </label>
+                                                                                                            <div className="flex justify-between items-center text-xs text-gray-500">
+                                                                                                                <Badge variant="secondary" className="text-[10px] px-1.5 h-5 font-mono">
+                                                                                                                    Qty: {wh.stock}
+                                                                                                                </Badge>
+
+                                                                                                                {wh.stock > 0 ? (
+                                                                                                                    <span className="text-green-600 flex items-center gap-1">Available <CheckCircle className="h-3 w-3" /></span>
+                                                                                                                ) : (
+                                                                                                                    <span className="text-red-400">Out of Stock</span>
+                                                                                                                )}
+                                                                                                            </div>
+                                                                                                        </div>
+                                                                                                    </div>
+                                                                                                ))}
+                                                                                                {stockData[detail.id || '']?.breakdown.length === 0 && (
+                                                                                                    <div className="text-center py-4 text-gray-400 text-xs">
+                                                                                                        No stock data available
+                                                                                                    </div>
+                                                                                                )}
+                                                                                            </div>
+                                                                                            <div className="p-4 border-t bg-gray-50 rounded-b-lg">
+                                                                                                <div className="flex justify-between items-center text-sm font-medium mb-1">
+                                                                                                    <span className="text-gray-600">Required:</span>
+                                                                                                    <span className="font-bold">{detail.jumlah}</span>
+                                                                                                </div>
+                                                                                                <div className="flex justify-between items-center text-sm font-medium">
+                                                                                                    <span className="text-gray-600">Selected Total:</span>
+                                                                                                    <span className={`font-bold ${(stockData[detail.id || '']?.breakdown
+                                                                                                        .filter(wh => (warehouseSelections[detail.id || ''] || []).includes(wh.warehouseId))
+                                                                                                        .reduce((sum, wh) => sum + wh.stock, 0)) >= detail.jumlah ? 'text-green-600' : 'text-amber-600'
+                                                                                                        }`}>
+                                                                                                        {stockData[detail.id || '']?.breakdown
+                                                                                                            .filter(wh => (warehouseSelections[detail.id || ''] || []).includes(wh.warehouseId))
+                                                                                                            .reduce((sum, wh) => sum + wh.stock, 0)
+                                                                                                        }
+                                                                                                    </span>
+                                                                                                </div>
+
+                                                                                                {/* Status Indication */}
+                                                                                                <div className="mt-2 text-xs text-center border-t border-gray-200 pt-2">
+                                                                                                    {(stockData[detail.id || '']?.breakdown
+                                                                                                        .filter(wh => (warehouseSelections[detail.id || ''] || []).includes(wh.warehouseId))
+                                                                                                        .reduce((sum, wh) => sum + wh.stock, 0)) >= detail.jumlah ? (
+                                                                                                        <span className="text-green-600 flex items-center justify-center gap-1 font-semibold">
+                                                                                                            <Check className="h-4 w-4" /> Fully Allocated
+                                                                                                        </span>
+                                                                                                    ) : (
+                                                                                                        <span className="text-amber-600 flex items-center justify-center gap-1 font-semibold">
+                                                                                                            <Info className="h-4 w-4" /> Partial Allocation
+                                                                                                        </span>
+                                                                                                    )}
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        </DialogContent>
+                                                                                    </Dialog>
+                                                                                ) : (
+                                                                                    <Badge
+                                                                                        variant="outline"
+                                                                                        className={`
+                                                                        text-xs
+                                                                        ${detail.sourceProduct === SourceProductType.PEMBELIAN_BARANG ||
+                                                                                                detail.sourceProduct === SourceProductType.OPERATIONAL ||
+                                                                                                detail.sourceProduct === SourceProductType.JASA_PEMBELIAN
+                                                                                                ? "bg-blue-50 text-blue-700 border-blue-200"
+                                                                                                : "bg-green-50 text-green-700 border-green-200"
+                                                                                            }
+                                                                    `}
+                                                                                    >
+                                                                                        {getSourceProductLabel(detail.sourceProduct as SourceProductType)}
+                                                                                    </Badge>
+                                                                                )}
                                                                             </div>
-                                                                            <div className="col-span-2 text-center text-sm text-gray-700">
+                                                                            <div className="col-span-1 text-center font-medium">
+                                                                                {(detail.id && (detail.sourceProduct === SourceProductType.PEMBELIAN_BARANG || detail.sourceProduct === SourceProductType.PENGAMBILAN_STOK)) ? (
+                                                                                    <TooltipProvider>
+                                                                                        <Tooltip>
+                                                                                            <TooltipTrigger asChild>
+                                                                                                <div className="mx-auto w-fit px-2 py-1 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 rounded-md text-xs font-bold cursor-help hover:bg-emerald-200 transition-colors">
+                                                                                                    {stockData[detail.id]?.available !== undefined ? stockData[detail.id]?.available : '-'}
+                                                                                                </div>
+                                                                                            </TooltipTrigger>
+                                                                                            <TooltipContent className="p-0 border-none shadow-xl z-50">
+                                                                                                <Card className="w-64 border-slate-200 dark:border-slate-800">
+                                                                                                    <CardHeader className="py-3 px-4 bg-slate-50 dark:bg-slate-900 border-b">
+                                                                                                        <CardTitle className="text-sm font-bold flex items-center gap-2">
+                                                                                                            <Package className="w-4 h-4 text-emerald-600" />
+                                                                                                            Stock Details
+                                                                                                        </CardTitle>
+                                                                                                    </CardHeader>
+                                                                                                    <CardContent className="p-0">
+                                                                                                        {stockData[detail.id]?.breakdown && stockData[detail.id].breakdown.length > 0 ? (
+                                                                                                            <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                                                                                                                {stockData[detail.id].breakdown.map((wh: { warehouseName: string; stock: number }, idx: number) => (
+                                                                                                                    <div key={idx} className="flex items-center justify-between py-2 px-4 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
+                                                                                                                        <span className="text-xs font-medium text-slate-600 dark:text-slate-400">{wh.warehouseName}</span>
+                                                                                                                        <Badge variant="outline" className="text-xs font-bold font-mono h-5 bg-white dark:bg-slate-950">
+                                                                                                                            {wh.stock}
+                                                                                                                        </Badge>
+                                                                                                                    </div>
+                                                                                                                ))}
+                                                                                                                <div className="flex items-center justify-between py-2 px-4 bg-emerald-50/50 dark:bg-emerald-900/10 font-bold border-t">
+                                                                                                                    <span className="text-xs text-emerald-700 dark:text-emerald-400">Total Valid</span>
+                                                                                                                    <span className="text-xs text-emerald-700 dark:text-emerald-400">{stockData[detail.id].available}</span>
+                                                                                                                </div>
+                                                                                                            </div>
+                                                                                                        ) : (
+                                                                                                            <div className="p-4 text-center text-xs text-slate-400">
+                                                                                                                No Details
+                                                                                                            </div>
+                                                                                                        )}
+                                                                                                    </CardContent>
+                                                                                                </Card>
+                                                                                            </TooltipContent>
+                                                                                        </Tooltip>
+                                                                                    </TooltipProvider>
+                                                                                ) : (
+                                                                                    <span className="text-gray-400">-</span>
+                                                                                )}
+                                                                            </div>
+                                                                            <div className="col-span-1 text-center text-sm text-gray-700">
                                                                                 <span className="font-semibold">{detail.jumlah}</span>
                                                                                 <span className="text-xs text-gray-500 ml-1">{detail.satuan}</span>
                                                                             </div>
@@ -567,7 +1074,6 @@ export function PurchaseRequestSheet({
                                                                 ))}
                                                             </div>
 
-                                                            {/* Summary Section */}
                                                             {/* Summary Section */}
                                                             <div className="mt-4 border-t pt-3 space-y-2 text-sm bg-gray-50/50 p-4 text-black">
                                                                 <div className="flex justify-between">
@@ -625,7 +1131,50 @@ export function PurchaseRequestSheet({
                         <div className="border-t bg-white py-4 dark:py-4 sticky bottom-0 -mx-4 sm:-mx-6 px-4 sm:px-6 pb-4 sm:pb-0 -mb-4 sm:mb-0 rounded-lg mt-auto flex-shrink-0">
                             <StatusActions
                                 currentStatus={selectedPurchaseRequest.status}
-                                onStatusUpdate={handleStatusUpdateFromActions}
+                                onStatusUpdate={(status) => {
+                                    // Transform warehouseSelections to the expected format
+                                    const warehouseAllocations: Record<string, any[]> = {};
+
+                                    if (status === 'APPROVED' || status === 'COMPLETED') {
+                                        Object.keys(warehouseSelections).forEach(detailId => {
+                                            const selectedIds = warehouseSelections[detailId];
+                                            const detailStock = stockData[detailId];
+
+                                            if (selectedIds && selectedIds.length > 0 && detailStock) {
+                                                const allocations = detailStock.breakdown
+                                                    .filter(wh => selectedIds.includes(wh.warehouseId))
+                                                    .map(wh => ({
+                                                        warehouseId: wh.warehouseId,
+                                                        warehouseName: wh.warehouseName,
+                                                        stock: wh.stock
+                                                    }));
+
+                                                if (allocations.length > 0) {
+                                                    warehouseAllocations[detailId] = allocations;
+                                                }
+                                            }
+                                        });
+
+                                        // Add split items data
+                                        const splitItemsData = Object.entries(splitItems).map(([parentId, splitItem]) => ({
+                                            parentDetailId: parentId,
+                                            productId: splitItem.product?.id || splitItem.productId,
+                                            jumlah: splitItem.jumlah,
+                                            satuan: splitItem.satuan,
+                                            sourceProduct: splitItem.sourceProduct,
+                                            estimasiHargaSatuan: splitItem.estimasiHargaSatuan,
+                                            estimasiTotalHarga: splitItem.estimasiTotalHarga,
+                                            catatanItem: `Auto-split from insufficient stock`,
+                                        }));
+
+                                        // Add split items to warehouseAllocations with special key
+                                        if (splitItemsData.length > 0) {
+                                            warehouseAllocations['__splitItems__'] = splitItemsData;
+                                        }
+                                    }
+
+                                    onStatusUpdate(selectedPurchaseRequest.id, status, undefined, warehouseAllocations);
+                                }}
                             />
                         </div>
                     )}

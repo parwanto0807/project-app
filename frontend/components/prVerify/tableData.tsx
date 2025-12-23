@@ -62,7 +62,7 @@ interface PurchaseRequestTableProps {
     onProjectFilterChange: (projectId: string) => void;
     onDateFilterChange: (dateFrom?: Date, dateTo?: Date) => void;
     onClearFilters: () => void;
-    onStatusUpdate: (id: string, status: PurchaseRequest['status']) => void;
+    onStatusUpdate: (id: string, status: PurchaseRequest['status'], catatan?: string, warehouseAllocations?: Record<string, any[]>) => void;
     currentSearch?: string;
     currentStatus?: PurchaseRequestFilters['status'];
     currentProjectId?: string;
@@ -237,8 +237,8 @@ export function PurchaseRequestVerifyTable({
         setDetailSheetOpen(true);
     };
 
-    const handleStatusUpdate = useCallback((id: string, status: PurchaseRequest['status']) => {
-        onStatusUpdate(id, status);
+    const handleStatusUpdate = useCallback((id: string, status: PurchaseRequest['status'], catatan?: string, warehouseAllocations?: Record<string, any[]>) => {
+        onStatusUpdate(id, status, catatan, warehouseAllocations);
         setDetailSheetOpen(false);
     }, [onStatusUpdate]);
 

@@ -214,8 +214,6 @@ export default function StockOpnameForm({
                         form.setValue(`items.${index}.stokSistem`, latestStock);
                         // Default stok fisik to system stock
                         form.setValue(`items.${index}.stokFisik`, latestStock);
-
-                        toast.success(`Stok sistem diperbarui: ${latestStock}`);
                     }
                 } catch (error) {
                     console.error("Failed to fetch latest stock:", error);

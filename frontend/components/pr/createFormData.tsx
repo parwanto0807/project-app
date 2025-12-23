@@ -7,6 +7,12 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
     Select,
     SelectContent,
     SelectItem,
@@ -41,6 +47,8 @@ import {
     User as UserIcon,
     History,
     AlertTriangle,
+    CheckCircle,
+    XCircle,
 } from "lucide-react";
 import {
     Accordion,
@@ -60,6 +68,7 @@ import { fetchKaryawanByEmail } from "@/lib/action/master/karyawan";
 import { usePurchaseRequestsBySpkId } from "@/hooks/use-pr";
 import { ProductCombobox } from "./productCombobox";
 import { SourceProductType } from "@/schemas/pr";
+import { api } from "@/lib/http";
 
 interface Product {
     id: string;
@@ -178,11 +187,13 @@ interface TabelInputPRProps {
     submitting?: boolean;
 }
 
-// Update FormItem sesuai dengan PurchaseRequestDetail
+
 interface FormItem extends Omit<PurchaseRequestDetail, "id" | "estimasiTotalHarga"> {
     tempId: string;
     // Field sementara untuk kompatibilitas UI
     itemName?: string;
+    availableStock?: number; // Renamed from stockAkhir
+    stockBreakdown?: { warehouseName: string; stock: number }[]; // New field for breakdown
     urgencyLevel?: "low" | "medium" | "high";
     sourceProduct: SourceProductType; // pastikan pakai ini
 }
@@ -322,38 +333,65 @@ export function TabelInputPR({
     }, []);
 
     const updateItem = useCallback(
-        (tempId: string, field: keyof FormItem, value: string | number | SourceProductType) => {
+        async (tempId: string, field: keyof FormItem, value: string | number | SourceProductType) => {
+            // Update state immediately for responsiveness
             setItems((prev) =>
                 prev.map((item) => {
                     if (item.tempId === tempId) {
-                        const updatedItem = { ...item, [field]: value };
-                        if (field === "productId" && value) {
-                            const selectedProduct = products.find(p => p.id === value);
-                            if (selectedProduct) {
-                                updatedItem.itemName = selectedProduct.name;
-                                updatedItem.catatanItem = selectedProduct.description || "";
-                                updatedItem.satuan = selectedProduct.usageUnit || "pcs";
-                                updatedItem.estimasiHargaSatuan = selectedProduct.price || 0;
-
-                                // Mapping yang lebih aman
-                                const sourceProductMap: Record<string, SourceProductType> = {
-                                    "Pembelian Barang": SourceProductType.PEMBELIAN_BARANG,
-                                    "Pengambilan Stock": SourceProductType.PENGAMBILAN_STOK,
-                                    "Operasional": SourceProductType.OPERATIONAL,
-                                    "Jasa Pembelian": SourceProductType.JASA_PEMBELIAN,
-                                    "Jasa Internal": SourceProductType.JASA_INTERNAL,
-                                };
-
-
-                                updatedItem.sourceProduct =
-                                    sourceProductMap[selectedProduct.type] ?? SourceProductType.PEMBELIAN_BARANG;
-                            }
-                        }
-                        return updatedItem;
+                        return { ...item, [field]: value };
                     }
                     return item;
                 })
             );
+
+            // If product changes, fetch additional data
+            if (field === "productId" && value) {
+                const selectedProduct = products.find(p => p.id === value);
+
+                // Fetch latest stock with breakdown
+                let stockValue = 0;
+                let stockBreakdown: { warehouseName: string; stock: number }[] = [];
+                try {
+                    const response = await api.get('/api/inventory/latest-stock', {
+                        params: { productId: value, detail: 'true' }
+                    });
+                    if (response.data.success) {
+                        stockValue = response.data.data;
+                        stockBreakdown = response.data.breakdown || [];
+                    }
+                } catch (err) {
+                    console.error("Error fetching stock:", err);
+                }
+
+                setItems((prev) =>
+                    prev.map((item) => {
+                        if (item.tempId === tempId && selectedProduct) {
+                            const updatedItem = { ...item };
+                            updatedItem.itemName = selectedProduct.name;
+                            updatedItem.catatanItem = selectedProduct.description || "";
+                            updatedItem.satuan = selectedProduct.usageUnit || "pcs";
+                            updatedItem.estimasiHargaSatuan = selectedProduct.price || 0;
+                            updatedItem.estimasiHargaSatuan = selectedProduct.price || 0;
+                            updatedItem.availableStock = stockValue;
+                            updatedItem.stockBreakdown = stockBreakdown;
+
+                            // Map Type
+                            const sourceProductMap: Record<string, SourceProductType> = {
+                                "Pembelian Barang": SourceProductType.PEMBELIAN_BARANG,
+                                "Pengambilan Stock": SourceProductType.PENGAMBILAN_STOK,
+                                "Operasional": SourceProductType.OPERATIONAL,
+                                "Jasa Pembelian": SourceProductType.JASA_PEMBELIAN,
+                                "Jasa Internal": SourceProductType.JASA_INTERNAL,
+                            };
+                            updatedItem.sourceProduct =
+                                sourceProductMap[selectedProduct.type] ?? SourceProductType.PEMBELIAN_BARANG;
+
+                            return updatedItem;
+                        }
+                        return item;
+                    })
+                );
+            }
         },
         [products]
     );
@@ -652,6 +690,8 @@ export function TabelInputPR({
                                                     <TableHead className="w-[25%]">Product</TableHead>
                                                     <TableHead className="w-[15%]">Source</TableHead>
                                                     <TableHead className="w-[10%]">Qty</TableHead>
+                                                    <TableHead className="w-[10%]">Available Stock</TableHead>
+                                                    <TableHead className="w-[10%]">Status/Selisih</TableHead>
                                                     <TableHead className="w-[15%]">Unit</TableHead>
                                                     <TableHead className="w-[15%]">Unit Cost</TableHead>
                                                     <TableHead className="w-[15%]">Total</TableHead>
@@ -715,6 +755,92 @@ export function TabelInputPR({
                                                             {errors[`quantity-${index}`] && (
                                                                 <p className="text-xs text-red-500 mt-1">{errors[`quantity-${index}`]}</p>
                                                             )}
+                                                        </TableCell>
+
+                                                        {/* Stock Akhir */}
+                                                        <TableCell className="align-top">
+                                                            {(item.sourceProduct === SourceProductType.PEMBELIAN_BARANG || item.sourceProduct === SourceProductType.PENGAMBILAN_STOK) ? (
+                                                                <TooltipProvider>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <div className="py-2 px-3 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 rounded-md text-center font-bold text-sm cursor-help hover:bg-emerald-200 transition-colors">
+                                                                                {item.availableStock !== undefined ? item.availableStock : '-'}
+                                                                            </div>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent className="p-0 border-none shadow-xl">
+                                                                            <Card className="w-64 border-slate-200 dark:border-slate-800">
+                                                                                <CardHeader className="py-3 px-4 bg-slate-50 dark:bg-slate-900 border-b">
+                                                                                    <CardTitle className="text-sm font-bold flex items-center gap-2">
+                                                                                        <Package className="w-4 h-4 text-emerald-600" />
+                                                                                        Stock Details
+                                                                                    </CardTitle>
+                                                                                </CardHeader>
+                                                                                <CardContent className="p-0">
+                                                                                    {item.stockBreakdown && item.stockBreakdown.length > 0 ? (
+                                                                                        <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                                                                                            {item.stockBreakdown.map((wh, idx) => (
+                                                                                                <div key={idx} className="flex items-center justify-between py-2 px-4 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
+                                                                                                    <span className="text-xs font-medium text-slate-600 dark:text-slate-400">{wh.warehouseName}</span>
+                                                                                                    <Badge variant="outline" className="text-xs font-bold font-mono h-5 bg-white dark:bg-slate-950">
+                                                                                                        {wh.stock}
+                                                                                                    </Badge>
+                                                                                                </div>
+                                                                                            ))}
+                                                                                            <div className="flex items-center justify-between py-2 px-4 bg-emerald-50/50 dark:bg-emerald-900/10 font-bold border-t">
+                                                                                                <span className="text-xs text-emerald-700 dark:text-emerald-400">Total Valid</span>
+                                                                                                <span className="text-xs text-emerald-700 dark:text-emerald-400">{item.availableStock}</span>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    ) : (
+                                                                                        <div className="p-4 text-center text-xs text-slate-400">
+                                                                                            No Details
+                                                                                        </div>
+                                                                                    )}
+                                                                                </CardContent>
+                                                                            </Card>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                </TooltipProvider>
+                                                            ) : (
+                                                                <div className="py-2 px-3 text-center text-gray-400 font-medium text-sm">
+                                                                    -
+                                                                </div>
+                                                            )}
+                                                        </TableCell>
+
+                                                        {/* Status/Selisih */}
+                                                        <TableCell className="align-top">
+                                                            {(() => {
+                                                                if (
+                                                                    item.sourceProduct !== SourceProductType.PEMBELIAN_BARANG &&
+                                                                    item.sourceProduct !== SourceProductType.PENGAMBILAN_STOK
+                                                                ) {
+                                                                    return <div className="text-center text-gray-400">-</div>;
+                                                                }
+
+                                                                const available = item.availableStock || 0;
+                                                                const qty = item.jumlah || 0;
+                                                                const isDeficit = qty > available;
+                                                                const deficitAmount = qty - available;
+
+                                                                if (isDeficit) {
+                                                                    return (
+                                                                        <div className="flex items-center justify-center gap-1 py-2 px-2 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 rounded-md font-medium text-sm">
+                                                                            <span className="font-bold">-{deficitAmount}</span>
+                                                                            <span className="text-[12px]">(Kurang)</span>
+                                                                        </div>
+                                                                    );
+                                                                } else {
+                                                                    return (
+                                                                        <div className="flex items-center justify-center py-2">
+                                                                            <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
+                                                                                <CheckCircle className="h-4 w-4" />
+                                                                                <span className="text-[12px] font-medium">Cukup</span>
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                }
+                                                            })()}
                                                         </TableCell>
 
                                                         {/* Unit */}
