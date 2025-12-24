@@ -408,8 +408,9 @@ model Warehouse {
   transfersFrom        StockTransfer[]       @relation("FromWarehouse")
   transfersTo          StockTransfer[]       @relation("ToWarehouse")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  PurchaseOrder PurchaseOrder[]
 }
 
 // ==========================================
@@ -585,11 +586,12 @@ model GoodsReceipt {
 
   items GoodsReceiptItem[]
 
-  receivedById String // User ID yang menerima
-  status       DocumentStatus @default(COMPLETED)
-  notes        String?
-  Warehouse    Warehouse?     @relation(fields: [warehouseId], references: [id])
-  warehouseId  String?
+  receivedById  String // User ID yang menerima
+  status        DocumentStatus @default(COMPLETED)
+  notes         String?
+  Warehouse     Warehouse?     @relation(fields: [warehouseId], references: [id])
+  warehouseId   String?
+  PurchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
 }
 
 // 2. DETAIL: Item yang diterima
@@ -2081,77 +2083,60 @@ enum PaymentTermPurchaseOrder {
 
 model PurchaseOrder {
   id                   String              @id @default(uuid())
-  poNumber             String              @unique // Nomor PO internal, misal: PO/2025/10/001
+  poNumber             String              @unique
   orderDate            DateTime
   expectedDeliveryDate DateTime?
   status               PurchaseOrderStatus @default(DRAFT)
 
-  // --- Relasi ---
+  // Penambahan: Gudang Tujuan
+  warehouseId String
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+
   supplierId String
   supplier   Supplier @relation(fields: [supplierId], references: [id])
   projectId  String?
   project    Project? @relation(fields: [projectId], references: [id])
-  spkId      String?
-  spk        SPK?     @relation(fields: [spkId], references: [id])
 
-  orderedById String // ID Karyawan/User yang membuat PO
+  orderedById String
   orderedBy   Karyawan @relation(fields: [orderedById], references: [id])
 
-  // --- Finansial ---
-  paymentMethod String? // Transfer, Cash, dll
-  paymentTerm   PaymentTermPurchaseOrder @default(COD)
-  dueDate       DateTime? // Tanggal jatuh tempo bayar
-  subtotal      Decimal                  @default(0) @db.Decimal(18, 2)
-  taxAmount     Decimal                  @default(0) @db.Decimal(18, 2)
-  shippingCost  Decimal                  @default(0) @db.Decimal(18, 2)
-  totalAmount   Decimal                  @default(0) @db.Decimal(18, 2)
+  // Finansial
+  paymentTerm PaymentTermPurchaseOrder @default(COD)
+  subtotal    Decimal                  @default(0) @db.Decimal(18, 2)
+  taxAmount   Decimal                  @default(0) @db.Decimal(18, 2)
+  totalAmount Decimal                  @default(0) @db.Decimal(18, 2)
 
-  // --- Integrasi PR (Opsional: Jika PO merujuk ke 1 PR utuh) ---
-  purchaseRequestId String?
-  purchaseRequest   PurchaseRequest? @relation(fields: [purchaseRequestId], references: [id])
-
-  // --- Lain-lain ---
-  notes           String? // Catatan untuk supplier
-  shippingAddress String?
-
-  // --- Relasi Balik ---
   lines            PurchaseOrderLine[]
-  supplierInvoices SupplierInvoice[] // Satu PO bisa jadi memiliki beberapa tagihan
+  goodsReceipts    GoodsReceipt[] // Relasi ke penerimaan
+  supplierInvoices SupplierInvoice[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  SPK               SPK?             @relation(fields: [sPKId], references: [id])
+  sPKId             String?
+  PurchaseRequest   PurchaseRequest? @relation(fields: [purchaseRequestId], references: [id])
+  purchaseRequestId String?
 }
 
 model PurchaseOrderLine {
   id          String  @id @default(uuid())
-  description String // Deskripsi barang/jasa
-  quantity    Decimal @db.Decimal(18, 4)
+  productId   String
+  product     Product @relation(fields: [productId], references: [id])
+  description String
+  quantity    Decimal @db.Decimal(18, 4) // Jumlah dipesan
   unitPrice   Decimal @db.Decimal(18, 2)
-  taxRate     Decimal @default(0) @db.Decimal(5, 2)
   totalAmount Decimal @db.Decimal(18, 2)
+
+  // Tracking Progress
+  receivedQuantity Decimal @default(0) @db.Decimal(18, 4) // Jumlah yang sudah diterima
+
+  prDetailId String?
+  prDetail   PurchaseRequestDetail? @relation(fields: [prDetailId], references: [id])
 
   poId          String
   purchaseOrder PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
 
-  // =============================================================
-  // PENAMBAHAN UNTUK INTEGRASI STOK & PR
-  // =============================================================
-
-  // 1. Wajib hubungkan ke Product (karena kita akan mengelola stoknya)
-  productId String
-  product   Product @relation(fields: [productId], references: [id])
-
-  // 2. Hubungkan ke PR Detail (untuk update field 'jumlahDipesan')
-  prDetailId String?
-  prDetail   PurchaseRequestDetail? @relation(fields: [prDetailId], references: [id])
-
-  // 3. Tracking Realisasi Penerimaan (GRN)
-  // Berapa banyak yang sudah sampai di gudang dari total qty di PO ini
-  receivedQuantity Decimal @default(0) @db.Decimal(18, 4)
-
-  // 4. Relasi ke GoodsReceipt (Penerimaan Barang)
   grItems GoodsReceiptItem[]
-  // =============================================================
 }
 
 // ==========================================================

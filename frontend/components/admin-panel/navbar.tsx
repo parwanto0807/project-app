@@ -7,17 +7,23 @@ import NotificationBell from "../NotificationBell";
 
 interface NavbarProps {
   title: string;
+  subtitle?: string;
   role: User["role"];
 }
 
-export function Navbar({ title, role }: NavbarProps) {
+export function Navbar({ title, subtitle, role }: NavbarProps) {
   return (
     <>
       <header className="sticky top-0 z-50 md:z-50 w-full bg-background/95 shadow backdrop-blur supports-[backdrop-filter]:bg-background/60 dark:shadow-secondary">
         <div className="mx-4 sm:mx-8 flex h-20 items-center">
           <div className="flex items-center space-x-4 lg:space-x-0">
             <SheetMenu role={role} />
-            <h1 className="pl-1 pb-1 uppercase font-semibold text-xs md:text-lg md:pl-4 md:pb-3 sm:text-lg sm:pl-4 sm:pb-3">{title}</h1>
+            <div className="flex flex-col">
+              <h1 className="pl-1 uppercase font-semibold text-xs md:text-lg md:pl-4 sm:text-lg sm:pl-4 leading-tight">{title}</h1>
+              {subtitle && (
+                <p className="pl-1 text-xs text-muted-foreground md:pl-4 sm:pl-4 hidden sm:block">{subtitle}</p>
+              )}
+            </div>
           </div>
           <div className="flex flex-1 items-center space-x-2 justify-end">
             <NotificationBell />

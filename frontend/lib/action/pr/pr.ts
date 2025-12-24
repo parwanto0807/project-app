@@ -107,9 +107,8 @@ export async function getAllPurchaseRequests(
 
     if (filters?.search) queryParams.append("search", filters.search);
 
-    const url = `${API_BASE_URL}/api/pr/getAllPurchaseRequests${
-      queryParams.toString() ? `?${queryParams.toString()}` : ""
-    }`;
+    const url = `${API_BASE_URL}/api/pr/getAllPurchaseRequests${queryParams.toString() ? `?${queryParams.toString()}` : ""
+      }`;
 
     const response = await fetch(url, {
       method: "GET",
@@ -123,8 +122,8 @@ export async function getAllPurchaseRequests(
       data: Array.isArray(result.data)
         ? result.data
         : result.data
-        ? [result.data]
-        : [],
+          ? [result.data]
+          : [],
       pagination: result.pagination ?? {
         page: filters?.page ?? 1,
         limit: filters?.limit ?? 10,
@@ -406,6 +405,39 @@ export async function getPurchaseRequestsByKaryawan(
       `Error fetching purchase requests for karyawan ${karyawanId}:`,
       error
     );
+    throw error;
+  }
+}
+
+/**
+ * Get approved Purchase Requests that have purchase items (PEMBELIAN_BARANG)
+ * These PRs can be converted to Purchase Orders
+ */
+export async function getApprovedPRsForPO(): Promise<PurchaseRequest[]> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/pr/getAllPurchaseRequests?status=APPROVED&limit=100`,
+      {
+        method: "GET",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+      }
+    );
+
+    const result: PurchaseRequestResponse = await handleResponse(response);
+    const allPRs = Array.isArray(result.data) ? result.data : [result.data];
+
+    // Filter PRs that have at least one purchase item (PEMBELIAN_BARANG)
+    const prsWithPurchaseItems = allPRs.filter(pr =>
+      pr.details && pr.details.some(detail => detail.sourceProduct === 'PEMBELIAN_BARANG')
+    );
+
+    return prsWithPurchaseItems;
+  } catch (error) {
+    console.error("Error fetching approved PRs for PO:", error);
     throw error;
   }
 }

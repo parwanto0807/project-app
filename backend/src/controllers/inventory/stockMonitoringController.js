@@ -135,7 +135,7 @@ export const stockMonitoringController = {
             },
             warehouse: { select: { name: true } }
           },
-          orderBy: { period: 'desc' }
+          orderBy: { updatedAt: 'desc' }
         }),
         // 2. Total Count (untuk pagination utama)
         prisma.stockBalance.count({ where: where }),

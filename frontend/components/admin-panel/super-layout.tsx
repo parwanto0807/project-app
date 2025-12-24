@@ -3,14 +3,16 @@ import { User } from "@/hooks/use-current-user";
 
 interface ContentLayoutProps {
   title: string;
+  subtitle?: string;
+  showBreadcrumb?: boolean;
   role: User["role"];
   children: React.ReactNode;
 }
 
-export function SuperLayout({ title, role, children }: ContentLayoutProps) {
+export function SuperLayout({ title, subtitle, role, children }: ContentLayoutProps) {
   return (
     <div>
-      <Navbar title={title} role={role} />
+      <Navbar title={title} subtitle={subtitle} role={role} />
       <div className="max-h-screen pt-8 pb-8 px-0 sm:px-2">{children}</div>
     </div>
   );

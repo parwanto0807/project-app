@@ -158,9 +158,9 @@ export function getMenuList(pathname: string, role: string) {
               disabled: role === "user",
             },
             {
-              href: `${basePath}/logistic/po`,
+              href: `${basePath}/logistic/purchasing`,
               label: "Purchase Order (PO)",
-              active: isActive(`${basePath}/logistic/po`, pathname),
+              active: isActive(`${basePath}/logistic/purchasing`, pathname),
               disabled: role === "pic", // Biasanya PIC hanya buat PR, Admin yang buat PO
             },
             {

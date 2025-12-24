@@ -153,8 +153,10 @@ export default function TabelMonitoring({
         }).format(num);
     };
 
-
-
+    // Helper to display 0 as dash (ERP best practice for better visual clarity)
+    const displayValue = (num: number) => {
+        return num === 0 ? '—' : formatNumber(num);
+    };
 
     // Helper Functions
     const getStatusIcon = (status: string, isActive: boolean) => {
@@ -275,12 +277,12 @@ export default function TabelMonitoring({
                             <div className="grid grid-cols-2 gap-4 mb-4">
                                 <div className="bg-gradient-to-br from-indigo-50 to-white border border-indigo-100 rounded-2xl p-4 shadow-sm">
                                     <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1">Stock</p>
-                                    <p className="text-xl font-black text-indigo-600">{formatNumber(item.stockAkhir)}</p>
+                                    <p className="text-xl font-black text-indigo-600">{displayValue(item.stockAkhir)}</p>
                                     <p className="text-[9px] text-indigo-300 font-bold mt-1">PHYSICAL</p>
                                 </div>
                                 <div className="bg-gradient-to-br from-emerald-50 to-white border border-emerald-100 rounded-2xl p-4 shadow-sm">
                                     <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1">Available</p>
-                                    <p className="text-xl font-black text-emerald-600">{formatNumber(item.availableStock)}</p>
+                                    <p className="text-xl font-black text-emerald-600">{displayValue(item.availableStock)}</p>
                                     <p className="text-[9px] text-emerald-300 font-bold mt-1">READY</p>
                                 </div>
                             </div>
@@ -290,7 +292,7 @@ export default function TabelMonitoring({
                                 <div className="text-center">
                                     <div className="flex items-center justify-center gap-1 mb-1">
                                         <ArrowUpRight className="w-3.5 h-3.5 text-emerald-500" />
-                                        <span className="font-bold text-emerald-600">{formatNumber(item.stockIn)}</span>
+                                        <span className="font-bold text-emerald-600">{displayValue(item.stockIn)}</span>
                                     </div>
                                     <p className="text-[9px] font-bold text-slate-400 uppercase">In</p>
                                 </div>
@@ -298,14 +300,14 @@ export default function TabelMonitoring({
                                 <div className="text-center">
                                     <div className="flex items-center justify-center gap-1 mb-1">
                                         <ArrowDownRight className="w-3.5 h-3.5 text-rose-500" />
-                                        <span className="font-bold text-rose-600">{formatNumber(item.stockOut)}</span>
+                                        <span className="font-bold text-rose-600">{displayValue(item.stockOut)}</span>
                                     </div>
                                     <p className="text-[9px] font-bold text-slate-400 uppercase">Out</p>
                                 </div>
                                 <div className="h-8 w-px bg-slate-200" />
                                 <div className="text-center">
                                     <div className="mb-1">
-                                        <span className="font-bold text-amber-600">{formatNumber(item.bookedStock)}</span>
+                                        <span className="font-bold text-amber-600">{displayValue(item.bookedStock)}</span>
                                     </div>
                                     <p className="text-[9px] font-bold text-slate-400 uppercase">Booked</p>
                                 </div>
@@ -743,7 +745,7 @@ export default function TabelMonitoring({
                                                     </TableCell>
                                                     <TableCell className="text-center">
                                                         <div className="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg inline-block">
-                                                            <span className="font-bold text-slate-600 dark:text-slate-300">{formatNumber(item.stockAwal)}</span>
+                                                            <span className="font-bold text-slate-600 dark:text-slate-300">{displayValue(item.stockAwal)}</span>
                                                         </div>
                                                     </TableCell>
                                                     <TableCell>
@@ -755,7 +757,7 @@ export default function TabelMonitoring({
                                                                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Masuk</p>
                                                                             <p className="text-sm font-bold text-emerald-600 flex items-center">
                                                                                 <ArrowUpRight className="w-3 h-3 mr-1" />
-                                                                                {formatNumber(item.stockIn)}
+                                                                                {displayValue(item.stockIn)}
                                                                             </p>
                                                                         </div>
                                                                     </TooltipTrigger>
@@ -771,7 +773,7 @@ export default function TabelMonitoring({
                                                                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Keluar</p>
                                                                             <p className="text-sm font-bold text-rose-500 flex items-center">
                                                                                 <ArrowDownRight className="w-3 h-3 mr-1" />
-                                                                                {formatNumber(item.stockOut)}
+                                                                                {displayValue(item.stockOut)}
                                                                             </p>
                                                                         </div>
                                                                     </TooltipTrigger>
@@ -791,7 +793,7 @@ export default function TabelMonitoring({
                                                                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Just In</p>
                                                                             <p className="text-sm font-bold text-emerald-600 flex items-center">
                                                                                 <ArrowUpRight className="w-3 h-3 mr-1" />
-                                                                                {formatNumber(item.justIn)}
+                                                                                {displayValue(item.justIn)}
                                                                             </p>
                                                                         </div>
                                                                     </TooltipTrigger>
@@ -807,7 +809,7 @@ export default function TabelMonitoring({
                                                                             <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Just Out</p>
                                                                             <p className="text-sm font-bold text-rose-500 flex items-center">
                                                                                 <ArrowDownRight className="w-3 h-3 mr-1" />
-                                                                                {formatNumber(item.justOut)}
+                                                                                {displayValue(item.justOut)}
                                                                             </p>
                                                                         </div>
                                                                     </TooltipTrigger>
@@ -820,26 +822,26 @@ export default function TabelMonitoring({
                                                     </TableCell>
                                                     <TableCell className="text-right">
                                                         <div className="inline-block px-4 py-2 rounded-2xl bg-slate-50 dark:bg-slate-800/50 group-hover:bg-white dark:group-hover:bg-slate-800/80 border border-transparent group-hover:border-slate-100 dark:group-hover:border-slate-700 transition-all">
-                                                            <p className="text-xl font-black text-slate-900 dark:text-white tracking-tighter leading-none">{formatNumber(item.stockAkhir)}</p>
+                                                            <p className="text-xl font-black text-slate-900 dark:text-white tracking-tighter leading-none">{displayValue(item.stockAkhir)}</p>
                                                             <p className="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 uppercase mt-1">{item.storageUnit}</p>
                                                         </div>
                                                     </TableCell>
                                                     <TableCell className="text-right">
                                                         <div className="space-y-1">
-                                                            <p className="text-sm font-bold text-yellow-500 dark:text-yellow-300">{formatNumber(item.onPR)}</p>
+                                                            <p className="text-sm font-bold text-yellow-500 dark:text-yellow-300">{displayValue(item.onPR)}</p>
                                                             <p className="text-[9px] text-blue-500 dark:text-blue-500 font-bold uppercase tracking-tighter">Purchase Req</p>
                                                         </div>
                                                     </TableCell>
                                                     <TableCell className="text-right">
                                                         <div className="space-y-1">
-                                                            <p className="text-sm font-bold text-orange-400 dark:text-orange-500">{formatNumber(item.bookedStock)}</p>
+                                                            <p className="text-sm font-bold text-orange-400 dark:text-orange-500">{displayValue(item.bookedStock)}</p>
                                                             <p className="text-[9px] text-blue-500 dark:text-blue-500 font-bold uppercase tracking-tighter">Booked PR</p>
                                                         </div>
                                                     </TableCell>
 
                                                     <TableCell className="text-right">
                                                         <div className="inline-block px-4 py-2 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 border border-transparent transition-all">
-                                                            <p className="text-xl font-black text-emerald-700 dark:text-emerald-400 tracking-tighter leading-none">{formatNumber(item.availableStock)}</p>
+                                                            <p className="text-xl font-black text-emerald-700 dark:text-emerald-400 tracking-tighter leading-none">{displayValue(item.availableStock)}</p>
                                                             <p className="text-[10px] font-bold text-emerald-500 dark:text-emerald-300 uppercase mt-1">Ready</p>
                                                         </div>
                                                     </TableCell>

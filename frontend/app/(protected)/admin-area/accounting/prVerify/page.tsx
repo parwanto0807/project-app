@@ -130,7 +130,7 @@ export default function PurchaseRequestPageAdmin() {
             const toastId = toast.loading(`Updating status to ${status}...`);
 
             // Jalankan update status hanya jika bukan COMPLETE
-            await updatePurchaseRequestStatus(id, {
+            const result = await updatePurchaseRequestStatus(id, {
                 status,
                 remarks: catatan,
                 warehouseAllocations
@@ -140,6 +140,41 @@ export default function PurchaseRequestPageAdmin() {
             toast.success(`Purchase request status updated to ${status}`, {
                 id: toastId
             });
+
+            // Check if PO was auto-created (only for APPROVED status)
+            if (status === 'APPROVED' && result) {
+                // Type assertion to access custom properties
+                const resultWithPO = result as PurchaseRequest & {
+                    autoCreatedPO?: {
+                        id: string;
+                        poNumber: string;
+                        message: string;
+                    };
+                    poCreationWarning?: {
+                        message: string;
+                        error: string;
+                    };
+                };
+
+                if (resultWithPO.autoCreatedPO) {
+                    // PO was successfully created
+                    toast.success(
+                        `✅ ${resultWithPO.autoCreatedPO.message}: ${resultWithPO.autoCreatedPO.poNumber}`,
+                        {
+                            duration: 5000,
+                        }
+                    );
+                } else if (resultWithPO.poCreationWarning) {
+                    // PO creation failed but PR was still approved
+                    toast.warning(
+                        `⚠️ ${resultWithPO.poCreationWarning.message}`,
+                        {
+                            duration: 6000,
+                            description: resultWithPO.poCreationWarning.error
+                        }
+                    );
+                }
+            }
 
             // Refresh data setelah update status
             fetchAllPurchaseRequests(filters);

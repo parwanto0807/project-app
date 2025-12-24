@@ -864,6 +864,47 @@ export class PurchaseRequestController {
               );
             }
           }
+
+          // Delete Purchase Orders created during approval
+          // Only delete if PO is still DRAFT and has no goods receipts or invoices
+          const relatedPOs = await tx.purchaseOrder.findMany({
+            where: {
+              purchaseRequestId: id
+            },
+            include: {
+              lines: true,
+              goodsReceipts: true,
+              supplierInvoices: true
+            }
+          });
+
+          for (const po of relatedPOs) {
+            // Check if PO is safe to delete
+            const canDelete = po.status === 'DRAFT' && 
+                             po.goodsReceipts.length === 0 &&
+                             po.supplierInvoices.length === 0;
+
+            if (canDelete) {
+              // Delete PO lines first (foreign key constraint)
+              await tx.purchaseOrderLine.deleteMany({
+                where: { poId: po.id }
+              });
+
+              // Delete PO
+              await tx.purchaseOrder.delete({
+                where: { id: po.id }
+              });
+
+              console.log(`✅ Deleted PO ${po.poNumber} during cancel approve`);
+            } else {
+              // Log warning but don't block the cancel approve
+              console.warn(
+                `Cannot delete PO ${po.poNumber} - Status: ${po.status}, ` +
+                `Has goods receipts: ${po.goodsReceipts.length > 0}, ` +
+                `Has invoices: ${po.supplierInvoices.length > 0}`
+              );
+            }
+          }
         }
 
         // 3. Save Warehouse Allocations if provided
@@ -1155,6 +1196,38 @@ export class PurchaseRequestController {
 
         return pr;
       });
+
+      // 5. Auto-create Purchase Order if PR contains purchase items
+      // This happens AFTER the transaction completes successfully
+      if (status === 'APPROVED') {
+        try {
+          // Import PO controller function
+          const { createPOFromApprovedPR } = await import('../po/poController.js');
+          
+          // Create PO (will return null if no purchase items found)
+          const createdPO = await createPOFromApprovedPR(id);
+          
+          if (createdPO) {
+            console.log(`✅ Auto-created PO ${createdPO.poNumber} from approved PR ${updatedPR.nomorPr}`);
+            
+            // Add PO info to response
+            updatedPR.autoCreatedPO = {
+              id: createdPO.id,
+              poNumber: createdPO.poNumber,
+              message: 'Purchase Order created automatically for purchase items'
+            };
+          }
+        } catch (poError) {
+          // Log error but don't fail the PR approval
+          console.error('❌ Failed to auto-create PO from approved PR:', poError);
+          
+          // Add warning to response
+          updatedPR.poCreationWarning = {
+            message: 'PR approved successfully, but PO creation failed',
+            error: poError.message
+          };
+        }
+      }
 
       res.json({
         success: true,

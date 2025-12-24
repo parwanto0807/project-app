@@ -1306,6 +1306,45 @@ export function PurchaseRequestSheet({
                                             );
                                             return; // Stop execution
                                         }
+
+                                        // Validation: Check if quantity exceeds available stock
+                                        const itemsExceedingStock: Array<{ name: string, requested: number, available: number }> = [];
+
+                                        pengambilanStokItems.forEach(detail => {
+                                            const detailId = detail.id || '';
+                                            const detailStock = stockData[detailId];
+                                            const requestedQty = Number(detail.jumlah) || 0;
+                                            const availableStock = detailStock?.available || 0;
+
+                                            if (requestedQty > availableStock) {
+                                                itemsExceedingStock.push({
+                                                    name: detail.product?.name || 'Unknown',
+                                                    requested: requestedQty,
+                                                    available: availableStock
+                                                });
+                                            }
+                                        });
+
+                                        if (itemsExceedingStock.length > 0) {
+                                            const errorMessage = itemsExceedingStock
+                                                .map(item => `${item.name} (Diminta: ${item.requested}, Tersedia: ${item.available})`)
+                                                .join(', ');
+
+                                            toast.error(
+                                                `Tidak dapat approve! Quantity melebihi stok tersedia untuk item: ${errorMessage}`,
+                                                {
+                                                    duration: 6000,
+                                                    position: 'top-center',
+                                                    style: {
+                                                        background: '#FEE2E2',
+                                                        color: '#991B1B',
+                                                        border: '1px solid #FCA5A5',
+                                                        fontWeight: '600',
+                                                    },
+                                                }
+                                            );
+                                            return; // Stop execution
+                                        }
                                     }
 
                                     // Transform warehouseSelections to the expected format

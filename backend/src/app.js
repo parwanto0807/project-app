@@ -33,6 +33,7 @@ import whRoute from "./routes/wh/whRoute.js";
 import soRoutes from './routes/stockOpname/soRoutes.js';
 import stockMonitoringRoutes from './routes/inventory/stockMonitoringRoutes.js';
 import mrRoutes from './routes/mrInventory/mrRoutes.js';
+import poRoutes from './routes/po/poRoutes.js';
 
 import path from "path";
 
@@ -139,6 +140,7 @@ app.use("/api/warehouse", whRoute);
 app.use('/api/stock-opname', soRoutes);
 app.use('/api/inventory', stockMonitoringRoutes);
 app.use('/api/mr', mrRoutes);
+app.use('/api/po', poRoutes); 
 
 // Health Check Endpoint
 app.get("/api/health", (req, res) => {
