@@ -445,7 +445,7 @@ export const updatePO = async (req, res) => {
       const subtotal = updatedLines.reduce((acc, curr) => acc + Number(curr.totalAmount), 0);
       const totalAmount = subtotal + Number(taxAmount || 0) + Number(shippingCost || 0);
 
-      // 4. Update Header
+      // 4. Update Header (status tetap tidak berubah saat edit)
       return await tx.purchaseOrder.update({
         where: { id },
         data: {
@@ -454,7 +454,7 @@ export const updatePO = async (req, res) => {
           subtotal,
           taxAmount: Number(taxAmount || 0),
           totalAmount,
-          status: 'SENT' // Otomatis naik status setelah diupdate
+          // Status tidak diubah saat edit - harus melalui aksi eksplisit
         }
       });
     });

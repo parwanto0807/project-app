@@ -569,15 +569,18 @@ const PurchaseOrderPdfDocument = ({ purchaseOrder }: { purchaseOrder: PurchaseOr
                             Tel: 0852-1929-6841 / 1857-7441-8078 | rylifmikromandiri@gmail.com
                         </Text>
                     </View>
-                    <View style={[styles.statusBadge, {
-                        backgroundColor: getStatusColor(status) + '15',
-                        borderWidth: 1,
-                        borderColor: getStatusColor(status)
-                    }]}>
-                        <Text style={{ color: getStatusColor(status) }}>
-                            {getStatusText(status)}
-                        </Text>
-                    </View>
+                    {/* Hide status badge when status is SENT (for supplier document) */}
+                    {status !== 'SENT' && (
+                        <View style={[styles.statusBadge, {
+                            backgroundColor: getStatusColor(status) + '15',
+                            borderWidth: 1,
+                            borderColor: getStatusColor(status)
+                        }]}>
+                            <Text style={{ color: getStatusColor(status) }}>
+                                {getStatusText(status)}
+                            </Text>
+                        </View>
+                    )}
                 </View>
 
                 {/* ========== INFO BOXES ========== */}

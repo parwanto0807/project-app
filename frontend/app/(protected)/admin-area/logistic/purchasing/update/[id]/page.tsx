@@ -68,6 +68,7 @@ export default function UpdatePurchaseOrderPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isLoadingPO, setIsLoadingPO] = useState(true);
+    const [isMasterDataLoaded, setIsMasterDataLoaded] = useState(false);
     const [isTipsOpen, setIsTipsOpen] = useState(true);
 
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -105,10 +106,13 @@ export default function UpdatePurchaseOrderPage() {
             setWarehouses(warehousesData.data?.data || []);
             setProjects(projectsData.data || []);
             setProducts(productsData.products || []);
-            setSpkList(spkData.data || []);
+            // fetchAllSpkPr returns array directly, not wrapped in { data: [] }
+            setSpkList(Array.isArray(spkData) ? spkData : (spkData.data || []));
+            setIsMasterDataLoaded(true);
         } catch (error) {
             console.error("Error loading data:", error);
             toast.error("Gagal memuat data master");
+            setIsMasterDataLoaded(true); // Still set to true to allow form to show
         }
     };
 
@@ -168,7 +172,7 @@ export default function UpdatePurchaseOrderPage() {
         }
     };
 
-    if (isLoading || isLoadingPO) {
+    if (isLoading || isLoadingPO || !isMasterDataLoaded) {
         return (
             <AdminLayout title="Update Purchase Order" role="admin">
                 <div className="container mx-auto p-4 md:p-6 space-y-6">

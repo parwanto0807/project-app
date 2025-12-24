@@ -52,7 +52,7 @@ const statusConfig = {
         iconColor: "text-gray-600"
     },
     PENDING_APPROVAL: {
-        label: "Menunggu",
+        label: "Pending Aproval",
         className: "bg-amber-50 text-amber-800 border-amber-300",
         icon: Clock,
         iconColor: "text-amber-600"

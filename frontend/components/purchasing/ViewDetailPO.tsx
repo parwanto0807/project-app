@@ -89,7 +89,7 @@ const statusConfig: Record<string, any> = {
         gradient: "from-gray-100 to-gray-200",
     },
     PENDING_APPROVAL: {
-        label: "Menunggu Approval",
+        label: "Pending Approval",
         className: "bg-amber-50 text-amber-800 border-amber-300",
         icon: Clock,
         iconColor: "text-amber-600",
@@ -152,7 +152,10 @@ const nextStatusOptionsMap: Record<string, string[]> = {
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-export default function ViewDetailPO({ poId }: { poId: string }) {
+// Status yang bisa diubah oleh role PIC
+const PIC_ALLOWED_STATUS_CHANGES: string[] = ["DRAFT", "SENT", "PARTIALLY_RECEIVED", "FULLY_RECEIVED"];
+
+export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: string; userRole?: string }) {
     const router = useRouter();
     const [purchaseOrder, setPurchaseOrder] = useState<PurchaseOrder | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -186,10 +189,24 @@ export default function ViewDetailPO({ poId }: { poId: string }) {
         try {
             await updatePurchaseOrderStatus(purchaseOrder.id, status);
             toast.success(`Status berhasil diubah menjadi ${statusConfig[status].label}`);
+
             const updatedPO = await getPurchaseOrderById(purchaseOrder.id);
             setPurchaseOrder(updatedPO);
             setStatusDialogOpen(false);
             setNewStatus(null);
+
+            // Automatically open PDF for printing if status is SENT
+            if (status === 'SENT') {
+                try {
+                    toast.info("Menyiapkan dokumen PDF...");
+                    const blob = await pdf(<PurchaseOrderPdfDocument purchaseOrder={updatedPO} />).toBlob();
+                    const url = URL.createObjectURL(blob);
+                    window.open(url, '_blank');
+                } catch (pdfError) {
+                    console.error("Error generating PDF:", pdfError);
+                    toast.error("Gagal membuka PDF otomatis");
+                }
+            }
         } catch (error) {
             console.error("Error updating status:", error);
             toast.error("Gagal mengubah status");
@@ -202,8 +219,12 @@ export default function ViewDetailPO({ poId }: { poId: string }) {
         try {
             await deletePurchaseOrder(purchaseOrder.id);
             toast.success("Purchase Order berhasil dihapus");
-            router.push("/admin-area/logistic/purchasing");
-        } catch (error) {
+            // Redirect is handled by server action
+        } catch (error: any) {
+            // Ignore redirect error
+            if (error.message === 'NEXT_REDIRECT' || error.digest?.includes('NEXT_REDIRECT')) {
+                return;
+            }
             console.error("Error deleting PO:", error);
             toast.error("Gagal menghapus purchase order");
         } finally {
@@ -294,7 +315,17 @@ export default function ViewDetailPO({ poId }: { poId: string }) {
 
     const StatusIcon = statusConfig[purchaseOrder.status].icon;
     const statusIconColor = statusConfig[purchaseOrder.status].iconColor;
-    const nextStatusOptions = nextStatusOptionsMap[purchaseOrder.status] || [];
+
+    // Get base status options
+    const baseStatusOptions = nextStatusOptionsMap[purchaseOrder.status] || [];
+
+    // Filter status options based on user role
+    // PIC can only update status when current status is: DRAFT, SENT, PARTIALLY_RECEIVED, FULLY_RECEIVED
+    // Admin can update status for all statuses
+    const nextStatusOptions = userRole === "admin"
+        ? baseStatusOptions
+        : (PIC_ALLOWED_STATUS_CHANGES.includes(purchaseOrder.status) ? baseStatusOptions : []);
+
     const canEdit = purchaseOrder.status === "DRAFT";
     const canDelete = purchaseOrder.status === "DRAFT";
     const canSend = purchaseOrder.status === "APPROVED";
@@ -403,7 +434,7 @@ export default function ViewDetailPO({ poId }: { poId: string }) {
                             {/* Enhanced Tabs */}
                             <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
                                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                                    <div className="border-b border-gray-100 px-6">
+                                    <div className="border-b border-gray-100 px-6 my-4">
                                         <TabsList className="h-14 bg-transparent w-full justify-start gap-1">
                                             <TabsTrigger
                                                 value="details"

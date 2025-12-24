@@ -162,60 +162,33 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
                 </div>
 
                 <div className="min-h-screen">
-                    <ViewDetailPO poId={id} />
+                    <ViewDetailPO poId={id} userRole={userRole} />
                 </div>
             </AdminLayout>
         );
     } catch (error) {
-        // Fallback implementation
+        console.error("Error fetching purchase order:", error);
         return (
             <AdminLayout
-                title="Detail Purchase Order"
+                title="Purchase Order Tidak Ditemukan"
                 showBreadcrumb={false}
                 role={userRole}
             >
-                <div className="mb-8">
-                    <Breadcrumb>
-                        <BreadcrumbList>
-                            <BreadcrumbItem>
-                                <BreadcrumbLink href="/admin-area/dashboard" className="flex items-center gap-2">
-                                    <Home className="h-4 w-4" />
-                                    Dashboard
-                                </BreadcrumbLink>
-                            </BreadcrumbItem>
-                            <BreadcrumbSeparator>
-                                <ChevronRight className="h-4 w-4" />
-                            </BreadcrumbSeparator>
-                            <BreadcrumbItem>
-                                <BreadcrumbLink href="/admin-area/logistic" className="flex items-center gap-2">
-                                    <Package className="h-4 w-4" />
-                                    Logistik
-                                </BreadcrumbLink>
-                            </BreadcrumbItem>
-                            <BreadcrumbSeparator>
-                                <ChevronRight className="h-4 w-4" />
-                            </BreadcrumbSeparator>
-                            <BreadcrumbItem>
-                                <BreadcrumbLink href="/admin-area/logistic/purchasing" className="flex items-center gap-2">
-                                    <ShoppingCart className="h-4 w-4" />
-                                    Purchasing
-                                </BreadcrumbLink>
-                            </BreadcrumbItem>
-                            <BreadcrumbSeparator>
-                                <ChevronRight className="h-4 w-4" />
-                            </BreadcrumbSeparator>
-                            <BreadcrumbItem>
-                                <BreadcrumbPage className="flex items-center gap-2">
-                                    <FileText className="h-4 w-4" />
-                                    Detail PO
-                                </BreadcrumbPage>
-                            </BreadcrumbItem>
-                        </BreadcrumbList>
-                    </Breadcrumb>
-                </div>
-
-                <div className="min-h-screen">
-                    <ViewDetailPO poId={id} />
+                <div className="min-h-[50vh] flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500">
+                    <div className="h-20 w-20 bg-gray-100 rounded-full flex items-center justify-center mb-6">
+                        <Package className="h-10 w-10 text-gray-400" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Purchase Order Tidak Ditemukan</h2>
+                    <p className="text-muted-foreground max-w-md mb-8">
+                        Data Purchase Order yang Anda cari tidak ditemukan. Kemungkinan data telah dihapus atau ID tidak valid.
+                    </p>
+                    <a
+                        href="/admin-area/logistic/purchasing"
+                        className="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200"
+                    >
+                        <ChevronRight className="h-5 w-5 mr-2 rotate-180" />
+                        Kembali ke Daftar PO
+                    </a>
                 </div>
             </AdminLayout>
         );

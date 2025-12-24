@@ -182,7 +182,7 @@ export default function UpdateFormPO({
         defaultValues: {
             supplierId: initialData.supplierId || "",
             warehouseId: initialData.warehouseId || "",
-            spkId: initialData.sPKId || "",
+            spkId: initialData.sPKId || initialData.SPK?.id || "",
             projectId: initialData.projectId || "",
             poNumber: initialData.poNumber || "",
             poDate: initialData.orderDate ? new Date(initialData.orderDate) : new Date(),
@@ -219,6 +219,48 @@ export default function UpdateFormPO({
         }
         setIsLoading(false);
     }, [initialData.lines, products]);
+
+    // Initialize SPK and Project from initial data
+    useEffect(() => {
+        // Get spkId from initialData - try both sPKId and SPK?.id
+        const spkIdValue = initialData.sPKId || initialData.SPK?.id || "";
+
+        console.log("SPK Init Debug:", {
+            sPKId: initialData.sPKId,
+            SPK: initialData.SPK,
+            spkIdValue,
+            spkListLength: spkList.length
+        });
+
+        if (spkIdValue) {
+            setValue("spkId", spkIdValue);
+
+            // Find the SPK in spkList to get project name
+            if (spkList.length > 0) {
+                const selectedSpk = spkList.find(spk => spk.id === spkIdValue);
+                if (selectedSpk) {
+                    const projectName = selectedSpk.salesOrder?.project?.name ||
+                        selectedSpk.salesOrder?.projectName ||
+                        initialData.project?.name || "";
+                    setSelectedProjectName(projectName);
+
+                    // Also set projectId if available
+                    const projectId = selectedSpk.salesOrder?.project?.id || initialData.projectId;
+                    if (projectId) {
+                        setValue("projectId", projectId);
+                    }
+                }
+            }
+
+            // Always set project name from initialData if available
+            if (initialData.project?.name) {
+                setSelectedProjectName(initialData.project.name);
+            }
+        } else if (initialData.project?.name) {
+            // No SPK but has project from initial data
+            setSelectedProjectName(initialData.project.name);
+        }
+    }, [initialData.sPKId, initialData.SPK, initialData.projectId, initialData.project, spkList, setValue]);
 
     // Add new item
     const addItem = () => {
@@ -553,13 +595,31 @@ export default function UpdateFormPO({
                                                 }}
                                             >
                                                 <SelectTrigger className="w-full h-12 border-gray-300/80 rounded-xl">
-                                                    <SelectValue placeholder="Pilih SPK" />
+                                                    <SelectValue placeholder="Pilih SPK">
+                                                        {/* Show SPK number from initialData when spkList is not loaded */}
+                                                        {field.value && field.value !== "_none" && (
+                                                            spkList.find(spk => spk.id === field.value)?.spkNumber ||
+                                                            initialData.SPK?.spkNumber ||
+                                                            "Loading..."
+                                                        )}
+                                                    </SelectValue>
                                                     <ChevronDown className="h-4 w-4 ml-auto opacity-50" />
                                                 </SelectTrigger>
                                                 <SelectContent className="rounded-xl">
                                                     <SelectItem value="_none" className="rounded-lg text-muted-foreground">
                                                         Tidak ada SPK
                                                     </SelectItem>
+                                                    {/* Show initialData.SPK if not in spkList */}
+                                                    {initialData.SPK && !spkList.some(spk => spk.id === initialData.SPK?.id) && (
+                                                        <SelectItem key={initialData.SPK.id} value={initialData.SPK.id} className="rounded-lg">
+                                                            <div className="flex flex-col">
+                                                                <span className="font-medium">{initialData.SPK.spkNumber}</span>
+                                                                <span className="text-xs text-muted-foreground">
+                                                                    {initialData.project?.name || "Proyek"}
+                                                                </span>
+                                                            </div>
+                                                        </SelectItem>
+                                                    )}
                                                     {spkList.map((spk) => (
                                                         <SelectItem key={spk.id} value={spk.id} className="rounded-lg">
                                                             <div className="flex flex-col">

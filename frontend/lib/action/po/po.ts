@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import {
     CreatePurchaseOrderInput,
     UpdatePurchaseOrderInput,
@@ -392,4 +393,7 @@ export async function deletePurchaseOrder(id: string): Promise<void> {
         console.error(`Error deleting purchase order ${id}:`, error);
         throw error;
     }
+
+    // Redirect must be called outside of try-catch block
+    redirect('/admin-area/logistic/purchasing');
 }
