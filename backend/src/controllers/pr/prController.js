@@ -86,6 +86,23 @@ export class PurchaseRequestController {
                 },
               },
             },
+            // Include existing POs if requested
+            ...(req.query.includeExistingPOs === 'true' && {
+              purchaseOrders: {
+                select: {
+                  id: true,
+                  poNumber: true,
+                  status: true,
+                  totalAmount: true,
+                  supplier: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
+                },
+              },
+            }),
           },
           orderBy: { createdAt: "desc" },
           skip,
@@ -747,13 +764,122 @@ export class PurchaseRequestController {
           delete warehouseAllocations['__splitItems__'];
         }
 
+        // 2b-New. Update quantities for existing details (e.g., when item is split)
+        if (warehouseAllocations && warehouseAllocations['__quantityChanges__']) {
+          const quantityChanges = warehouseAllocations['__quantityChanges__'][0];
+          
+          if (quantityChanges && typeof quantityChanges === 'object') {
+            for (const [detailId, changes] of Object.entries(quantityChanges)) {
+              if (changes && typeof changes === 'object') {
+                await tx.purchaseRequestDetail.update({
+                  where: { id: detailId },
+                  data: { 
+                    jumlah: Number(changes.jumlah),
+                    estimasiTotalHarga: Number(changes.estimasiTotalHarga)
+                  }
+                });
+              }
+            }
+           }
+           
+          // Remove __quantityChanges__ from warehouseAllocations
+          delete warehouseAllocations['__quantityChanges__'];
+        }
+
+        // 2a. Update stokTersediaSaatIni for each detail (available stock at approval time)
+        if (status === 'APPROVED' && warehouseAllocations && warehouseAllocations['__stockAvailability__']) {
+          const stockAvailabilityData = warehouseAllocations['__stockAvailability__'][0];
+          
+          if (stockAvailabilityData && typeof stockAvailabilityData === 'object') {
+            // Update each detail with its available stock at approval time
+            for (const [detailId, availableStock] of Object.entries(stockAvailabilityData)) {
+              await tx.purchaseRequestDetail.update({
+                where: { id: detailId },
+                data: { stokTersediaSaatIni: Number(availableStock) }
+              });
+            }
+          }
+          
+          // Remove __stockAvailability__ from warehouseAllocations to avoid processing it as a detail
+          delete warehouseAllocations['__stockAvailability__'];
+        }
+
+        // 2a-2. Update sourceProduct for details that were changed in UI
+        if (status === 'APPROVED' && warehouseAllocations && warehouseAllocations['__sourceProductChanges__']) {
+          const sourceProductChanges = warehouseAllocations['__sourceProductChanges__'][0];
+          
+          if (sourceProductChanges && typeof sourceProductChanges === 'object') {
+            // Update each detail's sourceProduct
+            for (const [detailId, newSource] of Object.entries(sourceProductChanges)) {
+              await tx.purchaseRequestDetail.update({
+                where: { id: detailId },
+                data: { sourceProduct: newSource }
+              });
+            }
+          }
+          
+          // Remove __sourceProductChanges__ from warehouseAllocations to avoid processing it as a detail
+          delete warehouseAllocations['__sourceProductChanges__'];
+        }
+
+
         // 2b. Auto-create Material Requisition - MOVED TO AFTER SECTION 3
         // (MR creation now happens after warehouse allocations are saved,
         //  so we can read the correct allocatedQty from warehouseAllocation JSON)
 
         // 2c. Handle Cancel Approve (APPROVED → SUBMITTED)
-        // Reverse stock balance changes: decrease bookedStock, increase availableStock
+        // Validate: Check if any related PO or MR is already approved or beyond
         if (existingPR.status === 'APPROVED' && status === 'SUBMITTED') {
+          // Check if any related Purchase Order is APPROVED or higher status
+          const approvedPO = await tx.purchaseOrder.findFirst({
+            where: {
+              purchaseRequestId: id,
+              status: {
+                in: ['APPROVED', 'SENT', 'PARTIALLY_RECEIVED', 'FULLY_RECEIVED']
+              }
+            },
+            select: {
+              poNumber: true,
+              status: true
+            }
+          });
+
+          if (approvedPO) {
+            const statusText = approvedPO.status === 'APPROVED' ? 'sudah di-approve' :
+                             approvedPO.status === 'SENT' ? 'sudah dikirim ke supplier' :
+                             approvedPO.status === 'PARTIALLY_RECEIVED' ? 'sudah sebagian diterima' :
+                             'sudah selesai diterima';
+            throw new Error(`Tidak dapat membatalkan approval. Purchase Order ${approvedPO.poNumber} ${statusText}.`);
+          }
+
+          // Check if any related Material Requisition is APPROVED or higher status
+          const approvedMR = await tx.materialRequisition.findFirst({
+            where: {
+              items: {
+                some: {
+                  purchaseRequestDetail: {
+                    purchaseRequestId: id
+                  }
+                }
+              },
+              status: {
+                in: ['APPROVED', 'READY_TO_PICKUP', 'ISSUED']
+              }
+            },
+            select: {
+              mrNumber: true,
+              status: true
+            }
+          });
+
+          if (approvedMR) {
+            const statusText = approvedMR.status === 'APPROVED' ? 'sudah di-approve' :
+                             approvedMR.status === 'READY_TO_PICKUP' ? 'sudah siap diambil' :
+                             'sudah dikeluarkan dari gudang';
+            throw new Error(`Tidak dapat membatalkan approval. Material Requisition ${approvedMR.mrNumber} ${statusText}.`);
+          }
+
+          // Reverse stock balance changes: decrease bookedStock, increase availableStock
           // Get all PR details with warehouse allocations
           const prDetails = await tx.purchaseRequestDetail.findMany({
             where: { 
@@ -821,6 +947,16 @@ export class PurchaseRequestController {
               catatanItem: {
                 contains: 'Auto-split'
               }
+            }
+          });
+
+          // Reset tracking fields for all PR details
+          await tx.purchaseRequestDetail.updateMany({
+            where: { purchaseRequestId: id },
+            data: {
+              stokTersediaSaatIni: 0,
+              jumlahDipesan: 0,
+              jumlahTerpenuhi: 0
             }
           });
 
@@ -1207,9 +1343,7 @@ export class PurchaseRequestController {
           // Create PO (will return null if no purchase items found)
           const createdPO = await createPOFromApprovedPR(id);
           
-          if (createdPO) {
-            console.log(`✅ Auto-created PO ${createdPO.poNumber} from approved PR ${updatedPR.nomorPr}`);
-            
+          if (createdPO) {            
             // Add PO info to response
             updatedPR.autoCreatedPO = {
               id: createdPO.id,

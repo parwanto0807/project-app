@@ -472,7 +472,7 @@ export default function UpdatePurchaseOrderPage() {
                     </Card>
 
                     <Card className="bg-gradient-to-br from-card to-orange-50 dark:to-orange-950/20 border-orange-200 dark:border-orange-800 hover:shadow-lg transition-shadow cursor-pointer group"
-                        onClick={() => router.push("/admin-area/master/product")}>
+                        onClick={() => router.push("/admin-area/master/products")}>
                         <CardContent className="p-6">
                             <div className="flex items-center gap-4">
                                 <div className="h-12 w-12 rounded-xl bg-orange-100 dark:bg-orange-900/50 flex items-center justify-center group-hover:scale-110 transition-transform">

@@ -414,6 +414,138 @@ export const stockMonitoringController = {
         message: error.message
       });
     }
+  },
+
+  getStockBookings: async (req, res) => {
+    try {
+      const { productId, warehouseId } = req.query;
+
+      if (!productId) {
+        return res.status(400).json({ success: false, message: "ProductId is required" });
+      }
+
+      // Query all APPROVED PRs with warehouse allocations for this product
+      const bookings = await prisma.purchaseRequestDetail.findMany({
+        where: {
+          productId: productId,
+          purchaseRequest: {
+            status: 'APPROVED' // Only approved PRs have active bookings
+          },
+          warehouseAllocation: {
+            not: null
+          }
+        },
+        include: {
+          purchaseRequest: {
+            select: {
+              id: true,
+              nomorPr: true,
+              status: true,
+              tanggalPr: true,
+              karyawan: {
+                select: {
+                  namaLengkap: true
+                }
+              },
+              project: {
+                select: {
+                  name: true
+                }
+              }
+            }
+          },
+          product: {
+            select: {
+              name: true,
+              code: true,
+              storageUnit: true
+            }
+          }
+        }
+      });
+
+      // Filter out bookings that are already fully fulfilled
+      const activeBookings = bookings.filter(detail => {
+        const jumlah = Number(detail.jumlah);
+        const jumlahTerpenuhi = Number(detail.jumlahTerpenuhi || 0);
+        // Only show if not yet fully fulfilled
+        return jumlahTerpenuhi < jumlah;
+      });
+
+      // Filter and format bookings for specific warehouse (if provided)
+      const detailedBookings = activeBookings
+        .map(detail => {
+          const allocations = detail.warehouseAllocation;
+          
+          // If warehouseId specified, find allocation for that warehouse
+          if (warehouseId && warehouseId !== 'all') {
+            const warehouseAlloc = allocations.find(
+              alloc => alloc.warehouseId === warehouseId
+            );
+            
+            if (!warehouseAlloc) return null;
+            
+            return {
+              prNumber: detail.purchaseRequest.nomorPr,
+              prId: detail.purchaseRequest.id,
+              prDate: detail.purchaseRequest.tanggalPr,
+              requestor: detail.purchaseRequest.karyawan?.namaLengkap || 'Unknown',
+              project: detail.purchaseRequest.project?.name || '-',
+              productName: detail.product.name,
+              productCode: detail.product.code,
+              unit: detail.product.storageUnit,
+              bookedQty: Number(detail.jumlah), // Qty dari PR
+              warehouseName: warehouseAlloc.warehouseName,
+              totalRequested: Number(detail.jumlah),
+              jumlahTerpenuhi: Number(detail.jumlahTerpenuhi || 0),
+              status: detail.purchaseRequest.status
+            };
+          } else {
+            // Return all allocations for this PR
+            return allocations.map(alloc => ({
+              prNumber: detail.purchaseRequest.nomorPr,
+              prId: detail.purchaseRequest.id,
+              prDate: detail.purchaseRequest.tanggalPr,
+              requestor: detail.purchaseRequest.karyawan?.namaLengkap || 'Unknown',
+              project: detail.purchaseRequest.project?.name || '-',
+              productName: detail.product.name,
+              productCode: detail.product.code,
+              unit: detail.product.storageUnit,
+              bookedQty: Number(detail.jumlah), // Qty dari PR
+              warehouseName: alloc.warehouseName,
+              warehouseId: alloc.warehouseId,
+              totalRequested: Number(detail.jumlah),
+              jumlahTerpenuhi: Number(detail.jumlahTerpenuhi || 0),
+              status: detail.purchaseRequest.status
+            }));
+          }
+        })
+        .flat()
+        .filter(Boolean); // Remove nulls
+
+      // Calculate total booked
+      const totalBooked = detailedBookings.reduce(
+        (sum, booking) => sum + Number(booking.bookedQty), 
+        0
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          productId,
+          warehouseId: warehouseId || 'all',
+          totalBooked,
+          bookings: detailedBookings
+        }
+      });
+
+    } catch (error) {
+      console.error("Stock Bookings Error:", error);
+      return res.status(500).json({ 
+        success: false, 
+        error: "SERVER_ERROR",
+        message: error.message 
+      });
+    }
   }
 };
-

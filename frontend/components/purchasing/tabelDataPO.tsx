@@ -20,6 +20,7 @@ import {
     XCircle,
     Clock,
     FileEdit,
+    AlertCircle,
     Truck,
     Building,
     Calendar,
@@ -56,6 +57,12 @@ const statusConfig = {
         className: "bg-amber-50 text-amber-800 border-amber-300",
         icon: Clock,
         iconColor: "text-amber-600"
+    },
+    REVISION_NEEDED: {
+        label: "Perlu Revisi",
+        className: "bg-orange-50 text-orange-800 border-orange-300",
+        icon: AlertCircle,
+        iconColor: "text-orange-600"
     },
     APPROVED: {
         label: "Disetujui",

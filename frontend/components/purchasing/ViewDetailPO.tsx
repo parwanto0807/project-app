@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -77,71 +77,83 @@ import {
 } from "@/components/ui/table";
 
 import { PurchaseOrder } from "@/types/poType";
-import { getPurchaseOrderById, updatePurchaseOrderStatus, deletePurchaseOrder } from "@/lib/action/po/po";
+import { getPurchaseOrderById, updatePurchaseOrderStatus, deletePurchaseOrder, sendPurchaseOrderEmail } from "@/lib/action/po/po";
+import { createMRFromPOAction } from "@/lib/action/inventory/mrInventroyAction";
+import { createGoodsReceiptFromPOAction } from "@/lib/action/grInventory/grAction";
+
+// ... existing imports
 
 // Enhanced status config with colored icons
 const statusConfig: Record<string, any> = {
     DRAFT: {
         label: "Draft",
-        className: "bg-gray-100 text-gray-800 border-gray-300",
+        className: "bg-gray-100 text-gray-800 border-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 shadow-sm",
         icon: FileEdit,
-        iconColor: "text-gray-600",
-        gradient: "from-gray-100 to-gray-200",
+        iconColor: "text-gray-600 dark:text-gray-400",
+        gradient: "from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900",
     },
     PENDING_APPROVAL: {
-        label: "Pending Approval",
-        className: "bg-amber-50 text-amber-800 border-amber-300",
+        label: "Submited / Pending Approval",
+        className: "bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800 shadow-sm",
         icon: Clock,
-        iconColor: "text-amber-600",
-        gradient: "from-amber-50 to-amber-100",
+        iconColor: "text-amber-600 dark:text-amber-400",
+        gradient: "from-amber-50 to-amber-100 dark:from-amber-950 dark:to-amber-900",
+    },
+    REVISION_NEEDED: {
+        label: "Perlu Revisi",
+        className: "bg-orange-50 text-orange-800 border-orange-300 dark:bg-orange-950/50 dark:text-orange-300 dark:border-orange-800 shadow-sm",
+        icon: AlertCircle,
+        iconColor: "text-orange-600 dark:text-orange-400",
+        gradient: "from-orange-50 to-orange-100 dark:from-orange-950 dark:to-orange-900",
     },
     APPROVED: {
         label: "Disetujui",
-        className: "bg-blue-50 text-blue-800 border-blue-300",
+        className: "bg-blue-50 text-blue-800 border-blue-300 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800 shadow-sm",
         icon: CheckCircle,
-        iconColor: "text-blue-600",
-        gradient: "from-blue-50 to-blue-100",
+        iconColor: "text-blue-600 dark:text-blue-400",
+        gradient: "from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900",
     },
     REJECTED: {
         label: "Ditolak",
-        className: "bg-red-50 text-red-800 border-red-300",
+        className: "bg-red-50 text-red-800 border-red-300 dark:bg-red-950/50 dark:text-red-300 dark:border-red-800 shadow-sm",
         icon: XCircle,
-        iconColor: "text-red-600",
-        gradient: "from-red-50 to-red-100",
+        iconColor: "text-red-600 dark:text-red-400",
+        gradient: "from-red-50 to-red-100 dark:from-red-950 dark:to-red-900",
     },
     SENT: {
         label: "Terkirim ke Supplier",
-        className: "bg-purple-50 text-purple-800 border-purple-300",
+        className: "bg-purple-50 text-purple-800 border-purple-300 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-800 shadow-sm",
         icon: Send,
-        iconColor: "text-purple-600",
-        gradient: "from-purple-50 to-purple-100",
+        iconColor: "text-purple-600 dark:text-purple-400",
+        gradient: "from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900",
     },
     PARTIALLY_RECEIVED: {
         label: "Diterima Sebagian",
-        className: "bg-orange-50 text-orange-800 border-orange-300",
+        className: "bg-orange-50 text-orange-800 border-orange-300 dark:bg-orange-950/50 dark:text-orange-300 dark:border-orange-800 shadow-sm",
         icon: Package,
-        iconColor: "text-orange-600",
-        gradient: "from-orange-50 to-orange-100",
+        iconColor: "text-orange-600 dark:text-orange-400",
+        gradient: "from-orange-50 to-orange-100 dark:from-orange-950 dark:to-orange-900",
     },
     FULLY_RECEIVED: {
         label: "Diterima Lengkap",
-        className: "bg-emerald-50 text-emerald-800 border-emerald-300",
+        className: "bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800 shadow-sm",
         icon: CheckCircle,
-        iconColor: "text-emerald-600",
-        gradient: "from-emerald-50 to-emerald-100",
+        iconColor: "text-emerald-600 dark:text-emerald-400",
+        gradient: "from-emerald-50 to-emerald-100 dark:from-emerald-950 dark:to-emerald-900",
     },
     CANCELLED: {
         label: "Dibatalkan",
-        className: "bg-slate-100 text-slate-800 border-slate-300",
+        className: "bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 shadow-sm",
         icon: XCircle,
-        iconColor: "text-slate-600",
-        gradient: "from-slate-100 to-slate-200",
+        iconColor: "text-slate-600 dark:text-slate-400",
+        gradient: "from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900",
     },
 };
 
 const nextStatusOptionsMap: Record<string, string[]> = {
     DRAFT: ["PENDING_APPROVAL"],
-    PENDING_APPROVAL: ["APPROVED", "REJECTED"],
+    PENDING_APPROVAL: ["APPROVED", "REJECTED", "REVISION_NEEDED"],
+    REVISION_NEEDED: ["PENDING_APPROVAL", "DRAFT"],
     APPROVED: ["SENT", "CANCELLED"],
     SENT: ["PARTIALLY_RECEIVED", "FULLY_RECEIVED"],
     PARTIALLY_RECEIVED: ["FULLY_RECEIVED"],
@@ -165,6 +177,31 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
     const [isDeleting, setIsDeleting] = useState(false);
     const [isSendingEmail, setIsSendingEmail] = useState(false);
     const [activeTab, setActiveTab] = useState("details");
+
+
+    // New Feature State
+    const [isCreatingMR, setIsCreatingMR] = useState(false);
+
+    const handleCreateMR = async () => {
+        if (!purchaseOrder) return;
+        setIsCreatingMR(true);
+        try {
+            const res = await createMRFromPOAction(purchaseOrder.id);
+            if (res.success) {
+                toast.success("Material Requisition berhasil dibuat!");
+                // Refresh PO to update relatedMRs
+                const updated = await getPurchaseOrderById(purchaseOrder.id);
+                setPurchaseOrder(updated);
+            } else {
+                toast.error(res.error || "Gagal membuat MR");
+            }
+        } catch (error: any) {
+            console.error("Error creating MR:", error);
+            toast.error("Terjadi kesalahan sistem");
+        } finally {
+            setIsCreatingMR(false);
+        }
+    };
 
     useEffect(() => {
         const fetchPO = async () => {
@@ -195,16 +232,49 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
             setStatusDialogOpen(false);
             setNewStatus(null);
 
-            // Automatically open PDF for printing if status is SENT
+            // Automatically create Material Requisition (MR) if status is SENT
             if (status === 'SENT') {
                 try {
-                    toast.info("Menyiapkan dokumen PDF...");
-                    const blob = await pdf(<PurchaseOrderPdfDocument purchaseOrder={updatedPO} />).toBlob();
+                    toast.info("Membuat Dokumen Penerimaan & Permintaan otomatis...");
+
+                    // Create MR first
+                    const mrRes = await createMRFromPOAction(purchaseOrder.id);
+
+                    // Create GR
+                    const grRes = await createGoodsReceiptFromPOAction(purchaseOrder.id);
+
+                    if (mrRes.success && grRes.success) {
+                        toast.success("MR dan GR berhasil dibuat!");
+                        // Refresh PO to update relatedMRs
+                        const finalPO = await getPurchaseOrderById(purchaseOrder.id);
+                        setPurchaseOrder(finalPO);
+                    } else {
+                        // Partial success or failure
+                        let messages = [];
+                        if (!mrRes.success) messages.push(`MR: ${mrRes.error}`);
+                        if (!grRes.success) messages.push(`GR: ${grRes.message}`);
+                        toast.warning(`Status updated, but creation failed: ${messages.join(", ")}`);
+                    }
+                } catch (autoError) {
+                    console.error("Auto Creation Failed:", autoError);
+                    toast.warning("Status updated, but failed to auto-create documents");
+                }
+
+                // Fetch the latest PO data to ensure status is SENT before generating PDF
+                const latestPO = await getPurchaseOrderById(purchaseOrder.id);
+                setPurchaseOrder(latestPO);
+
+                // Small delay to ensure state is updated
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                // Display PDF with updated SENT status
+                try {
+                    const blob = await pdf(<PurchaseOrderPdfDocument purchaseOrder={latestPO} />).toBlob();
                     const url = URL.createObjectURL(blob);
                     window.open(url, '_blank');
-                } catch (pdfError) {
-                    console.error("Error generating PDF:", pdfError);
-                    toast.error("Gagal membuka PDF otomatis");
+                } catch (error) {
+                    console.error("Error generating PDF:", error);
+                    toast.error("Gagal membuat PDF");
                 }
             }
         } catch (error) {
@@ -249,16 +319,54 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
         }
     };
 
+    // const handleSendEmail = async () => {
+    //     if (!purchaseOrder) {
+    //         toast.error("Data PO tidak tersedia.");
+    //         return;
+    //     }
+
+    //     if (!purchaseOrder.supplier?.email) {
+    //         toast.error("Email supplier tidak ditemukan. Pastikan data supplier memiliki email.");
+    //         return;
+    //     }
+
+    //     setIsSendingEmail(true);
+    //     try {
+    //         const toastId = toast.loading("Membuat PDF dan mengirim email...");
+
+    //         // 1. Generate PDF
+    //         const blob = await pdf(<PurchaseOrderPdfDocument purchaseOrder={purchaseOrder} />).toBlob();
+
+    //         // 2. Prepare Data
+    //         const formData = new FormData();
+    //         // Sanitize filename
+    //         const filename = `PO-${purchaseOrder.poNumber.replace(/[\/\\?%*:|"<>]/g, '-')}.pdf`;
+    //         formData.append('file', blob, filename);
+    //         formData.append('email', purchaseOrder.supplier.email);
+    //         formData.append('poNumber', purchaseOrder.poNumber);
+
+    //         // 3. Send
+    //         await sendPurchaseOrderEmail(purchaseOrder.id, formData);
+
+    //         toast.dismiss(toastId);
+    //         toast.success("Email berhasil dikirim ke supplier!");
+
+    //         // 4. Update status if needed (optional) - e.g. change APPROVED to SENT
+    //         if (purchaseOrder.status === 'APPROVED') {
+    //             handleUpdateStatus('SENT');
+    //         }
+
+    //     } catch (error: any) {
+    //         console.error("Error sending email:", error);
+    //         toast.dismiss(); // Dismiss loading toast
+    //         toast.error("Gagal mengirim email: " + (error.message || "Terjadi kesalahan"));
+    //     } finally {
+    //         setIsSendingEmail(false);
+    //     }
+    // };
+
     const handleSendEmail = async () => {
-        setIsSendingEmail(true);
-        try {
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            toast.success("Email berhasil dikirim ke supplier");
-        } catch (error) {
-            toast.error("Gagal mengirim email");
-        } finally {
-            setIsSendingEmail(false);
-        }
+        toast.info("Fitur kirim email sedang dalam tahap pengembangan");
     };
 
     const formatCurrency = (value: number) => {
@@ -326,12 +434,12 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
         ? baseStatusOptions
         : (PIC_ALLOWED_STATUS_CHANGES.includes(purchaseOrder.status) ? baseStatusOptions : []);
 
-    const canEdit = purchaseOrder.status === "DRAFT";
+    const canEdit = purchaseOrder.status === "DRAFT" || purchaseOrder.status === "REVISION_NEEDED";
     const canDelete = purchaseOrder.status === "DRAFT";
     const canSend = purchaseOrder.status === "APPROVED";
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/30 animate-in fade-in duration-700">
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/30 dark:from-gray-950 dark:via-gray-900 dark:to-blue-950/30 animate-in fade-in duration-700">
             {/* Premium Header with Gradient */}
             <div className="relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 opacity-10"></div>
@@ -369,7 +477,7 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                         </div>
 
                                         <div>
-                                            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                                            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-gray-900 to-gray-700  dark:from-gray-100 dark:to-gray-300 bg-clip-text text-transparent">
                                                 {purchaseOrder.poNumber}
                                             </h1>
                                             <div className="flex items-center gap-3 mt-2">
@@ -403,13 +511,26 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                     <div className="flex items-center justify-end gap-2">
                                         {nextStatusOptions.length > 0 && (
                                             <Button
-                                                onClick={() => setStatusDialogOpen(true)}
-                                                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg shadow-blue-500/25"
+                                                onClick={() => {
+                                                    if (!purchaseOrder.expectedDeliveryDate) {
+                                                        toast.error("Mohon isi Estimasi Pengiriman terlebih dahulu sebelum mengubah status");
+                                                        return;
+                                                    }
+                                                    setStatusDialogOpen(true);
+                                                }}
+                                                className={cn(
+                                                    "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg shadow-blue-500/25",
+                                                    !purchaseOrder.expectedDeliveryDate && "opacity-50 cursor-not-allowed grayscale"
+                                                )}
+                                                disabled={!purchaseOrder.expectedDeliveryDate}
                                             >
                                                 <CheckCircle className="h-4 w-4 mr-2" />
                                                 Update Status
                                             </Button>
                                         )}
+
+                                        {/* Debug: Current status is {purchaseOrder.status} */}
+
                                         <Button variant="outline" className="border-blue-200 hover:bg-blue-50">
                                             <Share2 className="h-4 w-4 mr-2" />
                                             Share
@@ -432,39 +553,39 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                         {/* Left Column - Main Content */}
                         <div className="lg:col-span-2 space-y-6">
                             {/* Enhanced Tabs */}
-                            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+                            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden dark:bg-gray-800 dark:border-gray-700">
                                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                                    <div className="border-b border-gray-100 px-6 my-4">
+                                    <div className="border-b border-gray-100 dark:border-gray-700 px-6 my-4">
                                         <TabsList className="h-14 bg-transparent w-full justify-start gap-1">
                                             <TabsTrigger
                                                 value="details"
-                                                className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 rounded-xl h-14 px-6"
+                                                className="data-[state=active]:bg-blue-50 dark:data-[state=active]:bg-blue-900/40 data-[state=active]:text-blue-700 dark:data-[state=active]:text-blue-300 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 dark:data-[state=active]:border-blue-400 rounded-xl h-14 px-6"
                                             >
                                                 <FileText className="h-4 w-4 mr-2" />
                                                 Informasi Utama
                                             </TabsTrigger>
                                             <TabsTrigger
                                                 value="items"
-                                                className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 rounded-xl h-14 px-6"
+                                                className="data-[state=active]:bg-blue-50 dark:data-[state=active]:bg-blue-900/40 data-[state=active]:text-blue-700 dark:data-[state=active]:text-blue-300 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 dark:data-[state=active]:border-blue-400 rounded-xl h-14 px-6"
                                             >
                                                 <Package className="h-4 w-4 mr-2" />
                                                 Item Barang
                                                 {purchaseOrder.lines && purchaseOrder.lines.length > 0 && (
-                                                    <Badge className="ml-2 bg-blue-100 text-blue-700 hover:bg-blue-100">
+                                                    <Badge className="ml-2 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 hover:bg-blue-100">
                                                         {purchaseOrder.lines.length}
                                                     </Badge>
                                                 )}
                                             </TabsTrigger>
                                             <TabsTrigger
                                                 value="delivery"
-                                                className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 rounded-xl h-14 px-6"
+                                                className="data-[state=active]:bg-blue-50 dark:data-[state=active]:bg-blue-900/40 data-[state=active]:text-blue-700 dark:data-[state=active]:text-blue-300 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 dark:data-[state=active]:border-blue-400 rounded-xl h-14 px-6"
                                             >
                                                 <Truck className="h-4 w-4 mr-2" />
                                                 Pengiriman
                                             </TabsTrigger>
                                             <TabsTrigger
                                                 value="history"
-                                                className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 rounded-xl h-14 px-6"
+                                                className="data-[state=active]:bg-blue-50 dark:data-[state=active]:bg-blue-900/40 data-[state=active]:text-blue-700 dark:data-[state=active]:text-blue-300 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 dark:data-[state=active]:border-blue-400 rounded-xl h-14 px-6"
                                             >
                                                 <History className="h-4 w-4 mr-2" />
                                                 Riwayat
@@ -476,54 +597,65 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                     <TabsContent value="details" className="m-0 p-6 space-y-6">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             {/* Order Details Card */}
-                                            <Card className="border-0 shadow-sm bg-gradient-to-br from-blue-50/50 to-white">
+                                            <Card className="border-0 shadow-sm bg-gradient-to-br from-blue-50/50 to-white dark:from-blue-950/20 dark:to-gray-800 dark:bg-gray-800">
                                                 <CardHeader className="pb-3">
                                                     <div className="flex items-center justify-between">
-                                                        <CardTitle className="flex items-center gap-2 text-lg">
-                                                            <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                                                                <ClipboardList className="h-5 w-5 text-blue-600" />
+                                                        <CardTitle className="flex items-center gap-2 text-lg dark:text-gray-100">
+                                                            <div className="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center shadow-sm">
+                                                                <ClipboardList className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                                                             </div>
                                                             <span>Detail Pesanan</span>
                                                         </CardTitle>
-                                                        <Badge variant="outline" className="bg-white">
+                                                        <Badge variant="outline" className="bg-white dark:bg-gray-700 dark:text-gray-200 shadow-sm border-gray-100 dark:border-gray-600">
                                                             #{purchaseOrder.poNumber.split('-').pop()}
                                                         </Badge>
                                                     </div>
                                                 </CardHeader>
                                                 <CardContent className="space-y-4">
                                                     <div className="space-y-3">
-                                                        <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                                                        <div className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
                                                             <div className="flex items-center gap-2 text-muted-foreground">
-                                                                <Hash className="h-4 w-4 text-blue-500" />
+                                                                <Hash className="h-4 w-4 text-blue-500 dark:text-blue-400" />
                                                                 <span>Nomor PO</span>
                                                             </div>
-                                                            <div className="font-mono font-semibold">{purchaseOrder.poNumber}</div>
+                                                            <div className="font-mono font-semibold dark:text-gray-200">{purchaseOrder.poNumber}</div>
                                                         </div>
-                                                        <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                                                        {purchaseOrder.PurchaseRequest && (
+                                                            <div className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+                                                                <div className="flex items-center gap-2 text-muted-foreground">
+                                                                    <FileText className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
+                                                                    <span>Nomor PR</span>
+                                                                </div>
+                                                                <Badge variant="outline" className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800 font-mono shadow-sm">
+                                                                    {purchaseOrder.PurchaseRequest.nomorPr}
+                                                                </Badge>
+                                                            </div>
+                                                        )}
+                                                        <div className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
                                                             <div className="flex items-center gap-2 text-muted-foreground">
-                                                                <Calendar className="h-4 w-4 text-purple-500" />
+                                                                <Calendar className="h-4 w-4 text-purple-500 dark:text-purple-400" />
                                                                 <span>Tanggal Order</span>
                                                             </div>
-                                                            <div className="font-medium">
+                                                            <div className="font-medium dark:text-gray-200">
                                                                 {format(new Date(purchaseOrder.orderDate), "dd MMMM yyyy", { locale: id })}
                                                             </div>
                                                         </div>
                                                         {purchaseOrder.project && (
-                                                            <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                                                            <div className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
                                                                 <div className="flex items-center gap-2 text-muted-foreground">
-                                                                    <Folder className="h-4 w-4 text-green-500" />
+                                                                    <Folder className="h-4 w-4 text-green-500 dark:text-green-400" />
                                                                     <span>Proyek</span>
                                                                 </div>
-                                                                <div className="font-medium">{purchaseOrder.project.name}</div>
+                                                                <div className="font-medium dark:text-gray-200">{purchaseOrder.project.name}</div>
                                                             </div>
                                                         )}
                                                         {purchaseOrder.SPK && (
-                                                            <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                                                            <div className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
                                                                 <div className="flex items-center gap-2 text-muted-foreground">
-                                                                    <FileCheck className="h-4 w-4 text-cyan-500" />
+                                                                    <FileCheck className="h-4 w-4 text-cyan-500 dark:text-cyan-400" />
                                                                     <span>SPK</span>
                                                                 </div>
-                                                                <Badge variant="outline" className="bg-cyan-50 text-cyan-700 border-cyan-200 font-mono">
+                                                                <Badge variant="outline" className="bg-cyan-50 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-400 border-cyan-200 dark:border-cyan-800 font-mono shadow-sm">
                                                                     {purchaseOrder.SPK.spkNumber}
                                                                 </Badge>
                                                             </div>
@@ -531,10 +663,10 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                                         {purchaseOrder.paymentTerm && (
                                                             <div className="flex items-center justify-between py-2">
                                                                 <div className="flex items-center gap-2 text-muted-foreground">
-                                                                    <CreditCard className="h-4 w-4 text-amber-500" />
+                                                                    <CreditCard className="h-4 w-4 text-amber-500 dark:text-amber-400" />
                                                                     <span>Termin Pembayaran</span>
                                                                 </div>
-                                                                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                                                                <Badge variant="outline" className="bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800 shadow-sm">
                                                                     {purchaseOrder.paymentTerm.replace(/_/g, ' ')}
                                                                 </Badge>
                                                             </div>
@@ -544,7 +676,7 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                             </Card>
 
                                             {/* Supplier Card */}
-                                            <Card className="border-0 shadow-sm bg-gradient-to-br from-emerald-50/50 to-white">
+                                            <Card className="border-0 shadow-sm bg-gradient-to-br from-emerald-50/50 to-white dark:from-emerald-950/20 dark:to-gray-800 dark:bg-gray-800">
                                                 <CardHeader className="pb-3">
                                                     <CardTitle className="flex items-center gap-2 text-lg">
                                                         <div className="h-10 w-10 rounded-lg bg-emerald-100 flex items-center justify-center">
@@ -557,11 +689,11 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                                     {purchaseOrder.supplier ? (
                                                         <div className="space-y-4">
                                                             <div className="flex items-start gap-3">
-                                                                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+                                                                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg">
                                                                     <User className="h-6 w-6 text-white" />
                                                                 </div>
                                                                 <div>
-                                                                    <div className="font-semibold text-lg">{purchaseOrder.supplier.name}</div>
+                                                                    <div className="font-semibold text-lg dark:text-gray-100">{purchaseOrder.supplier.name}</div>
                                                                     <div className="text-sm text-muted-foreground">Kode: {purchaseOrder.supplier.code}</div>
                                                                 </div>
                                                             </div>
@@ -585,7 +717,7 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                             </Card>
 
                                             {/* Warehouse Card */}
-                                            <Card className="border-0 shadow-sm bg-gradient-to-br from-orange-50/50 to-white md:col-span-2">
+                                            <Card className="border-0 shadow-sm bg-gradient-to-br from-orange-50/50 to-white md:col-span-2 dark:from-orange-950/20 dark:to-gray-800 dark:bg-gray-800">
                                                 <CardHeader className="pb-3">
                                                     <CardTitle className="flex items-center gap-2 text-lg">
                                                         <div className="h-10 w-10 rounded-lg bg-orange-100 flex items-center justify-center">
@@ -598,14 +730,14 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                                     {purchaseOrder.warehouse ? (
                                                         <div className="flex items-center justify-between">
                                                             <div className="flex items-center gap-4">
-                                                                <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">
+                                                                <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-lg">
                                                                     <Box className="h-7 w-7 text-white" />
                                                                 </div>
                                                                 <div>
-                                                                    <div className="font-semibold text-lg">{purchaseOrder.warehouse.name}</div>
+                                                                    <div className="font-semibold text-lg dark:text-gray-100">{purchaseOrder.warehouse.name}</div>
                                                                     <div className="text-sm text-muted-foreground">Kode: {purchaseOrder.warehouse.code}</div>
                                                                     <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                                                                        <MapPin className="h-3.5 w-3.5" />
+                                                                        <MapPin className="h-3.5 w-3.5 text-orange-500" />
                                                                         <span>Jl. Gudang No. 123, Jakarta</span>
                                                                     </div>
                                                                 </div>
@@ -629,13 +761,13 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                     <TabsContent value="items" className="m-0 p-6">
                                         <Card className="border-0 shadow-sm">
                                             <CardHeader>
-                                                <CardTitle className="flex items-center gap-2">
-                                                    <div className="h-10 w-10 rounded-lg bg-indigo-100 flex items-center justify-center">
-                                                        <Package className="h-5 w-5 text-indigo-600" />
+                                                <CardTitle className="flex items-center gap-2 dark:text-gray-100">
+                                                    <div className="h-10 w-10 rounded-lg bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center shadow-sm">
+                                                        <Package className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
                                                     </div>
                                                     <div>
                                                         <div>Daftar Item Barang</div>
-                                                        <CardDescription className="mt-1">
+                                                        <CardDescription className="mt-1 dark:text-gray-400">
                                                             {purchaseOrder.lines?.length || 0} item dalam purchase order ini
                                                         </CardDescription>
                                                     </div>
@@ -647,40 +779,40 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                                         <div className="overflow-hidden border rounded-xl">
                                                             <Table>
                                                                 <TableHeader>
-                                                                    <TableRow className="bg-gradient-to-r from-gray-50 to-blue-50/50">
-                                                                        <TableHead className="font-semibold text-gray-700">#</TableHead>
-                                                                        <TableHead className="font-semibold text-gray-700">Produk</TableHead>
-                                                                        <TableHead className="font-semibold text-gray-700 text-right">Jumlah</TableHead>
-                                                                        <TableHead className="font-semibold text-gray-700 text-right">Harga Satuan</TableHead>
-                                                                        <TableHead className="font-semibold text-gray-700 text-right">Total</TableHead>
+                                                                    <TableRow className="bg-gradient-to-r from-gray-50 to-blue-50/50 dark:from-gray-800 dark:to-blue-950/20 dark:border-gray-700">
+                                                                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">#</TableHead>
+                                                                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Produk</TableHead>
+                                                                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300 text-right">Jumlah</TableHead>
+                                                                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300 text-right">Harga Satuan</TableHead>
+                                                                        <TableHead className="font-semibold text-gray-700 dark:text-gray-300 text-right">Total</TableHead>
                                                                     </TableRow>
                                                                 </TableHeader>
                                                                 <TableBody>
                                                                     {purchaseOrder.lines.map((line, index) => (
-                                                                        <TableRow key={line.id || index} className="hover:bg-blue-50/30 transition-colors">
-                                                                            <TableCell className="font-medium">{index + 1}</TableCell>
+                                                                        <TableRow key={line.id || index} className="hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors border-b dark:border-gray-800">
+                                                                            <TableCell className="font-medium dark:text-gray-300">{index + 1}</TableCell>
                                                                             <TableCell>
-                                                                                <div className="font-semibold">{line.product?.name || "N/A"}</div>
+                                                                                <div className="font-semibold dark:text-gray-200">{line.product?.name || "N/A"}</div>
                                                                                 {line.description && (
-                                                                                    <div className="text-sm text-muted-foreground mt-1">
+                                                                                    <div className="text-sm text-muted-foreground mt-1 dark:text-gray-400">
                                                                                         {line.description}
                                                                                     </div>
                                                                                 )}
                                                                             </TableCell>
                                                                             <TableCell className="text-right font-medium">
                                                                                 <div className="inline-flex items-center gap-1">
-                                                                                    <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-md">
+                                                                                    <span className="bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-md shadow-sm">
                                                                                         {line.quantity}
                                                                                     </span>
-                                                                                    <span className="text-muted-foreground text-sm">
+                                                                                    <span className="text-muted-foreground text-sm dark:text-gray-400">
                                                                                         {line.product?.unit || "pcs"}
                                                                                     </span>
                                                                                 </div>
                                                                             </TableCell>
-                                                                            <TableCell className="text-right font-semibold">
+                                                                            <TableCell className="text-right font-semibold dark:text-gray-300">
                                                                                 {formatCurrency(line.unitPrice)}
                                                                             </TableCell>
-                                                                            <TableCell className="text-right font-bold text-blue-700">
+                                                                            <TableCell className="text-right font-bold text-blue-700 dark:text-blue-400">
                                                                                 {formatCurrency(line.totalAmount)}
                                                                             </TableCell>
                                                                         </TableRow>
@@ -690,31 +822,31 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                                         </div>
 
                                                         {/* Enhanced Summary */}
-                                                        <div className="bg-gradient-to-r from-blue-50/50 to-white border border-blue-100 rounded-2xl p-6">
+                                                        <div className="bg-gradient-to-r from-blue-50/50 to-white border border-blue-100 dark:border-gray-800 rounded-2xl p-6 dark:from-gray-900 dark:to-gray-800/50 dark:shadow-inner-sm">
                                                             <div className="max-w-md ml-auto space-y-4">
                                                                 <div className="flex items-center justify-between">
-                                                                    <span className="text-muted-foreground">Subtotal:</span>
-                                                                    <span className="font-semibold">
+                                                                    <span className="text-muted-foreground dark:text-gray-400">Subtotal:</span>
+                                                                    <span className="font-semibold dark:text-gray-200">
                                                                         {formatCurrency(purchaseOrder.subtotal || 0)}
                                                                     </span>
                                                                 </div>
                                                                 {purchaseOrder.taxAmount > 0 && (
                                                                     <div className="flex items-center justify-between">
-                                                                        <span className="text-muted-foreground flex items-center gap-2">
-                                                                            <Receipt className="h-4 w-4 text-blue-500" />
+                                                                        <span className="text-muted-foreground dark:text-gray-400 flex items-center gap-2">
+                                                                            <Receipt className="h-4 w-4 text-blue-500 dark:text-blue-400" />
                                                                             Total Pajak:
                                                                         </span>
-                                                                        <span className="font-semibold text-blue-600">
+                                                                        <span className="font-semibold text-blue-600 dark:text-blue-400">
                                                                             +{formatCurrency(purchaseOrder.taxAmount)}
                                                                         </span>
                                                                     </div>
                                                                 )}
-                                                                <Separator className="my-2" />
+                                                                <Separator className="my-2 dark:bg-gray-700" />
                                                                 <div className="flex items-center justify-between text-xl font-bold pt-2">
-                                                                    <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                                                                    <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent dark:from-blue-400 dark:to-purple-400">
                                                                         Total Keseluruhan:
                                                                     </span>
-                                                                    <span className="text-2xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                                                                    <span className="text-2xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent dark:from-blue-400 dark:to-purple-400">
                                                                         {formatCurrency(purchaseOrder.totalAmount)}
                                                                     </span>
                                                                 </div>
@@ -723,10 +855,10 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                                     </div>
                                                 ) : (
                                                     <div className="text-center py-12">
-                                                        <div className="h-20 w-20 mx-auto bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mb-4">
+                                                        <div className="h-20 w-20 mx-auto bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mb-4 dark:from-gray-800 dark:to-gray-900">
                                                             <Package className="h-10 w-10 text-gray-400" />
                                                         </div>
-                                                        <h3 className="text-lg font-semibold text-gray-700 mb-2">Tidak Ada Item</h3>
+                                                        <h3 className="text-lg font-semibold text-gray-700 mb-2 dark:text-gray-300">Tidak Ada Item</h3>
                                                         <p className="text-muted-foreground max-w-sm mx-auto">
                                                             Purchase order ini belum memiliki item barang. Tambahkan item untuk melanjutkan.
                                                         </p>
@@ -740,9 +872,9 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                     <TabsContent value="delivery" className="m-0 p-6">
                                         <Card className="border-0 shadow-sm">
                                             <CardHeader>
-                                                <CardTitle className="flex items-center gap-2">
-                                                    <div className="h-10 w-10 rounded-lg bg-green-100 flex items-center justify-center">
-                                                        <Truck className="h-5 w-5 text-green-600" />
+                                                <CardTitle className="flex items-center gap-2 dark:text-gray-100">
+                                                    <div className="h-10 w-10 rounded-lg bg-green-100 dark:bg-green-900/50 flex items-center justify-center shadow-sm">
+                                                        <Truck className="h-5 w-5 text-green-600 dark:text-green-400" />
                                                     </div>
                                                     <span>Informasi Pengiriman</span>
                                                 </CardTitle>
@@ -750,7 +882,7 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                             <CardContent>
                                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                                                     <div className="space-y-6">
-                                                        <div className="bg-gradient-to-br from-green-50/50 to-white rounded-xl p-6 border border-green-100">
+                                                        <div className="bg-gradient-to-br from-green-50/50 to-white rounded-xl p-6 border border-green-100 dark:from-green-950/20 dark:to-gray-800 dark:border-green-900/50">
                                                             <h4 className="font-semibold text-lg mb-4 flex items-center gap-2">
                                                                 <MapPin className="h-5 w-5 text-green-600" />
                                                                 Alamat Pengiriman
@@ -758,21 +890,21 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                                             {purchaseOrder.warehouse ? (
                                                                 <div className="space-y-3">
                                                                     <div className="flex items-center gap-3">
-                                                                        <div className="h-12 w-12 rounded-lg bg-green-100 flex items-center justify-center">
-                                                                            <Warehouse className="h-6 w-6 text-green-600" />
+                                                                        <div className="h-12 w-12 rounded-lg bg-green-100 dark:bg-green-900/50 flex items-center justify-center shadow-sm">
+                                                                            <Warehouse className="h-6 w-6 text-green-600 dark:text-green-400" />
                                                                         </div>
                                                                         <div>
-                                                                            <div className="font-bold text-lg">{purchaseOrder.warehouse.name}</div>
-                                                                            <div className="text-sm text-muted-foreground">{purchaseOrder.warehouse.code}</div>
+                                                                            <div className="font-bold text-lg dark:text-gray-200">{purchaseOrder.warehouse.name}</div>
+                                                                            <div className="text-sm text-muted-foreground dark:text-gray-400">{purchaseOrder.warehouse.code}</div>
                                                                         </div>
                                                                     </div>
                                                                     <div className="space-y-2 text-sm">
-                                                                        <div className="flex items-center gap-2 text-muted-foreground">
-                                                                            <MapPin className="h-4 w-4" />
+                                                                        <div className="flex items-center gap-2 text-muted-foreground dark:text-gray-400">
+                                                                            <MapPin className="h-4 w-4 text-green-500" />
                                                                             <span>Jl. Gudang Utama No. 45, Jakarta Selatan</span>
                                                                         </div>
-                                                                        <div className="flex items-center gap-2 text-muted-foreground">
-                                                                            <Phone className="h-4 w-4" />
+                                                                        <div className="flex items-center gap-2 text-muted-foreground dark:text-gray-400">
+                                                                            <Phone className="h-4 w-4 text-green-500" />
                                                                             <span>(021) 555-6789</span>
                                                                         </div>
                                                                     </div>
@@ -782,29 +914,29 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                                             )}
                                                         </div>
 
-                                                        <div className="bg-gradient-to-br from-blue-50/50 to-white rounded-xl p-6 border border-blue-100">
-                                                            <h4 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                                                                <Calendar className="h-5 w-5 text-blue-600" />
+                                                        <div className="bg-gradient-to-br from-blue-50/50 to-white rounded-xl p-6 border border-blue-100 dark:from-blue-950/20 dark:to-gray-800 dark:border-blue-900/50">
+                                                            <h4 className="font-semibold text-lg mb-4 flex items-center gap-2 dark:text-gray-100">
+                                                                <Calendar className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                                                                 Jadwal Pengiriman
                                                             </h4>
                                                             <div className="space-y-4">
-                                                                <div className="flex items-center justify-between py-2 border-b border-blue-100">
-                                                                    <span className="text-muted-foreground">Tanggal Order:</span>
-                                                                    <span className="font-medium">
+                                                                <div className="flex items-center justify-between py-2 border-b border-blue-100 dark:border-blue-900/30">
+                                                                    <span className="text-muted-foreground dark:text-gray-400">Tanggal Order:</span>
+                                                                    <span className="font-medium dark:text-gray-300">
                                                                         {format(new Date(purchaseOrder.orderDate), "dd MMMM yyyy", { locale: id })}
                                                                     </span>
                                                                 </div>
                                                                 {purchaseOrder.expectedDeliveryDate ? (
-                                                                    <div className="flex items-center justify-between py-2 border-b border-blue-100">
-                                                                        <span className="text-muted-foreground">Estimasi Tiba:</span>
-                                                                        <span className="font-medium bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                                                                    <div className="flex items-center justify-between py-2 border-b border-blue-100 dark:border-blue-900/30">
+                                                                        <span className="text-muted-foreground dark:text-gray-400">Estimasi Tiba:</span>
+                                                                        <span className="font-medium bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent dark:from-green-400 dark:to-emerald-400">
                                                                             {format(new Date(purchaseOrder.expectedDeliveryDate), "dd MMMM yyyy", { locale: id })}
                                                                         </span>
                                                                     </div>
                                                                 ) : (
                                                                     <div className="flex items-center justify-between py-2">
-                                                                        <span className="text-muted-foreground">Estimasi Tiba:</span>
-                                                                        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                                                                        <span className="text-muted-foreground dark:text-gray-400">Estimasi Tiba:</span>
+                                                                        <Badge variant="outline" className="bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800 shadow-sm">
                                                                             Belum ditentukan
                                                                         </Badge>
                                                                     </div>
@@ -814,9 +946,9 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                                     </div>
 
                                                     <div className="space-y-6">
-                                                        <div className="bg-gradient-to-br from-purple-50/50 to-white rounded-xl p-6 border border-purple-100">
-                                                            <h4 className="font-semibold text-lg mb-4 flex items-center gap-2">
-                                                                <Package className="h-5 w-5 text-purple-600" />
+                                                        <div className="bg-gradient-to-br from-purple-50/50 to-white rounded-xl p-6 border border-purple-100 dark:from-purple-950/20 dark:to-gray-800 dark:border-purple-900/50">
+                                                            <h4 className="font-semibold text-lg mb-4 flex items-center gap-2 dark:text-gray-100">
+                                                                <Package className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                                                                 Status Penerimaan
                                                             </h4>
                                                             <div className="space-y-6">
@@ -828,7 +960,7 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                                                             {statusConfig[purchaseOrder.status].label}
                                                                         </Badge>
                                                                     </div>
-                                                                    <div className="w-full bg-gray-200 rounded-full h-2">
+                                                                    <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
                                                                         <div
                                                                             className={cn("h-2 rounded-full transition-all duration-500", {
                                                                                 'bg-green-500 w-full': purchaseOrder.status === 'FULLY_RECEIVED',
@@ -848,11 +980,11 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                                                                 {purchaseOrder.lines.reduce((acc, l) => acc + (l.receivedQuantity || 0), 0)} / {purchaseOrder.lines.reduce((acc, l) => acc + (l.quantity || 0), 0)}
                                                                             </span>
                                                                         </div>
-                                                                        <div className="bg-gray-100 rounded-lg p-3">
-                                                                            <div className="text-xs font-medium text-gray-700 mb-1">
+                                                                        <div className="bg-gray-100 rounded-lg p-3 dark:bg-gray-800">
+                                                                            <div className="text-xs font-medium text-gray-700 mb-1 dark:text-gray-300">
                                                                                 {Math.round((purchaseOrder.lines.reduce((acc, l) => acc + (l.receivedQuantity || 0), 0) / purchaseOrder.lines.reduce((acc, l) => acc + (l.quantity || 0), 0)) * 100)}% Complete
                                                                             </div>
-                                                                            <div className="w-full bg-gray-200 rounded-full h-2">
+                                                                            <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
                                                                                 <div
                                                                                     className="bg-green-500 h-2 rounded-full"
                                                                                     style={{
@@ -877,10 +1009,10 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                         {/* Right Column - Actions & Summary */}
                         <div className="space-y-6">
                             {/* Actions Card */}
-                            <Card className="border-0 shadow-xl bg-gradient-to-b from-white to-blue-50/30">
+                            <Card className="border-0 shadow-xl bg-gradient-to-b from-white to-blue-50/30 dark:from-gray-800 dark:to-blue-950/10 dark:border dark:border-gray-700">
                                 <CardHeader>
-                                    <CardTitle className="flex items-center gap-2 text-lg">
-                                        <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                                    <CardTitle className="flex items-center gap-2 text-lg dark:text-gray-100">
+                                        <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
                                             <Sparkles className="h-5 w-5 text-white" />
                                         </div>
                                         <span>Aksi Cepat</span>
@@ -889,22 +1021,32 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                 <CardContent className="space-y-3">
                                     <Button
                                         variant="outline"
-                                        className="w-full justify-start h-11 hover:bg-blue-50 hover:border-blue-200 transition-all group"
+                                        className="w-full justify-start h-11 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-200 dark:hover:border-blue-800 transition-all group dark:border-gray-700"
                                         onClick={handlePrint}
                                     >
-                                        <div className="h-8 w-8 rounded-md bg-blue-100 flex items-center justify-center mr-3 group-hover:bg-blue-200">
-                                            <Printer className="h-4 w-4 text-blue-600" />
+                                        <div className="h-8 w-8 rounded-md bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center mr-3 group-hover:bg-blue-200 dark:group-hover:bg-blue-800">
+                                            <Printer className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                                         </div>
                                         <div className="text-left">
-                                            <div className="font-medium">Cetak / PDF</div>
-                                            <div className="text-xs text-muted-foreground">Download dokumen</div>
+                                            <div className="font-medium dark:text-gray-200">Cetak / PDF</div>
+                                            <div className="text-xs text-muted-foreground dark:text-gray-400">Download dokumen</div>
                                         </div>
                                     </Button>
 
                                     {canSend && (
                                         <Button
-                                            className="w-full justify-start h-11 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 shadow-lg shadow-purple-500/25"
-                                            onClick={() => handleUpdateStatus("SENT")}
+                                            className={cn(
+                                                "w-full justify-start h-11 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 shadow-lg shadow-purple-500/25",
+                                                !purchaseOrder.expectedDeliveryDate && "opacity-50 cursor-not-allowed grayscale"
+                                            )}
+                                            disabled={!purchaseOrder.expectedDeliveryDate}
+                                            onClick={() => {
+                                                if (!purchaseOrder.expectedDeliveryDate) {
+                                                    toast.error("Mohon isi Estimasi Pengiriman terlebih dahulu sebelum mengubah status");
+                                                    return;
+                                                }
+                                                handleUpdateStatus("SENT");
+                                            }}
                                         >
                                             <div className="h-8 w-8 rounded-md bg-white/20 flex items-center justify-center mr-3">
                                                 <Send className="h-4 w-4 text-white" />
@@ -916,60 +1058,93 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                         </Button>
                                     )}
 
-                                    {purchaseOrder.status === "SENT" && (
-                                        <Button
-                                            className="w-full justify-start h-11 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 shadow-lg shadow-emerald-500/25"
-                                            onClick={() => router.push(`/goods-receipt/create?poId=${poId}`)}
-                                        >
-                                            <div className="h-8 w-8 rounded-md bg-white/20 flex items-center justify-center mr-3">
-                                                <Package className="h-4 w-4 text-white" />
-                                            </div>
-                                            <div className="text-left">
-                                                <div className="font-medium">Terima Barang</div>
-                                                <div className="text-xs text-white/90">Buat Goods Receipt</div>
-                                            </div>
-                                        </Button>
+                                    {/* Create MR Button (Requested Feature) */}
+                                    {['SENT', 'PARTIALLY_RECEIVED', 'FULLY_RECEIVED'].includes(purchaseOrder.status) && (
+                                        purchaseOrder.relatedMRs && purchaseOrder.relatedMRs.length > 0 ? (
+                                            <Button
+                                                variant="outline"
+                                                className="w-full justify-start h-11 hover:bg-cyan-50 dark:hover:bg-cyan-950/30 hover:border-cyan-200 dark:hover:border-cyan-800 transition-all group dark:border-gray-700"
+                                                onClick={() => {
+                                                    const basePath = userRole === 'admin'
+                                                        ? '/admin-area/inventory/requisition'
+                                                        : '/warehouse/inventory/requisition'; // Adjust based on role if needed, currently user asked for admin-area
+                                                    // Use user's requested path but add search for better UX
+                                                    router.push(`/admin-area/inventory/requisition?search=${purchaseOrder.relatedMRs?.[0]?.mrNumber}`);
+                                                }}
+                                            >
+                                                <div className="h-8 w-8 rounded-md bg-cyan-100 dark:bg-cyan-900/50 flex items-center justify-center mr-3 group-hover:bg-cyan-200 dark:group-hover:bg-cyan-800">
+                                                    <FileCheck className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
+                                                </div>
+                                                <div className="text-left">
+                                                    <div className="font-medium dark:text-gray-200">Lihat MR</div>
+                                                    <div className="text-xs text-muted-foreground dark:text-gray-400">{purchaseOrder.relatedMRs?.[0]?.mrNumber}</div>
+                                                </div>
+                                            </Button>
+                                        ) : (
+                                            <Button
+                                                className={cn(
+                                                    "w-full justify-start h-11 shadow-lg transition-all",
+                                                    "animate-pulse bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-orange-500/25 text-white ring-2 ring-orange-300 ring-offset-2 dark:ring-offset-gray-900"
+                                                )}
+                                                onClick={handleCreateMR}
+                                                disabled={isCreatingMR}
+                                            >
+                                                {isCreatingMR ? (
+                                                    <div className="h-8 w-8 rounded-md bg-white/20 flex items-center justify-center mr-3">
+                                                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                                    </div>
+                                                ) : (
+                                                    <div className="h-8 w-8 rounded-md bg-white/20 flex items-center justify-center mr-3">
+                                                        <AlertCircle className="h-4 w-4 text-white" />
+                                                    </div>
+                                                )}
+                                                <div className="text-left">
+                                                    <div className="font-medium">Buat Permintaan Material</div>
+                                                    <div className="text-xs text-white/90">Wajib: Belum ada MR</div>
+                                                </div>
+                                            </Button>
+                                        )
                                     )}
 
                                     <Button
                                         variant="outline"
-                                        className="w-full justify-start h-11 hover:bg-red-50 hover:border-red-200 hover:text-red-700 transition-all group"
+                                        className="w-full justify-start h-11 hover:bg-red-50 dark:hover:bg-red-950/30 hover:border-red-200 dark:hover:border-red-800 hover:text-red-700 dark:hover:text-red-400 transition-all group dark:border-gray-700"
                                         onClick={() => setDeleteDialogOpen(true)}
                                         disabled={!canDelete}
                                     >
-                                        <div className="h-8 w-8 rounded-md bg-red-100 flex items-center justify-center mr-3 group-hover:bg-red-200">
-                                            <Trash2 className="h-4 w-4 text-red-600" />
+                                        <div className="h-8 w-8 rounded-md bg-red-100 dark:bg-red-900/50 flex items-center justify-center mr-3 group-hover:bg-red-200 dark:group-hover:bg-red-800">
+                                            <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
                                         </div>
                                         <div className="text-left">
-                                            <div className="font-medium">Hapus PO</div>
-                                            <div className="text-xs text-muted-foreground">Hapus permanen</div>
+                                            <div className="font-medium dark:text-gray-200">Hapus PO</div>
+                                            <div className="text-xs text-muted-foreground dark:text-gray-400">Hapus permanen</div>
                                         </div>
                                     </Button>
 
                                     <Button
                                         variant="outline"
-                                        className="w-full justify-start h-11 hover:bg-green-50 hover:border-green-200 hover:text-green-700 transition-all group"
+                                        className="w-full justify-start h-11 hover:bg-green-50 dark:hover:bg-green-950/30 hover:border-green-200 dark:hover:border-green-800 hover:text-green-700 dark:hover:text-green-400 transition-all group dark:border-gray-700"
                                         onClick={handleSendEmail}
                                         disabled={isSendingEmail}
                                     >
                                         {isSendingEmail ? (
                                             <>
-                                                <div className="h-8 w-8 rounded-md bg-green-100 flex items-center justify-center mr-3">
-                                                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-green-600 border-t-transparent" />
+                                                <div className="h-8 w-8 rounded-md bg-green-100 dark:bg-green-900/50 flex items-center justify-center mr-3">
+                                                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-green-600 dark:border-green-400 border-t-transparent" />
                                                 </div>
                                                 <div className="text-left">
-                                                    <div className="font-medium">Mengirim...</div>
-                                                    <div className="text-xs text-muted-foreground">Sedang mengirim email</div>
+                                                    <div className="font-medium dark:text-gray-200">Mengirim...</div>
+                                                    <div className="text-xs text-muted-foreground dark:text-gray-400">Sedang mengirim email</div>
                                                 </div>
                                             </>
                                         ) : (
                                             <>
-                                                <div className="h-8 w-8 rounded-md bg-green-100 flex items-center justify-center mr-3 group-hover:bg-green-200">
-                                                    <Mail className="h-4 w-4 text-green-600" />
+                                                <div className="h-8 w-8 rounded-md bg-green-100 dark:bg-green-900/50 flex items-center justify-center mr-3 group-hover:bg-green-200 dark:group-hover:bg-green-800">
+                                                    <Mail className="h-4 w-4 text-green-600 dark:text-green-400" />
                                                 </div>
                                                 <div className="text-left">
-                                                    <div className="font-medium">Kirim Email</div>
-                                                    <div className="text-xs text-muted-foreground">Ke supplier</div>
+                                                    <div className="font-medium dark:text-gray-200">Kirim Email</div>
+                                                    <div className="text-xs text-muted-foreground dark:text-gray-400">Ke supplier</div>
                                                 </div>
                                             </>
                                         )}
@@ -978,40 +1153,63 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                     {canEdit && (
                                         <Button
                                             variant="outline"
-                                            className="w-full justify-start h-11 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition-all group"
+                                            className={cn(
+                                                "w-full justify-start transition-all group dark:border-gray-700",
+                                                !purchaseOrder.expectedDeliveryDate
+                                                    ? "h-auto py-3 animate-pulse border-amber-500 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:border-amber-600 dark:bg-amber-900/20 dark:border-amber-500 dark:text-amber-400 ring-2 ring-amber-500/20"
+                                                    : "h-11 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-200 dark:hover:border-blue-800 hover:text-blue-700 dark:hover:text-blue-400"
+                                            )}
                                             onClick={() => router.push(`/admin-area/logistic/purchasing/update/${poId}`)}
                                         >
-                                            <div className="h-8 w-8 rounded-md bg-blue-100 flex items-center justify-center mr-3 group-hover:bg-blue-200">
-                                                <Edit className="h-4 w-4 text-blue-600" />
+                                            <div className={cn(
+                                                "rounded-md flex items-center justify-center mr-3 flex-shrink-0 transition-colors",
+                                                !purchaseOrder.expectedDeliveryDate
+                                                    ? "h-10 w-10 bg-amber-200 text-amber-700 dark:bg-amber-800 dark:text-amber-300"
+                                                    : "h-8 w-8 bg-blue-100 dark:bg-blue-900/50 group-hover:bg-blue-200 dark:group-hover:bg-blue-800"
+                                            )}>
+                                                <Edit className={cn(
+                                                    !purchaseOrder.expectedDeliveryDate ? "h-5 w-5" : "h-4 w-4 text-blue-600 dark:text-blue-400"
+                                                )} />
                                             </div>
-                                            <div className="text-left">
-                                                <div className="font-medium">Edit PO</div>
-                                                <div className="text-xs text-muted-foreground">Update informasi</div>
+                                            <div className="text-left flex-1">
+                                                <div className={cn("font-medium", !purchaseOrder.expectedDeliveryDate ? "text-amber-900 dark:text-amber-200 font-bold" : "dark:text-gray-200")}>
+                                                    Edit PO
+                                                </div>
+                                                <div className={cn("text-xs", !purchaseOrder.expectedDeliveryDate ? "text-amber-700 dark:text-amber-400 font-semibold mt-0.5" : "text-muted-foreground dark:text-gray-400")}>
+                                                    {!purchaseOrder.expectedDeliveryDate ? (
+                                                        <span className="flex items-center gap-1">
+                                                            <AlertCircle className="h-3 w-3" />
+                                                            Belum menentukan Estimasi Pengiriman
+                                                        </span>
+                                                    ) : (
+                                                        "Update informasi"
+                                                    )}
+                                                </div>
                                             </div>
                                         </Button>
                                     )}
 
                                     <Button
                                         variant="outline"
-                                        className="w-full justify-start h-11 hover:bg-purple-50 hover:border-purple-200 hover:text-purple-700 transition-all group"
+                                        className="w-full justify-start h-11 hover:bg-purple-50 dark:hover:bg-purple-950/30 hover:border-purple-200 dark:hover:border-purple-800 hover:text-purple-700 dark:hover:text-purple-400 transition-all group dark:border-gray-700"
                                         onClick={handleDuplicate}
                                     >
-                                        <div className="h-8 w-8 rounded-md bg-purple-100 flex items-center justify-center mr-3 group-hover:bg-purple-200">
-                                            <Copy className="h-4 w-4 text-purple-600" />
+                                        <div className="h-8 w-8 rounded-md bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center mr-3 group-hover:bg-purple-200 dark:group-hover:bg-purple-800">
+                                            <Copy className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                                         </div>
                                         <div className="text-left">
-                                            <div className="font-medium">Duplikat PO</div>
-                                            <div className="text-xs text-muted-foreground">Buat salinan baru</div>
+                                            <div className="font-medium dark:text-gray-200">Duplikat PO</div>
+                                            <div className="text-xs text-muted-foreground dark:text-gray-400">Buat salinan baru</div>
                                         </div>
                                     </Button>
                                 </CardContent>
                             </Card>
 
                             {/* Financial Summary Card */}
-                            <Card className="border-0 shadow-xl bg-gradient-to-b from-white to-emerald-50/30">
+                            <Card className="border-0 shadow-xl bg-gradient-to-b from-white to-emerald-50/30 dark:from-gray-800 dark:to-emerald-950/10 dark:border dark:border-emerald-900/30">
                                 <CardHeader>
-                                    <CardTitle className="flex items-center gap-2 text-lg">
-                                        <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center">
+                                    <CardTitle className="flex items-center gap-2 text-lg dark:text-gray-100">
+                                        <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center shadow-lg">
                                             <DollarSign className="h-5 w-5 text-white" />
                                         </div>
                                         <span>Ringkasan Keuangan</span>
@@ -1020,19 +1218,19 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                 <CardContent>
                                     <div className="space-y-4">
                                         <div className="space-y-3">
-                                            <div className="flex items-center justify-between py-2.5 border-b border-emerald-100">
-                                                <span className="text-muted-foreground">Subtotal:</span>
-                                                <span className="font-semibold">
+                                            <div className="flex items-center justify-between py-2.5 border-b border-emerald-100 dark:border-emerald-900/30">
+                                                <span className="text-muted-foreground dark:text-gray-400">Subtotal:</span>
+                                                <span className="font-semibold dark:text-gray-200">
                                                     {formatCurrency(purchaseOrder.subtotal || 0)}
                                                 </span>
                                             </div>
                                             {purchaseOrder.taxAmount > 0 && (
-                                                <div className="flex items-center justify-between py-2.5 border-b border-emerald-100">
+                                                <div className="flex items-center justify-between py-2.5 border-b border-emerald-100 dark:border-emerald-900/30">
                                                     <span className="text-muted-foreground flex items-center gap-2">
                                                         <Receipt className="h-3.5 w-3.5 text-blue-500" />
                                                         Total Pajak:
                                                     </span>
-                                                    <span className="font-semibold text-blue-600">
+                                                    <span className="font-semibold text-blue-600 dark:text-blue-400">
                                                         +{formatCurrency(purchaseOrder.taxAmount)}
                                                     </span>
                                                 </div>
@@ -1042,10 +1240,10 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                         <Separator className="my-2" />
                                         <div className="pt-2">
                                             <div className="flex items-center justify-between text-xl font-bold">
-                                                <span className="bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">
+                                                <span className="bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent dark:from-emerald-400 dark:to-green-400">
                                                     Total Akhir:
                                                 </span>
-                                                <span className="text-2xl bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">
+                                                <span className="text-2xl bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent dark:from-emerald-400 dark:to-green-400">
                                                     {formatCurrency(purchaseOrder.totalAmount)}
                                                 </span>
                                             </div>
@@ -1058,10 +1256,10 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                             </Card>
 
                             {/* Stats Card */}
-                            <Card className="border-0 shadow-xl bg-gradient-to-b from-white to-purple-50/30">
+                            <Card className="border-0 shadow-xl bg-gradient-to-b from-white to-purple-50/30 dark:from-gray-800 dark:to-purple-950/10 dark:border dark:border-purple-900/30">
                                 <CardHeader className="pb-3">
-                                    <CardTitle className="flex items-center gap-2 text-lg">
-                                        <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center">
+                                    <CardTitle className="flex items-center gap-2 text-lg dark:text-gray-100">
+                                        <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shadow-lg">
                                             <BarChart3 className="h-5 w-5 text-white" />
                                         </div>
                                         <span>Statistik</span>
@@ -1069,14 +1267,14 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                 </CardHeader>
                                 <CardContent>
                                     <div className="grid grid-cols-2 gap-4">
-                                        <div className="bg-purple-50/50 rounded-lg p-4 text-center">
-                                            <div className="text-2xl font-bold text-purple-700">
+                                        <div className="bg-purple-50/50 rounded-lg p-4 text-center dark:bg-purple-900/20">
+                                            <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">
                                                 {purchaseOrder.lines?.length || 0}
                                             </div>
                                             <div className="text-xs text-muted-foreground mt-1">Total Item</div>
                                         </div>
-                                        <div className="bg-blue-50/50 rounded-lg p-4 text-center">
-                                            <div className="text-2xl font-bold text-blue-700">
+                                        <div className="bg-blue-50/50 rounded-lg p-4 text-center dark:bg-blue-900/20">
+                                            <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">
                                                 {purchaseOrder.lines?.reduce((acc, l) => {
                                                     // Konversi quantity ke number jika perlu
                                                     const quantity = Number(l.quantity) || 0;
@@ -1095,15 +1293,15 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
 
             {/* Enhanced Status Update Dialog */}
             <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>
-                <DialogContent className="sm:max-w-md border-0 shadow-2xl">
+                <DialogContent className="sm:max-w-md border-0 shadow-2xl dark:bg-gray-800 dark:border dark:border-gray-700">
                     <DialogHeader>
                         <div className="flex items-center gap-3 mb-2">
-                            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
                                 <CheckCircle className="h-6 w-6 text-white" />
                             </div>
                             <div>
-                                <DialogTitle className="text-xl">Ubah Status PO</DialogTitle>
-                                <DialogDescription>
+                                <DialogTitle className="text-xl dark:text-gray-100">Ubah Status PO</DialogTitle>
+                                <DialogDescription className="dark:text-gray-400">
                                     Pilih status baru untuk melanjutkan proses
                                 </DialogDescription>
                             </div>
@@ -1111,9 +1309,9 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                     </DialogHeader>
 
                     <div className="space-y-6 py-4">
-                        <div className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg">
+                        <div className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border dark:border-gray-700">
                             <div>
-                                <div className="text-sm text-muted-foreground">Status Saat Ini</div>
+                                <div className="text-sm text-muted-foreground dark:text-gray-400">Status Saat Ini</div>
                                 <div className="flex items-center gap-2 mt-1">
                                     <Badge className={cn("px-3 py-1", statusConfig[purchaseOrder.status].className)}>
                                         <StatusIcon className="h-3.5 w-3.5 mr-1.5" />
@@ -1121,7 +1319,7 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                     </Badge>
                                 </div>
                             </div>
-                            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                            <ChevronRight className="h-5 w-5 text-muted-foreground dark:text-gray-500" />
                         </div>
 
                         <div className="space-y-3">
@@ -1136,16 +1334,16 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                             "w-full p-4 border rounded-xl text-left transition-all duration-200",
                                             "hover:scale-[1.02] hover:shadow-lg",
                                             newStatus === status
-                                                ? "border-blue-300 bg-gradient-to-r from-blue-50 to-blue-100 shadow-md"
-                                                : "border-gray-200 hover:border-blue-200 hover:bg-blue-50/50"
+                                                ? "border-blue-300 dark:border-blue-700 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950/40 dark:to-blue-900/40 shadow-md"
+                                                : "border-gray-200 dark:border-gray-700 hover:border-blue-200 dark:hover:border-blue-800 hover:bg-blue-50/50 dark:hover:bg-blue-950/20"
                                         )}
                                     >
                                         <div className="flex items-center gap-4">
                                             <div className={cn(
-                                                "h-12 w-12 rounded-lg flex items-center justify-center",
+                                                "h-12 w-12 rounded-lg flex items-center justify-center shadow-inner",
                                                 newStatus === status
                                                     ? "bg-gradient-to-br from-blue-500 to-blue-600"
-                                                    : "bg-gradient-to-br from-gray-100 to-gray-200"
+                                                    : "bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800"
                                             )}>
                                                 <NextStatusIcon className={cn(
                                                     "h-5 w-5",
@@ -1153,8 +1351,8 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                                 )} />
                                             </div>
                                             <div className="flex-1">
-                                                <div className="font-semibold text-gray-900">{statusConfig[status].label}</div>
-                                                <div className="text-sm text-muted-foreground mt-1">
+                                                <div className="font-semibold text-gray-900 dark:text-gray-100">{statusConfig[status].label}</div>
+                                                <div className="text-sm text-muted-foreground mt-1 dark:text-gray-400">
                                                     Update status ke {statusConfig[status].label.toLowerCase()}
                                                 </div>
                                             </div>
@@ -1193,15 +1391,15 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
 
             {/* Enhanced Delete Confirmation Dialog */}
             <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-                <DialogContent className="sm:max-w-md border-0 shadow-2xl">
+                <DialogContent className="sm:max-w-md border-0 shadow-2xl dark:bg-gray-800 dark:border dark:border-gray-700">
                     <DialogHeader>
                         <div className="flex items-center gap-3 mb-2">
-                            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-red-500 to-orange-600 flex items-center justify-center">
+                            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-red-500 to-orange-600 flex items-center justify-center shadow-lg">
                                 <Trash2 className="h-6 w-6 text-white" />
                             </div>
                             <div>
-                                <DialogTitle className="text-xl">Hapus Purchase Order</DialogTitle>
-                                <DialogDescription>
+                                <DialogTitle className="text-xl dark:text-gray-100">Hapus Purchase Order</DialogTitle>
+                                <DialogDescription className="dark:text-gray-400">
                                     Tindakan ini tidak dapat dibatalkan
                                 </DialogDescription>
                             </div>
@@ -1209,15 +1407,15 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                     </DialogHeader>
 
                     <div className="py-4">
-                        <div className="bg-gradient-to-r from-red-50/50 to-orange-50/50 border border-red-200 rounded-xl p-4">
+                        <div className="bg-gradient-to-r from-red-50/50 to-orange-50/50 dark:from-red-950/20 dark:to-orange-950/20 border border-red-200 dark:border-red-900/50 rounded-xl p-4">
                             <div className="flex items-start gap-3">
-                                <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                                <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
                                 <div>
-                                    <p className="font-semibold text-red-900">Konfirmasi Penghapusan</p>
-                                    <p className="font-mono text-lg mt-2 bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
+                                    <p className="font-semibold text-red-900 dark:text-red-300">Konfirmasi Penghapusan</p>
+                                    <p className="font-mono text-lg mt-2 bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent dark:from-red-400 dark:to-orange-400">
                                         {purchaseOrder.poNumber}
                                     </p>
-                                    <p className="text-sm text-red-700 mt-3">
+                                    <p className="text-sm text-red-700 dark:text-red-400 mt-3">
                                         Semua data terkait purchase order ini akan dihapus permanen dari sistem.
                                     </p>
                                 </div>

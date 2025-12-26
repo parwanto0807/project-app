@@ -1,4 +1,5 @@
 import { prisma } from "../../config/db.js";
+import QRCode from "qrcode";
 
 /**
  * Helper function to convert month number to Roman numerals
@@ -66,9 +67,9 @@ export const createPOFromApprovedPR = async (prId, tx) => {
     throw new Error("Purchase Request tidak ditemukan");
   }
 
-  // 2. Filter only purchase items (PEMBELIAN_BARANG)
+  // 2. Filter only purchase items (PEMBELIAN_BARANG and JASA_PEMBELIAN)
   const purchaseItems = pr.details.filter(
-    detail => detail.sourceProduct === 'PEMBELIAN_BARANG'
+    detail => detail.sourceProduct === 'PEMBELIAN_BARANG' || detail.sourceProduct === 'JASA_PEMBELIAN'
   );
 
   // If no purchase items, don't create PO
@@ -386,7 +387,19 @@ export const getAllPO = async (req, res) => {
  */
 export const updatePO = async (req, res) => {
   const { id } = req.params;
-  const { supplierId, warehouseId, lines, taxAmount, shippingCost } = req.body;
+  const { 
+    supplierId, 
+    warehouseId, 
+    projectId,
+    spkId,
+    orderDate,
+    expectedDeliveryDate,
+    paymentTerm,
+    notes,
+    lines, 
+    taxAmount, 
+    shippingCost 
+  } = req.body;
 
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -445,17 +458,43 @@ export const updatePO = async (req, res) => {
       const subtotal = updatedLines.reduce((acc, curr) => acc + Number(curr.totalAmount), 0);
       const totalAmount = subtotal + Number(taxAmount || 0) + Number(shippingCost || 0);
 
-      // 4. Update Header (status tetap tidak berubah saat edit)
+      // 4. Prepare update data
+      const updateData = {
+        subtotal,
+        taxAmount: Number(taxAmount || 0),
+        totalAmount,
+      };
+
+      // Add optional fields if provided
+      if (supplierId) {
+        updateData.supplier = { connect: { id: supplierId } };
+      }
+      if (warehouseId) {
+        updateData.warehouse = { connect: { id: warehouseId } };
+      }
+      if (projectId !== undefined) {
+        // Use Prisma relation syntax
+        updateData.project = projectId ? { connect: { id: projectId } } : { disconnect: true };
+      }
+      if (spkId !== undefined) {
+        // Use Prisma relation syntax
+        updateData.SPK = spkId ? { connect: { id: spkId } } : { disconnect: true };
+      }
+      if (orderDate) {
+        updateData.orderDate = new Date(orderDate);
+      }
+      if (expectedDeliveryDate !== undefined) {
+        updateData.expectedDeliveryDate = expectedDeliveryDate ? new Date(expectedDeliveryDate) : null;
+      }
+      if (paymentTerm) {
+        updateData.paymentTerm = paymentTerm;
+      }
+      // Note: 'notes' field doesn't exist in PurchaseOrder schema
+
+      // 5. Update Header (status tetap tidak berubah saat edit)
       return await tx.purchaseOrder.update({
         where: { id },
-        data: {
-          supplier: { connect: { id: supplierId } },
-          warehouse: { connect: { id: warehouseId } },
-          subtotal,
-          taxAmount: Number(taxAmount || 0),
-          totalAmount,
-          // Status tidak diubah saat edit - harus melalui aksi eksplisit
-        }
+        data: updateData
       });
     });
 
@@ -492,7 +531,23 @@ export const getPODetail = async (req, res) => {
       return res.status(404).json({ success: false, error: "PO tidak ditemukan" });
     }
 
-    return res.status(200).json({ success: true, data });
+    // Find related MRs via PR Details (Manual Relation)
+    const prDetailIds = data.lines.map(l => l.prDetailId).filter(Boolean);
+    let relatedMRs = [];
+    if (prDetailIds.length > 0) {
+       relatedMRs = await prisma.materialRequisition.findMany({
+          where: {
+             items: {
+                some: {
+                   purchaseRequestDetailId: { in: prDetailIds }
+                }
+             }
+          },
+          select: { id: true, mrNumber: true, status: true }
+       });
+    }
+
+    return res.status(200).json({ success: true, data: { ...data, relatedMRs } });
   } catch (error) {
     return res.status(500).json({ 
       success: false, 
@@ -502,9 +557,6 @@ export const getPODetail = async (req, res) => {
   }
 };
 
-/**
- * @desc Update PO Status (Approve, Cancel, Close)
- */
 export const updatePOStatus = async (req, res) => {
   const { id } = req.params;
   const { status } = req.body; // Misal: APPROVED, CANCELLED, CLOSED
@@ -523,9 +575,96 @@ export const updatePOStatus = async (req, res) => {
       }
     }
 
-    const result = await prisma.purchaseOrder.update({
-      where: { id },
-      data: { status }
+    // Update PO status dan jumlahDipesan jika APPROVED
+    const result = await prisma.$transaction(async (tx) => {
+      // Update PO status
+      const updatedPO = await tx.purchaseOrder.update({
+        where: { id },
+        data: { status },
+        include: {
+          lines: {
+            include: {
+              prDetail: true
+            }
+          }
+        }
+      });
+
+      // Jika status APPROVED, update jumlahDipesan di PurchaseRequestDetail dan onPR di StockBalance
+      if (status === 'APPROVED') {
+        // Get current period (start of month)
+        const currentPeriod = new Date();
+        currentPeriod.setDate(1);
+        currentPeriod.setHours(0, 0, 0, 0);
+
+        for (const line of updatedPO.lines) {
+          if (line.prDetailId) {
+            // Recalculate Total Ordered Qty for this PR Detail
+            // This ensures data consistency even if PO status changes back and forth
+            const totalOrdered = await tx.purchaseOrderLine.aggregate({
+              where: {
+                prDetailId: line.prDetailId,
+                purchaseOrder: {
+                  status: 'APPROVED'
+                }
+              },
+              _sum: {
+                quantity: true
+              }
+            });
+
+            // Update PR Detail with the accurate total
+            await tx.purchaseRequestDetail.update({
+              where: { id: line.prDetailId },
+              data: {
+                jumlahDipesan: totalOrdered._sum.quantity || 0
+              }
+            });
+          }
+
+          // Update StockBalance.onPR untuk product ini di warehouse PO
+          // Increment onPR dengan qty dari PO line
+          const stockBalance = await tx.stockBalance.findFirst({
+            where: {
+              productId: line.productId,
+              warehouseId: updatedPO.warehouseId,
+              period: currentPeriod
+            }
+          });
+
+          if (stockBalance) {
+            await tx.stockBalance.update({
+              where: { id: stockBalance.id },
+              data: {
+                onPR: {
+                  increment: line.quantity
+                },
+                bookedStock: {
+                  increment: line.quantity
+                }
+              }
+            });
+          } else {
+            // Create StockBalance if not exists for current period
+            await tx.stockBalance.create({
+              data: {
+                productId: line.productId,
+                warehouseId: updatedPO.warehouseId,
+                period: currentPeriod,
+                onPR: line.quantity,
+                stockAwal: 0,
+                stockIn: 0,
+                stockOut: 0,
+                stockAkhir: 0,
+                bookedStock: line.quantity,
+                availableStock: 0
+              }
+            });
+          }
+        }
+      }
+
+      return updatedPO;
     });
 
     return res.status(200).json({ 
@@ -576,5 +715,84 @@ export const deletePO = async (req, res) => {
       error: "Gagal menghapus PO", 
       details: error.message 
     });
+  }
+};
+
+/**
+ * @desc Send PO Email to Supplier
+ */
+export const sendPOEmail = async (req, res) => {
+  const { id } = req.params;
+  const { email, poNumber } = req.body;
+  const file = req.file;
+
+  try {
+    let Resend;
+    try {
+      // Dynamic import to avoid crash if resend is not installed
+      // Note: 'resend' package exports 'Resend' class
+      const module = await import('resend');
+      Resend = module.Resend;
+    } catch (e) {
+      return res.status(500).json({ 
+        success: false, 
+        error: "Module 'resend' belum terinstall. Jalankan 'npm install resend' di backend." 
+      });
+    }
+
+    if (!file) return res.status(400).json({ success: false, error: "File PDF wajib disertakan" });
+
+    // Validate Resend API Key
+    if (!process.env.RESEND_API_KEY) {
+       return res.status(500).json({ 
+         success: false, 
+         error: "API Key Resend belum diatur. Tambahkan RESEND_API_KEY di .env backend." 
+       });
+    }
+
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
+    // Generate QR Code
+    const qrCodeDataUrl = await QRCode.toDataURL(poNumber || id);
+
+    // Send Email using Resend
+    const senderEmail = process.env.RESEND_FROM_EMAIL || 'Purchasing System <onboarding@resend.dev>';
+    const { data, error } = await resend.emails.send({
+      from: senderEmail,
+      to: [email],
+      subject: `Purchase Order - ${poNumber || id}`,
+      html: `
+        <div style="font-family: sans-serif; border: 1px solid #eee; padding: 20px;">
+          <h2>Purchase Order: ${poNumber || id}</h2>
+          <p>Yth. Supplier,</p>
+          <p>Mohon segera diproses pesanan kami. Berikut adalah dokumen Purchase Order (terlampir) dan QR Code untuk akses cepat saat pengiriman barang ke gudang kami:</p>
+          <div style="text-align: center; margin: 20px 0;">
+            <img src="${qrCodeDataUrl}" alt="QR Code PO" style="width: 180px;" />
+          </div>
+          <p>Simpan QR Code ini untuk ditunjukkan kepada petugas gudang.</p>
+          <p>Terima kasih.</p>
+        </div>
+      `,
+      attachments: [
+        {
+          filename: file.originalname,
+          content: file.buffer,
+        },
+      ],
+    });
+
+    if (error) {
+      console.error("Resend Error:", error);
+      return res.status(400).json({ 
+        success: false, 
+        error: "Gagal mengirim email via Resend", 
+        details: error.message || JSON.stringify(error) 
+      });
+    }
+
+    return res.json({ success: true, message: "Email berhasil dikirim ke supplier via Resend", data });
+  } catch (error) {
+    console.error("Email Error:", error);
+    return res.status(500).json({ success: false, error: "Terjadi kesalahan internal", details: error.message });
   }
 };

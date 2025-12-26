@@ -2,6 +2,7 @@
 export enum PurchaseOrderStatus {
     DRAFT = "DRAFT",
     PENDING_APPROVAL = "PENDING_APPROVAL",
+    REVISION_NEEDED = "REVISION_NEEDED",
     APPROVED = "APPROVED",
     REJECTED = "REJECTED",
     SENT = "SENT",
@@ -12,6 +13,7 @@ export enum PurchaseOrderStatus {
 
 export enum SupplierInvoiceStatus {
     DRAFT = "DRAFT",
+    REVISION_NEEDED = "REVISION_NEEDED",
     PENDING_APPROVAL = "PENDING_APPROVAL",
     AWAITING_PAYMENT = "AWAITING_PAYMENT",
     PARTIALLY_PAID = "PARTIALLY_PAID",
@@ -81,6 +83,13 @@ export interface PurchaseOrder {
     sPKId?: string | null;
     PurchaseRequest?: PurchaseRequest | null; // Optional relation
     purchaseRequestId?: string | null;
+    relatedMRs?: RelatedMR[]; // Virtual field from controller
+}
+
+export interface RelatedMR {
+    id: string;
+    mrNumber: string;
+    status: string;
 }
 
 // Related Types (these should be defined in your actual application)
@@ -156,6 +165,7 @@ export interface SPK {
 export interface PurchaseRequest {
     id: string;
     nomorPr: string;
+    spkId?: string | null;
     // Add other purchase request fields as needed
 }
 

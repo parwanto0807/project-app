@@ -83,6 +83,18 @@ export interface PurchaseRequest {
     pertanggungjawaban?: Pertanggungjawaban[];
   }[];
 
+  // Relasi Purchase Orders (opsional, hanya jika includeExistingPOs=true)
+  purchaseOrders?: {
+    id: string;
+    poNumber: string;
+    status: string;
+    totalAmount: number;
+    supplier?: {
+      id: string;
+      name: string;
+    };
+  }[];
+
   createdAt: Date;
   updatedAt: Date;
 }

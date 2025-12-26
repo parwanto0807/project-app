@@ -52,7 +52,22 @@ interface ApprovedPR {
     details: Array<{
         id: string;
         sourceProduct: string;
+        jumlah: number;
+        satuan: string;
+        estimasiHargaSatuan: number;
         estimasiTotalHarga: number;
+        product?: {
+            name: string;
+        };
+    }>;
+    existingPOs?: Array<{
+        id: string;
+        poNumber: string;
+        supplier?: {
+            name: string;
+        };
+        status: string;
+        totalAmount: number;
     }>;
     createdAt: Date;
     approvedDate?: Date;
@@ -166,7 +181,16 @@ export default function CreatePOFromPRButton({
         setLoadingPRs(true);
         try {
             const prs = await getApprovedPRsForPO();
-            setApprovedPRs(prs as ApprovedPR[]);
+            console.log('Fetched PRs:', prs); // Debug: Check if data includes purchaseOrders
+            console.log('First PR purchaseOrders:', prs[0]?.purchaseOrders); // Debug: Check first PR
+
+            // Map purchaseOrders to existingPOs for component use
+            const mappedPRs = prs.map(pr => ({
+                ...pr,
+                existingPOs: pr.purchaseOrders || []
+            }));
+
+            setApprovedPRs(mappedPRs as ApprovedPR[]);
         } catch (error) {
             console.error("Error fetching approved PRs:", error);
             toast.error("Gagal memuat Purchase Request yang sudah disetujui");
@@ -316,29 +340,33 @@ export default function CreatePOFromPRButton({
                                         </SelectTrigger>
                                         <SelectContent>
                                             {approvedPRs.map((pr) => {
-                                                // Calculate total amount and purchase items count
-                                                const purchaseItems = pr.details.filter(d => d.sourceProduct === 'PEMBELIAN_BARANG');
-                                                const totalAmount = purchaseItems.reduce((sum, item) => sum + (item.estimasiTotalHarga || 0), 0);
+                                                // Calculate total amount and purchase items count (PEMBELIAN_BARANG and JASA_PEMBELIAN only)
+                                                const purchaseItems = pr.details.filter(d =>
+                                                    d.sourceProduct === 'PEMBELIAN_BARANG' || d.sourceProduct === 'JASA_PEMBELIAN'
+                                                );
+                                                const hasExistingPOs = pr.existingPOs && pr.existingPOs.length > 0;
 
                                                 return (
                                                     <SelectItem key={pr.id} value={pr.id}>
-                                                        <div className="flex flex-col py-1">
-                                                            <div className="flex items-center justify-between">
+                                                        <div className="flex flex-col gap-1 py-1">
+                                                            <div className="flex items-center justify-between gap-3">
                                                                 <span className="font-semibold">{pr.nomorPr}</span>
-                                                                <Badge variant="outline" className="text-xs">
-                                                                    {purchaseItems.length} items
-                                                                </Badge>
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <Badge variant="outline" className="text-xs">
+                                                                        {purchaseItems.length} items
+                                                                    </Badge>
+                                                                    {hasExistingPOs && (
+                                                                        <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800 border-amber-300">
+                                                                            Existing : {pr.existingPOs?.length} PO
+                                                                        </Badge>
+                                                                    )}
+                                                                </div>
                                                             </div>
-                                                            <div className="text-xs text-muted-foreground">
-                                                                <span>Requestor: {pr.karyawan?.namaLengkap || 'N/A'}</span>
-                                                                {pr.project?.name && <span> • {pr.project.name}</span>}
-                                                                {pr.approvedDate && (
-                                                                    <span> • Approved: {format(new Date(pr.approvedDate), "dd MMM yyyy", { locale: id })}</span>
-                                                                )}
-                                                            </div>
-                                                            <div className="text-sm font-medium mt-1">
-                                                                {currencyFormatter.format(totalAmount)}
-                                                            </div>
+                                                            {/* {hasExistingPOs && (
+                                                                <div className="text-[10px] text-amber-700 italic">
+                                                                    PO: {pr.existingPOs?.map(po => po.poNumber).join(', ')}
+                                                                </div>
+                                                            )} */}
                                                         </div>
                                                     </SelectItem>
                                                 );
@@ -346,16 +374,92 @@ export default function CreatePOFromPRButton({
                                         </SelectContent>
                                     </Select>
 
-                                    {selectedPRId && (
-                                        <div className="p-3 bg-blue-50 rounded-md border border-blue-200">
-                                            <div className="flex items-center gap-2">
-                                                <FileText className="h-4 w-4 text-blue-600" />
-                                                <span className="text-sm font-medium text-blue-800">
-                                                    Selected PR: {approvedPRs.find(pr => pr.id === selectedPRId)?.nomorPr}
-                                                </span>
+                                    {selectedPRId && (() => {
+                                        const selectedPR = approvedPRs.find(pr => pr.id === selectedPRId);
+                                        if (!selectedPR) return null;
+
+                                        const purchaseItems = selectedPR.details.filter(d =>
+                                            d.sourceProduct === 'PEMBELIAN_BARANG' || d.sourceProduct === 'JASA_PEMBELIAN'
+                                        );
+                                        const totalAmount = purchaseItems.reduce((sum, item) => sum + (item.estimasiTotalHarga || 0), 0);
+
+                                        return (
+                                            <div className="p-3 bg-blue-50 rounded-md border border-blue-200 space-y-3">
+                                                <div className="flex items-start gap-2">
+                                                    <FileText className="h-4 w-4 text-blue-600 mt-0.5" />
+                                                    <div className="flex-1">
+                                                        <div className="text-sm font-semibold text-blue-800 mb-1">
+                                                            {selectedPR.nomorPr}
+                                                        </div>
+                                                        <div className="text-xs text-blue-700 space-y-0.5">
+                                                            <div>Requestor: {selectedPR.karyawan?.namaLengkap || 'N/A'}</div>
+                                                            {selectedPR.project?.name && <div>Project: {selectedPR.project.name}</div>}
+                                                            {selectedPR.approvedDate && (
+                                                                <div>Approved: {format(new Date(selectedPR.approvedDate), "dd MMM yyyy", { locale: id })}</div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Items List */}
+                                                <div className="border-t border-blue-200 pt-2">
+                                                    <div className="text-xs font-semibold text-blue-800 mb-2">Items to Purchase:</div>
+                                                    <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                                                        {purchaseItems.map((item, index) => (
+                                                            <div key={index} className="flex justify-between items-start gap-2 text-xs bg-white/50 p-2 rounded">
+                                                                <div className="flex-1">
+                                                                    <div className="font-medium text-blue-900">{item.product?.name || 'Item'}</div>
+                                                                    <div className="text-blue-600">
+                                                                        {item.jumlah} {item.satuan} × {currencyFormatter.format(item.estimasiHargaSatuan || 0)}
+                                                                    </div>
+                                                                </div>
+                                                                <div className="font-semibold text-blue-900 text-right">
+                                                                    {currencyFormatter.format(item.estimasiTotalHarga || 0)}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                    <div className="flex justify-between items-center mt-2 pt-2 border-t border-blue-200">
+                                                        <span className="text-xs font-semibold text-blue-800">Total Amount:</span>
+                                                        <span className="text-sm font-bold text-blue-900">
+                                                            {currencyFormatter.format(totalAmount)}
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Existing POs Section */}
+                                                {selectedPR.existingPOs && selectedPR.existingPOs.length > 0 && (
+                                                    <div className="border-t border-blue-200 pt-2">
+                                                        <div className="text-xs font-semibold text-amber-800 mb-2 flex items-center gap-1">
+                                                            <span>⚠️</span>
+                                                            <span>Existing POs for this PR:</span>
+                                                        </div>
+                                                        <div className="space-y-1.5">
+                                                            {selectedPR.existingPOs.map((po) => (
+                                                                <div key={po.id} className="flex justify-between items-start gap-2 text-xs bg-amber-50 border border-amber-200 p-2 rounded">
+                                                                    <div className="flex-1">
+                                                                        <div className="font-medium text-amber-900">{po.poNumber}</div>
+                                                                        <div className="text-amber-700">
+                                                                            Supplier: {po.supplier?.name || 'N/A'}
+                                                                        </div>
+                                                                        <div className="text-amber-600 text-[10px] mt-0.5">
+                                                                            Status: {po.status}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="font-semibold text-amber-900 text-right">
+                                                                        {currencyFormatter.format(po.totalAmount || 0)}
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                        <div className="text-[10px] text-amber-700 mt-2 italic">
+                                                            You can still create a new PO for a different supplier
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
-                                        </div>
-                                    )}
+                                        );
+                                    })()}
                                 </div>
                             ) : (
                                 <div className="text-center py-6 border rounded-lg bg-muted/20">

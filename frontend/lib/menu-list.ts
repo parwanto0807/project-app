@@ -201,9 +201,9 @@ export function getMenuList(pathname: string, role: string) {
               active: isActive(`${basePath}/inventory/stock-opname`, pathname),
             },
             {
-              href: `${basePath}/inventory/receipt`,
+              href: `${basePath}/inventory/goods-receipt`,
               label: "Penerimaan Barang (GR)",
-              active: isActive(`${basePath}/inventory/receipt`, pathname),
+              active: isActive(`${basePath}/inventory/goods-receipt`, pathname),
             },
             {
               href: `${basePath}/inventory/requisition`,

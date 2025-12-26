@@ -16,4 +16,7 @@ router.get('/history', stockMonitoringController.getStockHistory);
 // Route untuk latest stock balance per product & warehouse (Current Period)
 router.get('/latest-stock', stockMonitoringController.getLatestStockBalance);
 
+// Route untuk stock bookings (siapa yang booking stock)
+router.get('/bookings', stockMonitoringController.getStockBookings);
+
 export default router;

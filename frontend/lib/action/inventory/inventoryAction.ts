@@ -100,3 +100,45 @@ export async function getStockHistory(
         return [];
     }
 }
+
+export interface StockBookingItem {
+    prNumber: string;
+    prId: string;
+    prDate: string;
+    requestor: string;
+    project: string;
+    productName: string;
+    productCode: string;
+    unit: string;
+    bookedQty: number;
+    warehouseName: string;
+    warehouseId?: string;
+    totalRequested: number;
+    jumlahTerpenuhi: number;
+    status: string;
+}
+
+export async function getStockBookings(
+    productId: string,
+    warehouseId?: string
+): Promise<{ totalBooked: number; bookings: StockBookingItem[] }> {
+    try {
+        const params: any = { productId };
+        if (warehouseId && warehouseId !== 'all') {
+            params.warehouseId = warehouseId;
+        }
+
+        const res = await serverApi.get<ApiResponse<{ totalBooked: number; bookings: StockBookingItem[] }>>(
+            '/api/inventory/bookings',
+            { params }
+        );
+
+        if (res.data && res.data.success) {
+            return res.data.data || { totalBooked: 0, bookings: [] };
+        }
+        return { totalBooked: 0, bookings: [] };
+    } catch (error) {
+        console.error("Server Action Error [getStockBookings]:", error);
+        return { totalBooked: 0, bookings: [] };
+    }
+}

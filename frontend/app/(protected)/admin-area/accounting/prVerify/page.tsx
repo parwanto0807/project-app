@@ -115,6 +115,8 @@ export default function PurchaseRequestPageAdmin() {
 
     // Handle status update - disesuaikan dengan signature fungsi yang ada
     const handleStatusUpdate = async (id: string, status: PurchaseRequest['status'], catatan?: string, warehouseAllocations?: Record<string, any[]>) => {
+        let toastId: string | number | undefined;
+
         try {
             // Cek jika status sudah COMPLETE
             if (status === "COMPLETED") {
@@ -127,7 +129,7 @@ export default function PurchaseRequestPageAdmin() {
             }
 
             // Tampilkan loading toast
-            const toastId = toast.loading(`Updating status to ${status}...`);
+            toastId = toast.loading(`Updating status to ${status}...`);
 
             // Jalankan update status hanya jika bukan COMPLETE
             const result = await updatePurchaseRequestStatus(id, {
@@ -180,7 +182,24 @@ export default function PurchaseRequestPageAdmin() {
             fetchAllPurchaseRequests(filters);
         } catch (error) {
             console.error("Failed to update purchase request status:", error);
-            toast.error(`Failed to update status: ${error instanceof Error ? error.message : "Unknown error"}`);
+
+            // Dismiss loading toast if exists
+            if (toastId) {
+                toast.dismiss(toastId);
+            }
+
+            // Check if error is validation error (from backend)
+            const errorMessage = error instanceof Error ? error.message : "Unknown error";
+
+            // Show user-friendly warning for validation errors
+            if (errorMessage.includes("Tidak dapat membatalkan approval")) {
+                toast.warning(errorMessage, {
+                    duration: 5000,
+                });
+            } else {
+                // Show error for other types of errors
+                toast.error(`Gagal mengupdate status: ${errorMessage}`);
+            }
         }
     };
 

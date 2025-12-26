@@ -416,7 +416,7 @@ export async function getPurchaseRequestsByKaryawan(
 export async function getApprovedPRsForPO(): Promise<PurchaseRequest[]> {
   try {
     const response = await fetch(
-      `${API_BASE_URL}/api/pr/getAllPurchaseRequests?status=APPROVED&limit=100`,
+      `${API_BASE_URL}/api/pr/getAllPurchaseRequests?status=APPROVED&limit=100&includeExistingPOs=true`,
       {
         method: "GET",
         credentials: "include",
@@ -430,9 +430,11 @@ export async function getApprovedPRsForPO(): Promise<PurchaseRequest[]> {
     const result: PurchaseRequestResponse = await handleResponse(response);
     const allPRs = Array.isArray(result.data) ? result.data : [result.data];
 
-    // Filter PRs that have at least one purchase item (PEMBELIAN_BARANG)
+    // Filter PRs that have at least one purchase item (PEMBELIAN_BARANG or JASA_PEMBELIAN)
     const prsWithPurchaseItems = allPRs.filter(pr =>
-      pr.details && pr.details.some(detail => detail.sourceProduct === 'PEMBELIAN_BARANG')
+      pr.details && pr.details.some(detail =>
+        detail.sourceProduct === 'PEMBELIAN_BARANG' || detail.sourceProduct === 'JASA_PEMBELIAN'
+      )
     );
 
     return prsWithPurchaseItems;

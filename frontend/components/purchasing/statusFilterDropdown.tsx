@@ -33,8 +33,8 @@ export default function StatusFilterDropdown({
                     className="h-9 gap-2"
                     disabled={disabled}
                 >
-                    <Filter className="h-4 w-4" />
-                    <span className="hidden sm:inline">Status</span>
+                    <Filter className="h-4 w-4 text-black dark:text-white" />
+                    <span className="hidden sm:inline text-black dark:text-white">Status</span>
                     {statusFilter !== "ALL" && (
                         <Badge
                             variant="secondary"

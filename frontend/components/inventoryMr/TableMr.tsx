@@ -185,43 +185,43 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
         const configs = {
             PENDING: {
                 icon: Clock,
-                color: "text-amber-600",
-                bg: "bg-gradient-to-r from-amber-50 to-amber-25",
-                border: "border-amber-200",
+                color: "text-amber-600 dark:text-amber-400",
+                bg: "bg-gradient-to-r from-amber-50 to-amber-25 dark:from-amber-500/10 dark:to-amber-400/5",
+                border: "border-amber-200 dark:border-amber-500/20",
                 label: "Menunggu",
-                gradient: "from-amber-500/10 to-amber-400/5"
+                gradient: "from-amber-500/10 to-amber-400/5 dark:from-amber-400/20 dark:to-amber-300/10"
             },
             APPROVED: {
                 icon: CheckCircle,
-                color: "text-blue-600",
-                bg: "bg-gradient-to-r from-blue-50 to-blue-25",
-                border: "border-blue-200",
+                color: "text-blue-600 dark:text-blue-400",
+                bg: "bg-gradient-to-r from-blue-50 to-blue-25 dark:from-blue-500/10 dark:to-blue-400/5",
+                border: "border-blue-200 dark:border-blue-500/20",
                 label: "Disetujui",
-                gradient: "from-blue-500/10 to-blue-400/5"
+                gradient: "from-blue-500/10 to-blue-400/5 dark:from-blue-400/20 dark:to-blue-300/10"
             },
             READY_TO_PICKUP: {
                 icon: Package,
-                color: "text-emerald-600",
-                bg: "bg-gradient-to-r from-emerald-50 to-emerald-25",
-                border: "border-emerald-200",
+                color: "text-emerald-600 dark:text-emerald-400",
+                bg: "bg-gradient-to-r from-emerald-50 to-emerald-25 dark:from-emerald-500/10 dark:to-emerald-400/5",
+                border: "border-emerald-200 dark:border-emerald-500/20",
                 label: "Siap Diambil",
-                gradient: "from-emerald-500/10 to-emerald-400/5"
+                gradient: "from-emerald-500/10 to-emerald-400/5 dark:from-emerald-400/20 dark:to-emerald-300/10"
             },
             ISSUED: {
                 icon: Truck,
-                color: "text-purple-600",
-                bg: "bg-gradient-to-r from-purple-50 to-purple-25",
-                border: "border-purple-200",
+                color: "text-purple-600 dark:text-purple-400",
+                bg: "bg-gradient-to-r from-purple-50 to-purple-25 dark:from-purple-500/10 dark:to-purple-400/5",
+                border: "border-purple-200 dark:border-purple-500/20",
                 label: "Diterbitkan",
-                gradient: "from-purple-500/10 to-purple-400/5"
+                gradient: "from-purple-500/10 to-purple-400/5 dark:from-purple-400/20 dark:to-purple-300/10"
             },
             CANCELLED: {
                 icon: XCircle,
-                color: "text-red-600",
-                bg: "bg-gradient-to-r from-red-50 to-red-25",
-                border: "border-red-200",
+                color: "text-red-600 dark:text-red-400",
+                bg: "bg-gradient-to-r from-red-50 to-red-25 dark:from-red-500/10 dark:to-red-400/5",
+                border: "border-red-200 dark:border-red-500/20",
                 label: "Dibatalkan",
-                gradient: "from-red-500/10 to-red-400/5"
+                gradient: "from-red-500/10 to-red-400/5 dark:from-red-400/20 dark:to-red-300/10"
             }
         }
         return configs[status as keyof typeof configs] || configs.PENDING
@@ -260,29 +260,29 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
     }
 
     const SkeletonRow = () => (
-        <TableRow className="hover:bg-slate-50/50 transition-colors">
+        <TableRow className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
             <TableCell>
                 <div className="flex items-center gap-3">
-                    <Skeleton className="h-10 w-10 rounded-lg" />
+                    <Skeleton className="h-10 w-10 rounded-xl bg-slate-200 dark:bg-slate-800" />
                     <div className="space-y-2">
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-3 w-24" />
+                        <Skeleton className="h-4 w-32 bg-slate-200 dark:bg-slate-800" />
+                        <Skeleton className="h-3 w-24 bg-slate-200 dark:bg-slate-800 opacity-50" />
                     </div>
                 </div>
             </TableCell>
-            <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-            <TableCell><Skeleton className="h-4 w-36" /></TableCell>
+            <TableCell><Skeleton className="h-4 w-28 bg-slate-200 dark:bg-slate-800" /></TableCell>
+            <TableCell><Skeleton className="h-4 w-36 bg-slate-200 dark:bg-slate-800" /></TableCell>
             <TableCell>
                 <div className="space-y-2">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-3 w-20" />
+                    <Skeleton className="h-4 w-24 bg-slate-200 dark:bg-slate-800" />
+                    <Skeleton className="h-3 w-20 bg-slate-200 dark:bg-slate-800 opacity-50" />
                 </div>
             </TableCell>
-            <TableCell><Skeleton className="h-6 w-24 rounded-full" /></TableCell>
+            <TableCell><Skeleton className="h-6 w-24 rounded-full bg-slate-200 dark:bg-slate-800" /></TableCell>
             <TableCell>
                 <div className="flex gap-2">
-                    <Skeleton className="h-9 w-20 rounded-md" />
-                    <Skeleton className="h-9 w-9 rounded-md" />
+                    <Skeleton className="h-9 w-20 rounded-lg bg-slate-200 dark:bg-slate-800" />
+                    <Skeleton className="h-9 w-9 rounded-lg bg-slate-200 dark:bg-slate-800" />
                 </div>
             </TableCell>
         </TableRow>
@@ -293,7 +293,7 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
         const StatusIcon = statusConfig.icon
 
         return (
-            <Card className="mb-3 border border-slate-200 shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden">
+            <Card className="mb-3 border border-slate-200 dark:border-slate-700 dark:bg-slate-900 shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden">
                 <CardContent className="p-4">
                     <div className="space-y-4">
                         {/* Header */}
@@ -303,8 +303,8 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                                     <StatusIcon className={`h-5 w-5 ${statusConfig.color}`} />
                                 </div>
                                 <div>
-                                    <h3 className="font-bold text-slate-800 text-base">{mr.mrNumber}</h3>
-                                    <p className="text-sm text-slate-500">
+                                    <h3 className="font-bold text-slate-800 dark:text-slate-100 text-base">{mr.mrNumber}</h3>
+                                    <p className="text-sm text-slate-500 dark:text-slate-300">
                                         {format(new Date(mr.issuedDate), "dd MMM yyyy • HH:mm", { locale: id })}
                                     </p>
                                 </div>
@@ -320,34 +320,34 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                         {/* Details */}
                         <div className="grid grid-cols-2 gap-3 text-sm">
                             <div className="space-y-1">
-                                <div className="flex items-center gap-2 text-slate-500">
+                                <div className="flex items-center gap-2 text-slate-500 dark:text-slate-300">
                                     <User className="h-3.5 w-3.5" />
                                     <span>Diminta Oleh</span>
                                 </div>
-                                <p className="font-semibold text-slate-800">{mr.requestedBy?.name || "N/A"}</p>
+                                <p className="font-semibold text-slate-800 dark:text-slate-200">{mr.requestedBy?.name || "N/A"}</p>
                             </div>
                             <div className="space-y-1">
-                                <div className="flex items-center gap-2 text-slate-500">
+                                <div className="flex items-center gap-2 text-slate-500 dark:text-slate-300">
                                     <Building className="h-3.5 w-3.5" />
                                     <span>Project</span>
                                 </div>
-                                <p className="font-semibold text-slate-800">{mr.project?.name || mr.projectId}</p>
+                                <p className="font-semibold text-slate-800 dark:text-white">{mr.project?.name || mr.projectId}</p>
                             </div>
                             <div className="space-y-1">
-                                <div className="flex items-center gap-2 text-slate-500">
+                                <div className="flex items-center gap-2 text-slate-500 dark:text-slate-300">
                                     <Package className="h-3.5 w-3.5" />
                                     <span>Gudang</span>
                                 </div>
-                                <p className="font-semibold text-slate-800">{mr.Warehouse?.name || "N/A"}</p>
+                                <p className="font-semibold text-slate-800 dark:text-white">{mr.Warehouse?.name || "N/A"}</p>
                             </div>
                             <div className="space-y-1">
-                                <div className="flex items-center gap-2 text-slate-500">
+                                <div className="flex items-center gap-2 text-slate-500 dark:text-slate-300">
                                     <FileText className="h-3.5 w-3.5" />
                                     <span>Items</span>
                                 </div>
                                 <div>
-                                    <p className="font-semibold text-slate-800">{mr.items.length} items</p>
-                                    <p className="text-xs text-slate-400">
+                                    <p className="font-semibold text-slate-800 dark:text-white">{mr.items.length} items</p>
+                                    <p className="text-xs text-slate-400 dark:text-slate-300">
                                         Total: {mr.items.reduce((sum, item) => sum + item.qtyRequested, 0).toLocaleString()}
                                     </p>
                                 </div>
@@ -355,7 +355,7 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                         </div>
 
                         {/* Actions */}
-                        <div className="flex gap-2 pt-2 border-t border-slate-100">
+                        <div className="flex gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                             {mr.status === "PENDING" && (
                                 <Button
                                     size="sm"
@@ -374,7 +374,7 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                                         size="sm"
                                         variant="outline"
                                         onClick={() => handleViewDetails(mr)}
-                                        className="flex-1 border-slate-300 font-semibold"
+                                        className="flex-1 border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700 font-semibold"
                                     >
                                         <Eye className="h-4 w-4 mr-2" />
                                         Detail
@@ -389,7 +389,7 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
 
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button variant="outline" size="sm" className="border-slate-300">
+                                    <Button variant="outline" size="sm" className="border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700">
                                         <MoreHorizontal className="h-4 w-4" />
                                     </Button>
                                 </DropdownMenuTrigger>
@@ -424,101 +424,66 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                         label: "Total MR",
                         value: data.length,
                         icon: FileText,
-                        colorLight: "from-blue-500 to-blue-400",
-                        colorDark: "from-blue-400 to-blue-300",
-                        bgLight: "bg-gradient-to-br from-blue-50 to-blue-100",
-                        bgDark: "bg-gradient-to-br from-blue-900/30 to-blue-800/20",
+                        className: "bg-blue-50/50 border-blue-100 hover:bg-blue-50",
                         textLight: "text-blue-600",
-                        textDark: "text-blue-300"
+                        textDark: "text-blue-400"
                     },
                     {
                         label: "Pending",
                         value: data.filter(d => d.status === "PENDING").length,
                         icon: Clock,
-                        colorLight: "from-amber-500 to-amber-400",
-                        colorDark: "from-amber-400 to-amber-300",
-                        bgLight: "bg-gradient-to-br from-amber-50 to-amber-100",
-                        bgDark: "bg-gradient-to-br from-amber-900/30 to-amber-800/20",
+                        className: "bg-amber-50/50 border-amber-100 hover:bg-amber-50",
                         textLight: "text-amber-600",
-                        textDark: "text-amber-300"
+                        textDark: "text-amber-400"
                     },
                     {
                         label: "Approved",
                         value: data.filter(d => d.status === "APPROVED").length,
                         icon: CheckCircle,
-                        colorLight: "from-emerald-200 to-emerald-400",
-                        colorDark: "from-emerald-400 to-emerald-300",
-                        bgLight: "bg-gradient-to-br from-emerald-50 to-emerald-100",
-                        bgDark: "bg-gradient-to-br from-emerald-900/30 to-emerald-800/20",
+                        className: "bg-emerald-50/50 border-emerald-100 hover:bg-emerald-50",
                         textLight: "text-emerald-600",
-                        textDark: "text-emerald-300"
+                        textDark: "text-emerald-400"
                     },
                     {
                         label: "Ready",
                         value: data.filter(d => d.status === "READY_TO_PICKUP").length,
                         icon: Package,
-                        colorLight: "from-purple-500 to-purple-400",
-                        colorDark: "from-purple-400 to-purple-300",
-                        bgLight: "bg-gradient-to-br from-purple-50 to-purple-100",
-                        bgDark: "bg-gradient-to-br from-purple-900/30 to-purple-800/20",
+                        className: "bg-purple-50/50 border-purple-100 hover:bg-purple-50",
                         textLight: "text-purple-600",
-                        textDark: "text-purple-300"
+                        textDark: "text-purple-400"
                     },
                     {
                         label: "Issued",
                         value: data.filter(d => d.status === "ISSUED").length,
                         icon: Truck,
-                        colorLight: "from-indigo-500 to-indigo-400",
-                        colorDark: "from-indigo-400 to-indigo-300",
-                        bgLight: "bg-gradient-to-br from-indigo-50 to-indigo-100",
-                        bgDark: "bg-gradient-to-br from-indigo-900/30 to-indigo-800/20",
+                        className: "bg-indigo-50/50 border-indigo-100 hover:bg-indigo-50",
                         textLight: "text-indigo-600",
-                        textDark: "text-indigo-300"
+                        textDark: "text-indigo-400"
                     }
                 ].map((stat, index) => (
                     <div
                         key={index}
                         className={`
-                ${stat.bgLight} dark:${stat.bgDark}
-                backdrop-blur-sm rounded-xl p-3 md:p-4 
-                border border-slate-200/50 dark:border-slate-700/50 
-                hover:border-slate-300 dark:hover:border-slate-600
-                transition-all duration-300 hover:scale-[1.02] hover:shadow-md
-                shadow-sm
-            `}
+                            relative overflow-hidden rounded-xl border backdrop-blur-md shadow-sm p-4 
+                            transition-all duration-300 hover:shadow-md group ${stat.className}
+                            dark:bg-slate-900/80 dark:border-slate-800/60 dark:hover:bg-slate-900
+                        `}
                     >
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className={`
-                        text-xs md:text-sm font-medium 
-                        text-slate-600 dark:text-slate-300
-                        mb-1 md:mb-2
-                    `}>
-                                    {stat.label}
-                                </p>
-                                <p className={`
-                        text-xl md:text-2xl lg:text-3xl font-bold 
-                        ${stat.textLight} dark:${stat.textDark}
-                        mb-1 md:mb-2
-                    `}>
-                                    {stat.value}
-                                </p>
-                                <div className="flex items-center gap-1">
-                                    <TrendingUp className="h-3 w-3 text-slate-400 dark:text-slate-500" />
-                                    <span className="text-xs text-slate-500 dark:text-slate-400">
-                                        {index === 0 ? "All time" : "This month"}
-                                    </span>
-                                </div>
+                        <div className="relative z-10">
+                            <div className="flex items-center justify-between mb-2">
+                                <p className={`text-sm font-medium ${stat.textLight} dark:${stat.textDark}`}>{stat.label}</p>
+                                <stat.icon className={`h-5 w-5 ${stat.textLight} dark:${stat.textDark} opacity-80`} />
                             </div>
-                            <div className={`
-                    p-2 md:p-3 rounded-lg 
-                    bg-gradient-to-br ${stat.colorLight}/30 dark:${stat.colorDark}/20
-                    border border-slate-200/30 dark:border-slate-700/30
-                `}>
-                                <stat.icon className={`
-                        h-5 w-5 md:h-6 md:w-6 
-                        ${stat.textLight} dark:${stat.textDark}
-                    `} />
+                            <div className="flex items-baseline gap-2">
+                                <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
+                                    {stat.value}
+                                </h3>
+                                <span className="text-xs text-slate-500 dark:text-slate-400">units</span>
+                            </div>
+                            <div className="mt-2 flex items-center gap-1.5">
+                                <span className="text-[10px] font-medium bg-white/50 dark:bg-slate-800/50 px-2 py-0.5 rounded-full border border-black/5 dark:border-white/10 text-slate-500 dark:text-slate-400">
+                                    {index === 0 ? "Cumulative" : "Activity"}
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -526,7 +491,7 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
             </div>
 
             {/* Search and Filter Section */}
-            <Card className="border border-slate-200 shadow-lg rounded-2xl overflow-hidden">
+            <Card className="border border-slate-200 dark:border-slate-700 dark:bg-slate-900 shadow-lg rounded-2xl overflow-hidden">
                 <CardContent className="p-6">
                     <div className="flex flex-col md:flex-row gap-4 mb-6">
                         <div className="relative flex-1">
@@ -535,16 +500,16 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                                 placeholder="Cari MR Number, Nama, Project, atau Gudang..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                className="pl-12 h-12 rounded-xl border-slate-300 focus:border-blue-500 focus:ring-blue-500 text-base"
+                                className="pl-12 h-12 rounded-2xl border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800/50 backdrop-blur-sm dark:text-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-300 shadow-sm"
                             />
                         </div>
 
                         <div className="flex flex-wrap gap-2">
                             <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                <SelectTrigger className="w-full md:w-[180px] h-12 rounded-xl border-slate-300">
+                                <SelectTrigger className="w-full md:w-[180px] h-12 rounded-2xl border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800/50 backdrop-blur-sm dark:text-white focus:ring-2 focus:ring-blue-500/20 transition-all duration-300 shadow-sm">
                                     <div className="flex items-center gap-2">
-                                        <Filter className="h-4 w-4" />
-                                        <span>Status</span>
+                                        <Filter className="h-4 w-4 text-blue-500 dark:text-blue-400" />
+                                        <span className="font-semibold">Status</span>
                                     </div>
                                 </SelectTrigger>
                                 <SelectContent>
@@ -558,10 +523,10 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                             </Select>
 
                             <Select value={dateFilter} onValueChange={setDateFilter}>
-                                <SelectTrigger className="w-full md:w-[180px] h-12 rounded-xl border-slate-300">
+                                <SelectTrigger className="w-full md:w-[180px] h-12 rounded-2xl border-slate-200 dark:border-white/10 bg-white dark:bg-slate-800/50 backdrop-blur-sm dark:text-white focus:ring-2 focus:ring-blue-500/20 transition-all duration-300 shadow-sm">
                                     <div className="flex items-center gap-2">
-                                        <Calendar className="h-4 w-4" />
-                                        <span>Tanggal</span>
+                                        <Calendar className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
+                                        <span className="font-semibold">Tanggal</span>
                                     </div>
                                 </SelectTrigger>
                                 <SelectContent>
@@ -575,7 +540,7 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                             <div className="flex gap-2">
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button variant="outline" className="h-12 rounded-xl border-slate-300">
+                                        <Button variant="outline" className="h-12 rounded-xl border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700">
                                             <BarChart3 className="h-4 w-4 mr-2" />
                                             <span className="hidden md:inline">Kolom</span>
                                         </Button>
@@ -598,11 +563,11 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                                 </DropdownMenu>
 
                                 <Tabs value={viewMode} onValueChange={(v: any) => setViewMode(v)} className="hidden md:block">
-                                    <TabsList className="h-12 rounded-xl bg-slate-100">
-                                        <TabsTrigger value="list" className="rounded-lg data-[state=active]:bg-white">
+                                    <TabsList className="h-12 rounded-xl bg-slate-100 dark:bg-slate-800">
+                                        <TabsTrigger value="list" className="rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700">
                                             <List className="h-4 w-4" />
                                         </TabsTrigger>
-                                        <TabsTrigger value="grid" className="rounded-lg data-[state=active]:bg-white">
+                                        <TabsTrigger value="grid" className="rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700">
                                             <Grid className="h-4 w-4" />
                                         </TabsTrigger>
                                     </TabsList>
@@ -613,17 +578,17 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
 
                     {/* Action Buttons Row */}
                     <div className="flex flex-wrap items-center justify-between gap-4">
-                        <div className="text-sm text-slate-600">
-                            <span className="font-semibold text-slate-800">{filteredData.length}</span> MR ditemukan
+                        <div className="text-sm text-slate-600 dark:text-slate-300">
+                            <span className="font-semibold text-slate-800 dark:text-white">{filteredData.length}</span> MR ditemukan
                         </div>
 
                         <div className="flex items-center gap-3">
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button variant="outline" className="rounded-xl border-slate-300">
+                                    {/* <Button variant="outline" className="rounded-xl border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700">
                                         <Download className="h-4 w-4 mr-2" />
                                         <span className="hidden md:inline">Export</span>
-                                    </Button>
+                                    </Button> */}
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent>
                                     <DropdownMenuItem>
@@ -680,11 +645,12 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                             </Card>
                         ))
                     ) : paginatedData.length === 0 ? (
-                        <Card className="border-2 border-dashed border-slate-200 bg-gradient-to-br from-slate-50 to-white">
-                            <CardContent className="py-16 text-center">
+                        <Card className="border-2 border-dashed border-slate-200 dark:border-white/10 bg-gradient-to-br from-slate-50 to-white dark:from-slate-900 dark:to-slate-800/50 rounded-3xl">
+                            <CardContent className="py-20 text-center">
                                 <div className="max-w-md mx-auto">
-                                    <div className="p-4 bg-gradient-to-br from-slate-100 to-slate-50 rounded-full w-20 h-20 mx-auto mb-6 flex items-center justify-center">
-                                        <Package className="h-10 w-10 text-slate-400" />
+                                    <div className="p-5 bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-700/50 rounded-full w-24 h-24 mx-auto mb-8 flex items-center justify-center shadow-inner relative overflow-hidden group">
+                                        <div className="absolute inset-0 bg-blue-500/10 dark:bg-blue-400/10 blur-xl scale-0 group-hover:scale-150 transition-transform duration-700"></div>
+                                        <Package className="h-12 w-12 text-slate-400 dark:text-slate-500 relative z-10" />
                                     </div>
                                     <h3 className="text-xl font-semibold text-slate-700 mb-2">
                                         Tidak ada Material Requisition
@@ -705,48 +671,48 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                 </div>
             ) : (
                 // Desktop Table View
-                <Card className="border border-slate-200 shadow-lg rounded-2xl overflow-hidden">
+                <Card className="border border-slate-200 dark:border-slate-700 dark:bg-slate-900 shadow-lg rounded-2xl overflow-hidden">
                     <div className="overflow-x-auto">
                         <Table>
                             <TableHeader>
-                                <TableRow className="bg-gradient-to-r from-slate-50 to-slate-100/50 hover:bg-slate-100/50">
+                                <TableRow className="bg-slate-50/50 dark:bg-slate-800/30 backdrop-blur-xl border-b border-slate-200/50 dark:border-white/5">
                                     {columnVisibility.mrNumber && (
-                                        <TableHead className="font-semibold text-slate-700 py-5 px-6 text-base">
+                                        <TableHead className="font-bold text-slate-800 dark:text-white py-6 px-6 tracking-tight">
                                             MR Number
                                         </TableHead>
                                     )}
                                     {columnVisibility.date && (
-                                        <TableHead className="font-semibold text-slate-700 py-5 px-6 text-base">
+                                        <TableHead className="font-semibold text-slate-700 dark:text-white py-5 px-6 text-base">
                                             Tanggal & Waktu
                                         </TableHead>
                                     )}
                                     {columnVisibility.project && (
-                                        <TableHead className="font-semibold text-slate-700 py-5 px-6 text-base">
+                                        <TableHead className="font-semibold text-slate-700 dark:text-white py-5 px-6 text-base">
                                             Proyek
                                         </TableHead>
                                     )}
                                     {columnVisibility.requestedBy && (
-                                        <TableHead className="font-semibold text-slate-700 py-5 px-6 text-base">
+                                        <TableHead className="font-semibold text-slate-700 dark:text-white py-5 px-6 text-base">
                                             Diminta Oleh
                                         </TableHead>
                                     )}
                                     {columnVisibility.warehouse && (
-                                        <TableHead className="font-semibold text-slate-700 py-5 px-6 text-base">
+                                        <TableHead className="font-semibold text-slate-700 dark:text-white py-5 px-6 text-base">
                                             Gudang
                                         </TableHead>
                                     )}
                                     {columnVisibility.items && (
-                                        <TableHead className="font-semibold text-slate-700 py-5 px-6 text-base">
+                                        <TableHead className="font-semibold text-slate-700 dark:text-white py-5 px-6 text-base">
                                             Items & Quantity
                                         </TableHead>
                                     )}
                                     {columnVisibility.status && (
-                                        <TableHead className="font-semibold text-slate-700 py-5 px-6 text-base">
+                                        <TableHead className="font-semibold text-slate-700 dark:text-white py-5 px-6 text-base">
                                             Status
                                         </TableHead>
                                     )}
                                     {columnVisibility.actions && (
-                                        <TableHead className="font-semibold text-slate-700 py-5 px-6 text-base text-right">
+                                        <TableHead className="font-semibold text-slate-700 dark:text-white py-5 px-6 text-base text-right">
                                             Actions
                                         </TableHead>
                                     )}
@@ -759,19 +725,19 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                                     <TableRow>
                                         <TableCell colSpan={8} className="h-96 text-center">
                                             <div className="max-w-md mx-auto py-12">
-                                                <div className="p-6 bg-gradient-to-br from-slate-100 to-slate-50 rounded-2xl inline-flex mb-6">
+                                                <div className="p-6 bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 rounded-2xl inline-flex mb-6">
                                                     <Package className="h-16 w-16 text-slate-400" />
                                                 </div>
-                                                <h3 className="text-xl font-semibold text-slate-700 mb-2">
+                                                <h3 className="text-xl font-semibold text-slate-700 dark:text-slate-300 mb-2">
                                                     Tidak ada data ditemukan
                                                 </h3>
-                                                <p className="text-slate-500 mb-6">
+                                                <p className="text-slate-500 dark:text-slate-400 mb-6">
                                                     Coba ubah kata kunci pencarian atau filter yang Anda gunakan
                                                 </p>
                                                 <Button
                                                     variant="outline"
                                                     onClick={() => { setSearch(""); setStatusFilter("all"); }}
-                                                    className="border-slate-300"
+                                                    className="border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700"
                                                 >
                                                     Reset Filter
                                                 </Button>
@@ -786,7 +752,7 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                                         return (
                                             <TableRow
                                                 key={mr.id}
-                                                className="group hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-slate-50/30 transition-all duration-300 border-b border-slate-100"
+                                                className="group hover:bg-blue-500/[0.02] dark:hover:bg-blue-400/[0.03] transition-all duration-500 border-b border-slate-100 dark:border-white/5"
                                             >
                                                 {columnVisibility.mrNumber && (
                                                     <TableCell className="py-5 px-6">
@@ -795,7 +761,7 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                                                                 <FileText className="h-6 w-6 text-blue-600" />
                                                             </div>
                                                             <div>
-                                                                <p className="font-bold text-lg text-slate-900 group-hover:text-blue-700 transition-colors">
+                                                                <p className="font-bold text-lg text-slate-900 dark:text-slate-100 group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">
                                                                     {mr.mrNumber}
                                                                 </p>
                                                                 {/* <p className="text-sm text-slate-500">
@@ -809,10 +775,10 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                                                 {columnVisibility.date && (
                                                     <TableCell className="py-5 px-6">
                                                         <div className="space-y-1">
-                                                            <p className="font-semibold text-slate-800">
+                                                            <p className="font-semibold text-slate-800 dark:text-white">
                                                                 {format(new Date(mr.issuedDate), "dd MMM yyyy", { locale: id })}
                                                             </p>
-                                                            <p className="text-sm text-slate-500 flex items-center gap-1">
+                                                            <p className="text-sm text-slate-500 dark:text-slate-300 flex items-center gap-1">
                                                                 <Clock className="h-3.5 w-3.5" />
                                                                 {format(new Date(mr.issuedDate), "HH:mm", { locale: id })} WIB
                                                             </p>
@@ -822,9 +788,9 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
 
                                                 {columnVisibility.project && (
                                                     <TableCell className="py-5 px-6">
-                                                        <div className="flex items-center gap-2 bg-gradient-to-r from-slate-50 to-slate-100/50 rounded-lg p-3">
-                                                            <Building className="h-4 w-4 text-slate-500" />
-                                                            <span className="font-semibold text-slate-800">{mr.project?.name || mr.projectId}</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <Building className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                                                            <span className="font-semibold text-slate-800 dark:text-white">{mr.project?.name || mr.projectId}</span>
                                                         </div>
                                                     </TableCell>
                                                 )}
@@ -834,18 +800,18 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                                                         <div className="space-y-1">
                                                             <div className="flex items-center gap-2">
                                                                 <User className="h-4 w-4 text-slate-500" />
-                                                                <p className="font-semibold text-slate-800">{mr.requestedBy?.name || "N/A"}</p>
+                                                                <p className="font-semibold text-slate-800 dark:text-white">{mr.requestedBy?.name || "N/A"}</p>
                                                             </div>
-                                                            <p className="text-sm text-slate-500 pl-6">{mr.requestedBy?.department}</p>
+                                                            <p className="text-sm text-slate-500 dark:text-slate-300 pl-6">{mr.requestedBy?.department}</p>
                                                         </div>
                                                     </TableCell>
                                                 )}
 
                                                 {columnVisibility.warehouse && (
                                                     <TableCell className="py-5 px-6">
-                                                        <div className="flex items-center gap-2 bg-gradient-to-r from-slate-50 to-slate-100/50 rounded-lg p-3">
-                                                            <Package className="h-4 w-4 text-slate-500" />
-                                                            <span className="font-semibold text-slate-800">{mr.Warehouse?.name || "N/A"}</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <Package className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                                                            <span className="font-semibold text-slate-800 dark:text-white">{mr.Warehouse?.name || "N/A"}</span>
                                                         </div>
                                                     </TableCell>
                                                 )}
@@ -860,8 +826,8 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                                                                     </span>
                                                                 </div>
                                                             </div>
-                                                            <p className="text-sm text-slate-500">
-                                                                Total Qty: <span className="font-semibold text-slate-700">
+                                                            <p className="text-sm text-slate-500 dark:text-slate-300">
+                                                                Total Qty: <span className="font-semibold text-slate-700 dark:text-white">
                                                                     {mr.items.reduce((sum, item) => sum + item.qtyRequested, 0).toLocaleString()}
                                                                 </span>
                                                             </p>
@@ -973,13 +939,13 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
 
                     {/* Pagination */}
                     {!isLoading && paginatedData.length > 0 && (
-                        <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-6 py-5 border-t border-slate-200 bg-gradient-to-r from-slate-50 to-white/50">
-                            <div className="text-sm text-slate-600">
-                                Menampilkan <span className="font-semibold text-slate-800">{(currentPage - 1) * itemsPerPage + 1}</span> -{" "}
-                                <span className="font-semibold text-slate-800">
+                        <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-6 py-5 border-t border-slate-200 dark:border-white/5 bg-transparent">
+                            <div className="text-sm text-slate-600 dark:text-slate-300">
+                                Menampilkan <span className="font-semibold text-slate-800 dark:text-white">{(currentPage - 1) * itemsPerPage + 1}</span> -{" "}
+                                <span className="font-semibold text-slate-800 dark:text-white">
                                     {Math.min(currentPage * itemsPerPage, filteredData.length)}
                                 </span> dari{" "}
-                                <span className="font-semibold text-slate-800">{filteredData.length}</span> entri
+                                <span className="font-semibold text-slate-800 dark:text-white">{filteredData.length}</span> entri
                             </div>
                             <div className="flex items-center gap-2">
                                 <Button

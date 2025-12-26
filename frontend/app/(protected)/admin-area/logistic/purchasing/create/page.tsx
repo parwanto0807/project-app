@@ -349,7 +349,7 @@ export default function CreatePurchaseOrderPage() {
                     </Card>
 
                     <Card className="bg-gradient-to-br from-card to-orange-50 dark:to-orange-950/20 border-orange-200 dark:border-orange-800 hover:shadow-lg transition-shadow cursor-pointer group"
-                        onClick={() => router.push("/admin-area/master/product")}>
+                        onClick={() => router.push("/admin-area/master/products")}>
                         <CardContent className="p-6">
                             <div className="flex items-center gap-4">
                                 <div className="h-12 w-12 rounded-xl bg-orange-100 dark:bg-orange-900/50 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -380,97 +380,6 @@ export default function CreatePurchaseOrderPage() {
                         </CardContent>
                     </Card>
                 </div>
-
-
-                {/* <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Warehouse Info Card */}
-                {/* <Card className="bg-card border-border shadow-sm">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Building className="h-5 w-5" />
-                                Informasi Gudang Tersedia
-                            </CardTitle>
-                            <CardDescription>
-                                Pilih gudang tujuan untuk pengiriman barang
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="space-y-3">
-                                {warehouses.slice(0, 3).map((warehouse) => (
-                                    <div key={warehouse.id} className="flex items-center gap-3 p-3 border rounded-lg hover:bg-accent/50 transition-colors">
-                                        <div className="h-8 w-8 rounded-lg bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center">
-                                            <WarehouseIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <div className="font-medium">{warehouse.name}</div>
-                                            <div className="text-sm text-muted-foreground">{warehouse.address}</div>
-                                        </div>
-                                        <Badge variant="outline" className="text-xs">
-                                            Aktif
-                                        </Badge>
-                                    </div>
-                                ))}
-                                {warehouses.length > 3 && (
-                                    <div className="text-center pt-2">
-                                        <Button variant="ghost" size="sm" className="text-muted-foreground">
-                                            + {warehouses.length - 3} gudang lainnya
-                                        </Button>
-                                    </div>
-                                )}
-                            </div>
-                        </CardContent>
-                    </Card> */}
-
-                {/* Project Info Card */}
-                {/* <Card className="bg-card border-border shadow-sm">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Layers className="h-5 w-5" />
-                                Proyek Tersedia
-                            </CardTitle>
-                            <CardDescription>
-                                Tautkan PO dengan proyek tertentu (opsional)
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="space-y-3">
-                                {projects.slice(0, 3).map((project) => (
-                                    <div key={project.id} className="flex items-center gap-3 p-3 border rounded-lg hover:bg-accent/50 transition-colors">
-                                        <div className="h-8 w-8 rounded-lg bg-green-100 dark:bg-green-900/50 flex items-center justify-center">
-                                            <Layers className="h-4 w-4 text-green-600 dark:text-green-400" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <div className="font-medium">{project.name}</div>
-                                            <div className="text-sm text-muted-foreground">ID: {project.description}</div>
-                                        </div>
-                                    </div>
-                                ))}
-                                {projects.length > 3 && (
-                                    <div className="text-center pt-2">
-                                        <Button variant="ghost" size="sm" className="text-muted-foreground">
-                                            + {projects.length - 3} proyek lainnya
-                                        </Button>
-                                    </div>
-                                )}
-                            </div>
-                        </CardContent>
-                    </Card> 
-            </div> */}
-
-                {/* Footer Note */}
-                {/* <Card className="bg-muted/30 border-border/50">
-                    <CardContent className="p-4">
-                        <div className="flex items-center justify-between text-sm text-muted-foreground">
-                            <div className="flex items-center gap-2">
-                                <div className="h-2 w-2 rounded-full bg-primary" />
-                                <span>Need help? Contact support at support@company.com</span>
-                            </div>
-                            <div className="text-xs">
-                                v2.0.1 • Last updated: {new Date().toLocaleDateString('id-ID')}
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card> */}
             </div>
         </AdminLayout >
     );

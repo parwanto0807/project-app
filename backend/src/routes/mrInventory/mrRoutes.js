@@ -12,4 +12,7 @@ router.post('/create', mrController.createMR);
 // Finalize MR (Triggered by QR Code Scan at Warehouse)
 router.post('/issue-scan', mrController.issueMR);
 
+// Create MR from PO (Direct Issue Flow)
+router.post('/from-po/:poId', mrController.createMRFromPO);
+
 export default router;

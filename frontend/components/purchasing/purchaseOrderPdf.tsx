@@ -27,6 +27,7 @@ const colors = {
 const styles = StyleSheet.create({
     page: {
         padding: 25,
+        paddingBottom: 65,
         fontFamily: 'Helvetica',
         fontSize: 9,
         lineHeight: 1.4,
@@ -164,6 +165,16 @@ const styles = StyleSheet.create({
         color: '#263238',  // Very dark blue-gray for values
     },
     infoValueBold: {
+        fontWeight: 'bold',
+        color: '#1a237e',  // Primary dark blue for emphasis
+    },
+    // Full-width info values for Supplier and Warehouse sections
+    infoValueFull: {
+        width: '100%',
+        fontSize: 8,
+        color: '#263238',  // Very dark blue-gray for values
+    },
+    infoValueFullBold: {
         fontWeight: 'bold',
         color: '#1a237e',  // Primary dark blue for emphasis
     },
@@ -311,7 +322,8 @@ const styles = StyleSheet.create({
 
     // ============ SIGNATURE SECTION ============
     signatureSection: {
-        marginTop: 10,
+        marginTop: 20,
+        marginBottom: 80,
         paddingTop: 10,
         borderTopWidth: 1,
         borderTopColor: colors.border,
@@ -363,26 +375,32 @@ const styles = StyleSheet.create({
     // ============ FOOTER ============
     footer: {
         position: 'absolute',
-        bottom: 20,
+        bottom: 25,
         left: 25,
         right: 25,
-        paddingTop: 8,
+        height: 20,
+        paddingTop: 5,
         borderTopWidth: 1,
         borderTopColor: colors.border,
         borderTopStyle: 'solid',
         flexDirection: 'row',
         justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: colors.white,
     },
     footerLeft: {
+        width: '35%',
         fontSize: 7,
         color: colors.light,
     },
     footerCenter: {
+        width: '30%',
         fontSize: 7,
         color: colors.light,
         textAlign: 'center',
     },
     footerRight: {
+        width: '35%',
         fontSize: 7,
         color: colors.light,
         textAlign: 'right',
@@ -422,6 +440,16 @@ const styles = StyleSheet.create({
         fontSize: 7,
         fontWeight: 'bold',
         color: '#263238',  // Very dark
+    },
+
+    // Page Number
+    pageNumber: {
+        position: 'absolute',
+        bottom: 30,
+        right: 25,
+        fontSize: 7,
+        color: colors.dark,
+        fontWeight: 'normal',
     },
 });
 
@@ -570,7 +598,24 @@ const PurchaseOrderPdfDocument = ({ purchaseOrder }: { purchaseOrder: PurchaseOr
                         </Text>
                     </View>
                     {/* Hide status badge when status is SENT (for supplier document) */}
-                    {status !== 'SENT' && (
+                    {/* Show QR Code when status is SENT, otherwise show status badge */}
+                    {status === 'SENT' ? (
+                        <View style={{
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: 5,
+                            marginRight: 10, // Added right margin/padding as requested
+                            borderWidth: 1,
+                            borderColor: colors.border,
+                            borderRadius: 4,
+                            backgroundColor: colors.white,
+                        }}>
+                            <PdfImage
+                                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(poNumber)}`}
+                                style={{ width: 55, height: 55 }}
+                            />
+                        </View>
+                    ) : (
                         <View style={[styles.statusBadge, {
                             backgroundColor: getStatusColor(status) + '15',
                             borderWidth: 1,
@@ -604,7 +649,7 @@ const PurchaseOrderPdfDocument = ({ purchaseOrder }: { purchaseOrder: PurchaseOr
                         </View>
                         <View style={styles.infoRow}>
                             <Text style={styles.infoLabel}>No. PR</Text>
-                            <Text style={styles.infoValue}>{PurchaseRequest?.nomorPr || '-'}</Text>
+                            <Text style={[styles.infoValue, { fontSize: 7, marginBottom: 3 }]}>{PurchaseRequest?.nomorPr || '-'}</Text>
                         </View>
                         <View style={styles.infoRow}>
                             <Text style={styles.infoLabel}>SPK</Text>
@@ -617,14 +662,14 @@ const PurchaseOrderPdfDocument = ({ purchaseOrder }: { purchaseOrder: PurchaseOr
                         <View style={styles.infoBoxHeader}>
                             <Text style={styles.infoBoxTitle}>Supplier</Text>
                         </View>
-                        <Text style={[styles.infoValue, styles.infoValueBold, { marginBottom: 3 }]}>
+                        <Text style={[styles.infoValueFull, styles.infoValueFullBold, { marginBottom: 3 }]}>
                             {supplier?.name || 'Supplier Name'}
                         </Text>
-                        <Text style={[styles.infoValue, { fontSize: 7, color: colors.medium }]}>
+                        <Text style={[styles.infoValueFull, { fontSize: 7, color: colors.medium }]}>
                             {supplier?.billingAddress || supplier?.shippingAddress || '-'}
                         </Text>
                         {(supplier?.phone || supplier?.email) && (
-                            <Text style={[styles.infoValue, { fontSize: 7, marginTop: 3 }]}>
+                            <Text style={[styles.infoValueFull, { fontSize: 7, marginTop: 3 }]}>
                                 {supplier?.phone || supplier?.email}
                             </Text>
                         )}
@@ -635,10 +680,10 @@ const PurchaseOrderPdfDocument = ({ purchaseOrder }: { purchaseOrder: PurchaseOr
                         <View style={styles.infoBoxHeader}>
                             <Text style={styles.infoBoxTitle}>Pengiriman Ke</Text>
                         </View>
-                        <Text style={[styles.infoValue, styles.infoValueBold, { marginBottom: 3 }]}>
+                        <Text style={[styles.infoValueFull, styles.infoValueFullBold, { marginBottom: 3 }]}>
                             {warehouse?.name || 'Nama Gudang'}
                         </Text>
-                        <Text style={[styles.infoValue, { fontSize: 7, color: colors.medium }]}>
+                        <Text style={[styles.infoValueFull, { fontSize: 7, color: colors.medium }]}>
                             {warehouse?.address || '-'}
                         </Text>
                     </View>
@@ -742,9 +787,9 @@ const PurchaseOrderPdfDocument = ({ purchaseOrder }: { purchaseOrder: PurchaseOr
                     </View>
                 </View>
 
-                {/* ========== TANDA TANGAN ========== */}
-                <View style={styles.signatureSection} wrap={false}>
-                    <Text style={styles.signatureTitle}>Otorisasi</Text>
+
+                {/* ========== TANDA TANGAN (Last Page Only) ========== */}
+                <View style={styles.signatureSection}>
                     <View style={styles.signatureGrid}>
                         <View style={styles.signatureBox}>
                             <Text style={styles.signatureLabel}>Dibuat Oleh</Text>
@@ -778,7 +823,7 @@ const PurchaseOrderPdfDocument = ({ purchaseOrder }: { purchaseOrder: PurchaseOr
                         PO ini berlaku 30 hari sejak tanggal order
                     </Text>
                     <Text style={styles.footerRight}>
-                        {poNumber}
+                        {poNumber} | Hal 1/1
                     </Text>
                 </View>
             </Page>

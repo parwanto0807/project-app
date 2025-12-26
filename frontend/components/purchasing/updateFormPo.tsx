@@ -142,10 +142,14 @@ const StatusBadge = ({ status }: { status: PurchaseOrderStatus }) => {
     const config = getStatusConfig();
 
     return (
-        <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r ${config.bg} bg-opacity-10 border border-transparent`}>
+        <div className={cn(
+            "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r border border-transparent self-center",
+            config.bg,
+            "bg-opacity-10 dark:bg-opacity-20"
+        )}>
             {config.icon}
-            <span className={`text-sm font-medium ${config.text}`}>
-                {status}
+            <span className={cn("text-xs font-semibold uppercase tracking-wider", config.text, "dark:brightness-125")}>
+                {status.replace(/_/g, ' ')}
             </span>
         </div>
     );
@@ -182,7 +186,7 @@ export default function UpdateFormPO({
         defaultValues: {
             supplierId: initialData.supplierId || "",
             warehouseId: initialData.warehouseId || "",
-            spkId: initialData.sPKId || initialData.SPK?.id || "",
+            spkId: initialData.sPKId || initialData.SPK?.id || initialData.PurchaseRequest?.spkId || "",
             projectId: initialData.projectId || "",
             poNumber: initialData.poNumber || "",
             poDate: initialData.orderDate ? new Date(initialData.orderDate) : new Date(),
@@ -223,7 +227,8 @@ export default function UpdateFormPO({
     // Initialize SPK and Project from initial data
     useEffect(() => {
         // Get spkId from initialData - try both sPKId and SPK?.id
-        const spkIdValue = initialData.sPKId || initialData.SPK?.id || "";
+        // Get spkId from initialData - try sPKId, SPK?.id, or fallback to PurchaseRequest's spkId
+        const spkIdValue = initialData.sPKId || initialData.SPK?.id || initialData.PurchaseRequest?.spkId || "";
 
         console.log("SPK Init Debug:", {
             sPKId: initialData.sPKId,
@@ -447,9 +452,9 @@ export default function UpdateFormPO({
     return (
         <form id="update-po-form" onSubmit={handleSubmit(onSubmit)} className="space-y-8">
             {/* Header with Gradient Background */}
-            <div className="relative rounded-2xl overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5"></div>
-                <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/50 to-transparent"></div>
+            <div className="relative rounded-2xl overflow-hidden border dark:border-gray-800">
+                <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 dark:from-primary/10 dark:via-primary/5 dark:to-primary/10"></div>
+                <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/50 to-transparent dark:via-gray-900/50"></div>
                 <div className="relative p-6 md:p-8">
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                         <div className="flex items-start gap-4">
@@ -460,15 +465,15 @@ export default function UpdateFormPO({
                                 </div>
                             </div>
                             <div>
-                                <h2 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent">
+                                <h2 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent dark:from-white dark:via-gray-200 dark:to-gray-100">
                                     Edit Purchase Order
                                 </h2>
-                                <p className="text-gray-600 mt-2">
+                                <p className="text-gray-600 dark:text-gray-400 mt-2">
                                     Perbarui informasi purchase order #{initialData.poNumber}
                                 </p>
                             </div>
                         </div>
-                        <StatusBadge status={initialData.status} />
+                        <StatusBadge status={initialData.status as PurchaseOrderStatus} />
                     </div>
                 </div>
             </div>
@@ -478,12 +483,12 @@ export default function UpdateFormPO({
                 {/* Left Column - Information */}
                 <div className="lg:col-span-2 space-y-6">
                     {/* Basic Information Card */}
-                    <Card className="border border-gray-200/80 shadow-lg rounded-2xl overflow-hidden bg-gradient-to-br from-white to-gray-50/50">
-                        <CardHeader className="border-b border-gray-200/50">
+                    <Card className="border border-gray-200/80 dark:border-gray-800 shadow-lg rounded-2xl overflow-hidden bg-gradient-to-br from-white to-gray-50/50 dark:from-gray-900 dark:to-gray-800/50">
+                        <CardHeader className="border-b border-gray-200/50 dark:border-gray-800">
                             <div className="flex items-center gap-3">
                                 <GradientIcon icon={ClipboardList} size={24} />
                                 <div>
-                                    <CardTitle className="text-xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
+                                    <CardTitle className="text-xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent dark:from-gray-100 dark:to-gray-400">
                                         Informasi Dasar
                                     </CardTitle>
                                     <CardDescription className="text-gray-500">
@@ -506,7 +511,7 @@ export default function UpdateFormPO({
                                         render={({ field }) => (
                                             <Select value={field.value} onValueChange={field.onChange}>
                                                 <SelectTrigger className={cn(
-                                                    "w-full h-12 border-gray-300/80 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl",
+                                                    "w-full h-12 border-gray-300/80 dark:border-gray-700 bg-white dark:bg-gray-900 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl",
                                                     errors.supplierId && "border-red-500 focus:border-red-500 focus:ring-red-500/20"
                                                 )}>
                                                     <SelectValue placeholder="Pilih supplier" />
@@ -594,7 +599,7 @@ export default function UpdateFormPO({
                                                     }
                                                 }}
                                             >
-                                                <SelectTrigger className="w-full h-12 border-gray-300/80 rounded-xl">
+                                                <SelectTrigger className="w-full h-12 border-gray-300/80 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-xl">
                                                     <SelectValue placeholder="Pilih SPK">
                                                         {/* Show SPK number from initialData when spkList is not loaded */}
                                                         {field.value && field.value !== "_none" && (
@@ -646,7 +651,7 @@ export default function UpdateFormPO({
                                         value={selectedProjectName}
                                         disabled
                                         placeholder="Pilih SPK untuk mengisi proyek"
-                                        className="w-full h-12 border-gray-300/80 rounded-xl bg-gray-50 text-gray-600 cursor-not-allowed"
+                                        className="w-full h-12 border-gray-300/80 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 cursor-not-allowed"
                                     />
                                 </div>
 
@@ -661,7 +666,7 @@ export default function UpdateFormPO({
                                         control={control}
                                         render={({ field }) => (
                                             <Select value={field.value} onValueChange={field.onChange}>
-                                                <SelectTrigger className="w-full h-12 border-gray-300/80 rounded-xl">
+                                                <SelectTrigger className="w-full h-12 border-gray-300/80 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-xl">
                                                     <SelectValue placeholder="Pilih termin pembayaran" />
                                                     <ChevronDown className="h-4 w-4 ml-auto opacity-50" />
                                                 </SelectTrigger>
@@ -722,7 +727,7 @@ export default function UpdateFormPO({
                                                 {...field}
                                                 placeholder="PO-001/2024"
                                                 className={cn(
-                                                    "h-12 border-gray-300/80 rounded-xl",
+                                                    "h-12 border-gray-300/80 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-xl",
                                                     errors.poNumber && "border-red-500"
                                                 )}
                                             />
@@ -747,7 +752,7 @@ export default function UpdateFormPO({
                                                     <Button
                                                         variant="outline"
                                                         className={cn(
-                                                            "w-full h-12 justify-start text-left font-normal border-gray-300/80 rounded-xl hover:bg-gray-50/50",
+                                                            "w-full h-12 justify-start text-left font-normal border-gray-300/80 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-xl hover:bg-gray-50/50 dark:hover:bg-gray-800",
                                                             !field.value && "text-muted-foreground",
                                                             errors.poDate && "border-red-500"
                                                         )}
@@ -792,7 +797,7 @@ export default function UpdateFormPO({
                                                     <Button
                                                         variant="outline"
                                                         className={cn(
-                                                            "w-full h-12 justify-start text-left font-normal border-gray-300/80 rounded-xl hover:bg-gray-50/50",
+                                                            "w-full h-12 justify-start text-left font-normal border-gray-300/80 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-xl hover:bg-gray-50/50 dark:hover:bg-gray-800",
                                                             !field.value && "text-muted-foreground",
                                                             errors.deliveryDate && "border-red-500"
                                                         )}
@@ -827,13 +832,13 @@ export default function UpdateFormPO({
                     </Card>
 
                     {/* Items Section Card */}
-                    <Card className="border border-gray-200/80 shadow-lg rounded-2xl overflow-hidden bg-gradient-to-br from-white to-gray-50/50">
-                        <CardHeader className="border-b border-gray-200/50">
+                    <Card className="border border-gray-200/80 dark:border-gray-800 shadow-lg rounded-2xl overflow-hidden bg-gradient-to-br from-white to-gray-50/50 dark:from-gray-900 dark:to-gray-800/50">
+                        <CardHeader className="border-b border-gray-200/50 dark:border-gray-800">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
                                     <GradientIcon icon={Package} size={24} />
                                     <div>
-                                        <CardTitle className="text-xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
+                                        <CardTitle className="text-xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent dark:from-gray-100 dark:to-gray-400">
                                             Item Produk
                                         </CardTitle>
                                         <CardDescription className="text-gray-500">
@@ -844,7 +849,7 @@ export default function UpdateFormPO({
                                 <Button
                                     type="button"
                                     onClick={addItem}
-                                    className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-white shadow-md hover:shadow-lg transition-all duration-300"
+                                    className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-white dark:text-black shadow-md hover:shadow-lg transition-all duration-300"
                                 >
                                     <Plus className="h-4 w-4" />
                                     Tambah Item
@@ -855,14 +860,14 @@ export default function UpdateFormPO({
                             {items.length > 0 ? (
                                 <div className="overflow-hidden border border-gray-200/50 rounded-xl">
                                     <Table>
-                                        <TableHeader className="bg-gradient-to-r from-gray-50 to-gray-100/50">
-                                            <TableRow>
-                                                <TableHead className="font-semibold text-gray-700 py-4">Produk</TableHead>
-                                                <TableHead className="font-semibold text-gray-700 py-4">Kuantitas</TableHead>
-                                                <TableHead className="font-semibold text-gray-700 py-4">Harga Satuan</TableHead>
-                                                <TableHead className="font-semibold text-gray-700 py-4">Satuan</TableHead>
-                                                <TableHead className="font-semibold text-gray-700 py-4">Total</TableHead>
-                                                <TableHead className="font-semibold text-gray-700 py-4 w-[100px]">Aksi</TableHead>
+                                        <TableHeader className="bg-gradient-to-r from-gray-50 to-gray-100/50 dark:from-gray-800 dark:to-gray-900">
+                                            <TableRow className="dark:border-gray-800">
+                                                <TableHead className="font-semibold text-gray-700 dark:text-gray-300 py-4">Produk</TableHead>
+                                                <TableHead className="font-semibold text-gray-700 dark:text-gray-300 py-4">Kuantitas</TableHead>
+                                                <TableHead className="font-semibold text-gray-700 dark:text-gray-300 py-4">Harga Satuan</TableHead>
+                                                <TableHead className="font-semibold text-gray-700 dark:text-gray-300 py-4">Satuan</TableHead>
+                                                <TableHead className="font-semibold text-gray-700 dark:text-gray-300 py-4">Total</TableHead>
+                                                <TableHead className="font-semibold text-gray-700 dark:text-gray-300 py-4 w-[100px]">Aksi</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -881,7 +886,7 @@ export default function UpdateFormPO({
                                                                     }}
                                                                 >
                                                                     <SelectTrigger className={cn(
-                                                                        "w-full h-11 border-gray-300/80 group-hover:border-gray-300 rounded-lg",
+                                                                        "w-full h-11 border-gray-300/80 dark:border-gray-700 bg-white dark:bg-gray-900 group-hover:border-gray-300 dark:group-hover:border-gray-600 rounded-lg",
                                                                         errors.items?.[index]?.productId && "border-red-500"
                                                                     )}>
                                                                         <SelectValue placeholder="Pilih produk" />
@@ -975,7 +980,7 @@ export default function UpdateFormPO({
                                                         )}
                                                     </TableCell>
                                                     <TableCell>
-                                                        <div className="font-semibold text-gray-900 bg-gradient-to-r from-gray-50 to-gray-100/50 py-2 px-3 rounded-lg">
+                                                        <div className="font-semibold text-gray-900 dark:text-gray-100 bg-gradient-to-r from-gray-50 to-gray-100/50 dark:from-gray-800 dark:to-gray-900/50 py-2 px-3 rounded-lg">
                                                             Rp {item.total.toLocaleString("id-ID")}
                                                         </div>
                                                     </TableCell>
@@ -999,8 +1004,8 @@ export default function UpdateFormPO({
                                 <Card className="p-12 text-center border-2 border-dashed border-gray-300/50 bg-gradient-to-br from-gray-50/50 to-gray-100/30 rounded-2xl">
                                     <div className="relative mx-auto w-20 h-20 mb-6">
                                         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-primary/5 rounded-full blur-md"></div>
-                                        <div className="relative bg-gradient-to-br from-white to-gray-50 p-4 rounded-full shadow-lg">
-                                            <Package className="h-8 w-8 text-gray-400" />
+                                        <div className="relative bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 p-4 rounded-full shadow-lg">
+                                            <Package className="h-8 w-8 text-gray-400 dark:text-gray-500" />
                                         </div>
                                     </div>
                                     <p className="text-lg font-medium text-gray-600 mb-2">
@@ -1012,7 +1017,7 @@ export default function UpdateFormPO({
                                     <Button
                                         type="button"
                                         onClick={addItem}
-                                        className="rounded-xl bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-white shadow-md hover:shadow-lg transition-all duration-300"
+                                        className="rounded-xl bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-white dark:text-black shadow-md hover:shadow-lg transition-all duration-300"
                                     >
                                         <Plus className="h-4 w-4 mr-2" />
                                         Tambah Item Pertama
@@ -1032,12 +1037,12 @@ export default function UpdateFormPO({
                     </Card>
 
                     {/* Notes Section */}
-                    <Card className="border border-gray-200/80 shadow-lg rounded-2xl overflow-hidden bg-gradient-to-br from-white to-gray-50/50">
+                    <Card className="border border-gray-200/80 dark:border-gray-800 shadow-lg rounded-2xl overflow-hidden bg-gradient-to-br from-white to-gray-50/50 dark:from-gray-900 dark:to-gray-800/50">
                         <CardHeader className="border-b border-gray-200/50">
                             <div className="flex items-center gap-3">
                                 <GradientIcon icon={FileText} size={24} />
                                 <div>
-                                    <CardTitle className="text-xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
+                                    <CardTitle className="text-xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent dark:text-white">
                                         Catatan Tambahan
                                     </CardTitle>
                                     <CardDescription className="text-gray-500">
@@ -1054,7 +1059,7 @@ export default function UpdateFormPO({
                                     <Textarea
                                         {...field}
                                         placeholder="Contoh: Mohon produk dikirim dengan packaging yang baik, sertakan invoice, dll..."
-                                        className="min-h-[120px] resize-none border-gray-300/80 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl"
+                                        className="min-h-[120px] resize-none border-gray-300/80 dark:border-gray-700 bg-white dark:bg-gray-900 focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-xl"
                                     />
                                 )}
                             />
@@ -1065,11 +1070,11 @@ export default function UpdateFormPO({
                 {/* Right Column - Summary & Actions */}
                 <div className="space-y-6">
                     {/* Summary Card */}
-                    <Card className="border border-gray-200 shadow-xl rounded-2xl overflow-hidden bg-white sticky top-6">
-                        <CardHeader className="border-b border-gray-200/50">
+                    <Card className="border border-gray-200 dark:border-gray-800 shadow-xl rounded-2xl overflow-hidden bg-white dark:bg-gray-900 sticky top-6">
+                        <CardHeader className="border-b border-gray-200/50 dark:border-gray-800">
                             <div className="flex items-center gap-3">
                                 <GradientIcon icon={Calculator} size={24} />
-                                <CardTitle className="text-xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
+                                <CardTitle className="text-xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent dark:from-gray-100 dark:to-gray-400">
                                     Ringkasan PO
                                 </CardTitle>
                             </div>
@@ -1081,9 +1086,9 @@ export default function UpdateFormPO({
                                     <span className="font-semibold text-lg">{items.length}</span>
                                 </div>
                                 <div className="space-y-4">
-                                    <div className="flex justify-between items-center pb-3 border-b border-gray-200/50">
-                                        <span className="text-gray-600">Subtotal:</span>
-                                        <span className="font-medium text-gray-800">
+                                    <div className="flex justify-between items-center pb-3 border-b border-gray-200/50 dark:border-gray-800">
+                                        <span className="text-gray-600 dark:text-gray-400">Subtotal:</span>
+                                        <span className="font-medium text-gray-800 dark:text-gray-200">
                                             Rp {subtotal.toLocaleString("id-ID")}
                                         </span>
                                     </div>
@@ -1107,9 +1112,9 @@ export default function UpdateFormPO({
                     </Card>
 
                     {/* Actions Card */}
-                    <Card className="border border-gray-200/80 shadow-xl rounded-2xl overflow-hidden bg-gradient-to-br from-white to-gray-50/50">
-                        <CardHeader className="border-b border-gray-200/50">
-                            <CardTitle className="text-xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
+                    <Card className="border border-gray-200/80 dark:border-gray-800 shadow-xl rounded-2xl overflow-hidden bg-gradient-to-br from-white to-gray-50/50 dark:from-gray-900 dark:to-gray-800/50">
+                        <CardHeader className="border-b border-gray-200/50 dark:border-gray-800">
+                            <CardTitle className="text-xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent dark:from-gray-100 dark:to-gray-400">
                                 Aksi
                             </CardTitle>
                         </CardHeader>
@@ -1119,7 +1124,7 @@ export default function UpdateFormPO({
                                     type="button"
                                     variant="outline"
                                     onClick={handleReset}
-                                    className="w-full h-12 flex items-center justify-center gap-2 border-gray-300/80 hover:bg-gray-50/50 hover:border-gray-300 rounded-xl transition-all duration-300"
+                                    className="w-full h-12 flex items-center justify-center gap-2 border-gray-300/80 dark:border-gray-700 bg-white dark:bg-gray-900 hover:bg-gray-50/50 dark:hover:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600 rounded-xl transition-all duration-300"
                                     disabled={isSubmitting}
                                 >
                                     <RefreshCw className="h-4 w-4" />
@@ -1129,7 +1134,7 @@ export default function UpdateFormPO({
                                 <div className="space-y-3">
                                     <Button
                                         type="submit"
-                                        className="w-full h-12 rounded-xl bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-white font-medium shadow-md hover:shadow-lg transition-all duration-300"
+                                        className="w-full h-12 rounded-xl bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-white dark:text-black font-medium shadow-md hover:shadow-lg transition-all duration-300"
                                         disabled={isSubmitting}
                                     >
                                         {isSubmitting ? (
@@ -1146,7 +1151,7 @@ export default function UpdateFormPO({
                                         type="button"
                                         variant="ghost"
                                         onClick={onCancel}
-                                        className="w-full h-12 text-gray-600 hover:text-gray-900 hover:bg-gray-100/50 rounded-xl transition-all duration-300"
+                                        className="w-full h-12 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100/50 dark:hover:bg-gray-800/50 rounded-xl transition-all duration-300"
                                         disabled={isSubmitting}
                                     >
                                         Batal
@@ -1167,17 +1172,17 @@ export default function UpdateFormPO({
                     </Card>
 
                     {/* Info Card */}
-                    <Card className="border border-blue-100/50 shadow-lg rounded-2xl overflow-hidden bg-gradient-to-br from-blue-50/50 to-blue-100/30">
+                    <Card className="border border-blue-100/50 dark:border-blue-900/30 shadow-lg rounded-2xl overflow-hidden bg-gradient-to-br from-blue-50/50 to-blue-100/30 dark:from-blue-950/20 dark:to-gray-900">
                         <CardContent className="p-5">
                             <div className="flex items-start gap-3">
-                                <div className="rounded-full bg-gradient-to-br from-blue-100 to-blue-50 p-2 shadow-sm">
-                                    <Info className="h-5 w-5 text-blue-600" />
+                                <div className="rounded-full bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-900 dark:to-blue-800 p-2 shadow-sm">
+                                    <Info className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                                 </div>
                                 <div>
-                                    <p className="text-sm font-semibold text-blue-800 mb-1">
+                                    <p className="text-sm font-semibold text-blue-800 dark:text-blue-300 mb-1">
                                         Informasi Status
                                     </p>
-                                    <p className="text-xs text-blue-600/90 leading-relaxed">
+                                    <p className="text-xs text-blue-600/90 dark:text-blue-400 leading-relaxed">
                                         PO dengan status "Dikirim" atau "Disetujui" tidak dapat diubah.
                                         Pastikan status masih dalam tahap "Draft" atau "Pending" untuk melakukan perubahan.
                                     </p>

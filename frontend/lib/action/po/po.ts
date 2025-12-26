@@ -397,3 +397,31 @@ export async function deletePurchaseOrder(id: string): Promise<void> {
     // Redirect must be called outside of try-catch block
     redirect('/admin-area/logistic/purchasing');
 }
+
+/**
+ * Send Purchase Order Email
+ */
+export async function sendPurchaseOrderEmail(
+    id: string,
+    formData: FormData
+): Promise<any> {
+    try {
+        const headers = await getHeaders();
+        // Remove Content-Type to allow fetch to automatically set it for FormData (multipart/form-data with boundary)
+        const { 'Content-Type': _, ...authHeaders } = headers;
+
+        const response = await fetch(
+            `${API_BASE_URL}/api/po/${id}/send-email`,
+            {
+                method: 'POST',
+                headers: authHeaders,
+                body: formData,
+            }
+        );
+
+        return await handleResponse(response);
+    } catch (error) {
+        console.error(`Error sending email for purchase order ${id}:`, error);
+        throw error;
+    }
+}

@@ -5,7 +5,10 @@ import jsQR from "jsqr"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Camera, X, CheckCircle, XCircle, Loader2, ScanLine } from "lucide-react"
+import { Camera, X, CheckCircle, XCircle, Loader2, ScanLine, Copy } from "lucide-react"
+import { toast } from "sonner"
+
+
 
 interface QRScannerDialogProps {
     open: boolean
@@ -255,10 +258,22 @@ export const QRScannerDialog: React.FC<QRScannerDialogProps> = ({
                             </div>
                             <div className="flex-1">
                                 <p className="text-sm font-semibold text-slate-700 mb-1">Token yang Diharapkan:</p>
-                                <div className="bg-white rounded-lg px-4 py-2 border border-blue-200">
+                                <div className="bg-white rounded-lg px-4 py-2 border border-blue-200 flex items-center justify-between gap-2">
                                     <p className="font-mono font-bold text-blue-700 text-lg tracking-wide break-all">
                                         {expectedToken}
                                     </p>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-blue-500 hover:text-blue-700 hover:bg-blue-50 shrink-0"
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(expectedToken);
+                                            toast.success("Token berhasil disalin!");
+                                        }}
+                                        title="Salin Token"
+                                    >
+                                        <Copy className="h-4 w-4" />
+                                    </Button>
                                 </div>
                             </div>
                         </div>

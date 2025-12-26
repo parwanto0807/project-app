@@ -17,6 +17,13 @@ interface HeaderCardProps {
   showActionArea?: boolean;
   actionArea?: ReactNode;
 
+  // Stats props
+  stats?: Array<{
+    title: string;
+    value: string | number;
+    description: string;
+  }>;
+
   // Custom class names
   className?: string;
   titleClassName?: string;
@@ -36,6 +43,7 @@ const HeaderCard = ({
   backgroundStyle = "gradient",
   showActionArea = false,
   actionArea,
+  stats,
   className = "",
   titleClassName = "",
   descriptionClassName = "",
@@ -146,6 +154,30 @@ const HeaderCard = ({
             </div>
           )}
         </div>
+
+        {/* Stats Grid */}
+        {stats && stats.length > 0 && (
+          <div className="relative mt-6 pt-6 border-t border-white/20">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {stats.map((stat, index) => (
+                <div
+                  key={index}
+                  className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20 hover:bg-white/15 transition-all duration-300 hover:scale-105"
+                >
+                  <p className="text-white/70 text-xs font-medium uppercase tracking-wider mb-1">
+                    {stat.title}
+                  </p>
+                  <p className="text-white text-2xl font-bold mb-1">
+                    {stat.value}
+                  </p>
+                  <p className="text-white/60 text-xs">
+                    {stat.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Elegant accent line */}
         {isElegant && (

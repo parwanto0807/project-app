@@ -1,4 +1,6 @@
 import express from 'express';
+import multer from 'multer';
+const upload = multer({ storage: multer.memoryStorage() });
 import { 
   getAllPO, 
   getPODetail, 
@@ -6,7 +8,8 @@ import {
   updatePOStatus, 
   deletePO,
   createPOFromApprovedPR,
-  createPO
+  createPO,
+  sendPOEmail
 } from '../../controllers/po/poController.js';
 
 import { authenticateToken } from '../../middleware/authMiddleware.js';
@@ -60,6 +63,7 @@ router.get('/:id', getPODetail);
 // --- Edit & Action ---
 router.put('/:id', updatePO);           // Digunakan untuk edit Draft (isi harga & supplier)
 router.patch('/:id/status', updatePOStatus); // Digunakan untuk approval atau pembatalan
+router.post('/:id/send-email', authenticateToken, upload.single('file'), sendPOEmail); // Send Email
 
 // --- Delete ---
 router.delete('/:id', deletePO);        // Hanya untuk DRAFT

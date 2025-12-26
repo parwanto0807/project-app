@@ -88,18 +88,19 @@ model User {
   updatedAt      DateTime     @updatedAt
   active         Boolean      @default(true)
 
-  trustedDevices   TrustedDevice[]
-  sessions         UserSession[]
-  loginAttempts    LoginAttempt[]
-  salesOrders      SalesOrder[]    @relation("UserSalesOrders")
-  karyawan         Karyawan?
-  createdBAP       BAP[]           @relation("BAPCreatedBy") // semua BAP yang dibuat user ini
-  createdInvoices  Invoice[]       @relation("InvoiceCreatedBy")
-  verifiedPayments Payment[]
-  rab              RAB[]
-  auditLogs        AuditLog[]
-  notifications    Notification[]
-  stockOpnames     StockOpname[]   @relation("OpnamePetugas")
+  trustedDevices        TrustedDevice[]
+  sessions              UserSession[]
+  loginAttempts         LoginAttempt[]
+  salesOrders           SalesOrder[]    @relation("UserSalesOrders")
+  karyawan              Karyawan?
+  createdBAP            BAP[]           @relation("BAPCreatedBy") // semua BAP yang dibuat user ini
+  createdInvoices       Invoice[]       @relation("InvoiceCreatedBy")
+  verifiedPayments      Payment[]
+  rab                   RAB[]
+  auditLogs             AuditLog[]
+  notifications         Notification[]
+  stockOpnames          StockOpname[]   @relation("OpnamePetugas")
+  receivedGoodsReceipts GoodsReceipt[]  @relation("GoodsReceiptReceivedBy")
 }
 
 model LoginAttempt {
@@ -332,6 +333,7 @@ model Product {
   PurchaseOrderLine         PurchaseOrderLine[]
   StockOpnameItem           StockOpnameItem[]
   stockTransferItems        StockTransferItem[]
+  GoodsReceiptItem          GoodsReceiptItem[]
 }
 
 enum OpnameType {
@@ -571,9 +573,10 @@ enum SourceType {
 
 // 1. HEADER: Dokumen Penerimaan Barang
 model GoodsReceipt {
-  id           String   @id @default(uuid())
-  grNumber     String   @unique // Contoh: GRN/2025/12/001
-  receivedDate DateTime @default(now())
+  id           String    @id @default(uuid())
+  grNumber     String    @unique // Contoh: GRN/2025/12/001
+  receivedDate DateTime?
+  expectedDate DateTime?
 
   // Referensi Dokumen Fisik
   vendorDeliveryNote String // Nomor Surat Jalan Vendor
@@ -587,11 +590,13 @@ model GoodsReceipt {
   items GoodsReceiptItem[]
 
   receivedById  String // User ID yang menerima
+  receivedBy    User           @relation("GoodsReceiptReceivedBy", fields: [receivedById], references: [id])
   status        DocumentStatus @default(COMPLETED)
   notes         String?
   Warehouse     Warehouse?     @relation(fields: [warehouseId], references: [id])
   warehouseId   String?
   PurchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  createdAt     DateTime       @default(now())
 }
 
 // 2. DETAIL: Item yang diterima
@@ -601,22 +606,51 @@ model GoodsReceiptItem {
   goodsReceipt   GoodsReceipt @relation(fields: [goodsReceiptId], references: [id])
 
   productId String
-  // product     Product      @relation(fields: [productId], references: [id])
+  product   Product    @relation(fields: [productId], references: [id])
+  status    ItemStatus @default(RECEIVED)
 
-  qtyReceived Decimal @db.Decimal(18, 4) // Qty dalam satuan transUnit
-  unit        String // Satuan saat diterima (misal: Roll)
+  qtyPlanReceived Decimal @default(0) @db.Decimal(18, 4) // Planned qty from PO
+  qtyReceived     Decimal @db.Decimal(18, 4) // Actual qty received
+  unit            String // Satuan saat diterima (misal: Roll)
+
+  // HASIL QC CHECK
+  qtyPassed   Decimal @db.Decimal(18, 4) // Jumlah yang masuk stok
+  qtyRejected Decimal @default(0) @db.Decimal(18, 4) // Jumlah yang dikembalikan/rusak
+
+  qcStatus QCStatus @default(PENDING)
+  qcNotes  String? // Alasan reject (misal: besi berkarat, semen membatu)
 
   // Link ke StockDetail untuk mencatat mutasi stok
-  stockDetailId           String?                @unique
-  stockDetail             StockDetail?           @relation(fields: [stockDetailId], references: [id])
-  PurchaseRequestDetail   PurchaseRequestDetail? @relation(fields: [purchaseRequestDetailId], references: [id])
+  stockDetailId String?      @unique
+  stockDetail   StockDetail? @relation(fields: [stockDetailId], references: [id])
+
+  // Relasi ke Purchase Request Detail (jika dari PR)
   purchaseRequestDetailId String?
-  PurchaseOrderLine       PurchaseOrderLine?     @relation(fields: [purchaseOrderLineId], references: [id])
-  purchaseOrderLineId     String?
+  purchaseRequestDetail   PurchaseRequestDetail? @relation(fields: [purchaseRequestDetailId], references: [id])
+
+  // Relasi ke Purchase Order Line (jika dari PO)
+  purchaseOrderLineId String?
+  purchaseOrderLine   PurchaseOrderLine? @relation(fields: [purchaseOrderLineId], references: [id])
+}
+
+enum QCStatus {
+  PENDING // Belum diperiksa
+  ARRIVED // Sudah sampai
+  PASSED // Lulus semua
+  REJECTED // Ditolak semua
+  PARTIAL // Sebagian lulus, sebagian reject
+}
+
+enum ItemStatus {
+  RECEIVED
+  PARTIAL
+  REJECTED
 }
 
 enum DocumentStatus {
   DRAFT
+  ARRIVED
+  PASSED
   COMPLETED
   CANCELLED
 }
@@ -2043,6 +2077,7 @@ model TermOfPayment {
 enum PurchaseOrderStatus {
   DRAFT // Masih dalam persiapan, belum diajukan
   PENDING_APPROVAL // Diajukan dan menunggu persetujuan
+  REVISION_NEEDED // Perlu revisi/perbaikan
   APPROVED // Disetujui, siap dikirim ke supplier
   REJECTED // Ditolak
   SENT // Sudah dikirim ke supplier
@@ -2053,6 +2088,7 @@ enum PurchaseOrderStatus {
 
 enum SupplierInvoiceStatus {
   DRAFT // Baru dibuat, belum divalidasi
+  REVISION_NEEDED // Perlu revisi/perbaikan
   PENDING_APPROVAL // Menunggu persetujuan untuk dibayar
   AWAITING_PAYMENT // Disetujui dan menunggu pembayaran
   PARTIALLY_PAID // Sudah dibayar sebagian

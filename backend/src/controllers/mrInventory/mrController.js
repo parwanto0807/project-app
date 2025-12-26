@@ -8,8 +8,36 @@ export const mrController = {
     try {
       const result = await prisma.$transaction(async (tx) => {
         // Generate MR Number sederhana
-        const count = await tx.materialRequisition.count();
-        const mrNumber = `MR-${new Date().getFullYear()}-${(count + 1).toString().padStart(4, '0')}`;
+        // Generate MR Number (Format: MR-YYYYMM-XXXX)
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const prefix = `MR-${year}${month}`;
+
+        // Find last MR with this prefix
+        const lastMR = await tx.materialRequisition.findFirst({
+          where: {
+            mrNumber: {
+              startsWith: prefix
+            }
+          },
+          orderBy: {
+            mrNumber: 'desc'
+          }
+        });
+
+        let sequence = 1;
+        if (lastMR) {
+          const parts = lastMR.mrNumber.split('-');
+          if (parts.length === 3) {
+             const lastSeq = parseInt(parts[2]);
+             if (!isNaN(lastSeq)) {
+               sequence = lastSeq + 1;
+             }
+          }
+        }
+
+        const mrNumber = `${prefix}-${String(sequence).padStart(4, '0')}`;
 
         const newMR = await tx.materialRequisition.create({
           data: {
@@ -206,7 +234,8 @@ export const mrController = {
               stockOut: { increment: qtyIssued },
               stockAkhir: { decrement: qtyIssued },
               bookedStock: { decrement: qtyIssued },
-              availableStock: { increment: 0 } // availableStock stays same since we're reducing both stockAkhir and bookedStock
+              availableStock: { increment: 0 }, // availableStock stays same since we're reducing both stockAkhir and bookedStock
+              inventoryValue: { decrement: totalCost }
             }
           });
 
@@ -240,12 +269,21 @@ export const mrController = {
             data: { qtyIssued: item.qtyRequested }
           });
 
-          // F. Update PurchaseRequestDetail if linked
+          // F. Update PurchaseRequestDetail if linked (Robust Recalculation)
           if (item.purchaseRequestDetailId) {
+            const totalIssued = await tx.materialRequisitionItem.aggregate({
+              where: {
+                purchaseRequestDetailId: item.purchaseRequestDetailId
+              },
+              _sum: {
+                qtyIssued: true
+              }
+            });
+
             await tx.purchaseRequestDetail.update({
               where: { id: item.purchaseRequestDetailId },
               data: {
-                jumlahTerpenuhi: { increment: qtyIssued }
+                jumlahTerpenuhi: totalIssued._sum.qtyIssued || 0
               }
             });
           }
@@ -354,6 +392,91 @@ export const mrController = {
 
       res.json(response);
     } catch (error) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  },
+
+  // 4. Create MR Automatically from PO (New Feature for ViewDetailPO)
+  createMRFromPO: async (req, res) => {
+    const { poId } = req.params;
+    const { requestedById } = req.body; // Optional override
+
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        // 1. Fetch PO
+        const po = await tx.purchaseOrder.findUnique({
+          where: { id: poId },
+          include: {
+            lines: {
+              include: { product: true }
+            },
+            project: true,
+            warehouse: true,
+            PurchaseRequest: true
+          }
+        });
+
+        if (!po) throw new Error("Purchase Order tidak ditemukan");
+        
+        // 2. Generate MR Number
+        // 2. Generate MR Number (Format: MR-YYYYMM-XXXX)
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const prefix = `MR-${year}${month}`;
+
+        // Find last MR with this prefix
+        const lastMR = await tx.materialRequisition.findFirst({
+          where: {
+            mrNumber: {
+              startsWith: prefix
+            }
+          },
+          orderBy: {
+            mrNumber: 'desc'
+          }
+        });
+
+        let sequence = 1;
+        if (lastMR) {
+          const parts = lastMR.mrNumber.split('-');
+          if (parts.length === 3) {
+             const lastSeq = parseInt(parts[2]);
+             if (!isNaN(lastSeq)) {
+               sequence = lastSeq + 1;
+             }
+          }
+        }
+
+        const mrNumber = `${prefix}-${String(sequence).padStart(4, '0')}`;
+        
+        // 3. Create MR Header
+        const newMR = await tx.materialRequisition.create({
+          data: {
+            mrNumber,
+            projectId: po.projectId,
+            warehouseId: po.warehouseId,
+            requestedById: requestedById || po.orderedById, // Default to PO creator if not provided
+            status: 'PENDING', // Default to PENDING
+            items: {
+              create: po.lines.map(line => ({
+                productId: line.productId,
+                purchaseRequestDetailId: line.prDetailId, // Critical for linkage
+                qtyRequested: line.quantity,
+                qtyIssued: 0,
+                unit: line.product?.unit || 'pcs'
+              }))
+            }
+          },
+          include: { items: true }
+        });
+
+        return newMR;
+      });
+
+      res.status(201).json({ success: true, data: result, message: "Material Requisition berhasil dibuat dari PO." });
+    } catch (error) {
+      console.error("Error creating MR from PO:", error);
       res.status(500).json({ success: false, error: error.message });
     }
   }

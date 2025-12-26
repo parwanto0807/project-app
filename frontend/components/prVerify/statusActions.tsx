@@ -333,6 +333,7 @@ export function PurchaseRequestSheet({
                     const newUnitPrice = totalCost / totalAllocated;
                     return {
                         ...detail,
+                        sourceProduct: effectiveSource, // Use modified source
                         estimasiHargaSatuan: newUnitPrice,
                         estimasiTotalHarga: totalCost
                     } as PurchaseRequestDetailWithRelations;
@@ -344,12 +345,17 @@ export function PurchaseRequestSheet({
                 // If no warehouse selected, keep the original values from database
                 return {
                     ...detail,
+                    sourceProduct: effectiveSource, // Use modified source
                     estimasiHargaSatuan: detail.estimasiHargaSatuan || 0,
                     estimasiTotalHarga: detail.estimasiTotalHarga || 0
                 } as PurchaseRequestDetailWithRelations;
             }
 
-            return detail as PurchaseRequestDetailWithRelations;
+            // For all other cases, return with modified source
+            return {
+                ...detail,
+                sourceProduct: effectiveSource // Use modified source
+            } as PurchaseRequestDetailWithRelations;
         });
 
         // Update split items state
@@ -474,8 +480,176 @@ export function PurchaseRequestSheet({
     }, [selectedPurchaseRequest]);
 
     const handleStatusUpdateFromActions = (status: PurchaseRequestStatus) => {
+        // Validation Logic (Moved from Inline)
+        if (status === 'APPROVED') {
+            const pengambilanStokItems = localDetails.filter(detail =>
+                detail.sourceProduct === SourceProductType.PENGAMBILAN_STOK &&
+                !detail.id?.startsWith('split-') // Exclude split items
+            );
+
+            const itemsWithoutWarehouse = pengambilanStokItems.filter(detail => {
+                const detailId = detail.id || '';
+                const selections = warehouseSelections[detailId];
+                return !selections || selections.length === 0;
+            });
+
+            if (itemsWithoutWarehouse.length > 0) {
+                const itemNames = itemsWithoutWarehouse
+                    .map(item => item.product?.name || 'Unknown')
+                    .join(', ');
+
+                toast.error(
+                    `Tidak dapat approve! Pilih gudang terlebih dahulu untuk item: ${itemNames}`,
+                    { duration: 5000, position: 'top-center', style: { background: '#FEE2E2', color: '#991B1B', border: '1px solid #FCA5A5', fontWeight: '600' } }
+                );
+                return;
+            }
+
+            // Validation: Check if quantity exceeds available stock
+            const itemsExceedingStock: Array<{ name: string, requested: number, available: number }> = [];
+
+            pengambilanStokItems.forEach(detail => {
+                const detailId = detail.id || '';
+                const detailStock = stockData[detailId];
+                const requestedQty = Number(detail.jumlah) || 0;
+                const availableStock = detailStock?.available || 0;
+
+                if (requestedQty > availableStock) {
+                    itemsExceedingStock.push({
+                        name: detail.product?.name || 'Unknown',
+                        requested: requestedQty,
+                        available: availableStock
+                    });
+                }
+            });
+
+            if (itemsExceedingStock.length > 0) {
+                const errorMessage = itemsExceedingStock
+                    .map(item => `${item.name} (Diminta: ${item.requested}, Tersedia: ${item.available})`)
+                    .join(', ');
+
+                toast.error(
+                    `Tidak dapat approve! Quantity melebihi stok tersedia untuk item: ${errorMessage}`,
+                    { duration: 6000, position: 'top-center', style: { background: '#FEE2E2', color: '#991B1B', border: '1px solid #FCA5A5', fontWeight: '600' } }
+                );
+                return;
+            }
+        }
+
         if (selectedPurchaseRequest) {
-            onStatusUpdate(selectedPurchaseRequest.id, status);
+            // Prepare warehouse allocations and split data
+            const allocations: Record<string, any[]> = {};
+
+            // 1. Collect Warehouse Allocations
+            if (status === 'APPROVED' || status === 'COMPLETED') {
+                Object.keys(warehouseSelections).forEach(detailId => {
+                    const selectedIds = warehouseSelections[detailId];
+                    const detailStock = stockData[detailId];
+
+                    if (selectedIds && selectedIds.length > 0 && detailStock) {
+                        // Calculate precise allocation amounts
+                        const detail = localDetails.find(d => d.id === detailId);
+                        let remainingNeeded = detail ? Number(detail.jumlah) : 0;
+
+                        // Sort selections to match breakdown order (priority)
+                        const sortedSelections = detailStock.breakdown.filter(wh => selectedIds.includes(wh.warehouseId));
+
+                        const detailAllocations = [];
+
+                        for (const wh of sortedSelections) {
+                            if (remainingNeeded <= 0) break;
+                            const takeQty = Math.min(remainingNeeded, wh.stock);
+                            if (takeQty > 0) {
+                                detailAllocations.push({
+                                    warehouseId: wh.warehouseId,
+                                    warehouseName: wh.warehouseName,
+                                    allocatedQty: takeQty, // Explicitly sending allocatedQty
+                                    stock: wh.stock // Keeping stock just in case backend needs it
+                                });
+                                remainingNeeded -= takeQty;
+                            }
+                        }
+
+                        if (detailAllocations.length > 0) {
+                            allocations[detailId] = detailAllocations;
+                        }
+                    }
+                });
+            }
+
+            // 2. Identify Logic for Split Items & Quantity Changes & Others
+            const splitItemsList: any[] = [];
+            const quantityChanges: Record<string, any> = {};
+            const sourceChanges: Record<string, any> = {};
+            const stockAvailability: Record<string, number> = {};
+
+            // Iterate through localDetails (which has the "live" view including splits)
+            localDetails.forEach(detail => {
+                const detailId = detail.id || '';
+
+                // Track stock availability snapshot for all items
+                if (detail.sourceProduct === SourceProductType.PENGAMBILAN_STOK && detailId && !detailId.startsWith('split-')) {
+                    const stockInfo = stockData[detailId];
+                    if (stockInfo) {
+                        stockAvailability[detailId] = stockInfo.available;
+                    }
+                }
+
+                // CASE A: New Split Item
+                if (detailId.startsWith('split-')) {
+                    // Extract parent ID (remove 'split-' prefix)
+                    const parentId = detailId.replace(/^split-/, '');
+
+                    splitItemsList.push({
+                        parentDetailId: parentId, // Identify parent for reference if needed
+                        productId: detail.productId || detail.product?.id,
+                        jumlah: detail.jumlah,
+                        satuan: detail.satuan,
+                        sourceProduct: detail.sourceProduct,
+                        estimasiHargaSatuan: detail.estimasiHargaSatuan,
+                        estimasiTotalHarga: detail.estimasiTotalHarga,
+                        catatanItem: 'Auto-split from insufficient stock'
+                    });
+                }
+                // CASE B: Original Item that was Modified
+                else {
+                    const originalDetail = selectedPurchaseRequest.details.find(d => d.id === detailId);
+
+                    if (originalDetail) {
+                        // Check for Quantity Change (e.g. 15 -> 10)
+                        if (Number(detail.jumlah) !== Number(originalDetail.jumlah)) {
+                            quantityChanges[detailId] = {
+                                jumlah: Number(detail.jumlah),
+                                estimasiTotalHarga: Number(detail.estimasiTotalHarga)
+                            };
+                        }
+
+                        // Check for Source Product Change
+                        if (detail.sourceProduct !== originalDetail.sourceProduct) {
+                            sourceChanges[detailId] = detail.sourceProduct;
+                        }
+                    }
+                }
+            });
+
+            // 3. Pack everything into special keys in warehouseAllocations
+            if (splitItemsList.length > 0) {
+                allocations['__splitItems__'] = splitItemsList;
+            }
+
+            if (Object.keys(quantityChanges).length > 0) {
+                allocations['__quantityChanges__'] = [quantityChanges];
+            }
+
+            if (Object.keys(sourceChanges).length > 0) {
+                allocations['__sourceProductChanges__'] = [sourceChanges];
+            }
+
+            if (Object.keys(stockAvailability).length > 0) {
+                allocations['__stockAvailability__'] = [stockAvailability];
+            }
+
+            onStatusUpdate(selectedPurchaseRequest.id, status, undefined, allocations);
         }
     };
 
@@ -1272,124 +1446,7 @@ export function PurchaseRequestSheet({
                         <div className="border-t bg-white py-4 dark:py-4 sticky bottom-0 -mx-4 sm:-mx-6 px-4 sm:px-6 pb-4 sm:pb-0 mb-4 sm:mb-4 rounded-lg mt-auto flex-shrink-0">
                             <StatusActions
                                 currentStatus={selectedPurchaseRequest.status}
-                                onStatusUpdate={(status) => {
-                                    // Validation: Check if all PENGAMBILAN_STOK items have warehouse selections
-                                    if (status === 'APPROVED') {
-                                        const pengambilanStokItems = localDetails.filter(detail =>
-                                            detail.sourceProduct === SourceProductType.PENGAMBILAN_STOK &&
-                                            !detail.id?.startsWith('split-') // Exclude split items
-                                        );
-
-                                        const itemsWithoutWarehouse = pengambilanStokItems.filter(detail => {
-                                            const detailId = detail.id || '';
-                                            const selections = warehouseSelections[detailId];
-                                            return !selections || selections.length === 0;
-                                        });
-
-                                        if (itemsWithoutWarehouse.length > 0) {
-                                            const itemNames = itemsWithoutWarehouse
-                                                .map(item => item.product?.name || 'Unknown')
-                                                .join(', ');
-
-                                            toast.error(
-                                                `Tidak dapat approve! Pilih gudang terlebih dahulu untuk item: ${itemNames}`,
-                                                {
-                                                    duration: 5000,
-                                                    position: 'top-center',
-                                                    style: {
-                                                        background: '#FEE2E2',
-                                                        color: '#991B1B',
-                                                        border: '1px solid #FCA5A5',
-                                                        fontWeight: '600',
-                                                    },
-                                                }
-                                            );
-                                            return; // Stop execution
-                                        }
-
-                                        // Validation: Check if quantity exceeds available stock
-                                        const itemsExceedingStock: Array<{ name: string, requested: number, available: number }> = [];
-
-                                        pengambilanStokItems.forEach(detail => {
-                                            const detailId = detail.id || '';
-                                            const detailStock = stockData[detailId];
-                                            const requestedQty = Number(detail.jumlah) || 0;
-                                            const availableStock = detailStock?.available || 0;
-
-                                            if (requestedQty > availableStock) {
-                                                itemsExceedingStock.push({
-                                                    name: detail.product?.name || 'Unknown',
-                                                    requested: requestedQty,
-                                                    available: availableStock
-                                                });
-                                            }
-                                        });
-
-                                        if (itemsExceedingStock.length > 0) {
-                                            const errorMessage = itemsExceedingStock
-                                                .map(item => `${item.name} (Diminta: ${item.requested}, Tersedia: ${item.available})`)
-                                                .join(', ');
-
-                                            toast.error(
-                                                `Tidak dapat approve! Quantity melebihi stok tersedia untuk item: ${errorMessage}`,
-                                                {
-                                                    duration: 6000,
-                                                    position: 'top-center',
-                                                    style: {
-                                                        background: '#FEE2E2',
-                                                        color: '#991B1B',
-                                                        border: '1px solid #FCA5A5',
-                                                        fontWeight: '600',
-                                                    },
-                                                }
-                                            );
-                                            return; // Stop execution
-                                        }
-                                    }
-
-                                    // Transform warehouseSelections to the expected format
-                                    const warehouseAllocations: Record<string, any[]> = {};
-
-                                    if (status === 'APPROVED' || status === 'COMPLETED') {
-                                        Object.keys(warehouseSelections).forEach(detailId => {
-                                            const selectedIds = warehouseSelections[detailId];
-                                            const detailStock = stockData[detailId];
-
-                                            if (selectedIds && selectedIds.length > 0 && detailStock) {
-                                                const allocations = detailStock.breakdown
-                                                    .filter(wh => selectedIds.includes(wh.warehouseId))
-                                                    .map(wh => ({
-                                                        warehouseId: wh.warehouseId,
-                                                        warehouseName: wh.warehouseName,
-                                                        stock: wh.stock
-                                                    }));
-
-                                                if (allocations.length > 0) {
-                                                    warehouseAllocations[detailId] = allocations;
-                                                }
-                                            }
-                                        });
-
-                                        // Add split items data
-                                        const splitItemsData = Object.entries(splitItems).map(([parentId, splitItem]) => ({
-                                            parentDetailId: parentId,
-                                            productId: splitItem.product?.id || splitItem.productId,
-                                            jumlah: splitItem.jumlah,
-                                            satuan: splitItem.satuan,
-                                            sourceProduct: splitItem.sourceProduct,
-                                            estimasiHargaSatuan: splitItem.estimasiHargaSatuan,
-                                            estimasiTotalHarga: splitItem.estimasiTotalHarga,
-                                            catatanItem: `Auto-split from insufficient stock`,
-                                        }));
-
-                                        // Add split items to warehouseAllocations with special key
-                                        if (splitItemsData.length > 0) {
-                                            warehouseAllocations['__splitItems__'] = splitItemsData;
-                                        }
-                                    }
-
-                                    onStatusUpdate(selectedPurchaseRequest.id, status, undefined, warehouseAllocations);
-                                }}
+                                onStatusUpdate={handleStatusUpdateFromActions}
                             />
                         </div>
                     )}

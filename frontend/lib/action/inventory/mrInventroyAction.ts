@@ -107,3 +107,41 @@ export async function issueMR(
         };
     }
 }
+
+
+/**
+ * Buat MR Otomatis dari PO
+ */
+export async function createMRFromPOAction(
+    poId: string,
+    requestedById?: string
+): Promise<ApiResponse<any>> {
+    try {
+        const response = await fetch(`${API_URL}/api/mr/from-po/${poId}`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ requestedById })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            return {
+                success: false,
+                error: result.error || "Gagal membuat MR",
+                details: result.details
+            };
+        }
+
+        return result;
+    } catch (error: any) {
+        console.error("Create MR from PO Error:", error);
+        return {
+            success: false,
+            error: "Koneksi ke server terputus",
+            details: error.message
+        };
+    }
+}
