@@ -249,7 +249,7 @@ export const mrController = {
               productId: item.productId,
               warehouseId: mr.warehouseId,
               type: 'OUT',
-              source: 'PROJECT',
+              source: (mr.notes && mr.notes.includes('AUTO-GENERATED-TRANSFER')) ? 'TRANSFER' : 'PROJECT',
               baseQty: qtyIssued,
               transQty: qtyIssued,
               transUnit: item.unit,
@@ -259,6 +259,8 @@ export const mrController = {
               isFullyConsumed: true,
               pricePerUnit: avgPrice,
               referenceNo: mr.mrNumber,
+              // Propagate MR notes if it's an auto-generated transfer
+              notes: (mr.notes && mr.notes.includes('AUTO-GENERATED-TRANSFER')) ? mr.notes : null,
               materialRequisitionItemId: item.id
             }
           });
@@ -286,6 +288,65 @@ export const mrController = {
                 jumlahTerpenuhi: totalIssued._sum.qtyIssued || 0
               }
             });
+          }
+        }
+
+        // 4. Link to Stock Transfer: Update Status to IN_TRANSIT
+        if (mr.notes && mr.notes.includes('AUTO-GENERATED-TRANSFER')) {
+          const match = mr.notes.match(/\[(TF-[^\]]+)\]/);
+          if (match && match[1]) {
+            const transferNumber = match[1];
+            console.log(`🔄 Updating StockTransfer [${transferNumber}] to IN_TRANSIT`);
+            
+            await tx.stockTransfer.update({
+              where: { transferNumber },
+              data: { 
+                status: 'IN_TRANSIT',
+                updatedAt: new Date()
+              }
+            });
+          }
+        }
+
+        // 5. Populate priceUnit for AUTO-GENERATED-TRANSFER MRs
+        if (mr.notes && mr.notes.includes('AUTO-GENERATED-TRANSFER')) {
+          console.log(`💰 Populating priceUnit for MR items from StockDetail`);
+          
+          for (const mrItem of mr.items) {
+            // Fetch all stock allocations for this MR item
+            const allocations = await tx.stockAllocation.findMany({
+              where: { mrItemId: mrItem.id },
+              include: {
+                stockDetail: {
+                  select: {
+                    pricePerUnit: true
+                  }
+                }
+              }
+            });
+
+            if (allocations.length > 0) {
+              // Calculate weighted average price
+              let totalCost = 0;
+              let totalQty = 0;
+
+              for (const allocation of allocations) {
+                const qty = Number(allocation.qtyTaken);
+                const price = Number(allocation.stockDetail.pricePerUnit || 0);
+                totalCost += qty * price;
+                totalQty += qty;
+              }
+
+              const avgPrice = totalQty > 0 ? totalCost / totalQty : 0;
+
+              // Update MR item with calculated price
+              await tx.materialRequisitionItem.update({
+                where: { id: mrItem.id },
+                data: { priceUnit: avgPrice }
+              });
+
+              console.log(`  ✓ Item ${mrItem.productId}: priceUnit = ${avgPrice.toFixed(2)}`);
+            }
           }
         }
 
@@ -340,7 +401,7 @@ export const mrController = {
       ]);
 
       // Manually fetch related data since schema doesn't have relations
-      const projectIds = [...new Set(data.map(mr => mr.projectId))];
+      const projectIds = [...new Set(data.map(mr => mr.projectId).filter(Boolean))];
       const karyawanIds = [...new Set(data.map(mr => mr.requestedById).filter(Boolean))];
 
       const [projects, karyawans] = await Promise.all([
@@ -457,6 +518,8 @@ export const mrController = {
             projectId: po.projectId,
             warehouseId: po.warehouseId,
             requestedById: requestedById || po.orderedById, // Default to PO creator if not provided
+            purchaseOrderId: po.id, // Link to PO
+            sourceType: 'PO', // Set source type
             status: 'PENDING', // Default to PENDING
             items: {
               create: po.lines.map(line => ({
@@ -478,6 +541,72 @@ export const mrController = {
     } catch (error) {
       console.error("Error creating MR from PO:", error);
       res.status(500).json({ success: false, error: error.message });
+    }
+  },
+
+  // 5. Validate MR for Approval (Check if GR is completed for PO-based MRs)
+  validateMRForApproval: async (req, res) => {
+    const { mrId } = req.params;
+
+    try {
+      const mr = await prisma.materialRequisition.findUnique({
+        where: { id: mrId },
+        include: {
+          PurchaseOrder: {
+            include: {
+              goodsReceipts: {
+                where: {
+                  status: 'COMPLETED'
+                }
+              }
+            }
+          }
+        }
+      });
+
+      if (!mr) {
+        return res.status(404).json({
+          success: false,
+          error: 'Material Requisition tidak ditemukan'
+        });
+      }
+
+      // Check if MR is from PO
+      if (mr.sourceType === 'PO' && mr.purchaseOrderId) {
+        // Check if GR exists and is completed
+        const hasCompletedGR = mr.PurchaseOrder?.goodsReceipts?.length > 0;
+
+        return res.json({
+          success: true,
+          data: {
+            canApprove: hasCompletedGR,
+            reason: hasCompletedGR
+              ? null
+              : 'Barang belum diterima. Silakan proses Goods Receipt terlebih dahulu.',
+            mrNumber: mr.mrNumber,
+            poNumber: mr.PurchaseOrder?.poNumber,
+            sourceType: mr.sourceType
+          }
+        });
+      }
+
+      // For non-PO MRs, allow approval
+      return res.json({
+        success: true,
+        data: {
+          canApprove: true,
+          reason: null,
+          mrNumber: mr.mrNumber,
+          sourceType: mr.sourceType
+        }
+      });
+
+    } catch (error) {
+      console.error('Validation error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
     }
   }
 };

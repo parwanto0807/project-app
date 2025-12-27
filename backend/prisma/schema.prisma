@@ -551,6 +551,8 @@ model StockTransferItem {
   quantity Decimal @db.Decimal(18, 4)
   unit     String // Satuan barang (Meter, Sak, dll)
 
+  cogs Decimal @default(0) @db.Decimal(18, 2)
+
   // Opsi: Jika ingin melacak batch mana yang dipindahkan (FIFO)
   // stockDetailId String?
 }
@@ -569,6 +571,7 @@ enum SourceType {
   RETURN
   OPNAME
   WASTAGE
+  TRANSFER
 }
 
 // 1. HEADER: Dokumen Penerimaan Barang
@@ -586,6 +589,8 @@ model GoodsReceipt {
   // Hubungan ke Purchase Order (PO)
   purchaseOrderId String?
   // purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+
+  sourceType SourceType @default(PO)
 
   items GoodsReceiptItem[]
 
@@ -616,6 +621,7 @@ model GoodsReceiptItem {
   // HASIL QC CHECK
   qtyPassed   Decimal @db.Decimal(18, 4) // Jumlah yang masuk stok
   qtyRejected Decimal @default(0) @db.Decimal(18, 4) // Jumlah yang dikembalikan/rusak
+  unitPrice   Decimal @default(0) @db.Decimal(18, 2) // Unit price at time of receipt
 
   qcStatus QCStatus @default(PENDING)
   qcNotes  String? // Alasan reject (misal: besi berkarat, semen membatu)
@@ -662,11 +668,12 @@ model MaterialRequisition {
   qrToken    String   @unique @default(cuid()) // Token untuk Scan QRCode
   issuedDate DateTime @default(now())
 
-  projectId     String
+  projectId     String?
   requestedById String
 
   // Status yang lebih detail untuk workflow gudang
   status MRStatus @default(PENDING)
+  notes  String?  @db.Text
 
   items       MaterialRequisitionItem[]
   warehouseId String?
@@ -675,6 +682,11 @@ model MaterialRequisition {
   // Tracking siapa yang scan/verifikasi
   preparedById String? // Petugas Gudang yang nyiapin
   issuedById   String? // Petugas yang scan saat serah terima
+
+  purchaseOrderId String?
+  PurchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+
+  sourceType SourceType @default(PO)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -691,6 +703,7 @@ model MaterialRequisitionItem {
   qtyRequested Decimal @db.Decimal(18, 4) // Jumlah yang diminta di dokumen
   qtyIssued    Decimal @db.Decimal(18, 4) // Jumlah yang benar-benar keluar saat scan
   unit         String
+  priceUnit    Decimal @default(0) @db.Decimal(18, 2) // Unit price from FIFO stock
 
   // Tabel perantara untuk mencatat pemotongan Batch FIFO secara detail
   stockAllocations StockAllocation[]
@@ -2152,6 +2165,9 @@ model PurchaseOrder {
   sPKId             String?
   PurchaseRequest   PurchaseRequest? @relation(fields: [purchaseRequestId], references: [id])
   purchaseRequestId String?
+
+  // Relasi pemakaian material yang bersumber dari PO ini
+  materialRequisitions MaterialRequisition[]
 }
 
 model PurchaseOrderLine {

@@ -128,6 +128,30 @@ export const getAllGoodsReceipts = async (req, res) => {
       take: pageSize
     });
 
+    // Populate transferStatus for TRANSFER sourceType GRs
+    const transferGRs = goodsReceipts.filter(gr => gr.sourceType === 'TRANSFER' && gr.vendorDeliveryNote);
+    if (transferGRs.length > 0) {
+      const transferNumbers = transferGRs.map(gr => gr.vendorDeliveryNote);
+      const transfers = await prisma.stockTransfer.findMany({
+        where: {
+          transferNumber: { in: transferNumbers }
+        },
+        select: {
+          transferNumber: true,
+          status: true
+        }
+      });
+
+      // Create a map for quick lookup
+      const transferStatusMap = new Map(transfers.map(t => [t.transferNumber, t.status]));
+
+      // Attach transferStatus to each GR
+      goodsReceipts.forEach(gr => {
+        if (gr.sourceType === 'TRANSFER' && gr.vendorDeliveryNote) {
+          gr.transferStatus = transferStatusMap.get(gr.vendorDeliveryNote) || null;
+        }
+      });
+    }
     // Calculate summary statistics
     const itemStats = await prisma.goodsReceiptItem.aggregate({
       where: {
@@ -2089,7 +2113,7 @@ export const approveGR = async (req, res) => {
               
               // Transaction metadata
               type: 'IN',
-              source: 'PO', // From Purchase Order via Goods Receipt
+              source: existingGR.sourceType || 'PO', // Use actual source type (PO, TRANSFER, DIRECT, etc.)
               pricePerUnit: price,
               referenceNo: existingGR.grNumber,
               notes: `GR ${existingGR.grNumber} - QC Passed`
@@ -2131,7 +2155,8 @@ export const approveGR = async (req, res) => {
                 stockIn: { increment: qtyPassed },
                 stockAkhir: { set: newStockAkhir }, // Set explicitly to match available calc
                 availableStock: { set: newAvailable },
-                onPR: { decrement: qtyPassed },
+                // Only decrement onPR for PO-related GRs, NOT for transfers
+                ...(existingGR.sourceType !== 'TRANSFER' && { onPR: { decrement: qtyPassed } }),
                 inventoryValue: { increment: transactionValue }
               }
             });
@@ -2165,8 +2190,8 @@ export const approveGR = async (req, res) => {
                 
                 availableStock: newAvailable,
                 
-                // onPR Logic: Carry over lalu kurangi yang diterima sekarang
-                onPR: baseOnPR - qtyPassed < 0 ? 0 : baseOnPR - qtyPassed,
+                // onPR Logic: Only update for PO-related GRs, NOT for transfers
+                onPR: existingGR.sourceType !== 'TRANSFER' && baseOnPR > 0 ? (baseOnPR - qtyPassed < 0 ? 0 : baseOnPR - qtyPassed) : baseOnPR,
                 
                 // Inventory Value: Carry over value + transaction value
                 inventoryValue: baseInventoryValue + transactionValue

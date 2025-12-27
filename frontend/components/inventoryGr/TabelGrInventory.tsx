@@ -18,7 +18,21 @@ import {
     Truck,
     PackageCheck,
     ThumbsUp,
+    Printer,
+    Loader2,
 } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import GoodsReceiptPdfDocument from './GoodReceivePdf';
+
+const PDFDownloadLink = dynamic(
+    () => import('@react-pdf/renderer').then((mod) => mod.PDFDownloadLink),
+    { ssr: false, loading: () => null }
+);
+
+const BlobProvider = dynamic(
+    () => import('@react-pdf/renderer').then((mod) => mod.BlobProvider),
+    { ssr: false, loading: () => null }
+);
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import {
@@ -306,18 +320,18 @@ export function TabelGrInventory({
                                     <div className="flex items-center gap-2">
                                         <Truck className="w-4 h-4 text-slate-400" />
                                         <span className="font-bold text-slate-800 text-sm">
-                                            {gr.PurchaseOrder?.supplier?.name || 'N/A'}
+                                            {gr.purchaseOrder?.supplier?.name || 'N/A'}
                                         </span>
                                     </div>
                                 </TableCell>
                                 <TableCell>
                                     <div className={`
                                         flex items-center gap-2 px-3 py-1.5 rounded-lg border w-fit
-                                        ${getWarehouseStyle(gr.Warehouse?.name)}
+                                        ${getWarehouseStyle(gr.warehouse?.name)}
                                     `}>
                                         <Store className="w-3.5 h-3.5" />
                                         <span className="font-semibold text-xs">
-                                            {gr.Warehouse?.name || 'N/A'}
+                                            {gr.warehouse?.name || 'N/A'}
                                         </span>
                                     </div>
                                 </TableCell>
@@ -345,25 +359,67 @@ export function TabelGrInventory({
                                             </Tooltip>
 
 
-                                            {/* Workflow Buttons */}
-                                            {/* Mark as Arrived - show when GR is DRAFT and all items are PENDING */}
-                                            {gr.status === DocumentStatus.DRAFT && gr.items?.every(item => item.qcStatus === QCStatus.PENDING) && (
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <Button
-                                                            variant="default"
-                                                            size="sm"
-                                                            onClick={() => handleMarkArrived(gr)}
-                                                            className="h-9 px-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-md hover:shadow-lg transition-all duration-200 font-semibold animate-pulse"
-                                                        >
-                                                            <Truck className="h-4 w-4 mr-1.5" />
-                                                            Terima Barang
-                                                        </Button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p>Mark as Arrived - Input penerimaan barang</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
+                                            {/* Mark as Arrived - show when GR is DRAFT */}
+                                            {gr.status === DocumentStatus.DRAFT && (
+                                                gr.sourceType === 'TRANSFER' ? (
+                                                    // Transfer GR: Check if transfer is IN_TRANSIT
+                                                    gr.transferStatus === 'IN_TRANSIT' ? (
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button
+                                                                    variant="default"
+                                                                    size="sm"
+                                                                    onClick={() => handleMarkArrived(gr)}
+                                                                    className="h-9 px-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-md hover:shadow-lg transition-all duration-200 font-semibold animate-pulse"
+                                                                >
+                                                                    <Truck className="h-4 w-4 mr-1.5" />
+                                                                    Terima Barang
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p>Mark as Arrived - Input penerimaan barang</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    ) : (
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    disabled
+                                                                    className="h-9 px-4 bg-amber-50 text-amber-700 border-amber-300 cursor-not-allowed opacity-75"
+                                                                >
+                                                                    <AlertCircle className="h-4 w-4 mr-1.5" />
+                                                                    Barang Belum Diambil
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent className="max-w-xs">
+                                                                <p className="font-semibold text-amber-600">Barang Belum Diambil dari Gudang Asal</p>
+                                                                <p className="text-xs mt-1">Transfer harus berstatus IN_TRANSIT terlebih dahulu</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    )
+                                                ) : (
+                                                    // Regular GR: Show if all items are PENDING
+                                                    gr.items?.every(item => item.qcStatus === QCStatus.PENDING) && (
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button
+                                                                    variant="default"
+                                                                    size="sm"
+                                                                    onClick={() => handleMarkArrived(gr)}
+                                                                    className="h-9 px-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-md hover:shadow-lg transition-all duration-200 font-semibold animate-pulse"
+                                                                >
+                                                                    <Truck className="h-4 w-4 mr-1.5" />
+                                                                    Terima Barang
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p>Mark as Arrived - Input penerimaan barang</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    )
+                                                )
                                             )}
 
                                             {/* QC Check - show when GR is ARRIVED and all items are ARRIVED */}
@@ -416,22 +472,40 @@ export function TabelGrInventory({
                                                     </Tooltip>
                                                 )}
 
-                                            {/* Export Button */}
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() => handleExport(gr)}
-                                                        className="h-8 px-2 bg-purple-50/50 hover:bg-purple-100/70 border-purple-200 text-purple-700 hover:text-purple-800"
-                                                    >
-                                                        <Download className="h-4 w-4" />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>Export PDF</p>
-                                                </TooltipContent>
-                                            </Tooltip>
+                                            {/* Print GRN Button - only for PASSED status */}
+                                            {gr.status === DocumentStatus.PASSED && (
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <span tabIndex={-1}>
+                                                            <BlobProvider document={<GoodsReceiptPdfDocument goodsReceipt={gr} />}>
+                                                                {({ url, loading }: { url: string | null, loading: boolean }) => (
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        size="sm"
+                                                                        disabled={loading}
+                                                                        className="h-8 px-2 bg-purple-50/50 hover:bg-purple-100/70 border-purple-200 text-purple-700 hover:text-purple-800"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            if (url) {
+                                                                                window.open(url, '_blank');
+                                                                            }
+                                                                        }}
+                                                                    >
+                                                                        {loading ? (
+                                                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                                                        ) : (
+                                                                            <Printer className="h-4 w-4" />
+                                                                        )}
+                                                                    </Button>
+                                                                )}
+                                                            </BlobProvider>
+                                                        </span>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>Cetak GRN</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            )}
 
                                             {/* Delete Button - only for DRAFT and admin role */}
                                             {gr.status === DocumentStatus.DRAFT && user?.role === 'admin' && (

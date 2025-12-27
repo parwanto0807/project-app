@@ -22,7 +22,6 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import {
     Sheet,
-    SheetContent,
     SheetTrigger,
 } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -31,18 +30,7 @@ import {
     SelectContent,
     SelectItem,
     SelectTrigger,
-    SelectValue,
 } from "@/components/ui/select"
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 // Icons
@@ -53,20 +41,13 @@ import {
     Truck,
     XCircle,
     MoreHorizontal,
-    RefreshCw,
     Search,
     Filter,
-    QrCode,
     Eye,
     Download,
     Printer,
     AlertTriangle,
-    ChevronLeft,
-    ChevronRight,
-    ChevronsLeft,
-    ChevronsRight,
     CheckCheck,
-    ScanLine,
     User,
     Building,
     Calendar,
@@ -75,9 +56,6 @@ import {
     Grid,
     List,
     Plus,
-    TrendingUp,
-    Smartphone,
-    Monitor,
 } from "lucide-react"
 
 import { format } from "date-fns"
@@ -85,8 +63,18 @@ import { id } from "date-fns/locale"
 import QRCode from "qrcode"
 import { MRDetailSheet } from "./MRDetailSheet"
 import { QRScannerDialog } from "./QRScannerDialog"
-import { issueMR } from "@/lib/action/inventory/mrInventroyAction"
+import { issueMR, validateMRForApproval } from "@/lib/action/inventory/mrInventroyAction"
 import { toast } from "sonner"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 // Types
 interface MaterialRequisition {
@@ -116,6 +104,7 @@ interface MaterialRequisition {
     preparedBy?: {
         name: string
     }
+    notes?: string | null
 }
 
 interface MaterialRequisitionItem {
@@ -153,9 +142,16 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
         requestedBy: true,
         warehouse: true,
         items: true,
+        notes: true,
         status: true,
         actions: true,
     })
+    const [showWarningDialog, setShowWarningDialog] = React.useState(false)
+    const [warningMessage, setWarningMessage] = React.useState<{
+        title: string;
+        description: string;
+        poNumber?: string;
+    } | null>(null)
 
     const itemsPerPage = 10
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
@@ -243,9 +239,23 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
         }
     }
 
-    const handleApprove = (mr: MaterialRequisition) => {
-        setSelectedMR(mr)
-        setShowQRScanner(true)
+    const handleApprove = async (mr: MaterialRequisition) => {
+        // Validate before showing QR scanner
+        const validation = await validateMRForApproval(mr.id);
+
+        if (!validation.success || !validation.data?.canApprove) {
+            setWarningMessage({
+                title: '⚠️ Barang Belum Datang',
+                description: validation.data?.reason || 'Barang yang dipesan belum diterima melalui Goods Receipt. Silakan proses penerimaan barang terlebih dahulu sebelum melakukan approval Material Requisition.',
+                poNumber: validation.data?.poNumber
+            });
+            setShowWarningDialog(true);
+            return;
+        }
+
+        // Proceed with QR scan if validation passes
+        setSelectedMR(mr);
+        setShowQRScanner(true);
     }
 
     const handleViewDetails = (mr: MaterialRequisition) => {
@@ -353,65 +363,74 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                                 </div>
                             </div>
                         </div>
+                        {mr.notes && (
+                            <div className="space-y-1 col-span-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                                <div className="flex items-center gap-2 text-slate-500 dark:text-slate-300">
+                                    <FileText className="h-3.5 w-3.5" />
+                                    <span>Catatan</span>
+                                </div>
+                                <p className="text-sm text-slate-600 dark:text-slate-300 italic">{mr.notes}</p>
+                            </div>
+                        )}
+                    </div>
 
-                        {/* Actions */}
-                        <div className="flex gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                            {mr.status === "PENDING" && (
+                    {/* Actions */}
+                    <div className="flex gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                        {mr.status === "PENDING" && (
+                            <Button
+                                size="sm"
+                                variant="default"
+                                onClick={() => handleApprove(mr)}
+                                className="flex-1 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white font-semibold"
+                            >
+                                <CheckCheck className="h-4 w-4 mr-2" />
+                                Approve
+                            </Button>
+                        )}
+
+                        <Sheet open={showDetailSheet && selectedMR?.id === mr.id} onOpenChange={setShowDetailSheet}>
+                            <SheetTrigger asChild>
                                 <Button
                                     size="sm"
-                                    variant="default"
-                                    onClick={() => handleApprove(mr)}
-                                    className="flex-1 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white font-semibold"
+                                    variant="outline"
+                                    onClick={() => handleViewDetails(mr)}
+                                    className="flex-1 border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700 font-semibold"
                                 >
-                                    <CheckCheck className="h-4 w-4 mr-2" />
-                                    Approve
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    Detail
                                 </Button>
-                            )}
+                            </SheetTrigger>
+                            <MRDetailSheet
+                                mr={selectedMR}
+                                qrCodeUrl={qrCodeUrl}
+                                onScanQRCode={handleScanQRCode}
+                            />
+                        </Sheet>
 
-                            <Sheet open={showDetailSheet && selectedMR?.id === mr.id} onOpenChange={setShowDetailSheet}>
-                                <SheetTrigger asChild>
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => handleViewDetails(mr)}
-                                        className="flex-1 border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700 font-semibold"
-                                    >
-                                        <Eye className="h-4 w-4 mr-2" />
-                                        Detail
-                                    </Button>
-                                </SheetTrigger>
-                                <MRDetailSheet
-                                    mr={selectedMR}
-                                    qrCodeUrl={qrCodeUrl}
-                                    onScanQRCode={handleScanQRCode}
-                                />
-                            </Sheet>
-
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="outline" size="sm" className="border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700">
-                                        <MoreHorizontal className="h-4 w-4" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={() => handleViewDetails(mr)}>
-                                        <Eye className="h-4 w-4 mr-2" />
-                                        View Details
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem>
-                                        <Download className="h-4 w-4 mr-2" />
-                                        Download PDF
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem>
-                                        <Printer className="h-4 w-4 mr-2" />
-                                        Print
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        </div>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm" className="border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleViewDetails(mr)}>
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    View Details
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>
+                                    <Download className="h-4 w-4 mr-2" />
+                                    Download PDF
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>
+                                    <Printer className="h-4 w-4 mr-2" />
+                                    Print
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
                 </CardContent>
-            </Card>
+            </Card >
         )
     }
 
@@ -706,6 +725,11 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                                             Items & Quantity
                                         </TableHead>
                                     )}
+                                    {columnVisibility.notes && (
+                                        <TableHead className="font-semibold text-slate-700 dark:text-white py-5 px-6 text-base">
+                                            Catatan
+                                        </TableHead>
+                                    )}
                                     {columnVisibility.status && (
                                         <TableHead className="font-semibold text-slate-700 dark:text-white py-5 px-6 text-base">
                                             Status
@@ -790,7 +814,7 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                                                     <TableCell className="py-5 px-6">
                                                         <div className="flex items-center gap-2">
                                                             <Building className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-                                                            <span className="font-semibold text-slate-800 dark:text-white">{mr.project?.name || mr.projectId}</span>
+                                                            <span className="font-bold text-slate-800 dark:text-white text-wrap uppercase">{mr.project?.name || mr.projectId}</span>
                                                         </div>
                                                     </TableCell>
                                                 )}
@@ -832,6 +856,21 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                                                                 </span>
                                                             </p>
                                                         </div>
+                                                    </TableCell>
+                                                )}
+
+                                                {columnVisibility.notes && (
+                                                    <TableCell className="py-5 px-6">
+                                                        {mr.notes ? (
+                                                            <div className="flex items-start gap-2 max-w-[200px]">
+                                                                <FileText className="h-4 w-4 text-slate-400 mt-0.5" />
+                                                                <p className="text-sm text-slate-600 dark:text-slate-300 italic truncate" title={mr.notes}>
+                                                                    {mr.notes}
+                                                                </p>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-slate-400">-</span>
+                                                        )}
                                                     </TableCell>
                                                 )}
 
@@ -937,81 +976,7 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                         </Table>
                     </div>
 
-                    {/* Pagination */}
-                    {!isLoading && paginatedData.length > 0 && (
-                        <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-6 py-5 border-t border-slate-200 dark:border-white/5 bg-transparent">
-                            <div className="text-sm text-slate-600 dark:text-slate-300">
-                                Menampilkan <span className="font-semibold text-slate-800 dark:text-white">{(currentPage - 1) * itemsPerPage + 1}</span> -{" "}
-                                <span className="font-semibold text-slate-800 dark:text-white">
-                                    {Math.min(currentPage * itemsPerPage, filteredData.length)}
-                                </span> dari{" "}
-                                <span className="font-semibold text-slate-800 dark:text-white">{filteredData.length}</span> entri
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setCurrentPage(1)}
-                                    disabled={currentPage === 1}
-                                    className="border-slate-300 rounded-lg"
-                                >
-                                    <ChevronsLeft className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                    disabled={currentPage === 1}
-                                    className="border-slate-300 rounded-lg"
-                                >
-                                    <ChevronLeft className="h-4 w-4" />
-                                </Button>
-                                <div className="flex items-center gap-2 mx-2">
-                                    {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
-                                        const pageNum = i + 1;
-                                        return (
-                                            <Button
-                                                key={pageNum}
-                                                variant={currentPage === pageNum ? "default" : "outline"}
-                                                size="sm"
-                                                onClick={() => setCurrentPage(pageNum)}
-                                                className={`
-                                                    w-10 h-10 rounded-lg
-                                                    ${currentPage === pageNum
-                                                        ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white'
-                                                        : 'border-slate-300'
-                                                    }
-                                                `}
-                                            >
-                                                {pageNum}
-                                            </Button>
-                                        );
-                                    })}
-                                    {totalPages > 5 && (
-                                        <span className="px-2 text-slate-500">...</span>
-                                    )}
-                                </div>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                    disabled={currentPage === totalPages}
-                                    className="border-slate-300 rounded-lg"
-                                >
-                                    <ChevronRight className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setCurrentPage(totalPages)}
-                                    disabled={currentPage === totalPages}
-                                    className="border-slate-300 rounded-lg"
-                                >
-                                    <ChevronsRight className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        </div>
-                    )}
+
                 </Card>
             )}
 
@@ -1060,6 +1025,41 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                     }
                 }}
             />
+
+            {/* Warning Dialog for Goods Not Received */}
+            <AlertDialog open={showWarningDialog} onOpenChange={setShowWarningDialog}>
+                <AlertDialogContent className="max-w-md">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                            <AlertTriangle className="h-6 w-6" />
+                            {warningMessage?.title}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="text-base pt-2">
+                            {warningMessage?.description}
+                        </AlertDialogDescription>
+                        {warningMessage?.poNumber && (
+                            <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
+                                <p className="text-sm font-semibold text-blue-900 dark:text-blue-300">
+                                    Nomor PO: <span className="font-mono">{warningMessage.poNumber}</span>
+                                </p>
+                            </div>
+                        )}
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Tutup</AlertDialogCancel>
+                        {warningMessage?.poNumber && (
+                            <AlertDialogAction
+                                onClick={() => {
+                                    window.location.href = `/admin-area/inventory/goods-receipt`;
+                                }}
+                                className="bg-blue-600 hover:bg-blue-700"
+                            >
+                                Lihat Goods Receipt
+                            </AlertDialogAction>
+                        )}
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 }

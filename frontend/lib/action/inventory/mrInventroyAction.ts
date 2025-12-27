@@ -145,3 +145,44 @@ export async function createMRFromPOAction(
         };
     }
 }
+
+/**
+ * Validate MR for Approval - Check if GR is completed
+ */
+export async function validateMRForApproval(
+    mrId: string
+): Promise<ApiResponse<{
+    canApprove: boolean;
+    reason: string | null;
+    mrNumber?: string;
+    poNumber?: string;
+    sourceType?: string;
+}>> {
+    try {
+        const response = await fetch(`${API_URL}/api/mr/validate-approval/${mrId}`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            return {
+                success: false,
+                error: result.error || "Validation failed",
+                details: result.details
+            };
+        }
+
+        return result;
+    } catch (error: any) {
+        console.error("Validation Error:", error);
+        return {
+            success: false,
+            error: "Koneksi ke server terputus",
+            details: error.message
+        };
+    }
+}

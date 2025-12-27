@@ -15,4 +15,7 @@ router.post('/issue-scan', mrController.issueMR);
 // Create MR from PO (Direct Issue Flow)
 router.post('/from-po/:poId', mrController.createMRFromPO);
 
+// Validate MR for Approval (Check GR completion)
+router.get('/validate-approval/:mrId', mrController.validateMRForApproval);
+
 export default router;

@@ -19,7 +19,7 @@ interface DashboardClientProps {
         inactive: number;
     };
     defaultPeriod: string;
-    allWarehouses: { id: string; name: string }[];
+    allWarehouses: { id: string; name: string; isMain: boolean }[];
     role: string;
 }
 
@@ -85,7 +85,7 @@ export default function DashboardClient({
                 setPagination(res.data.pagination);
                 // Update total value if available in summary
                 if (res.data.summary?.totalInventoryValue !== undefined) {
-                    setTotalValue(res.data.summary.totalInventoryValue);
+                    setTotalValue(Number(res.data.summary.totalInventoryValue));
                 }
 
                 // Update Stats if available
@@ -131,6 +131,28 @@ export default function DashboardClient({
         }));
     };
 
+    const fetchAllData = useCallback(async () => {
+        try {
+            const res = await getInventoryMonitoring({
+                period: filters.period,
+                search: filters.searchTerm,
+                warehouseId: filters.warehouseFilter === "all" ? undefined : filters.warehouseFilter,
+                status: filters.statusFilter === "all" ? undefined : filters.statusFilter,
+                page: 1,
+                limit: 100000 // Fetch huge limit for report
+            });
+
+            if (res.success && res.data) {
+                return res.data.data;
+            }
+            return [];
+        } catch (error) {
+            console.error("Error fetching report data:", error);
+            toast.error("Gagal mengambil data lengkap untuk laporan");
+            return [];
+        }
+    }, [filters.period, filters.searchTerm, filters.warehouseFilter, filters.statusFilter]);
+
     return (
         <TabelMonitoring
             data={items}
@@ -153,6 +175,7 @@ export default function DashboardClient({
 
             // Pagination Logic
             onPageChange={(p) => setFilters(prev => ({ ...prev, page: p }))}
+            onFetchAllData={fetchAllData}
 
             warehouses={allWarehouses}
             lastUpdated={lastUpdated}

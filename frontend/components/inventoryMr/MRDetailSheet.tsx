@@ -67,6 +67,7 @@ interface MaterialRequisition {
     preparedBy?: {
         name: string
     }
+    notes?: string | null
 }
 
 interface MaterialRequisitionItem {
@@ -84,8 +85,8 @@ interface MRDetailSheetProps {
     mr: MaterialRequisition | null
     qrCodeUrl: string
     onScanQRCode?: () => void
-    onRefresh?: () => void // Callback to refresh MR data after successful scan
-    currentUserId?: string // Current user ID for issuedById
+    onRefresh?: () => void
+    currentUserId?: string
 }
 
 // Helper function untuk status config
@@ -283,6 +284,20 @@ export const MRDetailSheet: React.FC<MRDetailSheetProps> = ({
                                 </div>
                             </div>
                         </div>
+
+                        {mr.notes && (
+                            <div className="mt-5 pt-5 border-t border-slate-100">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <FileText className="h-4 w-4 text-slate-400" />
+                                    <h3 className="text-sm font-semibold text-slate-600">Catatan</h3>
+                                </div>
+                                <div className="bg-amber-50 rounded-lg p-3 border border-amber-200">
+                                    <p className="text-slate-700 italic text-sm">
+                                        {mr.notes}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 

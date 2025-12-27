@@ -40,7 +40,15 @@ import {
     BatteryLow,
     Zap,
     Sparkles,
+    Printer,
+    Loader2,
 } from "lucide-react";
+import dynamic from "next/dynamic";
+import StockBalancePdf from './StockBalancePdf';
+import { toast } from "sonner"; // Add toast
+
+// Remove BlobProvider dynamic import since we use imperative API
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -72,7 +80,7 @@ interface TabelMonitoringProps {
     setWarehouseFilter: (value: string) => void;
     statusFilter: string;
     setStatusFilter: (value: string) => void;
-    warehouses: { id: string; name: string }[];
+    warehouses: { id: string; name: string; isMain: boolean }[];
     lastUpdated: Date;
     viewMode: 'desktop' | 'mobile';
     onViewModeChange: (mode: 'desktop' | 'mobile') => void;
@@ -94,6 +102,7 @@ interface TabelMonitoringProps {
     setPeriod?: (value: string) => void;
     role: string;
     totalInventoryValue?: number;
+    onFetchAllData: () => Promise<StockMonitoringItem[]>; // Add this prop
 }
 
 export default function TabelMonitoring({
@@ -120,10 +129,12 @@ export default function TabelMonitoring({
     period,
     setPeriod,
     role,
-    totalInventoryValue
+    totalInventoryValue,
+    onFetchAllData
 }: TabelMonitoringProps) {
     const [selectedItem, setSelectedItem] = useState<StockMonitoringItem | null>(null);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
+    const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
     // Filter Helper Config
     const canViewFinancials = role === 'admin' || role === 'super_admin';
@@ -132,6 +143,81 @@ export default function TabelMonitoring({
     // If totalInventoryValue prop is provided (server-side aggregated), use it.
     // Otherwise fallback to client-side calculation (only for current page).
     const displayTotalValue = totalInventoryValue ?? data.reduce((acc, item) => acc + (Number(item.inventoryValue) || 0), 0);
+
+    const handlePrintReport = async () => {
+        if (isGeneratingPdf) return;
+        setIsGeneratingPdf(true);
+        try {
+            // Fetch All Data
+            toast.info("Mengambil semua data untuk laporan...", { duration: 2000 });
+            const allData = await onFetchAllData();
+
+            if (!allData || allData.length === 0) {
+                toast.error("Tidak ada data untuk dicetak");
+                return;
+            }
+
+            toast.info("Membuat PDF...", { duration: 2000 });
+
+            // Serialize Data
+            const reportData = allData.map(item => ({
+                id: item.id,
+                productId: item.productId,
+                warehouseId: item.warehouseId,
+                warehouseName: item.warehouse || '',
+                stockAwal: Number(item.stockAwal || 0),
+                stockIn: Number(item.stockIn || 0),
+                stockOut: Number(item.stockOut || 0),
+                stockAkhir: Number(item.stockAkhir || 0),
+                bookedStock: Number(item.bookedStock || 0),
+                availableStock: Number(item.availableStock || 0),
+                onPR: Number(item.onPR || 0),
+                inventoryValue: Number(item.inventoryValue || 0),
+                product: {
+                    name: item.name,
+                    code: item.code
+                }
+            }));
+
+            // Generate PDF Imperatively
+            // const { pdf } = await import('@react-pdf/renderer'); // Trigger dynamic import
+            // const blob = await pdf(...).toBlob();
+
+            // To ensure compatibility and avoid double dynamic import issues,
+            // we can use client-side rendering approach or retry dynamic import safely.
+
+            // Safe Approach:
+            import('@react-pdf/renderer').then(async (mod) => {
+                const { pdf } = mod;
+                const blob = await pdf(
+                    <StockBalancePdf
+                        data={reportData}
+                        warehouseName={warehouseFilter ? warehouses.find(w => w.id === warehouseFilter)?.name || 'All Warehouses' : 'All Warehouses'}
+                        period={period || format(new Date(), 'MMMM yyyy', { locale: idLocale })}
+                        companyInfo={{
+                            name: 'PT. Your Company Name',
+                            address: 'Jl. Company Address, Jakarta'
+                        }}
+                        warehouses={warehouses}
+                    />
+                ).toBlob();
+
+                const url = URL.createObjectURL(blob);
+                window.open(url, '_blank');
+                setIsGeneratingPdf(false);
+                toast.success("Laporan berhasil dibuat");
+            }).catch(err => {
+                console.error("PDF Module Error:", err);
+                toast.error("Gagal memuat modul PDF");
+                setIsGeneratingPdf(false);
+            });
+
+        } catch (error) {
+            console.error("PDF Generation Error:", error);
+            toast.error("Gagal membuat laporan PDF");
+            setIsGeneratingPdf(false);
+        }
+    };
 
     const handleViewDetail = (item: StockMonitoringItem) => {
         setSelectedItem(item);
@@ -617,6 +703,23 @@ export default function TabelMonitoring({
                                     <Button variant="outline" size="sm" onClick={onRefresh} className="rounded-xl gap-2 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
                                         <RefreshCw className="w-3.5 h-3.5" />
                                         Refresh Data
+                                    </Button>
+
+                                    {/* Print Report PDF Button */}
+                                    {/* Print Report PDF Button */}
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        disabled={isGeneratingPdf}
+                                        className="rounded-xl gap-2 bg-purple-50/50 hover:bg-purple-100/70 border-purple-200 text-purple-700 hover:text-purple-800 dark:bg-purple-900/20 dark:border-purple-800 dark:text-purple-400"
+                                        onClick={handlePrintReport}
+                                    >
+                                        {isGeneratingPdf ? (
+                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                        ) : (
+                                            <Printer className="w-3.5 h-3.5" />
+                                        )}
+                                        {isGeneratingPdf ? "Creating PDF..." : "Print Report"}
                                     </Button>
                                 </div>
                             </div>

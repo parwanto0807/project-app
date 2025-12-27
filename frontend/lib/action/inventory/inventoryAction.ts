@@ -41,7 +41,7 @@ export async function getInventoryMonitoring(
     }
 }
 
-export async function getAllWarehouses(): Promise<{ id: string; name: string }[]> {
+export async function getAllWarehouses(): Promise<{ id: string; name: string; isMain: boolean }[]> {
     try {
         const res = await serverApi.get<any>(
             '/api/warehouse',
@@ -52,7 +52,8 @@ export async function getAllWarehouses(): Promise<{ id: string; name: string }[]
             // Return id and name
             return res.data.data.data.map((w: any) => ({
                 id: w.id,
-                name: w.name
+                name: w.name,
+                isMain: w.isMain
             }));
         }
         return [];

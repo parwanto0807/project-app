@@ -57,6 +57,7 @@ export interface Warehouse {
     code: string;
     name: string;
     location?: string;
+    address?: string;
     capacity?: number;
 }
 
@@ -162,13 +163,15 @@ export interface GoodsReceipt extends BaseEntity {
 
     // Relations
     purchaseOrderId?: string;
-    PurchaseOrder?: PurchaseOrder;
+    purchaseOrder?: PurchaseOrder;
     warehouseId?: string;
-    Warehouse?: Warehouse;
+    warehouse?: Warehouse;
     receivedById: string;
     receivedBy?: User;
 
     // Status
+    sourceType?: string; // Should be SourceType enum but string is safer for now or import enum
+    transferStatus?: string; // Status of linked StockTransfer (for TRANSFER sourceType)
     status: DocumentStatus;
     notes?: string;
 

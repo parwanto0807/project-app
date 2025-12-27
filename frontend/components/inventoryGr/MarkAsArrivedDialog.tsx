@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
@@ -15,7 +15,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -43,25 +42,34 @@ export function MarkAsArrivedDialog({
     const router = useRouter();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [receivedDate, setReceivedDate] = useState<Date>(new Date());
-    const [vendorDeliveryNote, setVendorDeliveryNote] = useState('');
-    const [vehicleNumber, setVehicleNumber] = useState('');
-    const [driverName, setDriverName] = useState('');
+    const [vendorDeliveryNote, setVendorDeliveryNote] = useState(gr.vendorDeliveryNote || '');
+    const [vehicleNumber, setVehicleNumber] = useState(gr.vehicleNumber || '');
+    const [driverName, setDriverName] = useState(gr.driverName || '');
     const [receiveMode, setReceiveMode] = useState<'all' | 'partial'>('all');
 
     // Track quantities for each item
-    const [itemQuantities, setItemQuantities] = useState<Record<string, number>>(() => {
-        const quantities: Record<string, number> = {};
-        gr.items?.forEach(item => {
-            // Try qtyPlanReceived first, fallback to purchaseOrderLine quantity
-            const plannedQty = item.qtyPlanReceived
-                ? Number(item.qtyPlanReceived)
-                : (item.purchaseOrderLine?.quantity ? Number(item.purchaseOrderLine.quantity) : 0);
+    const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
 
-            quantities[item.id] = plannedQty;
-            console.log(`Item ${item.product?.name}: qtyPlanReceived=${item.qtyPlanReceived}, POLine qty=${item.purchaseOrderLine?.quantity}, using=${plannedQty}`);
-        });
-        return quantities;
-    });
+    // Sync state with props when dialog opens or GR changes
+    useEffect(() => {
+        if (open && gr) {
+            setVendorDeliveryNote(gr.vendorDeliveryNote || '');
+            setVehicleNumber(gr.vehicleNumber || '');
+            setDriverName(gr.driverName || '');
+            setReceivedDate(new Date());
+            setReceiveMode('all');
+
+            // Initialize quantities
+            const quantities: Record<string, number> = {};
+            gr.items?.forEach(item => {
+                const plannedQty = item.qtyPlanReceived
+                    ? Number(item.qtyPlanReceived)
+                    : (item.purchaseOrderLine?.quantity ? Number(item.purchaseOrderLine.quantity) : 0);
+                quantities[item.id] = plannedQty;
+            });
+            setItemQuantities(quantities);
+        }
+    }, [open, gr]);
 
     const handleReceiveModeChange = (mode: 'all' | 'partial') => {
         setReceiveMode(mode);
@@ -309,7 +317,7 @@ export function MarkAsArrivedDialog({
                                                 <span>Unit: {item.unit}</span>
                                             </div>
                                             <div className="text-sm text-blue-600 mt-1">
-                                                Rencana: <span className="font-bold">
+                                                Rencana barang diterima : <span className="font-bold">
                                                     {(item.qtyPlanReceived
                                                         ? Number(item.qtyPlanReceived)
                                                         : (item.purchaseOrderLine?.quantity ? Number(item.purchaseOrderLine.quantity) : 0)

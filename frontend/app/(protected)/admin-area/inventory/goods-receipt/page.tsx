@@ -142,7 +142,7 @@ export default async function GoodsReceiptsPage({ searchParams }: PageProps) {
                                 </div>
                                 <div>
                                     <h1 className="text-2xl font-bold text-white">
-                                        Goods Receipts Management
+                                        Goods Receipts / Penerimaan Barang Management
                                     </h1>
                                     <p className="text-white/80 mt-1">
                                         Manage and monitor all goods receipts and quality control
@@ -243,9 +243,6 @@ export default async function GoodsReceiptsPage({ searchParams }: PageProps) {
                                 <Pagination
                                     currentPage={page}
                                     totalPages={pagination.totalPages}
-                                    onPageChange={(newPage) => {
-                                        // You would update URL here
-                                    }}
                                 />
                             </div>
                         )}

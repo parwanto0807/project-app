@@ -100,7 +100,7 @@ export default async function InventoryPage() {
                 <DashboardClient
                     initialItems={initialData}
                     initialPagination={initialPagination}
-                    initialTotalValue={res.success && res.data && res.data.summary ? res.data.summary.totalInventoryValue : 0}
+                    initialTotalValue={res.success && res.data && res.data.summary ? Number(res.data.summary.totalInventoryValue || 0) : 0}
                     initialStats={res.success && res.data && res.data.summary && res.data.summary.stats ? res.data.summary.stats : {
                         total: 0, critical: 0, warning: 0, safe: 0, inactive: 0
                     }}

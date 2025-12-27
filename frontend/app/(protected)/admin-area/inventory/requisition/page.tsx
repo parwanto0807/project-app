@@ -161,7 +161,7 @@ export default function MaterialRequisitionPage() {
 
                 {/* Header */}
                 <HeaderCard
-                    title={isMobile ? "MR" : "Material Requisition"}
+                    title={isMobile ? "MR" : "Material Requisition / Pengambilan Barang Management"}
                     description="Pantau dan kelola pengeluaran barang gudang"
                     icon={<ClipboardList className={isMobile ? "h-5 w-5" : "h-7 w-7"} />}
                     showActionArea={!isMobile}
