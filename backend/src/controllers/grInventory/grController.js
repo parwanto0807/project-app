@@ -2073,16 +2073,67 @@ export const approveGR = async (req, res) => {
           const stockAwal = existingBalance ? parseFloat(existingBalance.stockAkhir) : 0;
           const stockAkhir = stockAwal + qtyPassed;
           
-          // Logic penentuan harga: Prioritas 1. PR Detail, 2. PO Line
+          // Logic penentuan harga: Prioritas 1. MR priceUnit (for transfers), 2. Transfer COGS, 3. PO Line, 4. PR Detail
           let price = 0;
-          
-          // Cek apakah ada relasi ke PO Line dan ambil harga aktual (Prioritas Utama)
-          if (item.purchaseOrderLine && item.purchaseOrderLine.unitPrice) {
-            price = parseFloat(item.purchaseOrderLine.unitPrice);
+
+          // For TRANSFER sourceType, try to get price from MR or Transfer
+          if (existingGR.sourceType === 'TRANSFER' && existingGR.vendorDeliveryNote) {
+            // Try to find MR linked to this transfer
+            const transferNumber = existingGR.vendorDeliveryNote;
+            const mr = await tx.materialRequisition.findFirst({
+              where: {
+                notes: { contains: `[${transferNumber}]` }
+              },
+              include: {
+                items: {
+                  where: { productId: item.productId },
+                  select: {
+                    priceUnit: true,
+                    qtyIssued: true
+                  }
+                }
+              }
+            });
+
+            if (mr && mr.items.length > 0) {
+              // Use price from MR item (populated during MR issuance with FIFO)
+              const mrItem = mr.items[0];
+              price = Number(mrItem.priceUnit || 0);
+              console.log(`💰 Using MR price for transfer product ${item.productId}: ${price}`);
+            } else {
+              // Fallback: Try to get from StockTransfer COGS
+              const stockTransfer = await tx.stockTransfer.findFirst({
+                where: { transferNumber: transferNumber },
+                include: {
+                  items: {
+                    where: { productId: item.productId },
+                    select: {
+                      quantity: true,
+                      cogs: true
+                    }
+                  }
+                }
+              });
+
+              if (stockTransfer && stockTransfer.items.length > 0) {
+                const transferItem = stockTransfer.items[0];
+                if (Number(transferItem.quantity) > 0) {
+                  price = Number(transferItem.cogs || 0) / Number(transferItem.quantity);
+                  console.log(`💰 Using Transfer COGS for product ${item.productId}: ${price}`);
+                }
+              }
+            }
           }
-          // Jika tidak ada (misal Direct Purchase tanpa PO), baru ambil estimasi dari PR
-          else if (item.purchaseRequestDetail && item.purchaseRequestDetail.estimasiHargaSatuan) {
-            price = parseFloat(item.purchaseRequestDetail.estimasiHargaSatuan);
+          // For PO-based GRs, use PO Line or PR pricing
+          else {
+            // Cek apakah ada relasi ke PO Line dan ambil harga aktual (Prioritas Utama)
+            if (item.purchaseOrderLine && item.purchaseOrderLine.unitPrice) {
+              price = parseFloat(item.purchaseOrderLine.unitPrice);
+            }
+            // Jika tidak ada (misal Direct Purchase tanpa PO), baru ambil estimasi dari PR
+            else if (item.purchaseRequestDetail && item.purchaseRequestDetail.estimasiHargaSatuan) {
+              price = parseFloat(item.purchaseRequestDetail.estimasiHargaSatuan);
+            }
           }
 
           if (isNaN(price)) price = 0;
@@ -2248,6 +2299,19 @@ export const approveGR = async (req, res) => {
         }
       });
 
+      // Update StockTransfer status to RECEIVED if this is a transfer GR
+      if (existingGR.sourceType === 'TRANSFER' && existingGR.vendorDeliveryNote) {
+        await tx.stockTransfer.updateMany({
+          where: {
+            transferNumber: existingGR.vendorDeliveryNote,
+            status: 'IN_TRANSIT' // Only update if currently in transit
+          },
+          data: {
+            status: 'RECEIVED'
+          }
+        });
+        console.log(`📦 Updated StockTransfer ${existingGR.vendorDeliveryNote} status to RECEIVED`);
+      }
       return updatedGR;
     });
 

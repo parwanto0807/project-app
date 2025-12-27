@@ -222,6 +222,9 @@ export const mrController = {
           const qtyIssued = Number(item.qtyRequested);
           
           // Update existing StockBalance (we already fetched it above)
+          const currentInventoryValue = Number(stockBalance.inventoryValue) || 0;
+          const newInventoryValue = Math.max(0, currentInventoryValue - totalCost);
+          
           stockBalance = await tx.stockBalance.update({
             where: {
               productId_warehouseId_period: {
@@ -235,7 +238,7 @@ export const mrController = {
               stockAkhir: { decrement: qtyIssued },
               bookedStock: { decrement: qtyIssued },
               availableStock: { increment: 0 }, // availableStock stays same since we're reducing both stockAkhir and bookedStock
-              inventoryValue: { decrement: totalCost }
+              inventoryValue: { set: newInventoryValue } // Clamped to prevent negative
             }
           });
 
