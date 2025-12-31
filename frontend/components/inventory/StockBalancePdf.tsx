@@ -125,12 +125,14 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         flexWrap: 'wrap',
         marginTop: 8,
+        marginLeft: 16,
         gap: 20,
-        justifyContent: 'center',
+        justifyContent: 'space-between',
     },
 
     infoItem: {
         minWidth: 180,
+        justifyContent: 'center',
     },
 
     infoLabel: {
@@ -418,7 +420,7 @@ interface StockBalancePdfProps {
         logo?: string;
     };
     reportNumber?: string;
-    warehouses?: { id: string; name: string; isMain: boolean }[];
+    warehouses?: { id: string; name: string; isMain: boolean; isWip: boolean }[];
 }
 
 const StockBalancePdf: React.FC<StockBalancePdfProps> = ({
@@ -493,277 +495,179 @@ const StockBalancePdf: React.FC<StockBalancePdfProps> = ({
 
     return (
         <Document>
-            <Page size="A4" orientation="landscape" style={styles.page}>
-                {/* HEADER */}
-                <View style={styles.headerContainer}>
-                    <View style={styles.logoSection}>
-                        <PdfImage style={styles.logo} src={logoPath} />
-                    </View>
-                    <View style={styles.documentInfo}>
-                        <Text style={styles.documentTitle}>REPORT STOCK BALANCE</Text>
-                        <View style={styles.reportNumberBox}>
-                            <Text style={styles.reportNumberText}>{reportNumber}</Text>
+            {sortedWarehouseGroups.map((group, groupIndex) => (
+                <Page key={group.id} size="A4" orientation="landscape" style={styles.page}>
+                    {/* HEADER */}
+                    <View style={styles.headerContainer}>
+                        <View style={styles.logoSection}>
+                            <PdfImage style={styles.logo} src={logoPath} />
                         </View>
-                    </View>
-                </View>
-
-                {/* COMPANY INFO */}
-                <View style={styles.companyInfoSection}>
-                    <View style={styles.companyDetails}>
-                        <Text style={styles.companyName}>PT. RYLIF MIKRO MANDIRI</Text>
-                        <Text style={styles.companyAddress}>
-                            Jln. Arjuna RT. 04/RW. 36, Kampung Pulo Resident 1 No. 6{'\n'}
-                            Kampung Pulo Warung Asem, Sumber Jaya, Bekasi{'\n'}
-                            Tel: 0852-1929-6841 / 1857-7441-8078 | rylifmikromandiri@gmail.com
-                        </Text>
+                        <View style={styles.documentInfo}>
+                            <Text style={styles.documentTitle}>REPORT STOCK BALANCE</Text>
+                            <View style={styles.reportNumberBox}>
+                                <Text style={styles.reportNumberText}>{reportNumber}</Text>
+                            </View>
+                        </View>
                     </View>
 
-                    <View style={styles.infoGrid}>
-                        <View style={styles.infoItem}>
-                            <Text style={styles.infoLabel}>Gudang</Text>
-                            <Text style={styles.infoValue}>{sortedWarehouseGroups.length > 1 ? 'Semua Gudang' : warehouseName}</Text>
-                        </View>
-                        <View style={styles.infoItem}>
-                            <Text style={styles.infoLabel}>Periode Laporan</Text>
-                            <Text style={styles.infoValue}>{period}</Text>
-                        </View>
-                        <View style={styles.infoItem}>
-                            <Text style={styles.infoLabel}>Tanggal Cetak</Text>
-                            <Text style={styles.infoValue}>
-                                {new Date().toLocaleDateString('id-ID', {
-                                    year: 'numeric',
-                                    month: 'long',
-                                    day: 'numeric'
-                                })}
+                    {/* COMPANY INFO */}
+                    <View style={styles.companyInfoSection}>
+                        {/* <View style={styles.companyDetails}>
+                            <Text style={styles.companyName}>PT. RYLIF MIKRO MANDIRI</Text>
+                            <Text style={styles.companyAddress}>
+                                Jln. Arjuna RT. 04/RW. 36, Kampung Pulo Resident 1 No. 6{'\n'}
+                                Kampung Pulo Warung Asem, Sumber Jaya, Bekasi{'\n'}
+                                Tel: 0852-1929-6841 / 1857-7441-8078 | rylifmikromandiri@gmail.com
                             </Text>
-                        </View>
-                        <View style={styles.infoItem}>
-                            <Text style={styles.infoLabel}>Total Produk</Text>
-                            <Text style={styles.infoValue}>{data?.length || 0} items</Text>
-                        </View>
-                    </View>
-                </View>
+                        </View> */}
 
-                {/* METRICS BAR */}
-                <View style={styles.metricsBar}>
-                    <View style={styles.metricsGrid}>
-                        <View style={styles.metricItem}>
-                            <Text style={styles.metricLabel}>Stok Akhir</Text>
-                            <Text style={styles.metricValue}>{formatNumber(totals.stockAkhir)}</Text>
-                        </View>
-                        <View style={styles.metricItem}>
-                            <Text style={styles.metricLabel}>Stok Masuk</Text>
-                            <Text style={styles.metricValue}>{formatNumber(totals.stockIn)}</Text>
-                        </View>
-                        <View style={styles.metricItem}>
-                            <Text style={styles.metricLabel}>Stok Keluar</Text>
-                            <Text style={styles.metricValue}>{formatNumber(totals.stockOut)}</Text>
-                        </View>
-                        <View style={styles.metricItem}>
-                            <Text style={styles.metricLabel}>Nilai Inventori</Text>
-                            <Text style={styles.metricValue}>{formatCurrency(totals.inventoryValue)}</Text>
-                        </View>
-                        <View style={[styles.metricItem, styles.metricItemLast]}>
-                            <Text style={styles.metricLabel}>Stok Tersedia</Text>
-                            <Text style={styles.metricValue}>{formatNumber(totals.availableStock)}</Text>
-                        </View>
-                    </View>
-                </View>
-
-                {/* WAREHOUSE TABLES */}
-                {sortedWarehouseGroups.map((group) => (
-                    <View key={group.id}>
-                        <View style={[styles.tableContainer, { marginTop: 0, marginBottom: 15 }]}>
-                            <View wrap={false}>
-                                <Text style={styles.warehouseTitle}>Gudang: {group.name}</Text>
-                                <View style={styles.tableHeader}>
-                                    <Text style={[styles.tableHeaderCell, styles.colNo, styles.cellCenter]}>#</Text>
-                                    <Text style={[styles.tableHeaderCell, styles.colProduct]}>PRODUK</Text>
-                                    <Text style={[styles.tableHeaderCell, styles.colNumber, styles.cellRight]}>STOK AWAL</Text>
-                                    <Text style={[styles.tableHeaderCell, styles.colNumber, styles.cellRight]}>MASUK</Text>
-                                    <Text style={[styles.tableHeaderCell, styles.colNumber, styles.cellRight]}>KELUAR</Text>
-                                    <Text style={[styles.tableHeaderCell, styles.colNumber, styles.cellRight]}>ON PR</Text>
-                                    <Text style={[styles.tableHeaderCell, styles.colNumber, styles.cellRight]}>BOOKED</Text>
-                                    <Text style={[styles.tableHeaderCell, styles.colNumber, styles.cellRight]}>STOK AKHIR</Text>
-                                    <Text style={[styles.tableHeaderCell, styles.colStatus, styles.cellCenter]}>STATUS</Text>
-                                    <Text style={[styles.tableHeaderCell, styles.colValue, styles.cellRight]}>NILAI</Text>
-                                </View>
+                        <View style={styles.infoGrid}>
+                            {/* <View style={styles.infoItem}>
+                                <Text style={styles.infoLabel}>Gudang</Text>
+                                <Text style={styles.infoValue}>{group.name}</Text>
+                            </View> */}
+                            <View style={styles.infoItem}>
+                                <Text style={[styles.infoLabel, { textAlign: 'center' }]}>Periode Laporan</Text>
+                                <Text style={[styles.infoValue, { textAlign: 'center' }]}>{period}</Text>
                             </View>
+                            <View style={styles.infoItem}>
+                                <Text style={[styles.infoLabel, { textAlign: 'center' }]}>Tanggal Cetak</Text>
+                                <Text style={[styles.infoValue, { textAlign: 'center' }]}>
+                                    {new Date().toLocaleDateString('id-ID', {
+                                        year: 'numeric',
+                                        month: 'long',
+                                        day: 'numeric'
+                                    })}
+                                </Text>
+                            </View>
+                            <View style={styles.infoItem}>
+                                <Text style={[styles.infoLabel, { textAlign: 'center' }]}>Total Produk</Text>
+                                <Text style={[styles.infoValue, { textAlign: 'center' }]}>{group.items.length} items</Text>
+                            </View>
+                        </View>
+                    </View>
 
-                            <View>
-                                {group.items.length > 0 ? (
-                                    group.items.map((item: StockBalanceData, index: number) => {
-                                        const availableStock = Number(item.availableStock || 0);
-                                        const status = getStockStatus(availableStock);
+                    {/* WAREHOUSE TABLE */}
+                    <View style={[styles.tableContainer, { marginTop: 10, marginBottom: 15 }]}>
+                        <View wrap={false}>
+                            <Text style={styles.warehouseTitle}>Gudang: {group.name}</Text>
+                            <View style={styles.tableHeader}>
+                                <Text style={[styles.tableHeaderCell, styles.colNo, styles.cellCenter]}>#</Text>
+                                <Text style={[styles.tableHeaderCell, styles.colProduct]}>PRODUK</Text>
+                                <Text style={[styles.tableHeaderCell, styles.colNumber, styles.cellRight]}>STOK AWAL</Text>
+                                <Text style={[styles.tableHeaderCell, styles.colNumber, styles.cellRight]}>MASUK</Text>
+                                <Text style={[styles.tableHeaderCell, styles.colNumber, styles.cellRight]}>KELUAR</Text>
+                                <Text style={[styles.tableHeaderCell, styles.colNumber, styles.cellRight]}>ON PR</Text>
+                                <Text style={[styles.tableHeaderCell, styles.colNumber, styles.cellRight]}>BOOKED</Text>
+                                <Text style={[styles.tableHeaderCell, styles.colNumber, styles.cellRight]}>STOK AKHIR</Text>
+                                <Text style={[styles.tableHeaderCell, styles.colNumber, styles.cellRight]}>STOCK READY</Text>
+                                <Text style={[styles.tableHeaderCell, styles.colStatus, styles.cellCenter]}>STATUS</Text>
+                                <Text style={[styles.tableHeaderCell, styles.colValue, styles.cellRight]}>NILAI</Text>
+                            </View>
+                        </View>
 
-                                        return (
-                                            <View key={item.id} wrap={false} style={[styles.tableRow, ...(index % 2 === 0 ? [styles.tableRowEven] : [])]}>
-                                                <Text style={[styles.tableCell, styles.colNo, styles.cellCenter]}>{index + 1}</Text>
-                                                <View style={[styles.tableCell, styles.colProduct]}>
-                                                    <Text style={styles.productName}>{item.product?.name || `Product ${item.productId}`}</Text>
-                                                    {item.product?.code && <Text style={styles.productCode}>{item.product.code}</Text>}
-                                                </View>
-                                                <Text style={[styles.tableCell, styles.colNumber, styles.cellRight, Number(item.stockAwal) !== 0 && { fontWeight: 'bold', color: '#000000' } as any]}>{formatNumber(Number(item.stockAwal))}</Text>
-                                                <Text style={[styles.tableCell, styles.colNumber, styles.cellRight, Number(item.stockIn) !== 0 && { fontWeight: 'bold', color: '#000000' } as any]}>{formatNumber(Number(item.stockIn))}</Text>
-                                                <Text style={[styles.tableCell, styles.colNumber, styles.cellRight, Number(item.stockOut) !== 0 && { fontWeight: 'bold', color: '#000000' } as any]}>{formatNumber(Number(item.stockOut))}</Text>
-                                                <Text style={[styles.tableCell, styles.colNumber, styles.cellRight, Number(item.onPR) !== 0 && { fontWeight: 'bold', color: '#000000' } as any]}>{formatNumber(Number(item.onPR))}</Text>
-                                                <Text style={[styles.tableCell, styles.colNumber, styles.cellRight, Number(item.bookedStock) !== 0 && { fontWeight: 'bold', color: '#000000' } as any]}>{formatNumber(Number(item.bookedStock))}</Text>
-                                                <Text style={[styles.tableCell, styles.colNumber, styles.cellRight, Number(item.stockAkhir) !== 0 && { fontWeight: 'bold', color: '#000000' } as any]}>{formatNumber(Number(item.stockAkhir))}</Text>
-                                                <View style={[styles.tableCell, styles.colStatus, styles.cellCenter]}>
-                                                    <View style={[styles.statusBadge, status.badge]}>
-                                                        <Text style={[styles.statusText, status.text]}>{status.label}</Text>
-                                                    </View>
-                                                </View>
-                                                <Text style={[styles.tableCell, styles.colValue, styles.cellRight]}>{formatCurrency(Number(item.inventoryValue))}</Text>
+                        <View>
+                            {group.items.length > 0 ? (
+                                group.items.map((item: StockBalanceData, index: number) => {
+                                    const availableStock = Number(item.availableStock || 0);
+                                    const status = getStockStatus(availableStock);
+
+                                    return (
+                                        <View key={item.id} wrap={false} style={[styles.tableRow, ...(index % 2 === 0 ? [styles.tableRowEven] : [])]}>
+                                            <Text style={[styles.tableCell, styles.colNo, styles.cellCenter]}>{index + 1}</Text>
+                                            <View style={[styles.tableCell, styles.colProduct]}>
+                                                <Text style={styles.productName}>{item.product?.name || `Product ${item.productId}`}</Text>
+                                                {item.product?.code && <Text style={styles.productCode}>{item.product.code}</Text>}
                                             </View>
-                                        );
-                                    })
-                                ) : (
-                                    <View style={styles.tableRow}>
-                                        <Text style={[styles.tableCell, { width: '100%', textAlign: 'center', paddingVertical: 20 }]}>
-                                            Tidak ada data untuk gudang ini
-                                        </Text>
-                                    </View>
-                                )}
+                                            <Text style={[styles.tableCell, styles.colNumber, styles.cellRight, Number(item.stockAwal) !== 0 && { fontWeight: 'bold', color: '#000000' } as any]}>{formatNumber(Number(item.stockAwal))}</Text>
+                                            <Text style={[styles.tableCell, styles.colNumber, styles.cellRight, Number(item.stockIn) !== 0 && { fontWeight: 'bold', color: '#000000' } as any]}>{formatNumber(Number(item.stockIn))}</Text>
+                                            <Text style={[styles.tableCell, styles.colNumber, styles.cellRight, Number(item.stockOut) !== 0 && { fontWeight: 'bold', color: '#000000' } as any]}>{formatNumber(Number(item.stockOut))}</Text>
+                                            <Text style={[styles.tableCell, styles.colNumber, styles.cellRight, Number(item.onPR) !== 0 && { fontWeight: 'bold', color: '#000000' } as any]}>{formatNumber(Number(item.onPR))}</Text>
+                                            <Text style={[styles.tableCell, styles.colNumber, styles.cellRight, Number(item.bookedStock) !== 0 && { fontWeight: 'bold', color: '#000000' } as any]}>{formatNumber(Number(item.bookedStock))}</Text>
+                                            <Text style={[styles.tableCell, styles.colNumber, styles.cellRight, Number(item.stockAkhir) !== 0 && { fontWeight: 'bold', color: '#000000' } as any]}>{formatNumber(Number(item.stockAkhir))}</Text>
+                                            <Text style={[styles.tableCell, styles.colNumber, styles.cellRight, Number(item.availableStock) !== 0 && { fontWeight: 'bold', color: '#10b981' } as any]}>{formatNumber(Number(item.availableStock))}</Text>
+                                            <View style={[styles.tableCell, styles.colStatus, styles.cellCenter]}>
+                                                <View style={[styles.statusBadge, status.badge]}>
+                                                    <Text style={[styles.statusText, status.text]}>{status.label}</Text>
+                                                </View>
+                                            </View>
+                                            <Text style={[styles.tableCell, styles.colValue, styles.cellRight]}>{formatCurrency(Number(item.inventoryValue))}</Text>
+                                        </View>
+                                    );
+                                })
+                            ) : (
+                                <View style={styles.tableRow}>
+                                    <Text style={[styles.tableCell, { width: '100%', textAlign: 'center', paddingVertical: 20 }]}>
+                                        Tidak ada data untuk gudang ini
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
+                    </View>
+
+                    {/* WAREHOUSE SUMMARY - COMPACT */}
+                    <View style={{ marginHorizontal: 25, marginTop: 10, marginBottom: 5 }}>
+                        <View style={{
+                            flexDirection: 'row',
+                            backgroundColor: '#f8fafc',
+                            borderWidth: 1,
+                            borderColor: '#e2e8f0',
+                            borderRadius: 4,
+                            paddingVertical: 6,
+                            paddingHorizontal: 10
+                        }}>
+                            <View style={{ flex: 1, alignItems: 'center' }}>
+                                <Text style={{ fontSize: 7, color: '#64748b', marginBottom: 2 }}>PRODUK</Text>
+                                <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#1e293b' }}>{group.items.length}</Text>
+                            </View>
+                            <View style={{ flex: 1, alignItems: 'center' }}>
+                                <Text style={{ fontSize: 7, color: '#64748b', marginBottom: 2 }}>STOK AKHIR</Text>
+                                <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#1a56db' }}>
+                                    {formatNumber(group.items.reduce((sum: number, item: any) => sum + Number(item.stockAkhir || 0), 0))}
+                                </Text>
+                            </View>
+                            <View style={{ flex: 1, alignItems: 'center' }}>
+                                <Text style={{ fontSize: 7, color: '#64748b', marginBottom: 2 }}>MASUK</Text>
+                                <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#10b981' }}>
+                                    {formatNumber(group.items.reduce((sum: number, item: any) => sum + Number(item.stockIn || 0), 0))}
+                                </Text>
+                            </View>
+                            <View style={{ flex: 1, alignItems: 'center' }}>
+                                <Text style={{ fontSize: 7, color: '#64748b', marginBottom: 2 }}>KELUAR</Text>
+                                <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#ef4444' }}>
+                                    {formatNumber(group.items.reduce((sum: number, item: any) => sum + Number(item.stockOut || 0), 0))}
+                                </Text>
+                            </View>
+                            <View style={{ flex: 1, alignItems: 'center' }}>
+                                <Text style={{ fontSize: 7, color: '#64748b', marginBottom: 2 }}>BOOKED</Text>
+                                <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#f59e0b' }}>
+                                    {formatNumber(group.items.reduce((sum: number, item: any) => sum + Number(item.bookedStock || 0), 0))}
+                                </Text>
+                            </View>
+                            <View style={{ flex: 1, alignItems: 'center' }}>
+                                <Text style={{ fontSize: 7, color: '#64748b', marginBottom: 2 }}>STOCK READY</Text>
+                                <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#10b981' }}>
+                                    {formatNumber(group.items.reduce((sum: number, item: any) => sum + Number(item.availableStock || 0), 0))}
+                                </Text>
+                            </View>
+                            <View style={{ flex: 1.5, alignItems: 'center' }}>
+                                <Text style={{ fontSize: 7, color: '#64748b', marginBottom: 2 }}>NILAI</Text>
+                                <Text style={{ fontSize: 9, fontWeight: 'bold', color: '#1a56db' }}>
+                                    {formatCurrency(group.items.reduce((sum: number, item: any) => sum + Number(item.inventoryValue || 0), 0))}
+                                </Text>
                             </View>
                         </View>
                     </View>
-                ))}
 
-                {/* MINIMAL SUMMARY TABLE */}
-                <View style={styles.summaryContainer}>
-                    <Text style={styles.summaryTitle}>RINGKASAN ANALISIS</Text>
-
-                    <View style={styles.summaryTable}>
-                        {/* Table Header */}
-                        <View style={[styles.summaryTableRow, styles.summaryTableRowHeader]}>
-                            <View style={[styles.summaryTableCol, styles.sumCol1]}>
-                                <Text style={styles.summaryLabel}>METRIK</Text>
-                            </View>
-                            <View style={[styles.summaryTableCol, styles.sumCol2]}>
-                                <Text style={styles.summaryLabel}>NILAI</Text>
-                            </View>
-                            <View style={[styles.summaryTableCol, styles.sumCol3]}>
-                                <Text style={styles.summaryLabel}>PERSENTASE</Text>
-                            </View>
-                            <View style={[styles.summaryTableCol, styles.sumCol4]}>
-                                <Text style={styles.summaryLabel}>KETERANGAN</Text>
-                            </View>
-                        </View>
-
-                        {/* Pergerakan Stock */}
-                        <View style={styles.summaryTableRow}>
-                            <View style={[styles.summaryTableCol, styles.sumCol1]}>
-                                <Text style={styles.summaryValue}>Pergerakan Stock</Text>
-                            </View>
-                            <View style={[styles.summaryTableCol, styles.sumCol2]}>
-                                <Text style={styles.summaryValue}>{formatNumber(totals.stockIn + totals.stockOut)}</Text>
-                            </View>
-                            <View style={[styles.summaryTableCol, styles.sumCol3]}>
-                                <Text style={styles.summaryValue}>
-                                    {totals.stockAwal > 0 ?
-                                        `${((totals.stockOut / totals.stockAwal) * 100).toFixed(1)}%` :
-                                        '0%'
-                                    }
-                                </Text>
-                            </View>
-                            <View style={[styles.summaryTableCol, styles.sumCol4]}>
-                                <Text style={styles.summaryValue}>
-                                    Masuk: {formatNumber(totals.stockIn)}, Keluar: {formatNumber(totals.stockOut)}
-                                </Text>
-                            </View>
-                        </View>
-
-                        {/* Stock Tersedia */}
-                        <View style={styles.summaryTableRow}>
-                            <View style={[styles.summaryTableCol, styles.sumCol1]}>
-                                <Text style={styles.summaryValue}>Stock Tersedia</Text>
-                            </View>
-                            <View style={[styles.summaryTableCol, styles.sumCol2]}>
-                                <Text style={[styles.summaryValue, styles.summaryHighlight]}>{formatNumber(totals.availableStock)}</Text>
-                            </View>
-                            <View style={[styles.summaryTableCol, styles.sumCol3]}>
-                                <Text style={styles.summaryValue}>
-                                    {totals.stockAkhir > 0 ?
-                                        `${((totals.availableStock / totals.stockAkhir) * 100).toFixed(1)}%` :
-                                        '0%'
-                                    }
-                                </Text>
-                            </View>
-                            <View style={[styles.summaryTableCol, styles.sumCol4]}>
-                                <Text style={styles.summaryValue}>
-                                    {totals.availableStock <= 0 ? 'Stok kritis' :
-                                        totals.availableStock < 50 ? 'Perlu restock' :
-                                            'Stok aman'}
-                                </Text>
-                            </View>
-                        </View>
-
-                        {/* Stock Terbooking */}
-                        <View style={styles.summaryTableRow}>
-                            <View style={[styles.summaryTableCol, styles.sumCol1]}>
-                                <Text style={styles.summaryValue}>Stock Terbooking</Text>
-                            </View>
-                            <View style={[styles.summaryTableCol, styles.sumCol2]}>
-                                <Text style={styles.summaryValue}>{formatNumber(totals.bookedStock)}</Text>
-                            </View>
-                            <View style={[styles.summaryTableCol, styles.sumCol3]}>
-                                <Text style={styles.summaryValue}>
-                                    {totals.stockAkhir > 0 ?
-                                        `${((totals.bookedStock / totals.stockAkhir) * 100).toFixed(1)}%` :
-                                        '0%'
-                                    }
-                                </Text>
-                            </View>
-                            <View style={[styles.summaryTableCol, styles.sumCol4]}>
-                                <Text style={styles.summaryValue}>Sudah approve PR/MR</Text>
-                            </View>
-                        </View>
-
-                        {/* Permintaan Pending */}
-                        <View style={styles.summaryTableRow}>
-                            <View style={[styles.summaryTableCol, styles.sumCol1]}>
-                                <Text style={styles.summaryValue}>Permintaan Pending</Text>
-                            </View>
-                            <View style={[styles.summaryTableCol, styles.sumCol2]}>
-                                <Text style={styles.summaryValue}>{formatNumber(totals.onPR)}</Text>
-                            </View>
-                            <View style={[styles.summaryTableCol, styles.sumCol3]}>
-                                <Text style={styles.summaryValue}>-</Text>
-                            </View>
-                            <View style={[styles.summaryTableCol, styles.sumCol4]}>
-                                <Text style={styles.summaryValue}>Menunggu persetujuan</Text>
-                            </View>
-                        </View>
-
-                        {/* Nilai Inventori */}
-                        <View style={styles.summaryTableRow}>
-                            <View style={[styles.summaryTableCol, styles.sumCol1]}>
-                                <Text style={styles.summaryValue}>Nilai Inventori</Text>
-                            </View>
-                            <View style={[styles.summaryTableCol, styles.sumCol2]}>
-                                <Text style={[styles.summaryValue, styles.summaryHighlight]}>{formatCurrency(totals.inventoryValue)}</Text>
-                            </View>
-                            <View style={[styles.summaryTableCol, styles.sumCol3]}>
-                                <Text style={styles.summaryValue}>
-                                    Rata: {formatCurrency(data?.length ? totals.inventoryValue / data.length : 0)}
-                                </Text>
-                            </View>
-                            <View style={[styles.summaryTableCol, styles.sumCol4]}>
-                                <Text style={styles.summaryValue}>Total nilai semua stock</Text>
-                            </View>
-                        </View>
+                    {/* FOOTER */}
+                    <View style={styles.footer}>
+                        <Text style={styles.footerText}>
+                            PT. Rylif Mikro Mandiri, Bekasi
+                        </Text>
+                        <Text style={styles.pageNumber}>Halaman {groupIndex + 1}/{sortedWarehouseGroups.length}</Text>
                     </View>
-                </View>
-
-                {/* FOOTER */}
-                <View style={styles.footer}>
-                    <Text style={styles.footerText}>
-                        {companyInfo.name} • {companyInfo.address} • {companyInfo.phone || ''}
-                    </Text>
-                    <Text style={styles.pageNumber}>Halaman 1/1</Text>
-                </View>
-            </Page>
+                </Page>
+            ))}
         </Document>
     );
 };

@@ -168,7 +168,9 @@ export async function getGoodsReceiptsAction(
             }
         });
 
-        return await fetchAPI<GoodsReceiptListResponse>(`/api/gr?${queryParams}`);
+        return await fetchAPI<GoodsReceiptListResponse>(`/api/gr?${queryParams}`, {
+            cache: 'no-store'
+        });
     } catch (error) {
         console.error('Error fetching goods receipts:', error);
         return {

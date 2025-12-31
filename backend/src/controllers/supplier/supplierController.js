@@ -73,9 +73,14 @@ export const createSupplier = async (req, res) => {
       ...validData,
       code: nextCode,
       status: "ACTIVE",
+      // Sanitize optional unique fields: empty string should be null
+      email: validData.email === "" ? null : validData.email,
+      phone: validData.phone === "" ? null : validData.phone,
+      website: validData.website === "" ? null : validData.website,
+      npwp: validData.npwp === "" ? null : validData.npwp,
     };
 
-    // Cek duplikasi NPWP (jika ada)
+    // Cek duplikasi NPWP (jika ada dan tidak null)
     if (supplierData.npwp) {
       const existingNpwp = await prisma.supplier.findUnique({
         where: { npwp: supplierData.npwp },
@@ -111,14 +116,15 @@ export const createSupplier = async (req, res) => {
     // Handle specific Prisma errors
     if (error.code === "P2002") {
       const field = error.meta?.target?.[0];
+      let message = `Data duplicate ditemukan pada kolom: ${field}`;
+      
+      if (field === "code") message = "Kode supplier sudah digunakan";
+      if (field === "email") message = "Email sudah terdaftar";
+      if (field === "npwp") message = "NPWP sudah terdaftar";
+      
       return res.status(400).json({
         success: false,
-        message:
-          field === "code"
-            ? "Kode supplier sudah digunakan"
-            : field === "email"
-            ? "Email sudah terdaftar"
-            : "Data duplicate ditemukan",
+        message: message,
       });
     }
 

@@ -123,16 +123,12 @@ const SearchInput = ({
         handleSearch(searchTerm);
     };
 
-    // 🔥 SIMPLE: Handle key down untuk Enter dan Escape
+    // 🔥 SIMPLE: Handle key down untuk Escape
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Escape') {
             handleClear();
         }
-        if (e.key === 'Enter') {
-            // Tidak perlu panggil handleSearch lagi karena form submit sudah handle
-            e.preventDefault();
-            handleSearch(searchTerm);
-        }
+        // Enter key akan ditangani oleh form submit, tidak perlu handle di sini
     };
 
     const handleClear = () => {

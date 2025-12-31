@@ -2195,7 +2195,9 @@ export const approveGR = async (req, res) => {
             const currentBooked = parseFloat(existingBalance.bookedStock) || 0;
             const newStockAkhir = currentStockAkhir + qtyPassed;
             
+            // Normal logic for all warehouses (including WIP)
             // Logic Available: StockAkhir - BookedStock (Clamped to 0)
+            const newBooked = currentBooked; // Keep existing booked stock
             let newAvailable = newStockAkhir - currentBooked;
             if (newAvailable < 0) newAvailable = 0;
 
@@ -2205,6 +2207,7 @@ export const approveGR = async (req, res) => {
               data: {
                 stockIn: { increment: qtyPassed },
                 stockAkhir: { set: newStockAkhir }, // Set explicitly to match available calc
+                bookedStock: { set: newBooked },
                 availableStock: { set: newAvailable },
                 // Only decrement onPR for PO-related GRs, NOT for transfers
                 ...(existingGR.sourceType !== 'TRANSFER' && { onPR: { decrement: qtyPassed } }),
@@ -2222,7 +2225,9 @@ export const approveGR = async (req, res) => {
             // Calculate new Stock Akhir
             const newStockAkhir = baseStockAwal + qtyPassed;
             
+            // Normal logic for all warehouses (including WIP)
             // Logic Available: StockAkhir - BookedStock (Clamped to 0)
+            const newBooked = baseBooked; // Keep existing booked stock
             let newAvailable = newStockAkhir - baseBooked;
             if (newAvailable < 0) newAvailable = 0;
 
@@ -2237,9 +2242,9 @@ export const approveGR = async (req, res) => {
                 stockOut: 0,
                 
                 stockAkhir: newStockAkhir, 
-                bookedStock: baseBooked, // Bookings carry over
+                bookedStock: newBooked, // Carry over existing booked stock
                 
-                availableStock: newAvailable,
+                availableStock: newAvailable, // Calculated: stockAkhir - bookedStock
                 
                 // onPR Logic: Only update for PO-related GRs, NOT for transfers
                 onPR: existingGR.sourceType !== 'TRANSFER' && baseOnPR > 0 ? (baseOnPR - qtyPassed < 0 ? 0 : baseOnPR - qtyPassed) : baseOnPR,
@@ -2312,6 +2317,42 @@ export const approveGR = async (req, res) => {
         });
         console.log(`📦 Updated StockTransfer ${existingGR.vendorDeliveryNote} status to RECEIVED`);
       }
+
+      // --- NEW LOGIC: Update Purchase Order Status based on Receipt ---
+      if (existingGR.purchaseOrderId) {
+        // Fetch fresh PO data with lines
+        const po = await tx.purchaseOrder.findUnique({
+          where: { id: existingGR.purchaseOrderId },
+          include: { lines: true }
+        });
+
+        if (po) {
+          // Calculate totals
+          const totalOrdered = po.lines.reduce((sum, line) => sum + Number(line.quantity || 0), 0);
+          const totalReceived = po.lines.reduce((sum, line) => sum + Number(line.receivedQuantity || 0), 0);
+          
+          let newPoStatus = po.status;
+          
+          // Determine new status
+          // PENTING: Gunakan toleransi kecil untuk floating point comparison jika perlu, 
+          // tapi biasanya prisma decimal/number cukup presisi untuk equality sederhana.
+          if (totalReceived >= totalOrdered && totalOrdered > 0) {
+            newPoStatus = 'FULLY_RECEIVED';
+          } else if (totalReceived > 0) {
+            newPoStatus = 'PARTIALLY_RECEIVED';
+          }
+          
+          // Only update if status changed and not already completed/cancelled
+          if (newPoStatus !== po.status && !['CANCELLED', 'REJECTED'].includes(po.status)) {
+             await tx.purchaseOrder.update({
+               where: { id: po.id },
+               data: { status: newPoStatus }
+             });
+             console.log(`Updated PO ${po.poNumber} status to ${newPoStatus} (Received: ${totalReceived}/${totalOrdered})`);
+          }
+        }
+      }
+
       return updatedGR;
     });
 

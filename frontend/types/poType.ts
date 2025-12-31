@@ -83,7 +83,19 @@ export interface PurchaseOrder {
     sPKId?: string | null;
     PurchaseRequest?: PurchaseRequest | null; // Optional relation
     purchaseRequestId?: string | null;
+    teamId?: string | null;
+    team?: Team | null; // Optional relation
+    PurchaseExecution?: PurchaseExecution[]; // Optional relation
     relatedMRs?: RelatedMR[]; // Virtual field from controller
+}
+
+export interface Team {
+    id: string;
+    namaTeam: string;
+    deskripsi?: string;
+    karyawan?: {
+        karyawan: Karyawan;
+    }[];
 }
 
 export interface RelatedMR {
@@ -92,12 +104,55 @@ export interface RelatedMR {
     status: string;
 }
 
+// Purchase Execution / Reports
+export interface PurchaseExecution {
+    id: string;
+    executionDate: Date | string; // Often comes as string from JSON
+    totalSpent: number;
+    status: string;
+    notes?: string;
+    receipts?: PurchaseReceipt[];
+    executor?: {
+        id: string;
+        namaLengkap: string;
+    };
+    createdAt: Date | string;
+    updatedAt: Date | string;
+}
+
+export interface PurchaseReceipt {
+    id: string;
+    receiptNumber?: string;
+    storeName?: string;
+    receiptDate: Date | string;
+    totalAmount: number;
+    paymentMethod: string;
+    items: ReceiptItem[];
+    photos: ReceiptPhoto[];
+}
+
+export interface ReceiptItem {
+    id: string;
+    productName?: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+    poLineId?: string;
+}
+
+export interface ReceiptPhoto {
+    id: string;
+    photoUrl: string;
+    photoType: string; // BON, PRODUCT
+}
+
 // Related Types (these should be defined in your actual application)
 export interface Warehouse {
     id: string;
     name: string;
     code: string;
     address?: string;
+    isWip?: boolean;
     // Add other warehouse fields
 }
 

@@ -130,14 +130,14 @@ export const ExpandableRow = forwardRef<HTMLTableRowElement, ExpandableRowProps>
                         <div className="group relative">
                             {/* ✅ Background berbeda berdasarkan status */}
                             <div className={`border rounded-xl p-4 hover:shadow-md transition-all duration-200 ${pr.projectId && pr.project?.name
-                                    ? 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700'
-                                    : 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/50'
+                                ? 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700'
+                                : 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/50'
                                 }`}>
                                 <div className="flex items-center gap-3">
                                     {/* ✅ Icon dengan warna berbeda */}
                                     <div className={`p-2 rounded-lg ${pr.projectId && pr.project?.name
-                                            ? 'bg-green-50 dark:bg-green-900/30'
-                                            : 'bg-amber-100 dark:bg-amber-900/50'
+                                        ? 'bg-green-50 dark:bg-green-900/30'
+                                        : 'bg-amber-100 dark:bg-amber-900/50'
                                         }`}>
                                         {pr.projectId && pr.project?.name ? (
                                             <Building className="h-4 w-4 text-green-600 dark:text-green-400" />
@@ -153,8 +153,8 @@ export const ExpandableRow = forwardRef<HTMLTableRowElement, ExpandableRowProps>
                                                     <div className="cursor-help">
                                                         {/* ✅ Text color berbeda berdasarkan status */}
                                                         <div className={`text-sm uppercase font-bold text-wrap ${pr.projectId && pr.project?.name
-                                                                ? 'text-gray-900 dark:text-white'
-                                                                : 'text-amber-800 dark:text-amber-300'
+                                                            ? 'text-gray-900 dark:text-white'
+                                                            : 'text-amber-800 dark:text-amber-300'
                                                             }`}>
                                                             {pr.projectId && pr.project?.name
                                                                 ? pr.project.name
@@ -187,8 +187,8 @@ export const ExpandableRow = forwardRef<HTMLTableRowElement, ExpandableRowProps>
                                                         {/* ✅ Info status di tooltip */}
                                                         {!pr.projectId && (
                                                             <div className={`p-2 rounded-md text-xs ${pr.keterangan
-                                                                    ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
-                                                                    : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+                                                                ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
+                                                                : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
                                                                 }`}>
                                                                 {pr.keterangan
                                                                     ? "⚠️ PR dibuat tanpa referensi project"
@@ -213,21 +213,21 @@ export const ExpandableRow = forwardRef<HTMLTableRowElement, ExpandableRowProps>
                                     {/* ✅ Badge dengan warna matching */}
                                     <div className="flex flex-col gap-1">
                                         {pr.projectId && pr.project?.name ? (
-                                            <Badge variant="outline" className="text-[10px] px-2 py-0.5 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300">
+                                            <Badge variant="outline" className="text-[12px] px-2 py-0.5 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300">
                                                 <Building className="h-2.5 w-2.5 mr-1" />
-                                                PROJECT
+                                                PR PROJECT
                                             </Badge>
                                         ) : (
-                                            <Badge variant="outline" className="text-[10px] px-2 py-0.5 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800">
+                                            <Badge variant="destructive" className="text-[12px] px-2 py-0.5 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800">
                                                 <FileText className="h-2.5 w-2.5 mr-1" />
-                                                UMUM
+                                                PR UMUM
                                             </Badge>
                                         )}
 
                                         {pr.spk?.spkNumber && (
-                                            <Badge variant="outline" className="text-[10px] px-2 py-0.5">
+                                            <Badge variant="outline" className="text-[12px] px-2 py-0.5">
                                                 <FileCheck className="h-2.5 w-2.5 mr-1" />
-                                                SPK
+                                                PR SPK
                                             </Badge>
                                         )}
                                     </div>

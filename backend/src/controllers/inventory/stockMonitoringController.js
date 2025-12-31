@@ -342,7 +342,7 @@ export const stockMonitoringController = {
              period: currentPeriod
            },
            include: {
-             warehouse: { select: { name: true } }
+             warehouse: { select: { name: true, isWip: true } }
            }
          });
          
@@ -363,8 +363,12 @@ export const stockMonitoringController = {
              return {
                  warehouseId: b.warehouseId,
                  warehouseName: b.warehouse?.name || 'Unknown',
-                 stock: Number(b.availableStock),
-                 price: oldestBatch ? Number(oldestBatch.pricePerUnit) : 0
+                 stock: Number(b.availableStock), // Keep for backward compatibility
+                 price: oldestBatch ? Number(oldestBatch.pricePerUnit) : 0,
+                 stockAkhir: Number(b.stockAkhir),
+                 bookedStock: Number(b.bookedStock),
+                 availableStock: Number(b.availableStock),
+                 isWip: b.warehouse?.isWip || false
              };
          }));
 

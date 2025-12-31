@@ -11,7 +11,9 @@ import {
     BarChart3,
     Download,
     CheckCircle,
-    Clock
+    Clock,
+    ShoppingCart,
+    CalendarCheck
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -422,7 +424,7 @@ const DashboardUserSPK = ({ dataSpk, role, userId }: FormMonitoringProgressSpkPr
                     initial="hidden"
                     animate="visible"
                     whileHover="hover"
-                    className="group bg-white/50 dark:bg-gray-800/50 backdrop-blur-xl rounded-3xl p-2 cursor-pointer border border-white/30 dark:border-gray-700/30 shadow-2xl transition-all duration-300 overflow-hidden relative"
+                    className="group bg-white/50 dark:bg-gray-800/50 backdrop-blur-xl rounded-3xl p-4 cursor-pointer border border-white/30 dark:border-gray-700/30 shadow-2xl transition-all duration-300 overflow-hidden relative"
                     onClick={() => router.push("/user-area/spkReport")}
                 >
                     <div className="absolute inset-0 bg-gradient-to-br from-blue-100/40 to-indigo-100/40 dark:from-blue-900/20 dark:to-indigo-900/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-3xl -z-10"></div>
@@ -450,7 +452,7 @@ const DashboardUserSPK = ({ dataSpk, role, userId }: FormMonitoringProgressSpkPr
                     animate="visible"
                     transition={{ delay: 0.1 }}
                     whileHover="hover"
-                    className="group bg-white/50 dark:bg-gray-800/50 backdrop-blur-xl rounded-3xl p-2 cursor-pointer border border-white/30 dark:border-gray-700/30 shadow-2xl transition-all duration-300 overflow-hidden relative"
+                    className="group bg-white/50 dark:bg-gray-800/50 backdrop-blur-xl rounded-3xl p-4 cursor-pointer border border-white/30 dark:border-gray-700/30 shadow-2xl transition-all duration-300 overflow-hidden relative"
                     onClick={() => router.push("/user-area/spkReportDetail")}
                 >
                     <div className="absolute inset-0 bg-gradient-to-br from-green-100/40 to-emerald-100/40 dark:from-green-900/20 dark:to-emerald-900/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-3xl -z-10"></div>
@@ -466,6 +468,62 @@ const DashboardUserSPK = ({ dataSpk, role, userId }: FormMonitoringProgressSpkPr
                         </p>
                         <div className="flex items-center text-green-600 dark:text-green-400 text-sm font-medium mt-2">
                             <span>Lihat laporan</span>
+                            <ChevronRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                        </div>
+                    </div>
+                </motion.div>
+
+                {/* Kartu 3: Pembelian Material */}
+                <motion.div
+                    variants={cardVariants}
+                    initial="hidden"
+                    animate="visible"
+                    transition={{ delay: 0.2 }}
+                    whileHover="hover"
+                    className="group bg-white/50 dark:bg-gray-800/50 backdrop-blur-xl rounded-3xl p-4 cursor-pointer border border-white/30 dark:border-gray-700/30 shadow-2xl transition-all duration-300 overflow-hidden relative"
+                    onClick={() => router.push("/user-area/purchase-execution")}
+                >
+                    <div className="absolute inset-0 bg-gradient-to-br from-amber-100/40 to-orange-100/40 dark:from-amber-900/20 dark:to-orange-900/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-3xl -z-10"></div>
+                    <div className="flex flex-col items-center text-center relative z-10">
+                        <div className="w-16 h-16 bg-gradient-to-r from-amber-500/90 to-orange-600/90 dark:from-amber-600/90 dark:to-orange-700/90 rounded-2xl flex items-center justify-center mb-3 shadow-lg group-hover:scale-110 transition-transform duration-300 backdrop-blur-md border border-white/20">
+                            <ShoppingCart className="w-9 h-9 text-white" />
+                        </div>
+                        <h2 className="text-base font-bold text-gray-800 dark:text-white mb-2 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                            Belanja Material Proyek
+                        </h2>
+                        <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed mb-2">
+                            Kelola dan laporkan pembelian material proyek berdasarkan daftar pesanan yang tersedia.
+                        </p>
+                        <div className="flex items-center text-amber-600 dark:text-amber-400 text-sm font-medium mt-2">
+                            <span>Buat Request</span>
+                            <ChevronRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                        </div>
+                    </div>
+                </motion.div>
+
+                {/* Kartu 4: Absensi di Proyek */}
+                <motion.div
+                    variants={cardVariants}
+                    initial="hidden"
+                    animate="visible"
+                    transition={{ delay: 0.3 }}
+                    whileHover="hover"
+                    className="group bg-white/50 dark:bg-gray-800/50 backdrop-blur-xl rounded-3xl p-4 cursor-pointer border border-white/30 dark:border-gray-700/30 shadow-2xl transition-all duration-300 overflow-hidden relative"
+                    onClick={() => router.push("/user-area/attendance")}
+                >
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-100/40 to-pink-100/40 dark:from-purple-900/20 dark:to-pink-900/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-3xl -z-10"></div>
+                    <div className="flex flex-col items-center text-center relative z-10">
+                        <div className="w-16 h-16 bg-gradient-to-r from-purple-500/90 to-pink-600/90 dark:from-purple-600/90 dark:to-pink-700/90 rounded-2xl flex items-center justify-center mb-3 shadow-lg group-hover:scale-110 transition-transform duration-300 backdrop-blur-md border border-white/20">
+                            <CalendarCheck className="w-9 h-9 text-white" />
+                        </div>
+                        <h2 className="text-base font-bold text-gray-800 dark:text-white mb-2 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                            Absensi On-Site
+                        </h2>
+                        <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed mb-2">
+                            Laporkan kehadiran Anda secara praktis untuk mendukung kelancaran administrasi proyek.
+                        </p>
+                        <div className="flex items-center text-purple-600 dark:text-purple-400 text-sm font-medium mt-2">
+                            <span>Isi Absensi</span>
                             <ChevronRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
                         </div>
                     </div>

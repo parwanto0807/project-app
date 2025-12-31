@@ -96,67 +96,121 @@ export const createSpkFieldReport = async (req, res) => {
       await Promise.all(photoPromises);
     }
 
-    // ✅ HITUNG ULANG PROGRESS SPK - APPROACH BARU
-    const totalItems = await prisma.salesOrderItem.count({
-      where: {
-        salesOrderId: (
-          await prisma.sPK.findUnique({
-            where: { id: spkId },
-            select: { salesOrderId: true },
-          })
-        )?.salesOrderId,
-      },
-    });
-
-    const reportsWithSoDetail = await prisma.sPKFieldReport.findMany({
-      where: {
-        spkId,
-        soDetailId: { not: null }, // Hanya ambil yang punya soDetailId
-      },
-      orderBy: { reportedAt: "desc" },
-      select: {
+    // ✅ HITUNG ULANG PROGRESS SPK
+    // Ambil semua SPKDetail untuk SPK ini
+    const spkDetails = await prisma.sPKDetail.findMany({
+      where: { spkId: spkId },
+      select: { 
         id: true,
-        soDetailId: true,
-        progress: true,
-        reportedAt: true,
+        salesOrderItemId: true 
       },
     });
 
-    // Kelompokkan progress terbaru per soDetailId
-    const latestProgressMap = new Map();
-
-    for (const report of reportsWithSoDetail) {
-      if (!latestProgressMap.has(report.soDetailId)) {
-        latestProgressMap.set(report.soDetailId, report.progress);
-      }
-    }
-
-    // Hitung rata-rata progress
+    const totalSPKItems = spkDetails.length;
+    let averageProgress = 0;
+    let count = 0;
     let totalProgress = 0;
-    let count = totalItems;
 
-    for (const [soDetailId, progressValue] of latestProgressMap) {
-      totalProgress += progressValue;
+    // Jika tidak ada SPKDetail, gunakan progress manual
+    if (totalSPKItems === 0) {
+      averageProgress = progress;
+      count = 0;
+      totalProgress = 0;
+      
+      console.log(`[SPK Progress] No SPKDetails - using manual progress: ${averageProgress}%`);
+      
+      await prisma.sPK.update({
+        where: { id: spkId },
+        data: {
+          progress: averageProgress,
+          spkStatus: averageProgress === 100 ? true : false,
+        },
+      });
+    } else {
+      // Ambil SalesOrder items untuk menghitung pembagi (sama seperti frontend)
+      const salesOrder = await prisma.salesOrder.findUnique({
+        where: { id: spk.salesOrderId },
+        select: {
+          items: {
+            select: { id: true }
+          }
+        }
+      });
+
+      const totalSalesOrderItems = salesOrder?.items?.length || 0;
+
+      // Ambil semua laporan untuk SPK ini
+      const allReports = await prisma.sPKFieldReport.findMany({
+        where: { spkId },
+        orderBy: { reportedAt: "desc" },
+        select: {
+          id: true,
+          soDetailId: true,
+          progress: true,
+          reportedAt: true,
+        },
+      });
+
+      // Pisahkan laporan berdasarkan ada/tidaknya soDetailId
+      const reportsWithSoDetail = allReports.filter(r => r.soDetailId !== null);
+      const reportsWithoutSoDetail = allReports.filter(r => r.soDetailId === null);
+
+      // Kelompokkan progress terbaru per soDetailId
+      const progressByItem = new Map();
+      
+      for (const report of reportsWithSoDetail) {
+        if (!progressByItem.has(report.soDetailId)) {
+          progressByItem.set(report.soDetailId, report.progress);
+        }
+      }
+
+      // Untuk laporan tanpa soDetailId, ambil progress tertinggi (bukan sum!)
+      let maxProgressWithoutSoDetail = 0;
+      for (const report of reportsWithoutSoDetail) {
+        if (report.progress > maxProgressWithoutSoDetail) {
+          maxProgressWithoutSoDetail = report.progress;
+        }
+      }
+
+      // Hitung total progress
+      totalProgress = 0;
+      
+      // Tambahkan progress dari item yang punya soDetailId
+      for (const [key, prog] of progressByItem) {
+        totalProgress += prog;
+      }
+      
+      // Tambahkan progress maksimal dari laporan tanpa soDetailId (hanya sekali!)
+      if (reportsWithoutSoDetail.length > 0) {
+        totalProgress += maxProgressWithoutSoDetail;
+      }
+
+      // PERBAIKAN: Gunakan jumlah items di SalesOrder (sama seperti frontend!)
+      count = totalSalesOrderItems > 0 ? totalSalesOrderItems : totalSPKItems;
+
+      // Progress SPK = (Total progress dari item yang dilaporkan) / (Jumlah items di SalesOrder)
+      averageProgress = count > 0 ? Math.round(totalProgress / count) : 0;
+
+      console.log(`[SPK Progress Debug]`);
+      console.log(`  SPK ID: ${spkId}`);
+      console.log(`  Total SPKDetails (records): ${totalSPKItems}`);
+      console.log(`  Total SalesOrder Items: ${totalSalesOrderItems}`);
+      console.log(`  Items with soDetailId: ${progressByItem.size}`);
+      console.log(`  Reports without soDetailId: ${reportsWithoutSoDetail.length}`);
+      console.log(`  Max Progress (no soDetailId): ${maxProgressWithoutSoDetail}%`);
+      console.log(`  Total Progress Sum: ${totalProgress}`);
+      console.log(`  Count (divisor): ${count}`);
+      console.log(`  Average Progress: ${averageProgress}%`);
+      console.log(`  Progress by Item:`, Object.fromEntries(progressByItem));
+
+      await prisma.sPK.update({
+        where: { id: spkId },
+        data: {
+          progress: averageProgress,
+          spkStatus: averageProgress === 100 ? true : false,
+        },
+      });
     }
-
-    // console.log(`[DEBUG] Total progress: ${totalProgress}, Count: ${count}`);
-    const averageProgress = count > 0 ? Math.round(totalProgress / count) : 0;
-
-    // ✅ Update SPK - Pastikan tipe data match
-    // Cek tipe data field progress di model SPK
-    const spkData = await prisma.sPK.findUnique({
-      where: { id: spkId },
-      select: { progress: true, salesOrderId: true },
-    });
-
-    // Update progress SPK
-    const updatedSpk = await prisma.sPK.update({
-      where: { id: spkId },
-      data: {
-        progress: averageProgress,
-        spkStatus: averageProgress === 100 ? true : false,
-      },
-    });
 
     if (averageProgress === 100 && spk.salesOrderId) {
       await prisma.salesOrder.update({

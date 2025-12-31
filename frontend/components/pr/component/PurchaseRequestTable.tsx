@@ -128,8 +128,13 @@ export function PurchaseRequestTable(props: PurchaseRequestTableProps) {
     };
 
     // Handler functions dengan loading state
-    const handleSearchChange = (search: string) => {
-        updateURL({ search });
+    const handleSearchChange = async (search: string) => {
+        // Wrap dalam Promise untuk memastikan SearchInput's await selesai
+        return new Promise<void>((resolve) => {
+            updateURL({ search });
+            // Resolve immediately setelah URL update
+            resolve();
+        });
     };
 
     const handleSearchSubmit = (e: React.FormEvent) => {

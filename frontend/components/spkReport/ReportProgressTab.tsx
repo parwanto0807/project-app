@@ -333,13 +333,13 @@ const ReportProgressTab = ({
                 return;
             }
 
-            console.log('Files to be submitted:',
-                formData.photos.map(photo => ({
-                    name: photo.file.name,
-                    category: photo.category,
-                    size: photo.file.size
-                }))
-            );
+            // console.log('Files to be submitted:',
+            //     formData.photos.map(photo => ({
+            //         name: photo.file.name,
+            //         category: photo.category,
+            //         size: photo.file.size
+            //     }))
+            // );
 
             const reportData = createReportFormData({
                 spkId: selectedSpk.id,

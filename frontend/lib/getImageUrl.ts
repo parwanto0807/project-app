@@ -3,9 +3,10 @@ const VPS_BASE_URL = "https://api.rylif-app.com";
 
 // Helper internal untuk menentukan Base URL
 const getBaseUrl = () => {
-  // JIKA DEV (Laptop): Paksa ambil dari VPS karena file ada disana
+  // JIKA DEV (Laptop): Gunakan localhost. 
+  // Note: NEXT_PUBLIC_API_URL mungkin tersetting ke VPS di .env, jadi kita paksa localhost untuk dev
   if (process.env.NODE_ENV === "development") {
-    return VPS_BASE_URL;
+    return "http://localhost:5000";
   }
 
   // JIKA PROD (Server): Gunakan URL sendiri (env) atau localhost server

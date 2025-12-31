@@ -275,6 +275,19 @@ export function TabelInputPR({
     // }, [karyawanData]);
 
     const handleSpkChange = (spkId: string) => {
+        // Jika user memilih "Tidak menggunakan SPK"
+        if (spkId === "no-spk") {
+            setSelectedProject(null);
+            setSelectedSpk(null);
+            setFormData(prev => ({
+                ...prev,
+                spkId: "",
+                projectId: "",
+                keterangan: ""
+            }));
+            return;
+        }
+
         const spk = dataSpk.find(s => s.id === spkId);
 
         if (spk) {
@@ -601,18 +614,18 @@ export function TabelInputPR({
                             </CardHeader>
                             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="spkId" className="font-semibold">SPK (Surat Perintah Kerja) <span className="text-red-500">*</span></Label>
-                                    <Select value={formData.spkId} onValueChange={handleSpkChange}>
+                                    <Label htmlFor="spkId" className="font-semibold">SPK (Surat Perintah Kerja)</Label>
+                                    <Select value={formData.spkId || "no-spk"} onValueChange={handleSpkChange}>
                                         <SelectTrigger className={cn(errors.spkId && "border-red-500")}>
                                             <SelectValue placeholder="Select SPK" />
                                         </SelectTrigger>
                                         <SelectContent>
+                                            <SelectItem value="no-spk">Tidak menggunakan SPK</SelectItem>
                                             {dataSpk.map((spk) => (
                                                 <SelectItem key={spk.id} value={spk.id}>
                                                     {spk.spkNumber} - {spk.salesOrder.project?.name} - {spk.salesOrder.customer.branch}
                                                 </SelectItem>
                                             ))}
-                                            {dataSpk.length === 0 && <SelectItem value="no-spk" disabled>No SPK available</SelectItem>}
                                         </SelectContent>
                                     </Select>
                                     {errors.spkId && <p className="text-xs text-red-500">{errors.spkId}</p>}
@@ -733,11 +746,22 @@ export function TabelInputPR({
                                                                     <SelectValue placeholder="Pilih sumber produk" />
                                                                 </SelectTrigger>
                                                                 <SelectContent>
-                                                                    <SelectItem value="PEMBELIAN_BARANG">Pembelian Barang</SelectItem>
-                                                                    <SelectItem value="PENGAMBILAN_STOK">Pengambilan Stok</SelectItem>
-                                                                    <SelectItem value="OPERATIONAL">Operasional</SelectItem>
-                                                                    <SelectItem value="JASA_PEMBELIAN">Jasa Pembelian</SelectItem>
-                                                                    <SelectItem value="JASA_INTERNAL">Jasa Internal</SelectItem>
+                                                                    {/* Jika spkId kosong, tampilkan Pembelian Barang, Pengambilan Stock, dan Jasa Pembelian */}
+                                                                    {!formData.spkId ? (
+                                                                        <>
+                                                                            <SelectItem value="PEMBELIAN_BARANG">Pembelian Barang</SelectItem>
+                                                                            <SelectItem value="PENGAMBILAN_STOK">Pengambilan Stock</SelectItem>
+                                                                            <SelectItem value="JASA_PEMBELIAN">Jasa Pembelian</SelectItem>
+                                                                        </>
+                                                                    ) : (
+                                                                        /* Jika spkId ada, tampilkan Pengambilan Stok, Operational, Jasa Pembelian, dan Jasa Internal */
+                                                                        <>
+                                                                            <SelectItem value="PENGAMBILAN_STOK">Pengambilan Stok</SelectItem>
+                                                                            <SelectItem value="OPERATIONAL">Operational</SelectItem>
+                                                                            <SelectItem value="JASA_PEMBELIAN">Jasa Pembelian</SelectItem>
+                                                                            <SelectItem value="JASA_INTERNAL">Jasa Internal</SelectItem>
+                                                                        </>
+                                                                    )}
                                                                 </SelectContent>
                                                             </Select>
                                                         </TableCell>
@@ -811,10 +835,8 @@ export function TabelInputPR({
                                                         {/* Status/Selisih */}
                                                         <TableCell className="align-top">
                                                             {(() => {
-                                                                if (
-                                                                    item.sourceProduct !== SourceProductType.PEMBELIAN_BARANG &&
-                                                                    item.sourceProduct !== SourceProductType.PENGAMBILAN_STOK
-                                                                ) {
+                                                                // Hanya tampilkan status untuk PENGAMBILAN_STOK
+                                                                if (item.sourceProduct !== SourceProductType.PENGAMBILAN_STOK) {
                                                                     return <div className="text-center text-gray-400">-</div>;
                                                                 }
 

@@ -80,7 +80,7 @@ interface TabelMonitoringProps {
     setWarehouseFilter: (value: string) => void;
     statusFilter: string;
     setStatusFilter: (value: string) => void;
-    warehouses: { id: string; name: string; isMain: boolean }[];
+    warehouses: { id: string; name: string; isMain: boolean; isWip: boolean }[];
     lastUpdated: Date;
     viewMode: 'desktop' | 'mobile';
     onViewModeChange: (mode: 'desktop' | 'mobile') => void;
@@ -746,7 +746,7 @@ export default function TabelMonitoring({
                                         <TableHead className="text-right font-bold text-slate-900 dark:text-slate-200 text-[10px] uppercase tracking-[0.2em]">
                                             <div className="flex items-center justify-end gap-2">
                                                 <Package className="w-3 h-3" />
-                                                On Request
+                                                On PO
                                             </div>
                                         </TableHead>
                                         <TableHead className="text-right font-bold text-slate-900 dark:text-slate-200 text-[10px] uppercase tracking-[0.2em]">Dialokasikan</TableHead>

@@ -9,7 +9,13 @@ import {
   deletePO,
   createPOFromApprovedPR,
   createPO,
-  sendPOEmail
+  sendPOEmail,
+  getPOForExecution,
+  submitPurchaseExecution,
+  getPOExecutionDetail,
+  deletePurchaseExecution,
+  updatePurchaseExecution,
+  togglePOLineVerification
 } from '../../controllers/po/poController.js';
 
 import { authenticateToken } from '../../middleware/authMiddleware.js';
@@ -56,7 +62,24 @@ router.post('/create-from-pr', async (req, res) => {
   }
 });
 
+// --- Submit Purchase Execution Report ---
+router.post('/:poId/execution', authenticateToken, upload.fields([
+  { name: 'receiptPhotos', maxCount: 20 },
+  { name: 'materialPhotos', maxCount: 20 }
+]), submitPurchaseExecution);
+
+// --- Get Execution Detail ---
+router.get('/execution/:poLineId', authenticateToken, getPOExecutionDetail);
+
+router.delete('/execution/:executionId', authenticateToken, deletePurchaseExecution);
+
+router.put('/execution/:executionId', authenticateToken, upload.fields([
+  { name: 'newReceiptPhotos', maxCount: 10 },
+  { name: 'newMaterialPhotos', maxCount: 20 }
+]), updatePurchaseExecution);
+
 // --- List & Detail ---
+router.get('/execution-list', authenticateToken, getPOForExecution);
 router.get('/', getAllPO);
 router.get('/:id', getPODetail);
 
@@ -67,5 +90,8 @@ router.post('/:id/send-email', authenticateToken, upload.single('file'), sendPOE
 
 // --- Delete ---
 router.delete('/:id', deletePO);        // Hanya untuk DRAFT
+
+// --- PO Line Verification ---
+router.patch('/line/:poLineId/verify', authenticateToken, togglePOLineVerification);
 
 export default router;

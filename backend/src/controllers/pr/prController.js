@@ -1041,6 +1041,114 @@ export class PurchaseRequestController {
               );
             }
           }
+
+          // Delete StockTransfers created during approval (for PR without SPK)
+          // Only delete if StockTransfer is still DRAFT
+          if (!existingPR.spkId) {
+            const relatedTransfers = await tx.stockTransfer.findMany({
+              where: {
+                notes: {
+                  contains: `Auto-created from PR ${existingPR.nomorPr}`
+                }
+              },
+              include: {
+                items: true
+              }
+            });
+
+            for (const transfer of relatedTransfers) {
+              // Check if transfer is safe to delete (only DRAFT status)
+              if (transfer.status !== 'DRAFT') {
+                const statusText = transfer.status === 'PENDING' ? 'sudah dalam status PENDING' :
+                                 transfer.status === 'IN_TRANSIT' ? 'sedang dalam perjalanan' :
+                                 transfer.status === 'RECEIVED' ? 'sudah diterima' :
+                                 'tidak dalam status DRAFT';
+                throw new Error(`Tidak dapat membatalkan approval. Stock Transfer ${transfer.transferNumber} ${statusText}.`);
+              }
+
+              const transferNumber = transfer.transferNumber;
+
+              // Delete related MaterialRequisitions (auto-generated for transfer)
+              const relatedMRs = await tx.materialRequisition.findMany({
+                where: {
+                  notes: {
+                    contains: `Internal Stock Transfer [${transferNumber}]`
+                  }
+                },
+                include: {
+                  items: true
+                }
+              });
+
+              for (const mr of relatedMRs) {
+                // Check if MR is safe to delete (only PENDING)
+                if (mr.status !== 'PENDING') {
+                  const statusText = mr.status === 'APPROVED' ? 'sudah di-approve' :
+                                   mr.status === 'READY_TO_PICKUP' ? 'sudah siap diambil' :
+                                   mr.status === 'ISSUED' ? 'sudah dikeluarkan' :
+                                   'tidak dalam status PENDING';
+                  throw new Error(`Tidak dapat membatalkan approval. Material Requisition ${mr.mrNumber} ${statusText}.`);
+                }
+
+                // Delete MR items
+                await tx.materialRequisitionItem.deleteMany({
+                  where: { materialRequisitionId: mr.id }
+                });
+
+                // Delete MR
+                await tx.materialRequisition.delete({
+                  where: { id: mr.id }
+                });
+
+                console.log(`✅ Deleted MaterialRequisition ${mr.mrNumber} during cancel approve`);
+              }
+
+              // Delete related GoodsReceipts (auto-generated for transfer)
+              const relatedGRs = await tx.goodsReceipt.findMany({
+                where: {
+                  vendorDeliveryNote: transferNumber
+                },
+                include: {
+                  items: true
+                }
+              });
+
+              for (const gr of relatedGRs) {
+                // Check if GR is safe to delete (only DRAFT)
+                if (gr.status !== 'DRAFT') {
+                  const statusText = gr.status === 'ARRIVED' ? 'sudah tiba' :
+                                   gr.status === 'PASSED' ? 'sudah lulus QC' :
+                                   gr.status === 'COMPLETED' ? 'sudah selesai' :
+                                   'tidak dalam status DRAFT';
+                  throw new Error(`Tidak dapat membatalkan approval. Goods Receipt ${gr.grNumber} ${statusText}.`);
+                }
+
+                // Delete GR items
+                await tx.goodsReceiptItem.deleteMany({
+                  where: { goodsReceiptId: gr.id }
+                });
+
+                // Delete GR
+                await tx.goodsReceipt.delete({
+                  where: { id: gr.id }
+                });
+
+                console.log(`✅ Deleted GoodsReceipt ${gr.grNumber} during cancel approve`);
+              }
+
+              // Delete transfer items first (foreign key constraint)
+              await tx.stockTransferItem.deleteMany({
+                where: { transferId: transfer.id }
+              });
+
+              // Delete transfer
+              await tx.stockTransfer.delete({
+                where: { id: transfer.id }
+              });
+
+              console.log(`✅ Deleted StockTransfer ${transfer.transferNumber} during cancel approve`);
+            }
+          }
         }
 
         // 3. Save Warehouse Allocations if provided
@@ -1236,7 +1344,8 @@ export class PurchaseRequestController {
         }
 
         // 4. Create Material Requisitions AFTER warehouse allocations are saved
-        if (status === 'APPROVED') {
+        // Only for PR with SPK (spkId is not null)
+        if (status === 'APPROVED' && pr.spkId) {
           // Get all PR details with warehouse allocations
           const prDetailsWithAllocations = await tx.purchaseRequestDetail.findMany({
             where: {
@@ -1326,6 +1435,237 @@ export class PurchaseRequestController {
                   purchaseRequestDetailId: item.detailId,
                 }
               });
+            }
+          }
+        }
+
+        // 5. Auto-create StockTransfer for PR without SPK with PENGAMBILAN_STOCK items
+        if (status === 'APPROVED' && !pr.spkId) {
+          // Get all PR details with PENGAMBILAN_STOK and warehouse allocations
+          const stockWithdrawalDetails = await tx.purchaseRequestDetail.findMany({
+            where: {
+              purchaseRequestId: id,
+              sourceProduct: 'PENGAMBILAN_STOK',
+              warehouseAllocation: { not: null }
+            },
+            include: { product: true }
+          });
+
+          if (stockWithdrawalDetails.length > 0) {
+            // Find WIP warehouse
+            const wipWarehouse = await tx.warehouse.findFirst({
+              where: { isWip: true, isActive: true }
+            });
+
+            if (!wipWarehouse) {
+              console.warn('⚠️ No WIP warehouse found. Skipping StockTransfer creation.');
+            } else if (!pr.karyawanId) {
+              console.warn('⚠️ PR has no karyawan. Skipping StockTransfer creation.');
+            } else {
+              // Generate Transfer Number (Format: TF-YYYYMM-XXXX)
+              const now = new Date();
+              const year = now.getFullYear();
+              const month = String(now.getMonth() + 1).padStart(2, '0');
+              const prefix = `TF-${year}${month}`;
+
+              // Find last transfer with this prefix
+              const lastTransfer = await tx.stockTransfer.findFirst({
+                where: {
+                  transferNumber: {
+                    startsWith: prefix
+                  }
+                },
+                orderBy: {
+                  transferNumber: 'desc'
+                }
+              });
+
+              let sequence = 1;
+              if (lastTransfer) {
+                const parts = lastTransfer.transferNumber.split('-');
+                if (parts.length === 3) {
+                  const lastSeq = parseInt(parts[2]);
+                  if (!isNaN(lastSeq)) {
+                    sequence = lastSeq + 1;
+                  }
+                }
+              }
+
+              const transferNumber = `${prefix}-${String(sequence).padStart(4, '0')}`;
+
+              // Group items by fromWarehouse
+              const warehouseGroups = {};
+
+              for (const detail of stockWithdrawalDetails) {
+                const allocations = typeof detail.warehouseAllocation === 'string'
+                  ? JSON.parse(detail.warehouseAllocation)
+                  : detail.warehouseAllocation;
+
+                if (Array.isArray(allocations)) {
+                  for (const allocation of allocations) {
+                    const fromWarehouseId = allocation.warehouseId;
+                    const allocatedQty = allocation.allocatedQty || 0;
+
+                    if (allocatedQty > 0) {
+                      if (!warehouseGroups[fromWarehouseId]) {
+                        warehouseGroups[fromWarehouseId] = [];
+                      }
+
+                      warehouseGroups[fromWarehouseId].push({
+                        productId: detail.productId,
+                        quantity: allocatedQty,
+                        unit: detail.satuan,
+                        cogs: allocation.costAttribute || 0
+                      });
+                    }
+                  }
+                }
+              }
+
+              // Create StockTransfer for each source warehouse
+              for (const [fromWarehouseId, items] of Object.entries(warehouseGroups)) {
+                if (items.length === 0) continue;
+
+                // Create StockTransfer
+                const stockTransfer = await tx.stockTransfer.create({
+                  data: {
+                    transferNumber,
+                    status: 'DRAFT',
+                    fromWarehouseId,
+                    toWarehouseId: wipWarehouse.id,
+                    senderId: pr.karyawanId,
+                    notes: `Auto-created from PR ${pr.nomorPr} (No SPK)`,
+                  }
+                });
+
+                // Create StockTransferItems
+                for (const item of items) {
+                  await tx.stockTransferItem.create({
+                    data: {
+                      transferId: stockTransfer.id,
+                      productId: item.productId,
+                      quantity: item.quantity,
+                      unit: item.unit,
+                      cogs: item.cogs
+                    }
+                  });
+                }
+
+                console.log(`✅ Created StockTransfer ${transferNumber} from warehouse ${fromWarehouseId} to WIP warehouse ${wipWarehouse.id}`);
+
+                // 5a. Create MaterialRequisition (MR) for stock withdrawal from source warehouse
+                // Generate MR Number
+                const lastMR = await tx.materialRequisition.findFirst({
+                  where: {
+                    mrNumber: {
+                      startsWith: `MR-${year}${month}-`
+                    }
+                  },
+                  orderBy: { mrNumber: 'desc' }
+                });
+
+                let mrSequence = 1;
+                if (lastMR) {
+                  const lastMRSequence = parseInt(lastMR.mrNumber.split('-')[2]);
+                  mrSequence = lastMRSequence + 1;
+                }
+
+                const mrNumber = `MR-${year}${month}-${String(mrSequence).padStart(4, '0')}`;
+
+                // Create MaterialRequisition
+                const materialRequisition = await tx.materialRequisition.create({
+                  data: {
+                    mrNumber,
+                    projectId: pr.projectId,
+                    requestedById: pr.karyawanId,
+                    status: 'PENDING',
+                    warehouseId: fromWarehouseId,
+                    sourceType: 'TRANSFER',
+                    notes: `AUTO-GENERATED-TRANSFER: Internal Stock Transfer [${transferNumber}] to Warehouse ID: ${wipWarehouse.id}`
+                  }
+                });
+
+                // Create MR Items
+                for (const item of items) {
+                  await tx.materialRequisitionItem.create({
+                    data: {
+                      materialRequisitionId: materialRequisition.id,
+                      productId: item.productId,
+                      qtyRequested: item.quantity,
+                      qtyIssued: 0,
+                      unit: item.unit,
+                    }
+                  });
+                }
+
+                console.log(`✅ Created MaterialRequisition ${mrNumber} for warehouse ${fromWarehouseId}`);
+
+                // 5b. Create GoodsReceipt (GR) for receiving at WIP warehouse
+                // Generate GR Number
+                const lastGR = await tx.goodsReceipt.findFirst({
+                  where: {
+                    grNumber: {
+                      startsWith: `GRN/${year}/${month}/`
+                    }
+                  },
+                  orderBy: { grNumber: 'desc' }
+                });
+
+                let grSequence = 1;
+                if (lastGR) {
+                  const parts = lastGR.grNumber.split('/');
+                  grSequence = parseInt(parts[3]) + 1;
+                }
+
+                const grNumber = `GRN/${year}/${month}/${String(grSequence).padStart(3, '0')}`;
+
+                // Get current user for receivedBy - need to get User ID from Karyawan
+                const karyawan = await tx.karyawan.findUnique({
+                  where: { id: pr.karyawanId },
+                  include: { user: true }
+                });
+
+                const receivedByUserId = karyawan?.user?.id || karyawan?.userId;
+
+                if (!receivedByUserId) {
+                  console.warn('⚠️ Cannot find user for karyawan. Skipping GoodsReceipt creation.');
+                  continue;
+                }
+
+                // Create GoodsReceipt
+                const goodsReceipt = await tx.goodsReceipt.create({
+                  data: {
+                    grNumber,
+                    receivedDate: new Date(),
+                    vendorDeliveryNote: transferNumber, // Use transfer number as delivery note
+                    sourceType: 'TRANSFER',
+                    warehouseId: wipWarehouse.id,
+                    receivedById: receivedByUserId,
+                    status: 'DRAFT',
+                    notes: `AUTO-GENERATED-TRANSFER: Internal Stock Transfer [${transferNumber}] from Warehouse ID: ${fromWarehouseId}`
+                  }
+                });
+
+                // Create GR Items
+                for (const item of items) {
+                  await tx.goodsReceiptItem.create({
+                    data: {
+                      goodsReceiptId: goodsReceipt.id,
+                      productId: item.productId,
+                      qtyPlanReceived: item.quantity,
+                      qtyReceived: item.quantity,
+                      qtyPassed: item.quantity,
+                      qtyRejected: 0,
+                      unit: item.unit,
+                      unitPrice: item.cogs / item.quantity || 0,
+                      status: 'RECEIVED',
+                      qcStatus: 'PENDING'
+                    }
+                  });
+                }
+
+                console.log(`✅ Created GoodsReceipt ${grNumber} for WIP warehouse ${wipWarehouse.id}`);
+              }
             }
           }
         }

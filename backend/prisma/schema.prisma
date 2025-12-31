@@ -216,8 +216,9 @@ model Karyawan {
   sentTransfers     StockTransfer[]   @relation("Sender")
   receivedTransfers StockTransfer[]   @relation("Receiver")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  PurchaseExecution PurchaseExecution[]
 }
 
 model Gaji {
@@ -400,6 +401,7 @@ model Warehouse {
   address  String?
   isMain   Boolean @default(false) // Penanda gudang utama
   isActive Boolean @default(true)
+  isWip    Boolean @default(false) // Penanda gudang WIP  
 
   // --- Relasi Balik ---
   stockBalances        StockBalance[]
@@ -1137,7 +1139,8 @@ model Team {
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 
-  spk SPK[]
+  spk           SPK[]
+  purchaseOrder PurchaseOrder[]
 }
 
 model SPK {
@@ -2159,15 +2162,17 @@ model PurchaseOrder {
   goodsReceipts    GoodsReceipt[] // Relasi ke penerimaan
   supplierInvoices SupplierInvoice[]
 
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  SPK               SPK?             @relation(fields: [sPKId], references: [id])
-  sPKId             String?
-  PurchaseRequest   PurchaseRequest? @relation(fields: [purchaseRequestId], references: [id])
-  purchaseRequestId String?
-
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  SPK                  SPK?                  @relation(fields: [sPKId], references: [id])
+  sPKId                String?
+  PurchaseRequest      PurchaseRequest?      @relation(fields: [purchaseRequestId], references: [id])
+  purchaseRequestId    String?
+  teamId               String?
+  team                 Team?                 @relation(fields: [teamId], references: [id])
   // Relasi pemakaian material yang bersumber dari PO ini
   materialRequisitions MaterialRequisition[]
+  PurchaseExecution    PurchaseExecution[]
 }
 
 model PurchaseOrderLine {
@@ -2180,7 +2185,8 @@ model PurchaseOrderLine {
   totalAmount Decimal @db.Decimal(18, 2)
 
   // Tracking Progress
-  receivedQuantity Decimal @default(0) @db.Decimal(18, 4) // Jumlah yang sudah diterima
+  receivedQuantity       Decimal @default(0) @db.Decimal(18, 4) // Jumlah yang sudah diterima
+  checkPurchaseExecution Boolean @default(false)
 
   prDetailId String?
   prDetail   PurchaseRequestDetail? @relation(fields: [prDetailId], references: [id])
@@ -2188,7 +2194,106 @@ model PurchaseOrderLine {
   poId          String
   purchaseOrder PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
 
+  // Auto-calculated fields
+  purchasedQuantity Decimal @default(0) @db.Decimal(18, 4)
+  remainingQuantity Decimal @default(0) @db.Decimal(18, 4)
+
   grItems GoodsReceiptItem[]
+
+  // Tracking penerimaan dari berbagai bon
+  receiptItems ReceiptItem[] // Relasi ke items yang linked
+}
+
+model PurchaseExecution {
+  id            String                  @id @default(uuid())
+  poId          String
+  purchaseOrder PurchaseOrder           @relation(fields: [poId], references: [id])
+  executorId    String
+  executor      Karyawan                @relation(fields: [executorId], references: [id])
+  executionDate DateTime                @default(now())
+  status        PurchaseExecutionStatus @default(IN_PROGRESS)
+  totalSpent    Decimal                 @default(0) @db.Decimal(18, 2)
+  notes         String?
+
+  receipts  PurchaseReceipt[]
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+}
+
+model PurchaseReceipt {
+  id            String        @id @default(uuid())
+  receiptNumber String? // Opsional, bisa kosong
+  storeName     String?
+  receiptDate   DateTime
+  totalAmount   Decimal       @db.Decimal(18, 2)
+  paymentMethod PaymentMethod @default(CASH)
+
+  // Multiple foto: bon + produk dalam 1 array
+  photos ReceiptPhoto[]
+
+  executionId String
+  execution   PurchaseExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  // Items: bisa detail atau summary
+  items ReceiptItem[]
+
+  createdAt DateTime @default(now())
+}
+
+model ReceiptPhoto {
+  id        String          @id @default(uuid())
+  receiptId String
+  receipt   PurchaseReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+
+  // New: Link to specific item (optional for backward compatibility)
+  receiptItemId String?
+  receiptItem   ReceiptItem? @relation(fields: [receiptItemId], references: [id])
+
+  photoUrl  String
+  photoType ReceiptPhotoType @default(BON) // BON, PRODUCT, OTHER
+  createdAt DateTime         @default(now())
+}
+
+model ReceiptItem {
+  id        String          @id @default(uuid())
+  receiptId String
+  receipt   PurchaseReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+
+  // OPSI A: Link ke PO Item (jika sesuai)
+  poLineId String?
+  poLine   PurchaseOrderLine? @relation(fields: [poLineId], references: [id])
+
+  // OPSI B: Item tambahan di luar PO
+  isAdditional Boolean @default(false)
+
+  // Data item (untuk semua opsi)
+  productName String
+  quantity    Decimal @db.Decimal(18, 4)
+  unit        String
+  unitPrice   Decimal @db.Decimal(18, 2)
+  totalPrice  Decimal @db.Decimal(18, 2)
+
+  // Untuk kasus multi-toko: tambahkan store info di sini
+  storeName String? // Jika berbeda dari receipt.storeName
+  notes     String? // Catatan khusus
+
+  // Relasi ke foto spesifik item ini
+  photos ReceiptPhoto[]
+
+  createdAt DateTime @default(now())
+}
+
+// ENUM Sederhana
+enum PurchaseExecutionStatus {
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum ReceiptPhotoType {
+  BON // Foto bon/kwitansi
+  PRODUCT // Foto barang
+  OTHER // Foto lain-lain
 }
 
 // ==========================================================

@@ -240,7 +240,7 @@ export function PurchaseRequestSheet({
     const contentRef = useRef<HTMLDivElement>(null);
 
     // State for stock data
-    const [stockData, setStockData] = useState<Record<string, { available: number, breakdown: { warehouseId: string; warehouseName: string; stock: number; price: number }[] }>>({});
+    const [stockData, setStockData] = useState<Record<string, { available: number, breakdown: { warehouseId: string; warehouseName: string; stock: number; price: number; stockAkhir: number; bookedStock: number; availableStock: number; isWip: boolean }[] }>>({});
 
     // State for selected warehouses per item (checklist)
     const [warehouseSelections, setWarehouseSelections] = useState<Record<string, string[]>>({});
@@ -248,17 +248,13 @@ export function PurchaseRequestSheet({
     // State for source product changes (when stock is 0, allow changing from PENGAMBILAN_STOK to PEMBELIAN_BARANG)
     const [sourceProductChanges, setSourceProductChanges] = useState<Record<string, SourceProductType>>({});
 
-    // State for auto-split items (when stock is insufficient, create additional item for shortage)
-    const [splitItems, setSplitItems] = useState<Record<string, PurchaseRequestDetailWithRelations>>({});
 
-    // State for manual overrides of split item quantities
-    const [splitQuantityOverrides, setSplitQuantityOverrides] = useState<Record<string, number>>({});
 
     // Derived details with live price calculation (replacing localDetails state)
     const localDetails = React.useMemo(() => {
         if (!selectedPurchaseRequest?.details) return [];
 
-        const newSplitItems: Record<string, PurchaseRequestDetailWithRelations> = {};
+
 
         const processedDetails = selectedPurchaseRequest.details.map(detail => {
             const detailId = detail.id || '';
@@ -294,46 +290,12 @@ export function PurchaseRequestSheet({
                     }
                 }
 
-                // Check if stock is insufficient - create split item for shortage
-                if (totalAllocated > 0 && totalAllocated < Number(detail.jumlah)) {
-                    const shortage = Number(detail.jumlah) - totalAllocated;
-                    const splitItemId = `split-${detailId}`;
-
-                    // Check if user has manually overridden the split quantity
-                    const splitQty = splitQuantityOverrides[detailId] !== undefined
-                        ? splitQuantityOverrides[detailId]
-                        : shortage;
-
-                    // IMPORTANT: Parent quantity should ALWAYS equal totalAllocated (available stock)
-                    // It should NOT change when user edits split quantity
-                    const parentQty = totalAllocated;
-
-                    // Calculate cost for parent item based on available stock
-                    const newUnitPrice = parentQty > 0 ? totalCost / parentQty : 0;
-
-                    // Create split item for shortage (Pembelian Barang)
-                    newSplitItems[detailId] = {
-                        ...detail,
-                        id: splitItemId,
-                        jumlah: splitQty,
-                        sourceProduct: SourceProductType.PEMBELIAN_BARANG,
-                        estimasiHargaSatuan: detail.estimasiHargaSatuan || 0,
-                        estimasiTotalHarga: (detail.estimasiHargaSatuan || 0) * splitQty,
-                    } as PurchaseRequestDetailWithRelations;
-
-                    // Return original item with quantity = totalAllocated (available stock)
-                    return {
-                        ...detail,
-                        jumlah: parentQty,
-                        estimasiHargaSatuan: newUnitPrice,
-                        estimasiTotalHarga: totalCost
-                    } as PurchaseRequestDetailWithRelations;
-                } else if (totalAllocated > 0) {
-                    // Stock is sufficient
+                // Calculate price based on allocated stock (whether sufficient or not)
+                if (totalAllocated > 0) {
                     const newUnitPrice = totalCost / totalAllocated;
                     return {
                         ...detail,
-                        sourceProduct: effectiveSource, // Use modified source
+                        sourceProduct: effectiveSource,
                         estimasiHargaSatuan: newUnitPrice,
                         estimasiTotalHarga: totalCost
                     } as PurchaseRequestDetailWithRelations;
@@ -358,21 +320,9 @@ export function PurchaseRequestSheet({
             } as PurchaseRequestDetailWithRelations;
         });
 
-        // Update split items state
-        setSplitItems(newSplitItems);
-
-        // Combine original items with split items
-        const allDetails = [...processedDetails];
-        Object.entries(newSplitItems).forEach(([parentId, splitItem]) => {
-            // Insert split item right after its parent
-            const parentIndex = allDetails.findIndex(d => d.id === parentId);
-            if (parentIndex !== -1) {
-                allDetails.splice(parentIndex + 1, 0, splitItem);
-            }
-        });
-
-        return allDetails;
-    }, [selectedPurchaseRequest, warehouseSelections, stockData, sourceProductChanges, splitQuantityOverrides]);
+        // No longer creating split items, just return processed details
+        return processedDetails;
+    }, [selectedPurchaseRequest, warehouseSelections, stockData, sourceProductChanges]);
 
     // Fungsi untuk menghitung summary
     const calculateSummary = () => {
@@ -512,7 +462,19 @@ export function PurchaseRequestSheet({
                 const detailId = detail.id || '';
                 const detailStock = stockData[detailId];
                 const requestedQty = Number(detail.jumlah) || 0;
-                const availableStock = detailStock?.available || 0;
+
+                // Calculate available stock based on context
+                let availableStock = 0;
+
+                if (selectedPurchaseRequest?.spkId && detailStock?.breakdown) {
+                    // If SPK exists, only count stock from WIP warehouses
+                    availableStock = detailStock.breakdown
+                        .filter(wh => wh.isWip)
+                        .reduce((sum, wh) => sum + (wh.availableStock || 0), 0);
+                } else {
+                    // Otherwise use total available stock
+                    availableStock = detailStock?.available || 0;
+                }
 
                 if (requestedQty > availableStock) {
                     itemsExceedingStock.push({
@@ -577,65 +539,43 @@ export function PurchaseRequestSheet({
                 });
             }
 
-            // 2. Identify Logic for Split Items & Quantity Changes & Others
-            const splitItemsList: any[] = [];
+            // 2. Identify Logic for Quantity Changes & Source Changes
             const quantityChanges: Record<string, any> = {};
             const sourceChanges: Record<string, any> = {};
             const stockAvailability: Record<string, number> = {};
 
-            // Iterate through localDetails (which has the "live" view including splits)
+            // Iterate through localDetails
             localDetails.forEach(detail => {
                 const detailId = detail.id || '';
 
                 // Track stock availability snapshot for all items
-                if (detail.sourceProduct === SourceProductType.PENGAMBILAN_STOK && detailId && !detailId.startsWith('split-')) {
+                if (detail.sourceProduct === SourceProductType.PENGAMBILAN_STOK && detailId) {
                     const stockInfo = stockData[detailId];
                     if (stockInfo) {
                         stockAvailability[detailId] = stockInfo.available;
                     }
                 }
 
-                // CASE A: New Split Item
-                if (detailId.startsWith('split-')) {
-                    // Extract parent ID (remove 'split-' prefix)
-                    const parentId = detailId.replace(/^split-/, '');
+                // Check for changes in original items
+                const originalDetail = selectedPurchaseRequest.details.find(d => d.id === detailId);
 
-                    splitItemsList.push({
-                        parentDetailId: parentId, // Identify parent for reference if needed
-                        productId: detail.productId || detail.product?.id,
-                        jumlah: detail.jumlah,
-                        satuan: detail.satuan,
-                        sourceProduct: detail.sourceProduct,
-                        estimasiHargaSatuan: detail.estimasiHargaSatuan,
-                        estimasiTotalHarga: detail.estimasiTotalHarga,
-                        catatanItem: 'Auto-split from insufficient stock'
-                    });
-                }
-                // CASE B: Original Item that was Modified
-                else {
-                    const originalDetail = selectedPurchaseRequest.details.find(d => d.id === detailId);
+                if (originalDetail) {
+                    // Check for Quantity Change
+                    if (Number(detail.jumlah) !== Number(originalDetail.jumlah)) {
+                        quantityChanges[detailId] = {
+                            jumlah: Number(detail.jumlah),
+                            estimasiTotalHarga: Number(detail.estimasiTotalHarga)
+                        };
+                    }
 
-                    if (originalDetail) {
-                        // Check for Quantity Change (e.g. 15 -> 10)
-                        if (Number(detail.jumlah) !== Number(originalDetail.jumlah)) {
-                            quantityChanges[detailId] = {
-                                jumlah: Number(detail.jumlah),
-                                estimasiTotalHarga: Number(detail.estimasiTotalHarga)
-                            };
-                        }
-
-                        // Check for Source Product Change
-                        if (detail.sourceProduct !== originalDetail.sourceProduct) {
-                            sourceChanges[detailId] = detail.sourceProduct;
-                        }
+                    // Check for Source Product Change
+                    if (detail.sourceProduct !== originalDetail.sourceProduct) {
+                        sourceChanges[detailId] = detail.sourceProduct;
                     }
                 }
             });
 
             // 3. Pack everything into special keys in warehouseAllocations
-            if (splitItemsList.length > 0) {
-                allocations['__splitItems__'] = splitItemsList;
-            }
 
             if (Object.keys(quantityChanges).length > 0) {
                 allocations['__quantityChanges__'] = [quantityChanges];
@@ -918,7 +858,70 @@ export function PurchaseRequestSheet({
                                                                                         {(detail.sourceProduct === SourceProductType.PENGAMBILAN_STOK && stockData[detail.id || '']?.breakdown?.length > 0) && (
                                                                                             <Dialog>
                                                                                                 <DialogTrigger asChild>
-                                                                                                    <Button variant="outline" size="sm" className="h-8 text-xs flex items-center gap-1 w-full justify-between">
+                                                                                                    <Button
+                                                                                                        variant="outline"
+                                                                                                        size="sm"
+                                                                                                        className="h-8 text-xs flex items-center gap-1 w-full justify-between"
+                                                                                                        onClick={() => {
+                                                                                                            // Check if product is registered in any warehouse
+                                                                                                            const detailStock = stockData[detail.id || ''];
+                                                                                                            const breakdown = detailStock?.breakdown || [];
+
+                                                                                                            if (breakdown.length === 0) {
+                                                                                                                const productName = detail.product?.name || 'Item';
+                                                                                                                toast.error(
+                                                                                                                    `Item Product "${productName}" ini belum terdaftar di Warehouse manapun, silahkan lakukan Purchase Order terlebih dahulu`,
+                                                                                                                    {
+                                                                                                                        duration: 6000,
+                                                                                                                        position: 'top-center',
+                                                                                                                        style: {
+                                                                                                                            background: '#FEF3C7',
+                                                                                                                            color: '#92400E',
+                                                                                                                            border: '2px solid #F59E0B',
+                                                                                                                            padding: '16px',
+                                                                                                                            borderRadius: '8px',
+                                                                                                                            fontSize: '14px',
+                                                                                                                            fontWeight: '600',
+                                                                                                                            maxWidth: '500px'
+                                                                                                                        },
+                                                                                                                        icon: '📦',
+                                                                                                                    }
+                                                                                                                );
+                                                                                                                return;
+                                                                                                            }
+
+                                                                                                            // Calculate available stock based on context
+                                                                                                            let availableStock = detailStock?.available || 0;
+                                                                                                            if (selectedPurchaseRequest?.spkId && detailStock?.breakdown) {
+                                                                                                                availableStock = detailStock.breakdown
+                                                                                                                    .filter(wh => wh.isWip)
+                                                                                                                    .reduce((sum, wh) => sum + (wh.availableStock || 0), 0);
+                                                                                                            }
+
+                                                                                                            // Check if availableStock < qty and show warning
+                                                                                                            if (detailStock && availableStock < detail.jumlah) {
+                                                                                                                const productName = detail.product?.name || 'Item';
+                                                                                                                toast.error(
+                                                                                                                    `Stock Available tidak mencukupi untuk ${productName}! Diminta: ${detail.jumlah}, Available: ${availableStock}. Pastikan di Gudang WIP sudah di Transfer dari Gudang PUSAT.`,
+                                                                                                                    {
+                                                                                                                        duration: 6000,
+                                                                                                                        position: 'top-center',
+                                                                                                                        style: {
+                                                                                                                            background: '#FEF3C7',
+                                                                                                                            color: '#92400E',
+                                                                                                                            border: '2px solid #F59E0B',
+                                                                                                                            padding: '16px',
+                                                                                                                            borderRadius: '8px',
+                                                                                                                            fontSize: '14px',
+                                                                                                                            fontWeight: '600',
+                                                                                                                            maxWidth: '500px'
+                                                                                                                        },
+                                                                                                                        icon: '⚠️',
+                                                                                                                    }
+                                                                                                                );
+                                                                                                            }
+                                                                                                        }}
+                                                                                                    >
                                                                                                         <span>
                                                                                                             {warehouseSelections[detail.id || '']?.length
                                                                                                                 ? `${warehouseSelections[detail.id || '']?.length} WH Selected`
@@ -937,36 +940,66 @@ export function PurchaseRequestSheet({
                                                                                                         </DialogHeader>
                                                                                                     </div>
                                                                                                     <div className="p-4 space-y-2 max-h-[60vh] overflow-y-auto">
-                                                                                                        {stockData[detail.id || '']?.breakdown.map((wh) => (
-                                                                                                            <div
-                                                                                                                key={wh.warehouseId}
-                                                                                                                className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
-                                                                                                                onClick={() => handleToggleWarehouse(detail.id || '', wh.warehouseId)}
-                                                                                                            >
-                                                                                                                <Checkbox
-                                                                                                                    checked={(warehouseSelections[detail.id || ''] || []).includes(wh.warehouseId)}
-                                                                                                                    onCheckedChange={() => handleToggleWarehouse(detail.id || '', wh.warehouseId)}
-                                                                                                                    onClick={(e) => e.stopPropagation()}
-                                                                                                                    id={`mobile-${detail.id}-${wh.warehouseId}`}
-                                                                                                                    className="mt-1"
-                                                                                                                />
-                                                                                                                <div className="grid gap-1 w-full">
-                                                                                                                    <label
-                                                                                                                        htmlFor={`mobile-${detail.id}-${wh.warehouseId}`}
-                                                                                                                        className="text-sm font-medium leading-none cursor-pointer"
-                                                                                                                        onClick={(e) => e.stopPropagation()}
+                                                                                                        {stockData[detail.id || '']?.breakdown
+                                                                                                            .filter((wh) => {
+                                                                                                                // If spkId exists, only show WIP warehouses
+                                                                                                                if (selectedPurchaseRequest?.spkId) {
+                                                                                                                    return wh.isWip === true;
+                                                                                                                }
+                                                                                                                // Otherwise show all warehouses
+                                                                                                                return true;
+                                                                                                            })
+                                                                                                            .map((wh) => {
+                                                                                                                const isOutOfStock = (wh.availableStock || 0) <= 0;
+                                                                                                                const isDisabled = isOutOfStock;
+                                                                                                                return (
+                                                                                                                    <div
+                                                                                                                        key={wh.warehouseId}
+                                                                                                                        className={`flex items-start gap-3 p-3 border rounded-lg transition-colors ${isDisabled
+                                                                                                                            ? 'opacity-50 cursor-not-allowed bg-gray-100'
+                                                                                                                            : 'hover:bg-gray-50 cursor-pointer'
+                                                                                                                            }`}
+                                                                                                                        onClick={() => !isDisabled && handleToggleWarehouse(detail.id || '', wh.warehouseId)}
                                                                                                                     >
-                                                                                                                        {wh.warehouseName}
-                                                                                                                    </label>
-                                                                                                                    <div className="flex justify-between items-center text-xs text-gray-500">
-                                                                                                                        <span>Stock: {wh.stock}</span>
-                                                                                                                        {((warehouseSelections[detail.id || ''] || []).includes(wh.warehouseId)) && (
-                                                                                                                            <Check className="h-3 w-3 text-green-600" />
-                                                                                                                        )}
+                                                                                                                        <Checkbox
+                                                                                                                            checked={(warehouseSelections[detail.id || ''] || []).includes(wh.warehouseId)}
+                                                                                                                            onCheckedChange={() => !isDisabled && handleToggleWarehouse(detail.id || '', wh.warehouseId)}
+                                                                                                                            onClick={(e) => e.stopPropagation()}
+                                                                                                                            id={`mobile-${detail.id}-${wh.warehouseId}`}
+                                                                                                                            className="mt-1"
+                                                                                                                            disabled={isDisabled}
+                                                                                                                        />
+                                                                                                                        <div className="grid gap-1 w-full">
+                                                                                                                            <label
+                                                                                                                                htmlFor={`mobile-${detail.id}-${wh.warehouseId}`}
+                                                                                                                                className={`text-sm font-medium leading-none ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                                                                                                                                onClick={(e) => e.stopPropagation()}
+                                                                                                                            >
+                                                                                                                                {wh.warehouseName}
+                                                                                                                            </label>
+                                                                                                                            <div className="space-y-1">
+                                                                                                                                <div className="flex justify-between items-center text-xs">
+                                                                                                                                    <span className="text-gray-500">Stok Akhir:</span>
+                                                                                                                                    <span className="font-semibold">{wh.stockAkhir || 0}</span>
+                                                                                                                                </div>
+                                                                                                                                <div className="flex justify-between items-center text-xs">
+                                                                                                                                    <span className="text-gray-500">Booked:</span>
+                                                                                                                                    <span className="font-semibold text-amber-600">{wh.bookedStock || 0}</span>
+                                                                                                                                </div>
+                                                                                                                                <div className="flex justify-between items-center text-xs">
+                                                                                                                                    <span className="text-gray-500">Available:</span>
+                                                                                                                                    <span className={`font-semibold ${(wh.availableStock || 0) > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                                                                                                        {wh.availableStock || 0}
+                                                                                                                                    </span>
+                                                                                                                                </div>
+                                                                                                                                {((warehouseSelections[detail.id || ''] || []).includes(wh.warehouseId)) && (
+                                                                                                                                    <Check className="h-3 w-3 text-green-600 ml-auto" />
+                                                                                                                                )}
+                                                                                                                            </div>
+                                                                                                                        </div>
                                                                                                                     </div>
-                                                                                                                </div>
-                                                                                                            </div>
-                                                                                                        ))}
+                                                                                                                );
+                                                                                                            })}
                                                                                                     </div>
                                                                                                     <div className="p-4 border-t bg-gray-50 rounded-b-lg">
                                                                                                         <div className="flex justify-between items-center text-sm font-medium">
@@ -990,39 +1023,8 @@ export function PurchaseRequestSheet({
                                                                                 </div>
                                                                                 <div className="flex justify-between items-center">
                                                                                     <div className="text-xs text-gray-700">
-                                                                                        {detail.id?.startsWith('split-') ? (
-                                                                                            <div className="flex items-center gap-1">
-                                                                                                <Input
-                                                                                                    type="number"
-                                                                                                    value={detail.jumlah || ''}
-                                                                                                    onChange={(e) => {
-                                                                                                        const newQty = parseFloat(e.target.value);
-                                                                                                        const parentId = detail.id?.replace('split-', '') || '';
-                                                                                                        const originalDetail = selectedPurchaseRequest?.details.find(d => d.id === parentId);
-
-                                                                                                        if (!isNaN(newQty) && newQty > 0) {
-                                                                                                            setSplitQuantityOverrides(prev => ({
-                                                                                                                ...prev,
-                                                                                                                [parentId]: newQty
-                                                                                                            }));
-                                                                                                        }
-                                                                                                    }}
-                                                                                                    onKeyDown={(e) => {
-                                                                                                        // Prevent arrow keys from affecting parent elements
-                                                                                                        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-                                                                                                            e.stopPropagation();
-                                                                                                        }
-                                                                                                    }}
-                                                                                                    className="h-7 w-24 text-center text-xs font-semibold border-blue-300 focus:border-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                                                                                />
-                                                                                                <span className="text-gray-500">{detail.satuan}</span>
-                                                                                            </div>
-                                                                                        ) : (
-                                                                                            <>
-                                                                                                <span className="font-semibold">{detail.jumlah}</span>
-                                                                                                <span className="text-gray-500 ml-1">{detail.satuan}</span>
-                                                                                            </>
-                                                                                        )}
+                                                                                        <span className="font-semibold">{detail.jumlah}</span>
+                                                                                        <span className="text-gray-500 ml-1">{detail.satuan}</span>
                                                                                     </div>
                                                                                     <div className="text-right">
                                                                                         <div className="text-xs text-gray-700">
@@ -1100,8 +1102,8 @@ export function PurchaseRequestSheet({
                                                                                 </TooltipProvider>
                                                                             </div>
                                                                             <div className="col-span-2 text-center">
-                                                                                {/* Show dropdown if stock is 0 and source is PENGAMBILAN_STOK */}
-                                                                                {(detail.sourceProduct === SourceProductType.PENGAMBILAN_STOK && stockData[detail.id || '']?.available === 0) ? (
+                                                                                {/* Show dropdown if stock is 0 and source is PENGAMBILAN_STOK AND spkId is null */}
+                                                                                {(detail.sourceProduct === SourceProductType.PENGAMBILAN_STOK && stockData[detail.id || '']?.available === 0 && !selectedPurchaseRequest?.spkId) ? (
                                                                                     <Select
                                                                                         value={sourceProductChanges[detail.id || ''] || detail.sourceProduct}
                                                                                         onValueChange={(value) => handleSourceProductChange(detail.id || '', value as SourceProductType)}
@@ -1129,13 +1131,41 @@ export function PurchaseRequestSheet({
                                                                                             </SelectItem>
                                                                                         </SelectContent>
                                                                                     </Select>
-                                                                                ) : (detail.sourceProduct === SourceProductType.PENGAMBILAN_STOK && stockData[detail.id || '']?.breakdown?.length > 0) ? (
+                                                                                ) : (detail.sourceProduct === SourceProductType.PENGAMBILAN_STOK && (stockData[detail.id || '']?.breakdown?.length > 0 || selectedPurchaseRequest?.spkId)) ? (
                                                                                     <Dialog>
                                                                                         <DialogTrigger asChild>
                                                                                             <Button
                                                                                                 variant="ghost"
                                                                                                 className="h-auto p-1 hover:bg-gray-100 flex flex-col gap-1 items-center group"
                                                                                                 onClick={(e) => {
+                                                                                                    // Check if product is registered in any warehouse
+                                                                                                    const detailStock = stockData[detail.id || ''];
+                                                                                                    const breakdown = detailStock?.breakdown || [];
+
+                                                                                                    if (breakdown.length === 0) {
+                                                                                                        e.preventDefault();
+                                                                                                        const productName = detail.product?.name || 'Item';
+                                                                                                        toast.error(
+                                                                                                            `Item Product "${productName}" ini belum terdaftar di Warehouse manapun, silahkan lakukan Purchase Order terlebih dahulu`,
+                                                                                                            {
+                                                                                                                duration: 6000,
+                                                                                                                position: 'top-center',
+                                                                                                                style: {
+                                                                                                                    background: '#FEF3C7',
+                                                                                                                    color: '#92400E',
+                                                                                                                    border: '2px solid #F59E0B',
+                                                                                                                    padding: '16px',
+                                                                                                                    borderRadius: '8px',
+                                                                                                                    fontSize: '14px',
+                                                                                                                    fontWeight: '600',
+                                                                                                                    maxWidth: '500px'
+                                                                                                                },
+                                                                                                                icon: '📦',
+                                                                                                            }
+                                                                                                        );
+                                                                                                        return;
+                                                                                                    }
+
                                                                                                     // Prevent dialog from opening if PR is already approved/completed/rejected
                                                                                                     if (selectedPurchaseRequest?.status === 'APPROVED' ||
                                                                                                         selectedPurchaseRequest?.status === 'COMPLETED' ||
@@ -1155,6 +1185,37 @@ export function PurchaseRequestSheet({
                                                                                                             icon: '🚫',
                                                                                                         });
                                                                                                         return;
+                                                                                                    }
+
+                                                                                                    // Calculate available stock based on context
+                                                                                                    let availableStock = detailStock?.available || 0;
+                                                                                                    if (selectedPurchaseRequest?.spkId && detailStock?.breakdown) {
+                                                                                                        availableStock = detailStock.breakdown
+                                                                                                            .filter(wh => wh.isWip)
+                                                                                                            .reduce((sum, wh) => sum + (wh.availableStock || 0), 0);
+                                                                                                    }
+
+                                                                                                    // Check if availableStock < qty and show warning
+                                                                                                    if (detailStock && availableStock < detail.jumlah) {
+                                                                                                        const productName = detail.product?.name || 'Item';
+                                                                                                        toast.error(
+                                                                                                            `Stock Available tidak mencukupi untuk ${productName}! Diminta: ${detail.jumlah}, Available: ${availableStock}. Pastikan di Gudang WIP sudah di Transfer dari Gudang PUSAT.`,
+                                                                                                            {
+                                                                                                                duration: 6000,
+                                                                                                                position: 'top-center',
+                                                                                                                style: {
+                                                                                                                    background: '#FEF3C7',
+                                                                                                                    color: '#92400E',
+                                                                                                                    border: '2px solid #F59E0B',
+                                                                                                                    padding: '16px',
+                                                                                                                    borderRadius: '8px',
+                                                                                                                    fontSize: '14px',
+                                                                                                                    fontWeight: '600',
+                                                                                                                    maxWidth: '500px'
+                                                                                                                },
+                                                                                                                icon: '⚠️',
+                                                                                                            }
+                                                                                                        );
                                                                                                     }
                                                                                                 }}
                                                                                             >
@@ -1185,46 +1246,87 @@ export function PurchaseRequestSheet({
                                                                                                 </DialogHeader>
                                                                                             </div>
                                                                                             <div className="p-4 space-y-2 max-h-[60vh] overflow-y-auto">
-                                                                                                {stockData[detail.id || '']?.breakdown.map((wh) => (
-                                                                                                    <div
-                                                                                                        key={wh.warehouseId}
-                                                                                                        className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer group"
-                                                                                                        onClick={() => handleToggleWarehouse(detail.id || '', wh.warehouseId)}
-                                                                                                    >
-                                                                                                        <Checkbox
-                                                                                                            checked={(warehouseSelections[detail.id || ''] || []).includes(wh.warehouseId)}
-                                                                                                            onCheckedChange={() => handleToggleWarehouse(detail.id || '', wh.warehouseId)}
-                                                                                                            onClick={(e) => e.stopPropagation()}
-                                                                                                            id={`desktop-${detail.id}-${wh.warehouseId}`}
-                                                                                                            className="mt-1 bg-white data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
-                                                                                                        />
-                                                                                                        <div className="grid gap-1 w-full">
-                                                                                                            <label
-                                                                                                                htmlFor={`desktop-${detail.id}-${wh.warehouseId}`}
-                                                                                                                className="text-sm font-medium leading-none group-hover:text-blue-600 transition-colors cursor-pointer"
-                                                                                                                onClick={(e) => e.stopPropagation()}
-                                                                                                            >
-                                                                                                                {wh.warehouseName}
-                                                                                                            </label>
-                                                                                                            <div className="flex justify-between items-center text-xs text-gray-500">
-                                                                                                                <Badge variant="secondary" className="text-[10px] px-1.5 h-5 font-mono">
-                                                                                                                    Qty: {wh.stock}
-                                                                                                                </Badge>
+                                                                                                {(() => {
+                                                                                                    const breakdown = stockData[detail.id || '']?.breakdown || [];
+                                                                                                    const filteredBreakdown = breakdown.filter((wh: any) => {
+                                                                                                        if (selectedPurchaseRequest?.spkId) {
+                                                                                                            return wh.isWip === true;
+                                                                                                        }
+                                                                                                        return true;
+                                                                                                    });
 
-                                                                                                                {wh.stock > 0 ? (
-                                                                                                                    <span className="text-green-600 flex items-center gap-1">Available <CheckCircle className="h-3 w-3" /></span>
-                                                                                                                ) : (
-                                                                                                                    <span className="text-red-400">Out of Stock</span>
-                                                                                                                )}
+                                                                                                    if (filteredBreakdown.length === 0) {
+                                                                                                        return (
+                                                                                                            <div className="text-center py-8 text-gray-500">
+                                                                                                                <Package className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                                                                                                                <p className="text-sm font-medium">Tidak ada data stock</p>
+                                                                                                                <p className="text-xs mt-1">
+                                                                                                                    {selectedPurchaseRequest?.spkId
+                                                                                                                        ? "Product ini belum terdaftar di Gudang WIP"
+                                                                                                                        : "Product ini belum terdaftar di warehouse manapun"}
+                                                                                                                </p>
                                                                                                             </div>
-                                                                                                        </div>
-                                                                                                    </div>
-                                                                                                ))}
-                                                                                                {stockData[detail.id || '']?.breakdown.length === 0 && (
-                                                                                                    <div className="text-center py-4 text-gray-400 text-xs">
-                                                                                                        No stock data available
-                                                                                                    </div>
-                                                                                                )}
+                                                                                                        );
+                                                                                                    }
+
+                                                                                                    return (
+                                                                                                        <>
+                                                                                                            {filteredBreakdown.map((wh: any) => {
+                                                                                                                const isOutOfStock = (wh.availableStock || 0) <= 0;
+                                                                                                                const isDisabled = isOutOfStock;
+                                                                                                                return (
+                                                                                                                    <div
+                                                                                                                        key={wh.warehouseId}
+                                                                                                                        className={`flex items-start gap-3 p-3 border rounded-lg transition-colors group ${isDisabled
+                                                                                                                            ? 'opacity-50 cursor-not-allowed bg-gray-100'
+                                                                                                                            : 'hover:bg-gray-50 cursor-pointer'
+                                                                                                                            }`}
+                                                                                                                        onClick={() => !isDisabled && handleToggleWarehouse(detail.id || '', wh.warehouseId)}
+                                                                                                                    >
+                                                                                                                        <Checkbox
+                                                                                                                            checked={(warehouseSelections[detail.id || ''] || []).includes(wh.warehouseId)}
+                                                                                                                            onCheckedChange={() => !isDisabled && handleToggleWarehouse(detail.id || '', wh.warehouseId)}
+                                                                                                                            onClick={(e) => e.stopPropagation()}
+                                                                                                                            id={`desktop-${detail.id}-${wh.warehouseId}`}
+                                                                                                                            className="mt-1 bg-white data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                                                                                                                            disabled={isDisabled}
+                                                                                                                        />
+                                                                                                                        <div className="grid gap-1 w-full">
+                                                                                                                            <label
+                                                                                                                                htmlFor={`desktop-${detail.id}-${wh.warehouseId}`}
+                                                                                                                                className={`text-sm font-medium leading-none transition-colors ${isDisabled ? 'cursor-not-allowed' : 'group-hover:text-blue-600 cursor-pointer'
+                                                                                                                                    }`}
+                                                                                                                                onClick={(e) => e.stopPropagation()}
+                                                                                                                            >
+                                                                                                                                {wh.warehouseName}
+                                                                                                                            </label>
+                                                                                                                            <div className="space-y-1">
+                                                                                                                                <div className="flex justify-between items-center text-xs">
+                                                                                                                                    <span className="text-gray-500">Stok Akhir:</span>
+                                                                                                                                    <Badge variant="secondary" className="text-[10px] px-1.5 h-5 font-mono">
+                                                                                                                                        {wh.stockAkhir || 0}
+                                                                                                                                    </Badge>
+                                                                                                                                </div>
+                                                                                                                                <div className="flex justify-between items-center text-xs">
+                                                                                                                                    <span className="text-gray-500">Booked:</span>
+                                                                                                                                    <Badge variant="secondary" className="text-[10px] px-1.5 h-5 font-mono bg-amber-100 text-amber-700">
+                                                                                                                                        {wh.bookedStock || 0}
+                                                                                                                                    </Badge>
+                                                                                                                                </div>
+                                                                                                                                <div className="flex justify-between items-center text-xs">
+                                                                                                                                    <span className="text-gray-500">Available:</span>
+                                                                                                                                    <Badge variant="secondary" className={`text-[10px] px-1.5 h-5 font-mono ${(wh.availableStock || 0) > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
+                                                                                                                                        {wh.availableStock || 0}
+                                                                                                                                    </Badge>
+                                                                                                                                </div>
+                                                                                                                            </div>
+                                                                                                                        </div>
+                                                                                                                    </div>
+                                                                                                                );
+                                                                                                            })}
+                                                                                                        </>
+                                                                                                    );
+                                                                                                })()}
                                                                                             </div>
                                                                                             <div className="p-4 border-t bg-gray-50 rounded-b-lg">
                                                                                                 <div className="flex justify-between items-center text-sm font-medium mb-1">
@@ -1284,7 +1386,20 @@ export function PurchaseRequestSheet({
                                                                                         <Tooltip>
                                                                                             <TooltipTrigger asChild>
                                                                                                 <div className="mx-auto w-fit px-2 py-1 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 rounded-md text-xs font-bold cursor-help hover:bg-emerald-200 transition-colors">
-                                                                                                    {stockData[detail.id]?.available !== undefined ? stockData[detail.id]?.available : '-'}
+                                                                                                    {(() => {
+                                                                                                        if (!stockData[detail.id]?.breakdown) return '-';
+
+                                                                                                        // If spkId exists, only count WIP warehouses
+                                                                                                        if (selectedPurchaseRequest?.spkId) {
+                                                                                                            const wipStock = stockData[detail.id].breakdown
+                                                                                                                .filter(wh => wh.isWip === true)
+                                                                                                                .reduce((sum, wh) => sum + (wh.availableStock || 0), 0);
+                                                                                                            return wipStock;
+                                                                                                        }
+
+                                                                                                        // Otherwise show total from all warehouses
+                                                                                                        return stockData[detail.id]?.available !== undefined ? stockData[detail.id]?.available : '-';
+                                                                                                    })()}
                                                                                                 </div>
                                                                                             </TooltipTrigger>
                                                                                             <TooltipContent className="p-0 border-none shadow-xl z-50">
@@ -1298,17 +1413,35 @@ export function PurchaseRequestSheet({
                                                                                                     <CardContent className="p-0">
                                                                                                         {stockData[detail.id]?.breakdown && stockData[detail.id].breakdown.length > 0 ? (
                                                                                                             <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                                                                                                                {stockData[detail.id].breakdown.map((wh: { warehouseName: string; stock: number }, idx: number) => (
-                                                                                                                    <div key={idx} className="flex items-center justify-between py-2 px-4 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
-                                                                                                                        <span className="text-xs font-medium text-slate-600 dark:text-slate-400">{wh.warehouseName}</span>
-                                                                                                                        <Badge variant="outline" className="text-xs font-bold font-mono h-5 bg-white dark:bg-slate-950">
-                                                                                                                            {wh.stock}
-                                                                                                                        </Badge>
-                                                                                                                    </div>
-                                                                                                                ))}
+                                                                                                                {stockData[detail.id].breakdown
+                                                                                                                    .filter((wh: any) => {
+                                                                                                                        // If spkId exists, only show WIP warehouses
+                                                                                                                        if (selectedPurchaseRequest?.spkId) {
+                                                                                                                            return wh.isWip === true;
+                                                                                                                        }
+                                                                                                                        return true;
+                                                                                                                    })
+                                                                                                                    .map((wh: { warehouseName: string; stock: number; availableStock: number; isWip: boolean }, idx: number) => (
+                                                                                                                        <div key={idx} className="flex items-center justify-between py-2 px-4 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
+                                                                                                                            <span className="text-xs font-medium text-slate-600 dark:text-slate-400">{wh.warehouseName}</span>
+                                                                                                                            <Badge variant="outline" className="text-xs font-bold font-mono h-5 bg-white dark:bg-slate-950">
+                                                                                                                                {wh.availableStock || wh.stock}
+                                                                                                                            </Badge>
+                                                                                                                        </div>
+                                                                                                                    ))}
                                                                                                                 <div className="flex items-center justify-between py-2 px-4 bg-emerald-50/50 dark:bg-emerald-900/10 font-bold border-t">
                                                                                                                     <span className="text-xs text-emerald-700 dark:text-emerald-400">Total Valid</span>
-                                                                                                                    <span className="text-xs text-emerald-700 dark:text-emerald-400">{stockData[detail.id].available}</span>
+                                                                                                                    <span className="text-xs text-emerald-700 dark:text-emerald-400">
+                                                                                                                        {(() => {
+                                                                                                                            // If spkId exists, only count WIP warehouses
+                                                                                                                            if (selectedPurchaseRequest?.spkId) {
+                                                                                                                                return stockData[detail.id].breakdown
+                                                                                                                                    .filter((wh: any) => wh.isWip === true)
+                                                                                                                                    .reduce((sum: number, wh: any) => sum + (wh.availableStock || 0), 0);
+                                                                                                                            }
+                                                                                                                            return stockData[detail.id].available;
+                                                                                                                        })()}
+                                                                                                                    </span>
                                                                                                                 </div>
                                                                                                             </div>
                                                                                                         ) : (
@@ -1326,39 +1459,8 @@ export function PurchaseRequestSheet({
                                                                                 )}
                                                                             </div>
                                                                             <div className="col-span-1 text-center text-sm text-gray-700">
-                                                                                {detail.id?.startsWith('split-') ? (
-                                                                                    <div className="flex items-center justify-center gap-1">
-                                                                                        <Input
-                                                                                            type="number"
-                                                                                            value={detail.jumlah || ''}
-                                                                                            onChange={(e) => {
-                                                                                                const newQty = parseFloat(e.target.value);
-                                                                                                const parentId = detail.id?.replace('split-', '') || '';
-                                                                                                const originalDetail = selectedPurchaseRequest?.details.find(d => d.id === parentId);
-
-                                                                                                if (!isNaN(newQty) && newQty > 0) {
-                                                                                                    setSplitQuantityOverrides(prev => ({
-                                                                                                        ...prev,
-                                                                                                        [parentId]: newQty
-                                                                                                    }));
-                                                                                                }
-                                                                                            }}
-                                                                                            onKeyDown={(e) => {
-                                                                                                // Prevent arrow keys from affecting parent elements
-                                                                                                if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-                                                                                                    e.stopPropagation();
-                                                                                                }
-                                                                                            }}
-                                                                                            className="h-8 w-32 text-center font-semibold border-blue-300 focus:border-blue-500 focus:ring-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                                                                        />
-                                                                                        <span className="text-xs text-gray-500">{detail.satuan}</span>
-                                                                                    </div>
-                                                                                ) : (
-                                                                                    <>
-                                                                                        <span className="font-semibold">{detail.jumlah}</span>
-                                                                                        <span className="text-xs text-gray-500 ml-1">{detail.satuan}</span>
-                                                                                    </>
-                                                                                )}
+                                                                                <span className="font-semibold">{detail.jumlah}</span>
+                                                                                <span className="text-xs text-gray-500 ml-1">{detail.satuan}</span>
                                                                             </div>
                                                                             <div className="col-span-2 text-right text-sm text-gray-700 pr-4">
                                                                                 {formatCurrency(detail.estimasiHargaSatuan)}

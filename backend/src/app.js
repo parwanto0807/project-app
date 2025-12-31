@@ -47,13 +47,26 @@ const isProduction = NODE_ENV === "production";
 
 // Security Middleware
 app.use(cookieParser());
-app.use(helmet());
-// Expose public folder
+
+// Configure Helmet with relaxed CORP for images
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }, // Allow cross-origin image loading
+}));
+
+// Expose public folder for images
 app.use(
   "/images",
-  cors({ origin: allowedOrigins, credentials: true }), // tambahkan CORS
+  cors({ origin: allowedOrigins, credentials: true }),
   express.static(path.join(process.cwd(), "public/images"))
 );
+
+// Expose public folder for uploads (receipts, materials, etc.)
+app.use(
+  "/uploads",
+  cors({ origin: allowedOrigins, credentials: true }),
+  express.static(path.join(process.cwd(), "public/uploads"))
+);
+
 // CORS Configuration
 
 app.use(

@@ -151,10 +151,8 @@ export default function PurchaseOrderPageAdmin() {
 
   // Initial fetch and refresh on dependencies change
   useEffect(() => {
-    if (isInitialLoad) {
-      fetchPurchaseOrders();
-    }
-  }, [fetchPurchaseOrders, isInitialLoad]);
+    fetchPurchaseOrders();
+  }, [fetchPurchaseOrders]);
 
   // Handle refresh trigger
   useEffect(() => {

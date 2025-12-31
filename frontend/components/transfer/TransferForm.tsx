@@ -69,7 +69,7 @@ export function TransferForm({ onSuccess, onCancel }: TransferFormProps) {
     const formSchema = useMemo(() => {
         return createTransferSchema.superRefine((data, ctx) => {
             data.items.forEach((item, index) => {
-                const product = productsRef.current.find(p => p.id === item.productId);
+                const product = productsRef.current.find(p => p.id === item.productId && p.warehouseId === data.fromWarehouseId);
                 if (product) {
                     if (item.quantity > product.availableStock) {
                         ctx.addIssue({
@@ -442,7 +442,7 @@ export function TransferForm({ onSuccess, onCancel }: TransferFormProps) {
 
                     <div className="space-y-3">
                         {fields.map((field, index) => {
-                            const selectedProduct = products.find(p => p.id === watch(`items.${index}.productId`));
+                            const selectedProduct = products.find(p => p.id === watch(`items.${index}.productId`) && p.warehouseId === fromWarehouseId);
 
                             return (
                                 <Card key={field.id} className="border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
@@ -505,9 +505,16 @@ export function TransferForm({ onSuccess, onCancel }: TransferFormProps) {
                                                 <Input
                                                     type="number"
                                                     step="0.01"
-                                                    {...register(`items.${index}.quantity`, { valueAsNumber: true })}
+                                                    {...register(`items.${index}.quantity`, {
+                                                        valueAsNumber: true,
+                                                        max: {
+                                                            value: selectedProduct?.availableStock || 0,
+                                                            message: `Maks. ${selectedProduct?.availableStock || 0}`
+                                                        }
+                                                    })}
+                                                    max={selectedProduct?.availableStock}
                                                     placeholder="0"
-                                                    className="mt-1.5 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 shadow-sm"
+                                                    className={`mt-1.5 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 shadow-sm ${(errors.items?.[index]?.quantity || (watch(`items.${index}.quantity`) > (selectedProduct?.availableStock || 0))) ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                                                 />
                                                 {errors.items?.[index]?.quantity && (
                                                     <p className="text-sm text-red-500 mt-1 flex items-center gap-1">

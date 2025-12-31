@@ -54,9 +54,13 @@ import {
     BarChart3,
     FileCheck,
     ClipboardList,
+    Users,
+    CheckCircle2,
+    Info,
 } from "lucide-react";
 import { pdf } from "@react-pdf/renderer";
 import PurchaseOrderPdfDocument from "./purchaseOrderPdf";
+import POReportHistory from "./POReportHistory";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import {
@@ -68,6 +72,15 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+
+import {
     Table,
     TableBody,
     TableCell,
@@ -77,9 +90,10 @@ import {
 } from "@/components/ui/table";
 
 import { PurchaseOrder } from "@/types/poType";
-import { getPurchaseOrderById, updatePurchaseOrderStatus, deletePurchaseOrder, sendPurchaseOrderEmail } from "@/lib/action/po/po";
+import { getPurchaseOrderById, updatePurchaseOrderStatus, deletePurchaseOrder, sendPurchaseOrderEmail, updatePurchaseOrder } from "@/lib/action/po/po";
 import { createMRFromPOAction } from "@/lib/action/inventory/mrInventroyAction";
 import { createGoodsReceiptFromPOAction } from "@/lib/action/grInventory/grAction";
+import { getAllTeam } from "@/lib/action/master/team/getAllTeam";
 
 // ... existing imports
 
@@ -182,6 +196,56 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
     // New Feature State
     const [isCreatingMR, setIsCreatingMR] = useState(false);
 
+    // Share Feature State
+    const [shareDialogOpen, setShareDialogOpen] = useState(false);
+    const [teams, setTeams] = useState<any[]>([]);
+    const [isFetchingTeams, setIsFetchingTeams] = useState(false);
+    const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+    const [isSharing, setIsSharing] = useState(false);
+
+    const fetchTeams = async () => {
+        setIsFetchingTeams(true);
+        try {
+            // Import getAllTeam dynamically to avoid circular dependencies if any, 
+            // or just use the imported action if we add it to top level.
+            // For now assuming we will add import at top.
+            const res = await getAllTeam(1, 100); // Fetch up to 100 teams
+            if (res.success) {
+                setTeams(res.data);
+                // Pre-select current team if exists
+                if (purchaseOrder?.teamId) {
+                    setSelectedTeamId(purchaseOrder.teamId);
+                }
+            } else {
+                toast.error("Gagal memuat data team");
+            }
+        } catch (error) {
+            console.error("Error fetching teams:", error);
+            toast.error("Gagal memuat data team");
+        } finally {
+            setIsFetchingTeams(false);
+        }
+    };
+
+    const handleConfirmShare = async () => {
+        if (!purchaseOrder) return;
+        setIsSharing(true);
+        try {
+            await updatePurchaseOrder(purchaseOrder.id, { teamId: selectedTeamId });
+            toast.success("PO berhasil dibagikan ke Team");
+
+            // Refresh PO
+            const updated = await getPurchaseOrderById(purchaseOrder.id);
+            setPurchaseOrder(updated);
+            setShareDialogOpen(false);
+        } catch (error) {
+            console.error("Error sharing PO:", error);
+            toast.error("Gagal membagikan PO");
+        } finally {
+            setIsSharing(false);
+        }
+    };
+
     const handleCreateMR = async () => {
         if (!purchaseOrder) return;
         setIsCreatingMR(true);
@@ -232,28 +296,21 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
             setStatusDialogOpen(false);
             setNewStatus(null);
 
-            // Automatically create Material Requisition (MR) if status is SENT
+            // Automatically create Goods Receipt (GR) if status is SENT
             if (status === 'SENT') {
                 try {
-                    toast.info("Membuat Dokumen Penerimaan & Permintaan otomatis...");
+                    toast.info("Membuat Dokumen Penerimaan Barang (GR) otomatis...");
 
-                    // Create MR first
-                    const mrRes = await createMRFromPOAction(purchaseOrder.id);
-
-                    // Create GR
+                    // Create GR (Always create GR)
                     const grRes = await createGoodsReceiptFromPOAction(purchaseOrder.id);
 
-                    if (mrRes.success && grRes.success) {
-                        toast.success("MR dan GR berhasil dibuat!");
+                    if (grRes.success) {
+                        toast.success("GR berhasil dibuat!");
                         // Refresh PO to update relatedMRs
                         const finalPO = await getPurchaseOrderById(purchaseOrder.id);
                         setPurchaseOrder(finalPO);
                     } else {
-                        // Partial success or failure
-                        let messages = [];
-                        if (!mrRes.success) messages.push(`MR: ${mrRes.error}`);
-                        if (!grRes.success) messages.push(`GR: ${grRes.message}`);
-                        toast.warning(`Status updated, but creation failed: ${messages.join(", ")}`);
+                        toast.warning(`Status updated, but GR creation failed: ${grRes.message}`);
                     }
                 } catch (autoError) {
                     console.error("Auto Creation Failed:", autoError);
@@ -531,7 +588,21 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
 
                                         {/* Debug: Current status is {purchaseOrder.status} */}
 
-                                        <Button variant="outline" className="border-blue-200 hover:bg-blue-50">
+                                        <Button
+                                            variant="outline"
+                                            className={cn(
+                                                "border-blue-200 hover:bg-blue-50",
+                                                purchaseOrder.status !== "APPROVED" && "opacity-50 cursor-not-allowed"
+                                            )}
+                                            onClick={() => {
+                                                if (purchaseOrder.status === "APPROVED") {
+                                                    setShareDialogOpen(true);
+                                                    fetchTeams();
+                                                } else {
+                                                    toast.error("Share hanya tersedia untuk PO yang sudah disetujui (APPROVED)");
+                                                }
+                                            }}
+                                        >
                                             <Share2 className="h-4 w-4 mr-2" />
                                             Share
                                         </Button>
@@ -588,7 +659,7 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                                 className="data-[state=active]:bg-blue-50 dark:data-[state=active]:bg-blue-900/40 data-[state=active]:text-blue-700 dark:data-[state=active]:text-blue-300 data-[state=active]:border-b-2 data-[state=active]:border-blue-500 dark:data-[state=active]:border-blue-400 rounded-xl h-14 px-6"
                                             >
                                                 <History className="h-4 w-4 mr-2" />
-                                                Riwayat
+                                                Laporan Penerimaan
                                             </TabsTrigger>
                                         </TabsList>
                                     </div>
@@ -1002,6 +1073,15 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                             </CardContent>
                                         </Card>
                                     </TabsContent>
+
+                                    {/* History Tab */}
+                                    <TabsContent value="history" className="m-0 p-6">
+                                        <Card className="border-0 shadow-sm">
+                                            <CardContent className="p-6">
+                                                <POReportHistory purchaseOrder={purchaseOrder} />
+                                            </CardContent>
+                                        </Card>
+                                    </TabsContent>
                                 </Tabs>
                             </div>
                         </div>
@@ -1081,28 +1161,30 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                                 </div>
                                             </Button>
                                         ) : (
-                                            <Button
-                                                className={cn(
-                                                    "w-full justify-start h-11 shadow-lg transition-all",
-                                                    "animate-pulse bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-orange-500/25 text-white ring-2 ring-orange-300 ring-offset-2 dark:ring-offset-gray-900"
-                                                )}
-                                                onClick={handleCreateMR}
-                                                disabled={isCreatingMR}
-                                            >
-                                                {isCreatingMR ? (
-                                                    <div className="h-8 w-8 rounded-md bg-white/20 flex items-center justify-center mr-3">
-                                                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                            purchaseOrder.status !== 'SENT' && (
+                                                <Button
+                                                    className={cn(
+                                                        "w-full justify-start h-11 shadow-lg transition-all",
+                                                        "animate-pulse bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-orange-500/25 text-white ring-2 ring-orange-300 ring-offset-2 dark:ring-offset-gray-900"
+                                                    )}
+                                                    onClick={handleCreateMR}
+                                                    disabled={isCreatingMR}
+                                                >
+                                                    {isCreatingMR ? (
+                                                        <div className="h-8 w-8 rounded-md bg-white/20 flex items-center justify-center mr-3">
+                                                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="h-8 w-8 rounded-md bg-white/20 flex items-center justify-center mr-3">
+                                                            <AlertCircle className="h-4 w-4 text-white" />
+                                                        </div>
+                                                    )}
+                                                    <div className="text-left">
+                                                        <div className="font-medium">Buat Permintaan Material</div>
+                                                        <div className="text-xs text-white/90">Wajib: Belum ada MR</div>
                                                     </div>
-                                                ) : (
-                                                    <div className="h-8 w-8 rounded-md bg-white/20 flex items-center justify-center mr-3">
-                                                        <AlertCircle className="h-4 w-4 text-white" />
-                                                    </div>
-                                                )}
-                                                <div className="text-left">
-                                                    <div className="font-medium">Buat Permintaan Material</div>
-                                                    <div className="text-xs text-white/90">Wajib: Belum ada MR</div>
-                                                </div>
-                                            </Button>
+                                                </Button>
+                                            )
                                         )
                                     )}
 
@@ -1384,6 +1466,143 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                         >
                             <CheckCircle className="h-4 w-4 mr-2" />
                             Konfirmasi
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Share Dialog */}
+            <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+                <DialogContent className="sm:max-w-[460px] p-0 overflow-hidden border-none shadow-2xl rounded-2xl">
+                    {/* Header dengan Aksen Warna Premium */}
+                    <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 text-white">
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="p-2 bg-white/20 rounded-lg backdrop-blur-md">
+                                <Share2 className="w-5 h-5 text-white" />
+                            </div>
+                            <DialogTitle className="text-xl font-semibold tracking-tight">
+                                Bagikan Purchase Order
+                            </DialogTitle>
+                        </div>
+                        <DialogDescription className="text-blue-100 text-sm leading-relaxed">
+                            Berikan akses kolaborasi kepada tim terpilih untuk mempercepat proses belanja di lapangan.
+                        </DialogDescription>
+                    </div>
+
+                    <div className="p-6 space-y-6">
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <Label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                                    <Users className="w-4 h-4 text-blue-600" />
+                                    Pilih Team Pelaksana
+                                </Label>
+                                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Wajib Dipilih</span>
+                            </div>
+
+                            {isFetchingTeams ? (
+                                <div className="space-y-2">
+                                    <div className="h-12 w-full animate-pulse bg-slate-100 rounded-xl border border-slate-200"></div>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    <Select
+                                        value={selectedTeamId || ""}
+                                        onValueChange={setSelectedTeamId}
+                                    >
+                                        <SelectTrigger className="w-full h-14 bg-slate-50 border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 transition-all hover:bg-slate-100/80">
+                                            <SelectValue placeholder="Cari atau pilih team..." />
+                                        </SelectTrigger>
+                                        <SelectContent className="rounded-xl shadow-xl border-slate-200 max-h-[600px] w-[var(--radix-select-trigger-width)]">
+                                            {teams.map((team) => (
+                                                <SelectItem
+                                                    key={team.id}
+                                                    value={team.id}
+                                                    textValue={team.namaTeam}
+                                                    className="focus:bg-blue-50 rounded-lg mx-1 my-1 cursor-pointer transition-colors"
+                                                >
+                                                    <div className="flex flex-col items-start py-3 px-1">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="font-semibold text-slate-900">{team.namaTeam}</span>
+                                                            {selectedTeamId === team.id && <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />}
+                                                        </div>
+                                                        {team.karyawan && team.karyawan.length > 0 && (
+                                                            <div className="flex items-center gap-1.5 mt-1.5">
+                                                                <div className="flex -space-x-2 mr-1">
+                                                                    <div className="w-5 h-5 rounded-full bg-blue-100 border border-white flex items-center justify-center text-[8px] font-bold text-blue-600">
+                                                                        {team.karyawan.length}
+                                                                    </div>
+                                                                </div>
+                                                                <span className="text-[11px] text-slate-500 max-w-[280px] truncate italic">
+                                                                    {team.karyawan.map((k: any) => k.karyawan.namaLengkap).join(", ")}
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+
+                                    {/* Badge Anggota Team Terpilih */}
+                                    {selectedTeamId && (
+                                        <div className="mt-4 animate-in fade-in slide-in-from-top-2">
+                                            <div className="text-xs font-semibold text-slate-500 mb-2 ml-1">Anggota Team:</div>
+                                            <div className="flex flex-wrap gap-2">
+                                                {teams.find(t => t.id === selectedTeamId)?.karyawan?.map((member: any) => (
+                                                    <div
+                                                        key={member.id}
+                                                        className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-full text-xs font-medium shadow-sm"
+                                                    >
+                                                        <User className="w-3.5 h-3.5" />
+                                                        <span>{member.karyawan?.namaLengkap || "Unknown"}</span>
+                                                    </div>
+                                                ))}
+                                                {(!teams.find(t => t.id === selectedTeamId)?.karyawan?.length) && (
+                                                    <span className="text-sm text-slate-400 italic">Tidak ada anggota</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Info Box Tipis */}
+                        <div className="flex gap-3 p-4 bg-amber-50 rounded-xl border border-amber-100/50">
+                            <Info className="w-5 h-5 text-amber-500 shrink-0" />
+                            <p className="text-[11px] text-amber-800/80 leading-relaxed">
+                                Setelah disimpan, anggota tim yang terpilih akan menerima notifikasi di dashboard mereka untuk segera memproses item PO ini.
+                            </p>
+                        </div>
+                    </div>
+
+                    <DialogFooter className="p-6 bg-slate-50/80 border-t border-slate-100 flex gap-3 sm:gap-0">
+                        <Button
+                            variant="ghost"
+                            onClick={() => setShareDialogOpen(false)}
+                            className="rounded-xl font-semibold text-slate-600 hover:bg-slate-200 transition-all"
+                        >
+                            Batal
+                        </Button>
+                        <Button
+                            onClick={handleConfirmShare}
+                            disabled={isSharing || !selectedTeamId}
+                            className={cn(
+                                "rounded-xl px-8 font-bold transition-all shadow-lg shadow-blue-500/25",
+                                "bg-blue-600 hover:bg-blue-700 active:scale-95"
+                            )}
+                        >
+                            {isSharing ? (
+                                <div className="flex items-center gap-2">
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    <span>Menyimpan...</span>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-2">
+                                    <span>Konfirmasi Akses</span>
+                                    <ChevronRight className="w-4 h-4" />
+                                </div>
+                            )}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

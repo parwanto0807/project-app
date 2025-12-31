@@ -611,7 +611,7 @@ export function PurchaseRequestTable({
                                                                         Project
                                                                     </Badge>
                                                                 ) : (
-                                                                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 bg-amber-50 border-amber-200 text-amber-700">
+                                                                    <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-5 bg-amber-50 border-amber-200 text-red-700">
                                                                         <FileText className="h-2.5 w-2.5 mr-1" />
                                                                         Umum
                                                                     </Badge>
@@ -978,7 +978,7 @@ export function PurchaseRequestTable({
                                                                 Project
                                                             </Badge>
                                                         ) : (
-                                                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                                                            <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-5 bg-amber-50 border-amber-200 text-red-700">
                                                                 <FileText className="h-2.5 w-2.5 mr-1" />
                                                                 Umum
                                                             </Badge>

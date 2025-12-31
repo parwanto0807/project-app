@@ -21,6 +21,7 @@ import {
     Loader2, Plus, Trash2, Building, Contact, Banknote, Save,
     Globe, Mail, Phone, MapPin, PackageOpen, ArrowLeft
 } from "lucide-react";
+import { toast } from "sonner";
 import { SupplierSchema } from "@/schemas/supplier/supplierSchema";
 import { SupplierCategory, SupplierFormValues, TermOfPayment } from "@/types/supplierType";
 import { createSupplier } from "@/lib/action/supplier/supplierAction";
@@ -47,7 +48,7 @@ export function CreateSupplierForm({
 }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const router = useRouter();
-    console.log("Category", categories)
+
     const {
         register,
         handleSubmit,
@@ -103,28 +104,26 @@ export function CreateSupplierForm({
 
     const onInvalid = (errors: FieldErrors<SupplierFormValues>) => {
         // Dipanggil HANYA jika validasi GAGAL
-        console.error("--- VALIDATION ERRORS ---");
-        console.error(errors);
-        console.error("-------------------------");
-        alert("Please check all required fields!");
-        setIsSubmitting(false); // Pastikan ini diset kembali jika ada logika isSubmitting sebelumnya.
+        console.error("Validation Errors:", errors);
+        toast.error("Mohon periksa kembali semua field yang wajib diisi!");
+        setIsSubmitting(false);
     };
 
 
     const onSubmit = async (data: SupplierFormValues) => {
-        console.log("Submitting...", data);
         setIsSubmitting(true);
 
         try {
             // Panggil backend via helper createSupplier (Axios)
             await createSupplier(data); // cukup panggil saja
-            alert("Supplier created successfully!");
+            toast.success("Supplier berhasil dibuat!");
             router.push(getBasePath(role));
 
         } catch (error) {
             if (error instanceof Error) {
-                console.error(error.message);
+                toast.error(error.message);
             } else {
+                toast.error("Terjadi kesalahan saat membuat supplier");
                 console.error(error);
             }
         } finally {

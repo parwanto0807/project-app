@@ -93,14 +93,9 @@ export function TableHeader({
             onSearch={handleSearch}
             placeholder="Search PR..."
             className="w-full"
-            disabled={isLoading}
             initialValue={searchInput}
+            showLoading={false}
           />
-          {isLoading && (
-            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-              <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-            </div>
-          )}
         </div>
 
         {/* Filters Container */}
