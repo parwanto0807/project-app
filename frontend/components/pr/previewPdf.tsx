@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     signature: {
-        width: '45%',
+        width: '30%',
         textAlign: 'center',
         fontSize: 10,
     },
@@ -258,7 +258,7 @@ const PurchaseRequestPdfPreview = ({ data }: PreviewPdfProps) => {
 
                     <View style={styles.row}>
                         <Text style={styles.label}>Requested By</Text>
-                        <Text style={styles.value}>: {data.karyawan?.namaLengkap || '-'}</Text>
+                        <Text style={[styles.value, { textTransform: 'uppercase' }]}>: {data.requestedBy?.namaLengkap || '-'}</Text>
                     </View>
 
                     <View style={styles.row}>
@@ -384,6 +384,11 @@ const PurchaseRequestPdfPreview = ({ data }: PreviewPdfProps) => {
                 <View style={styles.footer}>
                     <View style={styles.signature}>
                         <Text>Requested By,</Text>
+                        <Text style={{ marginTop: 50, textTransform: 'uppercase' }}>{data.requestedBy?.namaLengkap || '-'}</Text>
+                    </View>
+
+                    <View style={styles.signature}>
+                        <Text>User Input,</Text>
                         <Text style={{ marginTop: 50 }}>{data.karyawan?.namaLengkap || '-'}</Text>
                     </View>
 

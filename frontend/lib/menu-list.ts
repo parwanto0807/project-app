@@ -255,6 +255,12 @@ export function getMenuList(pathname: string, role: string) {
               active: isActive(`${basePath}/accounting/prVerify`, pathname),
               disabled: role === "user" || role === "pic",
             },
+            {
+              href: `${basePath}/accounting/staff-balance`,
+              label: "Staff Balance",
+              active: isActive(`${basePath}/accounting/staff-balance`, pathname),
+              disabled: role === "user" || role === "pic",
+            },
           ],
         },
       ],
@@ -280,7 +286,7 @@ export function getMenuList(pathname: string, role: string) {
               label: "Request Approval",
               active: isActive(`${basePath}/finance/prApprove`, pathname),
               disabled: role === "user" || role === "pic",
-            },
+            }
           ],
         },
       ],

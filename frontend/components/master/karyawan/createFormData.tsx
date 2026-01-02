@@ -13,7 +13,7 @@ import { User, Briefcase, ShieldCheck, Loader2, Camera, Upload, X, ArrowLeft, Ch
 import { employeeFormSchema, type EmployeeFormValues } from '@/schemas';
 import Image from 'next/image';
 import { useRouter } from "next/navigation";
-import { checkAccountEmail, createAccountEmail } from '@/lib/action/master/karyawan';
+import { checkAccountEmail, createAccountEmail, fetchUserByEmail } from '@/lib/action/master/karyawan';
 
 function getBasePath(role?: string) {
     return role === "super"
@@ -146,6 +146,17 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
             }
 
             if (result.exists) {
+                // Fetch existing user to get ID
+                try {
+                    const user = await fetchUserByEmail(email);
+                    if (user && user.id) {
+                        form.setValue("userId", user.id);
+                        console.log("Existing user ID set:", user.id);
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch existing user:", e);
+                }
+
                 setEmailStatus({
                     type: "error",
                     message: `✅ Email ${email} sudah terdaftar.`,
@@ -166,6 +177,11 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
                         createAccountEmail(email)
                             .then((newEmail) => {
                                 if (newEmail && newEmail.email) {
+                                    if (newEmail.id) {
+                                        form.setValue("userId", newEmail.id);
+                                        console.log("New user ID set:", newEmail.id);
+                                    }
+
                                     setEmailStatus({
                                         type: "success",
                                         message: `✅ Email ${newEmail.email} berhasil disimpan.`,
@@ -225,7 +241,7 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
                             </h3>
                             <div className="grid md:grid-cols-2 gap-4">
                                 <FormField name="nik" control={form.control} render={({ field }) => (
-                                    <FormItem><FormLabel>NIK</FormLabel><FormControl><Input placeholder="NIK Generate Automatic by System" {...field} disabled/></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>NIK</FormLabel><FormControl><Input placeholder="NIK Generate Automatic by System" {...field} disabled /></FormControl><FormMessage /></FormItem>
                                 )} />
                                 <FormField name="namaLengkap" control={form.control} render={({ field }) => (
                                     <FormItem><FormLabel>Nama Lengkap</FormLabel><FormControl><Input placeholder="Contoh: Budi Santoso" {...field} /></FormControl><FormMessage /></FormItem>
@@ -432,7 +448,7 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
                                     <FormItem><FormLabel>Potongan</FormLabel><FormControl><Input type="number" placeholder="Contoh: 100000" {...field} value={field.value ?? ""} onChange={e => field.onChange(Number(e.target.value))} /></FormControl><FormMessage /></FormItem>
                                 )} />
                                 <FormField name="userId" control={form.control} render={({ field }) => (
-                                    <FormItem><FormLabel>User ID (untuk login)</FormLabel><FormControl><Input placeholder="ID unik pengguna" {...field} value={field.value ?? ""} disabled/></FormControl><FormMessage /></FormItem>
+                                    <FormItem><FormLabel>User ID (untuk login)</FormLabel><FormControl><Input placeholder="ID unik pengguna" {...field} value={field.value ?? ""} disabled /></FormControl><FormMessage /></FormItem>
                                 )} />
                                 <FormField name="isActive" control={form.control} render={({ field }) => (
                                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 mt-4 md:mt-0">

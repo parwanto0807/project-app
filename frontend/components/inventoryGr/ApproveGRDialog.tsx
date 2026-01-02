@@ -53,6 +53,8 @@ export function ApproveGRDialog({
             const result = await approveGRAction(gr.id, { notes: notes || undefined });
 
             if (result.success) {
+                const hasAutoGR = result.data?.autoCreatedGR;
+
                 toast.success(
                     <div className="flex flex-col gap-2">
                         <div className="flex items-center gap-2">
@@ -63,9 +65,25 @@ export function ApproveGRDialog({
                             <p>✓ Status GR: <span className="font-bold">COMPLETED</span></p>
                             <p>✓ Stock Balance: <span className="font-bold">Updated</span></p>
                             <p>✓ Qty masuk stock: <span className="font-bold">{summary.totalPassed.toLocaleString()}</span></p>
+                            {hasAutoGR && (
+                                <>
+                                    <div className="mt-2 pt-2 border-t border-green-300">
+                                        <p className="flex items-center gap-1 text-blue-700 font-semibold">
+                                            <Package className="h-4 w-4" />
+                                            GR Baru Dibuat Otomatis
+                                        </p>
+                                        <p className="mt-1">
+                                            📋 <span className="font-bold">{hasAutoGR.grNumber}</span>
+                                        </p>
+                                        <p className="text-xs text-slate-500">
+                                            {hasAutoGR.itemCount} item dengan qty tersisa
+                                        </p>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>,
-                    { duration: 7000 }
+                    { duration: hasAutoGR ? 10000 : 7000 }
                 );
 
                 onOpenChange(false);

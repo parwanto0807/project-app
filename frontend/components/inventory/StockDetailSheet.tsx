@@ -25,7 +25,7 @@ import {
     User
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { cn, toJakartaTimezone } from "@/lib/utils";
 
 interface StockDetailSheetProps {
     isOpen: boolean;
@@ -242,7 +242,7 @@ export default function StockDetailSheet({
 
                                     <div className="flex justify-between items-start mb-2 pl-3">
                                         <div>
-                                            <p className="text-xs font-bold text-slate-400">{format(new Date(hist.date), "dd MMM yyyy, HH:mm", { locale: idLocale })}</p>
+                                            <p className="text-xs font-bold text-slate-400">{format(toJakartaTimezone(hist.date), "dd MMM yyyy, HH:mm", { locale: idLocale })}</p>
                                             <p className={cn(
                                                 "text-sm font-bold mt-0.5",
                                                 hist.type.includes("IN") ? "text-emerald-600" : "text-rose-600"

@@ -35,6 +35,7 @@ interface InvoiceDetailDrawerProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     invoice: Invoice | null;
+    onRefresh?: () => void; // ✅ NEW: Callback untuk refresh data
 }
 
 const ApprovedWatermark = () => (
@@ -75,7 +76,7 @@ const ApprovedWatermark = () => (
 );
 
 
-export const InvoiceDetailDrawer = ({ open, onOpenChange, invoice }: InvoiceDetailDrawerProps) => {
+export const InvoiceDetailDrawer = ({ open, onOpenChange, invoice, onRefresh }: InvoiceDetailDrawerProps) => {
     const [isApproving, setIsApproving] = useState(false);
     const [showConfirmDialog, setShowConfirmDialog] = useState(false);
     console.log("Data Invoice", invoice);
@@ -145,10 +146,10 @@ export const InvoiceDetailDrawer = ({ open, onOpenChange, invoice }: InvoiceDeta
 
             onOpenChange(false);
 
-            // Trigger event untuk refresh data di parent component
-            window.dispatchEvent(new CustomEvent('invoice-approved', {
-                detail: { invoiceId: invoice.id }
-            }));
+            // ✅ REFRESH DATA TABEL
+            if (onRefresh) {
+                onRefresh();
+            }
 
         } catch (error: unknown) {
             console.error('Error approving invoice:', error);
@@ -393,8 +394,8 @@ export const InvoiceDetailDrawer = ({ open, onOpenChange, invoice }: InvoiceDeta
                                                             </div>
                                                             <div
                                                                 className={`col-span-1 text-center ${discountPercent > 0
-                                                                        ? "text-red-600 font-bold"
-                                                                        : "text-gray-600"
+                                                                    ? "text-red-600 font-bold"
+                                                                    : "text-gray-600"
                                                                     }`}
                                                             >
                                                                 {discountPercent}%

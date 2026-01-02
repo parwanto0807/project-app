@@ -6,6 +6,7 @@ export enum PurchaseOrderStatus {
     APPROVED = "APPROVED",
     REJECTED = "REJECTED",
     SENT = "SENT",
+    REQUEST_REVISION = "REQUEST_REVISION",
     PARTIALLY_RECEIVED = "PARTIALLY_RECEIVED",
     FULLY_RECEIVED = "FULLY_RECEIVED",
     CANCELLED = "CANCELLED"
@@ -45,9 +46,13 @@ export interface PurchaseOrderLine {
     product?: Product; // Optional relation
     description: string;
     quantity: number;
+    qtyActual?: number; // Actual quantity received
     unitPrice: number;
+    unitPriceActual?: number; // Actual unit price
     totalAmount: number;
     receivedQuantity: number;
+    checkMatch?: boolean; // Whether actual matches PO
+    checkPurchaseExecution?: boolean; // Field report verification status
     prDetailId?: string | null;
     prDetail?: PurchaseRequestDetail | null; // Optional relation
     poId: string;
@@ -62,6 +67,7 @@ export interface PurchaseOrder {
     expectedDeliveryDate?: Date | null;
     notes?: string | null; // Added field
     status: PurchaseOrderStatus;
+    requestRevisi?: number; // Added field for revision count
     warehouseId: string;
     warehouse?: Warehouse; // Optional relation
     supplierId: string;
@@ -221,7 +227,15 @@ export interface PurchaseRequest {
     id: string;
     nomorPr: string;
     spkId?: string | null;
-    // Add other purchase request fields as needed
+    requestedBy?: { // Added requestedBy
+        id: string;
+        namaLengkap: string;
+        email?: string | null;
+    } | null;
+    karyawan?: {
+        id: string;
+        namaLengkap: string;
+    } | null;
 }
 
 // Input/Request Types

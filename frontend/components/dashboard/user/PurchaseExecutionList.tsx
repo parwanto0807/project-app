@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "@/components/clientSessionProvider";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     ShoppingBag,
@@ -40,6 +41,7 @@ export default function PurchaseExecutionList() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const router = useRouter();
+    const { user } = useSession();
 
     const fetchPOs = useCallback(async () => {
         setLoading(true);
@@ -53,6 +55,11 @@ export default function PurchaseExecutionList() {
             if (response.ok) {
                 const data = await response.json();
                 if (data.success) {
+                    // DEBUG: Check data received
+                    if (data.data.length > 0) {
+                        console.log('Frontend received PO[0]:', data.data[0]);
+                        console.log('Frontend received PR data:', data.data[0].PurchaseRequest);
+                    }
                     setPos(data.data);
                     toast.success("Data berhasil diperbarui");
                 } else {
@@ -193,7 +200,20 @@ export default function PurchaseExecutionList() {
                                     exit={{ opacity: 0, scale: 0.95 }}
                                     whileHover={{ scale: 1.01 }}
                                     whileTap={{ scale: 0.98 }}
-                                    onClick={() => router.push(`/user-area/purchase-execution/${po.id}`)}
+                                    onClick={() => {
+                                        // Prioritaskan requestedBy HANYA jika memiliki userId, jika tidak, gunakan karyawan
+                                        const reqUser = (po.PurchaseRequest?.requestedBy && po.PurchaseRequest.requestedBy.userId)
+                                            ? po.PurchaseRequest.requestedBy
+                                            : po.PurchaseRequest?.karyawan;
+
+                                        if (reqUser?.userId && user?.id && reqUser.userId !== user.id) {
+                                            toast.warning("Sepertinya PO ini bukan untuk anda", {
+                                                position: 'top-center',
+                                            });
+                                            return;
+                                        }
+                                        router.push(`/user-area/purchase-execution/${po.id}`);
+                                    }}
                                     className="group bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all border border-gray-100 dark:border-gray-700 cursor-pointer relative overflow-hidden"
                                 >
                                     <div className="relative z-10 flex items-center justify-between gap-3">
@@ -230,6 +250,25 @@ export default function PurchaseExecutionList() {
                                                         )}
                                                     </div>
                                                 </div>
+
+                                                {/* PR & Requester Info */}
+                                                {(po.PurchaseRequest?.nomorPr || po.PurchaseRequest?.requestedBy?.namaLengkap || po.PurchaseRequest?.karyawan?.namaLengkap) && (
+                                                    <div className="flex flex-wrap items-center text-[10px] text-gray-500 dark:text-gray-400 mb-1.5 gap-x-3 gap-y-1">
+                                                        {po.PurchaseRequest?.nomorPr && (
+                                                            <span className="font-medium text-amber-600 bg-amber-50 dark:bg-amber-900/10 px-1.5 rounded border border-amber-100 dark:border-amber-800/30">
+                                                                {po.PurchaseRequest.nomorPr}
+                                                            </span>
+                                                        )}
+                                                        {(po.PurchaseRequest?.requestedBy?.namaLengkap || po.PurchaseRequest?.karyawan?.namaLengkap) && (
+                                                            <span className="flex items-center">
+                                                                <span className="text-gray-400 mr-1">REQ :</span>
+                                                                <span className="font-bold text-gray-700 dark:text-gray-300 uppercase">
+                                                                    {po.PurchaseRequest?.requestedBy?.namaLengkap || po.PurchaseRequest?.karyawan?.namaLengkap}
+                                                                </span>
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
 
                                                 <div className="flex flex-wrap items-center text-[11px] text-gray-500 dark:text-gray-400 gap-y-0.5">
                                                     <div className="flex items-center mr-3">

@@ -69,10 +69,11 @@ type PurchaseRequestStatus = PurchaseRequest['status'];
 interface StatusActionsProps {
     currentStatus: PurchaseRequestStatus;
     onStatusUpdate: (status: PurchaseRequestStatus, catatan?: string, warehouseAllocations?: Record<string, any[]>) => void;
+    uangMukaStatus?: string | null; // Status dari Uang Muka (PENDING, DISBURSED, etc)
 }
 
 // Komponen StatusActions yang terpisah dengan desain lebih profesional
-function StatusActions({ currentStatus, onStatusUpdate }: StatusActionsProps) {
+function StatusActions({ currentStatus, onStatusUpdate, uangMukaStatus }: StatusActionsProps) {
     const validTransitions: Record<PurchaseRequestStatus, PurchaseRequestStatus[]> = {
         DRAFT: ["SUBMITTED"],
         SUBMITTED: ["APPROVED", "REJECTED", "REVISION_NEEDED"],
@@ -82,7 +83,13 @@ function StatusActions({ currentStatus, onStatusUpdate }: StatusActionsProps) {
         COMPLETED: [],
     };
 
+
     const isButtonDisabled = (targetStatus: PurchaseRequestStatus) => {
+        // Disable COMPLETE button if Uang Muka status is PENDING (Menunggu Pencairan)
+        if (targetStatus === 'COMPLETED' && uangMukaStatus === 'PENDING') {
+            return true;
+        }
+
         return !validTransitions[currentStatus]?.includes(targetStatus);
     };
 
@@ -118,12 +125,15 @@ function StatusActions({ currentStatus, onStatusUpdate }: StatusActionsProps) {
         <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-end">
             {Object.entries(statusConfig).map(([status, config]) => {
                 const IconComponent = config.icon;
-                return (
+                const isDisabled = isButtonDisabled(status as PurchaseRequestStatus);
+                const isCompleteDisabledByUM = status === 'COMPLETED' && uangMukaStatus === 'PENDING';
+
+                const buttonElement = (
                     <Button
                         key={status}
                         onClick={() => onStatusUpdate(status as PurchaseRequestStatus)}
                         variant="outline"
-                        disabled={isButtonDisabled(status as PurchaseRequestStatus)}
+                        disabled={isDisabled}
                         className={`
                         flex items-center gap-2 px-3 sm:px-4 py-2 border-2 font-medium
                         transition-all duration-200 hover:scale-105 disabled:opacity-50 
@@ -137,6 +147,24 @@ function StatusActions({ currentStatus, onStatusUpdate }: StatusActionsProps) {
                         <span className="sm:hidden">{config.label.split(' ')[0]}</span>
                     </Button>
                 );
+
+                // Wrap COMPLETE button with Tooltip if disabled due to pending Uang Muka
+                if (isCompleteDisabledByUM) {
+                    return (
+                        <TooltipProvider key={status}>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    {buttonElement}
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                    <p>PR tidak dapat di-complete karena Uang Muka masih dalam status "Menunggu Pencairan"</p>
+                                </TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                    );
+                }
+
+                return buttonElement;
             })}
 
             {/* Cancel Approve Button - Only visible when status is APPROVED */}
@@ -362,7 +390,29 @@ export function PurchaseRequestSheet({
     const { totalBiaya, totalHPP, grandTotal } = calculateSummary();
 
 
-    const handleToggleWarehouse = (detailId: string, warehouseId: string) => {
+    const handleToggleWarehouse = (detailId: string, warehouseId: string, isWip?: boolean) => {
+        // Prevent selection of WIP warehouse if spkId is null
+        if (isWip && !selectedPurchaseRequest?.spkId) {
+            toast.error(
+                'Gudang WIP hanya bisa dipilih jika PR terhubung dengan SPK',
+                {
+                    duration: 4000,
+                    position: 'top-center',
+                    style: {
+                        background: '#FEF3C7',
+                        color: '#92400E',
+                        border: '2px solid #F59E0B',
+                        padding: '16px',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                    },
+                    icon: '🚫',
+                }
+            );
+            return;
+        }
+
         setWarehouseSelections(prev => {
             const currentSelections = prev[detailId] || [];
             let newSelections;
@@ -748,7 +798,7 @@ export function PurchaseRequestSheet({
                                                     </p>
                                                 </div>
                                                 <div className="space-y-1">
-                                                    <p className="text-xs text-gray-500 font-medium">Requested By</p>
+                                                    <p className="text-xs text-gray-500 font-medium">Admin Input PR</p>
                                                     <div className="flex items-center gap-2">
                                                         <div className="p-1 bg-purple-50 rounded flex-shrink-0">
                                                             <User className="h-3 w-3 text-purple-600" />
@@ -959,15 +1009,15 @@ export function PurchaseRequestSheet({
                                                                                                                             ? 'opacity-50 cursor-not-allowed bg-gray-100'
                                                                                                                             : 'hover:bg-gray-50 cursor-pointer'
                                                                                                                             }`}
-                                                                                                                        onClick={() => !isDisabled && handleToggleWarehouse(detail.id || '', wh.warehouseId)}
+                                                                                                                        onClick={() => !isDisabled && handleToggleWarehouse(detail.id || '', wh.warehouseId, wh.isWip)}
                                                                                                                     >
                                                                                                                         <Checkbox
                                                                                                                             checked={(warehouseSelections[detail.id || ''] || []).includes(wh.warehouseId)}
-                                                                                                                            onCheckedChange={() => !isDisabled && handleToggleWarehouse(detail.id || '', wh.warehouseId)}
+                                                                                                                            onCheckedChange={() => !isDisabled && handleToggleWarehouse(detail.id || '', wh.warehouseId, wh.isWip)}
                                                                                                                             onClick={(e) => e.stopPropagation()}
                                                                                                                             id={`mobile-${detail.id}-${wh.warehouseId}`}
                                                                                                                             className="mt-1"
-                                                                                                                            disabled={isDisabled}
+                                                                                                                            disabled={isDisabled || (wh.isWip && !selectedPurchaseRequest?.spkId)}
                                                                                                                         />
                                                                                                                         <div className="grid gap-1 w-full">
                                                                                                                             <label
@@ -1281,15 +1331,15 @@ export function PurchaseRequestSheet({
                                                                                                                             ? 'opacity-50 cursor-not-allowed bg-gray-100'
                                                                                                                             : 'hover:bg-gray-50 cursor-pointer'
                                                                                                                             }`}
-                                                                                                                        onClick={() => !isDisabled && handleToggleWarehouse(detail.id || '', wh.warehouseId)}
+                                                                                                                        onClick={() => !isDisabled && handleToggleWarehouse(detail.id || '', wh.warehouseId, wh.isWip)}
                                                                                                                     >
                                                                                                                         <Checkbox
                                                                                                                             checked={(warehouseSelections[detail.id || ''] || []).includes(wh.warehouseId)}
-                                                                                                                            onCheckedChange={() => !isDisabled && handleToggleWarehouse(detail.id || '', wh.warehouseId)}
+                                                                                                                            onCheckedChange={() => !isDisabled && handleToggleWarehouse(detail.id || '', wh.warehouseId, wh.isWip)}
                                                                                                                             onClick={(e) => e.stopPropagation()}
                                                                                                                             id={`desktop-${detail.id}-${wh.warehouseId}`}
                                                                                                                             className="mt-1 bg-white data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
-                                                                                                                            disabled={isDisabled}
+                                                                                                                            disabled={isDisabled || (wh.isWip && !selectedPurchaseRequest?.spkId)}
                                                                                                                         />
                                                                                                                         <div className="grid gap-1 w-full">
                                                                                                                             <label
@@ -1549,6 +1599,7 @@ export function PurchaseRequestSheet({
                             <StatusActions
                                 currentStatus={selectedPurchaseRequest.status}
                                 onStatusUpdate={handleStatusUpdateFromActions}
+                                uangMukaStatus={selectedPurchaseRequest.uangMuka?.[0]?.status}
                             />
                         </div>
                     )}

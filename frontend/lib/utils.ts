@@ -1,6 +1,8 @@
 import { SPKDataApi } from "@/types/spk";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { format } from "date-fns";
+import { id } from "date-fns/locale";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -167,6 +169,89 @@ export const formatCurrency = (amount: number): string => {
   }).format(amount);
 };
 
+
 export const formatNumber = (num: number): string => {
   return new Intl.NumberFormat('id-ID').format(num);
 };
+
+export function formatDateIndo(date: Date | string | number | null | undefined, formatStr: string = "PPP"): string {
+  if (!date) return "-";
+  try {
+    return format(new Date(date), formatStr, { locale: id });
+  } catch (error) {
+    return "-";
+  }
+}
+
+/**
+ * Get current date in Indonesia/Jakarta timezone
+ * Returns date string in YYYY-MM-DD format
+ */
+export function getCurrentDateJakarta(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+}
+
+/**
+ * Get current date and time in Indonesia/Jakarta timezone
+ * Returns Date object adjusted to Jakarta timezone
+ */
+export function getCurrentDateTimeJakarta(): Date {
+  // Get current time in Jakarta timezone as ISO string
+  const jakartaTimeString = new Date().toLocaleString('en-US', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+
+  return new Date(jakartaTimeString);
+}
+
+/**
+ * Convert any date to Indonesia/Jakarta timezone
+ * @param date - Date to convert
+ * @returns Date object in Jakarta timezone
+ */
+export function toJakartaTimezone(date: Date | string | number): Date {
+  const inputDate = new Date(date);
+  const jakartaTimeString = inputDate.toLocaleString('en-US', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+
+  return new Date(jakartaTimeString);
+}
+
+/**
+ * Format date to YYYY-MM-DD in Jakarta timezone
+ * Useful for date inputs and API calls
+ */
+export function formatDateToYYYYMMDD(date: Date | string | number): string {
+  const d = new Date(date);
+  return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
+}
+
+/**
+ * Get start of month in Jakarta timezone
+ * @param date - Optional date, defaults to current date
+ * @returns Date object representing start of month in Jakarta timezone
+ */
+export function getStartOfMonthJakarta(date?: Date | string): Date {
+  const targetDate = date ? new Date(date) : new Date();
+  const year = parseInt(targetDate.toLocaleDateString('en-US', { timeZone: 'Asia/Jakarta', year: 'numeric' }));
+  const month = parseInt(targetDate.toLocaleDateString('en-US', { timeZone: 'Asia/Jakarta', month: '2-digit' })) - 1;
+
+  // Create date in Jakarta timezone
+  const jakartaDate = new Date(year, month, 1);
+  return jakartaDate;
+}

@@ -1392,9 +1392,6 @@ export const deleteGoodsReceipt = async (req, res) => {
             data: {
               receivedQuantity: {
                 decrement: parseFloat(item.qtyPassed)
-              },
-              rejectedQuantity: {
-                decrement: parseFloat(item.qtyRejected)
               }
             }
           });
@@ -2127,8 +2124,16 @@ export const approveGR = async (req, res) => {
           // For PO-based GRs, use PO Line or PR pricing
           else {
             // Cek apakah ada relasi ke PO Line dan ambil harga aktual (Prioritas Utama)
-            if (item.purchaseOrderLine && item.purchaseOrderLine.unitPrice) {
-              price = parseFloat(item.purchaseOrderLine.unitPrice);
+            // UPDATE: Prioritaskan unitPriceActual jika ada dan tidak 0
+            if (item.purchaseOrderLine) {
+               const actualPrice = parseFloat(item.purchaseOrderLine.unitPriceActual || 0);
+               const standardPrice = parseFloat(item.purchaseOrderLine.unitPrice || 0);
+               
+               if (actualPrice !== 0) {
+                 price = actualPrice;
+               } else {
+                 price = standardPrice;
+               }
             }
             // Jika tidak ada (misal Direct Purchase tanpa PO), baru ambil estimasi dari PR
             else if (item.purchaseRequestDetail && item.purchaseRequestDetail.estimasiHargaSatuan) {
@@ -2353,13 +2358,111 @@ export const approveGR = async (req, res) => {
         }
       }
 
-      return updatedGR;
+      // ========== AUTO-CREATE GR FOR REMAINING QUANTITIES ==========
+      // Check if any items have remaining quantities (qtyReceived < qtyPlanReceived)
+      const itemsWithRemaining = existingGR.items.filter(item => {
+        const qtyReceived = parseFloat(item.qtyReceived || 0);
+        const qtyPlan = parseFloat(item.qtyPlanReceived || 0);
+        return qtyReceived < qtyPlan && qtyPlan > 0;
+      });
+
+      let autoCreatedGR = null;
+      
+      if (itemsWithRemaining.length > 0 && existingGR.purchaseOrderId) {
+        console.log(`🔄 Auto-creating GR for ${itemsWithRemaining.length} items with remaining quantities...`);
+        
+        // Generate new GR number
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const prefix = `GRN-${year}${month}`;
+        
+        const latestGR = await tx.goodsReceipt.findFirst({
+          where: {
+            grNumber: {
+              startsWith: prefix
+            }
+          },
+          orderBy: {
+            grNumber: 'desc'
+          },
+          select: {
+            grNumber: true
+          }
+        });
+
+        let nextNumber = 1;
+        if (latestGR) {
+          const match = latestGR.grNumber.match(/GRN-\d{6}-(\d{4})$/);
+          if (match) {
+            nextNumber = parseInt(match[1]) + 1;
+          }
+        }
+
+        const sequence = String(nextNumber).padStart(4, '0');
+        const newGRNumber = `${prefix}-${sequence}`;
+
+        // Create new GR for remaining quantities
+        autoCreatedGR = await tx.goodsReceipt.create({
+          data: {
+            grNumber: newGRNumber,
+            purchaseOrderId: existingGR.purchaseOrderId,
+            warehouseId: existingGR.warehouseId,
+            receivedById: existingGR.receivedById,
+            sourceType: existingGR.sourceType || 'PO',
+            status: 'DRAFT',
+            expectedDate: existingGR.expectedDate,
+            vendorDeliveryNote: `Auto-created from ${existingGR.grNumber}`,
+            notes: `Auto-created from ${existingGR.grNumber} for remaining quantities`,
+            items: {
+              create: itemsWithRemaining.map(item => {
+                const remainingQty = parseFloat(item.qtyPlanReceived) - parseFloat(item.qtyReceived);
+                return {
+                  productId: item.productId,
+                  qtyPlanReceived: remainingQty,
+                  qtyReceived: 0,
+                  unit: item.unit,
+                  qtyPassed: 0,
+                  qtyRejected: 0,
+                  qcStatus: 'PENDING',
+                  status: 'RECEIVED',
+                  purchaseOrderLineId: item.purchaseOrderLineId,
+                  purchaseRequestDetailId: item.purchaseRequestDetailId
+                };
+              })
+            }
+          },
+          include: {
+            items: {
+              include: {
+                product: true
+              }
+            }
+          }
+        });
+
+        console.log(`✅ Auto-created GR ${newGRNumber} with ${itemsWithRemaining.length} items`);
+      }
+
+      return { updatedGR, autoCreatedGR };
     });
 
     res.status(200).json({
       success: true,
       message: 'GR approved and stock updated successfully',
-      data: result
+      data: {
+        ...result.updatedGR,
+        autoCreatedGR: result.autoCreatedGR ? {
+          id: result.autoCreatedGR.id,
+          grNumber: result.autoCreatedGR.grNumber,
+          itemCount: result.autoCreatedGR.items.length,
+          items: result.autoCreatedGR.items.map(item => ({
+            productId: item.productId,
+            productName: item.product?.name,
+            qtyPlanReceived: item.qtyPlanReceived
+          }))
+        } : null
+      }
     });
   } catch (error) {
     console.error('Error approving GR:', error);

@@ -56,10 +56,11 @@ interface InvoiceDataTableProps {
     isLoading: boolean;
     role: string | undefined;
     banks: BankAccount[];
-    currentUser: { id: string, name: string } | undefined
+    currentUser: { id: string, name: string } | undefined;
+    onRefresh?: () => void; // ✅ NEW: Callback untuk refresh data
 }
 
-export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser }: InvoiceDataTableProps) {
+export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser, onRefresh }: InvoiceDataTableProps) {
     const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [isOldPdfPreviewOpen, setIsOldPdfPreviewOpen] = useState(false);
@@ -500,6 +501,7 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser }:
                 open={drawerOpen}
                 onOpenChange={setDrawerOpen}
                 invoice={selectedInvoice}
+                onRefresh={onRefresh} // ✅ Pass onRefresh
             />
 
             {/* Payment Process Dialog */}
@@ -513,6 +515,7 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser }:
                     banks={banks}
                     currentUser={currentUser}
                     installments={[]}
+                    onRefresh={onRefresh} // ✅ Pass onRefresh
                 />
             )}
 

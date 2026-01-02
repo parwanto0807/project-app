@@ -119,18 +119,20 @@ export function PrCreateFormFrVerify({
         },
     });
 
-    // 1️⃣ Set selectedPurchaseRequest saat mount
+    // 1️⃣ Set selectedPurchaseRequest saat mount atau ketika data PR sudah loaded
     useEffect(() => {
-        if (idFromUrl) {
+        if (idFromUrl && approvedPurchaseRequests.length > 0) {
             setSelectedPurchaseRequest(idFromUrl);
 
             // 2️⃣ Otomatis update form fields sesuai PR
             const selectedPR = approvedPurchaseRequests.find(pr => pr.id === idFromUrl);
             if (selectedPR) {
+                const totalAmount = calculateTotalAmount(selectedPR).totalBiaya || 0;
+
                 form.setValue("purchaseRequestId", idFromUrl);
                 form.setValue("spkId", selectedPR.spk?.id || "");
-                form.setValue("karyawanId", selectedPR.karyawan?.id || "");
-                form.setValue("jumlah", calculateTotalAmount(selectedPR).totalBiaya || 0);
+                form.setValue("karyawanId", selectedPR.requestedBy?.id || "");
+                form.setValue("jumlah", totalAmount);
 
                 const currentKeterangan = form.getValues("keterangan") || "";
                 if (!currentKeterangan || currentKeterangan === "") {
@@ -139,9 +141,18 @@ export function PrCreateFormFrVerify({
                         `Uang muka untuk ${selectedPR.nomorPr} - ${selectedPR.keterangan || ""}`
                     );
                 }
+
+                console.log("✅ Form values set:", {
+                    prId: idFromUrl,
+                    spkId: selectedPR.spk?.id || "null",
+                    totalAmount,
+                    karyawanId: selectedPR.requestedBy?.id
+                });
+            } else {
+                console.warn("⚠️ PR not found in approvedPurchaseRequests:", idFromUrl);
             }
         }
-    }, [idFromUrl, approvedPurchaseRequests, form]);
+    }, [idFromUrl, approvedPurchaseRequests]);
 
     // Get selected PR data untuk auto-fill
     const selectedPRData = useMemo(() => {
@@ -156,34 +167,29 @@ export function PrCreateFormFrVerify({
             grandTotal: 0,
         };
 
-        const biayaTypes: SourceProductType[] = [
-            SourceProductType.PEMBELIAN_BARANG,
-            SourceProductType.JASA_PEMBELIAN,
-            SourceProductType.OPERATIONAL,
-        ];
-
-        const hppTypes: SourceProductType[] = [
-            SourceProductType.PENGAMBILAN_STOK,
-            SourceProductType.JASA_INTERNAL,
-        ];
-
+        // Untuk Uang Muka, kita hitung SEMUA item termasuk PENGAMBILAN_STOK
+        // karena uang muka diperlukan untuk semua biaya project
         let totalBiaya = 0;
         let totalHPP = 0;
 
         for (const detail of pr.details) {
             const estimasiTotalHarga = Number(detail.estimasiTotalHarga || 0);
 
-            if (detail.sourceProduct && biayaTypes.includes(detail.sourceProduct as SourceProductType)) {
-                totalBiaya += estimasiTotalHarga;
-            } else if (detail.sourceProduct && hppTypes.includes(detail.sourceProduct as SourceProductType)) {
+            // Semua item dihitung sebagai biaya yang perlu uang muka
+            totalBiaya += estimasiTotalHarga;
+
+            // Untuk tracking, tetap pisahkan HPP items
+            if (detail.sourceProduct &&
+                (detail.sourceProduct === SourceProductType.PENGAMBILAN_STOK ||
+                    detail.sourceProduct === SourceProductType.JASA_INTERNAL)) {
                 totalHPP += estimasiTotalHarga;
             }
         }
 
         return {
-            totalBiaya,
-            totalHPP,
-            grandTotal: totalBiaya + totalHPP,
+            totalBiaya, // Total semua item untuk uang muka
+            totalHPP,   // Total HPP untuk tracking
+            grandTotal: totalBiaya,
         };
     };
 
@@ -195,7 +201,7 @@ export function PrCreateFormFrVerify({
         if (selectedPR) {
             form.setValue("purchaseRequestId", prId);
             form.setValue("spkId", selectedPR.spk?.id || "");
-            form.setValue("karyawanId", selectedPR.karyawan?.id || "");
+            form.setValue("karyawanId", selectedPR.requestedBy?.id || "");
             form.setValue("jumlah", calculateTotalAmount(selectedPR).totalBiaya || 0);
 
             const currentKeterangan = form.getValues("keterangan") || "";
@@ -277,6 +283,24 @@ export function PrCreateFormFrVerify({
             // Untuk file non-gambar, beri informasi
             toast.info(`File: ${selectedFile.name} (${selectedFile.type})`);
         }
+    };
+
+    // Handle click on disabled upload area
+    const handleDisabledUploadClick = () => {
+        toast.warning(
+            'Accounting belum bisa mengupload Bukti Pencairan, Teruskan Approval Request Form ini ke Bagian Finance',
+            {
+                duration: 5000,
+                position: 'top-center',
+                style: {
+                    background: '#FFF9E6', // Kuning sangat muda (smooth)
+                    color: '#856404',      // Warna teks coklat tua agar kontras
+                    border: '1px solid #FFEeba', // Border tipis agar lebih rapi
+                    borderRadius: '8px',
+                    fontSize: '14px'
+                },
+            }
+        );
     };
 
     // useEffect(() => {
@@ -529,7 +553,7 @@ export function PrCreateFormFrVerify({
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <span className="font-medium text-gray-600">Diajukan Oleh:</span>
-                                        <span>{selectedPRData.karyawan?.namaLengkap || 'N/A'}</span>
+                                        <span>{selectedPRData.requestedBy?.namaLengkap || 'N/A'}</span>
                                     </div>
                                     <div className="flex items-center justify-between pt-1 border-t border-blue-200">
                                         <span className="font-bold ">Total Amount:</span>
@@ -733,10 +757,11 @@ export function PrCreateFormFrVerify({
                                                     onChange={handleFileSelect} // Ganti ke handleFileSelect
                                                     accept=".jpg,.jpeg,.png,.webp,.pdf"
                                                     className="hidden"
+                                                    disabled={true}
                                                 />
                                                 <div
                                                     className="flex flex-col items-center space-y-2"
-                                                    onClick={() => fileInputRef.current?.click()}
+                                                    onClick={handleDisabledUploadClick}
                                                 >
                                                     <ImageIcon className="h-8 w-8 text-gray-400" />
                                                     <div className="text-sm">

@@ -346,10 +346,30 @@ export const getAllPO = async (req, res) => {
           project: true, 
           orderedBy: true,
           warehouse: true,
+          lines: {
+            select: {
+              id: true,
+              checkPurchaseExecution: true
+            }
+          },
           PurchaseRequest: {
             select: {
               id: true,
               nomorPr: true
+            }
+          },
+          PurchaseExecution: {
+            select: {
+              id: true,
+              executionDate: true,
+              status: true,
+              receipts: {
+                select: {
+                  id: true,
+                  receiptNumber: true,
+                  storeName: true
+                }
+              }
             }
           }
         },
@@ -577,7 +597,23 @@ export const getPODetail = async (req, res) => {
         project: true,
         warehouse: true,
         orderedBy: true,
-        PurchaseRequest: true,
+        PurchaseRequest: {
+          include: {
+            requestedBy: {
+              select: {
+                id: true,
+                namaLengkap: true,
+                email: true
+              }
+            },
+            karyawan: {
+              select: {
+                id: true,
+                namaLengkap: true
+              }
+            }
+          }
+        },
         SPK: true,
         lines: {
           include: {
@@ -609,6 +645,21 @@ export const getPODetail = async (req, res) => {
           }
         },
         goodsReceipts: true,
+        team: {
+          include: {
+            karyawan: {
+              include: {
+                karyawan: {
+                  select: {
+                    id: true,
+                    namaLengkap: true,
+                    jabatan: true
+                  }
+                }
+              }
+            }
+          }
+        },
         PurchaseExecution: {
           include: {
             executor: {
@@ -682,9 +733,13 @@ export const updatePOStatus = async (req, res) => {
     // Update PO status dan jumlahDipesan jika APPROVED
     const result = await prisma.$transaction(async (tx) => {
       // Update PO status
+      // Update PO status
       const updatedPO = await tx.purchaseOrder.update({
         where: { id },
-        data: { status },
+        data: { 
+          status,
+          ...(status === 'REQUEST_REVISION' ? { requestRevisi: { increment: 1 } } : {})
+        },
         include: {
           lines: {
             include: {
@@ -694,8 +749,8 @@ export const updatePOStatus = async (req, res) => {
         }
       });
 
-      // Jika status APPROVED, update jumlahDipesan di PurchaseRequestDetail dan onPR di StockBalance
-      if (status === 'APPROVED') {
+      // Jika status APPROVED dan requestRevisi = 0 (belum pernah revisi), update jumlahDipesan di PurchaseRequestDetail dan onPR di StockBalance
+      if (status === 'APPROVED' && (updatedPO.requestRevisi === 0 || !updatedPO.requestRevisi)) {
         // Get current period (start of month)
         const currentPeriod = new Date();
         currentPeriod.setDate(1);
@@ -860,10 +915,26 @@ export const getPOForExecution = async (req, res) => {
          warehouse: true,
          lines: { include: { product: true } },
          team: true,
-         PurchaseExecution: true
+         PurchaseExecution: true,
+         PurchaseRequest: {
+            select: {
+               nomorPr: true,
+               requestedBy: {
+                   select: { id: true, userId: true, namaLengkap: true }
+               },
+               karyawan: {
+                   select: { id: true, userId: true, namaLengkap: true }
+               }
+            }
+         }
       },
       orderBy: { createdAt: 'desc' }
     });
+
+    // DEBUG: Check if PurchaseRequest data is present
+    if (pos.length > 0) {
+        console.log('DEBUG First PO PR Data:', JSON.stringify(pos[0].PurchaseRequest, null, 2));
+    }
 
     return res.status(200).json({ success: true, data: pos });
 
@@ -1732,6 +1803,285 @@ export const togglePOLineVerification = async (req, res) => {
     return res.status(500).json({
       success: false,
       error: 'Failed to update verification status',
+      details: error.message
+    });
+  }
+};
+/**
+ * @desc Update PO Line Actual Data (qtyActual, unitPriceActual)
+ * @route PATCH /api/po/line/:poLineId/update-actual
+ * @access Private
+ */
+export const updatePOLineActualData = async (req, res) => {
+  try {
+    const { poLineId } = req.params;
+    const { qtyActual, unitPriceActual } = req.body;
+
+    // Validate input
+    if (qtyActual === undefined && unitPriceActual === undefined) {
+      return res.status(400).json({
+        success: false,
+        error: 'At least one of qtyActual or unitPriceActual must be provided'
+      });
+    }
+
+    // Get current PO Line data with PO relation
+    const poLine = await prisma.purchaseOrderLine.findUnique({
+      where: { id: poLineId },
+      include: {
+        purchaseOrder: {
+          include: {
+            PurchaseExecution: {
+              where: {
+                status: {
+                  in: ['IN_PROGRESS', 'COMPLETED']
+                }
+              },
+              orderBy: {
+                createdAt: 'desc'
+              },
+              take: 1
+            }
+          }
+        }
+      }
+    });
+
+    if (!poLine) {
+      return res.status(404).json({
+        success: false,
+        error: 'PO Line not found'
+      });
+    }
+
+    // Calculate checkMatch
+    const newQtyActual = qtyActual !== undefined ? Number(qtyActual) : Number(poLine.qtyActual);
+    const newUnitPriceActual = unitPriceActual !== undefined ? Number(unitPriceActual) : Number(poLine.unitPriceActual);
+    const poQty = Number(poLine.quantity);
+    const poUnitPrice = Number(poLine.unitPrice);
+
+    // Check if both qty and price match (with small tolerance for decimal precision)
+    const qtyMatch = newQtyActual > 0 && Math.abs(poQty - newQtyActual) < 0.01;
+    const priceMatch = newUnitPriceActual > 0 && Math.abs(poUnitPrice - newUnitPriceActual) < 0.01;
+    const checkMatch = qtyMatch && priceMatch;
+
+    // Prepare update data for PO Line
+    const updateData = {
+      checkMatch,
+      checkPurchaseExecution: true // Set to true when saving actual data
+    };
+
+    if (qtyActual !== undefined) {
+      updateData.qtyActual = Number(qtyActual);
+    }
+
+    if (unitPriceActual !== undefined) {
+      updateData.unitPriceActual = Number(unitPriceActual);
+    }
+
+    // Use transaction to update both PO Line, PurchaseExecution, StaffBalance, and StaffLedger
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Calculate Grand Total BEFORE update (old value)
+      // Must be done BEFORE updating the current line
+      const allPoLinesBeforeUpdate = await tx.purchaseOrderLine.findMany({
+        where: { poId: poLine.poId }
+      });
+
+      const grandTotalBefore = allPoLinesBeforeUpdate.reduce((sum, line) => {
+        const qty = Number(line.qtyActual) || 0;
+        const price = Number(line.unitPriceActual) || 0;
+        return sum + (qty * price);
+      }, 0);
+
+      // 2. Update the PO Line
+      const updatedLine = await tx.purchaseOrderLine.update({
+        where: { id: poLineId },
+        data: updateData
+      });
+
+      // 3. Update PurchaseExecution status to COMPLETED if exists
+      const purchaseExecution = poLine.purchaseOrder.PurchaseExecution?.[0];
+      if (purchaseExecution) {
+        await tx.purchaseExecution.update({
+          where: { id: purchaseExecution.id },
+          data: { status: 'COMPLETED' }
+        });
+
+
+
+        // Calculate Grand Total AFTER update (new value)
+        // We need to simulate the update for the current line
+        const grandTotalAfter = allPoLinesBeforeUpdate.reduce((sum, line) => {
+          if (line.id === poLineId) {
+            // Use the new values for the line being updated
+            const qty = qtyActual !== undefined ? Number(qtyActual) : Number(line.qtyActual) || 0;
+            const price = unitPriceActual !== undefined ? Number(unitPriceActual) : Number(line.unitPriceActual) || 0;
+            return sum + (qty * price);
+          } else {
+            // Use existing values for other lines
+            const qty = Number(line.qtyActual) || 0;
+            const price = Number(line.unitPriceActual) || 0;
+            return sum + (qty * price);
+          }
+        }, 0);
+
+        // Calculate the delta (difference)
+        const delta = grandTotalAfter - grandTotalBefore;
+
+        // Check if StaffLedger entry already exists for this PO
+        const existingLedgerEntry = await tx.staffLedger.findFirst({
+          where: {
+            refId: poLine.purchaseOrder.id,
+            category: 'OPERASIONAL_PROYEK',
+            type: 'EXPENSE_REPORT'
+          },
+          orderBy: {
+            tanggal: 'desc'
+          }
+        });
+
+        const isFirstSave = !existingLedgerEntry;
+
+        // DEBUG LOGGING
+        console.log('=== STAFF BALANCE UPDATE DEBUG ===');
+        console.log('Grand Total Before:', grandTotalBefore);
+        console.log('Grand Total After:', grandTotalAfter);
+        console.log('Delta:', delta);
+        console.log('Is First Save:', isFirstSave);
+        console.log('Existing Ledger Entry:', existingLedgerEntry ? 'Found' : 'Not Found');
+        console.log('Condition (isFirstSave OR delta !== 0):', isFirstSave || delta !== 0);
+        console.log('Purchase Execution:', purchaseExecution);
+        console.log('Executor ID:', purchaseExecution?.executorId);
+
+        // Update StaffBalance and StaffLedger if:
+        // 1. First save (isFirstSave = true) OR
+        // 2. There's a change (delta !== 0)
+        if ((isFirstSave || delta !== 0) && grandTotalAfter > 0) {
+          const executorId = purchaseExecution.executorId;
+          
+          // DETERMINE AMOUNT TO UPDATE
+          // If first save: use FULL current amount (catch up)
+          // If edit: use DELTA (difference)
+          const amountChange = isFirstSave ? grandTotalAfter : delta;
+          
+          console.log('✅ Entering StaffBalance update block');
+          console.log('Executor ID:', executorId);
+          console.log('Amount To Change (amountChange):', amountChange);
+
+          // 1. Update or Create StaffBalance (OPERASIONAL_PROYEK)
+          const existingBalance = await tx.staffBalance.findUnique({
+            where: {
+              karyawanId_category: {
+                karyawanId: executorId,
+                category: 'OPERASIONAL_PROYEK'
+              }
+            }
+          });
+          
+          console.log('Existing Balance:', existingBalance);
+
+          // IMPORTANT: Get saldoAwal BEFORE updating StaffBalance to prevent race condition
+          const saldoSebelumUpdate = Number(existingBalance?.amount || 0);
+          console.log('💰 Saldo sebelum update:', saldoSebelumUpdate);
+
+          if (existingBalance) {
+            // Update existing balance with amountChange
+            console.log('📝 Updating existing StaffBalance with amountChange:', amountChange);
+            await tx.staffBalance.update({
+              where: {
+                karyawanId_category: {
+                  karyawanId: executorId,
+                  category: 'OPERASIONAL_PROYEK'
+                }
+              },
+              data: {
+                totalOut: {
+                  increment: amountChange 
+                },
+                amount: {
+                  decrement: amountChange // Saldo berkurang
+                }
+              }
+            });
+            console.log('✅ StaffBalance updated successfully');
+          } else {
+            // Create new balance if doesn't exist
+            console.log('➕ Creating new StaffBalance with grandTotal:', grandTotalAfter);
+            await tx.staffBalance.create({
+              data: {
+                karyawanId: executorId,
+                category: 'OPERASIONAL_PROYEK',
+                totalOut: grandTotalAfter,
+                amount: -grandTotalAfter
+              }
+            });
+            console.log('✅ StaffBalance created successfully');
+          }
+
+          // 3. Create StaffLedger entry (Accounting: Kredit = expense/keluar)
+          // Use saldoSebelumUpdate (captured before StaffBalance update) to avoid race condition
+          if (amountChange > 0) {
+            console.log('📊 Creating StaffLedger entry (KREDIT) for amountChange:', amountChange);
+            const saldoSesudah = saldoSebelumUpdate - amountChange; // KREDIT mengurangi saldo
+            
+            await tx.staffLedger.create({
+              data: {
+                karyawanId: executorId,
+                tanggal: new Date(),
+                keterangan: `Pembelian lapangan PO ${poLine.purchaseOrder.poNumber} - ${isFirstSave ? 'Baru' : 'Penambahan'}: Rp ${amountChange.toLocaleString('id-ID')} (Total: Rp ${grandTotalAfter.toLocaleString('id-ID')})`,
+                saldoAwal: saldoSebelumUpdate, // Saldo sebelum transaksi (captured before update)
+                debit: 0,
+                kredit: amountChange, // Record expense
+                saldo: saldoSesudah, // Saldo setelah transaksi
+                category: 'OPERASIONAL_PROYEK',
+                type: 'EXPENSE_REPORT',
+                refId: poLine.purchaseOrder.id,
+                createdBy: executorId
+              }
+            });
+            console.log('✅ StaffLedger (KREDIT) created successfully');
+          } else if (amountChange < 0) {
+            // If amountChange is negative (correction/reduction)
+            console.log('📊 Creating StaffLedger entry (DEBIT) for correction:', Math.abs(amountChange));
+            const saldoSesudah = saldoSebelumUpdate + Math.abs(amountChange); // DEBIT menambah saldo
+            
+            await tx.staffLedger.create({
+              data: {
+                karyawanId: executorId,
+                tanggal: new Date(),
+                keterangan: `Koreksi pembelian lapangan PO ${poLine.purchaseOrder.poNumber} - Pengurangan: Rp ${Math.abs(amountChange).toLocaleString('id-ID')} (Total: Rp ${grandTotalAfter.toLocaleString('id-ID')})`,
+                saldoAwal: saldoSebelumUpdate, // Saldo sebelum transaksi (captured before update)
+                debit: Math.abs(amountChange), // Debit for correction
+                kredit: 0,
+                saldo: saldoSesudah, // Saldo setelah transaksi
+                category: 'OPERASIONAL_PROYEK',
+                type: 'EXPENSE_REPORT',
+                refId: poLine.purchaseOrder.id,
+                createdBy: executorId
+              }
+            });
+            console.log('✅ StaffLedger (DEBIT) created successfully');
+          }
+        } else {
+          console.log('⚠️ Skipping StaffBalance/Ledger update - Condition not met');
+          console.log('   Reason: delta === 0 OR grandTotalAfter <= 0');
+        }
+      }
+
+      return updatedLine;
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Actual data updated successfully',
+      data: result
+    });
+
+  } catch (error) {
+    console.error('Error updating PO line actual data:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to update actual data',
       details: error.message
     });
   }

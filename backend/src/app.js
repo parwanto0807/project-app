@@ -36,6 +36,7 @@ import mrRoutes from './routes/mrInventory/mrRoutes.js';
 import poRoutes from './routes/po/poRoutes.js';
 import grRoutes from './routes/grInventory/grRoute.js';
 import tfRoutes from './routes/tf/tfRoutes.js';
+import staffBalanceRoutes from './routes/staffBalance/staffBalanceRoutes.js';
 
 import path from "path";
 
@@ -158,6 +159,7 @@ app.use('/api/mr', mrRoutes);
 app.use('/api/po', poRoutes); 
 app.use('/api/gr', grRoutes);
 app.use('/api/tf', tfRoutes);
+app.use('/api/staff-balance', staffBalanceRoutes);
 
 // Health Check Endpoint
 app.get("/api/health", (req, res) => {

@@ -35,6 +35,7 @@ export interface PurchaseRequest {
   spkId: string | null; // ✅ Ubah dari string ke string | null
   spkIds?: string; // ✅ Tambahkan ? karena ini optional (tidak ada di model)
   karyawanId: string;
+  requestedById?: string; // ✅ Karyawan yang request (optional untuk backward compatibility)
   tanggalPr: Date;
   keterangan?: string;
   status: PRStatus;
@@ -57,6 +58,11 @@ export interface PurchaseRequest {
   karyawan?: {
     id: string;
     namaLengkap: string;
+  };
+  requestedBy?: {
+    id: string;
+    namaLengkap: string;
+    jabatan?: string;
   };
 
   details: PurchaseRequestDetail[];
@@ -145,6 +151,7 @@ export interface CreatePurchaseRequestData {
   projectId?: string | null;
   spkId?: string | null; // ✅ Ubah menjadi optional
   karyawanId: string;
+  requestedById?: string; // ✅ Optional, defaults to karyawanId if not provided
   tanggalPr?: Date; // ✅ Tambahkan ? karena biasanya auto-generated
   keterangan?: string;
   details: Omit<PurchaseRequestDetail, "id" | "estimasiTotalHarga">[];
@@ -324,6 +331,7 @@ export interface PurchaseRequestFormData {
   projectId?: string | null;
   spkId?: string | null;
   karyawanId: string;
+  requestedById?: string; // ✅ Optional requester field
   keterangan?: string;
   details: Array<{
     productId: string;

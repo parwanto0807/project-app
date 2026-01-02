@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn, toJakartaTimezone } from "@/lib/utils";
 import {
     ArrowLeft,
     Eye,
@@ -57,6 +57,7 @@ import {
     Users,
     CheckCircle2,
     Info,
+    RotateCcw,
 } from "lucide-react";
 import { pdf } from "@react-pdf/renderer";
 import PurchaseOrderPdfDocument from "./purchaseOrderPdf";
@@ -90,7 +91,7 @@ import {
 } from "@/components/ui/table";
 
 import { PurchaseOrder } from "@/types/poType";
-import { getPurchaseOrderById, updatePurchaseOrderStatus, deletePurchaseOrder, sendPurchaseOrderEmail, updatePurchaseOrder } from "@/lib/action/po/po";
+import { getPurchaseOrderById, updatePurchaseOrderStatus, deletePurchaseOrder, updatePurchaseOrder } from "@/lib/action/po/po";
 import { createMRFromPOAction } from "@/lib/action/inventory/mrInventroyAction";
 import { createGoodsReceiptFromPOAction } from "@/lib/action/grInventory/grAction";
 import { getAllTeam } from "@/lib/action/master/team/getAllTeam";
@@ -112,6 +113,13 @@ const statusConfig: Record<string, any> = {
         icon: Clock,
         iconColor: "text-amber-600 dark:text-amber-400",
         gradient: "from-amber-50 to-amber-100 dark:from-amber-950 dark:to-amber-900",
+    },
+    REQUEST_REVISION: {
+        label: "Permintaan Revisi",
+        className: "bg-yellow-50 text-yellow-800 border-yellow-300 dark:bg-yellow-950/50 dark:text-yellow-300 dark:border-yellow-800 shadow-sm",
+        icon: RotateCcw,
+        iconColor: "text-yellow-600 dark:text-yellow-400",
+        gradient: "from-yellow-50 to-yellow-100 dark:from-yellow-950 dark:to-yellow-900",
     },
     REVISION_NEEDED: {
         label: "Perlu Revisi",
@@ -169,11 +177,12 @@ const nextStatusOptionsMap: Record<string, string[]> = {
     PENDING_APPROVAL: ["APPROVED", "REJECTED", "REVISION_NEEDED"],
     REVISION_NEEDED: ["PENDING_APPROVAL", "DRAFT"],
     APPROVED: ["SENT", "CANCELLED"],
-    SENT: ["PARTIALLY_RECEIVED", "FULLY_RECEIVED"],
-    PARTIALLY_RECEIVED: ["FULLY_RECEIVED"],
+    SENT: [],
+    PARTIALLY_RECEIVED: [],
     REJECTED: ["DRAFT"],
     CANCELLED: [],
     FULLY_RECEIVED: [],
+    REQUEST_REVISION: ["REVISION_NEEDED"],
 };
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -267,21 +276,21 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
         }
     };
 
-    useEffect(() => {
-        const fetchPO = async () => {
-            if (!poId) return;
-            try {
-                setIsLoading(true);
-                const data = await getPurchaseOrderById(poId);
-                setPurchaseOrder(data);
-            } catch (error) {
-                console.error("Error fetching PO:", error);
-                toast.error("Gagal memuat detail purchase order");
-            } finally {
-                setIsLoading(false);
-            }
-        };
+    const fetchPO = async () => {
+        if (!poId) return;
+        try {
+            setIsLoading(true);
+            const data = await getPurchaseOrderById(poId);
+            setPurchaseOrder(data);
+        } catch (error) {
+            console.error("Error fetching PO:", error);
+            toast.error("Gagal memuat detail purchase order");
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
+    useEffect(() => {
         fetchPO();
     }, [poId]);
 
@@ -296,8 +305,8 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
             setStatusDialogOpen(false);
             setNewStatus(null);
 
-            // Automatically create Goods Receipt (GR) if status is SENT
-            if (status === 'SENT') {
+            // Automatically create Goods Receipt (GR) if status is SENT and no revisions requested
+            if (status === 'SENT' && (purchaseOrder.requestRevisi === 0 || !purchaseOrder.requestRevisi)) {
                 try {
                     toast.info("Membuat Dokumen Penerimaan Barang (GR) otomatis...");
 
@@ -565,6 +574,8 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                         </div>
                                     </div>
 
+
+
                                     <div className="flex items-center justify-end gap-2">
                                         {nextStatusOptions.length > 0 && (
                                             <Button
@@ -592,14 +603,14 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                             variant="outline"
                                             className={cn(
                                                 "border-blue-200 hover:bg-blue-50",
-                                                purchaseOrder.status !== "APPROVED" && "opacity-50 cursor-not-allowed"
+                                                !['APPROVED', 'SENT'].includes(purchaseOrder.status) && "opacity-50 cursor-not-allowed"
                                             )}
                                             onClick={() => {
-                                                if (purchaseOrder.status === "APPROVED") {
+                                                if (['APPROVED', 'SENT'].includes(purchaseOrder.status)) {
                                                     setShareDialogOpen(true);
                                                     fetchTeams();
                                                 } else {
-                                                    toast.error("Share hanya tersedia untuk PO yang sudah disetujui (APPROVED)");
+                                                    toast.error("Share hanya tersedia untuk PO yang sudah disetujui (APPROVED) atau dikirim (SENT)");
                                                 }
                                             }}
                                         >
@@ -618,13 +629,67 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                             </div>
                         </div>
                     </div>
+                    {purchaseOrder.team && (
+                        <div className="mt-4 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 rounded-lg border border-blue-100 dark:border-blue-800">
+                            <div className="flex items-center gap-3 flex-wrap">
+                                <div className="flex items-center gap-2">
+                                    <div className="h-7 w-7 rounded-lg bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center">
+                                        <Users className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                                    </div>
+                                    <span className="text-sm font-medium text-blue-700 dark:text-blue-300">Dibagikan ke:</span>
+                                </div>
+                                <Badge
+                                    variant="outline"
+                                    className="bg-white dark:bg-gray-800 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-600 px-3 py-1 shadow-sm font-semibold"
+                                >
+                                    <Users className="h-3.5 w-3.5 mr-1.5" />
+                                    {purchaseOrder.team.namaTeam}
+                                    {purchaseOrder.team.karyawan && purchaseOrder.team.karyawan.length > 0 && (
+                                        <span className="ml-2 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full font-medium">
+                                            {purchaseOrder.team.karyawan.length} anggota
+                                        </span>
+                                    )}
+                                </Badge>
+                                {purchaseOrder.team.karyawan && purchaseOrder.team.karyawan.length > 0 && (
+                                    <>
+                                        <span className="text-xs text-muted-foreground">•</span>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {purchaseOrder.team.karyawan.slice(0, 6).map((member, idx) => (
+                                                <Badge
+                                                    key={idx}
+                                                    variant="secondary"
+                                                    className="text-xs bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 shadow-sm"
+                                                >
+                                                    <User className="h-3 w-3 mr-1" />
+                                                    {member.karyawan.namaLengkap}
+                                                    {member.karyawan.jabatan && (
+                                                        <span className="ml-1 text-[10px] text-muted-foreground">
+                                                            • {member.karyawan.jabatan}
+                                                        </span>
+                                                    )}
+                                                </Badge>
+                                            ))}
+                                            {purchaseOrder.team.karyawan.length > 6 && (
+                                                <Badge
+                                                    variant="secondary"
+                                                    className="text-xs bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/50 dark:to-indigo-900/50 text-blue-700 dark:text-blue-300 border-0 font-medium"
+                                                >
+                                                    +{purchaseOrder.team.karyawan.length - 6} lainnya
+                                                </Badge>
+                                            )}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Main Content */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         {/* Left Column - Main Content */}
                         <div className="lg:col-span-2 space-y-6">
                             {/* Enhanced Tabs */}
-                            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden dark:bg-gray-800 dark:border-gray-700">
+                            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden dark:bg-gray-800 dark:border-gray-700 text-wrap">
                                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                                     <div className="border-b border-gray-100 dark:border-gray-700 px-6 my-4">
                                         <TabsList className="h-14 bg-transparent w-full justify-start gap-1">
@@ -708,9 +773,27 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                                                 <span>Tanggal Order</span>
                                                             </div>
                                                             <div className="font-medium dark:text-gray-200">
-                                                                {format(new Date(purchaseOrder.orderDate), "dd MMMM yyyy", { locale: id })}
+                                                                {format(toJakartaTimezone(purchaseOrder.orderDate), "dd MMMM yyyy", { locale: id })}
                                                             </div>
                                                         </div>
+                                                        {purchaseOrder.PurchaseRequest?.requestedBy && (
+                                                            <div className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+                                                                <div className="flex items-center gap-2 text-muted-foreground">
+                                                                    <User className="h-4 w-4 text-orange-500 dark:text-orange-400" />
+                                                                    <span>Pemohon PR</span>
+                                                                </div>
+                                                                <div className="text-right">
+                                                                    <div className="font-medium dark:text-gray-200">
+                                                                        {purchaseOrder.PurchaseRequest.requestedBy.namaLengkap}
+                                                                    </div>
+                                                                    {purchaseOrder.PurchaseRequest.requestedBy.email && (
+                                                                        <div className="text-xs text-muted-foreground">
+                                                                            {purchaseOrder.PurchaseRequest.requestedBy.email}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                         {purchaseOrder.project && (
                                                             <div className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
                                                                 <div className="flex items-center gap-2 text-muted-foreground">
@@ -1075,10 +1158,13 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                     </TabsContent>
 
                                     {/* History Tab */}
-                                    <TabsContent value="history" className="m-0 p-6">
+                                    <TabsContent value="history" className="m-0 px-6">
                                         <Card className="border-0 shadow-sm">
-                                            <CardContent className="p-6">
-                                                <POReportHistory purchaseOrder={purchaseOrder} />
+                                            <CardContent className="px-6">
+                                                <POReportHistory
+                                                    purchaseOrder={purchaseOrder}
+                                                    onUpdate={fetchPO}
+                                                />
                                             </CardContent>
                                         </Card>
                                     </TabsContent>
@@ -1139,7 +1225,7 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                     )}
 
                                     {/* Create MR Button (Requested Feature) */}
-                                    {['SENT', 'PARTIALLY_RECEIVED', 'FULLY_RECEIVED'].includes(purchaseOrder.status) && (
+                                    {['SENT', 'PARTIALLY_RECEIVED'].includes(purchaseOrder.status) && (
                                         purchaseOrder.relatedMRs && purchaseOrder.relatedMRs.length > 0 ? (
                                             <Button
                                                 variant="outline"
@@ -1187,7 +1273,6 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                             )
                                         )
                                     )}
-
                                     <Button
                                         variant="outline"
                                         className="w-full justify-start h-11 hover:bg-red-50 dark:hover:bg-red-950/30 hover:border-red-200 dark:hover:border-red-800 hover:text-red-700 dark:hover:text-red-400 transition-all group dark:border-gray-700"
@@ -1202,6 +1287,22 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                             <div className="text-xs text-muted-foreground dark:text-gray-400">Hapus permanen</div>
                                         </div>
                                     </Button>
+
+                                    {['APPROVED', 'SENT'].includes(purchaseOrder.status) && (
+                                        <Button
+                                            variant="outline"
+                                            className="w-full justify-start h-11 hover:bg-yellow-50 dark:hover:bg-yellow-950/30 hover:border-yellow-200 dark:hover:border-yellow-800 hover:text-yellow-700 dark:hover:text-yellow-400 transition-all group dark:border-gray-700"
+                                            onClick={() => handleUpdateStatus('REQUEST_REVISION')}
+                                        >
+                                            <div className="h-8 w-8 rounded-md bg-yellow-100 dark:bg-yellow-900/50 flex items-center justify-center mr-3 group-hover:bg-yellow-200 dark:group-hover:bg-yellow-800">
+                                                <RotateCcw className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                                            </div>
+                                            <div className="text-left">
+                                                <div className="font-medium dark:text-gray-200">Request Revisi PO</div>
+                                                <div className="text-xs text-muted-foreground dark:text-gray-400">Ajukan permintaan revisi</div>
+                                            </div>
+                                        </Button>
+                                    )}
 
                                     <Button
                                         variant="outline"
@@ -1465,7 +1566,7 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                             className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
                         >
                             <CheckCircle className="h-4 w-4 mr-2" />
-                            Konfirmasi
+                            {purchaseOrder.status === 'REQUEST_REVISION' && newStatus === 'REVISION_NEEDED' ? 'Request Revisi Diterima' : 'Konfirmasi'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -1787,6 +1888,6 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

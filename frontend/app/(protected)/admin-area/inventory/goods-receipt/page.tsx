@@ -170,7 +170,7 @@ export default async function GoodsReceiptsPage({ searchParams }: PageProps) {
                                 </div>
 
                                 {/* Create Button - visible in all sizes */}
-                                <div className="w-full lg:w-auto">
+                                <div className="w-full lg:w-auto hidden">
                                     <CreateGrButton role="admin" />
                                 </div>
                             </div>

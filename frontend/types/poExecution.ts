@@ -103,6 +103,19 @@ export type PurchaseOrder = {
         totalSpent: number;
         createdAt: string;
     }>;
+    PurchaseRequest?: {
+        nomorPr: string;
+        requestedBy?: {
+            id: string;
+            userId?: string;
+            namaLengkap: string;
+        };
+        karyawan?: {
+            id: string;
+            userId?: string;
+            namaLengkap: string;
+        };
+    };
     createdAt: string;
     updatedAt: string;
 };

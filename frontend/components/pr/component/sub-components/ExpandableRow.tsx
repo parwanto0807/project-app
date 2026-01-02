@@ -239,9 +239,19 @@ export const ExpandableRow = forwardRef<HTMLTableRowElement, ExpandableRowProps>
                     <TableCell>
                         <div className="flex items-center gap-2">
                             <User className="h-4 w-4 text-purple-500" />
-                            {pr.karyawan?.namaLengkap || pr.karyawanId}
+                            <div>
+                                <div className="text-xs text-muted-foreground">Admin:</div>
+                                <div className="font-medium">{pr.karyawan?.namaLengkap || pr.karyawanId}</div>
+                            </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 mt-1">
+                            <User className="h-4 w-4 text-blue-500" />
+                            <div>
+                                <div className="text-xs text-muted-foreground">Request:</div>
+                                <div className="font-medium text-orange-600 uppercase">{pr.requestedBy?.namaLengkap || "-"}</div>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
                             <Calendar className="h-4 w-4 text-orange-500" />
                             {formatDate(pr.tanggalPr)}
                         </div>

@@ -55,8 +55,8 @@ export function UMDetailSheet({
     onCairkan,
     isSubmitting = false,
 }: UMDetailSheetProps) {
-    const [tanggalPencairan, setTanggalPencairan] = useState<string>(
-        new Date().toISOString().split("T")[0]
+    const [tanggalPencairan, setTanggalPencairan] = useState<string>(() =>
+        new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })
     );
     const [buktiTransaksi, setBuktiTransaksi] = useState<FileWithPreview[]>([]);
 

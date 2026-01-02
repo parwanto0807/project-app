@@ -191,6 +191,11 @@ export function PrApprovalTable({
 
             toast.success("Uang muka berhasil dicairkan");
 
+            // ✅ REFRESH DATA TABEL
+            if (onRefresh) {
+                onRefresh();
+            }
+
         } catch (error) {
             console.error("Error mencairkan uang muka:", error);
             toast.error("Gagal mencairkan uang muka");
@@ -531,21 +536,21 @@ export function PrApprovalTable({
                                                     <div className="flex items-center gap-2">
                                                         <FileText className="h-3 w-3 text-blue-500" />
                                                         <span className="font-medium text-sm">{item.nomor}</span>
-                                                        <ChevronRight className="h-4 w-4 text-blue-500"  />
+                                                        <ChevronRight className="h-4 w-4 text-blue-500" />
                                                     </div>
                                                 </td>
-                                                                                                <td className="p-3">
+                                                <td className="p-3">
                                                     <div className="flex items-center gap-2">
                                                         <FileText className="h-3 w-3 text-blue-500" />
                                                         <span className="text-sm text-gray-500">{item.purchaseRequest?.nomorPr}</span>
-                                                        <ChevronRight className="h-4 w-4 text-blue-500"  />
+                                                        <ChevronRight className="h-4 w-4 text-blue-500" />
                                                     </div>
                                                 </td>
                                                 <td className="p-3">
                                                     <div className="flex items-center gap-2">
                                                         <FileText className="h-3 w-3 text-blue-500" />
                                                         <span className="text-sm text-gray-500">{item.spk?.spkNumber}</span>
-                                                        <ChevronRight className="h-4 w-4 text-blue-500"  />
+                                                        <ChevronRight className="h-4 w-4 text-blue-500" />
                                                     </div>
                                                 </td>
                                                 <td className="p-3">

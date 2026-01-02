@@ -484,6 +484,7 @@ export default function InvoicePageAdmin() {
                                     role={user?.role}
                                     banks={banks}
                                     currentUser={currentUser}
+                                    onRefresh={handleRefresh} // ✅ Pass refresh callback
                                 />
                             </div>
                         )}

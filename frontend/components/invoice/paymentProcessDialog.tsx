@@ -39,7 +39,8 @@ interface PaymentProcessDialogProps {
     invoiceNumber: string;
     balanceDue: number;
     banks: BankAccount[];
-    currentUser: { id: string, name: string } | undefined
+    currentUser: { id: string, name: string } | undefined;
+    onRefresh?: () => void; // ✅ NEW: Callback untuk refresh data
     installments?: Array<{
         id: string;
         dueDate: Date;
@@ -68,6 +69,7 @@ export function PaymentProcessDialog({
     balanceDue,
     banks,
     currentUser,
+    onRefresh, // ✅ NEW
     installments = []
 }: PaymentProcessDialogProps) {
     const router = useRouter();
@@ -164,7 +166,11 @@ export function PaymentProcessDialog({
             });
 
             onOpenChange(false);
-            router.refresh();
+
+            // ✅ REFRESH DATA TABEL
+            if (onRefresh) {
+                onRefresh();
+            }
         } catch (error) {
             console.error("Failed to process payment:", error);
             alert("Gagal memproses pembayaran. Silakan coba lagi."); // 👈 Beri feedback ke user!

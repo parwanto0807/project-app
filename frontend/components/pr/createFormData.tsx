@@ -58,13 +58,13 @@ import {
 } from "@/components/ui/accordion";
 import { ChevronDown } from "lucide-react";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+import { cn, formatDateIndo } from "@/lib/utils";
 import { PurchaseRequestDetail, CreatePurchaseRequestData } from "@/types/pr";
 import { Project } from "@/types/salesOrder";
 import { Textarea } from "../ui/textarea";
 import { Separator } from "../ui/separator";
 import { formatCurrency } from "@/lib/action/rab/rab-utils";
-import { fetchKaryawanByEmail } from "@/lib/action/master/karyawan";
+import { fetchKaryawanByEmail, fetchAllKaryawan } from "@/lib/action/master/karyawan";
 import { usePurchaseRequestsBySpkId } from "@/hooks/use-pr";
 import { ProductCombobox } from "./productCombobox";
 import { SourceProductType } from "@/schemas/pr";
@@ -211,14 +211,17 @@ export function TabelInputPR({
         projectId: "",
         spkId: "",
         keterangan: "",
-        tanggalPr: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        tanggalPr: new Date(),
+        requestedById: "", // ✅ Add requester field
     });
     const [items, setItems] = useState<FormItem[]>([]);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
     const [selectedSpk, setSelectedSpk] = useState<SPK | null>(null);
     const [karyawanData, setKaryawanData] = useState<Karyawan | null>(null);
+    const [allKaryawan, setAllKaryawan] = useState<Karyawan[]>([]); // ✅ List of all karyawan
     const [loadingKaryawan, setLoadingKaryawan] = useState(false);
+    const [loadingAllKaryawan, setLoadingAllKaryawan] = useState(false);
     const lastProductRef = useRef<HTMLButtonElement | null>(null);
     const lastRowRef = useRef<HTMLTableRowElement | null>(null);
 
@@ -236,26 +239,23 @@ export function TabelInputPR({
 
     useEffect(() => {
         const fetchKaryawan = async () => {
-            // console.log("Fetching karyawan for email:", currentUser?.email);
-
             if (!currentUser?.email) {
-                // console.log("No email found for current user");
                 setLoadingKaryawan(false);
                 return;
             }
 
             try {
                 const response = await fetchKaryawanByEmail(currentUser.email);
-                // console.log("Karyawan response received:", response);
-
-                // Extract user data dari response
-                const karyawan = response.user; // Ambil dari property 'user'
+                const karyawan = response.user;
 
                 if (karyawan && karyawan.id) {
                     setKaryawanData(karyawan);
-                    // console.log("Karyawan ID set to:", karyawan.id);
+                    // ✅ Default requester to current user
+                    setFormData(prev => ({
+                        ...prev,
+                        requestedById: karyawan.id
+                    }));
                 } else {
-                    // console.warn("Karyawan data incomplete or null:", karyawan);
                     setKaryawanData(null);
                 }
             } catch (error) {
@@ -268,6 +268,25 @@ export function TabelInputPR({
 
         fetchKaryawan();
     }, [currentUser?.email]);
+
+    // ✅ Fetch all karyawan for requester dropdown
+    useEffect(() => {
+        const fetchAllKaryawanData = async () => {
+            setLoadingAllKaryawan(true);
+            try {
+                const result = await fetchAllKaryawan();
+                if (result.karyawan) {
+                    setAllKaryawan(result.karyawan);
+                }
+            } catch (error) {
+                console.error("Error fetching all karyawan:", error);
+            } finally {
+                setLoadingAllKaryawan(false);
+            }
+        };
+
+        fetchAllKaryawanData();
+    }, []);
 
     // Debug log ketika karyawanData berubah
     // useEffect(() => {
@@ -324,7 +343,9 @@ export function TabelInputPR({
             satuan: "pcs", // Ganti dari unit
             estimasiHargaSatuan: 0, // Ganti dari estimatedUnitCost
             catatanItem: "", // Ganti dari description/specifications
-            sourceProduct: SourceProductType.PEMBELIAN_BARANG, // Default value
+            sourceProduct: (!formData.spkId || formData.spkId === "no-spk")
+                ? SourceProductType.PEMBELIAN_BARANG
+                : SourceProductType.PEMBELIAN_BARANG, // Default value based on SPK
             itemName: "",
             urgencyLevel: "medium",
         };
@@ -339,7 +360,7 @@ export function TabelInputPR({
                 block: "center",
             });
         }, 100);
-    }, []);
+    }, [formData.spkId]);
 
     const removeItem = useCallback((tempId: string) => {
         setItems((prev) => prev.filter((item) => item.tempId !== tempId));
@@ -396,8 +417,13 @@ export function TabelInputPR({
                                 "Jasa Pembelian": SourceProductType.JASA_PEMBELIAN,
                                 "Jasa Internal": SourceProductType.JASA_INTERNAL,
                             };
-                            updatedItem.sourceProduct =
-                                sourceProductMap[selectedProduct.type] ?? SourceProductType.PEMBELIAN_BARANG;
+
+                            // Check if SPK is selected
+                            const isNonSpk = !formData.spkId || formData.spkId === "no-spk";
+
+                            updatedItem.sourceProduct = isNonSpk
+                                ? SourceProductType.PEMBELIAN_BARANG
+                                : (sourceProductMap[selectedProduct.type] ?? SourceProductType.PEMBELIAN_BARANG);
 
                             return updatedItem;
                         }
@@ -406,7 +432,7 @@ export function TabelInputPR({
                 );
             }
         },
-        [products]
+        [products, formData.spkId]
     );
 
     const { totalBiayaRecent, totalHPPRecent, grandTotalRecent } = useMemo(() => {
@@ -533,10 +559,18 @@ export function TabelInputPR({
         }
 
         try {
+            // Debug log
+            console.log("📝 Form Data before submit:", {
+                karyawanId: finalKaryawanId,
+                requestedById: formData.requestedById,
+                willUse: formData.requestedById || finalKaryawanId
+            });
+
             const submitData: CreatePurchaseRequestData = {
                 projectId: formData.projectId,
                 spkId: formData.spkId,
                 karyawanId: finalKaryawanId,
+                requestedById: formData.requestedById || finalKaryawanId, // ✅ Include requester
                 tanggalPr: formData.tanggalPr,
                 keterangan: formData.keterangan,
                 details: items.map(item => ({
@@ -644,7 +678,7 @@ export function TabelInputPR({
                                                 )}
                                             >
                                                 <CalendarIcon className="mr-2 h-4 w-4" />
-                                                {formData.tanggalPr ? format(formData.tanggalPr, "PPP") : <span>Pick a date</span>}
+                                                {formData.tanggalPr ? formatDateIndo(formData.tanggalPr, "PPP") : <span>Pick a date</span>}
                                             </Button>
                                         </PopoverTrigger>
                                         <PopoverContent className="w-auto p-0">
@@ -657,6 +691,32 @@ export function TabelInputPR({
                                         </PopoverContent>
                                     </Popover>
                                     {errors.tanggalPr && <p className="text-xs text-red-500">{errors.tanggalPr}</p>}
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="requestedById" className="font-semibold flex items-center gap-2">
+                                        <UserIcon className="h-4 w-4 text-purple-600" />
+                                        Requester (Pemohon)
+                                    </Label>
+                                    <Select
+                                        value={formData.requestedById}
+                                        onValueChange={(value) => setFormData((prev) => ({ ...prev, requestedById: value }))}
+                                        disabled={loadingAllKaryawan}
+                                    >
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue placeholder={loadingAllKaryawan ? "Loading..." : "Select requester"} />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {allKaryawan.map((karyawan) => (
+                                                <SelectItem key={karyawan.id} value={karyawan.id}>
+                                                    {karyawan.namaLengkap} {karyawan.jabatan ? `- ${karyawan.jabatan}` : ""}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-xs text-muted-foreground">
+                                        Who is requesting this purchase? (Default: You)
+                                    </p>
                                 </div>
 
                                 <div className="space-y-2">
@@ -750,7 +810,8 @@ export function TabelInputPR({
                                                                     {!formData.spkId ? (
                                                                         <>
                                                                             <SelectItem value="PEMBELIAN_BARANG">Pembelian Barang</SelectItem>
-                                                                            <SelectItem value="PENGAMBILAN_STOK">Pengambilan Stock</SelectItem>
+                                                                            {/* <SelectItem value="PENGAMBILAN_STOK">Pengambilan Stock</SelectItem> */}
+                                                                            <SelectItem value="OPERATIONAL">Operational</SelectItem>
                                                                             <SelectItem value="JASA_PEMBELIAN">Jasa Pembelian</SelectItem>
                                                                         </>
                                                                     ) : (
@@ -879,14 +940,22 @@ export function TabelInputPR({
 
                                                         {/* Unit Cost */}
                                                         <TableCell className="align-top">
-                                                            <Input
-                                                                type="number"
-                                                                min="0"
-                                                                step="0.01"
-                                                                value={item.estimasiHargaSatuan}
-                                                                onChange={(e) => updateItem(item.tempId, "estimasiHargaSatuan", parseFloat(e.target.value) || 0)}
-                                                                className={cn("w-28", errors[`estimatedUnitCost-${index}`] && "border-red-500")}
-                                                            />
+                                                            <div className="flex flex-col gap-1">
+                                                                <Input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    step="0.01"
+                                                                    value={item.estimasiHargaSatuan}
+                                                                    onChange={(e) => updateItem(item.tempId, "estimasiHargaSatuan", parseFloat(e.target.value) || 0)}
+                                                                    className={cn("w-28", errors[`estimatedUnitCost-${index}`] && "border-red-500")}
+                                                                    disabled={item.sourceProduct === SourceProductType.PENGAMBILAN_STOK && !!formData.spkId}
+                                                                />
+                                                                {item.sourceProduct === SourceProductType.PENGAMBILAN_STOK && !!formData.spkId && (
+                                                                    <span className="text-[10px] leading-tight text-amber-600 font-medium">
+                                                                        Harga otomatis diambil dari Data stock FIFO
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                             {errors[`estimatedUnitCost-${index}`] && (
                                                                 <p className="text-xs text-red-500 mt-1">{errors[`estimatedUnitCost-${index}`]}</p>
                                                             )}
@@ -982,7 +1051,7 @@ export function TabelInputPR({
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-3 text-lg">
                                     <UserIcon className="h-5 w-5 text-green-600" />
-                                    Requester Details
+                                    Admin Input Purchase Request
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>

@@ -463,7 +463,12 @@ export default function PurchaseOrderDetail() {
                                         <div className="mt-2 grid grid-cols-2 gap-2">
                                             <button
                                                 onClick={() => handleEditReport(item.id)}
-                                                className="py-2 bg-white border border-amber-200 text-amber-600 rounded-lg text-xs font-bold hover:bg-amber-50 flex items-center justify-center gap-2 transition-colors"
+                                                disabled={item.receiptItems[0].receipt?.execution?.status === 'COMPLETED'}
+                                                className={`py-2 border rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-colors
+                                                    ${item.receiptItems[0].receipt?.execution?.status === 'COMPLETED'
+                                                        ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
+                                                        : 'bg-white border-amber-200 text-amber-600 hover:bg-amber-50'
+                                                    }`}
                                             >
                                                 <Pencil className="w-3 h-3" /> Edit
                                             </button>
@@ -472,7 +477,12 @@ export default function PurchaseOrderDetail() {
                                                     const executionId = item.receiptItems?.[0]?.receipt?.execution?.id;
                                                     if (executionId) handleDeleteReport(executionId);
                                                 }}
-                                                className="py-2 bg-red-50 border border-red-200 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 flex items-center justify-center gap-2 transition-colors"
+                                                disabled={item.receiptItems[0].receipt?.execution?.status === 'COMPLETED'}
+                                                className={`py-2 border rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-colors
+                                                    ${item.receiptItems[0].receipt?.execution?.status === 'COMPLETED'
+                                                        ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
+                                                        : 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100'
+                                                    }`}
                                             >
                                                 <Trash className="w-3 h-3" /> Hapus
                                             </button>

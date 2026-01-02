@@ -34,6 +34,7 @@ import {
     ThumbsDown,
     Clock,
     Eye,
+    FileCheck,
 } from "lucide-react";
 import {
     Tooltip,
@@ -478,47 +479,127 @@ export function PurchaseRequestVerifyTable({
                                 </div>
                             </div>
 
-                            {/* Date Filters */}
-                            {showFilters && (
-                                <div className="flex flex-col sm:flex-row gap-4 p-3 sm:p-4 border rounded-lg bg-muted/50">
-                                    <div className="flex flex-col sm:flex-row gap-2 flex-1">
-                                        <div className="flex flex-col space-y-2 flex-1">
-                                            <label className="text-xs sm:text-sm font-medium">From Date</label>
-                                            <Input
-                                                type="date"
-                                                value={localDateFrom}
-                                                onChange={(e) => setLocalDateFrom(e.target.value)}
-                                                className="w-full text-xs sm:text-sm"
-                                            />
+                            <div className="mt-4">
+                                {/* Improved Pagination - Mobile Responsive */}
+                                {!isLoading && purchaseRequests.length > 0 && (
+                                    <div className="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0 pt-4">
+                                        {/* Items per page */}
+                                        <div className="flex items-center space-x-2">
+                                            <span className="text-xs sm:text-sm text-muted-foreground">Items per page:</span>
+                                            <Select
+                                                value={pagination.limit.toString()}
+                                                onValueChange={(value) => {
+                                                    onLimitChange(Number(value));
+                                                    onPageChange(1);
+                                                }}
+                                            >
+                                                <SelectTrigger className="w-16 sm:w-20 text-xs">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="50" className="text-xs">50</SelectItem>
+                                                    <SelectItem value="100" className="text-xs">100</SelectItem>
+                                                    <SelectItem value="200" className="text-xs">200</SelectItem>
+                                                    <SelectItem value="300" className="text-xs">300</SelectItem>
+                                                </SelectContent>
+                                            </Select>
                                         </div>
-                                        <div className="flex flex-col space-y-2 flex-1">
-                                            <label className="text-xs sm:text-sm font-medium">To Date</label>
-                                            <Input
-                                                type="date"
-                                                value={localDateTo}
-                                                onChange={(e) => setLocalDateTo(e.target.value)}
-                                                className="w-full text-xs sm:text-sm"
-                                            />
+
+                                        {/* Page info */}
+                                        <div className="text-xs sm:text-sm text-muted-foreground text-center">
+                                            Showing {((pagination.page - 1) * pagination.limit) + 1} to{" "}
+                                            {Math.min(pagination.page * pagination.limit, pagination.totalCount)} of{" "}
+                                            {pagination.totalCount} entries
+                                        </div>
+
+                                        {/* Improved Pagination controls */}
+                                        <div className="flex items-center space-x-1 sm:space-x-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => onPageChange(pagination.page - 1)}
+                                                disabled={pagination.page <= 1}
+                                                className="h-8 px-2 text-xs"
+                                            >
+                                                Prev
+                                            </Button>
+
+                                            {/* Improved Page numbers */}
+                                            <div className="flex items-center space-x-1">
+                                                {generatePaginationNumbers().map((pageNum, index) => (
+                                                    pageNum === '...' ? (
+                                                        <span key={`ellipsis-${index}`} className="px-2 text-xs">
+                                                            ...
+                                                        </span>
+                                                    ) : (
+                                                        <Button
+                                                            key={pageNum}
+                                                            variant={pagination.page === pageNum ? "default" : "outline"}
+                                                            size="sm"
+                                                            onClick={() => onPageChange(pageNum as number)}
+                                                            className="w-7 h-7 p-0 text-xs"
+                                                        >
+                                                            {pageNum}
+                                                        </Button>
+                                                    )
+                                                ))}
+                                            </div>
+
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => onPageChange(pagination.page + 1)}
+                                                disabled={pagination.page >= totalPages}
+                                                className="h-8 px-2 text-xs"
+                                            >
+                                                Next
+                                            </Button>
                                         </div>
                                     </div>
-                                    <div className="flex items-end gap-2">
-                                        <Button
-                                            onClick={handleDateFilterApply}
-                                            className="whitespace-nowrap text-xs sm:text-sm"
-                                        >
-                                            Apply Dates
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            onClick={handleClearDateFilters}
-                                            className="whitespace-nowrap text-xs sm:text-sm"
-                                        >
-                                            Clear Dates
-                                        </Button>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Date Filters */}
+                        {showFilters && (
+                            <div className="flex flex-col sm:flex-row gap-4 p-3 sm:p-4 border rounded-lg bg-muted/50">
+                                <div className="flex flex-col sm:flex-row gap-2 flex-1">
+                                    <div className="flex flex-col space-y-2 flex-1">
+                                        <label className="text-xs sm:text-sm font-medium">From Date</label>
+                                        <Input
+                                            type="date"
+                                            value={localDateFrom}
+                                            onChange={(e) => setLocalDateFrom(e.target.value)}
+                                            className="w-full text-xs sm:text-sm"
+                                        />
+                                    </div>
+                                    <div className="flex flex-col space-y-2 flex-1">
+                                        <label className="text-xs sm:text-sm font-medium">To Date</label>
+                                        <Input
+                                            type="date"
+                                            value={localDateTo}
+                                            onChange={(e) => setLocalDateTo(e.target.value)}
+                                            className="w-full text-xs sm:text-sm"
+                                        />
                                     </div>
                                 </div>
-                            )}
-                        </div>
+                                <div className="flex items-end gap-2">
+                                    <Button
+                                        onClick={handleDateFilterApply}
+                                        className="whitespace-nowrap text-xs sm:text-sm"
+                                    >
+                                        Apply Dates
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        onClick={handleClearDateFilters}
+                                        className="whitespace-nowrap text-xs sm:text-sm"
+                                    >
+                                        Clear Dates
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </CardHeader>
 
@@ -530,7 +611,7 @@ export function PurchaseRequestVerifyTable({
                                 <TableRow className="bg-muted/50">
                                     <TableHead className="font-semibold">PR Number, SPK & SO</TableHead>
                                     <TableHead className="font-semibold">Project</TableHead>
-                                    <TableHead className="font-semibold">Requested By</TableHead>
+                                    <TableHead className="font-semibold">Admin & Request</TableHead>
                                     <TableHead className="font-semibold">Total PR</TableHead>
                                     <TableHead className="font-semibold">Status PR</TableHead>
                                     <TableHead className="font-semibold">Acc Finance</TableHead>
@@ -622,29 +703,131 @@ export function PurchaseRequestVerifyTable({
                                                         SO : {pr.spk?.salesOrder?.soNumber || "-"}
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="max-w-[400px]">
-                                                    <div className="flex items-center gap-2 min-w-0">
-                                                        <Building className="h-4 w-4 text-green-500 shrink-0" />
-                                                        <TooltipProvider>
-                                                            <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                    <span className="truncate text-sm cursor-help flex-1 uppercase font-bold">
-                                                                        {pr.project?.name || pr.projectId}
-                                                                    </span>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent side="top" className="max-w-xs">
-                                                                    <p className="text-sm uppercase font-bold">{pr.project?.name || pr.projectId}</p>
-                                                                </TooltipContent>
-                                                            </Tooltip>
-                                                        </TooltipProvider>
+                                                <TableCell className="min-w-[400px]">
+                                                    <div className="group relative">
+                                                        {/* ✅ Background berbeda berdasarkan status */}
+                                                        <div className={`border rounded-xl p-4 hover:shadow-md transition-all duration-200 ${pr.projectId && pr.project?.name
+                                                            ? 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700'
+                                                            : 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/50'
+                                                            }`}>
+                                                            <div className="flex items-center gap-3">
+                                                                {/* ✅ Icon dengan warna berbeda */}
+                                                                <div className={`p-2 rounded-lg ${pr.projectId && pr.project?.name
+                                                                    ? 'bg-green-50 dark:bg-green-900/30'
+                                                                    : 'bg-amber-100 dark:bg-amber-900/50'
+                                                                    }`}>
+                                                                    {pr.projectId && pr.project?.name ? (
+                                                                        <Building className="h-4 w-4 text-green-600 dark:text-green-400" />
+                                                                    ) : (
+                                                                        <FileText className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                                                                    )}
+                                                                </div>
+
+                                                                <div className="flex-1 min-w-0">
+                                                                    <TooltipProvider>
+                                                                        <Tooltip>
+                                                                            <TooltipTrigger asChild>
+                                                                                <div className="cursor-help">
+                                                                                    {/* ✅ Text color berbeda berdasarkan status */}
+                                                                                    <div className={`text-sm uppercase font-bold text-wrap ${pr.projectId && pr.project?.name
+                                                                                        ? 'text-gray-900 dark:text-white'
+                                                                                        : 'text-amber-800 dark:text-amber-300'
+                                                                                        }`}>
+                                                                                        {pr.projectId && pr.project?.name
+                                                                                            ? pr.project.name
+                                                                                            : (pr.keterangan || "No Project Assigned")
+                                                                                        }
+                                                                                    </div>
+
+                                                                                    {/* ✅ Subtext untuk keterangan tambahan */}
+                                                                                    {!pr.projectId && !pr.keterangan && (
+                                                                                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                                                                                            PR tanpa referensi project
+                                                                                        </p>
+                                                                                    )}
+                                                                                </div>
+                                                                            </TooltipTrigger>
+                                                                            <TooltipContent side="top" className="max-w-xs">
+                                                                                <div className="space-y-2">
+                                                                                    <div>
+                                                                                        <p className="text-xs font-semibold mb-1 text-gray-500 dark:text-gray-400">
+                                                                                            {pr.projectId && pr.project?.name ? "PROJECT" : "KETERANGAN"}
+                                                                                        </p>
+                                                                                        <p className="text-sm font-medium text-wrap">
+                                                                                            {pr.projectId && pr.project?.name
+                                                                                                ? pr.project.name
+                                                                                                : (pr.keterangan || "No Project Assigned")
+                                                                                            }
+                                                                                        </p>
+                                                                                    </div>
+
+                                                                                    {/* ✅ Info status di tooltip */}
+                                                                                    {!pr.projectId && (
+                                                                                        <div className={`p-2 rounded-md text-xs ${pr.keterangan
+                                                                                            ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
+                                                                                            : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+                                                                                            }`}>
+                                                                                            {pr.keterangan
+                                                                                                ? "⚠️ PR dibuat tanpa referensi project"
+                                                                                                : "ℹ️ PR tanpa project dan keterangan"
+                                                                                            }
+                                                                                        </div>
+                                                                                    )}
+
+                                                                                    {/* SPK info */}
+                                                                                    {pr.spk?.spkNumber && (
+                                                                                        <div>
+                                                                                            <p className="text-xs font-semibold mb-1">SPK</p>
+                                                                                            <p className="text-xs">{pr.spk.spkNumber}</p>
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+                                                                            </TooltipContent>
+                                                                        </Tooltip>
+                                                                    </TooltipProvider>
+                                                                </div>
+
+                                                                {/* ✅ Badge dengan warna matching */}
+                                                                <div className="flex flex-col gap-1">
+                                                                    {pr.projectId && pr.project?.name ? (
+                                                                        <Badge variant="outline" className="text-[12px] px-2 py-0.5 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300">
+                                                                            <Building className="h-2.5 w-2.5 mr-1" />
+                                                                            PR PROJECT
+                                                                        </Badge>
+                                                                    ) : (
+                                                                        <Badge variant="destructive" className="text-[12px] px-2 py-0.5 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800">
+                                                                            <FileText className="h-2.5 w-2.5 mr-1" />
+                                                                            PR UMUM
+                                                                        </Badge>
+                                                                    )}
+
+                                                                    {pr.spk?.spkNumber && (
+                                                                        <Badge variant="outline" className="text-[12px] px-2 py-0.5">
+                                                                            <FileCheck className="h-2.5 w-2.5 mr-1" />
+                                                                            PR SPK
+                                                                        </Badge>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex items-center gap-2">
                                                         <User className="h-4 w-4 text-purple-500" />
-                                                        {pr.karyawan?.namaLengkap || pr.karyawanId}
+                                                        <div>
+                                                            <div className="text-xs text-muted-foreground">Admin:</div>
+                                                            <div className="font-medium">{pr.karyawan?.namaLengkap || pr.karyawanId}</div>
+                                                        </div>
                                                     </div>
-                                                    <div className="flex items-center gap-2">
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <User className="h-4 w-4 text-blue-500" />
+                                                        <div>
+                                                            <div className="text-xs text-muted-foreground">Request:</div>
+                                                            <div className="font-medium text-orange-600 uppercase">{pr.requestedBy?.namaLengkap || "-"}</div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 mt-1">
                                                         <Calendar className="h-4 w-4 text-orange-500" />
                                                         {formatDate(pr.tanggalPr)}
                                                     </div>
@@ -865,7 +1048,7 @@ export function PurchaseRequestVerifyTable({
                                             {/* Requester and Date - Compact */}
                                             <div className="grid grid-cols-2 gap-2 text-xs">
                                                 <div className="space-y-1">
-                                                    <p className="font-medium text-muted-foreground">Requested By</p>
+                                                    <p className="font-medium text-muted-foreground">Admin</p>
                                                     <div className="flex items-center gap-1">
                                                         <User className="h-3 w-3 text-purple-500 flex-shrink-0" />
                                                         <span className="truncate text-xs">
@@ -874,11 +1057,22 @@ export function PurchaseRequestVerifyTable({
                                                     </div>
                                                 </div>
                                                 <div className="space-y-1">
-                                                    <p className="font-medium text-muted-foreground">Date</p>
+                                                    <p className="font-medium text-muted-foreground">Request</p>
                                                     <div className="flex items-center gap-1">
-                                                        <Calendar className="h-3 w-3 text-orange-500 flex-shrink-0" />
-                                                        <span className="text-xs">{formatDate(pr.tanggalPr)}</span>
+                                                        <User className="h-3 w-3 text-blue-500 flex-shrink-0" />
+                                                        <span className="truncate text-xs text-orange-600 uppercase">
+                                                            {pr.requestedBy?.namaLengkap || "-"}
+                                                        </span>
                                                     </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Date */}
+                                            <div className="text-xs">
+                                                <p className="font-medium text-muted-foreground">Date</p>
+                                                <div className="flex items-center gap-1">
+                                                    <Calendar className="h-3 w-3 text-orange-500 flex-shrink-0" />
+                                                    <span className="text-xs">{formatDate(pr.tanggalPr)}</span>
                                                 </div>
                                             </div>
 
@@ -992,7 +1186,7 @@ export function PurchaseRequestVerifyTable({
                         </div>
                     )}
                 </CardContent>
-            </Card>
+            </Card >
 
             <PurchaseRequestSheet
                 detailSheetOpen={detailSheetOpen}

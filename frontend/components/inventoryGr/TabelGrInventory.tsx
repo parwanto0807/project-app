@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/components/clientSessionProvider';
 import {
@@ -75,12 +75,12 @@ interface TabelGrInventoryProps {
 const columns: GoodsReceiptTableColumn[] = [
     { id: 'grNumber', label: 'Nomor GR', sortable: true },
     { id: 'createdAt', label: 'Tgl Dibuat', sortable: true },
-    { id: 'expectedDate', label: 'Tgl Kedatangan Barang', sortable: true },
-    { id: 'receivedDate', label: 'Tgl Diterima', sortable: true },
+    { id: 'expectedDate', label: 'Tanggal :', sortable: true },
+    // { id: 'receivedDate', label: 'Tgl Diterima', sortable: true },
     { id: 'vendorDeliveryNote', label: 'Delivery Note', sortable: true },
-    { id: 'notes', label: 'Catatan', sortable: false },
+    // { id: 'notes', label: 'Catatan', sortable: false },
     { id: 'vendorName', label: 'Vendor', sortable: true },
-    { id: 'warehouseName', label: 'Gudang', sortable: true },
+    // { id: 'warehouseName', label: 'Gudang', sortable: true },
     { id: 'status', label: 'Status', sortable: true },
     { id: 'actions', label: '', align: 'center', sortable: false },
 ];
@@ -147,6 +147,32 @@ export function TabelGrInventory({
     const [markArrivedDialogOpen, setMarkArrivedDialogOpen] = useState(false);
     const [qcCheckDialogOpen, setQCCheckDialogOpen] = useState(false);
     const [approveDialogOpen, setApproveDialogOpen] = useState(false);
+
+    // Sort data with priority: ARRIVED/PASSED first (for QC), then DRAFT, then others, then by createdAt DESC
+    const sortedData = useMemo(() => {
+        if (!data || data.length === 0) return [];
+        return [...data].sort((a, b) => {
+            // Priority levels for status
+            const getPriority = (status: string) => {
+                if (status === DocumentStatus.ARRIVED || status === DocumentStatus.PASSED) return 3; // Highest priority
+                if (status === DocumentStatus.DRAFT) return 2; // Second priority
+                return 1; // Others (COMPLETED, CANCELLED, etc.)
+            };
+
+            const aPriority = getPriority(a.status);
+            const bPriority = getPriority(b.status);
+
+            // First: Sort by priority (higher priority first)
+            if (aPriority !== bPriority) {
+                return bPriority - aPriority;
+            }
+
+            // Second: Within same priority, sort by createdAt DESC (newest first)
+            const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return dateB - dateA; // DESC order
+        });
+    }, [data]);
 
     const handleView = (gr: GoodsReceipt) => {
         setSelectedGR(gr);
@@ -235,18 +261,29 @@ export function TabelGrInventory({
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {data.map((gr) => (
+                        {sortedData.map((gr) => (
                             <TableRow key={gr.id} className="hover:bg-slate-50 transition-colors group">
                                 <TableCell className="py-4">
                                     <div className="flex items-center gap-3">
                                         <div className="bg-slate-100 p-2 rounded-lg text-slate-500 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
                                             <Hash className="w-4 h-4" />
                                         </div>
-                                        <div>
-                                            <span className="font-mono font-medium text-slate-700 text-sm block">
-                                                {gr.grNumber}
-                                            </span>
-                                            <div className="flex items-center gap-1 mt-0.5">
+                                        <div className="space-y-1.5">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[10px] text-slate-500 font-medium">GR:</span>
+                                                <span className="font-mono font-semibold text-xs bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 px-2.5 py-1 rounded-md border border-blue-200/50 shadow-sm">
+                                                    {gr.grNumber}
+                                                </span>
+                                            </div>
+                                            {gr.PurchaseOrder?.poNumber && (
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[10px] text-slate-500 font-medium">PO:</span>
+                                                    <span className="font-mono font-semibold text-xs bg-gradient-to-r from-emerald-50 to-teal-50 text-emerald-700 px-2.5 py-1 rounded-md border border-emerald-200/50 shadow-sm">
+                                                        {gr.PurchaseOrder.poNumber}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            <div className="flex items-center gap-1">
                                                 <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200 font-medium">
                                                     {gr.items.length} Items
                                                 </span>
@@ -274,19 +311,18 @@ export function TabelGrInventory({
                                     {gr.expectedDate ? (
                                         <div className="flex flex-col">
                                             <span className="font-medium text-blue-700 text-sm">
-                                                {format(new Date(gr.expectedDate), "dd MMM yyyy", { locale: id })}
+                                                Estimasi : {format(new Date(gr.expectedDate), "dd MMM yyyy", { locale: id })}
                                             </span>
                                         </div>
                                     ) : (
                                         <span className="text-xs text-slate-400 italic">-</span>
                                     )}
-                                </TableCell>
-                                {/* Received Date */}
-                                <TableCell>
+                                    {/* </TableCell>
+                                <TableCell> */}
                                     {gr.receivedDate ? (
                                         <div className="flex flex-col">
                                             <span className="font-medium text-green-700 text-sm">
-                                                {format(new Date(gr.receivedDate), "dd MMM yyyy", { locale: id })}
+                                                Actual : {format(new Date(gr.receivedDate), "dd MMM yyyy", { locale: id })}
                                             </span>
                                             <span className="text-xs text-green-600">
                                                 {format(new Date(gr.receivedDate), "HH:mm")} WIB
@@ -305,11 +341,10 @@ export function TabelGrInventory({
                                     ) : (
                                         <span className="text-xs text-slate-400 italic">-</span>
                                     )}
-                                </TableCell>
-                                {/* Notes */}
-                                <TableCell>
+                                    {/* </TableCell>
+                                <TableCell> */}
                                     {gr.notes ? (
-                                        <div className="max-w-[200px] truncate text-sm text-slate-600" title={gr.notes}>
+                                        <div className="max-w-[200px] text-sm stext-slate-600 text-wrap" title={gr.notes}>
                                             {gr.notes}
                                         </div>
                                     ) : (
@@ -320,18 +355,18 @@ export function TabelGrInventory({
                                     <div className="flex items-center gap-2">
                                         <Truck className="w-4 h-4 text-slate-400" />
                                         <span className="font-bold text-slate-800 text-sm">
-                                            {gr.purchaseOrder?.supplier?.name || 'N/A'}
+                                            {gr.PurchaseOrder?.supplier?.name || 'N/A'}
                                         </span>
                                     </div>
-                                </TableCell>
-                                <TableCell>
+                                    {/* </TableCell>
+                                <TableCell> */}
                                     <div className={`
                                         flex items-center gap-2 px-3 py-1.5 rounded-lg border w-fit
-                                        ${getWarehouseStyle(gr.warehouse?.name)}
+                                        ${getWarehouseStyle(gr.Warehouse?.name)}
                                     `}>
                                         <Store className="w-3.5 h-3.5" />
                                         <span className="font-semibold text-xs">
-                                            {gr.warehouse?.name || 'N/A'}
+                                            {gr.Warehouse?.name || 'N/A'}
                                         </span>
                                     </div>
                                 </TableCell>
@@ -341,24 +376,6 @@ export function TabelGrInventory({
                                 <TableCell className="text-center">
                                     <TooltipProvider>
                                         <div className="flex items-center justify-center gap-1">
-                                            {/* View Button */}
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() => handleView(gr)}
-                                                        className="h-8 px-2 bg-blue-50/50 hover:bg-blue-100/70 border-blue-200 text-blue-700 hover:text-blue-800"
-                                                    >
-                                                        <Eye className="h-4 w-4" />
-                                                    </Button>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>View Details</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-
-
                                             {/* Mark as Arrived - show when GR is DRAFT */}
                                             {gr.status === DocumentStatus.DRAFT && (
                                                 gr.sourceType === 'TRANSFER' ? (
@@ -400,25 +417,64 @@ export function TabelGrInventory({
                                                         </Tooltip>
                                                     )
                                                 ) : (
-                                                    // Regular GR: Show if all items are PENDING
-                                                    gr.items?.every(item => item.qcStatus === QCStatus.PENDING) && (
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <Button
-                                                                    variant="default"
-                                                                    size="sm"
-                                                                    onClick={() => handleMarkArrived(gr)}
-                                                                    className="h-9 px-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-md hover:shadow-lg transition-all duration-200 font-semibold animate-pulse"
-                                                                >
-                                                                    <Truck className="h-4 w-4 mr-1.5" />
-                                                                    Terima Barang
-                                                                </Button>
-                                                            </TooltipTrigger>
-                                                            <TooltipContent>
-                                                                <p>Mark as Arrived - Input penerimaan barang</p>
-                                                            </TooltipContent>
-                                                        </Tooltip>
-                                                    )
+                                                    // Regular GR: Check WIP warehouse and field report verification
+                                                    (() => {
+                                                        const allItemsPending = gr.items?.every(item => item.qcStatus === QCStatus.PENDING);
+                                                        if (!allItemsPending) return null;
+
+                                                        // Check if warehouse is WIP
+                                                        const isWIPWarehouse = gr.Warehouse?.isWip === true;
+
+                                                        if (isWIPWarehouse) {
+                                                            // For WIP warehouse, check if all PO lines have field reports verified
+                                                            const poLines = gr.PurchaseOrder?.lines || [];
+                                                            const allFieldReportsChecked = poLines.length > 0 && poLines.every((line: any) => line.checkPurchaseExecution === true);
+                                                            const hasUncheckedReports = poLines.some((line: any) => line.checkPurchaseExecution === false);
+
+                                                            if (hasUncheckedReports || !allFieldReportsChecked) {
+                                                                // Show warning button if field reports not verified
+                                                                return (
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <Button
+                                                                                variant="outline"
+                                                                                size="sm"
+                                                                                disabled
+                                                                                className="h-9 px-4 bg-amber-50 text-amber-700 border-amber-300 cursor-not-allowed opacity-75 animate-pulse"
+                                                                            >
+                                                                                <AlertCircle className="h-4 w-4 mr-1.5" />
+                                                                                Nota/Bon Belum Dicek
+                                                                            </Button>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent className="max-w-xs">
+                                                                            <p className="font-semibold text-amber-600">Laporan Nota Lapangan Belum Dicek</p>
+                                                                            <p className="text-xs mt-1">Semua laporan nota lapangan harus diverifikasi terlebih dahulu untuk gudang WIP</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                );
+                                                            }
+                                                        }
+
+                                                        // Show active button if all conditions met
+                                                        return (
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button
+                                                                        variant="default"
+                                                                        size="sm"
+                                                                        onClick={() => handleMarkArrived(gr)}
+                                                                        className="h-9 px-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-md hover:shadow-lg transition-all duration-200 font-semibold animate-pulse"
+                                                                    >
+                                                                        <Truck className="h-4 w-4 mr-1.5" />
+                                                                        Terima Barang
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <p>Mark as Arrived - Input penerimaan barang</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        );
+                                                    })()
                                                 )
                                             )}
 
@@ -471,7 +527,22 @@ export function TabelGrInventory({
                                                         </TooltipContent>
                                                     </Tooltip>
                                                 )}
-
+                                            {/* View Button */}
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => handleView(gr)}
+                                                        className="h-8 px-2 bg-blue-50/50 hover:bg-blue-100/70 border-blue-200 text-blue-700 hover:text-blue-800"
+                                                    >
+                                                        <Eye className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>View Details</p>
+                                                </TooltipContent>
+                                            </Tooltip>
                                             {/* Print GRN Button - only for PASSED status */}
                                             {gr.status === DocumentStatus.PASSED && (
                                                 <Tooltip>

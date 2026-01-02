@@ -15,7 +15,8 @@ import {
   getPOExecutionDetail,
   deletePurchaseExecution,
   updatePurchaseExecution,
-  togglePOLineVerification
+  togglePOLineVerification,
+  updatePOLineActualData
 } from '../../controllers/po/poController.js';
 
 import { authenticateToken } from '../../middleware/authMiddleware.js';
@@ -93,5 +94,8 @@ router.delete('/:id', deletePO);        // Hanya untuk DRAFT
 
 // --- PO Line Verification ---
 router.patch('/line/:poLineId/verify', authenticateToken, togglePOLineVerification);
+
+// --- PO Line Actual Data Update ---
+router.patch('/line/:poLineId/update-actual', authenticateToken, updatePOLineActualData);
 
 export default router;

@@ -197,7 +197,7 @@ export function DesktopTableView({
             <TableHead className="w-12 text-center">#</TableHead>
             <TableHead className="font-semibold">PR Number</TableHead>
             <TableHead className="w-20 font-semibold">Project</TableHead>
-            <TableHead className="font-semibold">Requested By</TableHead>
+            <TableHead className="font-semibold">Admin & Request</TableHead>
             <TableHead className="font-semibold">Total Amount</TableHead>
             <TableHead className="font-semibold">Status</TableHead>
             <TableHead className="font-semibold">Acc Finance</TableHead>

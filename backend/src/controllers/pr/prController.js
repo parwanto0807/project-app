@@ -51,6 +51,9 @@ export class PurchaseRequestController {
             karyawan: {
               select: { id: true, namaLengkap: true, jabatan: true },
             },
+            requestedBy: {
+              select: { id: true, namaLengkap: true, jabatan: true },
+            },
             spk: {
               select: {
                 id: true,
@@ -186,6 +189,7 @@ export class PurchaseRequestController {
         include: {
           project: true,
           karyawan: true,
+          requestedBy: true,
           spk: true,
           details: {
             include: {
@@ -258,41 +262,58 @@ export class PurchaseRequestController {
         catatanItem: detail.catatanItem,
       }));
 
-      // ✅ PENTING: Handle nullable spkId
-      const prData = {
-        ...validatedData,
-        nomorPr,
-        // Pastikan spkId null jika tidak diisi
-        spkId: validatedData.spkId || null,
-        details: {
-          create: detailsWithTotal,
-        },
-      };
+      // ✅ PENTING: Handle nullable spkId and requestedById
+    console.log("🔍 Backend received validatedData:", {
+      karyawanId: validatedData.karyawanId,
+      requestedById: validatedData.requestedById,
+      hasRequestedById: !!validatedData.requestedById
+    });
 
-      const purchaseRequest = await prisma.purchaseRequest.create({
-        data: prData,
-        include: {
-          project: {
-            select: { id: true, name: true },
-          },
-          karyawan: {
-            select: { id: true, namaLengkap: true, jabatan: true },
-          },
-          spk: {
-            select: { id: true, spkNumber: true, notes: true },
-          },
-          details: {
-            include: {
-              product: {
-                select: { id: true, name: true, description: true },
-              },
-              projectBudget: {
-                select: { id: true, description: true, amount: true },
-              },
+    const prData = {
+      ...validatedData,
+      nomorPr,
+      // Pastikan spkId null jika tidak diisi
+      spkId: validatedData.spkId || null,
+      // Default requestedById to karyawanId if not provided
+      requestedById: validatedData.requestedById || validatedData.karyawanId,
+      details: {
+        create: detailsWithTotal,
+      },
+    };
+
+    console.log("💾 Backend will save prData:", {
+      karyawanId: prData.karyawanId,
+      requestedById: prData.requestedById,
+      willUse: prData.requestedById
+    });
+
+    const purchaseRequest = await prisma.purchaseRequest.create({
+      data: prData,
+      include: {
+        project: {
+          select: { id: true, name: true },
+        },
+        karyawan: {
+          select: { id: true, namaLengkap: true, jabatan: true },
+        },
+        requestedBy: {
+          select: { id: true, namaLengkap: true, jabatan: true },
+        },
+        spk: {
+          select: { id: true, spkNumber: true, notes: true },
+        },
+        details: {
+          include: {
+            product: {
+              select: { id: true, name: true, description: true },
+            },
+            projectBudget: {
+              select: { id: true, description: true, amount: true },
             },
           },
         },
-      });
+      },
+    });
 
       // ✅ TAMBAHKAN: BROADCAST NOTIFICATION KE ADMIN & PIC
       try {
@@ -451,11 +472,22 @@ export class PurchaseRequestController {
       const updateData = { ...validatedData };
       delete updateData.details;
 
+      // Debug log
+      console.log("🔍 Backend UPDATE received validatedData:", {
+        requestedById: validatedData.requestedById,
+        hasRequestedById: !!validatedData.requestedById
+      });
+
       // ✅ PENTING: Handle nullable spkId untuk update
       if (updateData.spkId !== undefined) {
         // Jika spkId diubah menjadi string kosong, set null
         updateData.spkId = updateData.spkId || null;
       }
+
+      console.log("💾 Backend will UPDATE with data:", {
+        requestedById: updateData.requestedById,
+        willSave: updateData.requestedById
+      });
 
       if (existingPR.status === "REVISION_NEEDED") {
         updateData.status = "DRAFT";
@@ -511,6 +543,7 @@ export class PurchaseRequestController {
           include: {
             project: true,
             karyawan: true,
+            requestedBy: true, // ✅ Include requester
             spk: true,
             details: {
               include: {
@@ -570,6 +603,7 @@ export class PurchaseRequestController {
             include: {
               project: true,
               karyawan: true,
+              requestedBy: true, // ✅ Include requester
               spk: true,
               details: {
                 include: {
@@ -1149,6 +1183,90 @@ export class PurchaseRequestController {
               console.log(`✅ Deleted StockTransfer ${transfer.transferNumber} during cancel approve`);
             }
           }
+
+          // 2d. Reverse StaffLedger entries for OPERATIONAL items (if PR has SPK)
+          if (existingPR.spkId) {
+            // Find StaffLedger entries created for this PR
+            const relatedLedgerEntries = await tx.staffLedger.findMany({
+              where: {
+                purchaseRequestId: id,
+                category: 'OPERASIONAL_PROYEK',
+                type: 'EXPENSE_REPORT'
+              },
+              orderBy: { tanggal: 'desc' }
+            });
+
+            if (relatedLedgerEntries.length > 0) {
+              for (const ledgerEntry of relatedLedgerEntries) {
+                const karyawanId = ledgerEntry.karyawanId;
+                const originalKredit = Number(ledgerEntry.kredit);
+
+                // Get current balance for this karyawan
+                const lastLedger = await tx.staffLedger.findFirst({
+                  where: { karyawanId },
+                  orderBy: { tanggal: 'desc' }
+                });
+
+                const saldoAwal = lastLedger ? Number(lastLedger.saldo) : 0;
+                const saldoAkhir = saldoAwal + originalKredit; // DEBIT menambah saldo kembali
+
+                // Create reversal entry (DEBIT = money returned/refunded to staff)
+                await tx.staffLedger.create({
+                  data: {
+                    karyawanId,
+                    tanggal: new Date(),
+                    keterangan: `REVERSAL - Pembatalan Approval PR ${existingPR.nomorPr}\\n` +
+                      `Original: ${ledgerEntry.keterangan}`,
+                    saldoAwal: saldoAwal,  // Balance before reversal
+                    debit: originalKredit,  // Reverse the original kredit with debit
+                    kredit: 0,
+                    saldo: saldoAkhir,  // Balance after reversal
+                    category: 'OPERASIONAL_PROYEK',
+                    type: 'EXPENSE_REPORT',  // Keep same type
+                    purchaseRequestId: id,
+                    refId: `REV-${existingPR.nomorPr}`,
+                    createdBy: existingPR.karyawanId
+                  }
+                });
+
+                console.log(`✅ Reversed StaffLedger entry for karyawan ${karyawanId}: ` +
+                  `SaldoAwal: Rp ${saldoAwal.toLocaleString('id-ID')}, ` +
+                  `DEBIT: Rp ${originalKredit.toLocaleString('id-ID')}, ` +
+                  `SaldoAkhir: Rp ${saldoAkhir.toLocaleString('id-ID')}`);
+
+                // Update StaffBalance (reverse the totalOut and amount)
+                const existingBalance = await tx.staffBalance.findUnique({
+                  where: {
+                    karyawanId_category: {
+                      karyawanId,
+                      category: 'OPERASIONAL_PROYEK'
+                    }
+                  }
+                });
+
+                if (existingBalance) {
+                  await tx.staffBalance.update({
+                    where: {
+                      karyawanId_category: {
+                        karyawanId,
+                        category: 'OPERASIONAL_PROYEK'
+                      }
+                    },
+                    data: {
+                      totalOut: {
+                        decrement: originalKredit  // Decrease total expenses
+                      },
+                      amount: saldoAkhir  // Restore balance
+                    }
+                  });
+
+                  console.log(`✅ Reversed StaffBalance for karyawan ${karyawanId}: ` +
+                    `totalOut -Rp ${originalKredit.toLocaleString('id-ID')}, ` +
+                    `amount = Rp ${saldoAkhir.toLocaleString('id-ID')}`);
+                }
+              }
+            }
+          }
         }
 
         // 3. Save Warehouse Allocations if provided
@@ -1665,6 +1783,132 @@ export class PurchaseRequestController {
                 }
 
                 console.log(`✅ Created GoodsReceipt ${grNumber} for WIP warehouse ${wipWarehouse.id}`);
+              }
+            }
+          }
+        }
+
+        // 6. Create StaffLedger entries for OPERATIONAL items (only if PR has SPK)
+        if (status === 'APPROVED' && pr.spkId) {
+          // Get all OPERATIONAL items from this PR
+          const operationalItems = await tx.purchaseRequestDetail.findMany({
+            where: {
+              purchaseRequestId: id,
+              sourceProduct: 'OPERATIONAL'
+            },
+            include: {
+              product: {
+                select: { name: true, code: true }
+              }
+            }
+          });
+
+          if (operationalItems.length > 0) {
+            // Get the requester (karyawan) for this PR
+            const requesterId = pr.requestedById || pr.karyawanId;
+            
+            if (!requesterId) {
+              console.warn('⚠️ No karyawan found for PR. Skipping StaffLedger creation.');
+            } else {
+              // Calculate total operational cost
+              let totalOperationalCost = 0;
+              const itemDescriptions = [];
+
+              for (const item of operationalItems) {
+                const itemCost = Number(item.estimasiTotalHarga || 0);
+                totalOperationalCost += itemCost;
+                
+                const productName = item.product?.name || 'Unknown Product';
+                const qty = Number(item.jumlah || 0);
+                const unit = item.satuan || 'unit';
+                itemDescriptions.push(`${productName} (${qty} ${unit})`);
+              }
+
+              // Only create ledger entry if there's actual cost
+              if (totalOperationalCost > 0) {
+                // Get current balance for this karyawan
+                const lastLedger = await tx.staffLedger.findFirst({
+                  where: { karyawanId: requesterId },
+                  orderBy: { tanggal: 'desc' }
+                });
+
+                const saldoAwal = lastLedger ? Number(lastLedger.saldo) : 0;
+                const saldoAkhir = saldoAwal - totalOperationalCost; // KREDIT mengurangi saldo
+
+                // Create detailed description
+                const description = `Belanja Operasional - PR ${pr.nomorPr} (SPK: ${pr.spk?.spkNumber || pr.spkId})\\n` +
+                  `Items: ${itemDescriptions.join(', ')}`;
+
+                // Create StaffLedger entry (KREDIT = money spent by staff, reduces balance)
+                await tx.staffLedger.create({
+                  data: {
+                    karyawanId: requesterId,
+                    tanggal: new Date(),
+                    keterangan: description,
+                    saldoAwal: saldoAwal,  // Balance before transaction
+                    debit: 0,
+                    kredit: totalOperationalCost,  // Money spent by staff (decreases their balance)
+                    saldo: saldoAkhir,  // Balance after transaction
+                    category: 'OPERASIONAL_PROYEK',
+                    type: 'EXPENSE_REPORT',
+                    purchaseRequestId: id,
+                    refId: pr.nomorPr,
+                    createdBy: pr.karyawanId
+                  }
+                });
+
+                console.log(`✅ Created StaffLedger entry for karyawan ${requesterId}: ` +
+                  `SaldoAwal: Rp ${saldoAwal.toLocaleString('id-ID')}, ` +
+                  `KREDIT: Rp ${totalOperationalCost.toLocaleString('id-ID')}, ` +
+                  `SaldoAkhir: Rp ${saldoAkhir.toLocaleString('id-ID')} ` +
+                  `(${operationalItems.length} operational items)`);
+
+                // Update or Create StaffBalance
+                const existingBalance = await tx.staffBalance.findUnique({
+                  where: {
+                    karyawanId_category: {
+                      karyawanId: requesterId,
+                      category: 'OPERASIONAL_PROYEK'
+                    }
+                  }
+                });
+
+                if (existingBalance) {
+                  // Update existing balance
+                  await tx.staffBalance.update({
+                    where: {
+                      karyawanId_category: {
+                        karyawanId: requesterId,
+                        category: 'OPERASIONAL_PROYEK'
+                      }
+                    },
+                    data: {
+                      totalOut: {
+                        increment: totalOperationalCost  // Increase total expenses
+                      },
+                      amount: saldoAkhir  // Update current balance
+                    }
+                  });
+
+                  console.log(`✅ Updated StaffBalance for karyawan ${requesterId}: ` +
+                    `totalOut +Rp ${totalOperationalCost.toLocaleString('id-ID')}, ` +
+                    `amount = Rp ${saldoAkhir.toLocaleString('id-ID')}`);
+                } else {
+                  // Create new balance record
+                  await tx.staffBalance.create({
+                    data: {
+                      karyawanId: requesterId,
+                      category: 'OPERASIONAL_PROYEK',
+                      totalIn: 0,
+                      totalOut: totalOperationalCost,
+                      amount: saldoAkhir
+                    }
+                  });
+
+                  console.log(`✅ Created StaffBalance for karyawan ${requesterId}: ` +
+                    `totalOut = Rp ${totalOperationalCost.toLocaleString('id-ID')}, ` +
+                    `amount = Rp ${saldoAkhir.toLocaleString('id-ID')}`);
+                }
               }
             }
           }

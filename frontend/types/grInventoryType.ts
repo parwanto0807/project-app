@@ -59,6 +59,7 @@ export interface Warehouse {
     location?: string;
     address?: string;
     capacity?: number;
+    isWip?: boolean; // Work In Progress warehouse flag
 }
 
 export interface Vendor {
@@ -79,20 +80,24 @@ export interface PurchaseOrder {
     status: string;
     totalAmount: number;
     items?: PurchaseOrderLine[];
+    lines?: PurchaseOrderLine[]; // PO lines for field report validation
 }
 
 export interface PurchaseOrderLine {
     id: string;
-    purchaseOrderId: string;
     productId: string;
-    product?: Product;
+    product?: Product; // Optional relation
+    description: string;
     quantity: number;
     unitPrice: number;
-    totalPrice: number;
+    totalAmount: number;
     receivedQuantity: number;
-    rejectedQuantity: number;
-    pendingQuantity: number;
-    unit: string;
+    checkPurchaseExecution?: boolean; // Field report verification status
+    prDetailId?: string | null;
+    prDetail?: PurchaseRequestDetail | null; // Optional relation
+    poId: string;
+    purchaseOrder?: PurchaseOrder; // Optional relation
+    grItems?: GoodsReceiptItem[]; // Optional relation
 }
 
 export interface PurchaseRequestDetail {
@@ -163,9 +168,9 @@ export interface GoodsReceipt extends BaseEntity {
 
     // Relations
     purchaseOrderId?: string;
-    purchaseOrder?: PurchaseOrder;
+    PurchaseOrder?: PurchaseOrder; // PascalCase to match Prisma backend response
     warehouseId?: string;
-    warehouse?: Warehouse;
+    Warehouse?: Warehouse; // PascalCase to match Prisma backend response
     receivedById: string;
     receivedBy?: User;
 

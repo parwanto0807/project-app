@@ -331,7 +331,7 @@ export const uangMukaController = {
       // -----------------------------
       const [karyawan, spk, existingPR] = await Promise.all([
         prisma.karyawan.findUnique({ where: { id: karyawanId } }),
-        prisma.sPK.findUnique({ where: { id: spkId } }),
+        spkId ? prisma.sPK.findUnique({ where: { id: spkId } }) : Promise.resolve(null),
         purchaseRequestId
           ? prisma.purchaseRequest.findUnique({
               where: { id: purchaseRequestId },
@@ -348,7 +348,8 @@ export const uangMukaController = {
           .json({ success: false, message: "Karyawan tidak ditemukan" });
       }
 
-      if (!spk) {
+      // Only check SPK if spkId is provided
+      if (spkId && !spk) {
         if (req.files) req.files.forEach((f) => fs.unlinkSync(f.path));
         if (req.file) fs.unlinkSync(req.file.path);
         return res
@@ -371,9 +372,10 @@ export const uangMukaController = {
       // -----------------------------
       const nomor = await generateUangMukaNumber();
 
-      const status = tanggalPencairan
+      // Set status to DISBURSED if spkId exists, otherwise check tanggalPencairan
+      const status = spkId 
         ? UangMukaStatus.DISBURSED
-        : UangMukaStatus.PENDING;
+        : (tanggalPencairan ? UangMukaStatus.DISBURSED : UangMukaStatus.PENDING);
 
       // -----------------------------
       // CREATE (TRANSACTION)
@@ -390,7 +392,7 @@ export const uangMukaController = {
             status,
             purchaseRequestId: purchaseRequestId || null,
             karyawanId,
-            spkId,
+            spkId: spkId || null,
             metodePencairan,
             namaBankTujuan,
             nomorRekeningTujuan,
@@ -414,6 +416,66 @@ export const uangMukaController = {
           await prismaTx.purchaseRequest.update({
             where: { id: purchaseRequestId },
             data: { status: "COMPLETED" },
+          });
+        }
+
+        // ✅ LOGIKA BARU: Jika spkId = null/kosong DAN status = DISBURSED
+        // Maka tambahkan record di StaffBalance dan StaffLedger
+        if (!spkId && status === UangMukaStatus.DISBURSED) {
+          // 1. Cari atau buat StaffBalance untuk kategori OPERASIONAL_PROYEK
+          const existingBalance = await prismaTx.staffBalance.findUnique({
+            where: {
+              karyawanId_category: {
+                karyawanId,
+                category: "OPERASIONAL_PROYEK",
+              },
+            },
+          });
+
+          const currentBalance = existingBalance ? Number(existingBalance.amount) : 0;
+          const currentTotalIn = existingBalance ? Number(existingBalance.totalIn) : 0;
+          const currentTotalOut = existingBalance ? Number(existingBalance.totalOut) : 0;
+          
+          const newBalance = currentBalance + Number(jumlah);
+          const newTotalIn = currentTotalIn + Number(jumlah);
+
+          // Upsert StaffBalance (update jika ada, create jika tidak)
+          await prismaTx.staffBalance.upsert({
+            where: {
+              karyawanId_category: {
+                karyawanId,
+                category: "OPERASIONAL_PROYEK",
+              },
+            },
+            update: {
+              amount: newBalance,
+              totalIn: newTotalIn,
+            },
+            create: {
+              karyawanId,
+              category: "OPERASIONAL_PROYEK",
+              amount: jumlah,
+              totalIn: jumlah,
+              totalOut: 0,
+            },
+          });
+
+          // 2. Tambahkan record di StaffLedger
+          await prismaTx.staffLedger.create({
+            data: {
+              karyawanId,
+              tanggal: tanggalPencairan || new Date(),
+              keterangan: keterangan || `Pencairan uang muka ${nomor}`,
+              saldoAwal: currentBalance, // Saldo sebelum transaksi
+              debit: jumlah, // Uang bertambah bagi karyawan
+              kredit: 0,
+              saldo: newBalance, // Running balance setelah transaksi
+              category: "OPERASIONAL_PROYEK",
+              type: "CASH_ADVANCE",
+              purchaseRequestId: purchaseRequestId || null,
+              refId: uangMuka.id, // ID UangMuka sebagai referensi
+              createdBy: req.user?.id || "SYSTEM", // Ambil dari user yang login
+            },
           });
         }
 
@@ -664,8 +726,8 @@ export const uangMukaController = {
       };
 
       // 6. Transaction update
-      const [uangMuka] = await prisma.$transaction([
-        prisma.uangMuka.update({
+      const result = await prisma.$transaction(async (prismaTx) => {
+        const uangMuka = await prismaTx.uangMuka.update({
           where: { id },
           data: updateData,
           include: {
@@ -678,23 +740,87 @@ export const uangMukaController = {
               },
             },
           },
-        }),
+        });
 
-        ...(status === UangMukaStatus.DISBURSED &&
-        existingUangMuka.purchaseRequest
-          ? [
-              prisma.purchaseRequest.update({
-                where: { id: existingUangMuka.purchaseRequest.id },
-                data: { status: "COMPLETED" },
-              }),
-            ]
-          : []),
-      ]);
+        // Update PR status jika ada
+        if (status === UangMukaStatus.DISBURSED && existingUangMuka.purchaseRequest) {
+          await prismaTx.purchaseRequest.update({
+            where: { id: existingUangMuka.purchaseRequest.id },
+            data: { status: "COMPLETED" },
+          });
+        }
+
+        // ✅ LOGIKA BARU: Jika spkId = null/kosong DAN status berubah menjadi DISBURSED
+        // DAN sebelumnya belum DISBURSED (untuk menghindari duplikasi)
+        if (
+          !existingUangMuka.spkId &&
+          status === UangMukaStatus.DISBURSED &&
+          existingUangMuka.status !== UangMukaStatus.DISBURSED
+        ) {
+          // 1. Cari atau buat StaffBalance untuk kategori OPERASIONAL_PROYEK
+          const existingBalance = await prismaTx.staffBalance.findUnique({
+            where: {
+              karyawanId_category: {
+                karyawanId: existingUangMuka.karyawanId,
+                category: "OPERASIONAL_PROYEK",
+              },
+            },
+          });
+
+          const currentBalance = existingBalance ? Number(existingBalance.amount) : 0;
+          const currentTotalIn = existingBalance ? Number(existingBalance.totalIn) : 0;
+          const currentTotalOut = existingBalance ? Number(existingBalance.totalOut) : 0;
+          
+          const newBalance = currentBalance + Number(existingUangMuka.jumlah);
+          const newTotalIn = currentTotalIn + Number(existingUangMuka.jumlah);
+
+          // Upsert StaffBalance (update jika ada, create jika tidak)
+          await prismaTx.staffBalance.upsert({
+            where: {
+              karyawanId_category: {
+                karyawanId: existingUangMuka.karyawanId,
+                category: "OPERASIONAL_PROYEK",
+              },
+            },
+            update: {
+              amount: newBalance,
+              totalIn: newTotalIn,
+            },
+            create: {
+              karyawanId: existingUangMuka.karyawanId,
+              category: "OPERASIONAL_PROYEK",
+              amount: existingUangMuka.jumlah,
+              totalIn: existingUangMuka.jumlah,
+              totalOut: 0,
+            },
+          });
+
+          // 2. Tambahkan record di StaffLedger
+          await prismaTx.staffLedger.create({
+            data: {
+              karyawanId: existingUangMuka.karyawanId,
+              tanggal: tanggalPencairan || new Date(),
+              keterangan: existingUangMuka.keterangan || `Pencairan uang muka ${existingUangMuka.nomor}`,
+              saldoAwal: currentBalance, // Saldo sebelum transaksi
+              debit: existingUangMuka.jumlah, // Uang bertambah bagi karyawan
+              kredit: 0,
+              saldo: newBalance, // Running balance setelah transaksi
+              category: "OPERASIONAL_PROYEK",
+              type: "CASH_ADVANCE",
+              purchaseRequestId: existingUangMuka.purchaseRequestId || null,
+              refId: existingUangMuka.id, // ID UangMuka sebagai referensi
+              createdBy: req.user?.id || "SYSTEM", // Ambil dari user yang login
+            },
+          });
+        }
+
+        return uangMuka;
+      });
 
       res.json({
         success: true,
         message: `Status uang muka berhasil diupdate menjadi ${status}`,
-        data: uangMuka,
+        data: result,
       });
     } catch (error) {
       if (req.files) req.files.forEach((f) => fs.unlinkSync(f.path));

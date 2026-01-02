@@ -27,6 +27,7 @@ export const createPurchaseRequestSchema = z
   .object({
     projectId: z.string().optional().nullable(),
     karyawanId: z.string().min(1, "Karyawan ID is required"),
+    requestedById: z.string().optional().nullable(), // ✅ Add requester field
     spkId: z.string().optional().nullable(), // Sementara string dulu
     keterangan: z.string().max(500).optional().nullable(),
     details: z
@@ -85,6 +86,7 @@ export const updatePurchaseRequestSchema = z
     // ✅ PERUBAHAN: Tambahkan projectId di update schema
     projectId: projectIdSchema,
     spkId: uuidSchema.optional().nullable(),
+    requestedById: z.string().optional().nullable(), // ✅ Add requester field for update
     keterangan: z.string().max(500).optional().nullable(),
     status: z
       .enum([
@@ -160,7 +162,7 @@ export const idParamSchema = z.object({
 
 export const queryParamsSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(10),
+  limit: z.coerce.number().int().min(1).max(300).default(10),
   status: z
     .enum([
       "DRAFT",

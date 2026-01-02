@@ -63,7 +63,7 @@ import { Project } from "@/types/salesOrder";
 import { Textarea } from "../ui/textarea";
 import { Separator } from "../ui/separator";
 import { formatCurrency } from "@/lib/action/rab/rab-utils";
-import { fetchKaryawanByEmail } from "@/lib/action/master/karyawan";
+import { fetchKaryawanByEmail, fetchAllKaryawan } from "@/lib/action/master/karyawan";
 import { usePurchaseRequestsBySpkId } from "@/hooks/use-pr";
 import { SourceProductType } from "@/schemas/pr";
 import { ProductCombobox } from "./productCombobox";
@@ -215,13 +215,16 @@ export function TabelUpdatePR({
         spkId: existingData?.spkId || "",
         keterangan: existingData?.keterangan || "",
         tanggalPr: existingData?.tanggalPr ? new Date(existingData.tanggalPr) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        requestedById: existingData?.requestedById || "", // ✅ Add requester field
     });
     const [items, setItems] = useState<FormItem[]>([]);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
     const [selectedSpk, setSelectedSpk] = useState<SPK | null>(null);
     const [karyawanData, setKaryawanData] = useState<Karyawan | null>(null);
+    const [allKaryawan, setAllKaryawan] = useState<Karyawan[]>([]); // ✅ List of all karyawan
     const [loadingKaryawan, setLoadingKaryawan] = useState(false);
+    const [loadingAllKaryawan, setLoadingAllKaryawan] = useState(false);
 
 
     // Hook untuk mendapatkan histori PR berdasarkan SPK
@@ -241,6 +244,7 @@ export function TabelUpdatePR({
                     spkId: existingData.spkId || "",
                     keterangan: existingData.keterangan || "",
                     tanggalPr: existingData.tanggalPr ? new Date(existingData.tanggalPr) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+                    requestedById: existingData.requestedById || "", // ✅ Load existing requester
                 });
 
                 // Set items dari existing details
@@ -306,12 +310,12 @@ export function TabelUpdatePR({
 
             try {
                 const response = await fetchKaryawanByEmail(currentUser.email);
-
-                // Extract user data dari response
-                const karyawan = response.user; // Ambil dari property 'user'
+                const karyawan = response.user;
 
                 if (karyawan && karyawan.id) {
                     setKaryawanData(karyawan);
+                    // ✅ REMOVED auto-set logic to prevent race condition with loadExistingData
+                    // requestedById will be set from existingData in loadExistingData useEffect
                 } else {
                     setKaryawanData(null);
                 }
@@ -325,6 +329,25 @@ export function TabelUpdatePR({
 
         fetchKaryawan();
     }, [currentUser?.email]);
+
+    // ✅ Fetch all karyawan for requester dropdown
+    useEffect(() => {
+        const fetchAllKaryawanData = async () => {
+            setLoadingAllKaryawan(true);
+            try {
+                const result = await fetchAllKaryawan();
+                if (result.karyawan) {
+                    setAllKaryawan(result.karyawan);
+                }
+            } catch (error) {
+                console.error("Error fetching all karyawan:", error);
+            } finally {
+                setLoadingAllKaryawan(false);
+            }
+        };
+
+        fetchAllKaryawanData();
+    }, []);
 
     const handleSpkChange = (spkId: string) => {
         const spk = dataSpk.find(s => s.id === spkId);
@@ -486,10 +509,19 @@ export function TabelUpdatePR({
         }
 
         try {
+            // Debug log
+            console.log("📝 UPDATE Form Data before submit:", {
+                karyawanId: finalKaryawanId,
+                requestedById: formData.requestedById,
+                requestedByIdType: typeof formData.requestedById,
+                willUse: formData.requestedById || finalKaryawanId
+            });
+
             const submitData: CreatePurchaseRequestData = {
                 projectId: formData.projectId,
                 spkId: formData.spkId,
                 karyawanId: finalKaryawanId, // Gunakan fallback
+                requestedById: formData.requestedById, // ✅ Send as-is, let backend handle
                 tanggalPr: formData.tanggalPr,
                 keterangan: formData.keterangan,
                 details: items.map(item => ({
@@ -638,6 +670,32 @@ export function TabelUpdatePR({
                                         </PopoverContent>
                                     </Popover>
                                     {errors.tanggalPr && <p className="text-xs text-red-500">{errors.tanggalPr}</p>}
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="requestedById" className="font-semibold flex items-center gap-2">
+                                        <UserIcon className="h-4 w-4 text-purple-600" />
+                                        Requester (Pemohon)
+                                    </Label>
+                                    <Select
+                                        value={formData.requestedById}
+                                        onValueChange={(value) => setFormData((prev) => ({ ...prev, requestedById: value }))}
+                                        disabled={loadingAllKaryawan}
+                                    >
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue placeholder={loadingAllKaryawan ? "Loading..." : "Select requester"} />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {allKaryawan.map((karyawan) => (
+                                                <SelectItem key={karyawan.id} value={karyawan.id}>
+                                                    {karyawan.namaLengkap} {karyawan.jabatan ? `- ${karyawan.jabatan}` : ""}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-xs text-muted-foreground">
+                                        Who is requesting this purchase? (Default: You)
+                                    </p>
                                 </div>
 
                                 <div className="space-y-2">
@@ -868,7 +926,7 @@ export function TabelUpdatePR({
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-3 text-lg">
                                     <UserIcon className="h-5 w-5 text-green-600" />
-                                    Requester Details
+                                    Admin Input Purchase Request
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
@@ -876,7 +934,7 @@ export function TabelUpdatePR({
                                     <p><strong>Name:</strong> {karyawanData?.namaLengkap || currentUser?.name || 'N/A'}</p>
                                     <p><strong>Email:</strong> {currentUser?.email || 'N/A'}</p>
                                     {existingData?.karyawan && (
-                                        <p><strong>Original Requester:</strong> {existingData.karyawan.namaLengkap}</p>
+                                        <p><strong>Original Admin Input:</strong> {existingData.karyawan.namaLengkap}</p>
                                     )}
                                 </div>
                                 {!karyawanData && !loadingKaryawan && (

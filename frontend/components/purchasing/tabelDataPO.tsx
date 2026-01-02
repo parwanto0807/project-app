@@ -64,6 +64,12 @@ const statusConfig = {
         icon: AlertCircle,
         iconColor: "text-orange-600"
     },
+    REQUEST_REVISION: {
+        label: "Permintaan Revisi",
+        className: "bg-yellow-200 text-yellow-900 border-yellow-600 font-bold shadow-sm",
+        icon: AlertCircle,
+        iconColor: "text-yellow-800"
+    },
     APPROVED: {
         label: "Disetujui",
         className: "bg-blue-50 text-blue-800 border-blue-300",
@@ -436,6 +442,7 @@ export default function PurchaseOrderTable({
                             <TableHead className="w-[120px]">PO Number</TableHead>
                             <TableHead>Supplier</TableHead>
                             <TableHead className="hidden lg:table-cell">Warehouse</TableHead>
+                            <TableHead className="hidden lg:table-cell">Laporan Lapangan</TableHead>
                             <TableHead className="hidden xl:table-cell">Order Date</TableHead>
                             <TableHead className="hidden 2xl:table-cell">Delivery Date</TableHead>
                             <TableHead className="hidden xl:table-cell">Payment Term</TableHead>
@@ -508,6 +515,58 @@ export default function PurchaseOrderTable({
                                                 <Building className="h-4 w-4 text-gray-400" />
                                                 {po.warehouse?.name || "N/A"}
                                             </div>
+                                        </TableCell>
+                                        <TableCell className="hidden lg:table-cell">
+                                            {po.warehouse?.isWip && (() => {
+                                                // Count total receipts from all PurchaseExecution
+                                                const totalReceipts = po.PurchaseExecution?.reduce((total, execution) => {
+                                                    return total + (execution.receipts?.length || 0);
+                                                }, 0) || 0;
+
+                                                // Check if all PO lines are verified
+                                                const allLinesVerified = po.lines?.length > 0 &&
+                                                    po.lines.every(line => line.checkPurchaseExecution === true);
+                                                const hasUnverifiedLines = po.lines?.some(line => line.checkPurchaseExecution === false);
+
+                                                // Determine badge color and text
+                                                let badgeColor = "bg-amber-50 text-amber-700 border-amber-300";
+                                                let badgeText = "0 Laporan Lapangan";
+                                                let icon = FileText;
+
+                                                if (totalReceipts > 0) {
+                                                    if (allLinesVerified) {
+                                                        // All verified - green
+                                                        badgeColor = "bg-green-50 text-green-700 border-green-300";
+                                                        badgeText = `${totalReceipts} Laporan ✓`;
+                                                        icon = CheckCircle;
+                                                    } else if (hasUnverifiedLines) {
+                                                        // Has reports but not all verified - blue
+                                                        badgeColor = "bg-blue-50 text-blue-700 border-blue-300";
+                                                        badgeText = `${totalReceipts} Laporan (Belum Cek)`;
+                                                        icon = AlertCircle;
+                                                    } else {
+                                                        // Has reports, no verification data
+                                                        badgeColor = "bg-blue-50 text-blue-700 border-blue-300";
+                                                        badgeText = `${totalReceipts} Laporan`;
+                                                        icon = FileText;
+                                                    }
+                                                }
+
+                                                const IconComponent = icon;
+
+                                                return (
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={cn(
+                                                            "font-medium text-xs flex items-center gap-1.5 px-3 py-1.5 w-fit",
+                                                            badgeColor
+                                                        )}
+                                                    >
+                                                        <IconComponent className="h-3.5 w-3.5" />
+                                                        {badgeText}
+                                                    </Badge>
+                                                );
+                                            })()}
                                         </TableCell>
                                         <TableCell className="hidden xl:table-cell">
                                             <div className="flex items-center gap-2">
