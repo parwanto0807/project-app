@@ -161,7 +161,7 @@ export function getMenuList(pathname: string, role: string) {
               href: `${basePath}/logistic/purchasing`,
               label: "Purchase Order (PO)",
               active: isActive(`${basePath}/logistic/purchasing`, pathname),
-              disabled: role === "pic", // Biasanya PIC hanya buat PR, Admin yang buat PO
+              disabled: role === "user", // Biasanya PIC hanya buat PR, Admin yang buat PO
             },
             {
               href: `${basePath}/logistic/bap`,
@@ -190,17 +190,6 @@ export function getMenuList(pathname: string, role: string) {
               active: isActive(`${basePath}/inventory/dashboard`, pathname),
             },
             {
-              href: `${basePath}/inventory/wh`,
-              label: "Data Gudang",
-              active: isActive(`${basePath}/inventory/wh`, pathname),
-              disabled: role === "pic",
-            },
-            {
-              href: `${basePath}/inventory/stock-opname`,
-              label: "Stock Opname",
-              active: isActive(`${basePath}/inventory/stock-opname`, pathname),
-            },
-            {
               href: `${basePath}/inventory/goods-receipt`,
               label: "Penerimaan Barang (GR)",
               active: isActive(`${basePath}/inventory/goods-receipt`, pathname),
@@ -214,6 +203,16 @@ export function getMenuList(pathname: string, role: string) {
               href: `${basePath}/inventory/transfer`,
               label: "Transfer Gudang",
               active: isActive(`${basePath}/inventory/transfer`, pathname),
+            },
+            {
+              href: `${basePath}/inventory/stock-opname`,
+              label: "Stock Opname",
+              active: isActive(`${basePath}/inventory/stock-opname`, pathname),
+            },
+            {
+              href: `${basePath}/inventory/wh`,
+              label: "Data Gudang",
+              active: isActive(`${basePath}/inventory/wh`, pathname),
             },
           ],
         },
@@ -259,6 +258,18 @@ export function getMenuList(pathname: string, role: string) {
               href: `${basePath}/accounting/staff-balance`,
               label: "Staff Balance",
               active: isActive(`${basePath}/accounting/staff-balance`, pathname),
+              disabled: role === "user" || role === "pic",
+            },
+            {
+              href: `${basePath}/accounting/supplier-invoice`,
+              label: "Supplier invoice",
+              active: isActive(`${basePath}/accounting/supplier-invoice`, pathname),
+              disabled: role === "user" || role === "pic",
+            },
+            {
+              href: `${basePath}/accounting/supplier-payment`,
+              label: "Supplier payment",
+              active: isActive(`${basePath}/accounting/supplier-payment`, pathname),
               disabled: role === "user" || role === "pic",
             },
           ],

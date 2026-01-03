@@ -73,11 +73,12 @@ export default async function StaffBalancePage({ searchParams }: PageProps) {
                 />
 
                 {/* Summary Cards */}
-                <div className="grid gap-4 md:grid-cols-3">
+                {/* Summary Cards */}
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">
-                                Total Operasional Proyek
+                                Total Operasional / Sisa Saldo Operasional
                             </CardTitle>
                             <Wallet className="h-4 w-4 text-blue-600" />
                         </CardHeader>
@@ -86,7 +87,7 @@ export default async function StaffBalancePage({ searchParams }: PageProps) {
                                 {formatCurrency(summary.totalOperasional)}
                             </div>
                             <p className="text-xs text-muted-foreground mt-1">
-                                Saldo untuk operasional proyek
+                                Saldo berjalan operasional
                             </p>
                         </CardContent>
                     </Card>
@@ -94,7 +95,7 @@ export default async function StaffBalancePage({ searchParams }: PageProps) {
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">
-                                Total Pinjaman Pribadi
+                                Total Pinjaman
                             </CardTitle>
                             <TrendingUp className="h-4 w-4 text-purple-600" />
                         </CardHeader>
@@ -103,7 +104,7 @@ export default async function StaffBalancePage({ searchParams }: PageProps) {
                                 {formatCurrency(summary.totalPinjaman)}
                             </div>
                             <p className="text-xs text-muted-foreground mt-1">
-                                Total pinjaman karyawan
+                                Saldo berjalan pinjaman
                             </p>
                         </CardContent>
                     </Card>
@@ -111,7 +112,24 @@ export default async function StaffBalancePage({ searchParams }: PageProps) {
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">
-                                Total Keseluruhan
+                                Total Pengeluaran
+                            </CardTitle>
+                            <TrendingUp className="h-4 w-4 text-orange-600" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-orange-600">
+                                {formatCurrency(summary.totalOut)}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                Total dana keluar / terpakai
+                            </p>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">
+                                Total Sisa Saldo Operasional dan Pinjaman
                             </CardTitle>
                             <Users className="h-4 w-4 text-green-600" />
                         </CardHeader>
@@ -120,7 +138,7 @@ export default async function StaffBalancePage({ searchParams }: PageProps) {
                                 {formatCurrency(summary.grandTotal)}
                             </div>
                             <p className="text-xs text-muted-foreground mt-1">
-                                Gabungan semua kategori
+                                Total keseluruhan saldo aktif
                             </p>
                         </CardContent>
                     </Card>

@@ -326,15 +326,28 @@ export const createPOFromPR = async (prId, userId, tx) => {
  */
 export const getAllPO = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = '' } = req.query;
+    const { page = 1, limit = 10, search = '', status, supplierId } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
 
-    const where = {
-      OR: [
+    const where = {};
+
+    // Filter by Search
+    if (search) {
+      where.OR = [
         { poNumber: { contains: search, mode: 'insensitive' } },
         { supplier: { name: { contains: search, mode: 'insensitive' } } }
-      ]
-    };
+      ];
+    }
+
+    // Filter by Status
+    if (status) {
+      where.status = status;
+    }
+
+    // Filter by Supplier
+    if (supplierId) {
+      where.supplierId = supplierId;
+    }
 
     const [data, totalCount] = await Promise.all([
       prisma.purchaseOrder.findMany({

@@ -60,32 +60,33 @@ export const staffBalanceController = {
         prisma.staffBalance.count({ where }),
       ]);
 
-      // Calculate summary statistics
+      // Calculate summary statistics using the same where clause
       const summary = await prisma.staffBalance.groupBy({
         by: ["category"],
         _sum: {
           amount: true,
+          totalIn: true,
+          totalOut: true,
         },
-        where: search
-          ? {
-              karyawan: {
-                namaLengkap: {
-                  contains: search,
-                  mode: "insensitive",
-                },
-              },
-            }
-          : {},
+        where, // Use the same where clause as the main query
       });
 
       const summaryData = {
         totalOperasional: 0,
         totalPinjaman: 0,
         grandTotal: 0,
+        totalIn: 0,
+        totalOut: 0,
       };
 
       summary.forEach((item) => {
         const amount = Number(item._sum.amount || 0);
+        const totalIn = Number(item._sum.totalIn || 0);
+        const totalOut = Number(item._sum.totalOut || 0);
+
+        summaryData.totalIn += totalIn;
+        summaryData.totalOut += totalOut;
+
         if (item.category === "OPERASIONAL_PROYEK") {
           summaryData.totalOperasional = amount;
         } else if (item.category === "PINJAMAN_PRIBADI") {
@@ -233,10 +234,13 @@ export const staffBalanceController = {
    */
   async getStaffBalanceSummary(req, res, next) {
     try {
+      // Calculate summary statistics
       const summary = await prisma.staffBalance.groupBy({
         by: ["category"],
         _sum: {
           amount: true,
+          totalIn: true,
+          totalOut: true,
         },
         _count: {
           id: true,
@@ -254,10 +258,18 @@ export const staffBalanceController = {
         countOperasional: 0,
         countPinjaman: 0,
         totalEmployees: totalEmployees.length,
+        totalIn: 0,
+        totalOut: 0,
       };
 
       summary.forEach((item) => {
         const amount = Number(item._sum.amount || 0);
+        const totalIn = Number(item._sum.totalIn || 0);
+        const totalOut = Number(item._sum.totalOut || 0);
+
+        summaryData.totalIn += totalIn;
+        summaryData.totalOut += totalOut;
+        
         if (item.category === "OPERASIONAL_PROYEK") {
           summaryData.totalOperasional = amount;
           summaryData.countOperasional = item._count.id;

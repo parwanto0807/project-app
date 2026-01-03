@@ -56,6 +56,7 @@ export function UMDetailSheet({
     isSubmitting = false,
 }: UMDetailSheetProps) {
     const [tanggalPencairan, setTanggalPencairan] = useState<string>(() =>
+        // Initialize with Jakarta date to ensure correct default
         new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })
     );
     const [buktiTransaksi, setBuktiTransaksi] = useState<FileWithPreview[]>([]);
@@ -178,9 +179,34 @@ export function UMDetailSheet({
                 namaEwalletTujuan: data.namaEwalletTujuan
             };
 
+            // Ensure date is valid and create from the Jakarta-based string
+            if (!tanggalPencairan) {
+                toast.error("Tanggal pencairan wajib diisi");
+                return;
+            }
+
+            // Create base date from input (YYYY-MM-DD)
+            const inputDate = new Date(tanggalPencairan);
+            if (isNaN(inputDate.getTime())) {
+                toast.error("Format tanggal pencairan tidak valid");
+                return;
+            }
+
+            // Get current time in Jakarta to append to the selected date
+            // This ensures we save the actual effective time, not just 07:00 (UTC midnight)
+            const now = new Date();
+            const jakartaTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Jakarta" }));
+
+            // Set the time of our target date to match the current Jakarta time
+            // We successfully combine the USER SELECTED DATE with the CURRENT TIMESTAMP for precision
+            const finalDate = new Date(inputDate);
+            finalDate.setHours(jakartaTime.getHours());
+            finalDate.setMinutes(jakartaTime.getMinutes());
+            finalDate.setSeconds(jakartaTime.getSeconds());
+
             await onCairkan({
                 id: data.id,
-                tanggalPencairan: new Date(tanggalPencairan),
+                tanggalPencairan: finalDate,
                 buktiTransaksi: fileObjects,
                 existingData: existingData
             });

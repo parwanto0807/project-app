@@ -520,7 +520,7 @@ const DashboardUserSPK = ({ dataSpk, role, userId }: FormMonitoringProgressSpkPr
                             Absensi On-Site
                         </h2>
                         <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed mb-2">
-                            Laporkan kehadiran Anda secara praktis untuk mendukung kelancaran administrasi proyek.
+                            Laporkan kehadiran Anda secara Praktis, Digital dan Real time
                         </p>
                         <div className="flex items-center text-purple-600 dark:text-purple-400 text-sm font-medium mt-2">
                             <span>Isi Absensi</span>

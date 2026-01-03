@@ -62,6 +62,8 @@ export interface StaffBalanceSummary {
     countOperasional?: number;
     countPinjaman?: number;
     totalEmployees?: number;
+    totalIn: number;
+    totalOut: number;
 }
 
 export interface StaffBalanceResponse {

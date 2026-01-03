@@ -212,7 +212,7 @@ export default function CreatePRPagePIC() {
     // Handle error
     if (hasError) {
         return (
-            <PicLayout title="Create Purchase Request" role="admin">
+            <PicLayout title="Create Purchase Request" role="pic">
                 <div className="flex flex-col items-center justify-center h-64 space-y-4">
                     <div className="text-red-500 text-lg font-semibold">
                         Error loading form data

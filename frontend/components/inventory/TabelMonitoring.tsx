@@ -948,12 +948,14 @@ export default function TabelMonitoring({
                                                             <p className="text-[10px] font-bold text-emerald-500 dark:text-emerald-300 uppercase mt-1">Ready</p>
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell className="text-right">
-                                                        <p className="text-sm font-black text-slate-900 dark:text-white tracking-tight">{formatCurrency(item.inventoryValue)}</p>
-                                                        <div className="h-1 w-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-full ml-auto mt-2 overflow-hidden">
-                                                            <div className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full w-2/3" />
-                                                        </div>
-                                                    </TableCell>
+                                                    {canViewFinancials && (
+                                                        <TableCell className="text-right">
+                                                            <p className="text-sm font-black text-slate-900 dark:text-white tracking-tight">{formatCurrency(item.inventoryValue)}</p>
+                                                            <div className="h-1 w-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-full ml-auto mt-2 overflow-hidden">
+                                                                <div className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full w-2/3" />
+                                                            </div>
+                                                        </TableCell>
+                                                    )}
                                                     <TableCell className="text-center">
                                                         <div className="space-y-1">
                                                             <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{format(new Date(item.updatedAt), 'dd MMM yy')}</p>

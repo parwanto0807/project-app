@@ -33,7 +33,7 @@ interface CreatePOFromPRButtonProps {
     variant?: "default" | "outline" | "secondary" | "ghost";
     size?: "default" | "sm" | "lg" | "icon";
     className?: string;
-    onSuccess?: () => void;
+    onSuccess?: (newId?: string) => void;
     disabled?: boolean;
     colorScheme?: "blue" | "emerald" | "amber" | "violet";
     withIcon?: boolean;
@@ -223,7 +223,7 @@ export default function CreatePOFromPRButton({
                 description: `PO Number: ${result.poNumber}`,
             });
 
-            if (onSuccess) onSuccess();
+            if (onSuccess) onSuccess(result.id);
 
             // Close dialog
             setIsDialogOpen(false);

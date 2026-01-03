@@ -2317,34 +2317,90 @@ enum ReceiptPhotoType {
 
 model SupplierInvoice {
   id            String                @id @default(uuid())
-  invoiceNumber String // Nomor tagihan DARI supplier
+  invoiceNumber String // No nota dari supplier
   invoiceDate   DateTime
   dueDate       DateTime // Tanggal jatuh tempo
   status        SupplierInvoiceStatus @default(DRAFT)
 
-  // --- Relasi ---
+  // Relasi
   supplierId      String
   supplier        Supplier       @relation(fields: [supplierId], references: [id])
-  purchaseOrderId String? // Bisa jadi tagihan tidak berasal dari PO
+  purchaseOrderId String?
   purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
 
-  // --- Finansial ---
+  // Finansial
   subtotal    Decimal @db.Decimal(18, 2)
   taxAmount   Decimal @default(0) @db.Decimal(18, 2)
   totalAmount Decimal @db.Decimal(18, 2)
-  amountPaid  Decimal @default(0) @db.Decimal(18, 2) // Jumlah yang sudah terbayar
+  amountPaid  Decimal @default(0) @db.Decimal(18, 2) // Terbayar
 
-  // --- Integrasi Akuntansi ---
+  // Items & Pembayaran
+  items              SupplierInvoiceItem[]
+  paymentAllocations PaymentAllocation[]
+
+  // Integrasi Accounting
   journalEntryId String?       @unique
   journalEntry   JournalEntry? @relation(fields: [journalEntryId], references: [id])
 
-  // --- Relasi Balik ---
-  paymentAllocations PaymentAllocation[] // Tagihan ini bisa dibayar oleh beberapa pembayaran
+  // Additional Information
+  notes String? @db.Text
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([supplierId, invoiceNumber]) // Nomor invoice harus unik per supplier
+  @@unique([supplierId, invoiceNumber])
+}
+
+model SupplierInvoiceItem {
+  id                String          @id @default(uuid())
+  supplierInvoiceId String
+  supplierInvoice   SupplierInvoice @relation(fields: [supplierInvoiceId], references: [id], onDelete: Cascade)
+
+  productId   String
+  productName String // Nama saat transaksi
+
+  // Link ke PO dan Penerimaan Barang (GR)
+  poLineId            String?
+  goodsReceivedItemId String? // Link ke item yang masuk gudang
+
+  quantity   Decimal @db.Decimal(18, 4)
+  unitPrice  Decimal @db.Decimal(18, 2) // Ini harga 90rb
+  totalPrice Decimal @db.Decimal(18, 2) // qty * 90rb
+
+  // Tracking Selisih
+  priceVariance Decimal @default(0) @db.Decimal(18, 2) // (PO_Price - 90rb)
+
+  createdAt DateTime @default(now())
+}
+
+model SupplierPayment {
+  id            String        @id @default(uuid())
+  paymentNumber String        @unique // PYMT/2024/0001
+  paymentDate   DateTime      @default(now())
+  amount        Decimal       @db.Decimal(18, 2)
+  paymentMethod PaymentMethod // CASH, TRANSFER, dll
+  bankAccountId String? // COA Bank/Kas mana yang berkurang
+
+  notes       String?
+  allocations PaymentAllocation[]
+
+  createdAt DateTime @default(now())
+}
+
+model PaymentAllocation {
+  id     String  @id @default(uuid())
+  amount Decimal @db.Decimal(18, 2) // Jumlah yang dialokasikan ke invoice ini
+
+  supplierInvoiceId String
+  supplierInvoice   SupplierInvoice @relation(fields: [supplierInvoiceId], references: [id])
+
+  supplierPaymentId String
+  supplierPayment   SupplierPayment @relation(fields: [supplierPaymentId], references: [id])
+
+  paymentVoucherId String
+  paymentVoucher   PaymentVoucher @relation(fields: [paymentVoucherId], references: [id])
+
+  @@unique([paymentVoucherId, supplierInvoiceId, supplierPaymentId])
 }
 
 // ==========================================================
@@ -2373,23 +2429,6 @@ model PaymentVoucher {
   allocations PaymentAllocation[] // Pembayaran ini bisa dialokasikan ke beberapa tagihan
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
-}
-
-// Model PENGHUBUNG (Join Table) untuk relasi Many-to-Many
-// antara Pembayaran dan Tagihan
-model PaymentAllocation {
-  id              String  @id @default(uuid())
-  amountAllocated Decimal @db.Decimal(18, 2) // Jumlah yang dialokasikan dari pembayaran ini ke tagihan ini
-
-  paymentVoucherId String
-  paymentVoucher   PaymentVoucher @relation(fields: [paymentVoucherId], references: [id])
-
-  supplierInvoiceId String
-  supplierInvoice   SupplierInvoice @relation(fields: [supplierInvoiceId], references: [id])
-
-  createdAt DateTime @default(now())
-
-  @@unique([paymentVoucherId, supplierInvoiceId])
 }
 
 model StaffBalance {
@@ -2431,6 +2470,8 @@ model StaffLedger {
 
   refId     String? // ID dokumen referensi (e.g., Nomor Voucher, ID Invoice)
   createdBy String? // Nama/ID user yang melakukan input
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 }
 
 enum LedgerCategory {

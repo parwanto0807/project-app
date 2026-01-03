@@ -156,9 +156,10 @@ const TableSkeleton = () => {
 };
 
 // Mobile Card View Component
-const MobilePOCard = ({ po, onView }: {
+const MobilePOCard = ({ po, onView, basePath }: {
     po: PurchaseOrder;
     onView: (id: string) => void;
+    basePath: string;
 }) => {
     const StatusIcon = statusConfig[po.status as keyof typeof statusConfig]?.icon || Clock;
 
@@ -168,7 +169,7 @@ const MobilePOCard = ({ po, onView }: {
             <div className="flex justify-between items-start mb-3">
                 <div>
                     <Link
-                        href={`/admin-area/logistic/purchasing/${po.id}`}
+                        href={`${basePath}/${po.id}`}
                         className="hover:underline inline-block"
                     >
                         <Badge
@@ -296,8 +297,15 @@ export default function PurchaseOrderTable({
     const router = useRouter();
     const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
 
+    const getBasePath = (role: string) => {
+        if (role === 'pic') return "/pic-area/logistic/purchasing";
+        if (role === 'super') return "/super-admin-area/logistic/purchasing";
+        return "/admin-area/logistic/purchasing";
+    };
+    const basePath = getBasePath(role);
+
     const handleView = (id: string) => {
-        router.push(`/admin-area/logistic/purchasing/${id}`);
+        router.push(`${basePath}/${id}`);
     };
 
     // Toggle view mode on mobile
@@ -368,6 +376,7 @@ export default function PurchaseOrderTable({
                         {purchaseOrders.map((po) => (
                             <MobilePOCard
                                 po={po}
+                                basePath={basePath}
                                 onView={handleView}
                             />
                         ))}
@@ -395,7 +404,7 @@ export default function PurchaseOrderTable({
                                         >
                                             <TableCell className="font-medium">
                                                 <Link
-                                                    href={`/admin-area/logistic/purchasing/${po.id}`}
+                                                    href={`${basePath}/${po.id}`}
                                                     className="text-primary hover:underline"
                                                 >
                                                     {po.poNumber}
@@ -480,7 +489,7 @@ export default function PurchaseOrderTable({
                                         <TableCell className="font-medium">
                                             <div className="flex flex-col gap-2">
                                                 <Link
-                                                    href={`/admin-area/logistic/purchasing/${po.id}`}
+                                                    href={`${basePath}/${po.id}`}
                                                     className="hover:underline group flex items-center gap-2"
                                                 >
                                                     <FileText className="h-4 w-4 text-primary/70 group-hover:text-primary flex-shrink-0" />

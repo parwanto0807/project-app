@@ -201,6 +201,10 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
     const [isSendingEmail, setIsSendingEmail] = useState(false);
     const [activeTab, setActiveTab] = useState("details");
 
+    const purchasingBasePath = userRole === 'pic'
+        ? "/pic-area/logistic/purchasing"
+        : (userRole === 'super' ? "/super-admin-area/logistic/purchasing" : "/admin-area/logistic/purchasing");
+
 
     // New Feature State
     const [isCreatingMR, setIsCreatingMR] = useState(false);
@@ -504,7 +508,7 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                 <p className="text-muted-foreground mb-6">
                     Purchase order yang Anda cari mungkin telah dihapus atau ID tidak valid.
                 </p>
-                <Button onClick={() => router.push("/admin-area/logistic/purchasing")}>
+                <Button onClick={() => router.push(purchasingBasePath)}>
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Kembali ke Daftar
                 </Button>
@@ -643,7 +647,7 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                             Share
                                         </Button>
                                         <Button
-                                            onClick={() => router.push("/admin-area/logistic/purchasing")}
+                                            onClick={() => router.push(purchasingBasePath)}
                                             className="bg-gradient-to-r from-gray-600 to-slate-600 hover:from-gray-700 hover:to-slate-700 shadow-lg shadow-gray-500/25 text-white"
                                         >
                                             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -1391,7 +1395,7 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                                     ? "h-auto py-3 animate-pulse border-amber-500 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:border-amber-600 dark:bg-amber-900/20 dark:border-amber-500 dark:text-amber-400 ring-2 ring-amber-500/20"
                                                     : "h-11 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-200 dark:hover:border-blue-800 hover:text-blue-700 dark:hover:text-blue-400"
                                             )}
-                                            onClick={() => router.push(`/admin-area/logistic/purchasing/update/${poId}`)}
+                                            onClick={() => router.push(`${purchasingBasePath}/update/${poId}`)}
                                         >
                                             <div className={cn(
                                                 "rounded-md flex items-center justify-center mr-3 flex-shrink-0 transition-colors",
