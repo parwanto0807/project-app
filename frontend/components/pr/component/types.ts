@@ -60,6 +60,10 @@ export interface DesktopTableViewProps {
   onCreateLpp: (id: string) => void;
   onEdit: (pr: PurchaseRequestWithRelations) => void;
   onDelete: (id: string) => void;
+  getSerialNumber: (index: number) => number;
+  showSkeleton?: boolean;
+  skeletonRows?: number;
+  enableTabFilter?: boolean;
 }
 
 export interface MobileCardViewProps {

@@ -466,6 +466,7 @@ export function PurchaseRequestTable(props: PurchaseRequestTableProps) {
                             onViewDetail={handleViewDetail}
                             onViewPdf={handleViewPdf}
                             onCreateLpp={handleCreateLpp}
+                            enableTabFilter={true} // Aktifkan tab filter
                             onEdit={(pr) => {
                                 const query = new URLSearchParams({
                                     page: String(urlPage),

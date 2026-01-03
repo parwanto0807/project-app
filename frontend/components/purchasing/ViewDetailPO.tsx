@@ -276,6 +276,31 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
         }
     };
 
+    const [isCreatingGR, setIsCreatingGR] = useState(false);
+
+    const handleCreateGR = async () => {
+        if (!purchaseOrder) return;
+        setIsCreatingGR(true);
+        try {
+            const res = await createGoodsReceiptFromPOAction(purchaseOrder.id);
+            if (res.success) {
+                toast.success("Goods Receipt berhasil dibuat!");
+                // Refresh PO
+                const updated = await getPurchaseOrderById(purchaseOrder.id);
+                setPurchaseOrder(updated);
+
+                // Redirect to GR list or detail if needed (optional, for now just stay)
+            } else {
+                toast.error(res.message || "Gagal membuat GR");
+            }
+        } catch (error) {
+            console.error("Error creating GR:", error);
+            toast.error("Terjadi kesalahan sistem");
+        } finally {
+            setIsCreatingGR(false);
+        }
+    };
+
     const fetchPO = async () => {
         if (!poId) return;
         try {
@@ -1224,12 +1249,36 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                         </Button>
                                     )}
 
+                                    {/* Create GR Button (Moved from Items Tab) */}
+                                    {['APPROVED', 'PARTIALLY_RECEIVED'].includes(purchaseOrder.status) &&
+                                        purchaseOrder.lines?.some((l) => (l.quantity || 0) > (l.receivedQuantity || 0)) && (
+                                            <Button
+                                                className="w-full justify-start h-11 bg-white hover:bg-indigo-50 border border-indigo-200 text-indigo-700 hover:text-indigo-800 dark:bg-gray-800 dark:hover:bg-indigo-900/30 dark:border-indigo-800 dark:text-indigo-400 mb-0 transition-all group shadow-sm mb-3"
+                                                onClick={handleCreateGR}
+                                                disabled={isCreatingGR}
+                                            >
+                                                <div className="h-8 w-8 rounded-md bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center mr-3 group-hover:bg-indigo-200 dark:group-hover:bg-indigo-800 transition-colors">
+                                                    {isCreatingGR ? (
+                                                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent dark:border-indigo-400" />
+                                                    ) : (
+                                                        <Package className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                                                    )}
+                                                </div>
+                                                <div className="text-left">
+                                                    <div className="font-medium">Update Penerimaan Barang (GR)</div>
+                                                    <div className="text-xs text-muted-foreground dark:text-gray-400">
+                                                        {isCreatingGR ? 'Sedang memproses...' : 'Catat barang masuk'}
+                                                    </div>
+                                                </div>
+                                            </Button>
+                                        )}
+
                                     {/* Create MR Button (Requested Feature) */}
-                                    {['SENT', 'PARTIALLY_RECEIVED'].includes(purchaseOrder.status) && (
+                                    {['APPROVED'].includes(purchaseOrder.status) && (
                                         purchaseOrder.relatedMRs && purchaseOrder.relatedMRs.length > 0 ? (
                                             <Button
                                                 variant="outline"
-                                                className="w-full justify-start h-11 hover:bg-cyan-50 dark:hover:bg-cyan-950/30 hover:border-cyan-200 dark:hover:border-cyan-800 transition-all group dark:border-gray-700"
+                                                className="w-full justify-start h-11 hover:bg-cyan-50 dark:hover:bg-cyan-950/30 hover:border-cyan-200 dark:hover:border-cyan-800 transition-all group dark:border-gray-700 mb-2"
                                                 onClick={() => {
                                                     const basePath = userRole === 'admin'
                                                         ? '/admin-area/inventory/requisition'
@@ -1247,21 +1296,21 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                                 </div>
                                             </Button>
                                         ) : (
-                                            purchaseOrder.status !== 'SENT' && (
+                                            purchaseOrder.status !== 'APPROVED' && (
                                                 <Button
                                                     className={cn(
                                                         "w-full justify-start h-11 shadow-lg transition-all",
-                                                        "animate-pulse bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-orange-500/25 text-white ring-2 ring-orange-300 ring-offset-2 dark:ring-offset-gray-900"
+                                                        "animate-pulse bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 shadow-orange-500/25 text-white ring-2 ring-orange-300 ring-offset-2 dark:ring-offset-gray-900 mb-2"
                                                     )}
                                                     onClick={handleCreateMR}
                                                     disabled={isCreatingMR}
                                                 >
                                                     {isCreatingMR ? (
-                                                        <div className="h-8 w-8 rounded-md bg-white/20 flex items-center justify-center mr-3">
+                                                        <div className="h-8 w-8 rounded-md bg-white/20 flex items-center justify-center mr-3 mb-2">
                                                             <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                                                         </div>
                                                     ) : (
-                                                        <div className="h-8 w-8 rounded-md bg-white/20 flex items-center justify-center mr-3">
+                                                        <div className="h-8 w-8 rounded-md bg-white/20 flex items-center justify-center mr-3 mb-2">
                                                             <AlertCircle className="h-4 w-4 text-white" />
                                                         </div>
                                                     )}

@@ -65,10 +65,16 @@ export function CreateOpeningBalanceGlobalDialog({
     const fetchKaryawan = async () => {
         setIsLoadingKaryawan(true);
         try {
-            const response = await fetch("/api/karyawan?limit=1000");
+            const response = await fetch("/api/karyawan/getAllKaryawan");
             const result = await response.json();
-            if (result.success) {
-                setKaryawanList(result.data || []);
+
+            if (Array.isArray(result)) {
+                setKaryawanList(result);
+            } else if (result.success && Array.isArray(result.data)) {
+                setKaryawanList(result.data);
+            } else {
+                console.warn("Unexpected response format for karyawan list:", result);
+                setKaryawanList([]);
             }
         } catch (error) {
             console.error("Error fetching karyawan:", error);

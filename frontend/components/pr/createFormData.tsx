@@ -69,6 +69,16 @@ import { usePurchaseRequestsBySpkId } from "@/hooks/use-pr";
 import { ProductCombobox } from "./productCombobox";
 import { SourceProductType } from "@/schemas/pr";
 import { api } from "@/lib/http";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Product {
     id: string;
@@ -224,6 +234,7 @@ export function TabelInputPR({
     const [loadingAllKaryawan, setLoadingAllKaryawan] = useState(false);
     const lastProductRef = useRef<HTMLButtonElement | null>(null);
     const lastRowRef = useRef<HTMLTableRowElement | null>(null);
+    const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
 
 
     // Hook untuk mendapatkan histori PR berdasarkan SPK
@@ -558,6 +569,14 @@ export function TabelInputPR({
             return;
         }
 
+        setIsConfirmDialogOpen(true);
+    };
+
+    const handleConfirmSubmit = async () => {
+        const finalKaryawanId = karyawanData?.id || currentUser?.id;
+
+        if (!finalKaryawanId) return;
+
         try {
             // Debug log
             console.log("📝 Form Data before submit:", {
@@ -590,6 +609,8 @@ export function TabelInputPR({
             onSuccess();
         } catch (error) {
             console.error("Failed to submit purchase request:", error);
+        } finally {
+            setIsConfirmDialogOpen(false);
         }
     };
 
@@ -1365,6 +1386,32 @@ export function TabelInputPR({
                     </div>
                 </div>
             </form >
+
+            <AlertDialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Konfirmasi</AlertDialogTitle>
+                        <AlertDialogDescription className="flex flex-col gap-3" asChild>
+                            <div>
+                                <span>Anda yakin akan menyimpan data PR ini?</span>
+                                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 rounded-md p-3 text-sm">
+                                    <span className="font-bold">PENTING:</span> Apakah anda sudah memastikan Request PR ini adalah atas nama:
+                                    <div className="font-bold text-lg mt-1 text-center uppercase tracking-wide mb-4">
+                                        "{allKaryawan.find(k => k.id === formData.requestedById)?.namaLengkap || currentUser?.name || "..."}"
+                                    </div>
+                                    <span className="font-bold">INTEGRASI DATA:</span> Karena PR ini akan menghubungkan ke Data Accouting Staff Ledger:
+                                </div>
+                            </div>
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Batal</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleConfirmSubmit}>
+                            Ya, Simpan
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div >
     );
 }

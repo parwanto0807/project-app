@@ -22,10 +22,14 @@ import {
     FileCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
+
+const MotionTableRow = motion.create(TableRow);
 
 interface ExpandableRowProps {
     pr: PurchaseRequestWithRelations;
     index: number;
+    delay?: number;
     isExpanded: boolean;
     role: string;
     isDeleting: boolean;
@@ -44,6 +48,7 @@ export const ExpandableRow = forwardRef<HTMLTableRowElement, ExpandableRowProps>
         {
             pr,
             index,
+            delay = 0,
             isExpanded,
             role,
             isDeleting,
@@ -76,8 +81,12 @@ export const ExpandableRow = forwardRef<HTMLTableRowElement, ExpandableRowProps>
         return (
             <Fragment>
                 {/* ROW UTAMA + REF - PERBAIKAN: ref di-forward ke TableRow */}
-                <TableRow
+                <MotionTableRow
                     ref={ref} // 🟢 REF DI-FORWARD KE TABLE ROW
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.3, delay }}
                     data-highlight={highlightId === pr.spk?.id}
                     className={cn("transition-all duration-500")}
                     onClick={onToggle}
@@ -330,7 +339,7 @@ export const ExpandableRow = forwardRef<HTMLTableRowElement, ExpandableRowProps>
                             onDelete={onDelete}
                         />
                     </TableCell>
-                </TableRow>
+                </MotionTableRow>
 
                 {isExpanded && (
                     <TableRow>

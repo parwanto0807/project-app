@@ -832,7 +832,84 @@ export const createGoodsReceiptFromPO = async (req, res) => {
 
     const actualUserId = karyawan.userId || finalReceivedById;
 
-    // Prepare GR data
+    // Calculate remaining items
+    const pendingLines = purchaseOrder.lines
+        .map(line => {
+            const quantity = parseFloat(line.quantity) || 0;
+            const receivedQty = parseFloat(line.receivedQuantity) || 0;
+            const remainingQty = quantity - receivedQty;
+            
+            return {
+                ...line,
+                remainingQty
+            };
+        })
+        .filter(line => line.remainingQty > 0);
+
+    if (pendingLines.length === 0) {
+        const response = new ApiResponse({
+            success: false,
+            error: 'All items in this Purchase Order have been fully received.'
+        });
+        return res.status(400).json(response);
+    }
+
+    // Check for existing DRAFT GR
+    const existingDraftGR = await prisma.goodsReceipt.findFirst({
+      where: {
+        purchaseOrderId: poId,
+        status: 'DRAFT'
+      },
+      include: {
+        items: true
+      }
+    });
+
+    if (existingDraftGR) {
+      // Logic for existing Draft GR: Add missing items
+      const existingItemPOIds = new Set(existingDraftGR.items.map(i => i.purchaseOrderLineId));
+      
+      const newItemsToAdd = pendingLines.filter(line => !existingItemPOIds.has(line.id));
+
+      if (newItemsToAdd.length > 0) {
+        await prisma.$transaction(async (tx) => {
+            for (const line of newItemsToAdd) {
+                await tx.goodsReceiptItem.create({
+                    data: {
+                        goodsReceiptId: existingDraftGR.id,
+                        productId: line.productId,
+                        qtyPlanReceived: line.remainingQty,
+                        qtyReceived: 0,
+                        unit: line.product?.unit || 'PCS',
+                        qtyPassed: 0,
+                        qtyRejected: 0,
+                        status: 'RECEIVED', // Initial status
+                        qcStatus: 'PENDING',
+                        qcNotes: '',
+                        purchaseOrderLineId: line.id,
+                        stockDetailId: null
+                    }
+                });
+            }
+        });
+
+         const response = new ApiResponse({
+            success: true,
+            data: existingDraftGR,
+            message: `Updated existing Draft GR ${existingDraftGR.grNumber} with ${newItemsToAdd.length} new items.`
+        });
+        return res.status(200).json(response);
+      } else {
+         const response = new ApiResponse({
+            success: true,
+            data: existingDraftGR,
+            message: `Existing Draft GR ${existingDraftGR.grNumber} is already up to date.`
+        });
+        return res.status(200).json(response);
+      }
+    }
+
+    // Prepare GR data (New GR)
     const grData = {
       vendorDeliveryNote: '', // Empty, will be filled when supplier delivers
       vehicleNumber: '',
@@ -841,9 +918,9 @@ export const createGoodsReceiptFromPO = async (req, res) => {
       warehouseId: purchaseOrder.warehouseId,
       receivedById: actualUserId, // Use the User ID
       notes: `Auto-generated from PO ${purchaseOrder.poNumber}`,
-      items: purchaseOrder.lines.map(line => ({
+      items: pendingLines.map(line => ({
         productId: line.productId,
-        qtyPlanReceived: parseFloat(line.quantity), // Planned qty from PO
+        qtyPlanReceived: line.remainingQty, // Only plannes for what is remaining
         qtyReceived: 0, // Set to 0 - goods haven't arrived yet, just creating document
         unit: line.product?.unit || 'PCS',
         qtyPassed: 0, // Set to 0 - will be filled when goods actually arrive
@@ -854,8 +931,7 @@ export const createGoodsReceiptFromPO = async (req, res) => {
       }))
     };
 
-    // Use existing createGoodsReceipt logic
-    // Start transaction for creating GR with QC
+    // Start transaction for creating new GR
     const result = await prisma.$transaction(async (tx) => {
       // Auto-generate GR number inside transaction
       const now = new Date();
@@ -910,47 +986,25 @@ export const createGoodsReceiptFromPO = async (req, res) => {
       const createdItems = [];
       
       for (const item of grData.items) {
-        const receivedQty = item.qtyReceived;
-        const passedQty = item.qtyPassed;
-        const rejectedQty = item.qtyRejected;
-
-        // Determine item status
-        let itemStatus = 'RECEIVED';
-        if (rejectedQty > 0 && passedQty > 0) {
-          itemStatus = 'PARTIAL';
-        } else if (rejectedQty === receivedQty) {
-          itemStatus = 'REJECTED';
-        }
-
-        // NOTE: StockDetail will be created when GR is approved after QC
-        // For now, we just create the GR items as DRAFT
-        let stockDetail = null;
-
         // Create GoodsReceiptItem
         const grItem = await tx.goodsReceiptItem.create({
           data: {
             goodsReceiptId: goodsReceipt.id,
             productId: item.productId,
             qtyPlanReceived: item.qtyPlanReceived || 0, // Add planned quantity from PO
-            qtyReceived: receivedQty,
+            qtyReceived: item.qtyReceived,
             unit: item.unit,
-            qtyPassed: passedQty,
-            qtyRejected: rejectedQty,
-            status: itemStatus,
+            qtyPassed: item.qtyPassed,
+            qtyRejected: item.qtyRejected,
+            status: 'RECEIVED',
             qcStatus: item.qcStatus,
             qcNotes: item.qcNotes,
             purchaseOrderLineId: item.purchaseOrderLineId,
-            stockDetailId: stockDetail?.id || null
+            stockDetailId: null
           }
         });
 
         createdItems.push(grItem);
-
-        // NOTE: Stock balance will be updated when GR is approved after QC
-        // For DRAFT GR, we don't update stock yet
-
-        // NOTE: PO line receivedQuantity will be updated when GR is approved
-        // For DRAFT GR, we don't update PO line yet
       }
 
       return { goodsReceipt, items: createdItems };
