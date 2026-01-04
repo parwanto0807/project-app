@@ -34,6 +34,7 @@ import { id } from "date-fns/locale";
 import { PurchaseOrder } from "@/types/poType";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 
 interface PurchaseOrderTableProps {
@@ -83,7 +84,7 @@ const statusConfig = {
         iconColor: "text-red-600"
     },
     SENT: {
-        label: "Terkirim",
+        label: "PO Terkirim ke Supplier",
         className: "bg-purple-50 text-purple-800 border-purple-300",
         icon: Send,
         iconColor: "text-purple-600"
@@ -105,6 +106,18 @@ const statusConfig = {
         className: "bg-slate-100 text-slate-800 border-slate-300",
         icon: XCircle,
         iconColor: "text-slate-600"
+    },
+    UNVERIFIED_ACCOUNTING: {
+        label: "Verifikasi Accounting",
+        className: "bg-indigo-50 text-indigo-800 border-indigo-300",
+        icon: FileText,
+        iconColor: "text-indigo-600"
+    },
+    APPROVED_ACCOUNTING: {
+        label: "Disetujui Accounting",
+        className: "bg-teal-50 text-teal-800 border-teal-300",
+        icon: CheckCircle,
+        iconColor: "text-teal-600"
     },
 };
 
@@ -311,6 +324,50 @@ export default function PurchaseOrderTable({
     // Toggle view mode on mobile
     const toggleViewMode = () => {
         setViewMode(prev => prev === 'table' ? 'card' : 'table');
+    };
+
+    const [submittingId, setSubmittingId] = useState<string | null>(null);
+
+    const handleSubmitAccounting = async (poId: string, event: React.MouseEvent) => {
+        event.stopPropagation();
+        try {
+            setSubmittingId(poId);
+            let token = localStorage.getItem('token');
+            if (!token) {
+                // Fallback: Check cookies
+                const match = document.cookie.match(new RegExp('(^| )token=([^;]+)'));
+                if (match) token = match[2];
+            }
+
+            // Construct headers
+            const headers: HeadersInit = {
+                'Content-Type': 'application/json'
+            };
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/po/${poId}/submit-accounting`, {
+                method: 'POST',
+                headers,
+                credentials: 'include', // Important for sending cookies if token is not in header
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || result.message || "Failed to submit");
+            }
+
+            toast.success("Successfully submitted to accounting");
+            if (onRefresh) onRefresh();
+            else router.refresh();
+
+        } catch (error: any) {
+            toast.error(error.message);
+        } finally {
+            setSubmittingId(null);
+        }
     };
 
     if (isLoading && purchaseOrders.length === 0) {
@@ -629,15 +686,33 @@ export default function PurchaseOrderTable({
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            <Button
-                                                variant="default"
-                                                size="sm"
-                                                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md hover:shadow-lg transition-all duration-200 border-0"
-                                                onClick={() => handleView(po.id)}
-                                            >
-                                                <Eye className="mr-2 h-4 w-4" />
-                                                View Detail
-                                            </Button>
+                                            <div className="flex justify-end gap-2">
+                                                {po.status === "FULLY_RECEIVED" && po.warehouse?.isWip && (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100 hover:text-emerald-700 hover:border-emerald-300 shadow-sm"
+                                                        onClick={(e) => handleSubmitAccounting(po.id, e)}
+                                                        disabled={submittingId === po.id}
+                                                    >
+                                                        {submittingId === po.id ? (
+                                                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-600 border-r-transparent mr-2" />
+                                                        ) : (
+                                                            <Send className="mr-2 h-4 w-4" />
+                                                        )}
+                                                        {submittingId === po.id ? "Submitting..." : "Submit Accounting"}
+                                                    </Button>
+                                                )}
+                                                <Button
+                                                    variant="default"
+                                                    size="sm"
+                                                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md hover:shadow-lg transition-all duration-200 border-0"
+                                                    onClick={() => handleView(po.id)}
+                                                >
+                                                    <Eye className="mr-2 h-4 w-4" />
+                                                    View Detail
+                                                </Button>
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 );

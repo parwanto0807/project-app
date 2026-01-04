@@ -16,7 +16,8 @@ import {
   deletePurchaseExecution,
   updatePurchaseExecution,
   togglePOLineVerification,
-  updatePOLineActualData
+  updatePOLineActualData,
+  submitPOToAccounting
 } from '../../controllers/po/poController.js';
 
 import { authenticateToken } from '../../middleware/authMiddleware.js';
@@ -88,6 +89,9 @@ router.get('/:id', getPODetail);
 router.put('/:id', updatePO);           // Digunakan untuk edit Draft (isi harga & supplier)
 router.patch('/:id/status', updatePOStatus); // Digunakan untuk approval atau pembatalan
 router.post('/:id/send-email', authenticateToken, upload.single('file'), sendPOEmail); // Send Email
+
+// --- Submit to Accounting ---
+router.post('/:id/submit-accounting', authenticateToken, submitPOToAccounting);
 
 // --- Delete ---
 router.delete('/:id', deletePO);        // Hanya untuk DRAFT

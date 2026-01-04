@@ -5,12 +5,19 @@
 export type SupplierInvoiceStatus =
     | 'DRAFT'
     | 'REVISION_NEEDED'
+    | 'UNVERIFIED'
+    | 'VERIFIED'
     | 'PENDING_APPROVAL'
+    | 'APPROVED'
+    | 'POSTED'
     | 'AWAITING_PAYMENT'
     | 'PARTIALLY_PAID'
     | 'FULLY_PAID'
+    | 'VOIDED'
+    | 'CANCELLED'
     | 'OVERDUE'
-    | 'CANCELLED';
+    | 'DISPUTED'
+    | 'WRITTEN_OFF';
 
 
 export type PaymentMethod =
@@ -127,6 +134,9 @@ export interface PurchaseOrder {
     poNumber: string;
     orderDate: Date;
     totalAmount: number;
+    PurchaseRequest?: {
+        nomorPr: string;
+    } | null;
 }
 
 // ===================================================
@@ -327,15 +337,22 @@ export interface PaymentSummary {
 // CONSTANTS
 // ===================================================
 
-export const SUPPLIER_INVOICE_STATUS_OPTIONS: SupplierInvoiceStatusOption[] = [
+export const SUPPLIER_INVOICE_STATUS_OPTIONS: { value: SupplierInvoiceStatus; label: string; color: string }[] = [
     { value: 'DRAFT', label: 'Draft', color: 'gray' },
-    { value: 'REVISION_NEEDED', label: 'Revision Needed', color: 'amber' },
-    { value: 'PENDING_APPROVAL', label: 'Pending Approval', color: 'indigo' },
+    { value: 'REVISION_NEEDED', label: 'Revision Needed', color: 'orange' },
+    { value: 'UNVERIFIED', label: 'Unverified', color: 'yellow' },
+    { value: 'VERIFIED', label: 'Verified', color: 'blue' },
+    { value: 'PENDING_APPROVAL', label: 'Pending Approval', color: 'yellow' },
+    { value: 'APPROVED', label: 'Approved', color: 'blue' },
+    { value: 'POSTED', label: 'Posted', color: 'green' },
     { value: 'AWAITING_PAYMENT', label: 'Awaiting Payment', color: 'blue' },
-    { value: 'PARTIALLY_PAID', label: 'Partially Paid', color: 'yellow' },
+    { value: 'PARTIALLY_PAID', label: 'Partially Paid', color: 'blue' },
     { value: 'FULLY_PAID', label: 'Fully Paid', color: 'green' },
+    { value: 'VOIDED', label: 'Voided', color: 'red' },
+    { value: 'CANCELLED', label: 'Cancelled', color: 'red' },
     { value: 'OVERDUE', label: 'Overdue', color: 'red' },
-    { value: 'CANCELLED', label: 'Cancelled', color: 'gray' },
+    { value: 'DISPUTED', label: 'Disputed', color: 'orange' },
+    { value: 'WRITTEN_OFF', label: 'Written Off', color: 'gray' },
 ];
 
 export const PAYMENT_METHOD_OPTIONS: PaymentMethodOption[] = [

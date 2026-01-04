@@ -240,7 +240,7 @@ export function getMenuList(pathname: string, role: string) {
     },
     {
       groupLabel: "ACCOUNTING",
-      allowedRoles: ["super", "admin"],
+      allowedRoles: ["super", "admin", "pic"],
       menus: [
         {
           label: "Accounting Management",
@@ -262,9 +262,9 @@ export function getMenuList(pathname: string, role: string) {
             },
             {
               href: `${basePath}/accounting/supplier-invoice`,
-              label: "Supplier invoice",
+              label: role === "pic" ? "Penerimaan Invoice Supplier" : "Supplier invoice",
               active: isActive(`${basePath}/accounting/supplier-invoice`, pathname),
-              disabled: role === "user" || role === "pic",
+              disabled: role === "user",
             },
             {
               href: `${basePath}/accounting/supplier-payment`,

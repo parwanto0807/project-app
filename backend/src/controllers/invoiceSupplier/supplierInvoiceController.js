@@ -155,6 +155,11 @@ export const getAllSupplierInvoices = async (req, res) => {
                         select: {
                             id: true,
                             poNumber: true,
+                            PurchaseRequest: {
+                                select: {
+                                    nomorPr: true
+                                }
+                            }
                         },
                     },
                     items: {
@@ -414,19 +419,164 @@ export const updateSupplierInvoiceStatus = async (req, res) => {
             });
         }
 
-        const invoice = await prisma.supplierInvoice.update({
-            where: { id },
-            data: { status },
-            include: {
-                supplier: true,
-                items: true,
-            },
-        });
+        let updatedInvoice;
+
+        if (status === 'APPROVED') {
+            // Perform complex accounting logic transaction
+            updatedInvoice = await prisma.$transaction(async (tx) => {
+                // 1. Fetch Invoice with all necessary relations
+                const invoice = await tx.supplierInvoice.findUnique({
+                    where: { id },
+                    include: {
+                        supplier: true,
+                        items: true,
+                        purchaseOrder: {
+                            include: {
+                                PurchaseRequest: { // Fixed: purchaseRequest -> PurchaseRequest (Schema match)
+                                    include: {
+                                        requestedBy: true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+
+                if (!invoice) {
+                    throw new Error('Supplier invoice not found');
+                }
+
+                // Validation checks
+                if (!invoice.purchaseOrderId) {
+                    throw new Error('Invoice is not linked to a Purchase Order');
+                }
+                
+                // Allow fallback if requestedBy is missing but check logic carefully
+                // Note: The capitalized PurchaseRequest affects how we access it here too
+                const requester = invoice.purchaseOrder?.PurchaseRequest?.requestedBy;
+                if (!requester?.id) {
+                    throw new Error('Cannot find requesting employee (PIC) for this transaction');
+                }
+
+                const karyawanId = requester.id;
+                const totalAmount = Number(invoice.totalAmount);
+                const category = 'OPERASIONAL_PROYEK'; // STRICTLY OPERASIONAL, NOT PINJAMAN_PRIBADI
+
+                // CHECK PAYMENT TERM: CASH OR CREDIT
+                const invDate = new Date(invoice.invoiceDate);
+                const dDate = new Date(invoice.dueDate);
+                invDate.setHours(0,0,0,0);
+                dDate.setHours(0,0,0,0);
+                const isCash = invDate.getTime() === dDate.getTime();
+
+                if (isCash) {
+                    console.log(`💰 Invoice ${invoice.invoiceNumber} is CASH. Processing Staff Balance deduction...`);
+                    
+                    // 2. Manage Staff Balance
+                    // Check if balance exists
+                    let staffBalance = await tx.staffBalance.findUnique({
+                        where: {
+                            karyawanId_category: {
+                                karyawanId,
+                                category
+                            }
+                        }
+                    });
+
+                    // Create if not exists
+                    if (!staffBalance) {
+                        staffBalance = await tx.staffBalance.create({
+                            data: {
+                                karyawanId,
+                                category,
+                                amount: 0,
+                                totalIn: 0,
+                                totalOut: 0
+                            }
+                        });
+                    }
+
+                    const currentAmount = Number(staffBalance.amount);
+                    const newBalance = currentAmount - totalAmount;
+
+                    // Update Staff Balance
+                    await tx.staffBalance.update({
+                        where: { id: staffBalance.id },
+                        data: {
+                            amount: newBalance,
+                            totalOut: { increment: totalAmount }
+                        }
+                    });
+
+                    // 3. Create Staff Ledger Entry (Audit Trail)
+                    await tx.staffLedger.create({
+                        data: {
+                            karyawanId,
+                            category,
+                            type: 'EXPENSE_REPORT', // Assumed type for invoice settlement/usage
+                            tanggal: new Date(),
+                            keterangan: `Invoice Supplier Approved (CASH): ${invoice.invoiceNumber} (PO: ${invoice.purchaseOrder.poNumber})`,
+                            saldoAwal: currentAmount,
+                            debit: 0,
+                            kredit: totalAmount,
+                            saldo: newBalance,
+                            purchaseRequestId: invoice.purchaseOrder.PurchaseRequest.id, // Fixed: Capitalized PurchaseRequest
+                            refId: invoice.id,
+                            createdBy: 'SYSTEM'
+                        }
+                    });
+                } else {
+                    console.log(`💳 Invoice ${invoice.invoiceNumber} is CREDIT. Skipping Staff Balance deduction.`);
+                }
+
+                // 4. Update Purchase Order Status
+                await tx.purchaseOrder.update({
+                    where: { id: invoice.purchaseOrderId },
+                    data: { status: 'APPROVED_ACCOUNTING' }
+                });
+
+                // 5. Update Purchase Order Lines (Actuals)
+                if (invoice.items && invoice.items.length > 0) {
+                    for (const item of invoice.items) {
+                        if (item.poLineId) {
+                            await tx.purchaseOrderLine.update({
+                                where: { id: item.poLineId },
+                                data: {
+                                    qtyActual: item.quantity,
+                                    unitPriceActual: item.unitPrice
+                                }
+                            });
+                        }
+                    }
+                }
+
+                // 6. Finally Update Invoice Status
+                return await tx.supplierInvoice.update({
+                    where: { id },
+                    data: { status: 'APPROVED' },
+                    include: {
+                        supplier: true,
+                        items: true,
+                    },
+                });
+            });
+
+        } else {
+            // Standard update for other statuses
+            updatedInvoice = await prisma.supplierInvoice.update({
+                where: { id },
+                data: { status },
+                include: {
+                    supplier: true,
+                    items: true,
+                },
+            });
+        }
 
         res.status(200).json({
             success: true,
             message: 'Invoice status updated successfully',
-            data: invoice,
+            data: updatedInvoice,
         });
     } catch (error) {
         console.error('Error updating invoice status:', error);

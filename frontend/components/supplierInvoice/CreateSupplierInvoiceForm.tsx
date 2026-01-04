@@ -53,6 +53,17 @@ import { createSupplierInvoice, generateSupplierInvoiceNumber } from "@/lib/acti
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { getGoodsReceipts } from "@/lib/actions/goodsReceipt";
 
 interface Supplier {
     id: string;
@@ -73,13 +84,15 @@ interface PurchaseOrder {
 interface POLine {
     id: string;
     productId: string;
-    description: string;
+    description: string; // Deskripsi dari PO Line
     quantity: number;
     unitPrice: number;
     totalAmount: number;
     product?: {
         id: string;
         name: string;
+        code?: string;
+        description?: string; // Deskripsi master product
     };
 }
 
@@ -90,9 +103,10 @@ interface InvoiceItem extends POLine {
     receivedTotal: number;
     priceVariance: number;
     variancePercentage: number;
+    grQuantity?: number; // Added to track GR quantity
 }
 
-export default function CreateSupplierInvoiceForm() {
+export default function CreateSupplierInvoiceForm({ role = "admin" }: { role?: string }) {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [loadingPO, setLoadingPO] = useState(false);
@@ -110,9 +124,12 @@ export default function CreateSupplierInvoiceForm() {
         return format(nextWeek, "yyyy-MM-dd");
     });
     const [taxAmount, setTaxAmount] = useState<string>("0");
-    const [taxRate, setTaxRate] = useState<number>(11);
+    const [taxRate, setTaxRate] = useState<number>(0);
     const [items, setItems] = useState<InvoiceItem[]>([]);
     const [step, setStep] = useState(1);
+
+    const [varianceDialogOpen, setVarianceDialogOpen] = useState(false);
+    const [varianceDetails, setVarianceDetails] = useState<{ productName: string; invoiceQty: number; grQty: number; isGr: boolean }[]>([]);
 
     // Generate auto number on load
     useEffect(() => {
@@ -140,7 +157,7 @@ export default function CreateSupplierInvoiceForm() {
     useEffect(() => {
         const fetchSuppliers = async () => {
             try {
-                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/supplier`);
+                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/supplier?activeOnly=true&onWip=false`);
                 const data = await response.json();
                 if (data.success) setSuppliers(data.data);
             } catch (error) {
@@ -186,30 +203,63 @@ export default function CreateSupplierInvoiceForm() {
         setLoadingPO(true);
 
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/po/${poId}`);
-            const data = await response.json();
+            // Fetch PO details and Goods Receipts in parallel
+            const [poResponse, grResponse] = await Promise.all([
+                fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/po/${poId}`).then(res => res.json()),
+                getGoodsReceipts({ purchaseOrderId: poId, limit: 100 })
+            ]);
 
-            if (data.success && data.data.lines) {
-                const poLines: InvoiceItem[] = data.data.lines.map((line: POLine) => {
+            if (poResponse.success && poResponse.data.lines) {
+                const grItemsMap = new Map<string, number>();
+
+                // Aggregate GR quantities by PO Line ID
+                if (grResponse.success && grResponse.data?.data) {
+                    grResponse.data.data.forEach((gr: any) => {
+                        if (gr.items && Array.isArray(gr.items)) {
+                            gr.items.forEach((item: any) => {
+                                if (item.purchaseOrderLineId) {
+                                    const currentQty = grItemsMap.get(item.purchaseOrderLineId) || 0;
+                                    grItemsMap.set(item.purchaseOrderLineId, currentQty + (Number(item.qtyPassed) || 0));
+                                }
+                            });
+                        }
+                    });
+                }
+
+                const poLines: InvoiceItem[] = poResponse.data.lines.map((line: POLine) => {
                     const variance = 0;
                     const variancePercentage = line.totalAmount > 0 ? (variance / line.totalAmount) * 100 : 0;
+
+                    // Use GR quantity if available, otherwise fallback to PO quantity
+                    const grQty = grItemsMap.get(line.id);
+                    const initialQty = grQty !== undefined ? grQty : line.quantity;
 
                     return {
                         ...line,
                         checked: true,
-                        receivedQuantity: line.quantity,
+                        receivedQuantity: initialQty,
                         receivedPrice: line.unitPrice,
-                        receivedTotal: line.totalAmount,
+                        receivedTotal: initialQty * line.unitPrice,
                         priceVariance: variance,
                         variancePercentage,
+                        grQuantity: grQty,
                     };
                 });
 
                 setItems(poLines);
                 setStep(3);
-                toast.success(`${poLines.length} items loaded from PO`, {
-                    icon: <Package className="h-5 w-5 text-emerald-600" />,
-                });
+
+                // Show info toast about loaded items
+                const grLoadedCount = poLines.filter(p => p.grQuantity !== undefined).length;
+                if (grLoadedCount > 0) {
+                    toast.success(`${poLines.length} items loaded. ${grLoadedCount} items matched with Goods Receipts.`, {
+                        icon: <Package className="h-5 w-5 text-emerald-600" />,
+                    });
+                } else {
+                    toast.success(`${poLines.length} items loaded from PO`, {
+                        icon: <Package className="h-5 w-5 text-emerald-600" />,
+                    });
+                }
             }
         } catch (error) {
             toast.error("Failed to load PO items");
@@ -276,7 +326,7 @@ export default function CreateSupplierInvoiceForm() {
     const checkedItemsCount = items.filter(item => item.checked).length;
     const totalItemsCount = items.length;
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const checkVarianceAndSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
         if (!internalInvoiceNumber || !supplierInvoiceNumber || !supplierId || !purchaseOrderId) {
@@ -290,8 +340,34 @@ export default function CreateSupplierInvoiceForm() {
             return;
         }
 
+        // Check for variances between Invoice Qty (receivedQuantity) and GR Qty
+        // If GR exists, compare with GR. If not, we assume PO Qty is the reference (but usually receiveQuantity defaults to it anyway)
+        const variances = checkedItems
+            .filter(item => {
+                const targetQty = item.grQuantity !== undefined ? item.grQuantity : item.quantity;
+                return Math.abs(Number(item.receivedQuantity) - Number(targetQty)) > 0.001;
+            })
+            .map(item => ({
+                productName: item.product?.name || item.description,
+                invoiceQty: item.receivedQuantity,
+                grQty: item.grQuantity !== undefined ? item.grQuantity : item.quantity,
+                isGr: item.grQuantity !== undefined
+            }));
+
+        if (variances.length > 0) {
+            setVarianceDetails(variances);
+            setVarianceDialogOpen(true);
+        } else {
+            executeSubmit();
+        }
+    };
+
+    const executeSubmit = async () => {
+        const checkedItems = items.filter(item => item.checked);
+
         try {
             setLoading(true);
+            setVarianceDialogOpen(false); // Close dialog if open
 
             const response = await createSupplierInvoice({
                 invoiceNumber: supplierInvoiceNumber,
@@ -317,7 +393,9 @@ export default function CreateSupplierInvoiceForm() {
                 toast.success("Supplier invoice created successfully", {
                     icon: <CheckCircle2 className="h-5 w-5 text-emerald-600" />,
                 });
-                router.push("/admin-area/accounting/supplier-invoice");
+                // Determine redirect path based on role
+                const basePath = role === "pic" ? "/pic-area" : role === "super" ? "/super-admin-area" : "/admin-area";
+                router.push(`${basePath}/accounting/supplier-invoice`);
             } else {
                 toast.error(response.message || "Failed to create invoice");
             }
@@ -338,7 +416,7 @@ export default function CreateSupplierInvoiceForm() {
     };
 
     return (
-        <div className="max-w-7xl mx-auto space-y-8 p-4 md:p-6">
+        <div className="max-w-7xl mx-auto space-y-8 p-4 md:p-6 bg-gray-100 rounded-xl dark:bg-slate-900">
             {/* Header */}
             <div className="space-y-2">
                 <div className="flex items-center gap-3">
@@ -383,7 +461,43 @@ export default function CreateSupplierInvoiceForm() {
                 ))}
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Variance Dialog */}
+            <AlertDialog open={varianceDialogOpen} onOpenChange={setVarianceDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center gap-2">
+                            <AlertTriangle className="h-5 w-5 text-amber-600" />
+                            Selisih Jumlah Terdeteksi
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="space-y-4 pt-2" asChild>
+                            <div>
+                                <div className="text-muted-foreground font-medium">Item berikut memiliki perbedaan antara Kuantitas PO dan Kuantitas Penerimaan Barang:</div>
+                                <div className="bg-gray-50 rounded-lg p-3 space-y-3 max-h-[300px] overflow-y-auto border border-gray-200">
+                                    {varianceDetails.map((detail, idx) => (
+                                        <div key={idx} className="flex flex-col text-sm border-b border-gray-200 last:border-0 pb-2 last:pb-0">
+                                            <span className="font-bold text-gray-900 text-base">{detail.productName}</span>
+                                            <div className="flex gap-4 mt-1 text-gray-700 font-semibold">
+                                                <span>Qty Inv: <span className="font-bold text-gray-900">{detail.invoiceQty}</span></span>
+                                                <span>Qty {detail.isGr ? 'GR' : 'PO'}: <span className="font-bold text-amber-600">{detail.grQty}</span></span>
+                                                <span>Selisih: <span className="font-bold text-red-600">{detail.grQty - detail.invoiceQty}</span></span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                <p className="font-medium">Apakah Anda ingin melanjutkan pembuatan faktur berdasarkan kuantitas yang disesuaikan (default ke kuantitas GR jika tersedia)?</p>
+                            </div>
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Batal</AlertDialogCancel>
+                        <AlertDialogAction onClick={executeSubmit} className="bg-amber-600 hover:bg-amber-700">
+                            Lanjutkan
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <form onSubmit={checkVarianceAndSubmit} className="space-y-6">
                 {/* Step 1: Basic Information */}
                 <Card className={cn("border-gray-100 shadow-sm transition-all", step >= 1 ? "opacity-100" : "opacity-60")}>
                     <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-50/50 border-b">
@@ -467,42 +581,44 @@ export default function CreateSupplierInvoiceForm() {
                             </div>
 
                             {/* Invoice Date */}
-                            <div className="space-y-2">
-                                <Label htmlFor="invoiceDate" className="text-sm font-medium flex items-center gap-2">
-                                    <div className="p-1.5 bg-emerald-100 rounded">
-                                        <Calendar className="h-3 w-3 text-emerald-600" />
-                                    </div>
-                                    Invoice Date *
-                                </Label>
-                                <Input
-                                    id="invoiceDate"
-                                    type="date"
-                                    value={invoiceDate}
-                                    onChange={(e) => setInvoiceDate(e.target.value)}
-                                    required
-                                    className="h-11 border-gray-200"
-                                />
-                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="invoiceDate" className="text-sm font-medium flex items-center gap-2">
+                                        <div className="p-1.5 bg-emerald-100 rounded">
+                                            <Calendar className="h-3 w-3 text-emerald-600" />
+                                        </div>
+                                        Invoice Date *
+                                    </Label>
+                                    <Input
+                                        id="invoiceDate"
+                                        type="date"
+                                        value={invoiceDate}
+                                        onChange={(e) => setInvoiceDate(e.target.value)}
+                                        required
+                                        className="h-11 border-gray-200"
+                                    />
+                                </div>
 
-                            {/* Due Date */}
-                            <div className="space-y-2">
-                                <Label htmlFor="dueDate" className="text-sm font-medium flex items-center gap-2">
-                                    <div className="p-1.5 bg-rose-100 rounded">
-                                        <Calendar className="h-3 w-3 text-rose-600" />
-                                    </div>
-                                    Due Date *
-                                </Label>
-                                <Input
-                                    id="dueDate"
-                                    type="date"
-                                    value={dueDate}
-                                    onChange={(e) => setDueDate(e.target.value)}
-                                    required
-                                    className="h-11 border-gray-200"
-                                />
-                                <p className="text-xs text-gray-500">
-                                    {format(new Date(dueDate), "dd MMMM yyyy", { locale: idLocale })}
-                                </p>
+                                {/* Due Date */}
+                                <div className="space-y-2">
+                                    <Label htmlFor="dueDate" className="text-sm font-medium flex items-center gap-2">
+                                        <div className="p-1.5 bg-rose-100 rounded">
+                                            <Calendar className="h-3 w-3 text-rose-600" />
+                                        </div>
+                                        Due Date *
+                                    </Label>
+                                    <Input
+                                        id="dueDate"
+                                        type="date"
+                                        value={dueDate}
+                                        onChange={(e) => setDueDate(e.target.value)}
+                                        required
+                                        className="h-11 border-gray-200"
+                                    />
+                                    <p className="text-xs text-gray-500">
+                                        {format(new Date(dueDate), "dd MMMM yyyy", { locale: idLocale })}
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </CardContent>
@@ -521,7 +637,7 @@ export default function CreateSupplierInvoiceForm() {
                             </div>
                         </div>
                     </CardHeader>
-                    <CardContent className="pt-6">
+                    <CardContent className="pt-2">
                         <div className="space-y-4">
                             <div className="space-y-2">
                                 <Label className="text-sm font-medium flex items-center gap-2">
@@ -606,6 +722,7 @@ export default function CreateSupplierInvoiceForm() {
                                                 <TableHead className="font-semibold text-gray-700 text-right">PO Qty</TableHead>
                                                 <TableHead className="font-semibold text-gray-700 text-right">PO Price</TableHead>
                                                 <TableHead className="font-semibold text-gray-700 text-right">Invoice Qty</TableHead>
+                                                <TableHead className="font-semibold text-gray-700 text-center">Qty GR Match</TableHead>
                                                 <TableHead className="font-semibold text-gray-700 text-right">Invoice Price</TableHead>
                                                 <TableHead className="font-semibold text-gray-700 text-right">Total</TableHead>
                                                 <TableHead className="font-semibold text-gray-700 text-right">Variance</TableHead>
@@ -640,7 +757,7 @@ export default function CreateSupplierInvoiceForm() {
                                                                 {item.product?.name || item.description}
                                                             </p>
                                                             {item.product?.id && (
-                                                                <p className="text-xs text-gray-500">ID: {item.product.id}</p>
+                                                                <p className="text-xs text-gray-500 text-wrap">Desc.: {item.product.description}</p>
                                                             )}
                                                         </div>
                                                     </TableCell>
@@ -660,6 +777,22 @@ export default function CreateSupplierInvoiceForm() {
                                                             disabled={!item.checked}
                                                             className="h-9 text-right border-gray-200"
                                                         />
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <div className="flex items-center justify-center">
+                                                            {item.grQuantity !== undefined && (
+                                                                item.receivedQuantity === item.grQuantity ? (
+                                                                    <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-50 text-emerald-700 rounded-md border border-emerald-100">
+                                                                        <CheckCircle2 className="h-3.5 w-3.5" />
+                                                                        <span className="text-xs font-medium">Match</span>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="text-xs text-gray-500 text-center bg-gray-100 px-2 py-1 rounded" title={`GR Quantity: ${item.grQuantity}`}>
+                                                                        Qty GR = {item.grQuantity}
+                                                                    </div>
+                                                                )
+                                                            )}
+                                                        </div>
                                                     </TableCell>
                                                     <TableCell>
                                                         <Input

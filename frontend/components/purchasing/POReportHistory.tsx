@@ -397,7 +397,7 @@ const POLineItem: React.FC<{
                         </div>
                         <div className="flex-1 min-w-0">
                             <div className="font-semibold text-gray-900 dark:text-gray-100 truncate">
-                                {poLine?.product?.name || "Unknown Product"}
+                                {poLine?.product?.name || "Produk Tidak Diketahui"}
                             </div>
                             <div className="text-xs text-gray-500 mt-0.5">
                                 SKU: {poLine?.product?.sku || "-"}
@@ -480,10 +480,10 @@ const POLineItem: React.FC<{
                 <div className="grid grid-cols-3 gap-4 mt-4">
                     {/* Quantity Comparison */}
                     <div className="space-y-2">
-                        <div className="text-xs font-semibold text-gray-500 uppercase">Quantity</div>
+                        <div className="text-xs font-semibold text-gray-500 uppercase">Kuantitas</div>
                         <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border">
                             <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs text-gray-500">PO Qty:</span>
+                                <span className="text-xs text-gray-500">Qty PO:</span>
                                 <span className="text-sm font-bold">{poQty} {poLine?.product?.purchaseUnit || 'unit'}</span>
                             </div>
 
@@ -497,7 +497,7 @@ const POLineItem: React.FC<{
                                 />
                             ) : (
                                 <div className="flex items-center justify-between">
-                                    <span className="text-xs text-gray-500">Actual:</span>
+                                    <span className="text-xs text-gray-500">Aktual:</span>
                                     <span className={`text-sm font-bold ${actualQty > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`}>
                                         {actualQty > 0 ? `${actualQty} ${poLine?.product?.purchaseUnit || 'unit'}` : '-'}
                                     </span>
@@ -508,12 +508,12 @@ const POLineItem: React.FC<{
                                 <div className="mt-2 flex items-center gap-1 text-xs">
                                     {Math.abs(actualQty - poQty) < 0.01 ? (
                                         <span className="text-green-600 font-medium flex items-center">
-                                            <CheckCircle2 className="w-3 h-3 mr-1" /> Match
+                                            <CheckCircle2 className="w-3 h-3 mr-1" /> Cocok
                                         </span>
                                     ) : (
                                         <span className="text-amber-600 font-medium flex items-center">
                                             {actualQty > poQty ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
-                                            {Math.abs(actualQty - poQty)} {actualQty > poQty ? 'Over' : 'Under'}
+                                            {Math.abs(actualQty - poQty)} {actualQty > poQty ? 'Lebih' : 'Kurang'}
                                         </span>
                                     )}
                                 </div>
@@ -523,10 +523,10 @@ const POLineItem: React.FC<{
 
                     {/* Price Comparison */}
                     <div className="space-y-2">
-                        <div className="text-xs font-semibold text-gray-500 uppercase">Unit Price</div>
+                        <div className="text-xs font-semibold text-gray-500 uppercase">Harga Satuan</div>
                         <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border">
                             <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs text-gray-500">PO Price:</span>
+                                <span className="text-xs text-gray-500">Harga PO:</span>
                                 <span className="text-sm font-bold">{formatCurrency(poUnitPrice)}</span>
                             </div>
 
@@ -540,7 +540,7 @@ const POLineItem: React.FC<{
                                 />
                             ) : (
                                 <div className="flex items-center justify-between">
-                                    <span className="text-xs text-gray-500">Actual:</span>
+                                    <span className="text-xs text-gray-500">Aktual:</span>
                                     <span className={`text-sm font-bold ${actualUnitPrice > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-gray-400'}`}>
                                         {actualUnitPrice > 0 ? formatCurrency(actualUnitPrice) : '-'}
                                     </span>
@@ -551,12 +551,12 @@ const POLineItem: React.FC<{
                                 <div className="mt-2 flex items-center gap-1 text-xs">
                                     {Math.abs(actualUnitPrice - poUnitPrice) < 1 ? (
                                         <span className="text-green-600 font-medium flex items-center">
-                                            <CheckCircle2 className="w-3 h-3 mr-1" /> Match
+                                            <CheckCircle2 className="w-3 h-3 mr-1" /> Cocok
                                         </span>
                                     ) : (
                                         <span className="text-amber-600 font-medium flex items-center">
                                             {actualUnitPrice > poUnitPrice ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
-                                            {formatCurrency(Math.abs(actualUnitPrice - poUnitPrice))} Diff
+                                            {formatCurrency(Math.abs(actualUnitPrice - poUnitPrice))} Selisih
                                         </span>
                                     )}
                                 </div>
@@ -566,15 +566,15 @@ const POLineItem: React.FC<{
 
                     {/* Total Price Comparison */}
                     <div className="space-y-2">
-                        <div className="text-xs font-semibold text-gray-500 uppercase">Total Price</div>
+                        <div className="text-xs font-semibold text-gray-500 uppercase">Total Harga</div>
                         <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border">
                             <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs text-gray-500">PO Total:</span>
+                                <span className="text-xs text-gray-500">Total PO:</span>
                                 <span className="text-sm font-bold">{formatCurrency(poQty * poUnitPrice)}</span>
                             </div>
                             <Separator className="my-2" />
                             <div className="flex items-center justify-between">
-                                <span className="text-xs text-gray-500">Actual Total:</span>
+                                <span className="text-xs text-gray-500">Total Aktual:</span>
                                 <span className={`text-sm font-bold ${actualQty > 0 && actualUnitPrice > 0 ? 'text-blue-700 dark:text-blue-400' : 'text-gray-400'}`}>
                                     {actualQty > 0 && actualUnitPrice > 0 ? formatCurrency(actualQty * actualUnitPrice) : '-'}
                                 </span>
@@ -584,7 +584,7 @@ const POLineItem: React.FC<{
                                     {Math.abs((actualQty * actualUnitPrice) - (poQty * poUnitPrice)) < 1 ? (
                                         <>
                                             <CheckCircle2 className="w-3 h-3 text-green-600" />
-                                            <span className="text-green-600 font-medium">Match</span>
+                                            <span className="text-green-600 font-medium">Cocok</span>
                                         </>
                                     ) : (
                                         <>

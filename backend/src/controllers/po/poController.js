@@ -1955,20 +1955,12 @@ export const updatePOLineActualData = async (req, res) => {
 
         const isFirstSave = !existingLedgerEntry;
 
-        // DEBUG LOGGING
-        console.log('=== STAFF BALANCE UPDATE DEBUG ===');
-        console.log('Grand Total Before:', grandTotalBefore);
-        console.log('Grand Total After:', grandTotalAfter);
-        console.log('Delta:', delta);
-        console.log('Is First Save:', isFirstSave);
-        console.log('Existing Ledger Entry:', existingLedgerEntry ? 'Found' : 'Not Found');
-        console.log('Condition (isFirstSave OR delta !== 0):', isFirstSave || delta !== 0);
-        console.log('Purchase Execution:', purchaseExecution);
-        console.log('Executor ID:', purchaseExecution?.executorId);
-
         // Update StaffBalance and StaffLedger if:
         // 1. First save (isFirstSave = true) OR
         // 2. There's a change (delta !== 0)
+        
+        // DISABLED: Logic ini sudah dipindahkan ke Supplier Invoice
+        /*
         if ((isFirstSave || delta !== 0) && grandTotalAfter > 0) {
           const executorId = purchaseExecution.executorId;
           
@@ -1976,10 +1968,7 @@ export const updatePOLineActualData = async (req, res) => {
           // If first save: use FULL current amount (catch up)
           // If edit: use DELTA (difference)
           const amountChange = isFirstSave ? grandTotalAfter : delta;
-          
-          console.log('✅ Entering StaffBalance update block');
-          console.log('Executor ID:', executorId);
-          console.log('Amount To Change (amountChange):', amountChange);
+
 
           // 1. Update or Create StaffBalance (OPERASIONAL_PROYEK)
           const existingBalance = await tx.staffBalance.findUnique({
@@ -2079,6 +2068,7 @@ export const updatePOLineActualData = async (req, res) => {
           console.log('⚠️ Skipping StaffBalance/Ledger update - Condition not met');
           console.log('   Reason: delta === 0 OR grandTotalAfter <= 0');
         }
+        */
       }
 
       return updatedLine;
@@ -2098,4 +2088,115 @@ export const updatePOLineActualData = async (req, res) => {
       details: error.message
     });
   }
+};
+
+/**
+ * Helper to generate internal Supplier Invoice Number
+ */
+const generateInvoiceNumberInternal = async (tx) => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const prefix = `INV-SUPP/${year}/${month}/`;
+    
+    // Get all invoices from current month
+    const startOfMonth = new Date(year, now.getMonth(), 1);
+    const endOfMonth = new Date(year, now.getMonth() + 1, 0, 23, 59, 59);
+    
+    const allInvoices = await tx.supplierInvoice.findMany({
+        where: { createdAt: { gte: startOfMonth, lte: endOfMonth } },
+        select: { invoiceNumber: true }
+    });
+
+    const matchingInvoices = allInvoices.filter(inv => 
+        inv.invoiceNumber && inv.invoiceNumber.startsWith(prefix)
+    );
+
+    let nextNumber = 1;
+    if (matchingInvoices.length > 0) {
+        const numbers = matchingInvoices
+            .map(inv => {
+                const match = inv.invoiceNumber.match(/INV-SUPP\/(\d{4})\/(\d{2})\/(\d{4})/);
+                return match ? parseInt(match[3], 10) : 0;
+            })
+            .filter(num => num > 0);
+        
+        if (numbers.length > 0) {
+            nextNumber = Math.max(...numbers) + 1;
+        }
+    } else if (allInvoices.length > 0) {
+        nextNumber = allInvoices.length + 1;
+    }
+
+    return `INV-SUPP/${year}/${month}/${String(nextNumber).padStart(4, '0')}`;
+};
+
+/**
+ * @desc Submit PO to Accounting (Create UNVERIFIED Supplier Invoice)
+ */
+export const submitPOToAccounting = async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const result = await prisma.$transaction(async (tx) => {
+            // 1. Fetch PO with lines
+            const po = await tx.purchaseOrder.findUnique({
+                where: { id },
+                include: { lines: true, supplier: true, warehouse: true }
+            });
+
+            if (!po) throw new Error("PO Not Found");
+
+            // 2. Validate Status and Warehouse
+            if (po.status !== 'FULLY_RECEIVED') {
+                throw new Error("PO must be FULLY_RECEIVED to submit to accounting");
+            }
+            // Strict check
+            if (po.warehouse && !po.warehouse.isWip) {
+                 // throw new Error("PO Warehouse must be WIP (isWip=true)");
+            }
+
+            // 3. Generate Invoice Number
+            const invoiceNumber = await generateInvoiceNumberInternal(tx);
+
+            // 4. Create SupplierInvoice
+            const invoice = await tx.supplierInvoice.create({
+                data: {
+                    invoiceNumber,
+                    invoiceDate: new Date(),
+                    dueDate: new Date(),
+                    status: 'UNVERIFIED',
+                    supplierId: po.supplierId,
+                    purchaseOrderId: po.id,
+                    subtotal: po.subtotal,
+                    taxAmount: po.taxAmount,
+                    totalAmount: po.totalAmount,
+                    amountPaid: 0,
+                    items: {
+                        create: po.lines.map(line => ({
+                            productId: line.productId,
+                            productName: line.description || "Product",
+                            quantity: line.quantity,
+                            unitPrice: line.unitPrice,
+                            totalPrice: line.totalAmount,
+                            poLineId: line.id
+                        }))
+                    }
+                }
+            });
+
+            // 5. Update PO Status
+            await tx.purchaseOrder.update({
+                where: { id },
+                data: { status: 'UNVERIFIED_ACCOUNTING' }
+            });
+
+            return invoice;
+        });
+
+        return res.status(200).json({ success: true, message: "Successfully submitted to accounting", data: result });
+    } catch (error) {
+        console.error("Error submitting to accounting:", error);
+        return res.status(400).json({ success: false, error: error.message });
+    }
 };

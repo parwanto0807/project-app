@@ -170,6 +170,62 @@ const statusConfig: Record<string, any> = {
         iconColor: "text-slate-600 dark:text-slate-400",
         gradient: "from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900",
     },
+    INVOICE_RECEIVED: {
+        label: "Invoice Diterima",
+        className: "bg-violet-50 text-violet-800 border-violet-300 dark:bg-violet-950/50 dark:text-violet-300 dark:border-violet-800 shadow-sm",
+        icon: FileText,
+        iconColor: "text-violet-600 dark:text-violet-400",
+        gradient: "from-violet-50 to-violet-100 dark:from-violet-950 dark:to-violet-900",
+    },
+    UNVERIFIED_ACCOUNTING: {
+        label: "Verifikasi Akunting",
+        className: "bg-yellow-50 text-yellow-800 border-yellow-300 dark:bg-yellow-950/50 dark:text-yellow-300 dark:border-yellow-800 shadow-sm",
+        icon: Clock,
+        iconColor: "text-yellow-600 dark:text-yellow-400",
+        gradient: "from-yellow-50 to-yellow-100 dark:from-yellow-950 dark:to-yellow-900",
+    },
+    VERIFIED_ACCOUNTING: {
+        label: "Terverifikasi Akunting",
+        className: "bg-blue-50 text-blue-800 border-blue-300 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800 shadow-sm",
+        icon: CheckCircle,
+        iconColor: "text-blue-600 dark:text-blue-400",
+        gradient: "from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900",
+    },
+    APPROVED_ACCOUNTING: {
+        label: "Disetujui Accounting",
+        className: "bg-indigo-50 text-indigo-800 border-indigo-300 dark:bg-indigo-950/50 dark:text-indigo-300 dark:border-indigo-800 shadow-sm",
+        icon: CheckCircle,
+        iconColor: "text-indigo-600 dark:text-indigo-400",
+        gradient: "from-indigo-50 to-indigo-100 dark:from-indigo-950 dark:to-indigo-900",
+    },
+    POSTED: {
+        label: "Terbukukan (Posted)",
+        className: "bg-lime-50 text-lime-800 border-lime-300 dark:bg-lime-950/50 dark:text-lime-300 dark:border-lime-800 shadow-sm",
+        icon: FileCheck,
+        iconColor: "text-lime-600 dark:text-lime-400",
+        gradient: "from-lime-50 to-lime-100 dark:from-lime-950 dark:to-lime-900",
+    },
+    AWAITING_PAYMENT: {
+        label: "Menunggu Pembayaran",
+        className: "bg-cyan-50 text-cyan-800 border-cyan-300 dark:bg-cyan-950/50 dark:text-cyan-300 dark:border-cyan-800 shadow-sm",
+        icon: Clock,
+        iconColor: "text-cyan-600 dark:text-cyan-400",
+        gradient: "from-cyan-50 to-cyan-100 dark:from-cyan-950 dark:to-cyan-900",
+    },
+    PARTIALLY_PAID: {
+        label: "Dibayar Sebagian",
+        className: "bg-teal-50 text-teal-800 border-teal-300 dark:bg-teal-950/50 dark:text-teal-300 dark:border-teal-800 shadow-sm",
+        icon: DollarSign,
+        iconColor: "text-teal-600 dark:text-teal-400",
+        gradient: "from-teal-50 to-teal-100 dark:from-teal-950 dark:to-teal-900",
+    },
+    FULLY_PAID: {
+        label: "Lunas",
+        className: "bg-green-50 text-green-800 border-green-300 dark:bg-green-950/50 dark:text-green-300 dark:border-green-800 shadow-sm",
+        icon: CheckCircle,
+        iconColor: "text-green-600 dark:text-green-400",
+        gradient: "from-green-50 to-green-100 dark:from-green-950 dark:to-green-900",
+    },
 };
 
 const nextStatusOptionsMap: Record<string, string[]> = {
@@ -516,8 +572,9 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
         );
     }
 
-    const StatusIcon = statusConfig[purchaseOrder.status].icon;
-    const statusIconColor = statusConfig[purchaseOrder.status].iconColor;
+    const config = statusConfig[purchaseOrder.status] || statusConfig['DRAFT'];
+    const StatusIcon = config.icon;
+    const statusIconColor = config.iconColor;
 
     // Get base status options
     const baseStatusOptions = nextStatusOptionsMap[purchaseOrder.status] || [];

@@ -1991,6 +1991,7 @@ model Supplier {
   code   String         @unique // Kode unik internal untuk supplier, misal: SUP-0001
   name   String // Nama resmi perusahaan supplier
   status SupplierStatus @default(ACTIVE)
+  onWip  Boolean        @default(false)
 
   // --- Informasi Kontak & Alamat ---
   email           String? @unique
@@ -2111,17 +2112,44 @@ enum PurchaseOrderStatus {
   PARTIALLY_RECEIVED // Sebagian barang/jasa sudah diterima
   FULLY_RECEIVED // Semua barang/jasa sudah diterima, PO selesai
   CANCELLED // Dibatalkan
+
+  INVOICE_RECEIVED // Invoice sudah diterima
+
+  // Tahap Verifikasi & Validasi
+  UNVERIFIED_ACCOUNTING // Sudah disubmit tapi belum dicek kelengkapan dokumennya
+  VERIFIED_ACCOUNTING // Dokumen (PO, Surat Jalan, Invoice Fisik) sudah cocok (3-way match)
+
+  APPROVED_ACCOUNTING // Disetujui akuntansi
+  POSTED // Sudah masuk ke Buku Besar/General Ledger (Hutang diakui)
+  AWAITING_PAYMENT // Antrian pembayaran (Schedule Payment)
+  PARTIALLY_PAID // Dibayar sebagian
+  FULLY_PAID // Lunas
 }
 
 enum SupplierInvoiceStatus {
-  DRAFT // Baru dibuat, belum divalidasi
-  REVISION_NEEDED // Perlu revisi/perbaikan
-  PENDING_APPROVAL // Menunggu persetujuan untuk dibayar
-  AWAITING_PAYMENT // Disetujui dan menunggu pembayaran
-  PARTIALLY_PAID // Sudah dibayar sebagian
+  DRAFT // Draft awal oleh admin/purchasing
+  REVISION_NEEDED // Dikembalikan untuk diperbaiki
+
+  // Tahap Verifikasi & Validasi
+  UNVERIFIED // Sudah disubmit tapi belum dicek kelengkapan dokumennya
+  VERIFIED // Dokumen (PO, Surat Jalan, Invoice Fisik) sudah cocok (3-way match)
+
+  // Tahap Approval & Akuntansi
+  PENDING_APPROVAL // Menunggu persetujuan manajer/keuangan
+  APPROVED // Sudah disetujui, siap untuk di-posting ke Jurnal
+  POSTED // Sudah masuk ke Buku Besar/General Ledger (Hutang diakui)
+
+  // Tahap Pembayaran
+  AWAITING_PAYMENT // Antrian pembayaran (Schedule Payment)
+  PARTIALLY_PAID // Dibayar sebagian
   FULLY_PAID // Lunas
-  OVERDUE // Lewat jatuh tempo
-  CANCELLED // Dibatalkan
+
+  // Tahap Pengecualian & Penutupan
+  VOIDED // Dibatalkan setelah diposting (biasanya melalui Jurnal Balik)
+  CANCELLED // Dibatalkan saat masih status Draft/Pending
+  OVERDUE // Melewati tanggal jatuh tempo (Sistem Auto-update)
+  DISPUTED // Terjadi perselisihan harga/barang dengan supplier
+  WRITTEN_OFF // Hutang dianggap hangus atau diputihkan karena alasan tertentu
 }
 
 enum SupplierPaymentMethod {

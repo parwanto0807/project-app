@@ -167,6 +167,11 @@ export const getSuppliers = async (req, res) => {
       ];
     }
 
+    // Filter by onWip status if provided
+    if (req.query.onWip !== undefined) {
+      where.onWip = req.query.onWip === "true";
+    }
+
     const baseQuery = {
       where,
       include: {

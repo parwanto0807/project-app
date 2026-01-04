@@ -41,10 +41,12 @@ import { cn } from "@/lib/utils";
 
 interface SupplierInvoiceDetailProps {
     invoice: SupplierInvoice;
+    role?: string;
 }
 
-export default function SupplierInvoiceDetail({ invoice }: SupplierInvoiceDetailProps) {
+export default function SupplierInvoiceDetail({ invoice, role = "admin" }: SupplierInvoiceDetailProps) {
     const router = useRouter();
+    const basePath = role === "pic" ? "/pic-area" : role === "super" ? "/super-admin-area" : "/admin-area";
 
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat("id-ID", {
@@ -116,7 +118,7 @@ export default function SupplierInvoiceDetail({ invoice }: SupplierInvoiceDetail
     const isOverdue = new Date() > new Date(invoice.dueDate) && remainingAmount > 0;
 
     return (
-        <div className="max-w-7xl mx-auto space-y-8 p-4 md:p-6">
+        <div className="max-w-7xl mx-auto space-y-8 p-4 md:p-6 bg-gray-100 rounded-xl">
             {/* Header with minimal design */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div className="space-y-2">
@@ -141,7 +143,7 @@ export default function SupplierInvoiceDetail({ invoice }: SupplierInvoiceDetail
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => router.push("/admin-area/accounting/supplier-invoice")}
+                        onClick={() => router.push(`${basePath}/accounting/supplier-invoice`)}
                         className="h-10 border-gray-200 hover:border-gray-300"
                     >
                         <ArrowLeft className="h-4 w-4 mr-2" />
@@ -151,7 +153,7 @@ export default function SupplierInvoiceDetail({ invoice }: SupplierInvoiceDetail
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => router.push(`/admin-area/accounting/supplier-invoice/update/${invoice.id}`)}
+                            onClick={() => router.push(`${basePath}/accounting/supplier-invoice/update/${invoice.id}`)}
                             className="h-10 border-gray-200 hover:border-gray-300"
                         >
                             <Edit className="h-4 w-4 mr-2" />
