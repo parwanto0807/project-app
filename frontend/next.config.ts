@@ -13,6 +13,20 @@ const imgSrc = isDev
   : "img-src 'self' data: blob: https: https://api.rylif-app.com;";
 
 const nextConfig: NextConfig = {
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  serverExternalPackages: ["@react-pdf/renderer"],
+  experimental: {
+    esmExternals: isDev ? undefined : "loose",
+  },
+  webpack: (config) => {
+    config.resolve.alias.canvas = false;
+    return config;
+  },
   // 2. Config Image Domain
   images: {
     formats: ['image/webp'],

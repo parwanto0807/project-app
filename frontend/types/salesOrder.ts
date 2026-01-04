@@ -135,7 +135,7 @@ export interface SalesOrder {
   taxTotal: number;
   grandTotal: number;
 
-  notes?: string;
+  notes?: string | null;
 
   createdAt: string; // ISO string
   updatedAt: string; // ISO string
