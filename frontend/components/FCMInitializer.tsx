@@ -103,15 +103,39 @@ export default function FCMInitializer() {
       }
 
       const registration = await navigator.serviceWorker.register(
-        "/firebase-messaging-sw.js"
+        "/firebase-messaging-sw.js",
+        { scope: "/" }
       );
 
+      // ✅ TUNGGU Service Worker BENAR-BENAR AKTIF
+      await navigator.serviceWorker.ready;
+
+      // Tunggu sebentar untuk memastikan state propagation
+      if (registration.installing || registration.waiting) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
 
       if (!messaging) return;
-      const token = await getToken(messaging, {
-        vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
-        serviceWorkerRegistration: registration,
-      });
+
+      let token = "";
+      try {
+        token = await getToken(messaging, {
+          vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
+          serviceWorkerRegistration: registration,
+        });
+      } catch (tokenError: any) {
+        // Jika error "no active Service Worker", coba tunggu dan retry sekali lagi
+        if (tokenError.message?.includes("no active Service Worker")) {
+          console.warn("⚠️ [FCM] Retrying token fetch after SW activation wait...");
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          token = await getToken(messaging, {
+            vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
+            serviceWorkerRegistration: registration,
+          });
+        } else {
+          throw tokenError;
+        }
+      }
 
       if (!token) {
         console.warn("⚠️ [FCM] Token unavailable");

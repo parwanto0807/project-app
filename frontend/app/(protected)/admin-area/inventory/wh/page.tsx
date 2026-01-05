@@ -15,7 +15,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { useSession } from "@/components/clientSessionProvider";
-import { useMediaQuery } from "@/hooks/use-media-query";
+
 import Pagination from "@/components/ui/paginationNew";
 import HeaderCard from "@/components/ui/header-card";
 import SearchInput from "@/components/shared/SearchInput";
@@ -34,7 +34,7 @@ export default function WarehousePageAdmin() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { user, isLoading } = useSession();
-    const isMobile = useMediaQuery("(max-width: 768px)");
+
 
     const urlSearchTerm = searchParams.get("search") || "";
     const currentPage = Number(searchParams.get("page")) || 1;
@@ -183,23 +183,29 @@ export default function WarehousePageAdmin() {
                 </BreadcrumbList>
             </Breadcrumb>
 
-                <div className="flex-1 min-h-0 overflow-auto">
-                    <div className="space-y-4 p-2 pt-1 md:p-4">
+            <div className="flex-1 min-h-0 overflow-auto">
+                <div className="space-y-4 p-2 pt-1 md:p-4">
                     {/* Header */}
                     <HeaderCard
-                        title={isMobile ? "Warehouse" : "Warehouse Management"}
-                        description={
-                            isMobile
-                                ? "Manage warehouses"
-                                : "Manage and organize warehouse locations"
+                        title={
+                            <span>
+                                <span className="lg:hidden">Warehouse</span>
+                                <span className="hidden lg:inline">Warehouse Management</span>
+                            </span>
                         }
-                        icon={<WarehouseIcon className={isMobile ? "h-5 w-5" : "h-7 w-7"} />}
-                        variant={isMobile ? "compact" : "default"}
+                        description={
+                            <span>
+                                <span className="lg:hidden">Manage warehouses</span>
+                                <span className="hidden lg:inline">Manage and organize warehouse locations</span>
+                            </span>
+                        }
+                        icon={<WarehouseIcon className="h-5 w-5 lg:h-7 lg:w-7" />}
+                        variant="default"
                         gradientFrom="from-indigo-600"
                         gradientTo="to-blue-600"
-                        showActionArea={!isMobile}   // ⬅️ PENTING
+                        showActionArea={true}
                         actionArea={
-                            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                            <div className="hidden lg:flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                                 <SearchInput
                                     onSearch={handleSearch}
                                     placeholder="Search warehouse..."
@@ -211,59 +217,56 @@ export default function WarehousePageAdmin() {
                                     role={user?.role || "admin"}
                                     variant="default"
                                     onSuccess={handleRefresh}
-                                    size={isMobile ? "sm" : "default"}
+                                    size="default"
                                 />
                             </div>
                         }
                     />
 
 
-                    {isMobile && (
-                        <div className="mt-4 p-4 bg-white dark:bg-slate-900 rounded-lg shadow-sm border">
-                            <div className="flex flex-col gap-3">
+                    <div className="lg:hidden mt-4 p-4 bg-white dark:bg-slate-900 rounded-lg shadow-sm border">
+                        <div className="flex flex-col gap-3">
 
-                                {/* Search */}
-                                <SearchInput
-                                    onSearch={handleSearch}
-                                    placeholder="Search warehouse..."
-                                    className="w-full"
+                            {/* Search */}
+                            <SearchInput
+                                onSearch={handleSearch}
+                                placeholder="Search warehouse..."
+                                className="w-full"
+                                disabled={isLoading}
+                                initialValue={urlSearchTerm}
+                            />
+
+                            {/* Items per page */}
+                            <div className="flex flex-col gap-1">
+                                <span className="text-xs text-muted-foreground">
+                                    Items per page
+                                </span>
+                                <select
+                                    value={itemsPerPage}
+                                    onChange={(e) =>
+                                        handleItemsPerPageChange(Number(e.target.value))
+                                    }
+                                    className="w-full h-9 px-3 border rounded-md bg-background text-sm"
                                     disabled={isLoading}
-                                    initialValue={urlSearchTerm}
-                                />
-
-                                {/* Items per page */}
-                                <div className="flex flex-col gap-1">
-                                    <span className="text-xs text-muted-foreground">
-                                        Items per page
-                                    </span>
-                                    <select
-                                        value={itemsPerPage}
-                                        onChange={(e) =>
-                                            handleItemsPerPageChange(Number(e.target.value))
-                                        }
-                                        className="w-full h-9 px-3 border rounded-md bg-background text-sm"
-                                        disabled={isLoading}
-                                    >
-                                        {[10, 20, 30, 50, 100].map((n) => (
-                                            <option key={n} value={n}>
-                                                {n}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                {/* (Optional) Create Warehouse Button */}
-                                {/* Kalau sudah ada dialog create */}
-                                <CreateWhButton
-                                    role={user?.role || "admin"}
-                                    onSuccess={handleRefresh}
-                                    size="sm"
-                                    className="w-full"
-                                />
-
+                                >
+                                    {[10, 20, 30, 50, 100].map((n) => (
+                                        <option key={n} value={n}>
+                                            {n}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
+
+                            {/* Create Warehouse Button */}
+                            <CreateWhButton
+                                role={user?.role || "admin"}
+                                onSuccess={handleRefresh}
+                                size="sm"
+                                className="w-full"
+                            />
+
                         </div>
-                    )}
+                    </div>
 
                     {/* Search info */}
                     {urlSearchTerm && (

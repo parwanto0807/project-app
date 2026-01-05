@@ -143,7 +143,7 @@ export function BAPDataTable({
     const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
     const [rowSelection, setRowSelection] = useState({});
     const [globalFilter, setGlobalFilter] = useState("");
-    const [isMobile, setIsMobile] = useState(false);
+
     const router = useRouter();
     const [selectedBap, setSelectedBap] = useState<BAPData | null>(null);
     const [isPdfPreviewOpen, setIsPdfPreviewOpen] = useState(false);
@@ -166,14 +166,7 @@ export function BAPDataTable({
         },
     });
 
-    useEffect(() => {
-        const checkMobile = () => {
-            setIsMobile(window.innerWidth < 768);
-        };
-        checkMobile();
-        window.addEventListener("resize", checkMobile);
-        return () => window.removeEventListener("resize", checkMobile);
-    }, []);
+
 
     const [processedBap, setProcessedBap] = useState<BAPData | null>(null);
     const [isProcessingPdf, setIsProcessingPdf] = useState(false);
@@ -499,290 +492,290 @@ export function BAPDataTable({
         <>
             <Card className="w-full border-0 shadow-xl">
                 <CardContent className="p-1 md:p-6">
-                    {isMobile ? (
-                        <div className="space-y-3">
-                            {table.getRowModel().rows?.length ? (
-                                table.getRowModel().rows.map((row) => {
-                                    const bap = row.original;
-                                    return (
-                                        <Card key={row.id} className="overflow-hidden border-slate-200 dark:border-slate-800 shadow-sm">
-                                            {/* Header */}
-                                            <CardHeader className="py-2 bg-gradient-to-r from-slate-50 to-slate-100/50 dark:from-slate-900 dark:to-slate-800 rounded-t-lg border-b border-slate-200 dark:border-slate-700">
-                                                <div className="flex justify-between items-center">
-                                                    <div className="flex items-center gap-2 min-w-0">
-                                                        <FileText className="h-4 w-4 text-cyan-500 flex-shrink-0" />
-                                                        <div className="min-w-0">
-                                                            <CardTitle className="text-sm font-bold truncate text-slate-900 dark:text-slate-100">
-                                                                {bap.bapNumber}
-                                                            </CardTitle>
-                                                            <CardDescription className="flex items-center gap-1 text-xs mt-0.5">
-                                                                <Building className="h-3.5 w-3.5 text-green-600 flex-shrink-0" />
-                                                                <span className="font-medium text-slate-700 dark:text-slate-300 truncate">
-                                                                    {bap.salesOrder.customer.branch}
-                                                                </span>
-                                                            </CardDescription>
-                                                        </div>
+                    {/* Mobile View */}
+                    <div className="md:hidden space-y-3">
+                        {table.getRowModel().rows?.length ? (
+                            table.getRowModel().rows.map((row) => {
+                                const bap = row.original;
+                                return (
+                                    <Card key={row.id} className="overflow-hidden border-slate-200 dark:border-slate-800 shadow-sm">
+                                        {/* Header */}
+                                        <CardHeader className="py-2 bg-gradient-to-r from-slate-50 to-slate-100/50 dark:from-slate-900 dark:to-slate-800 rounded-t-lg border-b border-slate-200 dark:border-slate-700">
+                                            <div className="flex justify-between items-center">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <FileText className="h-4 w-4 text-cyan-500 flex-shrink-0" />
+                                                    <div className="min-w-0">
+                                                        <CardTitle className="text-sm font-bold truncate text-slate-900 dark:text-slate-100">
+                                                            {bap.bapNumber}
+                                                        </CardTitle>
+                                                        <CardDescription className="flex items-center gap-1 text-xs mt-0.5">
+                                                            <Building className="h-3.5 w-3.5 text-green-600 flex-shrink-0" />
+                                                            <span className="font-medium text-slate-700 dark:text-slate-300 truncate">
+                                                                {bap.salesOrder.customer.branch}
+                                                            </span>
+                                                        </CardDescription>
                                                     </div>
-                                                    <Badge
-                                                        variant={
-                                                            bap.status === "APPROVED" ? "success" :
-                                                                bap.status === "COMPLETED" ? "default" :
-                                                                    bap.status === "IN_PROGRESS" ? "secondary" : "outline"
-                                                        }
-                                                        className="flex items-center gap-1 px-2 py-1 text-xs flex-shrink-0 ml-2 capitalize"
-                                                    >
-                                                        {bap.status.toLowerCase().replace("_", " ")}
-                                                    </Badge>
                                                 </div>
-                                            </CardHeader>
+                                                <Badge
+                                                    variant={
+                                                        bap.status === "APPROVED" ? "success" :
+                                                            bap.status === "COMPLETED" ? "default" :
+                                                                bap.status === "IN_PROGRESS" ? "secondary" : "outline"
+                                                    }
+                                                    className="flex items-center gap-1 px-2 py-1 text-xs flex-shrink-0 ml-2 capitalize"
+                                                >
+                                                    {bap.status.toLowerCase().replace("_", " ")}
+                                                </Badge>
+                                            </div>
+                                        </CardHeader>
 
-                                            <CardContent className="py-2">
-                                                {/* Informasi Utama */}
-                                                <div className="grid grid-cols-2 gap-2 text-xs mb-3">
-                                                    <div className="flex items-center gap-1.5">
-                                                        <Calendar className="h-3.5 w-3.5 text-orange-600 flex-shrink-0" />
-                                                        <div>
-                                                            <div className="text-slate-500 text-[11px]">Tanggal BAP</div>
-                                                            <div className="font-medium text-slate-900 dark:text-slate-100">
-                                                                {format(new Date(bap.bapDate), "dd MMM yyyy")}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-1.5">
-                                                        <Package className="h-3.5 w-3.5 text-purple-600 flex-shrink-0" />
-                                                        <div>
-                                                            <div className="text-slate-500 text-[11px]">Project</div>
-                                                            <div className="font-medium text-slate-900 dark:text-slate-100 text-wrap">
-                                                                {bap.salesOrder.project?.name || "-"}
-                                                            </div>
+                                        <CardContent className="py-2">
+                                            {/* Informasi Utama */}
+                                            <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+                                                <div className="flex items-center gap-1.5">
+                                                    <Calendar className="h-3.5 w-3.5 text-orange-600 flex-shrink-0" />
+                                                    <div>
+                                                        <div className="text-slate-500 text-[11px]">Tanggal BAP</div>
+                                                        <div className="font-medium text-slate-900 dark:text-slate-100">
+                                                            {format(new Date(bap.bapDate), "dd MMM yyyy")}
                                                         </div>
                                                     </div>
                                                 </div>
-
-                                                {/* Informasi Sales Order */}
-                                                <div className="border-t border-slate-200 dark:border-slate-700 pt-2">
-                                                    <div className="flex items-center gap-1.5 text-xs mb-2">
-                                                        <FileDigit className="h-3.5 w-3.5 text-blue-600 flex-shrink-0" />
-                                                        <span className="text-slate-500">Sales Order:</span>
-                                                        <span className="font-medium text-slate-900 dark:text-slate-100">
-                                                            {bap.salesOrder.soNumber}
-                                                        </span>
-                                                    </div>
-
-                                                    {/* Items Preview */}
-                                                    <div className="space-y-1.5">
-                                                        <div className="flex items-center justify-between">
-                                                            <h4 className="font-semibold text-xs flex items-center gap-2 text-slate-700 dark:text-slate-300">
-                                                                <ListChecks className="h-3.5 w-3.5 text-indigo-600" />
-                                                                Item yang diserahkan
-                                                            </h4>
-
-                                                            {/* Photo Counter dengan Tooltip Detail */}
-                                                            {bap.photos && bap.photos.length > 0 && (
-                                                                <div className="relative group">
-                                                                    <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-md cursor-help">
-                                                                        <Camera className="h-3.5 w-3.5 text-purple-600" />
-                                                                        <span>{bap.photos.length}</span>
-                                                                    </div>
-                                                                    {/* Detailed Tooltip */}
-                                                                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-10 min-w-[140px]">
-                                                                        <div className="bg-slate-900 text-white text-xs rounded py-2 px-3">
-                                                                            <div className="font-semibold mb-1">Dokumentasi Foto:</div>
-                                                                            <div className="space-y-1">
-                                                                                <div className="flex justify-between">
-                                                                                    <span>Before:</span>
-                                                                                    <span>{bap.photos.filter(p => p.category === 'BEFORE').length}</span>
-                                                                                </div>
-                                                                                <div className="flex justify-between">
-                                                                                    <span>Process:</span>
-                                                                                    <span>{bap.photos.filter(p => p.category === 'PROCESS').length}</span>
-                                                                                </div>
-                                                                                <div className="flex justify-between">
-                                                                                    <span>After:</span>
-                                                                                    <span>{bap.photos.filter(p => p.category === 'AFTER').length}</span>
-                                                                                </div>
-                                                                            </div>
-                                                                            <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-slate-900"></div>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            )}
+                                                <div className="flex items-center gap-1.5">
+                                                    <Package className="h-3.5 w-3.5 text-purple-600 flex-shrink-0" />
+                                                    <div>
+                                                        <div className="text-slate-500 text-[11px]">Project</div>
+                                                        <div className="font-medium text-slate-900 dark:text-slate-100 text-wrap">
+                                                            {bap.salesOrder.project?.name || "-"}
                                                         </div>
-
-                                                        {/* Items list */}
-                                                        {(expandedProductRows.has(bap.id) ? bap.salesOrder.items : bap.salesOrder.items?.slice(0, 2))?.map((item, index) => (
-                                                            <div key={item.id} className="flex items-center gap-2 px-2 py-0.5 bg-slate-50 dark:bg-slate-800 rounded-md">
-                                                                <div className="flex-shrink-0">
-                                                                    <span className="text-xs font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-700 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-600">
-                                                                        {index + 1}
-                                                                    </span>
-                                                                </div>
-                                                                <div className="flex-1 min-w-0">
-                                                                    <p className="font-medium text-xs text-slate-900 dark:text-slate-100 truncate">
-                                                                        {item.name}
-                                                                    </p>
-                                                                </div>
-                                                                <div className="flex-shrink-0">
-                                                                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                                                                        {item.qty}-{item.uom}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-
-                                                        {/* Toggle button */}
-                                                        {bap.salesOrder.items && bap.salesOrder.items.length > 2 && (
-                                                            <div className="text-center py-1">
-                                                                <button
-                                                                    onClick={() => toggleProductExpansion(bap.id)}
-                                                                    className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center justify-center gap-1 mx-auto cursor-pointer"
-                                                                >
-                                                                    {expandedProductRows.has(bap.id) ? (
-                                                                        <>
-                                                                            <ChevronUp className="h-3 w-3" />
-                                                                            Tampilkan lebih sedikit
-                                                                        </>
-                                                                    ) : (
-                                                                        <>
-                                                                            <ChevronDown className="h-3 w-3" />
-                                                                            + {bap.salesOrder.items.length - 2} item lainnya
-                                                                        </>
-                                                                    )}
-                                                                </button>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </CardContent>
-
-                                            {/* Action Buttons */}
-                                            <div className="px-3 pb-3 pt-2 border-t border-slate-200 dark:border-slate-700">
-                                                <div className="flex justify-between items-center">
-                                                    {/* Preview PDF Button */}
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() => handlePdfPreview(bap)}
-                                                        className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700"
-                                                    >
-                                                        <Eye className="h-4 w-4" />
-                                                        <span>Preview PDF</span>
-                                                    </Button>
-
-                                                    {/* Action Buttons */}
-                                                    <div className="flex gap-1">
-                                                        {/* Edit Button */}
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            onClick={() => router.push(`/admin-area/logistic/bap/update/${bap.id}`)}
-                                                            className="h-9 w-9 p-0 border-orange-200 bg-orange-50 hover:bg-orange-100 text-orange-600"
-                                                            title="Edit BAP"
-                                                        >
-                                                            <Edit className="h-4 w-4" />
-                                                        </Button>
-
-                                                        {/* View Detail Button */}
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            onClick={() => handleViewDetail(bap)}
-                                                            className="h-9 w-9 p-0 border-green-200 bg-green-50 hover:bg-green-100 text-green-600"
-                                                            title="Lihat Detail"
-                                                        >
-                                                            <Search className="h-4 w-4" />
-                                                        </Button>
-
-                                                        {/* Delete Button */}
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            onClick={() => openDialog(bap.id)}
-                                                            className="h-9 w-9 p-0 border-red-200 bg-red-50 hover:bg-red-100 text-red-600"
-                                                            title="Hapus BAP"
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </Card>
-                                    );
-                                })
-                            ) : (
-                                <div className="text-center py-8 text-slate-500">
-                                    <FileText className="h-12 w-12 mx-auto mb-2 text-slate-300" />
-                                    <p>Tidak ada data BAP ditemukan</p>
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        // Desktop Version - Premium Design
-                        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm overflow-hidden">
-                            <Table>
-                                <TableHeader>
-                                    {table.getHeaderGroups().map((headerGroup) => (
-                                        <TableRow
-                                            key={headerGroup.id}
-                                            className="bg-gradient-to-r from-slate-50 via-slate-100 to-slate-50 dark:from-slate-800 dark:via-slate-700 dark:to-slate-800 border-b border-slate-200 dark:border-slate-600"
-                                        >
-                                            {headerGroup.headers.map((header) => {
-                                                return (
-                                                    <TableHead
-                                                        key={header.id}
-                                                        className="font-bold text-slate-700 dark:text-slate-200 py-4 text-sm uppercase tracking-wide"
-                                                    >
-                                                        {header.isPlaceholder
-                                                            ? null
-                                                            : flexRender(
-                                                                header.column.columnDef.header,
-                                                                header.getContext()
-                                                            )}
-                                                    </TableHead>
-                                                );
-                                            })}
-                                        </TableRow>
-                                    ))}
-                                </TableHeader>
-                                <TableBody>
-                                    {table.getRowModel().rows?.length ? (
-                                        table.getRowModel().rows.map((row) => (
-                                            <TableRow
-                                                key={row.id}
-                                                data-state={row.getIsSelected() && "selected"}
-                                                className="group hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-cyan-50/30 dark:hover:from-blue-900/20 dark:hover:to-cyan-900/20 border-b border-slate-100 dark:border-slate-700 transition-all duration-200"
-                                            >
-                                                {row.getVisibleCells().map((cell) => (
-                                                    <TableCell
-                                                        key={cell.id}
-                                                        className="py-1 align-top"
-                                                    >
-                                                        {flexRender(
-                                                            cell.column.columnDef.cell,
-                                                            cell.getContext()
-                                                        )}
-                                                    </TableCell>
-                                                ))}
-                                            </TableRow>
-                                        ))
-                                    ) : (
-                                        <TableRow>
-                                            <TableCell
-                                                colSpan={columns.length}
-                                                className="h-32 text-center"
-                                            >
-                                                <div className="flex flex-col items-center justify-center space-y-3 text-slate-500 dark:text-slate-400">
-                                                    <FileText className="h-12 w-12 text-slate-300 dark:text-slate-600" />
-                                                    <div className="text-lg font-semibold dark:text-slate-300">Tidak ada data BAP</div>
-                                                    <div className="text-sm dark:text-slate-500">Data BAP akan muncul di sini</div>
+
+                                            {/* Informasi Sales Order */}
+                                            <div className="border-t border-slate-200 dark:border-slate-700 pt-2">
+                                                <div className="flex items-center gap-1.5 text-xs mb-2">
+                                                    <FileDigit className="h-3.5 w-3.5 text-blue-600 flex-shrink-0" />
+                                                    <span className="text-slate-500">Sales Order:</span>
+                                                    <span className="font-medium text-slate-900 dark:text-slate-100">
+                                                        {bap.salesOrder.soNumber}
+                                                    </span>
                                                 </div>
-                                            </TableCell>
+
+                                                {/* Items Preview */}
+                                                <div className="space-y-1.5">
+                                                    <div className="flex items-center justify-between">
+                                                        <h4 className="font-semibold text-xs flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                                                            <ListChecks className="h-3.5 w-3.5 text-indigo-600" />
+                                                            Item yang diserahkan
+                                                        </h4>
+
+                                                        {/* Photo Counter dengan Tooltip Detail */}
+                                                        {bap.photos && bap.photos.length > 0 && (
+                                                            <div className="relative group">
+                                                                <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded-md cursor-help">
+                                                                    <Camera className="h-3.5 w-3.5 text-purple-600" />
+                                                                    <span>{bap.photos.length}</span>
+                                                                </div>
+                                                                {/* Detailed Tooltip */}
+                                                                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-10 min-w-[140px]">
+                                                                    <div className="bg-slate-900 text-white text-xs rounded py-2 px-3">
+                                                                        <div className="font-semibold mb-1">Dokumentasi Foto:</div>
+                                                                        <div className="space-y-1">
+                                                                            <div className="flex justify-between">
+                                                                                <span>Before:</span>
+                                                                                <span>{bap.photos.filter(p => p.category === 'BEFORE').length}</span>
+                                                                            </div>
+                                                                            <div className="flex justify-between">
+                                                                                <span>Process:</span>
+                                                                                <span>{bap.photos.filter(p => p.category === 'PROCESS').length}</span>
+                                                                            </div>
+                                                                            <div className="flex justify-between">
+                                                                                <span>After:</span>
+                                                                                <span>{bap.photos.filter(p => p.category === 'AFTER').length}</span>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-slate-900"></div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Items list */}
+                                                    {(expandedProductRows.has(bap.id) ? bap.salesOrder.items : bap.salesOrder.items?.slice(0, 2))?.map((item, index) => (
+                                                        <div key={item.id} className="flex items-center gap-2 px-2 py-0.5 bg-slate-50 dark:bg-slate-800 rounded-md">
+                                                            <div className="flex-shrink-0">
+                                                                <span className="text-xs font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-700 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-600">
+                                                                    {index + 1}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="font-medium text-xs text-slate-900 dark:text-slate-100 truncate">
+                                                                    {item.name}
+                                                                </p>
+                                                            </div>
+                                                            <div className="flex-shrink-0">
+                                                                <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                                                                    {item.qty}-{item.uom}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+
+                                                    {/* Toggle button */}
+                                                    {bap.salesOrder.items && bap.salesOrder.items.length > 2 && (
+                                                        <div className="text-center py-1">
+                                                            <button
+                                                                onClick={() => toggleProductExpansion(bap.id)}
+                                                                className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 flex items-center justify-center gap-1 mx-auto cursor-pointer"
+                                                            >
+                                                                {expandedProductRows.has(bap.id) ? (
+                                                                    <>
+                                                                        <ChevronUp className="h-3 w-3" />
+                                                                        Tampilkan lebih sedikit
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <ChevronDown className="h-3 w-3" />
+                                                                        + {bap.salesOrder.items.length - 2} item lainnya
+                                                                    </>
+                                                                )}
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </CardContent>
+
+                                        {/* Action Buttons */}
+                                        <div className="px-3 pb-3 pt-2 border-t border-slate-200 dark:border-slate-700">
+                                            <div className="flex justify-between items-center">
+                                                {/* Preview PDF Button */}
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => handlePdfPreview(bap)}
+                                                    className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700"
+                                                >
+                                                    <Eye className="h-4 w-4" />
+                                                    <span>Preview PDF</span>
+                                                </Button>
+
+                                                {/* Action Buttons */}
+                                                <div className="flex gap-1">
+                                                    {/* Edit Button */}
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => router.push(`/admin-area/logistic/bap/update/${bap.id}`)}
+                                                        className="h-9 w-9 p-0 border-orange-200 bg-orange-50 hover:bg-orange-100 text-orange-600"
+                                                        title="Edit BAP"
+                                                    >
+                                                        <Edit className="h-4 w-4" />
+                                                    </Button>
+
+                                                    {/* View Detail Button */}
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => handleViewDetail(bap)}
+                                                        className="h-9 w-9 p-0 border-green-200 bg-green-50 hover:bg-green-100 text-green-600"
+                                                        title="Lihat Detail"
+                                                    >
+                                                        <Search className="h-4 w-4" />
+                                                    </Button>
+
+                                                    {/* Delete Button */}
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => openDialog(bap.id)}
+                                                        className="h-9 w-9 p-0 border-red-200 bg-red-50 hover:bg-red-100 text-red-600"
+                                                        title="Hapus BAP"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </Card>
+                                );
+                            })
+                        ) : (
+                            <div className="text-center py-8 text-slate-500">
+                                <FileText className="h-12 w-12 mx-auto mb-2 text-slate-300" />
+                                <p>Tidak ada data BAP ditemukan</p>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Desktop Version - Premium Design */}
+                    <div className="hidden md:block rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm overflow-hidden">
+                        <Table>
+                            <TableHeader>
+                                {table.getHeaderGroups().map((headerGroup) => (
+                                    <TableRow
+                                        key={headerGroup.id}
+                                        className="bg-gradient-to-r from-slate-50 via-slate-100 to-slate-50 dark:from-slate-800 dark:via-slate-700 dark:to-slate-800 border-b border-slate-200 dark:border-slate-600"
+                                    >
+                                        {headerGroup.headers.map((header) => {
+                                            return (
+                                                <TableHead
+                                                    key={header.id}
+                                                    className="font-bold text-slate-700 dark:text-slate-200 py-4 text-sm uppercase tracking-wide"
+                                                >
+                                                    {header.isPlaceholder
+                                                        ? null
+                                                        : flexRender(
+                                                            header.column.columnDef.header,
+                                                            header.getContext()
+                                                        )}
+                                                </TableHead>
+                                            );
+                                        })}
+                                    </TableRow>
+                                ))}
+                            </TableHeader>
+                            <TableBody>
+                                {table.getRowModel().rows?.length ? (
+                                    table.getRowModel().rows.map((row) => (
+                                        <TableRow
+                                            key={row.id}
+                                            data-state={row.getIsSelected() && "selected"}
+                                            className="group hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-cyan-50/30 dark:hover:from-blue-900/20 dark:hover:to-cyan-900/20 border-b border-slate-100 dark:border-slate-700 transition-all duration-200"
+                                        >
+                                            {row.getVisibleCells().map((cell) => (
+                                                <TableCell
+                                                    key={cell.id}
+                                                    className="py-1 align-top"
+                                                >
+                                                    {flexRender(
+                                                        cell.column.columnDef.cell,
+                                                        cell.getContext()
+                                                    )}
+                                                </TableCell>
+                                            ))}
                                         </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    )}
+                                    ))
+                                ) : (
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={columns.length}
+                                            className="h-32 text-center"
+                                        >
+                                            <div className="flex flex-col items-center justify-center space-y-3 text-slate-500 dark:text-slate-400">
+                                                <FileText className="h-12 w-12 text-slate-300 dark:text-slate-600" />
+                                                <div className="text-lg font-semibold dark:text-slate-300">Tidak ada data BAP</div>
+                                                <div className="text-sm dark:text-slate-500">Data BAP akan muncul di sini</div>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+
                 </CardContent>
             </Card>
 

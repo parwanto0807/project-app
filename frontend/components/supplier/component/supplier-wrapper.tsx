@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { SupplierTable } from "./tabelSupplier";
 import { SupplierListResponse } from "@/types/supplierType";
 import HeaderCard from "@/components/ui/header-card";
-import { useMediaQuery } from "@/hooks/use-media-query";
+// import { useMediaQuery } from "@/hooks/use-media-query";
 
 // Komponen yang dipakai sama seperti SalesOrder
 
@@ -53,7 +53,7 @@ export default function SupplierClientWrapper({ initialData }: SupplierClientWra
     const router = useRouter();
     const searchParams = useSearchParams();
     const { user, isLoading: userLoading } = useSession();
-    const isMobile = useMediaQuery("(max-width: 640px)");
+    // const isMobile = useMediaQuery("(max-width: 640px)");
 
     // URL params
     const urlSearchTerm = searchParams.get("search") || "";
@@ -224,18 +224,28 @@ export default function SupplierClientWrapper({ initialData }: SupplierClientWra
         <div className="space-y-4 p-2 md:p-4">
             {/* HeaderCard with actionArea (desktop) */}
             <HeaderCard
-                title={isMobile ? "Suppliers" : "Supplier Management"}
-                description={isMobile ? "View supplier records" : "Manage and monitor all suppliers"}
-                icon={<WalletCardsIcon className={isMobile ? "h-5 w-5" : "h-7 w-7"} />}
+                title={
+                    <>
+                        <span className="lg:hidden">Suppliers</span>
+                        <span className="hidden lg:inline">Supplier Management</span>
+                    </>
+                }
+                description={
+                    <>
+                        <span className="lg:hidden">View supplier records</span>
+                        <span className="hidden lg:inline">Manage and monitor all suppliers...</span>
+                    </>
+                }
+                icon={<WalletCardsIcon className="h-5 w-5 lg:h-7 lg:w-7" />}
                 gradientFrom="from-cyan-600"
                 gradientTo="to-purple-600"
-                showActionArea={!isMobile}
+                showActionArea={true}
                 actionArea={
-                    <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto items-start sm:items-center">
+                    <div className="hidden lg:flex items-center gap-3">
                         <SearchInput
                             onSearch={handleSearch}
                             placeholder="Search Supplier..."
-                            className="w-full sm:w-64"
+                            className="w-64"
                             disabled={isFetching}
                             initialValue={urlSearchTerm}
                         />
@@ -257,14 +267,12 @@ export default function SupplierClientWrapper({ initialData }: SupplierClientWra
                         <CreateSupplierButton
                             role={user?.role || "admin"}
                             onSuccess={() => {
-                                // after create, refresh & highlight new item if you want (CreateSupplierButton should return created id)
-                                // optionally CreateSupplierButton can call a callback with newId; here we just refetch
                                 setTimeout(() => {
                                     refetch();
                                 }, 300);
                             }}
                             variant="default"
-                            size={isMobile ? "sm" : "default"}
+                            size="default"
                             disabled={isFetching}
                         />
 
@@ -276,54 +284,52 @@ export default function SupplierClientWrapper({ initialData }: SupplierClientWra
             />
 
             {/* Action area for mobile (stacked) */}
-            {isMobile && (
-                <div className="mt-4 p-4 bg-card rounded-lg shadow-sm border">
-                    <div className="flex flex-col gap-3">
-                        <SearchInput
-                            onSearch={handleSearch}
-                            placeholder="Search Supplier..."
-                            className="w-full"
-                            disabled={isFetching}
-                            initialValue={urlSearchTerm}
-                        />
+            <div className="mt-4 p-4 bg-card rounded-lg shadow-sm border lg:hidden">
+                <div className="flex flex-col gap-3">
+                    <SearchInput
+                        onSearch={handleSearch}
+                        placeholder="Search Supplier..."
+                        className="w-full"
+                        disabled={isFetching}
+                        initialValue={urlSearchTerm}
+                    />
 
-                        <div className="flex gap-2">
-                            <div className="flex-1">
-                                <SupplierStatusDropdown
-                                    statusFilter={statusFilter}
-                                    setStatusFilter={handleStatusFilterChange}
-                                    statusConfig={statusConfig}
-                                    disabled={isFetching}
-                                />
-
-                            </div>
-
-                            <div className="flex-1">
-                                <ItemsPerPageDropdown
-                                    itemsPerPage={itemsPerPage}
-                                    itemsPerPageOptions={[10, 20, 50, 100, 200]}
-                                    onItemsPerPageChange={handleItemsPerPageChange}
-                                    disabled={isFetching}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="flex gap-2">
-                            <CreateSupplierButton
-                                role={user?.role || "admin"}
-                                onSuccess={() => refetch()}
-                                variant="default"
-                                size="sm"
-                                className="flex-1"
+                    <div className="flex gap-2">
+                        <div className="flex-1">
+                            <SupplierStatusDropdown
+                                statusFilter={statusFilter}
+                                setStatusFilter={handleStatusFilterChange}
+                                statusConfig={statusConfig}
                                 disabled={isFetching}
                             />
-                            <Button onClick={handleRefresh} disabled={isFetching} variant="outline" size="sm" className="flex-0">
-                                Refresh
-                            </Button>
+
+                        </div>
+
+                        <div className="flex-1">
+                            <ItemsPerPageDropdown
+                                itemsPerPage={itemsPerPage}
+                                itemsPerPageOptions={[10, 20, 50, 100, 200]}
+                                onItemsPerPageChange={handleItemsPerPageChange}
+                                disabled={isFetching}
+                            />
                         </div>
                     </div>
+
+                    <div className="flex gap-2">
+                        <CreateSupplierButton
+                            role={user?.role || "admin"}
+                            onSuccess={() => refetch()}
+                            variant="default"
+                            size="sm"
+                            className="flex-1"
+                            disabled={isFetching}
+                        />
+                        <Button onClick={handleRefresh} disabled={isFetching} variant="outline" size="sm" className="flex-0">
+                            Refresh
+                        </Button>
+                    </div>
                 </div>
-            )}
+            </div>
 
             {/* Top pagination & info */}
             {paginationMeta && (

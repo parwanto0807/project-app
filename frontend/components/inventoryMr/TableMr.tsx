@@ -58,7 +58,7 @@ import {
     Plus,
 } from "lucide-react"
 
-import { format } from "date-fns"
+import { format, isToday, isThisWeek, isThisMonth } from "date-fns"
 import { id } from "date-fns/locale"
 import QRCode from "qrcode"
 import { MRDetailSheet } from "./MRDetailSheet"
@@ -154,7 +154,7 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
     } | null>(null)
 
     const itemsPerPage = 10
-    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
+
 
     // Filter data
     const filteredData = data.filter((mr) => {
@@ -165,7 +165,17 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
             mr.project?.name?.toLowerCase().includes(search.toLowerCase())
 
         const matchesStatus = statusFilter === "all" || mr.status === statusFilter
-        const matchesDate = dateFilter === "all" || true // Add date filtering logic
+        let matchesDate = true
+        if (dateFilter !== "all") {
+            const date = new Date(mr.issuedDate)
+            if (dateFilter === "today") {
+                matchesDate = isToday(date)
+            } else if (dateFilter === "week") {
+                matchesDate = isThisWeek(date, { weekStartsOn: 1 })
+            } else if (dateFilter === "month") {
+                matchesDate = isThisMonth(date)
+            }
+        }
 
         return matchesSearch && matchesStatus && matchesDate
     })
@@ -512,8 +522,8 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
             {/* Search and Filter Section */}
             <Card className="border border-slate-200 dark:border-slate-700 dark:bg-slate-900 shadow-lg rounded-2xl overflow-hidden">
                 <CardContent className="p-6">
-                    <div className="flex flex-col md:flex-row gap-4 mb-6">
-                        <div className="relative flex-1">
+                    <div className="flex flex-col gap-4 mb-6">
+                        <div className="relative w-full">
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400" />
                             <Input
                                 placeholder="Cari MR Number, Nama, Project, atau Gudang..."
@@ -630,254 +640,313 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
             </Card>
 
             {/* Data Display - Responsive */}
-            {viewMode === "grid" || isMobile ? (
-                // Grid/Mobile View
-                <div className="space-y-3">
-                    {isLoading ? (
-                        Array.from({ length: 5 }).map((_, i) => (
-                            <Card key={i} className="border border-slate-200 shadow-sm">
-                                <CardContent className="p-4">
-                                    <div className="space-y-4">
-                                        <div className="flex items-center gap-3">
-                                            <Skeleton className="h-12 w-12 rounded-xl" />
-                                            <div className="space-y-2 flex-1">
-                                                <Skeleton className="h-5 w-40" />
-                                                <Skeleton className="h-4 w-32" />
+            {/* Mobile View - Always Grid */}
+            <div className="md:hidden space-y-3">
+                {/* ... Grid View Content ... */}
+                {isLoading ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                        <Card key={i} className="border border-slate-200 shadow-sm">
+                            <CardContent className="p-4">
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-3">
+                                        <Skeleton className="h-12 w-12 rounded-xl" />
+                                        <div className="space-y-2 flex-1">
+                                            <Skeleton className="h-5 w-40" />
+                                            <Skeleton className="h-4 w-32" />
+                                        </div>
+                                        <Skeleton className="h-7 w-24 rounded-full" />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {Array.from({ length: 4 }).map((_, j) => (
+                                            <div key={j} className="space-y-2">
+                                                <Skeleton className="h-4 w-20" />
+                                                <Skeleton className="h-5 w-full" />
                                             </div>
-                                            <Skeleton className="h-7 w-24 rounded-full" />
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            {Array.from({ length: 4 }).map((_, j) => (
-                                                <div key={j} className="space-y-2">
-                                                    <Skeleton className="h-4 w-20" />
-                                                    <Skeleton className="h-5 w-full" />
-                                                </div>
-                                            ))}
-                                        </div>
-                                        <div className="flex gap-2 pt-3">
-                                            <Skeleton className="h-10 flex-1 rounded-lg" />
-                                            <Skeleton className="h-10 flex-1 rounded-lg" />
-                                            <Skeleton className="h-10 w-10 rounded-lg" />
-                                        </div>
+                                        ))}
                                     </div>
-                                </CardContent>
-                            </Card>
-                        ))
-                    ) : paginatedData.length === 0 ? (
-                        <Card className="border-2 border-dashed border-slate-200 dark:border-white/10 bg-gradient-to-br from-slate-50 to-white dark:from-slate-900 dark:to-slate-800/50 rounded-3xl">
-                            <CardContent className="py-20 text-center">
-                                <div className="max-w-md mx-auto">
-                                    <div className="p-5 bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-700/50 rounded-full w-24 h-24 mx-auto mb-8 flex items-center justify-center shadow-inner relative overflow-hidden group">
-                                        <div className="absolute inset-0 bg-blue-500/10 dark:bg-blue-400/10 blur-xl scale-0 group-hover:scale-150 transition-transform duration-700"></div>
-                                        <Package className="h-12 w-12 text-slate-400 dark:text-slate-500 relative z-10" />
+                                    <div className="flex gap-2 pt-3">
+                                        <Skeleton className="h-10 flex-1 rounded-lg" />
+                                        <Skeleton className="h-10 flex-1 rounded-lg" />
+                                        <Skeleton className="h-10 w-10 rounded-lg" />
                                     </div>
-                                    <h3 className="text-xl font-semibold text-slate-700 mb-2">
-                                        Tidak ada Material Requisition
-                                    </h3>
-                                    <p className="text-slate-500 mb-6">
-                                        Mulai dengan membuat MR baru atau ubah filter pencarian Anda
-                                    </p>
-                                    <Button className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white">
-                                        <Plus className="h-4 w-4 mr-2" />
-                                        Buat MR Baru
-                                    </Button>
                                 </div>
                             </CardContent>
                         </Card>
-                    ) : (
-                        paginatedData.map((mr) => <MobileCardView key={mr.id} mr={mr} />)
-                    )}
-                </div>
-            ) : (
-                // Desktop Table View
-                <Card className="border border-slate-200 dark:border-slate-700 dark:bg-slate-900 shadow-lg rounded-2xl overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow className="bg-slate-50/50 dark:bg-slate-800/30 backdrop-blur-xl border-b border-slate-200/50 dark:border-white/5">
-                                    {columnVisibility.mrNumber && (
-                                        <TableHead className="font-bold text-slate-800 dark:text-white py-6 px-6 tracking-tight">
-                                            MR Number
-                                        </TableHead>
-                                    )}
-                                    {columnVisibility.date && (
-                                        <TableHead className="font-semibold text-slate-700 dark:text-white py-5 px-6 text-base">
-                                            Tanggal & Waktu
-                                        </TableHead>
-                                    )}
-                                    {columnVisibility.project && (
-                                        <TableHead className="font-semibold text-slate-700 dark:text-white py-5 px-6 text-base">
-                                            Proyek
-                                        </TableHead>
-                                    )}
-                                    {columnVisibility.requestedBy && (
-                                        <TableHead className="font-semibold text-slate-700 dark:text-white py-5 px-6 text-base">
-                                            Diminta Oleh
-                                        </TableHead>
-                                    )}
-                                    {columnVisibility.warehouse && (
-                                        <TableHead className="font-semibold text-slate-700 dark:text-white py-5 px-6 text-base">
-                                            Gudang
-                                        </TableHead>
-                                    )}
-                                    {columnVisibility.items && (
-                                        <TableHead className="font-semibold text-slate-700 dark:text-white py-5 px-6 text-base">
-                                            Items & Quantity
-                                        </TableHead>
-                                    )}
-                                    {columnVisibility.notes && (
-                                        <TableHead className="font-semibold text-slate-700 dark:text-white py-5 px-6 text-base">
-                                            Catatan
-                                        </TableHead>
-                                    )}
-                                    {columnVisibility.status && (
-                                        <TableHead className="font-semibold text-slate-700 dark:text-white py-5 px-6 text-base">
-                                            Status
-                                        </TableHead>
-                                    )}
-                                    {columnVisibility.actions && (
-                                        <TableHead className="font-semibold text-slate-700 dark:text-white py-5 px-6 text-base text-right">
-                                            Actions
-                                        </TableHead>
-                                    )}
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {isLoading ? (
-                                    Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
-                                ) : paginatedData.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={8} className="h-96 text-center">
-                                            <div className="max-w-md mx-auto py-12">
-                                                <div className="p-6 bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 rounded-2xl inline-flex mb-6">
-                                                    <Package className="h-16 w-16 text-slate-400" />
+                    ))
+                ) : paginatedData.length === 0 ? (
+                    <Card className="border-2 border-dashed border-slate-200 dark:border-white/10 bg-gradient-to-br from-slate-50 to-white dark:from-slate-900 dark:to-slate-800/50 rounded-3xl">
+                        <CardContent className="py-20 text-center">
+                            <div className="max-w-md mx-auto">
+                                <div className="p-5 bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-700/50 rounded-full w-24 h-24 mx-auto mb-8 flex items-center justify-center shadow-inner relative overflow-hidden group">
+                                    <div className="absolute inset-0 bg-blue-500/10 dark:bg-blue-400/10 blur-xl scale-0 group-hover:scale-150 transition-transform duration-700"></div>
+                                    <Package className="h-12 w-12 text-slate-400 dark:text-slate-500 relative z-10" />
+                                </div>
+                                <h3 className="text-xl font-semibold text-slate-700 mb-2">
+                                    Tidak ada Material Requisition
+                                </h3>
+                                <p className="text-slate-500 mb-6">
+                                    Mulai dengan membuat MR baru atau ubah filter pencarian Anda
+                                </p>
+                                <Button className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white">
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Buat MR Baru
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                ) : (
+                    paginatedData.map((mr) => <MobileCardView key={mr.id} mr={mr} />)
+                )}
+            </div>
+
+            {/* Desktop View */}
+            <div className="hidden md:block">
+                {viewMode === "grid" ? (
+                    <div className="space-y-3">
+                        {/* ... Same Grid View Content ... */}
+                        {isLoading ? (
+                            Array.from({ length: 5 }).map((_, i) => (
+                                <Card key={i} className="border border-slate-200 shadow-sm">
+                                    <CardContent className="p-4">
+                                        <div className="space-y-4">
+                                            <div className="flex items-center gap-3">
+                                                <Skeleton className="h-12 w-12 rounded-xl" />
+                                                <div className="space-y-2 flex-1">
+                                                    <Skeleton className="h-5 w-40" />
+                                                    <Skeleton className="h-4 w-32" />
                                                 </div>
-                                                <h3 className="text-xl font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                                                    Tidak ada data ditemukan
-                                                </h3>
-                                                <p className="text-slate-500 dark:text-slate-400 mb-6">
-                                                    Coba ubah kata kunci pencarian atau filter yang Anda gunakan
-                                                </p>
-                                                <Button
-                                                    variant="outline"
-                                                    onClick={() => { setSearch(""); setStatusFilter("all"); }}
-                                                    className="border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700"
-                                                >
-                                                    Reset Filter
-                                                </Button>
+                                                <Skeleton className="h-7 w-24 rounded-full" />
                                             </div>
-                                        </TableCell>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                {Array.from({ length: 4 }).map((_, j) => (
+                                                    <div key={j} className="space-y-2">
+                                                        <Skeleton className="h-4 w-20" />
+                                                        <Skeleton className="h-5 w-full" />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="flex gap-2 pt-3">
+                                                <Skeleton className="h-10 flex-1 rounded-lg" />
+                                                <Skeleton className="h-10 flex-1 rounded-lg" />
+                                                <Skeleton className="h-10 w-10 rounded-lg" />
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))
+                        ) : paginatedData.length === 0 ? (
+                            <Card className="border-2 border-dashed border-slate-200 dark:border-white/10 bg-gradient-to-br from-slate-50 to-white dark:from-slate-900 dark:to-slate-800/50 rounded-3xl">
+                                <CardContent className="py-20 text-center">
+                                    <div className="max-w-md mx-auto">
+                                        <div className="p-5 bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-700/50 rounded-full w-24 h-24 mx-auto mb-8 flex items-center justify-center shadow-inner relative overflow-hidden group">
+                                            <div className="absolute inset-0 bg-blue-500/10 dark:bg-blue-400/10 blur-xl scale-0 group-hover:scale-150 transition-transform duration-700"></div>
+                                            <Package className="h-12 w-12 text-slate-400 dark:text-slate-500 relative z-10" />
+                                        </div>
+                                        <h3 className="text-xl font-semibold text-slate-700 mb-2">
+                                            Tidak ada Material Requisition
+                                        </h3>
+                                        <p className="text-slate-500 mb-6">
+                                            Mulai dengan membuat MR baru atau ubah filter pencarian Anda
+                                        </p>
+                                        <Button className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white">
+                                            <Plus className="h-4 w-4 mr-2" />
+                                            Buat MR Baru
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ) : (
+                            paginatedData.map((mr) => <MobileCardView key={mr.id} mr={mr} />)
+                        )}
+                    </div>
+                ) : (
+                    <Card className="border border-slate-200 dark:border-slate-700 dark:bg-slate-900 shadow-lg rounded-2xl overflow-hidden">
+                        {/* ... Table View Content ... */}
+                        <div className="overflow-x-auto">
+                            <Table>
+                                {/* ... Table Header ... */}
+                                <TableHeader>
+                                    <TableRow className="bg-slate-50/50 dark:bg-slate-800/30 backdrop-blur-xl border-b border-slate-200/50 dark:border-white/5">
+                                        {columnVisibility.mrNumber && (
+                                            <TableHead className="font-bold text-slate-800 dark:text-white py-6 px-6 tracking-tight">
+                                                MR Number
+                                            </TableHead>
+                                        )}
+                                        {columnVisibility.date && (
+                                            <TableHead className="font-semibold text-slate-700 dark:text-white py-5 px-6 text-base">
+                                                Tanggal & Waktu
+                                            </TableHead>
+                                        )}
+                                        {columnVisibility.project && (
+                                            <TableHead className="font-semibold text-slate-700 dark:text-white py-5 px-6 text-base">
+                                                Proyek
+                                            </TableHead>
+                                        )}
+                                        {columnVisibility.requestedBy && (
+                                            <TableHead className="font-semibold text-slate-700 dark:text-white py-5 px-6 text-base">
+                                                Diminta Oleh
+                                            </TableHead>
+                                        )}
+                                        {columnVisibility.warehouse && (
+                                            <TableHead className="font-semibold text-slate-700 dark:text-white py-5 px-6 text-base">
+                                                Gudang
+                                            </TableHead>
+                                        )}
+                                        {columnVisibility.items && (
+                                            <TableHead className="font-semibold text-slate-700 dark:text-white py-5 px-6 text-base">
+                                                Items & Quantity
+                                            </TableHead>
+                                        )}
+                                        {columnVisibility.notes && (
+                                            <TableHead className="font-semibold text-slate-700 dark:text-white py-5 px-6 text-base">
+                                                Catatan
+                                            </TableHead>
+                                        )}
+                                        {columnVisibility.status && (
+                                            <TableHead className="font-semibold text-slate-700 dark:text-white py-5 px-6 text-base">
+                                                Status
+                                            </TableHead>
+                                        )}
+                                        {columnVisibility.actions && (
+                                            <TableHead className="font-semibold text-slate-700 dark:text-white py-5 px-6 text-base text-right">
+                                                Actions
+                                            </TableHead>
+                                        )}
                                     </TableRow>
-                                ) : (
-                                    paginatedData.map((mr) => {
-                                        const statusConfig = getStatusConfig(mr.status)
-                                        const StatusIcon = statusConfig.icon
+                                </TableHeader>
+                                <TableBody>
+                                    {isLoading ? (
+                                        Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
+                                    ) : paginatedData.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={8} className="h-96 text-center">
+                                                <div className="max-w-md mx-auto py-12">
+                                                    <div className="p-6 bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 rounded-2xl inline-flex mb-6">
+                                                        <Package className="h-16 w-16 text-slate-400" />
+                                                    </div>
+                                                    <h3 className="text-xl font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                                                        Tidak ada data ditemukan
+                                                    </h3>
+                                                    <p className="text-slate-500 dark:text-slate-400 mb-6">
+                                                        Coba ubah kata kunci pencarian atau filter yang Anda gunakan
+                                                    </p>
+                                                    <Button
+                                                        variant="outline"
+                                                        onClick={() => { setSearch(""); setStatusFilter("all"); }}
+                                                        className="border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700"
+                                                    >
+                                                        Reset Filter
+                                                    </Button>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        paginatedData.map((mr) => {
+                                            const statusConfig = getStatusConfig(mr.status)
+                                            const StatusIcon = statusConfig.icon
 
-                                        return (
-                                            <TableRow
-                                                key={mr.id}
-                                                className="group hover:bg-blue-500/[0.02] dark:hover:bg-blue-400/[0.03] transition-all duration-500 border-b border-slate-100 dark:border-white/5"
-                                            >
-                                                {columnVisibility.mrNumber && (
-                                                    <TableCell className="py-5 px-6">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className={`p-3 rounded-xl ${statusConfig.bg}`}>
-                                                                <FileText className="h-6 w-6 text-blue-600" />
-                                                            </div>
-                                                            <div>
-                                                                <p className="font-bold text-lg text-slate-900 dark:text-slate-100 group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">
-                                                                    {mr.mrNumber}
-                                                                </p>
-                                                                {/* <p className="text-sm text-slate-500">
-                                                                    #Token : {mr.qrToken.substring(0, 8)}
-                                                                </p> */}
-                                                            </div>
-                                                        </div>
-                                                    </TableCell>
-                                                )}
-
-                                                {columnVisibility.date && (
-                                                    <TableCell className="py-5 px-6">
-                                                        <div className="space-y-1">
-                                                            <p className="font-semibold text-slate-800 dark:text-white">
-                                                                {format(new Date(mr.issuedDate), "dd MMM yyyy", { locale: id })}
-                                                            </p>
-                                                            <p className="text-sm text-slate-500 dark:text-slate-300 flex items-center gap-1">
-                                                                <Clock className="h-3.5 w-3.5" />
-                                                                {format(new Date(mr.issuedDate), "HH:mm", { locale: id })} WIB
-                                                            </p>
-                                                        </div>
-                                                    </TableCell>
-                                                )}
-
-                                                {columnVisibility.project && (
-                                                    <TableCell className="py-5 px-6">
-                                                        <div className="flex items-center gap-2">
-                                                            <Building className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-                                                            <span className="font-bold text-slate-800 dark:text-white text-wrap uppercase">{mr.project?.name || mr.projectId}</span>
-                                                        </div>
-                                                    </TableCell>
-                                                )}
-
-                                                {columnVisibility.requestedBy && (
-                                                    <TableCell className="py-5 px-6">
-                                                        <div className="space-y-1">
-                                                            <div className="flex items-center gap-2">
-                                                                <User className="h-4 w-4 text-slate-500" />
-                                                                <p className="font-semibold text-slate-800 dark:text-white">{mr.requestedBy?.name || "N/A"}</p>
-                                                            </div>
-                                                            <p className="text-sm text-slate-500 dark:text-slate-300 pl-6">{mr.requestedBy?.department}</p>
-                                                        </div>
-                                                    </TableCell>
-                                                )}
-
-                                                {columnVisibility.warehouse && (
-                                                    <TableCell className="py-5 px-6">
-                                                        <div className="flex items-center gap-2">
-                                                            <Package className="h-4 w-4 text-slate-500 dark:text-slate-400" />
-                                                            <span className="font-semibold text-slate-800 dark:text-white">{mr.Warehouse?.name || "N/A"}</span>
-                                                        </div>
-                                                    </TableCell>
-                                                )}
-
-                                                {columnVisibility.items && (
-                                                    <TableCell className="py-5 px-6">
-                                                        <div className="space-y-1">
-                                                            <div className="flex items-center gap-2">
-                                                                <div className="bg-gradient-to-r from-emerald-100 to-emerald-50 rounded-lg px-3 py-1.5">
-                                                                    <span className="font-bold text-emerald-700">
-                                                                        {mr.items.length} items
-                                                                    </span>
+                                            return (
+                                                <TableRow
+                                                    key={mr.id}
+                                                    className="group hover:bg-blue-500/[0.02] dark:hover:bg-blue-400/[0.03] transition-all duration-500 border-b border-slate-100 dark:border-white/5"
+                                                >
+                                                    {columnVisibility.mrNumber && (
+                                                        <TableCell className="py-5 px-6">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className={`p-3 rounded-xl ${statusConfig.bg}`}>
+                                                                    <FileText className="h-6 w-6 text-blue-600" />
+                                                                </div>
+                                                                <div>
+                                                                    <p className="font-bold text-lg text-slate-900 dark:text-slate-100 group-hover:text-blue-700 dark:group-hover:text-blue-400 transition-colors">
+                                                                        {mr.mrNumber}
+                                                                    </p>
                                                                 </div>
                                                             </div>
-                                                            <p className="text-sm text-slate-500 dark:text-slate-300">
-                                                                Total Qty: <span className="font-semibold text-slate-700 dark:text-white">
-                                                                    {mr.items.reduce((sum, item) => sum + item.qtyRequested, 0).toLocaleString()}
-                                                                </span>
-                                                            </p>
-                                                        </div>
-                                                    </TableCell>
-                                                )}
+                                                        </TableCell>
+                                                    )}
 
-                                                {columnVisibility.notes && (
-                                                    <TableCell className="py-5 px-6">
-                                                        {mr.notes ? (
-                                                            <div className="flex items-start gap-2 max-w-[200px]">
-                                                                <FileText className="h-4 w-4 text-slate-400 mt-0.5" />
-                                                                <p className="text-sm text-slate-600 dark:text-slate-300 italic truncate" title={mr.notes}>
-                                                                    {mr.notes}
+                                                    {columnVisibility.date && (
+                                                        <TableCell className="py-5 px-6">
+                                                            <div className="space-y-1">
+                                                                <p className="font-semibold text-slate-800 dark:text-white">
+                                                                    {format(new Date(mr.issuedDate), "dd MMM yyyy", { locale: id })}
+                                                                </p>
+                                                                <p className="text-sm text-slate-500 dark:text-slate-300 flex items-center gap-1">
+                                                                    <Clock className="h-3.5 w-3.5" />
+                                                                    {format(new Date(mr.issuedDate), "HH:mm", { locale: id })} WIB
                                                                 </p>
                                                             </div>
-                                                        ) : (
-                                                            <span className="text-slate-400">-</span>
-                                                        )}
-                                                    </TableCell>
-                                                )}
+                                                        </TableCell>
+                                                    )}
 
-                                                {columnVisibility.status && (
-                                                    <TableCell className="py-5 px-6">
-                                                        <Badge
-                                                            className={`
+                                                    {columnVisibility.project && (
+                                                        <TableCell className="py-5 px-6">
+                                                            <div className="flex items-center gap-2">
+                                                                <Building className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                                                                <span className="font-bold text-slate-800 dark:text-white text-wrap uppercase">{mr.project?.name || mr.projectId}</span>
+                                                            </div>
+                                                        </TableCell>
+                                                    )}
+
+                                                    {columnVisibility.requestedBy && (
+                                                        <TableCell className="py-5 px-6">
+                                                            <div className="space-y-1">
+                                                                <div className="flex items-center gap-2">
+                                                                    <User className="h-4 w-4 text-slate-500" />
+                                                                    <p className="font-semibold text-slate-800 dark:text-white">{mr.requestedBy?.name || "N/A"}</p>
+                                                                </div>
+                                                                <p className="text-sm text-slate-500 dark:text-slate-300 pl-6">{mr.requestedBy?.department}</p>
+                                                            </div>
+                                                        </TableCell>
+                                                    )}
+
+                                                    {columnVisibility.warehouse && (
+                                                        <TableCell className="py-5 px-6">
+                                                            <div className="flex items-center gap-2">
+                                                                <Package className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                                                                <span className="font-semibold text-slate-800 dark:text-white">{mr.Warehouse?.name || "N/A"}</span>
+                                                            </div>
+                                                        </TableCell>
+                                                    )}
+
+                                                    {columnVisibility.items && (
+                                                        <TableCell className="py-5 px-6">
+                                                            <div className="space-y-1">
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="bg-gradient-to-r from-emerald-100 to-emerald-50 rounded-lg px-3 py-1.5">
+                                                                        <span className="font-bold text-emerald-700">
+                                                                            {mr.items.length} items
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                                <p className="text-sm text-slate-500 dark:text-slate-300">
+                                                                    Total Qty: <span className="font-semibold text-slate-700 dark:text-white">
+                                                                        {mr.items.reduce((sum, item) => sum + item.qtyRequested, 0).toLocaleString()}
+                                                                    </span>
+                                                                </p>
+                                                            </div>
+                                                        </TableCell>
+                                                    )}
+
+                                                    {columnVisibility.notes && (
+                                                        <TableCell className="py-5 px-6">
+                                                            {mr.notes ? (
+                                                                <div className="flex items-start gap-2 max-w-[200px]">
+                                                                    <FileText className="h-4 w-4 text-slate-400 mt-0.5" />
+                                                                    <p className="text-sm text-slate-600 dark:text-slate-300 italic truncate" title={mr.notes}>
+                                                                        {mr.notes}
+                                                                    </p>
+                                                                </div>
+                                                            ) : (
+                                                                <span className="text-slate-400">-</span>
+                                                            )}
+                                                        </TableCell>
+                                                    )}
+
+                                                    {columnVisibility.status && (
+                                                        <TableCell className="py-5 px-6">
+                                                            <Badge
+                                                                className={`
                                                                 ${statusConfig.bg} 
                                                                 ${statusConfig.color} 
                                                                 ${statusConfig.border}
@@ -891,94 +960,93 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                                                                 backdrop-blur-sm
                                                                 shadow-sm
                                                             `}
-                                                            variant="outline"
-                                                        >
-                                                            <StatusIcon className="h-4 w-4" />
-                                                            {statusConfig.label}
-                                                        </Badge>
-                                                    </TableCell>
-                                                )}
+                                                                variant="outline"
+                                                            >
+                                                                <StatusIcon className="h-4 w-4" />
+                                                                {statusConfig.label}
+                                                            </Badge>
+                                                        </TableCell>
+                                                    )}
 
-                                                {columnVisibility.actions && (
-                                                    <TableCell className="py-5 px-6">
-                                                        <div className="flex justify-end gap-2">
-                                                            {mr.status === "PENDING" && (
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="default"
-                                                                    onClick={() => handleApprove(mr)}
-                                                                    className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white font-semibold shadow-md"
-                                                                >
-                                                                    <CheckCheck className="h-4 w-4 mr-2" />
-                                                                    Approve
-                                                                </Button>
-                                                            )}
-
-                                                            <Sheet open={showDetailSheet && selectedMR?.id === mr.id} onOpenChange={setShowDetailSheet}>
-                                                                <SheetTrigger asChild>
+                                                    {columnVisibility.actions && (
+                                                        <TableCell className="py-5 px-6">
+                                                            <div className="flex justify-end gap-2">
+                                                                {mr.status === "PENDING" && (
                                                                     <Button
                                                                         size="sm"
-                                                                        variant="outline"
-                                                                        onClick={() => handleViewDetails(mr)}
-                                                                        className="border-slate-300 font-semibold hover:bg-slate-50"
+                                                                        variant="default"
+                                                                        onClick={() => handleApprove(mr)}
+                                                                        className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white font-semibold shadow-md"
                                                                     >
-                                                                        <Eye className="h-4 w-4 mr-2" />
-                                                                        Detail
+                                                                        <CheckCheck className="h-4 w-4 mr-2" />
+                                                                        Approve
                                                                     </Button>
-                                                                </SheetTrigger>
-                                                                <MRDetailSheet
-                                                                    mr={selectedMR}
-                                                                    qrCodeUrl={qrCodeUrl}
-                                                                    onScanQRCode={handleScanQRCode}
-                                                                />
-                                                            </Sheet>
+                                                                )}
 
-                                                            <DropdownMenu>
-                                                                <DropdownMenuTrigger asChild>
-                                                                    <Button
-                                                                        variant="outline"
-                                                                        size="sm"
-                                                                        className="border-slate-300"
-                                                                    >
-                                                                        <MoreHorizontal className="h-4 w-4" />
-                                                                    </Button>
-                                                                </DropdownMenuTrigger>
-                                                                <DropdownMenuContent align="end" className="w-48">
-                                                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                                    <DropdownMenuSeparator />
-                                                                    <DropdownMenuItem onClick={() => handleViewDetails(mr)}>
-                                                                        <Eye className="h-4 w-4 mr-2" />
-                                                                        View Details
-                                                                    </DropdownMenuItem>
-                                                                    <DropdownMenuItem>
-                                                                        <Download className="h-4 w-4 mr-2" />
-                                                                        Download PDF
-                                                                    </DropdownMenuItem>
-                                                                    <DropdownMenuItem>
-                                                                        <Printer className="h-4 w-4 mr-2" />
-                                                                        Print
-                                                                    </DropdownMenuItem>
-                                                                    <DropdownMenuSeparator />
-                                                                    <DropdownMenuItem className="text-red-600">
-                                                                        <AlertTriangle className="h-4 w-4 mr-2" />
-                                                                        Reject
-                                                                    </DropdownMenuItem>
-                                                                </DropdownMenuContent>
-                                                            </DropdownMenu>
-                                                        </div>
-                                                    </TableCell>
-                                                )}
-                                            </TableRow>
-                                        )
-                                    })
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
+                                                                <Sheet open={showDetailSheet && selectedMR?.id === mr.id} onOpenChange={setShowDetailSheet}>
+                                                                    <SheetTrigger asChild>
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="outline"
+                                                                            onClick={() => handleViewDetails(mr)}
+                                                                            className="border-slate-300 font-semibold hover:bg-slate-50"
+                                                                        >
+                                                                            <Eye className="h-4 w-4 mr-2" />
+                                                                            Detail
+                                                                        </Button>
+                                                                    </SheetTrigger>
+                                                                    <MRDetailSheet
+                                                                        mr={selectedMR}
+                                                                        qrCodeUrl={qrCodeUrl}
+                                                                        onScanQRCode={handleScanQRCode}
+                                                                    />
+                                                                </Sheet>
 
-
-                </Card>
-            )}
+                                                                <DropdownMenu>
+                                                                    <DropdownMenuTrigger asChild>
+                                                                        <Button
+                                                                            variant="outline"
+                                                                            size="sm"
+                                                                            className="border-slate-300"
+                                                                        >
+                                                                            <MoreHorizontal className="h-4 w-4" />
+                                                                        </Button>
+                                                                    </DropdownMenuTrigger>
+                                                                    <DropdownMenuContent align="end" className="w-48">
+                                                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                                        <DropdownMenuSeparator />
+                                                                        <DropdownMenuItem onClick={() => handleViewDetails(mr)}>
+                                                                            <Eye className="h-4 w-4 mr-2" />
+                                                                            View Details
+                                                                        </DropdownMenuItem>
+                                                                        <DropdownMenuItem>
+                                                                            <Download className="h-4 w-4 mr-2" />
+                                                                            Download PDF
+                                                                        </DropdownMenuItem>
+                                                                        <DropdownMenuItem>
+                                                                            <Printer className="h-4 w-4 mr-2" />
+                                                                            Print
+                                                                        </DropdownMenuItem>
+                                                                        <DropdownMenuSeparator />
+                                                                        <DropdownMenuItem className="text-red-600">
+                                                                            <AlertTriangle className="h-4 w-4 mr-2" />
+                                                                            Reject
+                                                                        </DropdownMenuItem>
+                                                                    </DropdownMenuContent>
+                                                                </DropdownMenu>
+                                                            </div>
+                                                        </TableCell>
+                                                    )}
+                                                </TableRow>
+                                            )
+                                        })
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </Card>
+                )}
+            </div>
 
 
             {/* QR Scanner Dialog */}

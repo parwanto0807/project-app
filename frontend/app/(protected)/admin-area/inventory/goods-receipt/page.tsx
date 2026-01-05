@@ -142,7 +142,7 @@ export default async function GoodsReceiptsPage({ searchParams }: PageProps) {
                                 </div>
                                 <div>
                                     <h1 className="text-2xl font-bold text-white">
-                                        Goods Receipts / Penerimaan Barang Management
+                                        Goods Receipts / Penerimaan Barang Gudang
                                     </h1>
                                     <p className="text-white/80 mt-1">
                                         Manage and monitor all goods receipts and quality control

@@ -128,14 +128,14 @@ const convertImageToBase64 = async (url: string): Promise<string> => {
     } catch (error) {
         // FIX: Menggunakan error agar tidak linting error 'e defined but never used'
         console.error(`Gagal convert foto (${url}):`, error);
-        return "/placeholder.png"; 
+        return "/placeholder.png";
     }
 };
 
 // --- 4. DOKUMEN PDF UTAMA ---
 export function BAPPdfDocument({ bap }: { bap: BAPData }) {
-    const logoSrc = '/LogoMd.png'; 
-    
+    const logoSrc = '/LogoMd.png';
+
     const workItems = bap.salesOrder.items && bap.salesOrder.items.length > 0
         ? bap.salesOrder.items
         : [{ id: '1', name: 'Pekerjaan Utama', description: bap.workDescription || '-', productId: 'def', qty: 1, price: 0, total: 0, uom: 'Paket' }];
@@ -151,8 +151,8 @@ export function BAPPdfDocument({ bap }: { bap: BAPData }) {
                     <PdfImage style={styles.logo} src={logoSrc} />
                     <View style={styles.companyInfo}>
                         <Text style={{ color: '#008000', fontWeight: 'bold', fontSize: 12, marginBottom: 5 }}>PT. RYLIF MIKRO MANDIRI</Text>
-                        <Text>Office: Jl. Anyar RT. 01/RW. 01, Kampung Pulo, No. 5</Text>
-                        <Text>Kemang Pratama, Bekasi Barat, Bekasi - 17144</Text>
+                        <Text>Jln. Arjuna RT. 04/RW. 36, Kampung Pulo Resident 1 No. 6</Text>
+                        <Text>Kampung Pulo Warung Asem, Sumber Jaya, Bekasi - 17510, Indonesia</Text>
                         <Text>Phone: 0857-7414-8874 | Email: rylifmikromandiri@gmail.com</Text>
                     </View>
                 </View>
@@ -225,7 +225,7 @@ export function BAPPdfDocument({ bap }: { bap: BAPData }) {
                         <Text style={styles.signatureInfo}>Perwakilan Pelanggan</Text>
                     </View>
                 </View>
-                
+
                 {/* FIX: Menggunakan format() agar tidak error linting 'format declared but never read' */}
                 <Text style={styles.footer} fixed>
                     Dokumen ini dicetak secara elektronik pada {format(new Date(), "dd MMMM yyyy 'pukul' HH:mm")} • BAST No: {bap.bapNumber} • Halaman 1 dari {totalPages}
@@ -278,8 +278,8 @@ export function BAPPdfDocument({ bap }: { bap: BAPData }) {
                     <View style={styles.photoSection}>
                         <View style={styles.photoGrid}>
                             {chunk.map((photo, idx) => {
-                                const imageSource = photo.photoUrl.startsWith('data:') 
-                                    ? photo.photoUrl 
+                                const imageSource = photo.photoUrl.startsWith('data:')
+                                    ? photo.photoUrl
                                     : getFullImageUrl(photo.photoUrl);
 
                                 return (
@@ -308,11 +308,11 @@ export function BAPPreview({ bap }: { bap: BAPData }) {
 
     useEffect(() => {
         let mounted = true;
-        
+
         const process = async () => {
             try {
                 const newBap = JSON.parse(JSON.stringify(bap));
-                
+
                 if (newBap.photos && newBap.photos.length > 0) {
                     const processed = await Promise.all(
                         newBap.photos.map(async (photo: BAPPhoto) => {
@@ -323,7 +323,7 @@ export function BAPPreview({ bap }: { bap: BAPData }) {
                     );
                     newBap.photos = processed;
                 }
-                
+
                 if (mounted) setReadyBap(newBap);
             } catch (err: unknown) { // FIX: Menggunakan unknown dan casting atau logging
                 console.error(err);

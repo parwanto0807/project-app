@@ -287,8 +287,8 @@ const InvoicePdfDocumentOld = ({ invoice }: { invoice: Invoice }) => {
                     {/* Company info - hidden */}
                     <View style={styles.hiddenCompanyInfo}>
                         <Text>PT. RYLIF MIKRO MANDIRI</Text>
-                        <Text>Office: Jl. Anyar RT. 01/RW. 01, Kampung Pulo, No. 5</Text>
-                        <Text>Kemang Pratama, Bekasi Barat, Bekasi - 17144, Indonesia</Text>
+                        <Text>Jln. Arjuna RT. 04/RW. 36, Kampung Pulo Resident 1 No. 6</Text>
+                        <Text>Kampung Pulo Warung Asem, Sumber Jaya, Bekasi - 17510, Indonesia</Text>
                         <Text>Phone: 0857-7414-8874 | Email: rylifmikromandiri@gmail.com</Text>
                     </View>
                 </View>

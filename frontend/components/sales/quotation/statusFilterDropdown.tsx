@@ -19,6 +19,7 @@ interface StatusFilterDropdownProps {
     setStatusFilter: (value: QuotationStatus | "ALL") => void;
     statusConfig: Record<string, StatusFilterConfig>;
     disabled?: boolean;
+    className?: string;
 }
 
 const StatusFilterDropdown = ({
@@ -26,6 +27,7 @@ const StatusFilterDropdown = ({
     setStatusFilter,
     statusConfig,
     disabled = false,
+    className = "",
 }: StatusFilterDropdownProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -54,10 +56,10 @@ const StatusFilterDropdown = ({
     };
 
     return (
-        <div className="relative" ref={dropdownRef}>
+        <div className={`relative ${className}`} ref={dropdownRef}>
             <Button
                 variant="outline"
-                className="flex items-center gap-2 bg-transparent dark:hover:bg-slate-800 hover:bg-slate-100"
+                className="w-full justify-between flex items-center gap-2 bg-transparent dark:hover:bg-slate-800 hover:bg-slate-100"
                 onClick={() => setIsOpen(!isOpen)}
                 disabled={disabled}
                 aria-haspopup="menu"
@@ -82,8 +84,8 @@ const StatusFilterDropdown = ({
                         <button
                             onClick={() => handleStatusSelect("ALL")}
                             className={`w-full px-3 py-2 text-sm text-left hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${statusFilter === "ALL"
-                                    ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-medium"
-                                    : "text-slate-700 dark:text-slate-300"
+                                ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-medium"
+                                : "text-slate-700 dark:text-slate-300"
                                 }`}
                             role="menuitem"
                         >
@@ -101,8 +103,8 @@ const StatusFilterDropdown = ({
                                     key={status}
                                     onClick={() => handleStatusSelect(status as QuotationStatus)}
                                     className={`w-full px-3 py-2 text-sm text-left hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${statusFilter === status
-                                            ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-medium"
-                                            : "text-slate-700 dark:text-slate-300"
+                                        ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-medium"
+                                        : "text-slate-700 dark:text-slate-300"
                                         }`}
                                     role="menuitem"
                                 >

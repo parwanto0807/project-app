@@ -4,7 +4,7 @@ import { ReactNode } from "react";
 interface HeaderCardProps {
   // Basic props
   title: ReactNode;
-  description?: string;
+  description?: ReactNode;
   icon?: ReactNode;
 
   // Styling props

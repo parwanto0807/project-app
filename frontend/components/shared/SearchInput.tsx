@@ -14,6 +14,7 @@ interface SearchInputProps {
     minLength?: number;
     variant?: "default" | "filled" | "glass";
     showLoading?: boolean;
+    isLoading?: boolean;
     preserveFocus?: boolean;
     messages?: {
         placeholder?: string;
@@ -35,6 +36,7 @@ const SearchInput = ({
     minLength = 1,
     variant = "filled",
     showLoading = true,
+    isLoading, // Removed default value to detect controlled mode
     preserveFocus = true,
     messages = {},
     "data-testid": testId = "search-input",
@@ -63,6 +65,7 @@ const SearchInput = ({
                 }
                 return prevSearchTerm;
             });
+            setIsSearching(false);
         }
     }, [initialValue]);
 
@@ -128,7 +131,6 @@ const SearchInput = ({
         if (e.key === 'Escape') {
             handleClear();
         }
-        // Enter key akan ditangani oleh form submit, tidak perlu handle di sini
     };
 
     const handleClear = () => {
@@ -203,6 +205,9 @@ const SearchInput = ({
     const showMinLengthWarning = searchTerm.length > 0 && searchTerm.length < minLength;
     const showEnterHint = searchTerm.length > 0;
 
+    // Logic: If isLoading is passed (controlled), use it. Otherwise use internal isSearching.
+    const shouldShowLoading = (isLoading !== undefined ? isLoading : isSearching) && showLoading;
+
     return (
         <form
             onSubmit={handleSubmit}
@@ -225,7 +230,7 @@ const SearchInput = ({
                     value={searchTerm}
                     onChange={handleInputChange}
                     onKeyDown={handleKeyDown}
-                    disabled={disabled || isSearching}
+                    disabled={disabled}
                     className={getInputStyle()}
                     aria-label="Search input"
                     aria-describedby={
@@ -239,7 +244,7 @@ const SearchInput = ({
                 {/* Right Side Indicators */}
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
                     {/* Loading Spinner */}
-                    {isSearching && showLoading && (
+                    {shouldShowLoading && (
                         <div
                             className="flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-800"
                             role="status"

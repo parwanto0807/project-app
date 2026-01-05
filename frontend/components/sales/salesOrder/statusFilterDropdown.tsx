@@ -19,6 +19,7 @@ interface StatusFilterDropdownProps {
     setStatusFilter: (value: OrderStatus | "ALL") => void;
     statusConfig: Record<string, StatusFilterConfig>;
     disabled?: boolean;
+    className?: string;
 }
 
 const StatusFilterDropdown = ({
@@ -26,6 +27,7 @@ const StatusFilterDropdown = ({
     setStatusFilter,
     statusConfig,
     disabled = false,
+    className,
 }: StatusFilterDropdownProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -56,10 +58,10 @@ const StatusFilterDropdown = ({
     };
 
     return (
-        <div className="relative" ref={dropdownRef}>
+        <div className={`relative ${className || ""}`} ref={dropdownRef}>
             <Button
                 variant="outline"
-                className="flex items-center gap-2 bg-transparent dark:hover:bg-slate-800 hover:bg-slate-100"
+                className="flex items-center justify-between w-full gap-2 bg-transparent dark:hover:bg-slate-800 hover:bg-slate-100"
                 onClick={() => setIsOpen(!isOpen)}
                 disabled={disabled}
             >

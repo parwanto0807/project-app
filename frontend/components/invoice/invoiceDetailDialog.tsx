@@ -173,7 +173,7 @@ export const InvoiceDetailDrawer = ({ open, onOpenChange, invoice, onRefresh }: 
     return (
         <>
             <Drawer open={open} onOpenChange={onOpenChange} direction="bottom">
-                <DrawerContent className="h-full w-full sm:w-[900px] ml-auto mb-10" aria-describedby={undefined}>
+                <DrawerContent className="h-full w-full sm:w-[825px] ml-auto mb-10" aria-describedby={undefined}>
                     <div className="flex flex-col h-full bg-gradient-to-br from-blue-50/50 to-gray-50/50">
                         <div className={cn(
                             "flex flex-col h-full bg-gradient-to-br from-blue-50/50 to-gray-50/50 relative",
@@ -259,7 +259,7 @@ export const InvoiceDetailDrawer = ({ open, onOpenChange, invoice, onRefresh }: 
                                 <div className="space-y-6">
                                     {/* Header Invoice Card */}
                                     <div className="bg-white rounded-xl shadow-sm border p-6">
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                                             <div className="space-y-2">
                                                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                                     <Hash className="h-4 w-4 text-blue-600" />
@@ -293,7 +293,7 @@ export const InvoiceDetailDrawer = ({ open, onOpenChange, invoice, onRefresh }: 
                                     </div>
 
                                     {/* Informasi Tanggal dan Status */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                         {/* Tanggal */}
                                         <div className="bg-white rounded-xl shadow-sm border p-6">
                                             <h3 className="font-semibold text-lg mb-4 flex items-center gap-2 text-gray-700">
@@ -361,7 +361,7 @@ export const InvoiceDetailDrawer = ({ open, onOpenChange, invoice, onRefresh }: 
                                         </div>
                                         <div className="p-1">
                                             {/* Table Header */}
-                                            <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-gray-50 text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                            <div className="hidden lg:grid grid-cols-12 gap-4 px-4 py-3 bg-gray-50 text-xs font-semibold text-gray-600 uppercase tracking-wider">
                                                 <div className="col-span-5">Item Description</div>
                                                 <div className="col-span-1 text-center">Quantity</div>
                                                 <div className="col-span-2 text-right">Unit Price</div>
@@ -386,25 +386,45 @@ export const InvoiceDetailDrawer = ({ open, onOpenChange, invoice, onRefresh }: 
                                                     const subtotalAfterDiscount = subtotalBeforeDiscount - discountAmount;
 
                                                     return (
-                                                        <div key={idx} className="grid grid-cols-12 gap-4 px-4 py-3 text-sm hover:bg-gray-50/50 transition-colors">
-                                                            <div className="col-span-5 font-medium text-gray-900">{item.name}</div>
-                                                            <div className="col-span-1 text-center text-gray-600">{item.qty}</div>
-                                                            <div className="col-span-2 text-right text-gray-700">
-                                                                {formatCurrencyNumber(item.unitPrice)}
+                                                        <div key={idx} className="flex flex-col p-4 text-sm border-b last:border-0 hover:bg-gray-50/50 transition-colors lg:grid lg:grid-cols-12 lg:gap-4 lg:px-4 lg:py-3 lg:items-center">
+                                                            {/* Name */}
+                                                            <div className="font-medium text-gray-900 mb-2 lg:mb-0 lg:col-span-5">
+                                                                <span className="lg:hidden text-xs text-gray-500 block mb-1">Item Description</span>
+                                                                {item.name}
                                                             </div>
-                                                            <div
-                                                                className={`col-span-1 text-center ${discountPercent > 0
-                                                                    ? "text-red-600 font-bold"
-                                                                    : "text-gray-600"
-                                                                    }`}
-                                                            >
-                                                                {discountPercent}%
+
+                                                            {/* qTY */}
+                                                            <div className="flex justify-between lg:block lg:col-span-1 lg:text-center mb-1 lg:mb-0">
+                                                                <span className="lg:hidden text-gray-500 text-xs">Qty:</span>
+                                                                <span className="text-gray-600">{item.qty}</span>
                                                             </div>
-                                                            <div className="col-span-1 text-center text-gray-600">
-                                                                {item.taxRate ?? 0}%
+
+                                                            {/* Price */}
+                                                            <div className="flex justify-between lg:block lg:col-span-2 lg:text-right mb-1 lg:mb-0">
+                                                                <span className="lg:hidden text-gray-500 text-xs">Price:</span>
+                                                                <span className="text-gray-700">{formatCurrencyNumber(item.unitPrice)}</span>
                                                             </div>
-                                                            <div className="col-span-2 text-right font-semibold text-blue-600">
-                                                                {formatCurrencyNumber(subtotalAfterDiscount)}
+
+                                                            {/* Disc */}
+                                                            <div className="flex justify-between lg:block lg:col-span-1 lg:text-center mb-1 lg:mb-0">
+                                                                <span className="lg:hidden text-gray-500 text-xs">Disc:</span>
+                                                                <span className={discountPercent > 0 ? "text-red-600 font-bold" : "text-gray-600"}>
+                                                                    {discountPercent}%
+                                                                </span>
+                                                            </div>
+
+                                                            {/* Tax */}
+                                                            <div className="flex justify-between lg:block lg:col-span-1 lg:text-center mb-2 lg:mb-0">
+                                                                <span className="lg:hidden text-gray-500 text-xs">Tax:</span>
+                                                                <span className="text-gray-600">{item.taxRate ?? 0}%</span>
+                                                            </div>
+
+                                                            {/* Total */}
+                                                            <div className="flex justify-between items-center pt-2 border-t border-dashed lg:block lg:col-span-2 lg:text-right lg:pt-0 lg:border-t-0 bg-gray-50/50 -mx-4 px-4 py-2 lg:bg-transparent lg:mx-0 lg:px-0 lg:py-0 rounded-b-lg lg:rounded-none">
+                                                                <span className="lg:hidden font-semibold text-gray-700 text-xs">Total:</span>
+                                                                <span className="font-semibold text-blue-600">
+                                                                    {formatCurrencyNumber(subtotalAfterDiscount)}
+                                                                </span>
                                                             </div>
                                                         </div>
                                                     );
@@ -419,7 +439,7 @@ export const InvoiceDetailDrawer = ({ open, onOpenChange, invoice, onRefresh }: 
                                             <DollarSign className="h-5 w-5" />
                                             Amount Summary
                                         </h3>
-                                        <div className="space-y-3 max-w-md ml-auto">
+                                        <div className="space-y-3 w-full md:max-w-md md:ml-auto">
                                             <AmountRow
                                                 label="Subtotal"
                                                 value={invoice.subtotal}

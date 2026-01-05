@@ -316,57 +316,57 @@ export default function SupplierInvoiceTable({ role }: SupplierInvoiceTableProps
         <div className="space-y-6 p-4 md:p-6">
             {/* Stats Cards - Hidden for PIC */}
             {role !== 'pic' && (
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-5">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-blue-700 mb-1">Total Invoices Supplier</p>
-                                <p className="text-2xl font-bold text-blue-900">{totalItems}</p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
+                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-3 md:p-5">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+                            <div className="order-2 md:order-1 min-w-0 w-full">
+                                <p className="text-[10px] md:text-sm font-medium text-blue-700 mb-0.5 md:mb-1 truncate">Total Invoices</p>
+                                <p className="text-sm md:text-xl lg:text-2xl font-bold text-blue-900 whitespace-nowrap truncate">{totalItems}</p>
                             </div>
-                            <div className="p-3 bg-white rounded-lg">
-                                <FileText className="h-6 w-6 text-blue-600" />
+                            <div className="order-1 md:order-2 p-1.5 md:p-3 bg-white rounded-lg w-fit shadow-sm hidden lg:block">
+                                <FileText className="h-4 w-4 md:h-6 md:w-6 text-blue-600" />
                             </div>
                         </div>
                     </div>
-                    <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200 rounded-xl p-5">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-emerald-700 mb-1">Total Tagihan</p>
-                                <p className="text-2xl font-bold text-emerald-900">
+                    <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200 rounded-xl p-3 md:p-5">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+                            <div className="order-2 md:order-1 min-w-0 w-full">
+                                <p className="text-[10px] md:text-sm font-medium text-emerald-700 mb-0.5 md:mb-1 truncate">Total Tagihan</p>
+                                <p className="text-sm md:text-sm lg:text-2xl font-bold text-emerald-900 whitespace-nowrap truncate">
                                     {formatCurrency(invoices.reduce((sum, inv) => sum + Number(inv.totalAmount), 0))}
                                 </p>
                             </div>
-                            <div className="p-3 bg-white rounded-lg">
-                                <DollarSign className="h-6 w-6 text-emerald-600" />
+                            <div className="order-1 md:order-2 p-1.5 md:p-3 bg-white rounded-lg w-fit shadow-sm hidden lg:block">
+                                <DollarSign className="h-4 w-4 md:h-6 md:w-6 text-emerald-600" />
                             </div>
                         </div>
                     </div>
-                    <div className="bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 rounded-xl p-5">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-amber-700 mb-1">Draft</p>
-                                <p className="text-2xl font-bold text-amber-900">
+                    <div className="bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 rounded-xl p-3 md:p-5">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+                            <div className="order-2 md:order-1 min-w-0 w-full">
+                                <p className="text-[10px] md:text-sm font-medium text-amber-700 mb-0.5 md:mb-1 truncate">Draft</p>
+                                <p className="text-sm md:text-xl lg:text-2xl font-bold text-amber-900 whitespace-nowrap truncate">
                                     {invoices.filter(inv => inv.status === 'DRAFT').length}
                                 </p>
                             </div>
-                            <div className="p-3 bg-white rounded-lg">
-                                <Clock className="h-6 w-6 text-amber-600" />
+                            <div className="order-1 md:order-2 p-1.5 md:p-3 bg-white rounded-lg w-fit shadow-sm hidden lg:block">
+                                <Clock className="h-4 w-4 md:h-6 md:w-6 text-amber-600" />
                             </div>
                         </div>
                     </div>
-                    <div className="bg-gradient-to-br from-rose-50 to-rose-100 border border-rose-200 rounded-xl p-5">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-rose-700 mb-1">Overdue</p>
-                                <p className="text-2xl font-bold text-rose-900">
+                    <div className="bg-gradient-to-br from-rose-50 to-rose-100 border border-rose-200 rounded-xl p-3 md:p-5">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+                            <div className="order-2 md:order-1 min-w-0 w-full">
+                                <p className="text-[10px] md:text-sm font-medium text-rose-700 mb-0.5 md:mb-1 truncate">Overdue</p>
+                                <p className="text-sm md:text-xl lg:text-2xl font-bold text-rose-900 whitespace-nowrap truncate">
                                     {invoices.filter(inv => {
                                         const isCash = new Date(inv.invoiceDate).getTime() === new Date(inv.dueDate).getTime();
                                         return !isCash && new Date(inv.dueDate) < new Date() && (inv.totalAmount - inv.amountPaid) > 0;
                                     }).length}
                                 </p>
                             </div>
-                            <div className="p-3 bg-white rounded-lg">
-                                <AlertCircle className="h-6 w-6 text-rose-600" />
+                            <div className="order-1 md:order-2 p-1.5 md:p-3 bg-white rounded-lg w-fit shadow-sm hidden lg:block">
+                                <AlertCircle className="h-4 w-4 md:h-6 md:w-6 text-rose-600" />
                             </div>
                         </div>
                     </div>
@@ -513,7 +513,7 @@ export default function SupplierInvoiceTable({ role }: SupplierInvoiceTableProps
                     </div>
                 </div>
             ) : (
-                <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                <div className="border border-gray-200 rounded-xl overflow-x-auto shadow-sm">
                     <Table>
                         <TableHeader>
                             <TableRow className="bg-gray-50 hover:bg-gray-50">

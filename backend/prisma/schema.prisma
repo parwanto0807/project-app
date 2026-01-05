@@ -223,6 +223,7 @@ model Karyawan {
   balances          StaffBalance[]
   // Relasi ke Histori Transaksi (Ledger)
   ledgerEntries     StaffLedger[]
+  LedgerLine        LedgerLine[]
 }
 
 model Gaji {
@@ -264,6 +265,7 @@ model Customer {
   projects    Project[]
   salesOrders SalesOrder[]
   quotations  Quotation[]
+  LedgerLine  LedgerLine[]
 }
 
 model Project {
@@ -282,6 +284,7 @@ model Project {
   expenses        ProjectExpense[] // <-- Semua biaya tercatat di proyek ini
   purchaseOrder   PurchaseOrder[]
   purchaseRequest PurchaseRequest[]
+  LedgerLine      LedgerLine[]
 }
 
 model Product {
@@ -1905,6 +1908,7 @@ model TaxRate {
   coaAccounts ChartOfAccounts[]
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
+  LedgerLine  LedgerLine[]
 }
 
 // MODEL COA YANG DIPERBARUI DAN LENGKAP
@@ -1929,13 +1933,17 @@ model ChartOfAccounts {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  productsAsRevenue   Product[]          @relation("ProductRevenue")
-  productsAsCogs      Product[]          @relation("ProductCogs")
-  productsAsInventory Product[]          @relation("ProductInventory")
-  journalLines        JournalEntryLine[]
-  paidFromAccount     ProjectExpense[]   @relation("PaidFromCOA")
-  expenseAccount      ProjectExpense[]   @relation("ExpenseCOA")
-  paymentVoucher      PaymentVoucher[]
+  productsAsRevenue    Product[]              @relation("ProductRevenue")
+  productsAsCogs       Product[]              @relation("ProductCogs")
+  productsAsInventory  Product[]              @relation("ProductInventory")
+  journalLines         JournalEntryLine[]
+  paidFromAccount      ProjectExpense[]       @relation("PaidFromCOA")
+  expenseAccount       ProjectExpense[]       @relation("ExpenseCOA")
+  paymentVoucher       PaymentVoucher[]
+  LedgerLine           LedgerLine[]
+  TrialBalance         TrialBalance[]
+  GeneralLedgerSummary GeneralLedgerSummary[]
+  Reconciliation       Reconciliation[]
 }
 
 // 2. BUKU JURNAL / BUKU BESAR (MODEL BARU YANG PENTING)
@@ -1953,6 +1961,7 @@ model JournalEntry {
   projectExpense ProjectExpense?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
+  Ledger         Ledger[]
 
   @@index([transactionDate])
   @@index([sourceDocument, sourceDocumentId])
@@ -2027,8 +2036,9 @@ model Supplier {
   payments         PaymentVoucher[] // Semua pembayaran ke supplier ini
   journalEntry     JournalEntry[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  LedgerLine LedgerLine[]
 
   @@index([name])
   @@index([status])
@@ -2277,6 +2287,9 @@ model PurchaseReceipt {
   executionId String
   execution   PurchaseExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
 
+  ledgerId String?
+  ledger   Ledger? @relation(fields: [ledgerId], references: [id])
+
   // Items: bisa detail atau summary
   items ReceiptItem[]
 
@@ -2457,6 +2470,7 @@ model PaymentVoucher {
   allocations PaymentAllocation[] // Pembayaran ini bisa dialokasikan ke beberapa tagihan
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
+  Ledger      Ledger[]
 }
 
 model StaffBalance {
@@ -2514,4 +2528,361 @@ enum TransactionStafBalanceType {
   LOAN_DISBURSEMENT // Pencairan pinjaman pribadi
   LOAN_REPAYMENT // Pembayaran pinjaman (Potong gaji/Transfer balik)
   REIMBURSEMENT // Penggantian uang pribadi karyawan
+}
+
+enum LedgerEntryType {
+  JOURNAL
+  PAYMENT
+  RECEIPT
+  ADJUSTMENT
+  CLOSING
+  REVERSAL
+}
+
+enum LedgerStatus {
+  DRAFT
+  POSTED
+  VOID
+  LOCKED
+  RECONCILED
+  PARTIAL_RECONCILED
+}
+
+enum ReconciliationStatus {
+  UNRECONCILED
+  PENDING
+  RECONCILED
+  DISPUTED
+}
+
+model Ledger {
+  id              String           @id @default(uuid())
+  ledgerNumber    String           @unique
+  referenceNumber String? // Nomor referensi dari dokumen sumber (Invoice, Payment, dll)
+  referenceType   LedgerEntryType
+  transactionDate DateTime // Tanggal transaksi
+  postingDate     DateTime // Tanggal posting ke buku besar
+  description     String
+  notes           String?
+  periodId        String // Periode akuntansi (AccountingPeriod)
+  period          AccountingPeriod @relation(fields: [periodId], references: [id])
+  status          LedgerStatus     @default(DRAFT)
+  currency        String           @default("IDR")
+  exchangeRate    Float            @default(1.0)
+
+  // Tracking
+  createdBy  String
+  postedBy   String?
+  postedAt   DateTime?
+  voidBy     String?
+  voidAt     DateTime?
+  voidReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  ledgerLines      LedgerLine[]
+  journalEntry     JournalEntry?     @relation(fields: [journalEntryId], references: [id])
+  journalEntryId   String?
+  paymentVoucher   PaymentVoucher?   @relation(fields: [paymentVoucherId], references: [id])
+  paymentVoucherId String?
+  receipts         PurchaseReceipt[]
+
+  @@index([transactionDate])
+  @@index([postingDate])
+  @@index([periodId])
+  @@index([status])
+}
+
+model LedgerLine {
+  id       String          @id @default(uuid())
+  ledgerId String
+  ledger   Ledger          @relation(fields: [ledgerId], references: [id], onDelete: Cascade)
+  coaId    String
+  coa      ChartOfAccounts @relation(fields: [coaId], references: [id])
+
+  // Debit/Credit
+  debitAmount  Float  @default(0)
+  creditAmount Float  @default(0)
+  currency     String @default("IDR")
+  localAmount  Float // Amount dalam currency default system
+
+  // Foreign currency
+  foreignCurrency String?
+  foreignAmount   Float?
+  exchangeRate    Float   @default(1.0)
+
+  // Analytical Accounting
+  projectId  String?
+  project    Project?  @relation(fields: [projectId], references: [id])
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id])
+  supplierId String?
+  supplier   Supplier? @relation(fields: [supplierId], references: [id])
+  karyawanId String?
+  karyawan   Karyawan? @relation(fields: [karyawanId], references: [id])
+
+  // Additional details
+  description String?
+  reference   String? // Nomor dokumen referensi spesifik untuk line ini
+  lineNumber  Int // Urutan line
+
+  // Reconciliation (untuk akun Bank/Cash)
+  reconciliationStatus ReconciliationStatus @default(UNRECONCILED)
+  reconciledDate       DateTime?
+  reconciledBy         String?
+  bankStatementRef     String? // Referensi statement bank
+
+  // Tax
+  taxAmount    Float    @default(0)
+  taxRateId    String?
+  taxRate      TaxRate? @relation(fields: [taxRateId], references: [id])
+  taxInclusive Boolean  @default(false)
+
+  // Tracking
+  isAllocated  Boolean @default(false)
+  allocationId String? // Untuk cost allocation
+
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  ReconciliationItem ReconciliationItem[]
+
+  @@unique([ledgerId, lineNumber])
+  @@index([ledgerId])
+  @@index([coaId])
+  @@index([reconciliationStatus])
+  @@index([projectId])
+  @@index([customerId])
+  @@index([supplierId])
+}
+
+model AccountingPeriod {
+  id           String    @id @default(uuid())
+  periodCode   String    @unique
+  periodName   String
+  startDate    DateTime
+  endDate      DateTime
+  fiscalYear   Int
+  quarter      Int
+  isClosed     Boolean   @default(false)
+  closedAt     DateTime?
+  closedBy     String?
+  reopenAt     DateTime?
+  reopenBy     String?
+  reopenReason String?
+
+  // Relations
+  ledgers          Ledger[]
+  financialReports FinancialReport[]
+
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  TrialBalance         TrialBalance[]
+  GeneralLedgerSummary GeneralLedgerSummary[]
+  Reconciliation       Reconciliation[]
+
+  @@index([fiscalYear])
+  @@index([startDate, endDate])
+}
+
+model TrialBalance {
+  id       String           @id @default(uuid())
+  periodId String
+  period   AccountingPeriod @relation(fields: [periodId], references: [id])
+  coaId    String
+  coa      ChartOfAccounts  @relation(fields: [coaId], references: [id])
+
+  // Saldo awal periode
+  openingDebit  Float @default(0)
+  openingCredit Float @default(0)
+
+  // Mutasi periode berjalan
+  periodDebit  Float @default(0)
+  periodCredit Float @default(0)
+
+  // Saldo akhir periode
+  endingDebit  Float @default(0)
+  endingCredit Float @default(0)
+
+  // Saldo YTD (Year-to-Date)
+  ytdDebit  Float @default(0)
+  ytdCredit Float @default(0)
+
+  currency     String   @default("IDR")
+  calculatedAt DateTime
+
+  @@unique([periodId, coaId])
+  @@index([periodId])
+  @@index([coaId])
+}
+
+model GeneralLedgerSummary {
+  id       String           @id @default(uuid())
+  coaId    String
+  coa      ChartOfAccounts  @relation(fields: [coaId], references: [id])
+  periodId String
+  period   AccountingPeriod @relation(fields: [periodId], references: [id])
+  date     DateTime // Harian
+
+  openingBalance   Float @default(0)
+  debitTotal       Float @default(0)
+  creditTotal      Float @default(0)
+  closingBalance   Float @default(0)
+  transactionCount Int   @default(0)
+
+  currency String @default("IDR")
+
+  @@unique([coaId, periodId, date])
+  @@index([coaId, date])
+}
+
+model Reconciliation {
+  id                   String           @id @default(uuid())
+  reconciliationNumber String           @unique
+  coaId                String
+  coa                  ChartOfAccounts  @relation(fields: [coaId], references: [id])
+  periodId             String
+  period               AccountingPeriod @relation(fields: [periodId], references: [id])
+
+  startDate DateTime
+  endDate   DateTime
+
+  // Saldo buku
+  bookBalance  Float
+  bookCurrency String @default("IDR")
+
+  // Saldo statement (bank/eksternal)
+  statementBalance Float
+  statementDate    DateTime
+  statementRef     String
+
+  // Hasil rekonsiliasi
+  reconciledBalance Float
+  difference        Float
+  status            ReconciliationStatus @default(PENDING)
+
+  // Notes
+  description String?
+  notes       String?
+
+  // Audit trail
+  preparedBy String
+  preparedAt DateTime
+  reviewedBy String?
+  reviewedAt DateTime?
+  approvedBy String?
+  approvedAt DateTime?
+
+  // Relations
+  reconciliationItems ReconciliationItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([coaId])
+  @@index([periodId])
+  @@index([status])
+}
+
+model ReconciliationItem {
+  id               String         @id @default(uuid())
+  reconciliationId String
+  reconciliation   Reconciliation @relation(fields: [reconciliationId], references: [id], onDelete: Cascade)
+  ledgerLineId     String
+  ledgerLine       LedgerLine     @relation(fields: [ledgerLineId], references: [id])
+
+  // Amount details
+  transactionAmount Float
+  transactionDate   DateTime
+  statementAmount   Float?
+  statementDate     DateTime?
+
+  // Status
+  isCleared   Boolean   @default(false)
+  clearedDate DateTime?
+
+  // Notes
+  description String?
+  notes       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([reconciliationId, ledgerLineId])
+  @@index([reconciliationId])
+  @@index([ledgerLineId])
+}
+
+model FinancialReport {
+  id                  String              @id @default(uuid())
+  reportNumber        String              @unique
+  reportTypeFinancial ReportTypeFinancial // BALANCE_SHEET, INCOME_STATEMENT, CASHFLOW, etc.
+  periodId            String
+  period              AccountingPeriod    @relation(fields: [periodId], references: [id])
+  title               String
+  generatedAt         DateTime
+  generatedBy         String
+  currency            String              @default("IDR")
+
+  // File storage
+  filePath   String? // Path ke file generated report
+  fileFormat String? // PDF, XLSX, etc.
+
+  // Configuration
+  templateId String? // Template laporan
+  parameters Json? // Parameter yang digunakan
+
+  // Relations
+  reportSections FinancialReportSection[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([periodId])
+  @@index([reportTypeFinancial])
+}
+
+model FinancialReportSection {
+  id          String          @id @default(uuid())
+  reportId    String
+  report      FinancialReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  sectionCode String
+  sectionName String
+  sequence    Int
+  level       Int             @default(0) // Untuk hierarchy
+
+  // Amounts
+  amount          Float           @default(0)
+  calculationType CalculationType // HEADER, SUM, FORMULA, etc.
+  formula         String? // Formula kalkulasi jika ada
+
+  // Relations
+  parentId String?
+  parent   FinancialReportSection?  @relation("ReportSectionHierarchy", fields: [parentId], references: [id])
+  children FinancialReportSection[] @relation("ReportSectionHierarchy")
+
+  @@index([reportId])
+  @@index([sectionCode])
+}
+
+// Supporting enums
+enum ReportTypeFinancial {
+  BALANCE_SHEET
+  INCOME_STATEMENT
+  CASHFLOW_STATEMENT
+  TRIAL_BALANCE
+  GENERAL_LEDGER
+  PROFIT_LOSS
+  RETAINED_EARNINGS
+  BUDGET_VS_ACTUAL
+  AGING_REPORT
+}
+
+enum CalculationType {
+  HEADER
+  SUM
+  AVERAGE
+  FORMULA
+  PERCENTAGE
 }

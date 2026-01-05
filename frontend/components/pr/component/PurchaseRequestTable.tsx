@@ -16,7 +16,6 @@ import { PRStatus, PurchaseRequestWithRelations } from "@/types/pr";
 import { Button } from "@/components/ui/button";
 import CreateButtonPR from "./sub-components/createButtonPr";
 import HeaderCard from "@/components/ui/header-card";
-import { useMediaQuery } from "@/hooks/use-media-query";
 import { useSession } from "@/components/clientSessionProvider";
 
 function getBaseEditPath(role?: string) {
@@ -72,7 +71,6 @@ export function PurchaseRequestTable(props: PurchaseRequestTableProps) {
     const [isDeleting, setIsDeleting] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
     const [isChangingPage, setIsChangingPage] = useState(false);
-    const isMobile = useMediaQuery("(max-width: 768px)");
     const { user, isLoading: userLoading } = useSession();
 
     const urlPage = Number(searchParams.get("page")) || 1;
@@ -382,17 +380,25 @@ export function PurchaseRequestTable(props: PurchaseRequestTableProps) {
         <>
             {/* Header dengan Gradient */}
             <HeaderCard
-                title={isMobile ? "PR" : "Purchase Request Management"}
+                title={
+                    <span>
+                        <span className="md:hidden">PR</span>
+                        <span className="hidden md:inline">Purchase Request Management</span>
+                    </span>
+                }
                 description={
-                    isMobile ? "View all PR records" : "Manage and monitor all purchase requests"
+                    <span>
+                        <span className="md:hidden">View all PR records</span>
+                        <span className="hidden md:inline">Manage and monitor all purchase requests</span>
+                    </span>
                 }
                 gradientFrom="from-blue-600"
                 gradientTo="to-violet-500"
-                icon={<ShoppingBagIcon className={isMobile ? "h-5 w-5" : "h-7 w-7"} />}
-                showActionArea={!isMobile}
+                icon={<ShoppingBagIcon className="h-5 w-5 md:h-7 md:w-7" />}
+                showActionArea={true}
                 actionArea={
-                    <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                    <div className="hidden lg:flex flex-row gap-3 items-center w-full sm:w-auto">
+                        <div className="flex flex-row gap-3 w-full sm:w-auto items-center">
                             <TableHeader
                                 searchInput={currentSearch}
                                 showFilters={showFilters}
@@ -425,7 +431,7 @@ export function PurchaseRequestTable(props: PurchaseRequestTableProps) {
                                 role={user?.role || "admin"}
                                 onSuccess={handleRefresh}
                                 variant="default"
-                                size={isMobile ? "sm" : "default"}
+                                size="default"
                                 disabled={isCreateButtonDisabled}
                             />
                         </div>
@@ -437,6 +443,48 @@ export function PurchaseRequestTable(props: PurchaseRequestTableProps) {
                     </div>
                 }
             />
+
+            {/* Mobile Action Area */}
+            <div className="lg:hidden mt-4 p-4 bg-white dark:bg-slate-900 rounded-lg shadow-sm border">
+                <div className="flex flex-col gap-3">
+                    <TableHeader
+                        searchInput={currentSearch}
+                        showFilters={showFilters}
+                        localDateFrom={localDateFrom}
+                        localDateTo={localDateTo}
+                        currentStatus={currentStatus}
+                        currentProjectId={currentProjectId}
+                        projects={projects}
+                        onSearchSubmit={handleSearchSubmit}
+                        onSearchChange={handleSearchChange}
+                        onShowFiltersChange={setShowFilters}
+                        onLocalDateFromChange={(date) => {
+                            const dateFrom = date ? new Date(date) : undefined;
+                            handleDateFilterChange(dateFrom, currentDateTo);
+                        }}
+                        onLocalDateToChange={(date) => {
+                            const dateTo = date ? new Date(date) : undefined;
+                            handleDateFilterChange(currentDateFrom, dateTo);
+                        }}
+                        onStatusFilterChange={handleStatusFilterChange}
+                        onProjectFilterChange={handleProjectFilterChange}
+                        onDateFilterApply={handleDateFilterApply}
+                        onClearDateFilters={handleClearDateFilters}
+                        onClearFilters={handleClearFilters}
+                        userLoading={userLoading}
+                        isDataFetching={showSkeleton}
+                    />
+
+                    <CreateButtonPR
+                        role={user?.role || "admin"}
+                        onSuccess={handleRefresh}
+                        variant="default"
+                        size="sm"
+                        disabled={isCreateButtonDisabled}
+                        className="w-full"
+                    />
+                </div>
+            </div>
 
             {/* Konten Utama */}
             <Card className="w-full">

@@ -19,7 +19,7 @@ import { useSession } from "@/components/clientSessionProvider";
 import Pagination from "@/components/ui/paginationNew";
 import HeaderCard from "@/components/ui/header-card";
 import { ShoppingCart, Package, Filter, RefreshCw } from "lucide-react";
-import { useMediaQuery } from "@/hooks/use-media-query";
+
 import ItemsPerPageDropdown from "@/components/shared/itemsPerPageDropdown";
 import SearchInput from "@/components/shared/SearchInput";
 import { getAllPurchaseOrders } from "@/lib/action/po/po";
@@ -79,8 +79,6 @@ export default function PurchaseOrderPageAdmin() {
   const { user, isLoading: userLoading } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const isMobile = useMediaQuery("(max-width: 768px)");
-  const isTablet = useMediaQuery("(max-width: 1024px)");
 
   // URL parameters
   const urlSearchTerm = searchParams.get("search") || "";
@@ -395,18 +393,24 @@ export default function PurchaseOrderPageAdmin() {
           <div className="space-y-4 p-2 md:p-4">
             {/* HEADER CARD */}
             <HeaderCard
-              title={isMobile ? "Purchase Orders" : "Purchase Order Management"}
-              description={
-                isMobile
-                  ? "View all purchase orders"
-                  : "Manage and monitor all purchase orders from suppliers"
+              title={
+                <span>
+                  <span className="md:hidden">Purchase Orders</span>
+                  <span className="hidden md:inline">Purchase Order Management</span>
+                </span>
               }
-              icon={<ShoppingCart className={isMobile ? "h-5 w-5" : "h-7 w-7"} />}
+              description={
+                <span>
+                  <span className="md:hidden">View all purchase orders</span>
+                  <span className="hidden md:inline">Manage and monitor all purchase orders from suppliers</span>
+                </span>
+              }
+              icon={<ShoppingCart className="h-5 w-5 md:h-7 md:w-7" />}
               gradientFrom="from-blue-600"
               gradientTo="to-emerald-600"
-              showActionArea={!isMobile}
+              showActionArea={true}
               actionArea={
-                <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                <div className="hidden lg:flex flex-row gap-3 w-full sm:w-auto items-center">
                   <SearchInput
                     onSearch={handleSearch}
                     placeholder="Search PO Number, Supplier..."
@@ -436,7 +440,7 @@ export default function PurchaseOrderPageAdmin() {
                     role="admin"
                     onSuccess={handleCreateSuccess}
                     variant="default"
-                    size={isMobile ? "sm" : "default"}
+                    size="default"
                     disabled={isLoading || isRefreshing}
                   />
                 </div>
@@ -444,48 +448,48 @@ export default function PurchaseOrderPageAdmin() {
             />
 
             {/* Mobile Action Area */}
-            {isMobile && (
-              <div className="p-3 bg-card rounded-lg border shadow-sm">
-                <div className="flex flex-col gap-3">
-                  <SearchInput
-                    onSearch={handleSearch}
-                    placeholder="Search PO Number, Supplier..."
-                    className="w-full"
-                    disabled={isLoading || isRefreshing}
-                    initialValue={urlSearchTerm}
-                  />
+            <div className="lg:hidden p-3 bg-card rounded-lg border shadow-sm">
+              <div className="flex flex-col gap-3">
+                <SearchInput
+                  onSearch={handleSearch}
+                  placeholder="Search PO Number, Supplier..."
+                  className="w-full"
+                  disabled={isLoading || isRefreshing}
+                  initialValue={urlSearchTerm}
+                />
 
-                  <div className="flex gap-2">
-                    <div className="flex-1">
-                      <StatusFilterDropdown
-                        statusFilter={statusFilter}
-                        setStatusFilter={handleStatusFilterChange}
-                        statusConfig={statusConfig}
-                        disabled={isLoading || isRefreshing}
-                      />
-                    </div>
-
-                    <div className="flex-1">
-                      <ItemsPerPageDropdown
-                        itemsPerPage={itemsPerPage}
-                        itemsPerPageOptions={[10, 20, 50]}
-                        onItemsPerPageChange={handleItemsPerPageChange}
-                        disabled={isLoading || isRefreshing}
-                      />
-                    </div>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <StatusFilterDropdown
+                      statusFilter={statusFilter}
+                      setStatusFilter={handleStatusFilterChange}
+                      statusConfig={statusConfig}
+                      disabled={isLoading || isRefreshing}
+                      className="w-full"
+                    />
                   </div>
 
-                  <CreatePOFromPRButton
-                    role="admin"
-                    onSuccess={handleCreateSuccess}
-                    variant="default"
-                    size="sm"
-                    disabled={isLoading || isRefreshing}
-                    className="w-full"
-                  />
+                  <div className="flex-1">
+                    <ItemsPerPageDropdown
+                      itemsPerPage={itemsPerPage}
+                      itemsPerPageOptions={[10, 20, 50]}
+                      onItemsPerPageChange={handleItemsPerPageChange}
+                      disabled={isLoading || isRefreshing}
+                      className="w-full"
+                    />
+                  </div>
                 </div>
+
+                <CreatePOFromPRButton
+                  role="admin"
+                  onSuccess={handleCreateSuccess}
+                  variant="default"
+                  size="sm"
+                  disabled={isLoading || isRefreshing}
+                  className="w-full"
+                />
               </div>
-            )}
+            </div>
 
             {/* TOP PAGINATION & ITEMS INFO */}
             {paginationMeta.totalCount > 0 && (

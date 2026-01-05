@@ -38,8 +38,7 @@ import {
 } from "lucide-react";
 import React, { useState, Fragment } from "react";
 import Link from "next/link";
-import { useMediaQuery } from "@/hooks/use-media-query";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SPKPDF } from "@/components/spk/SPKPdf";
 import SPKPdfPreview from "./spkPdfPreview";
@@ -316,7 +315,6 @@ export default function TabelDataSpk({
     const basePath = getBasePath(role);
     const router = useRouter();
     const pdfActions = usePdfActions();
-    const isMobile = useMediaQuery("(max-width: 768px)");
 
     // DEBUG: Log data yang diterima
     console.log("🔍 TabelDataSpk - Data received:", {
@@ -1429,7 +1427,15 @@ export default function TabelDataSpk({
                     </div>
                 ) : (
                     <>
-                        {isMobile ? renderMobileView() : renderDesktopView()}
+                        {/* Mobile View */}
+                        <div className="md:hidden">
+                            {renderMobileView()}
+                        </div>
+
+                        {/* Desktop View */}
+                        <div className="hidden md:block">
+                            {renderDesktopView()}
+                        </div>
                     </>
                 )}
             </CardContent>

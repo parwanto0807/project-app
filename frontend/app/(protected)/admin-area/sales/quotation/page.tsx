@@ -20,7 +20,6 @@ import { AdminLoading } from "@/components/admin-loading";
 import SearchInput from "@/components/shared/SearchInput";
 import HeaderCard from "@/components/ui/header-card";
 import { MessageSquareQuoteIcon } from "lucide-react";
-import { useMediaQuery } from "@/hooks/use-media-query";
 import CreateQuotationButton from "@/components/sales/quotation/createQuotationButton";
 import { useSession } from "@/components/clientSessionProvider";
 import ItemsPerPageDropdown from "@/components/shared/itemsPerPageDropdown";
@@ -46,7 +45,6 @@ export default function QuotationPageAdmin() {
   const { mutate: deleteQuotation, isPending } = useDeleteQuotation();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const isMobile = useMediaQuery("(max-width: 768px)");
 
   // Ambil nilai dari query params
   const urlPage = Number(searchParams.get("page")) || 1;
@@ -307,22 +305,31 @@ export default function QuotationPageAdmin() {
             {/* HEADER CARD */}
             <>
               <HeaderCard
-                title={isMobile ? "Quotations" : "Quotation Management"}
-                description={
-                  isMobile ? "View all quotation records" : "Manage and monitor all quotations"
+                title={
+                  <span>
+                    <span className="md:hidden">Quotations</span>
+                    <span className="hidden md:inline">Quotation Management</span>
+                  </span>
                 }
-                icon={<MessageSquareQuoteIcon className={isMobile ? "h-5 w-5" : "h-7 w-7"} />}
+                description={
+                  <span>
+                    <span className="md:hidden">View all quotation records</span>
+                    <span className="hidden md:inline">Manage and monitor all quotations</span>
+                  </span>
+                }
+                icon={<MessageSquareQuoteIcon className="h-5 w-5 md:h-7 md:w-7" />}
                 gradientFrom="from-cyan-600"
                 gradientTo="to-purple-600"
-                showActionArea={!isMobile} // Sembunyikan action area di mobile
+                showActionArea={true}
                 actionArea={
-                  <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                  <div className="hidden lg:flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                     <SearchInput
                       onSearch={handleSearch}
                       placeholder="Search Quotation..."
                       className="w-full sm:w-64"
                       disabled={userLoading}
                       initialValue={urlSearch}
+                      isLoading={isDataFetching}
                     />
                     {/* Status Filter */}
                     <StatusFilterDropdown
@@ -344,56 +351,57 @@ export default function QuotationPageAdmin() {
                       role={user?.role || "admin"}
                       onSuccess={handleRefresh}
                       variant="default"
-                      size={isMobile ? "sm" : "default"}
+                      size="default"
                       disabled={isDataFetching}
                     />
                   </div>
                 }
               />
 
-              {/* Action Area untuk Mobile */}
-              {isMobile && (
-                <div className="mt-4 p-4 bg-white dark:bg-slate-900 rounded-lg shadow-sm border">
-                  <div className="flex flex-col gap-3">
-                    <SearchInput
-                      onSearch={handleSearch}
-                      placeholder="Search Quotation..."
-                      className="w-full"
-                      disabled={userLoading}
-                      initialValue={urlSearch}
-                    />
+              {/* Action Area untuk Mobile & Tablet (Breakpoint < lg) */}
+              <div className="lg:hidden mt-4 p-4 bg-white dark:bg-slate-900 rounded-lg shadow-sm border">
+                <div className="flex flex-col gap-3">
+                  <SearchInput
+                    onSearch={handleSearch}
+                    placeholder="Search Quotation..."
+                    className="w-full"
+                    disabled={userLoading}
+                    initialValue={urlSearch}
+                    isLoading={isDataFetching}
+                  />
 
-                    <div className="flex gap-2">
-                      <div className="flex-1">
-                        <StatusFilterDropdown
-                          statusFilter={urlStatusFilter}
-                          setStatusFilter={handleStatusFilterChange}
-                          statusConfig={quotationStatusConfig}
-                          disabled={isDataFetching}
-                        />
-                      </div>
-
-                      <div className="flex-1">
-                        <ItemsPerPageDropdown
-                          itemsPerPage={itemsPerPage}
-                          itemsPerPageOptions={[5, 10, 20, 50, 100, 200, 300, 400]}
-                          onItemsPerPageChange={handleItemsPerPageChange}
-                          disabled={isDataFetching}
-                        />
-                      </div>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <StatusFilterDropdown
+                        statusFilter={urlStatusFilter}
+                        setStatusFilter={handleStatusFilterChange}
+                        statusConfig={quotationStatusConfig}
+                        disabled={isDataFetching}
+                        className="w-full"
+                      />
                     </div>
 
-                    <CreateQuotationButton
-                      role={user?.role || "admin"}
-                      onSuccess={handleRefresh}
-                      variant="default"
-                      size="sm"
-                      disabled={isDataFetching}
-                      className="w-full"
-                    />
+                    <div className="flex-1">
+                      <ItemsPerPageDropdown
+                        itemsPerPage={itemsPerPage}
+                        itemsPerPageOptions={[5, 10, 20, 50, 100, 200, 300, 400]}
+                        onItemsPerPageChange={handleItemsPerPageChange}
+                        disabled={isDataFetching}
+                        className="w-full"
+                      />
+                    </div>
                   </div>
+
+                  <CreateQuotationButton
+                    role={user?.role || "admin"}
+                    onSuccess={handleRefresh}
+                    variant="default"
+                    size="sm"
+                    disabled={isDataFetching}
+                    className="w-full"
+                  />
                 </div>
-              )}
+              </div>
             </>
 
             {/* TOP PAGINATION & ITEMS INFO */}

@@ -21,7 +21,7 @@ import HeaderCard from "@/components/ui/header-card";
 import { FileText, CreditCard } from "lucide-react";
 import SearchInput from "@/components/shared/SearchInput";
 import ItemsPerPageDropdown from "@/components/shared/itemsPerPageDropdown";
-import { useMediaQuery } from "@/hooks/use-media-query";
+
 import Pagination from "@/components/ui/paginationNew";
 import { InvoiceDataTable } from "@/components/invoice/tableData";
 import { getInvoices } from "@/lib/action/invoice/invoice";
@@ -52,7 +52,7 @@ export default function InvoicePageAdmin() {
     const [banks, setBanks] = useState<BankAccount[]>([]);
 
     const searchParams = useSearchParams();
-    const isMobile = useMediaQuery("(max-width: 768px)");
+
     const router = useRouter();
 
     // Ambil nilai langsung dari URL params
@@ -380,20 +380,28 @@ export default function InvoicePageAdmin() {
                     <div className="space-y-4 p-2 pt-1 md:p-4">
                         {/* HEADER CARD */}
                         <HeaderCard
-                            title={isMobile ? "Invoice" : "Invoice Management"}
-                            description={
-                                isMobile ? "View all invoice records" : "Manage and track all customer invoices and payments"
+                            title={
+                                <span>
+                                    <span className="lg:hidden">Invoice Management</span>
+                                    <span className="hidden lg:inline">Invoice Management</span>
+                                </span>
                             }
-                            icon={<FileText className={isMobile ? "h-5 w-5" : "h-7 w-7"} />}
+                            description={
+                                <span>
+                                    <span className="lg:hidden">View all invoice records</span>
+                                    <span className="hidden lg:inline">Manage and track all customer invoices and payments</span>
+                                </span>
+                            }
+                            icon={<FileText className="h-5 w-5 lg:h-7 lg:w-7" />}
                             gradientFrom="from-blue-600"
                             gradientTo="to-purple-600"
-                            showActionArea={!isMobile}
+                            showActionArea={true}
                             actionArea={
-                                <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                                <div className="hidden lg:flex items-center gap-3">
                                     <SearchInput
                                         onSearch={handleSearch}
                                         placeholder="Search invoice..."
-                                        className="w-full sm:w-64"
+                                        className="w-64"
                                         disabled={userLoading || isDataFetching}
                                         initialValue={urlSearch}
                                     />
@@ -401,12 +409,12 @@ export default function InvoicePageAdmin() {
                                         statusFilter={urlStatusFilter}
                                         onStatusFilterChange={handleStatusFilterChange}
                                         availableStatus={availableStatus}
-                                        className="w-full sm:w-48"
+                                        className="w-48"
                                     />
                                     <DateFilter
                                         dateFilter={urlDateFilter}
                                         onDateFilterChange={handleDateFilterChange}
-                                        className="w-full sm:w-48"
+                                        className="w-48"
                                     />
                                     <ItemsPerPageDropdown
                                         itemsPerPage={urlPageSize}
@@ -418,7 +426,7 @@ export default function InvoicePageAdmin() {
                                         role={user?.role || "admin"}
                                         onSuccess={handleRefresh}
                                         variant="default"
-                                        size={isMobile ? "sm" : "default"}
+                                        size="default"
                                         disabled={isDataFetching}
                                     />
                                 </div>
@@ -426,44 +434,42 @@ export default function InvoicePageAdmin() {
                         />
 
                         {/* Action Area untuk Mobile */}
-                        {isMobile && (
-                            <div className="mt-4 p-4 bg-white dark:bg-slate-900 rounded-lg shadow-sm border">
-                                <div className="flex flex-col gap-3">
-                                    <SearchInput
-                                        onSearch={handleSearch}
-                                        placeholder="Search invoice..."
-                                        className="w-full"
-                                        disabled={userLoading || isDataFetching}
-                                        initialValue={urlSearch}
-                                    />
-                                    <InvoiceStatusFilter
-                                        statusFilter={urlStatusFilter}
-                                        onStatusFilterChange={handleStatusFilterChange}
-                                        availableStatus={availableStatus}
-                                        className="w-full"
-                                    />
-                                    <DateFilter
-                                        dateFilter={urlDateFilter}
-                                        onDateFilterChange={handleDateFilterChange}
-                                        className="w-full"
-                                    />
-                                    <ItemsPerPageDropdown
-                                        itemsPerPage={urlPageSize}
-                                        itemsPerPageOptions={[10, 20, 50, 100]}
-                                        onItemsPerPageChange={handleItemsPerPageChange}
-                                        disabled={isDataFetching}
-                                    />
-                                    <CreateButtonInvoice
-                                        role={user?.role || "admin"}
-                                        onSuccess={handleRefresh}
-                                        variant="default"
-                                        size="sm"
-                                        disabled={isDataFetching}
-                                        className="w-full"
-                                    />
-                                </div>
+                        <div className="lg:hidden mt-4 p-4 bg-white dark:bg-slate-900 rounded-lg shadow-sm border">
+                            <div className="flex flex-col gap-3">
+                                <SearchInput
+                                    onSearch={handleSearch}
+                                    placeholder="Search invoice..."
+                                    className="w-full"
+                                    disabled={userLoading || isDataFetching}
+                                    initialValue={urlSearch}
+                                />
+                                <InvoiceStatusFilter
+                                    statusFilter={urlStatusFilter}
+                                    onStatusFilterChange={handleStatusFilterChange}
+                                    availableStatus={availableStatus}
+                                    className="w-full"
+                                />
+                                <DateFilter
+                                    dateFilter={urlDateFilter}
+                                    onDateFilterChange={handleDateFilterChange}
+                                    className="w-full"
+                                />
+                                <ItemsPerPageDropdown
+                                    itemsPerPage={urlPageSize}
+                                    itemsPerPageOptions={[10, 20, 50, 100]}
+                                    onItemsPerPageChange={handleItemsPerPageChange}
+                                    disabled={isDataFetching}
+                                />
+                                <CreateButtonInvoice
+                                    role={user?.role || "admin"}
+                                    onSuccess={handleRefresh}
+                                    variant="default"
+                                    size="sm"
+                                    disabled={isDataFetching}
+                                    className="w-full"
+                                />
                             </div>
-                        )}
+                        </div>
 
                         {/* TOP PAGINATION & ITEMS INFO */}
                         {paginationMeta && paginationMeta.pages > 1 && (

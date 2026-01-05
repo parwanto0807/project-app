@@ -9,6 +9,7 @@ interface ItemsPerPageDropdownProps {
     itemsPerPageOptions: number[];
     onItemsPerPageChange: (value: number) => void;
     disabled?: boolean;
+    className?: string;
 }
 
 export default function ItemsPerPageDropdown({
@@ -16,6 +17,7 @@ export default function ItemsPerPageDropdown({
     itemsPerPageOptions,
     onItemsPerPageChange,
     disabled = false,
+    className,
 }: ItemsPerPageDropdownProps) {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -40,10 +42,10 @@ export default function ItemsPerPageDropdown({
     };
 
     return (
-        <div className="relative" ref={dropdownRef}>
+        <div className={`relative ${className || ""}`} ref={dropdownRef}>
             <Button
                 variant="outline"
-                className="flex items-center gap-2 bg-transparent dark:hover:bg-slate-800 hover:bg-slate-100"
+                className="flex items-center justify-between w-full gap-2 bg-transparent dark:hover:bg-slate-800 hover:bg-slate-100"
                 onClick={() => setIsOpen(!isOpen)}
                 disabled={disabled}
             >
@@ -60,8 +62,8 @@ export default function ItemsPerPageDropdown({
                             key={option}
                             onClick={() => handleOptionClick(option)}
                             className={`w-full px-3 py-2 text-sm text-left hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${itemsPerPage === option
-                                    ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-medium"
-                                    : "text-slate-700 dark:text-slate-300"
+                                ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-medium"
+                                : "text-slate-700 dark:text-slate-300"
                                 }`}
                         >
                             {option} per page

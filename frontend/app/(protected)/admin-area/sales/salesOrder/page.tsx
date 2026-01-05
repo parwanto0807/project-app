@@ -22,7 +22,7 @@ import { useSession } from "@/components/clientSessionProvider";
 import Pagination from "@/components/ui/paginationNew";
 import HeaderCard from "@/components/ui/header-card";
 import { Package } from "lucide-react";
-import { useMediaQuery } from "@/hooks/use-media-query";
+
 import CreateSalesOrderButton from "@/components/sales/salesOrder/create-salesOrder-button";
 import StatusFilterDropdown from "@/components/sales/salesOrder/statusFilterDropdown";
 import ItemsPerPageDropdown from "@/components/shared/itemsPerPageDropdown";
@@ -78,7 +78,7 @@ export default function SalesOrderPageAdmin() {
   const { user, isLoading: userLoading } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const isMobile = useMediaQuery("(max-width: 768px)");
+
   const urlSearchTerm = searchParams.get("search") || "";
   const urlPage = Number(searchParams.get("page")) || 1;
   const urlPageSize = Number(searchParams.get("pageSize")) || 10;
@@ -347,22 +347,26 @@ export default function SalesOrderPageAdmin() {
             {/* HEADER CARD */}
             <>
               <HeaderCard
-                title={isMobile ? "Sales Orders" : "Sales Order Management"}
-                description={
-                  isMobile ? "View all sales order records" : "Manage and monitor all sales orders"
+                title={
+                  <>
+                    <span className="md:hidden">Sales Orders</span>
+                    <span className="hidden md:inline">Sales Order Management</span>
+                  </>
                 }
-                icon={<Package className={isMobile ? "h-5 w-5" : "h-7 w-7"} />}
+                description="Manage and monitor all sales orders"
+                icon={<Package className="h-5 w-5 md:h-7 md:w-7" />}
                 gradientFrom="from-cyan-600"
                 gradientTo="to-purple-600"
-                showActionArea={!isMobile} // Sembunyikan action area di mobile
+                showActionArea={true}
                 actionArea={
-                  <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                  <div className="hidden lg:flex flex-row gap-3 items-center">
                     <SearchInput
                       onSearch={handleSearch}
                       placeholder="Search Sales Order..."
-                      className="w-full sm:w-64"
+                      className="w-48 xl:w-64"
                       disabled={userLoading}
                       initialValue={urlSearchTerm}
+                      isLoading={isSalesOrderFetching}
                     />
                     {/* Status Filter */}
                     <StatusFilterDropdown
@@ -384,56 +388,55 @@ export default function SalesOrderPageAdmin() {
                       role={user?.role || "admin"}
                       onSuccess={handleCreateSuccess}
                       variant="default"
-                      size={isMobile ? "sm" : "default"}
+                      size="default"
                       disabled={isSalesOrderFetching}
                     />
                   </div>
                 }
               />
 
-              {/* Action Area untuk Mobile */}
-              {isMobile && (
-                <div className="mt-4 p-4 bg-white dark:bg-slate-900 rounded-lg shadow-sm border">
-                  <div className="flex flex-col gap-3">
-                    <SearchInput
-                      onSearch={handleSearch}
-                      placeholder="Search Sales Order..."
+              {/* Action Area untuk Mobile & Tablet (lg:hidden) */}
+              <div className="lg:hidden p-4 bg-white dark:bg-slate-900 rounded-lg shadow-sm border space-y-3">
+                <SearchInput
+                  onSearch={handleSearch}
+                  placeholder="Search Sales Order..."
+                  className="w-full"
+                  disabled={userLoading}
+                  initialValue={urlSearchTerm}
+                  isLoading={isSalesOrderFetching}
+                />
+
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex-1">
+                    <StatusFilterDropdown
+                      statusFilter={statusFilter}
+                      setStatusFilter={handleStatusFilterChange}
+                      statusConfig={statusConfig}
+                      disabled={isSalesOrderFetching}
                       className="w-full"
-                      disabled={userLoading}
-                      initialValue={urlSearchTerm}
                     />
+                  </div>
 
-                    <div className="flex gap-2">
-                      <div className="flex-1">
-                        <StatusFilterDropdown
-                          statusFilter={statusFilter}
-                          setStatusFilter={handleStatusFilterChange}
-                          statusConfig={statusConfig}
-                          disabled={isSalesOrderFetching}
-                        />
-                      </div>
-
-                      <div className="flex-1">
-                        <ItemsPerPageDropdown
-                          itemsPerPage={itemsPerPage}
-                          itemsPerPageOptions={[10, 20, 50, 100, 200, 300, 400]}
-                          onItemsPerPageChange={handleItemsPerPageChange}
-                          disabled={isSalesOrderFetching}
-                        />
-                      </div>
-                    </div>
-
-                    <CreateSalesOrderButton
-                      role={user?.role || "admin"}
-                      onSuccess={handleCreateSuccess}
-                      variant="default"
-                      size="sm"
+                  <div className="flex-1">
+                    <ItemsPerPageDropdown
+                      itemsPerPage={itemsPerPage}
+                      itemsPerPageOptions={[10, 20, 50, 100, 200, 300, 400]}
+                      onItemsPerPageChange={handleItemsPerPageChange}
                       disabled={isSalesOrderFetching}
                       className="w-full"
                     />
                   </div>
                 </div>
-              )}
+
+                <CreateSalesOrderButton
+                  role={user?.role || "admin"}
+                  onSuccess={handleCreateSuccess}
+                  variant="default"
+                  size="sm"
+                  disabled={isSalesOrderFetching}
+                  className="w-full"
+                />
+              </div>
             </>
 
             {/* TOP PAGINATION & ITEMS INFO */}

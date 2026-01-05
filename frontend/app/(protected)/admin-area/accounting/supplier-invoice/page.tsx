@@ -46,17 +46,24 @@ export default async function SupplierInvoicePage() {
                 </BreadcrumbList>
             </Breadcrumb>
 
-            <div className="my-6 md:px-6">
+            <div className="space-y-4 p-2 pt-1 md:p-4">
                 <HeaderCard
-                    title="Supplier Invoice"
-                    description="Kelola invoice masuk dari supplier, status pembayaran, dan riwayat transaksi."
-                    icon={<FileText className="w-6 h-6" />}
+                    title={
+                        <span>
+                            <span className="lg:hidden">Supplier Invoice</span>
+                            <span className="hidden lg:inline">Supplier Invoice Management</span>
+                        </span>
+                    }
+                    description={
+                        <span>
+                            <span className="lg:hidden">Kelola invoice</span>
+                            <span className="hidden lg:inline">Kelola invoice masuk dari supplier, status pembayaran, dan riwayat transaksi.</span>
+                        </span>
+                    }
+                    icon={<FileText className="h-5 w-5 lg:h-7 lg:w-7" />}
                     gradientFrom="from-emerald-500"
                     gradientTo="to-green-600"
                 />
-            </div>
-
-            <div className="mt-6">
                 <SupplierInvoiceTable role={user.role} />
             </div>
         </AdminLayout>

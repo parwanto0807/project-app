@@ -23,7 +23,7 @@ import HeaderCard from "@/components/ui/header-card";
 import { FileImageIcon, TruckIcon } from "lucide-react";
 import SearchInput from "@/components/shared/SearchInput";
 import ItemsPerPageDropdown from "@/components/shared/itemsPerPageDropdown";
-import { useMediaQuery } from "@/hooks/use-media-query";
+
 import Pagination from "@/components/ui/paginationNew";
 import BapFilter from "@/components/bap/bapDropDownFilter";
 import CreateButtonBAP from "@/components/bap/createBapButton";
@@ -107,7 +107,6 @@ export default function BapPageAdmin() {
   const [isDataFetching, setIsDataFetching] = useState(false);
 
   const searchParams = useSearchParams();
-  const isMobile = useMediaQuery("(max-width: 768px)");
   const router = useRouter();
 
   // Ambil nilai langsung dari URL params
@@ -378,16 +377,24 @@ export default function BapPageAdmin() {
           <div className="space-y-4 p-2 pt-1 md:p-4">
             {/* HEADER CARD */}
             <HeaderCard
-              title={isMobile ? "BAST" : "BAST Management"}
-              description={
-                isMobile ? "View all BAP records" : "Manage and monitor all Berita Acara Serah Terima Pekerjaan (BAST) records"
+              title={
+                <span>
+                  <span className="md:hidden">BAST</span>
+                  <span className="hidden md:inline">BAST Management</span>
+                </span>
               }
-              icon={<FileImageIcon className={isMobile ? "h-5 w-5" : "h-7 w-7"} />}
+              description={
+                <span>
+                  <span className="md:hidden">View all BAP records</span>
+                  <span className="hidden md:inline">Manage and monitor all Berita Acara Serah Terima Pekerjaan (BAST) records</span>
+                </span>
+              }
+              icon={<FileImageIcon className="h-5 w-5 md:h-7 md:w-7" />}
               gradientFrom="from-green-600"
               gradientTo="to-yellow-600"
-              showActionArea={!isMobile}
+              showActionArea={true}
               actionArea={
-                <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                <div className="hidden lg:flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                   <SearchInput
                     onSearch={handleSearch}
                     placeholder="Search BAP..."
@@ -399,7 +406,7 @@ export default function BapPageAdmin() {
                     filterBy={urlFilter}
                     onFilterChange={handleFilterChange}
                     availableStatus={availableStatus}
-                    className="your-custom-class"
+
                     variant="glass"
                     size="md"
                   />
@@ -413,7 +420,7 @@ export default function BapPageAdmin() {
                     role={user?.role || "admin"}
                     onSuccess={handleRefresh}
                     variant="default"
-                    size={isMobile ? "sm" : "default"}
+                    size="default"
                     disabled={isDataFetching}
                   />
                 </div>
@@ -421,42 +428,44 @@ export default function BapPageAdmin() {
             />
 
             {/* Action Area untuk Mobile */}
-            {isMobile && (
-              <div className="mt-4 p-4 bg-white dark:bg-slate-900 rounded-lg shadow-sm border">
-                <div className="flex flex-col gap-3">
-                  <SearchInput
-                    onSearch={handleSearch}
-                    placeholder="Search BAP..."
-                    className="w-full"
-                    disabled={userLoading || isDataFetching}
-                    initialValue={urlSearch}
-                  />
-                  <BapFilter
-                    filterBy={urlFilter}
-                    onFilterChange={handleFilterChange}
-                    availableStatus={availableStatus}
-                    className="your-custom-class"
-                    variant="glass"
-                    size="md"
-                  />
+            <div className="lg:hidden mt-4 p-4 bg-white dark:bg-slate-900 rounded-lg shadow-sm border">
+              <div className="flex flex-col gap-3">
+                <SearchInput
+                  onSearch={handleSearch}
+                  placeholder="Search BAP..."
+                  className="w-full"
+                  disabled={userLoading || isDataFetching}
+                  initialValue={urlSearch}
+                />
+                <BapFilter
+                  filterBy={urlFilter}
+                  onFilterChange={handleFilterChange}
+                  availableStatus={availableStatus}
+                  className="w-full"
+                  variant="glass"
+                  size="md"
+                />
+                <div className="flex gap-2">
                   <div className="flex-1">
                     <ItemsPerPageDropdown
                       itemsPerPage={urlPageSize}
-                      itemsPerPageOptions={[10, 20, 50, 100, 200, 300, 400]}
+                      itemsPerPageOptions={[10, 20, 50, 100]}
                       onItemsPerPageChange={handleItemsPerPageChange}
                       disabled={isDataFetching}
+                      className="w-full"
                     />
                   </div>
-                  <CreateButtonBAP
-                    role={user?.role || "admin"}
-                    onSuccess={handleRefresh}
-                    variant="default"
-                    size={isMobile ? "sm" : "default"}
-                    disabled={isDataFetching}
-                  />
                 </div>
+                <CreateButtonBAP
+                  role={user?.role || "admin"}
+                  onSuccess={handleRefresh}
+                  variant="default"
+                  size="sm"
+                  disabled={isDataFetching}
+                  className="w-full"
+                />
               </div>
-            )}
+            </div>
 
             {/* TOP PAGINATION & ITEMS INFO */}
             {paginationMeta && paginationMeta.totalPages > 1 && (

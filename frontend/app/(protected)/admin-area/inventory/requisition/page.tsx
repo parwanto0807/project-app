@@ -16,7 +16,7 @@ import { ClipboardList, Plus } from "lucide-react";
 
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { useSession } from "@/components/clientSessionProvider";
-import { useMediaQuery } from "@/hooks/use-media-query";
+
 import Pagination from "@/components/ui/paginationNew";
 import HeaderCard from "@/components/ui/header-card";
 import SearchInput from "@/components/shared/SearchInput";
@@ -33,7 +33,7 @@ export default function MaterialRequisitionPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { user, isLoading: sessionLoading } = useSession();
-    const isMobile = useMediaQuery("(max-width: 768px)");
+
 
     const urlSearchTerm = searchParams.get("search") || "";
     const currentPage = Number(searchParams.get("page")) || 1;
@@ -161,23 +161,28 @@ export default function MaterialRequisitionPage() {
 
                 {/* Header */}
                 <HeaderCard
-                    title={isMobile ? "MR" : "Material Requisition / Pengambilan Barang Management"}
+                    title={
+                        <span>
+                            <span className="md:hidden">MR</span>
+                            <span className="hidden md:inline">Material Requisition / Pengambilan Barang Gudang</span>
+                        </span>
+                    }
                     description="Pantau dan kelola pengeluaran barang gudang"
-                    icon={<ClipboardList className={isMobile ? "h-5 w-5" : "h-7 w-7"} />}
-                    showActionArea={!isMobile}
-                    actionArea={
-                        <div className="flex flex-col sm:flex-row gap-3">
-                            <SearchInput
-                                onSearch={handleSearch}
-                                placeholder="Cari MR..."
-                                initialValue={urlSearchTerm}
-                            />
-                        </div>
+                    icon={<ClipboardList className="h-5 w-5 md:h-7 md:w-7" />}
+                    showActionArea={false}
+                    actionArea={false
+                        // <div className="flex flex-col sm:flex-row gap-3">
+                        //     <SearchInput
+                        //         onSearch={handleSearch}
+                        //         placeholder="Cari MR..."
+                        //         initialValue={urlSearchTerm}
+                        //     />
+                        // </div>
                     }
                 />
 
                 {/* Mobile Search Area */}
-                {isMobile && (
+                {/* {isMobile && (
                     <div className="p-4 bg-white dark:bg-slate-900 rounded-lg shadow-sm border space-y-3">
                         <SearchInput
                             onSearch={handleSearch}
@@ -185,7 +190,7 @@ export default function MaterialRequisitionPage() {
                             initialValue={urlSearchTerm}
                         />
                     </div>
-                )}
+                )} */}
 
                 {/* Results Info */}
                 {urlSearchTerm && (

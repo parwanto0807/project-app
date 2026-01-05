@@ -22,7 +22,6 @@ import HeaderCard from "@/components/ui/header-card";
 import { MessageSquareQuoteIcon } from "lucide-react";
 import SearchInput from "@/components/shared/SearchInput";
 import ItemsPerPageDropdown from "@/components/shared/itemsPerPageDropdown";
-import { useMediaQuery } from "@/hooks/use-media-query";
 import { AdminLoading } from "@/components/admin-loading";
 import Pagination from "@/components/ui/paginationNew";
 import SpkFilter from "@/components/spk/spkDropDownFilter";
@@ -142,7 +141,6 @@ export default function SpkPageAdmin() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const searchParams = useSearchParams();
-  const isMobile = useMediaQuery("(max-width: 768px)");
   const router = useRouter();
 
   // Ambil nilai langsung dari URL params
@@ -490,16 +488,24 @@ export default function SpkPageAdmin() {
             {/* HEADER CARD */}
             <>
               <HeaderCard
-                title={isMobile ? "SPK" : "SPK Management"}
-                description={
-                  isMobile ? "View all SPK records" : "Manage and monitor all SPK"
+                title={
+                  <span>
+                    <span className="md:hidden">SPK</span>
+                    <span className="hidden md:inline">SPK Management</span>
+                  </span>
                 }
-                icon={<MessageSquareQuoteIcon className={isMobile ? "h-5 w-5" : "h-7 w-7"} />}
+                description={
+                  <span>
+                    <span className="md:hidden">View all SPK records</span>
+                    <span className="hidden md:inline">Manage and monitor all SPK</span>
+                  </span>
+                }
+                icon={<MessageSquareQuoteIcon className="h-5 w-5 md:h-7 md:w-7" />}
                 gradientFrom="from-cyan-600"
                 gradientTo="to-purple-600"
-                showActionArea={!isMobile}
+                showActionArea={true}
                 actionArea={
-                  <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                  <div className="hidden lg:flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                     <SearchInput
                       onSearch={handleSearch}
                       placeholder="Search SPK..."
@@ -512,7 +518,7 @@ export default function SpkPageAdmin() {
                       filterBy={urlFilter} // Gunakan urlFilter dari URL
                       onFilterChange={handleFilterChange} // Gunakan handler baru
                       availableTeams={availableTeams}
-                      className="your-custom-class"
+                      className="min-w-[150px]"
                       variant="glass"
                       size="md"
                     />
@@ -526,51 +532,57 @@ export default function SpkPageAdmin() {
                       role={user?.role || "admin"}
                       onSuccess={handleRefresh}
                       variant="default"
-                      size={isMobile ? "sm" : "default"}
+                      size="default"
                       disabled={isDataFetching}
                     />
                   </div>
                 }
               />
 
-              {/* Action Area untuk Mobile */}
-              {isMobile && (
-                <div className="mt-4 p-4 bg-white dark:bg-slate-900 rounded-lg shadow-sm border">
-                  <div className="flex flex-col gap-3">
-                    <SearchInput
-                      onSearch={handleSearch}
-                      placeholder="Search SPK..."
-                      className="w-full"
-                      // disabled={userLoading || isDataFetching}
-                      showLoading={false}
-                      initialValue={urlSearch}
-                    />
-                    <SpkFilter
-                      filterBy={urlFilter} // Gunakan urlFilter dari URL
-                      onFilterChange={handleFilterChange} // Gunakan handler baru
-                      availableTeams={availableTeams}
-                      className="your-custom-class"
-                      variant="glass"
-                      size="md"
-                    />
+              {/* Action Area untuk Mobile & Tablet (Breakpoint < lg) */}
+              <div className="lg:hidden mt-4 p-4 bg-white dark:bg-slate-900 rounded-lg shadow-sm border">
+                <div className="flex flex-col gap-3">
+                  <SearchInput
+                    onSearch={handleSearch}
+                    placeholder="Search SPK..."
+                    className="w-full"
+                    // disabled={userLoading || isDataFetching}
+                    showLoading={false}
+                    initialValue={urlSearch}
+                  />
+
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <SpkFilter
+                        filterBy={urlFilter} // Gunakan urlFilter dari URL
+                        onFilterChange={handleFilterChange} // Gunakan handler baru
+                        availableTeams={availableTeams}
+                        className="w-full"
+                        variant="glass"
+                        size="md"
+                      />
+                    </div>
                     <div className="flex-1">
                       <ItemsPerPageDropdown
                         itemsPerPage={urlPageSize}
                         itemsPerPageOptions={[10, 20, 50, 100, 200, 300, 400]}
                         onItemsPerPageChange={handleItemsPerPageChange}
                         disabled={isDataFetching}
+                        className="w-full"
                       />
                     </div>
-                    <CreateButtonSPK
-                      role={user?.role || "admin"}
-                      onSuccess={handleRefresh}
-                      variant="default"
-                      size={isMobile ? "sm" : "default"}
-                      disabled={isDataFetching}
-                    />
                   </div>
+
+                  <CreateButtonSPK
+                    role={user?.role || "admin"}
+                    onSuccess={handleRefresh}
+                    variant="default"
+                    size="sm"
+                    disabled={isDataFetching}
+                    className="w-full"
+                  />
                 </div>
-              )}
+              </div>
             </>
 
             {/* TOP PAGINATION & ITEMS INFO */}

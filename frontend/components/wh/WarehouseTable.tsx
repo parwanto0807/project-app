@@ -106,7 +106,7 @@ export default function WarehouseTable({
       {/* =========================
           DESKTOP TABLE
       ========================= */}
-      <div className="hidden md:block rounded-xl border bg-background">
+      <div className="hidden lg:block rounded-xl border bg-background">
         <Table>
           <TableHeader>
             <TableRow>
@@ -200,7 +200,7 @@ export default function WarehouseTable({
       {/* =========================
           MOBILE CARD VIEW
       ========================= */}
-      <div className="grid gap-3 md:hidden">
+      <div className="grid gap-3 lg:hidden">
         {data.map((wh) => (
           <div
             key={wh.id}

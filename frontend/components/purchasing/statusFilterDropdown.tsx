@@ -16,6 +16,7 @@ interface StatusFilterDropdownProps {
     setStatusFilter: (status: string) => void;
     statusConfig: Record<string, { label: string; className: string; variant?: string }>;
     disabled?: boolean;
+    className?: string;
 }
 
 export default function StatusFilterDropdown({
@@ -23,6 +24,7 @@ export default function StatusFilterDropdown({
     setStatusFilter,
     statusConfig,
     disabled = false,
+    className,
 }: StatusFilterDropdownProps) {
     return (
         <DropdownMenu>
@@ -30,7 +32,7 @@ export default function StatusFilterDropdown({
                 <Button
                     variant="outline"
                     size="sm"
-                    className="h-9 gap-2"
+                    className={`h-9 gap-2 justify-between ${className}`}
                     disabled={disabled}
                 >
                     <Filter className="h-4 w-4 text-black dark:text-white" />

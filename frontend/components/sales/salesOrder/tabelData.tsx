@@ -47,7 +47,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header"
 import { FaToolbox } from "react-icons/fa"
 import { CheckCircle2, ReceiptText } from "lucide-react"
-import { useMediaQuery } from "@/hooks/use-media-query"
+
 import { cn } from "@/lib/utils"
 import { OrderStatusEnum } from "@/schemas/index";
 import * as z from "zod";
@@ -184,7 +184,6 @@ export function useBodyScrollLock(locked: boolean) {
 
 function ActionsCell({ order, onDeleteSuccess, role }: { order: SalesOrder; onDeleteSuccess: (orderId: string) => void; role: string }) {
     const router = useRouter()
-    const isMobile = useMediaQuery("(max-width: 768px)")
     const [showDeleteDialog, setShowDeleteDialog] = React.useState(false)
     const [isDeleting, setIsDeleting] = React.useState(false)
     const searchParams = useSearchParams();
@@ -261,93 +260,6 @@ function ActionsCell({ order, onDeleteSuccess, role }: { order: SalesOrder; onDe
     function cancelDelete(e: React.MouseEvent) {
         e.stopPropagation()
         setShowDeleteDialog(false)
-    }
-
-    if (isMobile) {
-        return (
-            <>
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 cursor-pointer hover:bg-muted"
-                            onClick={(e) => {
-                                e.stopPropagation()
-                                e.preventDefault()
-                            }}
-                        >
-                            <span className="sr-only">Open menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-40" onClick={(e) => e.stopPropagation()}>
-                        <DropdownMenuItem
-                            onClick={handleEditOrder}
-                            disabled={[
-                                "INVOICED",
-                                "PAID",
-                                "BAST",
-                                "PARTIALLY_INVOICED",
-                                "PARTIALLY_PAID",
-                            ].includes(order.status)}
-                            className={`cursor-pointer gap-2 text-xs ${[
-                                "INVOICED",
-                                "PAID",
-                                "BAST",
-                                "PARTIALLY_INVOICED",
-                                "PARTIALLY_PAID",
-                            ].includes(order.status)
-                                ? "opacity-50 cursor-not-allowed"
-                                : ""
-                                }`}
-                        >
-                            <Edit className="h-3 w-3" />
-                            Edit Order
-                        </DropdownMenuItem>
-
-                        <DropdownMenuItem
-                            onClick={handleDeleteClick}
-                            disabled={order.status !== "DRAFT"}
-                        >
-                            <Trash2 className="h-3 w-3" />
-                            Delete
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-
-                {showDeleteDialog && (
-                    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center">
-                        <div className="bg-white dark:bg-slate-900 rounded-lg border p-6 w-11/12 max-w-md">
-                            <div className="space-y-4">
-                                <h3 className="text-lg font-semibold">Delete Sales Order</h3>
-                                <p className="text-muted-foreground text-wrap">
-                                    Are you sure you want to delete sales order{" "}
-                                    <span className="font-semibold">{order.soNumber}</span>?
-                                    This action cannot be undone.
-                                </p>
-                                <div className="flex justify-end space-x-3">
-                                    <Button
-                                        variant="outline"
-                                        onClick={cancelDelete}
-                                        disabled={isDeleting}
-                                    >
-                                        Cancel
-                                    </Button>
-                                    <Button
-                                        variant="destructive"
-                                        onClick={handleDeleteOrder}
-                                        disabled={isDeleting}
-                                    >
-                                        {isDeleting ? "Deleting..." : "Delete"}
-                                    </Button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </>
-        )
     }
 
     return (
@@ -769,7 +681,7 @@ export function SalesOrderTable({
 }: SalesOrderTableProps) {
     const [sorting, setSorting] = React.useState<SortingState>([])
     const [expanded, setExpanded] = React.useState<ExpandedState>({})
-    const isMobile = useMediaQuery("(max-width: 768px)")
+
     const rowRefs = React.useRef<{ [key: string]: HTMLTableRowElement | null }>({});
     const [salesOrders, setSalesOrders] = React.useState<SalesOrder[]>(initialSalesOrders)
     const pdfActions = usePdfActions()
@@ -1518,234 +1430,6 @@ export function SalesOrderTable({
         getRowId: (row) => row.id,
     })
 
-    // Mobile view
-    if (isMobile) {
-        return (
-            <>
-                <Card className="border-none shadow-lg mx-0 w-full">
-                    <CardContent className="p-0">
-                        {isLoading ? (
-                            <div className="space-y-2 p-2">
-                                {[...Array(5)].map((_, i) => (
-                                    <div key={i} className="border rounded-lg p-3 bg-white">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <div className="flex items-center gap-2">
-                                                <Skeleton className="h-8 w-8 rounded-full" />
-                                                <div className="space-y-1">
-                                                    <Skeleton className="h-3 w-24" />
-                                                    <Skeleton className="h-2 w-16" />
-                                                </div>
-                                            </div>
-                                            <Skeleton className="h-5 w-12" />
-                                        </div>
-                                        <Skeleton className="h-3 w-full mb-1" />
-                                        <Skeleton className="h-3 w-2/3" />
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="space-y-1 p-1">
-                                {salesOrders.map((order) => {
-                                    const hasSPK = order.spk && order.spk.length > 0;
-
-                                    return (
-                                        <div
-                                            key={order.id}
-                                            className={cn(
-                                                "border rounded-lg bg-white dark:bg-slate-800 transition-colors",
-                                                highlightId === order.id ? "bg-yellow-100 border-yellow-300" : ""
-                                            )}
-                                        >
-                                            <div className="p-2">
-                                                <div className="flex items-center justify-between mb-2">
-                                                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                                                        <div className="flex items-center justify-center h-8 w-8 rounded-full bg-blue-100 flex-shrink-0">
-                                                            <FileTextIcon className="h-4 w-4 text-blue-600" />
-                                                        </div>
-                                                        <div className="min-w-0 flex-1">
-                                                            <p className="font-bold text-xs truncate">{order.soNumber}</p>
-                                                            <p className="text-xs text-muted-foreground">
-                                                                {format(new Date(order.soDate), "dd MMM yy")}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                    <Badge className={cn(
-                                                        "rounded px-2 py-0.5 text-xs uppercase font-semibold flex-shrink-0 ml-1",
-                                                        statusConfig[order.status as OrderStatus]?.className || statusConfig.DRAFT.className
-                                                    )}>
-                                                        {statusConfig[order.status as OrderStatus]?.label || "Draft"}
-                                                    </Badge>
-                                                </div>
-
-                                                <div className="space-y-1 text-xs">
-                                                    <div className="flex items-center gap-1">
-                                                        <FaToolbox className="h-3 w-3 text-red-500 flex-shrink-0" />
-                                                        <span className="font-medium text-wrap">{order.project?.name || "No Project"}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1">
-                                                        <UserCheck2Icon className="h-3 w-3 text-purple-500 flex-shrink-0" />
-                                                        <span className="text-xs font-bold">{order.customer.branch}</span>
-                                                    </div>
-                                                </div>
-
-                                                {/* Detail Items untuk mobile */}
-                                                <div className="mt-2 space-y-2 text-xs">
-                                                    <div className="font-medium text-green-600">Items:</div>
-                                                    {order.items.slice(0, 2).map((item, idx) => {
-                                                        const itemTotal = isAdminOrSuper ? item.qty * item.unitPrice : 0;
-                                                        return (
-                                                            <div key={idx} className="flex justify-between items-center">
-                                                                <span className="truncate flex-1">
-                                                                    {item.qty} x {item.name}
-                                                                </span>
-                                                                <span className={`font-medium ml-2 flex-shrink-0 whitespace-nowrap ${isAdminOrSuper ? 'text-green-600' : 'text-gray-400 italic'
-                                                                    }`}>
-                                                                    {isAdminOrSuper
-                                                                        ? `Rp ${itemTotal.toLocaleString('id-ID')}`
-                                                                        : '***'
-                                                                    }
-                                                                </span>
-                                                            </div>
-                                                        );
-                                                    })}
-
-                                                    {/* Tampilkan item tambahan jika expanded */}
-                                                    {expandedItems[order.id] && order.items.length > 2 && (
-                                                        <>
-                                                            {order.items.slice(2).map((item, idx) => {
-                                                                const itemTotal = isAdminOrSuper ? item.qty * item.unitPrice : 0;
-                                                                return (
-                                                                    <div key={idx + 2} className="flex justify-between items-center">
-                                                                        <span className="truncate flex-1">
-                                                                            {item.qty} x {item.name}
-                                                                        </span>
-                                                                        <span className="font-medium text-green-600 ml-2 flex-shrink-0 whitespace-nowrap">
-                                                                            {isAdminOrSuper
-                                                                                ? `Rp ${itemTotal.toLocaleString('id-ID')}`
-                                                                                : '***'
-                                                                            }
-                                                                        </span>
-                                                                    </div>
-                                                                );
-                                                            })}
-                                                        </>
-                                                    )}
-
-                                                    {/* Button untuk show/hide items */}
-                                                    {order.items.length > 2 && (
-                                                        <button
-                                                            onClick={() => toggleItemsExpanded(order.id)}
-                                                            className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-xs font-medium mt-1"
-                                                        >
-                                                            {expandedItems[order.id] ? (
-                                                                <>
-                                                                    <ChevronUp className="h-3 w-3" />
-                                                                    Show Less
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <Plus className="h-3 w-3" />
-                                                                    +{order.items.length - 2} more items
-                                                                </>
-                                                            )}
-                                                        </button>
-                                                    )}
-                                                </div>
-
-                                                {isAdminOrSuper && (
-                                                    <div className="mt-2 pt-2 border-t border-gray-100">
-                                                        <div className="flex justify-between items-center">
-                                                            <p className="text-xs font-bold uppercase">Total Amount</p>
-                                                            <p className="font-bold text-green-600 text-sm">
-                                                                Rp {order.items.reduce((sum, item) => sum + (item.qty * item.unitPrice), 0).toLocaleString("id-ID")}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                {/* Actions untuk mobile */}
-                                                <div className="mt-2 flex justify-end gap-1">
-                                                    <ActionsCell
-                                                        order={order}
-                                                        onDeleteSuccess={handleDeleteSuccess}
-                                                        role={role}
-                                                    />
-
-
-                                                    {/* Create SPK Button */}
-                                                    <TooltipProvider>
-                                                        <Tooltip>
-                                                            <TooltipTrigger asChild>
-                                                                <span>
-                                                                    <Button
-                                                                        variant="default"
-                                                                        size="sm"
-                                                                        disabled={hasSPK && ["BAST", "PARTIALLY_INVOICED", "INVOICED", "PARTIALLY_PAID", "PAID", "CANCELLED"].includes(order.status)}
-                                                                        onClick={() => hasSPK ?
-                                                                            router.push(`${getBasePathSPK(role)}?search=${encodeURIComponent(order.spk?.[0].spkNumber || '')}&page=1`) :
-                                                                            router.push(`${getBasePathSPK(role)}/create/${order.id}`)
-                                                                        }
-                                                                        className={hasSPK ?
-                                                                            (["BAST", "PARTIALLY_INVOICED", "INVOICED", "PARTIALLY_PAID", "PAID", "CANCELLED"].includes(order.status) ?
-                                                                                "bg-gray-400 cursor-not-allowed" :
-                                                                                "bg-gradient-to-r from-green-400 to-emerald-500 hover:from-green-500 hover:to-emerald-600 text-white shadow-lg shadow-green-500/30 dark:shadow-green-600/30") :
-                                                                            "bg-gradient-to-r from-blue-400 to-cyan-500 hover:from-blue-500 hover:to-cyan-600 text-white shadow-lg shadow-blue-500/30 dark:shadow-blue-600/30"
-                                                                        }
-                                                                    >
-                                                                        {hasSPK ?
-                                                                            (["BAST", "PARTIALLY_INVOICED", "INVOICED", "PARTIALLY_PAID", "PAID", "CANCELLED"].includes(order.status) ?
-                                                                                "SPK Created" :
-                                                                                "Cek SPK") :
-                                                                            "+ Create SPK"
-                                                                        }
-                                                                    </Button>
-                                                                </span>
-                                                            </TooltipTrigger>
-                                                            {hasSPK && (
-                                                                <TooltipContent>
-                                                                    {["BAST", "PARTIALLY_INVOICED", "INVOICED", "PARTIALLY_PAID", "PAID", "CANCELLED"].includes(order.status) ?
-                                                                        "Tidak dapat mengakses SPK karena order sudah diproses lebih lanjut" :
-                                                                        "SPK untuk Sales Order ini sudah dibuat"
-                                                                    }
-                                                                </TooltipContent>
-                                                            )}
-                                                        </Tooltip>
-                                                    </TooltipProvider>
-                                                    {isAdminOrSuper && (
-                                                        <>
-                                                            {/* Create Quotation Button */}
-                                                            <TooltipProvider>
-                                                                <Tooltip>
-                                                                    <TooltipTrigger asChild>
-                                                                        <Button
-                                                                            variant="default"
-                                                                            size="sm"
-                                                                            onClick={() => router.push(`/admin-area/sales/quotation/create/${order.id}`)}
-                                                                            className="bg-gradient-to-r from-green-400 to-emerald-500 hover:from-green-500 hover:to-emerald-600 text-white shadow-lg shadow-green-500/30 dark:shadow-green-600/30 cursor-pointer"
-                                                                        >
-                                                                            + Quotation
-                                                                        </Button>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent>
-                                                                        Buat Quotation baru untuk Sales Order ini
-                                                                    </TooltipContent>
-                                                                </Tooltip>
-                                                            </TooltipProvider>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-            </>
-        )
-    }
-
     return (
         <Card className="border-none shadow-lg">
             <CardContent className="p-0">
@@ -1760,103 +1444,326 @@ export function SalesOrderTable({
                 )}
 
                 {isLoading ? (
-                    <div className="space-y-4 p-6">
-                        {[...Array(5)].map((_, i) => (
-                            <div
-                                key={i}
-                                className="flex items-center space-x-4 p-4 border rounded-lg"
-                            >
-                                <Skeleton className="h-12 w-12 rounded-full" />
-                                <div className="space-y-2 flex-grow">
-                                    <Skeleton className="h-4 w-48" />
-                                    <Skeleton className="h-3 w-32" />
-                                </div>
-                                <Skeleton className="h-6 w-20" />
-                                <Skeleton className="h-8 w-24" />
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="rounded-b-lg">
-                        <Table>
-                            <TableHeader className="bg-muted/50">
-                                {table.getHeaderGroups().map((headerGroup) => (
-                                    <TableRow key={headerGroup.id}>
-                                        {headerGroup.headers.map((header) => (
-                                            <TableHead key={header.id} className="py-4 font-semibold">
-                                                {header.isPlaceholder
-                                                    ? null
-                                                    : flexRender(
-                                                        header.column.columnDef.header,
-                                                        header.getContext()
-                                                    )}
-                                            </TableHead>
-                                        ))}
-                                    </TableRow>
-                                ))}
-                            </TableHeader>
-
-                            <TableBody>
-                                {table.getRowModel().rows.length ? (
-                                    table.getRowModel().rows.map((row) => (
-                                        <React.Fragment key={row.id}>
-                                            <TableRow
-                                                ref={(el) => {
-                                                    const id = row.original?.id;
-                                                    if (id) rowRefs.current[id] = el;
-                                                }}
-                                                data-row-id={row.original?.id}
-                                                data-state={row.getIsSelected() && "selected"}
-                                                className={cn(
-                                                    "cursor-pointer hover:bg-muted/30 transition-colors",
-                                                    highlightId === row.original?.id ? "bg-yellow-200 dark:bg-yellow-900" : ""
-                                                )}
-                                                onClick={() => row.toggleExpanded(!row.getIsExpanded())}
-                                            >
-
-                                                {row.getVisibleCells().map((cell) => (
-                                                    <TableCell key={cell.id} className="py-4">
-                                                        {flexRender(
-                                                            cell.column.columnDef.cell,
-                                                            cell.getContext()
-                                                        )}
-                                                    </TableCell>
-                                                ))}
-                                            </TableRow>
-
-                                            {row.getIsExpanded() && (
-                                                <TableRow key={`${row.id}-expanded`}>
-                                                    <TableCell
-                                                        colSpan={table.getVisibleLeafColumns().length}
-                                                        className="p-0 border-b-2 border-primary/20"
-                                                    >
-                                                        <SalesOrderDetail
-                                                            order={row.original}
-                                                            role={role}
-                                                        />
-                                                    </TableCell>
-                                                </TableRow>
-                                            )}
-                                        </React.Fragment>
-                                    ))
-                                ) : (
-                                    <TableRow>
-                                        <TableCell
-                                            colSpan={table.getVisibleLeafColumns().length}
-                                            className="h-24 text-center text-muted-foreground p-6"
-                                        >
-                                            <div className="flex flex-col items-center justify-center py-8">
-                                                <ShoppingCartIcon className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                                                <p className="text-lg font-medium">
-                                                    No orders found
-                                                </p>
+                    <>
+                        {/* Mobile Skeleton */}
+                        <div className="md:hidden space-y-2 p-2">
+                            {[...Array(5)].map((_, i) => (
+                                <div key={i} className="border rounded-lg p-3 bg-white">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div className="flex items-center gap-2">
+                                            <Skeleton className="h-8 w-8 rounded-full" />
+                                            <div className="space-y-1">
+                                                <Skeleton className="h-3 w-24" />
+                                                <Skeleton className="h-2 w-16" />
                                             </div>
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
+                                        </div>
+                                        <Skeleton className="h-5 w-12" />
+                                    </div>
+                                    <Skeleton className="h-3 w-full mb-1" />
+                                    <Skeleton className="h-3 w-2/3" />
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Desktop Skeleton */}
+                        <div className="hidden md:block space-y-4 p-6">
+                            {[...Array(5)].map((_, i) => (
+                                <div
+                                    key={i}
+                                    className="flex items-center space-x-4 p-4 border rounded-lg"
+                                >
+                                    <Skeleton className="h-12 w-12 rounded-full" />
+                                    <div className="space-y-2 flex-grow">
+                                        <Skeleton className="h-4 w-48" />
+                                        <Skeleton className="h-3 w-32" />
+                                    </div>
+                                    <Skeleton className="h-6 w-20" />
+                                    <Skeleton className="h-8 w-24" />
+                                </div>
+                            ))}
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        {/* Mobile View */}
+                        <div className="md:hidden space-y-1 p-1">
+                            {salesOrders.map((order) => {
+                                const hasSPK = order.spk && order.spk.length > 0;
+
+                                return (
+                                    <div
+                                        key={order.id}
+                                        className={cn(
+                                            "border rounded-lg bg-white dark:bg-slate-800 transition-colors",
+                                            highlightId === order.id ? "bg-yellow-100 border-yellow-300" : ""
+                                        )}
+                                    >
+                                        <div className="p-2">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                    <div className="flex items-center justify-center h-8 w-8 rounded-full bg-blue-100 flex-shrink-0">
+                                                        <FileTextIcon className="h-4 w-4 text-blue-600" />
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="font-bold text-xs truncate">{order.soNumber}</p>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {format(new Date(order.soDate), "dd MMM yy")}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <Badge className={cn(
+                                                    "rounded px-2 py-0.5 text-xs uppercase font-semibold flex-shrink-0 ml-1",
+                                                    statusConfig[order.status as OrderStatus]?.className || statusConfig.DRAFT.className
+                                                )}>
+                                                    {statusConfig[order.status as OrderStatus]?.label || "Draft"}
+                                                </Badge>
+                                            </div>
+
+                                            <div className="space-y-1 text-xs">
+                                                <div className="flex items-center gap-1">
+                                                    <FaToolbox className="h-3 w-3 text-red-500 flex-shrink-0" />
+                                                    <span className="font-medium text-wrap">{order.project?.name || "No Project"}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1">
+                                                    <UserCheck2Icon className="h-3 w-3 text-purple-500 flex-shrink-0" />
+                                                    <span className="text-xs font-bold">{order.customer.branch}</span>
+                                                </div>
+                                            </div>
+
+                                            {/* Detail Items untuk mobile */}
+                                            <div className="mt-2 space-y-2 text-xs">
+                                                <div className="font-medium text-green-600">Items:</div>
+                                                {order.items.slice(0, 2).map((item, idx) => {
+                                                    const itemTotal = isAdminOrSuper ? item.qty * item.unitPrice : 0;
+                                                    return (
+                                                        <div key={idx} className="flex justify-between items-center">
+                                                            <span className="truncate flex-1">
+                                                                {item.qty} x {item.name}
+                                                            </span>
+                                                            <span className={`font-medium ml-2 flex-shrink-0 whitespace-nowrap ${isAdminOrSuper ? 'text-green-600' : 'text-gray-400 italic'
+                                                                }`}>
+                                                                {isAdminOrSuper
+                                                                    ? `Rp ${itemTotal.toLocaleString('id-ID')}`
+                                                                    : '***'
+                                                                }
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                })}
+
+                                                {/* Tampilkan item tambahan jika expanded */}
+                                                {expandedItems[order.id] && order.items.length > 2 && (
+                                                    <>
+                                                        {order.items.slice(2).map((item, idx) => {
+                                                            const itemTotal = isAdminOrSuper ? item.qty * item.unitPrice : 0;
+                                                            return (
+                                                                <div key={idx + 2} className="flex justify-between items-center">
+                                                                    <span className="truncate flex-1">
+                                                                        {item.qty} x {item.name}
+                                                                    </span>
+                                                                    <span className="font-medium text-green-600 ml-2 flex-shrink-0 whitespace-nowrap">
+                                                                        {isAdminOrSuper
+                                                                            ? `Rp ${itemTotal.toLocaleString('id-ID')}`
+                                                                            : '***'
+                                                                        }
+                                                                    </span>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </>
+                                                )}
+
+                                                {/* Button untuk show/hide items */}
+                                                {order.items.length > 2 && (
+                                                    <button
+                                                        onClick={() => toggleItemsExpanded(order.id)}
+                                                        className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-xs font-medium mt-1"
+                                                    >
+                                                        {expandedItems[order.id] ? (
+                                                            <>
+                                                                <ChevronUp className="h-3 w-3" />
+                                                                Show Less
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Plus className="h-3 w-3" />
+                                                                +{order.items.length - 2} more items
+                                                            </>
+                                                        )}
+                                                    </button>
+                                                )}
+                                            </div>
+
+                                            {isAdminOrSuper && (
+                                                <div className="mt-2 pt-2 border-t border-gray-100">
+                                                    <div className="flex justify-between items-center">
+                                                        <p className="text-xs font-bold uppercase">Total Amount</p>
+                                                        <p className="font-bold text-green-600 text-sm">
+                                                            Rp {order.items.reduce((sum, item) => sum + (item.qty * item.unitPrice), 0).toLocaleString("id-ID")}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Actions untuk mobile */}
+                                            <div className="mt-2 flex justify-end gap-1">
+                                                <ActionsCell
+                                                    order={order}
+                                                    onDeleteSuccess={handleDeleteSuccess}
+                                                    role={role}
+                                                />
+
+
+                                                {/* Create SPK Button */}
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <span>
+                                                                <Button
+                                                                    variant="default"
+                                                                    size="sm"
+                                                                    disabled={hasSPK && ["BAST", "PARTIALLY_INVOICED", "INVOICED", "PARTIALLY_PAID", "PAID", "CANCELLED"].includes(order.status)}
+                                                                    onClick={() => hasSPK ?
+                                                                        router.push(`${getBasePathSPK(role)}?search=${encodeURIComponent(order.spk?.[0].spkNumber || '')}&page=1`) :
+                                                                        router.push(`${getBasePathSPK(role)}/create/${order.id}`)
+                                                                    }
+                                                                    className={hasSPK ?
+                                                                        (["BAST", "PARTIALLY_INVOICED", "INVOICED", "PARTIALLY_PAID", "PAID", "CANCELLED"].includes(order.status) ?
+                                                                            "bg-gray-400 cursor-not-allowed" :
+                                                                            "bg-gradient-to-r from-green-400 to-emerald-500 hover:from-green-500 hover:to-emerald-600 text-white shadow-lg shadow-green-500/30 dark:shadow-green-600/30") :
+                                                                        "bg-gradient-to-r from-blue-400 to-cyan-500 hover:from-blue-500 hover:to-cyan-600 text-white shadow-lg shadow-blue-500/30 dark:shadow-blue-600/30"
+                                                                    }
+                                                                >
+                                                                    {hasSPK ?
+                                                                        (["BAST", "PARTIALLY_INVOICED", "INVOICED", "PARTIALLY_PAID", "PAID", "CANCELLED"].includes(order.status) ?
+                                                                            "SPK Created" :
+                                                                            "Cek SPK") :
+                                                                        "+ Create SPK"
+                                                                    }
+                                                                </Button>
+                                                            </span>
+                                                        </TooltipTrigger>
+                                                        {hasSPK && (
+                                                            <TooltipContent>
+                                                                {["BAST", "PARTIALLY_INVOICED", "INVOICED", "PARTIALLY_PAID", "PAID", "CANCELLED"].includes(order.status) ?
+                                                                    "Tidak dapat mengakses SPK karena order sudah diproses lebih lanjut" :
+                                                                    "SPK untuk Sales Order ini sudah dibuat"
+                                                                }
+                                                            </TooltipContent>
+                                                        )}
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                                {isAdminOrSuper && (
+                                                    <>
+                                                        {/* Create Quotation Button */}
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <Button
+                                                                        variant="default"
+                                                                        size="sm"
+                                                                        onClick={() => router.push(`/admin-area/sales/quotation/create/${order.id}`)}
+                                                                        className="bg-gradient-to-r from-green-400 to-emerald-500 hover:from-green-500 hover:to-emerald-600 text-white shadow-lg shadow-green-500/30 dark:shadow-green-600/30 cursor-pointer"
+                                                                    >
+                                                                        + Quotation
+                                                                    </Button>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    Buat Quotation baru untuk Sales Order ini
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Desktop View */}
+                        <div className="hidden md:block rounded-b-lg">
+                            <Table>
+                                <TableHeader className="bg-muted/50">
+                                    {table.getHeaderGroups().map((headerGroup) => (
+                                        <TableRow key={headerGroup.id}>
+                                            {headerGroup.headers.map((header) => (
+                                                <TableHead key={header.id} className="py-4 font-semibold">
+                                                    {header.isPlaceholder
+                                                        ? null
+                                                        : flexRender(
+                                                            header.column.columnDef.header,
+                                                            header.getContext()
+                                                        )}
+                                                </TableHead>
+                                            ))}
+                                        </TableRow>
+                                    ))}
+                                </TableHeader>
+
+                                <TableBody>
+                                    {table.getRowModel().rows.length ? (
+                                        table.getRowModel().rows.map((row) => (
+                                            <React.Fragment key={row.id}>
+                                                <TableRow
+                                                    ref={(el) => {
+                                                        const id = row.original?.id;
+                                                        if (id) rowRefs.current[id] = el;
+                                                    }}
+                                                    data-row-id={row.original?.id}
+                                                    data-state={row.getIsSelected() && "selected"}
+                                                    className={cn(
+                                                        "cursor-pointer hover:bg-muted/30 transition-colors",
+                                                        highlightId === row.original?.id ? "bg-yellow-200 dark:bg-yellow-900" : ""
+                                                    )}
+                                                    onClick={() => row.toggleExpanded(!row.getIsExpanded())}
+                                                >
+
+                                                    {row.getVisibleCells().map((cell) => (
+                                                        <TableCell key={cell.id} className="py-4">
+                                                            {flexRender(
+                                                                cell.column.columnDef.cell,
+                                                                cell.getContext()
+                                                            )}
+                                                        </TableCell>
+                                                    ))}
+                                                </TableRow>
+
+                                                {row.getIsExpanded() && (
+                                                    <TableRow key={`${row.id}-expanded`}>
+                                                        <TableCell
+                                                            colSpan={table.getVisibleLeafColumns().length}
+                                                            className="p-0 border-b-2 border-primary/20"
+                                                        >
+                                                            <SalesOrderDetail
+                                                                order={row.original}
+                                                                role={role}
+                                                            />
+                                                        </TableCell>
+                                                    </TableRow>
+                                                )}
+                                            </React.Fragment>
+                                        ))
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell
+                                                colSpan={table.getVisibleLeafColumns().length}
+                                                className="h-24 text-center text-muted-foreground p-6"
+                                            >
+                                                <div className="flex flex-col items-center justify-center py-8">
+                                                    <ShoppingCartIcon className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                                                    <p className="text-lg font-medium">
+                                                        No orders found
+                                                    </p>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </>
                 )}
             </CardContent>
         </Card>
