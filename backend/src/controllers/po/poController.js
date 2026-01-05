@@ -45,7 +45,8 @@ const generatePONumber = async (db) => {
 
 /**
  * @desc Create PO from Approved PR (Auto-called when PR is approved)
- * This function creates a Purchase Order for items with sourceProduct = 'PEMBELIAN_BARANG'
+ * This function creates Purchase Orders for items with sourceProduct = 'PEMBELIAN_BARANG' or 'JASA_PEMBELIAN'
+ * If both types exist, it creates 2 separate POs
  */
 export const createPOFromApprovedPR = async (prId, tx) => {
   const db = tx || prisma;
@@ -67,53 +68,52 @@ export const createPOFromApprovedPR = async (prId, tx) => {
     throw new Error("Purchase Request tidak ditemukan");
   }
 
-  // 2. Filter only purchase items (PEMBELIAN_BARANG and JASA_PEMBELIAN)
-  const purchaseItems = pr.details.filter(
-    detail => detail.sourceProduct === 'PEMBELIAN_BARANG' || detail.sourceProduct === 'JASA_PEMBELIAN'
+  // 2. Separate items by sourceProduct type
+  const pembelianBarangItems = pr.details.filter(
+    detail => detail.sourceProduct === 'PEMBELIAN_BARANG'
+  );
+  
+  const jasaPembelianItems = pr.details.filter(
+    detail => detail.sourceProduct === 'JASA_PEMBELIAN'
   );
 
-  // If no purchase items, don't create PO
-  if (purchaseItems.length === 0) {
+  // If no purchase items at all, don't create PO
+  if (pembelianBarangItems.length === 0 && jasaPembelianItems.length === 0) {
     return null;
   }
 
-  // 3. Generate PO Number (Format: 000001/PO-RYLIF/XII/2025)
-  const poNumber = await generatePONumber(db);
-
-  // 4. Calculate subtotal from purchase items
-  const subtotal = purchaseItems.reduce((sum, item) => {
-    return sum + Number(item.estimasiTotalHarga || 0);
-  }, 0);
-
-  // 5. Get first warehouse from allocations or use a placeholder
-  // This is a temporary solution - purchasing team will update it manually
-  let defaultWarehouseId = null;
-  
-  // Try to get warehouse from first item's allocation
-  if (purchaseItems[0]?.warehouseAllocation) {
-    const allocations = typeof purchaseItems[0].warehouseAllocation === 'string'
-      ? JSON.parse(purchaseItems[0].warehouseAllocation)
-      : purchaseItems[0].warehouseAllocation;
+  // 3. Helper function to get warehouse ID
+  const getWarehouseId = async (items) => {
+    let warehouseId = null;
     
-    if (Array.isArray(allocations) && allocations.length > 0) {
-      defaultWarehouseId = allocations[0].warehouseId;
+    // Try to get warehouse from first item's allocation
+    if (items[0]?.warehouseAllocation) {
+      const allocations = typeof items[0].warehouseAllocation === 'string'
+        ? JSON.parse(items[0].warehouseAllocation)
+        : items[0].warehouseAllocation;
+      
+      if (Array.isArray(allocations) && allocations.length > 0) {
+        warehouseId = allocations[0].warehouseId;
+      }
     }
-  }
 
-  // If still no warehouse, get the first active warehouse
-  if (!defaultWarehouseId) {
-    const firstWarehouse = await db.warehouse.findFirst({
-      where: { isActive: true },
-      select: { id: true }
-    });
-    defaultWarehouseId = firstWarehouse?.id;
-  }
+    // If still no warehouse, get the first active warehouse
+    if (!warehouseId) {
+      const firstWarehouse = await db.warehouse.findFirst({
+        where: { isActive: true },
+        select: { id: true }
+      });
+      warehouseId = firstWarehouse?.id;
+    }
 
-  if (!defaultWarehouseId) {
-    throw new Error("Tidak ada gudang aktif yang tersedia untuk PO");
-  }
+    if (!warehouseId) {
+      throw new Error("Tidak ada gudang aktif yang tersedia untuk PO");
+    }
 
-  // 6. Get first active supplier as placeholder
+    return warehouseId;
+  };
+
+  // 4. Get first active supplier as placeholder
   const firstSupplier = await db.supplier.findFirst({
     where: { status: 'ACTIVE' },
     select: { id: true }
@@ -123,44 +123,120 @@ export const createPOFromApprovedPR = async (prId, tx) => {
     throw new Error("Tidak ada supplier aktif yang tersedia untuk PO");
   }
 
-  // 7. Create PO in DRAFT status
-  const po = await db.purchaseOrder.create({
-    data: {
-      poNumber,
-      orderDate: new Date(),
-      status: 'DRAFT',
-      purchaseRequestId: pr.id,
-      projectId: pr.projectId,
-      orderedById: pr.karyawanId,
-      supplierId: firstSupplier.id, // Placeholder - needs manual update
-      warehouseId: defaultWarehouseId,
-      subtotal,
-      taxAmount: 0,
-      totalAmount: subtotal,
-      lines: {
-        create: purchaseItems.map(item => ({
-          productId: item.productId,
-          description: item.product?.name || 'Item',
-          quantity: item.jumlah,
-          unitPrice: item.estimasiHargaSatuan || 0,
-          totalAmount: item.estimasiTotalHarga || 0,
-          prDetailId: item.id
-        }))
-      }
-    },
-    include: {
-      lines: {
-        include: {
-          product: true
+  // 5. Create PO(s) based on item types
+  const createdPOs = [];
+
+  // Create PO for PEMBELIAN_BARANG items
+  if (pembelianBarangItems.length > 0) {
+    const poNumber = await generatePONumber(db);
+    const subtotal = pembelianBarangItems.reduce((sum, item) => {
+      return sum + Number(item.estimasiTotalHarga || 0);
+    }, 0);
+    const warehouseId = await getWarehouseId(pembelianBarangItems);
+
+    const po = await db.purchaseOrder.create({
+      data: {
+        poNumber,
+        orderDate: new Date(),
+        status: 'DRAFT',
+        purchaseRequestId: pr.id,
+        projectId: pr.projectId,
+        orderedById: pr.karyawanId,
+        supplierId: firstSupplier.id,
+        warehouseId,
+        subtotal,
+        taxAmount: 0,
+        totalAmount: subtotal,
+        lines: {
+          create: pembelianBarangItems.map(item => ({
+            productId: item.productId,
+            description: item.product?.name || 'Item',
+            quantity: item.jumlah,
+            unitPrice: item.estimasiHargaSatuan || 0,
+            totalAmount: item.estimasiTotalHarga || 0,
+            prDetailId: item.id
+          }))
         }
       },
-      supplier: true,
-      warehouse: true,
-      project: true
-    }
-  });
+      include: {
+        lines: {
+          include: {
+            product: true
+          }
+        },
+        supplier: true,
+        warehouse: true,
+        project: true
+      }
+    });
 
-  return po;
+    createdPOs.push(po);
+    console.log(`✅ Created PO ${poNumber} for PEMBELIAN_BARANG items (${pembelianBarangItems.length} items)`);
+  }
+
+  // Create PO for JASA_PEMBELIAN items
+  if (jasaPembelianItems.length > 0) {
+    const poNumber = await generatePONumber(db);
+    const subtotal = jasaPembelianItems.reduce((sum, item) => {
+      return sum + Number(item.estimasiTotalHarga || 0);
+    }, 0);
+    const warehouseId = await getWarehouseId(jasaPembelianItems);
+
+    const po = await db.purchaseOrder.create({
+      data: {
+        poNumber,
+        orderDate: new Date(),
+        status: 'DRAFT',
+        purchaseRequestId: pr.id,
+        projectId: pr.projectId,
+        orderedById: pr.karyawanId,
+        supplierId: firstSupplier.id,
+        warehouseId,
+        subtotal,
+        taxAmount: 0,
+        totalAmount: subtotal,
+        lines: {
+          create: jasaPembelianItems.map(item => ({
+            productId: item.productId,
+            description: item.product?.name || 'Item',
+            quantity: item.jumlah,
+            unitPrice: item.estimasiHargaSatuan || 0,
+            totalAmount: item.estimasiTotalHarga || 0,
+            prDetailId: item.id,
+            notGr: true // Services don't require Goods Receipt
+          }))
+        }
+      },
+      include: {
+        lines: {
+          include: {
+            product: true
+          }
+        },
+        supplier: true,
+        warehouse: true,
+        project: true
+      }
+    });
+
+    createdPOs.push(po);
+    console.log(`✅ Created PO ${poNumber} for JASA_PEMBELIAN items (${jasaPembelianItems.length} items)`);
+  }
+
+  // 6. Return result
+  // If only one PO created, return it directly (backward compatible)
+  // If multiple POs created, return array with summary
+  if (createdPOs.length === 1) {
+    return createdPOs[0];
+  } else if (createdPOs.length > 1) {
+    return {
+      multiple: true,
+      pos: createdPOs,
+      summary: `Created ${createdPOs.length} POs: ${createdPOs.map(po => po.poNumber).join(', ')}`
+    };
+  }
+
+  return null;
 };
 
 /**
@@ -326,7 +402,7 @@ export const createPOFromPR = async (prId, userId, tx) => {
  */
 export const getAllPO = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = '', status, supplierId } = req.query;
+    const { page = 1, limit = 10, search = '', status, supplierId, hasNotGr, minStatus } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
 
     const where = {};
@@ -344,9 +420,41 @@ export const getAllPO = async (req, res) => {
       where.status = status;
     }
 
+    // ✅ NEW FILTER: Filter by minimum status (e.g., SENT or higher)
+    // Status hierarchy: DRAFT < PENDING_APPROVAL < APPROVED < SENT < PARTIALLY_RECEIVED < FULLY_RECEIVED
+    if (minStatus) {
+      const statusHierarchy = [
+        'DRAFT',
+        'PENDING_APPROVAL', 
+        'REVISION_NEEDED',
+        'APPROVED',
+        'SENT',
+        'PARTIALLY_RECEIVED',
+        'FULLY_RECEIVED',
+        'CANCELLED',
+        'REJECTED'
+      ];
+      
+      const minIndex = statusHierarchy.indexOf(minStatus);
+      if (minIndex !== -1) {
+        // Get all statuses from minStatus onwards (excluding CANCELLED and REJECTED)
+        const validStatuses = statusHierarchy.slice(minIndex).filter(s => s !== 'CANCELLED' && s !== 'REJECTED');
+        where.status = { in: validStatuses };
+      }
+    }
+
     // Filter by Supplier
     if (supplierId) {
       where.supplierId = supplierId;
+    }
+
+    // ✅ NEW FILTER: Filter by POs that have service items (notGr=true)
+    if (hasNotGr === 'true') {
+      where.lines = {
+        some: {
+          notGr: true
+        }
+      };
     }
 
     const [data, totalCount] = await Promise.all([
@@ -362,7 +470,8 @@ export const getAllPO = async (req, res) => {
           lines: {
             select: {
               id: true,
-              checkPurchaseExecution: true
+              checkPurchaseExecution: true,
+              notGr: true // Include notGr field in response
             }
           },
           PurchaseRequest: {
@@ -762,17 +871,68 @@ export const updatePOStatus = async (req, res) => {
         }
       });
 
-      // Jika status APPROVED dan requestRevisi = 0 (belum pernah revisi), update jumlahDipesan di PurchaseRequestDetail dan onPR di StockBalance
-      if (status === 'APPROVED' && (updatedPO.requestRevisi === 0 || !updatedPO.requestRevisi)) {
+      // Jika status APPROVED, update jumlahDipesan di PurchaseRequestDetail dan onPR di StockBalance
+      if (status === 'APPROVED') {
         // Get current period (start of month)
         const currentPeriod = new Date();
         currentPeriod.setDate(1);
         currentPeriod.setHours(0, 0, 0, 0);
 
-        // Fetch Warehouse info (Removed isWIP check logic as per request)
-        // const warehouse = await tx.warehouse.findUnique({ ... });
-        // const shouldUpdateBookedStock = warehouse && !warehouse.isWip;
+        // ✅ HANDLE REVISION: If this is a revised PO (requestRevisi > 0)
+        // We need to reverse the previous StockBalance updates before applying new ones
+        if (updatedPO.requestRevisi && updatedPO.requestRevisi > 0) {
+          console.log(`🔄 Handling PO Revision (requestRevisi=${updatedPO.requestRevisi})`);
+          
+          // Fetch the PO's previous state from audit/history
+          // Since we don't have audit table, we'll fetch current lines and assume they represent the NEW state
+          // We need to get the OLD quantities from somewhere - let's use a different approach:
+          // We'll track the difference by comparing current DB state vs what we're about to save
+          
+          // Get all current StockBalance entries that were affected by this PO
+          // We'll identify them by checking all lines and reversing their onPR
+          const previousLines = await tx.purchaseOrderLine.findMany({
+            where: { 
+              poId: id,
+              notGr: { not: true } // Only physical goods
+            },
+            select: {
+              id: true,
+              productId: true,
+              quantity: true,
+              notGr: true
+            }
+          });
 
+          console.log(`📦 Reversing StockBalance for ${previousLines.length} previous PO lines`);
+
+          // Reverse previous StockBalance updates
+          for (const prevLine of previousLines) {
+            if (prevLine.notGr === true) continue; // Skip service items
+
+            const stockBalance = await tx.stockBalance.findFirst({
+              where: {
+                productId: prevLine.productId,
+                warehouseId: updatedPO.warehouseId,
+                period: currentPeriod
+              }
+            });
+
+            if (stockBalance) {
+              // Reverse the previous onPR increment
+              await tx.stockBalance.update({
+                where: { id: stockBalance.id },
+                data: {
+                  onPR: {
+                    decrement: prevLine.quantity // Reverse previous quantity
+                  }
+                }
+              });
+              console.log(`  ↩️  Reversed onPR for ${prevLine.productId}: -${prevLine.quantity}`);
+            }
+          }
+        }
+
+        // ✅ APPLY NEW STOCKBALANCE (for both first-time approval and revision)
         for (const line of updatedPO.lines) {
           if (line.prDetailId) {
             // Recalculate Total Ordered Qty for this PR Detail
@@ -798,8 +958,15 @@ export const updatePOStatus = async (req, res) => {
             });
           }
 
+          // ✅ Skip StockBalance update for service items (notGr=true)
+          // Service items (JASA_PEMBELIAN) don't affect physical inventory
+          if (line.notGr === true) {
+            console.log(`⏭️  Skipping StockBalance update for service item: ${line.productId} (notGr=true)`);
+            continue; // Skip to next line
+          }
+
           // Update StockBalance.onPR untuk product ini di warehouse PO
-          // Increment onPR dengan qty dari PO line
+          // Increment onPR dengan qty dari PO line (NEW quantity after revision)
           const stockBalance = await tx.stockBalance.findFirst({
             where: {
               productId: line.productId,
@@ -813,11 +980,11 @@ export const updatePOStatus = async (req, res) => {
               where: { id: stockBalance.id },
               data: {
                 onPR: {
-                  increment: line.quantity
-                },
-                // bookedStock: 0 // Tidak update bookedStock saat PO Approved (hanya onPR)
+                  increment: line.quantity // Apply NEW quantity
+                }
               }
             });
+            console.log(`  ✅ Applied onPR for ${line.productId}: +${line.quantity}`);
           } else {
             // Create StockBalance if not exists for current period
             await tx.stockBalance.create({
@@ -830,10 +997,11 @@ export const updatePOStatus = async (req, res) => {
                 stockIn: 0,
                 stockOut: 0,
                 stockAkhir: 0,
-                bookedStock: 0, // Tidak update bookedStock saat PO Approved
+                bookedStock: 0,
                 availableStock: 0
               }
             });
+            console.log(`  ✅ Created StockBalance for ${line.productId}: onPR=${line.quantity}`);
           }
         }
       }

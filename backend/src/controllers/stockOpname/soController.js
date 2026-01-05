@@ -504,5 +504,29 @@ export const stockOpnameController = {
         console.error("Complete Error:", error);
       return res.status(400).json({ success: false, message: error.message });
     }
+  },
+
+  // --- STATUS CHANGE (Unlock) ---
+  unlock: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const result = await prisma.$transaction(async (tx) => {
+        const opname = await tx.stockOpname.findUnique({
+          where: { id },
+        });
+
+        if (!opname || opname.status !== 'COMPLETED') throw new Error("Data opname tidak ditemukan atau status bukan COMPLETED");
+
+        return await tx.stockOpname.update({
+          where: { id },
+          data: { status: 'DRAFT' },
+        });
+      });
+
+      return res.status(200).json({ success: true, data: result, message: "Status updated to DRAFT" });
+    } catch (error) {
+        console.error("Unlock Error:", error);
+      return res.status(400).json({ success: false, message: error.message });
+    }
   }
 };

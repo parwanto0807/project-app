@@ -404,7 +404,14 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                         const finalPO = await getPurchaseOrderById(purchaseOrder.id);
                         setPurchaseOrder(finalPO);
                     } else {
-                        toast.warning(`Status updated, but GR creation failed: ${grRes.message}`);
+                        // Check if error is because PO contains only services
+                        if (grRes.error?.includes('JASA_PEMBELIAN') || grRes.message?.includes('JASA_PEMBELIAN')) {
+                            toast.info("ℹ️ PO ini hanya berisi Jasa/Services. GR tidak diperlukan.", {
+                                duration: 4000,
+                            });
+                        } else {
+                            toast.warning(`Status updated, but GR creation failed: ${grRes.message || grRes.error}`);
+                        }
                     }
                 } catch (autoError) {
                     console.error("Auto Creation Failed:", autoError);

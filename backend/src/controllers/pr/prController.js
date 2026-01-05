@@ -1927,13 +1927,27 @@ export class PurchaseRequestController {
           // Create PO (will return null if no purchase items found)
           const createdPO = await createPOFromApprovedPR(id);
           
-          if (createdPO) {            
-            // Add PO info to response
-            updatedPR.autoCreatedPO = {
-              id: createdPO.id,
-              poNumber: createdPO.poNumber,
-              message: 'Purchase Order created automatically for purchase items'
-            };
+          if (createdPO) {
+            // Check if multiple POs were created
+            if (createdPO.multiple && createdPO.pos) {
+              // Multiple POs created
+              updatedPR.autoCreatedPO = {
+                multiple: true,
+                pos: createdPO.pos.map(po => ({
+                  id: po.id,
+                  poNumber: po.poNumber
+                })),
+                summary: createdPO.summary,
+                message: `${createdPO.pos.length} Purchase Orders created automatically`
+              };
+            } else {
+              // Single PO created
+              updatedPR.autoCreatedPO = {
+                id: createdPO.id,
+                poNumber: createdPO.poNumber,
+                message: 'Purchase Order created automatically for purchase items'
+              };
+            }
           }
         } catch (poError) {
           // Log error but don't fail the PR approval

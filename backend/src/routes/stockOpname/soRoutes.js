@@ -25,5 +25,6 @@ router.route('/:id')
 router.patch('/:id/adjust', stockOpnameController.adjust);
 router.patch('/:id/cancel', stockOpnameController.cancel);
 router.patch('/:id/complete', stockOpnameController.complete);
+router.patch('/:id/unlock', stockOpnameController.unlock);
 
 export default router;

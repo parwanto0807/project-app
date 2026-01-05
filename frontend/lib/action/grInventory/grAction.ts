@@ -540,7 +540,7 @@ export async function generateNextGRNumberAction(): Promise<ApiResponse<{ nextNu
 export async function createGoodsReceiptFromPOAction(
     purchaseOrderId: string,
     receivedById?: string
-): Promise<{ success: boolean; message?: string; grNumber?: string }> {
+): Promise<{ success: boolean; message?: string; error?: string; grNumber?: string }> {
     try {
         if (!purchaseOrderId) {
             return {
@@ -570,7 +570,8 @@ export async function createGoodsReceiptFromPOAction(
             console.error('GR creation failed:', errorData);
             return {
                 success: false,
-                message: errorData.error || `HTTP error! status: ${response.status}`
+                message: errorData.message || errorData.error || `HTTP error! status: ${response.status}`,
+                error: errorData.error || errorData.message
             };
         }
 
@@ -586,14 +587,16 @@ export async function createGoodsReceiptFromPOAction(
         } else {
             return {
                 success: false,
-                message: result.error || 'Failed to create goods receipt'
+                message: result.message || result.error || 'Failed to create goods receipt',
+                error: result.error || result.message
             };
         }
     } catch (error) {
         console.error('Error creating GR from PO:', error);
         return {
             success: false,
-            message: error instanceof Error ? error.message : 'Failed to create goods receipt from PO'
+            message: error instanceof Error ? error.message : 'Failed to create goods receipt from PO',
+            error: error instanceof Error ? error.message : 'Unknown error'
         };
     }
 }

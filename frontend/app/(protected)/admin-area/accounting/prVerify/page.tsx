@@ -151,6 +151,9 @@ export default function PurchaseRequestPageAdmin() {
                         id: string;
                         poNumber: string;
                         message: string;
+                        multiple?: boolean;
+                        pos?: Array<{ id: string; poNumber: string }>;
+                        summary?: string;
                     };
                     poCreationWarning?: {
                         message: string;
@@ -159,13 +162,25 @@ export default function PurchaseRequestPageAdmin() {
                 };
 
                 if (resultWithPO.autoCreatedPO) {
-                    // PO was successfully created
-                    toast.success(
-                        `✅ ${resultWithPO.autoCreatedPO.message}: ${resultWithPO.autoCreatedPO.poNumber}`,
-                        {
-                            duration: 5000,
-                        }
-                    );
+                    // Check if multiple POs were created
+                    if (resultWithPO.autoCreatedPO.multiple && resultWithPO.autoCreatedPO.pos) {
+                        // Multiple POs created
+                        const poNumbers = resultWithPO.autoCreatedPO.pos.map(po => po.poNumber).join(', ');
+                        toast.success(
+                            `✅ ${resultWithPO.autoCreatedPO.pos.length} Purchase Orders created automatically: ${poNumbers}`,
+                            {
+                                duration: 6000,
+                            }
+                        );
+                    } else {
+                        // Single PO created
+                        toast.success(
+                            `✅ ${resultWithPO.autoCreatedPO.message}: ${resultWithPO.autoCreatedPO.poNumber}`,
+                            {
+                                duration: 5000,
+                            }
+                        );
+                    }
                 } else if (resultWithPO.poCreationWarning) {
                     // PO creation failed but PR was still approved
                     toast.warning(

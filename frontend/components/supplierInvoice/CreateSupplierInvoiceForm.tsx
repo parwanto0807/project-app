@@ -172,8 +172,11 @@ export default function CreateSupplierInvoiceForm({ role = "admin" }: { role?: s
         if (supplierId) {
             const fetchPOs = async () => {
                 try {
+                    // ✅ Filter POs with service items (notGr=true)
+                    // Service items don't require GR, so we don't filter by FULLY_RECEIVED status
+                    // But we still need minimum status SENT to ensure PO has been sent to supplier
                     const response = await fetch(
-                        `${process.env.NEXT_PUBLIC_API_URL}/api/po?supplierId=${supplierId}&status=FULLY_RECEIVED`
+                        `${process.env.NEXT_PUBLIC_API_URL}/api/po?supplierId=${supplierId}&hasNotGr=true&minStatus=SENT`
                     );
                     const data = await response.json();
                     if (data.success) {

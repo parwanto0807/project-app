@@ -53,6 +53,7 @@ export interface PurchaseOrderLine {
     receivedQuantity: number;
     checkMatch?: boolean; // Whether actual matches PO
     checkPurchaseExecution?: boolean; // Field report verification status
+    notGr?: boolean; // Service items don't require Goods Receipt
     prDetailId?: string | null;
     prDetail?: PurchaseRequestDetail | null; // Optional relation
     poId: string;

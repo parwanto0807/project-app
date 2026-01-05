@@ -21,7 +21,9 @@ import {
     Info,
     Layers,
     Lock,
+    Unlock,
 } from "lucide-react";
+
 import { api } from "@/lib/http";
 import { toast } from "sonner";
 
@@ -38,6 +40,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { StockOpname, OpnameStatus } from "@/types/soType";
+import { useSession } from "../clientSessionProvider";
 
 
 interface DetailStockOpnameProps {
@@ -52,6 +55,7 @@ export default function DetailStockOpname({
     onEdit,
 }: DetailStockOpnameProps) {
     const router = useRouter();
+    const session = useSession();
     const [isLoading, setIsLoading] = React.useState(false);
 
     // Local state for immediate UI update
@@ -81,6 +85,25 @@ export default function DetailStockOpname({
         }
     };
 
+
+    const handleUnlock = async () => {
+        if (!confirm("Apakah Anda yakin ingin membuka kunci data ini? Status akan kembali menjadi DRAFT.")) return;
+
+        setIsLoading(true);
+        try {
+            await api.patch(`/api/stock-opname/${opname.id}/unlock`);
+            toast.success("Stock Opname berhasil dibuka kembali.");
+
+            // Optimistic Update
+            setOpname(prev => ({ ...prev, status: OpnameStatus.DRAFT }));
+
+            router.refresh();
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || "Terjadi kesalahan saat membuka kunci data.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const handlePrint = () => window.print();
 
@@ -152,6 +175,17 @@ export default function DetailStockOpname({
                                 Lock / Approve
                             </Button>
                         </>
+                    )}
+
+                    {opname.status === OpnameStatus.COMPLETED && (session?.user as any)?.role === 'admin' && (
+                        <Button
+                            className="flex-1 sm:flex-none gap-2 bg-orange-600 hover:bg-orange-700 shadow-md shadow-orange-200 dark:shadow-none transition-all active:scale-95 p-6"
+                            onClick={handleUnlock}
+                            disabled={isLoading}
+                        >
+                            {isLoading ? <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" /> : <Unlock className="w-4 h-4" />}
+                            Unlock / Re-open
+                        </Button>
                     )}
                 </div>
             </div>

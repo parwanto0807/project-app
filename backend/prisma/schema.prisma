@@ -2240,6 +2240,7 @@ model PurchaseOrderLine {
   receivedQuantity       Decimal @default(0) @db.Decimal(18, 4) // Jumlah yang sudah diterima
   checkMatch             Boolean @default(false)
   checkPurchaseExecution Boolean @default(false)
+  notGr                  Boolean @default(false)
 
   prDetailId String?
   prDetail   PurchaseRequestDetail? @relation(fields: [prDetailId], references: [id])

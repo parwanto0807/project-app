@@ -760,7 +760,13 @@ export const createGoodsReceiptFromPO = async (req, res) => {
       include: {
         lines: {
           include: {
-            product: true
+            product: true,
+            prDetail: {
+              select: {
+                id: true,
+                sourceProduct: true
+              }
+            }
           }
         }
       }
@@ -772,6 +778,22 @@ export const createGoodsReceiptFromPO = async (req, res) => {
         error: 'Purchase order not found'
       });
       return res.status(404).json(response);
+    }
+
+    // ✅ NEW VALIDATION: Check if all items are services (JASA_PEMBELIAN)
+    // Check both prDetail.sourceProduct and notGr flag
+    // If all items are services, don't create GR (services don't need goods receipt)
+    const allItemsAreServices = purchaseOrder.lines.every(line => 
+      line.notGr === true || line.prDetail?.sourceProduct === 'JASA_PEMBELIAN'
+    );
+
+    if (allItemsAreServices) {
+      const response = new ApiResponse({
+        success: false,
+        error: 'Goods Receipt tidak diperlukan untuk PO yang hanya berisi Jasa/Services (JASA_PEMBELIAN)',
+        message: 'This PO contains only service items (JASA_PEMBELIAN). Goods Receipt is not applicable for services.'
+      });
+      return res.status(400).json(response);
     }
 
     // Determine receiver ID (Use provided ID or default to PO creator)
@@ -832,8 +854,9 @@ export const createGoodsReceiptFromPO = async (req, res) => {
 
     const actualUserId = karyawan.userId || finalReceivedById;
 
-    // Calculate remaining items
+    // Calculate remaining items (exclude service items with notGr=true)
     const pendingLines = purchaseOrder.lines
+        .filter(line => line.notGr !== true) // Exclude service items
         .map(line => {
             const quantity = parseFloat(line.quantity) || 0;
             const receivedQty = parseFloat(line.receivedQuantity) || 0;
@@ -849,7 +872,7 @@ export const createGoodsReceiptFromPO = async (req, res) => {
     if (pendingLines.length === 0) {
         const response = new ApiResponse({
             success: false,
-            error: 'All items in this Purchase Order have been fully received.'
+            error: 'All items in this Purchase Order have been fully received or are service items (no GR required).'
         });
         return res.status(400).json(response);
     }
