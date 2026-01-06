@@ -1577,26 +1577,32 @@ class InvoiceController {
       const paidInvoices = num(paidAgg._sum.grandTotal) || 0;
 
       // Calculate collection rate dengan handling division by zero
-      const totalInvoices = yearSummary || 1; // Avoid division by zero
-      const collectionRate = paidInvoices / totalInvoices;
+      // Collection rate = (Total Paid / Total All Invoices) * 100
+      // Total All Invoices = Paid + Pending
+      const totalAllInvoices = paidInvoices + pendingInvoices;
+      const collectionRate = totalAllInvoices > 0 ? paidInvoices / totalAllInvoices : 0;
 
       // Debug log untuk memastikan data benar
-      // console.log("DEBUG Invoice Stats:", {
-      //   today,
-      //   mtd,
-      //   ytd,
-      //   lastMonth: lastMonthTotal,
-      //   yearSummary,
-      //   pendingInvoices,
-      //   paidInvoices,
-      //   collectionRate,
-      // });
-
-      res.json({
+      console.log("DEBUG Invoice Stats:", {
         today,
         mtd,
         ytd,
         lastMonth: lastMonthTotal,
+        yearSummary,
+        pendingInvoices,
+        paidInvoices,
+        totalAllInvoices,
+        collectionRate: (collectionRate * 100).toFixed(2) + '%',
+      });
+
+      res.json({
+        today,
+        mtd,
+        totalThisMonth: mtd, // Alias untuk frontend
+        ytd,
+        totalThisYear: ytd, // Alias untuk frontend
+        lastMonth: lastMonthTotal,
+        totalLastMonth: lastMonthTotal, // Alias untuk frontend
         yearSummary,
         pendingInvoices,
         paidInvoices,

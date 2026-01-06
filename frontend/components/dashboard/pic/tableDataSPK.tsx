@@ -203,13 +203,13 @@ export default function DashboardSpkTable({
     }, [dataSpk, searchTerm, filterBy, isDashboard]);
 
     const renderMobileView = () => (
-        <div className="space-y-2 p-2">
+        <div className="space-y-2 p-1 sm:p-2">
             {filteredData.map((spk, idx) => {
                 const isExpanded = expandedRows.has(spk.id);
                 return (
                     <div key={`spk-card-${spk.id}`} className="border border-gray-700 rounded-lg dark:bg-gray-950">
                         {/* Baris utama yang sederhana */}
-                        <div className="p-3">
+                        <div className="p-2 sm:p-3">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2 flex-1 min-w-0">
                                     <span className="text-sm font-medium text-gray-500 w-6">#{idx + 1}</span>
@@ -267,7 +267,7 @@ export default function DashboardSpkTable({
 
                         {/* Detail yang expandable */}
                         {isExpanded && (
-                            <div className="border-t border-gray-200 p-3 space-y-3 dark:bg-gray-950">
+                            <div className="border-t border-gray-200 p-2 sm:p-3 space-y-2 sm:space-y-3 dark:bg-gray-950">
                                 {/* Informasi dasar */}
                                 <div className="grid grid-cols-2 gap-2 text-sm">
                                     <div>
@@ -789,11 +789,11 @@ export default function DashboardSpkTable({
 
     if (isMobile) {
         return (
-            <Card className="border shadow-sm ">
-                <CardHeader className="flex items-center justify-between pb-3">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                        <PackageOpen className="h-5 w-5 text-blue-600" />
-                        10 Recent SPK
+            <Card className="border shadow-sm">
+                <CardHeader className="flex items-center justify-between pb-2 px-1 sm:px-6">
+                    <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                        <PackageOpen className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+                        <span className="text-sm sm:text-base">10 Recent SPK</span>
                     </CardTitle>
                     <Link href={`${basePath}`} passHref>
                         <Button variant="outline" size="sm" className="text-xs h-8" hidden>
@@ -801,7 +801,7 @@ export default function DashboardSpkTable({
                         </Button>
                     </Link>
                 </CardHeader>
-                <CardContent className="p-0">
+                <CardContent className="p-1">
                     {renderMobileView()}
                 </CardContent>
             </Card>

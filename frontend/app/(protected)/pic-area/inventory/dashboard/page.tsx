@@ -15,6 +15,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { PicLayout } from "@/components/admin-panel/pic-layout";
 
+// Force dynamic rendering (uses cookies for auth)
+export const dynamic = 'force-dynamic';
+
 export default async function InventoryPage() {
     const user = await getUserFromToken();
 

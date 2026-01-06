@@ -358,8 +358,8 @@ export function SalesChart({ data, loading, onCustomerChange }: SalesChartProps)
                 </div>
             </div>
 
-            {/* Nilai setiap bar/grafik di bawah chart */}
-            <div className="flex justify-between px-1 sm:px-2 mt-2">
+            {/* Nilai setiap bar/grafik di bawah chart - HIDDEN ON MOBILE */}
+            <div className="hidden md:flex justify-between px-1 sm:px-2 mt-2">
                 {displayedData.map((item, index) => {
                     const value = salesData[index];
                     return (
@@ -368,7 +368,7 @@ export function SalesChart({ data, loading, onCustomerChange }: SalesChartProps)
                             className="flex flex-col items-center text-center"
                             style={{ width: `${100 / displayedData.length}%` }}
                         >
-                            <div className={`text-[10px] sm:text-xs font-semibold ${themeColors[theme].text}`}>
+                            <div className={`text-xs font-semibold ${themeColors[theme].text}`}>
                                 {formatIDR(value)}
                             </div>
                         </div>
@@ -376,13 +376,14 @@ export function SalesChart({ data, loading, onCustomerChange }: SalesChartProps)
                 })}
             </div>
 
-            {/* Label bulan/tahun */}
-            <div className="flex justify-between px-1 sm:px-2 mt-1 text-[10px] sm:text-xs font-medium">
+            {/* Label bulan/tahun - RESPONSIVE */}
+            <div className="flex justify-between px-1 sm:px-2 mt-1 md:mt-2">
                 {labels.map((label, index) => (
                     <div
                         key={index}
                         className="w-full text-center text-transparent bg-clip-text 
-          bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 drop-shadow-sm"
+          bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 drop-shadow-sm
+          text-[8px] sm:text-[10px] md:text-xs font-medium"
                     >
                         {label}
                     </div>

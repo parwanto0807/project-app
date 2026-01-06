@@ -149,6 +149,10 @@ async function loadInvoiceStats(): Promise<InvoiceStats> {
     const pendingInvoices = toNumber(json.pendingInvoices ?? json.pending ?? 0);
     const paidInvoices = toNumber(json.paidInvoices ?? json.paid ?? 0);
     const totalThisYear = toNumber(json.totalThisYear ?? json.yearSummary ?? 0);
+
+    // Collection Rate: Persentase invoice yang sudah dibayar dari total semua invoice
+    // Formula: (Paid Invoices / (Paid + Pending)) * 100
+    // Nilai dari backend sudah dalam bentuk desimal (0-1), akan dikali 100 saat display
     const collectionRate = toNumber(json.collectionRate ?? json.rate ?? 0);
 
     return { totalThisMonth, totalLastMonth, pendingInvoices, paidInvoices, totalThisYear, collectionRate };
@@ -858,8 +862,11 @@ export default function DashboardAwalSalesOrder() {
                                                     </button>
                                                 </div>
                                             </div>
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-xs md:text-sm text-muted-foreground">Collection Rate</span>
+                                            <div className="flex justify-between items-center pt-2 border-t">
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs md:text-sm text-muted-foreground">Collection Rate</span>
+                                                    <span className="text-[10px] text-muted-foreground/70">Paid / (Paid + Pending)</span>
+                                                </div>
                                                 {(() => {
                                                     const rate = invoiceStats.collectionRate * 100
                                                     let badgeColor = "bg-red-500 text-white"

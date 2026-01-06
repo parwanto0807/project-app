@@ -15,6 +15,9 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Badge } from "@/components/ui/badge";
 
+// Force dynamic rendering (uses cookies for auth)
+export const dynamic = 'force-dynamic';
+
 export default async function InventoryPage() {
     const user = await getUserFromToken();
 

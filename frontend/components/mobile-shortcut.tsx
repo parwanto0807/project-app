@@ -18,7 +18,10 @@ import {
   Wallet,
   Banknote,
   Briefcase,
-  TrendingUp
+  TrendingUp,
+  Warehouse,
+  ShoppingCart,
+  Receipt
 } from "lucide-react";
 import Link from "next/link";
 
@@ -100,6 +103,12 @@ export function MobileShortcut({ basePath = "/admin-area", customGroups }: Mobil
           description: "Permintaan pembelian"
         },
         {
+          href: `${basePath}/logistic/purchasing`,
+          label: "Purchase Order (PO)",
+          icon: ShoppingCart,
+          description: "Kelola purchase order"
+        },
+        {
           href: `${basePath}/logistic/bap`,
           label: "Berita Acara",
           icon: FileText,
@@ -110,6 +119,50 @@ export function MobileShortcut({ basePath = "/admin-area", customGroups }: Mobil
           label: "RAB",
           icon: DollarSign,
           description: "Rancangan anggaran"
+        }
+      ]
+    },
+    {
+      id: "inventory",
+      label: "Inventory",
+      icon: Warehouse,
+      color: "from-cyan-500 to-cyan-600",
+      menus: [
+        {
+          href: `${basePath}/inventory/dashboard`,
+          label: "Stock Monitor",
+          icon: TrendingUp,
+          description: "Monitor stok barang"
+        },
+        {
+          href: `${basePath}/inventory/goods-receipt`,
+          label: "Penerimaan Barang (GR)",
+          icon: PackageOpen,
+          description: "Terima barang masuk"
+        },
+        {
+          href: `${basePath}/inventory/requisition`,
+          label: "Pengeluaran Barang (MR)",
+          icon: PackageCheck,
+          description: "Kelola pengeluaran barang"
+        },
+        {
+          href: `${basePath}/inventory/transfer`,
+          label: "Transfer Gudang",
+          icon: Package,
+          description: "Transfer antar gudang"
+        },
+        {
+          href: `${basePath}/inventory/stock-opname`,
+          label: "Stock Opname",
+          icon: ClipboardList,
+          description: "Perhitungan stok fisik"
+        },
+        {
+          href: `${basePath}/inventory/wh`,
+          label: "Data Gudang",
+          icon: Warehouse,
+          description: "Kelola data gudang"
         }
       ]
     },
@@ -138,6 +191,24 @@ export function MobileShortcut({ basePath = "/admin-area", customGroups }: Mobil
           label: "Verifikasi PR",
           icon: Settings,
           description: "Verifikasi purchase request"
+        },
+        {
+          href: `${basePath}/accounting/staff-balance`,
+          label: "Staff Balance",
+          icon: Wallet,
+          description: "Kelola saldo staff"
+        },
+        {
+          href: `${basePath}/accounting/supplier-invoice`,
+          label: "Supplier Invoice",
+          icon: Receipt,
+          description: "Kelola invoice supplier"
+        },
+        {
+          href: `${basePath}/accounting/supplier-payment`,
+          label: "Supplier Payment",
+          icon: Banknote,
+          description: "Pembayaran ke supplier"
         }
       ]
     },
@@ -172,6 +243,12 @@ export function MobileShortcut({ basePath = "/admin-area", customGroups }: Mobil
           label: "Data Customer",
           icon: Users,
           description: "Kelola data pelanggan"
+        },
+        {
+          href: `${basePath}/master/supplier`,
+          label: "Data Supplier",
+          icon: Users,
+          description: "Kelola data supplier"
         },
         {
           href: `${basePath}/master/products`,

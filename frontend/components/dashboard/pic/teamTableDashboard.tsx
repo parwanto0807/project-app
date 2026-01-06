@@ -218,11 +218,11 @@ export default function DashboardTeamTable({ teams, role, isLoading }: TeamTable
     // Render mobile card view
     const renderMobileView = () => {
         return (
-            <div className="space-y-4">
+            <div className="space-y-2 sm:space-y-4">
                 {isLoading ? (
                     // Skeleton loading state for mobile
                     Array.from({ length: itemsPerPage }).map((_, index) => (
-                        <Card key={index} className="p-4">
+                        <Card key={index} className="p-2 sm:p-4">
                             <div className="space-y-3">
                                 <Skeleton className="h-6 w-3/4" />
                                 <div className="space-y-2">
@@ -241,7 +241,7 @@ export default function DashboardTeamTable({ teams, role, isLoading }: TeamTable
                     ))
                 ) : currentItems.length > 0 ? (
                     currentItems.map((team) => (
-                        <Card key={team.id} className="p-4 hover:shadow-md transition-shadow">
+                        <Card key={team.id} className="p-2 sm:p-4 hover:shadow-md transition-shadow">
                             <div className="flex items-start justify-between mb-3">
                                 <div className="flex items-center">
                                     <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg mr-3">
@@ -425,7 +425,7 @@ export default function DashboardTeamTable({ teams, role, isLoading }: TeamTable
     return (
         <div className="bg-blue-50 dark:bg-blue-900/20 p-2 md:p-2">
             <Card className="shadow-lg border-0">
-                <CardContent className="p-4 md:p-5">
+                <CardContent className="p-1 sm:p-4 md:p-5">
                     {/* Search and Filter Section */}
                     <div className="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0 mb-6">
                         <div className="relative w-full md:w-1/3">

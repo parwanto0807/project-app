@@ -519,7 +519,7 @@ export default function PICDashboard({ role }: { role: string }) {
     );
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-50/90 via-gray-100/50 to-blue-50/30 dark:from-gray-900/95 dark:via-gray-800/50 dark:to-blue-900/20">
+        <div className="min-h-screen bg-gradient-to-br from-gray-100/90 via-gray-200/50 to-blue-100/30 dark:from-gray-900/95 dark:via-gray-800/50 dark:to-blue-900/20">
             {/* Animated background elements */}
             <div className="fixed inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 rounded-full blur-3xl animate-pulse" />
@@ -527,7 +527,7 @@ export default function PICDashboard({ role }: { role: string }) {
                 <div className="absolute -bottom-40 left-1/2 transform -translate-x-1/2 w-80 h-80 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 rounded-full blur-3xl animate-pulse delay-500" />
             </div>
 
-            <main className="relative px-4 sm:px-6 lg:px-8 py-6 w-full max-w-full mx-auto space-y-6">
+            <main className="relative px-2 sm:px-4 lg:px-8 py-4 sm:py-6 w-full max-w-full mx-auto space-y-4 sm:space-y-6">
                 {/* Header */}
                 <motion.div
                     initial={{ opacity: 0, y: -20 }}
@@ -704,7 +704,7 @@ export default function PICDashboard({ role }: { role: string }) {
                     transition={{ delay: 0.4 }}
                     className="space-y-4 sm:space-y-6"
                 >
-                    <div className="p-4 sm:p-6 bg-gradient-to-r from-white/40 to-white/20 dark:from-gray-900/40 dark:to-gray-800/20 backdrop-blur-xl rounded-2xl border border-white/30 dark:border-gray-700/30 shadow-soft">
+                    <div className="py-4 sm:py-6 bg-gradient-to-r from-white/40 to-white/20 dark:from-gray-900/40 dark:to-gray-800/20 backdrop-blur-xl rounded-2xl border border-white/30 dark:border-gray-700/30 shadow-soft">
                         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500/10 to-pink-500/5">
@@ -792,7 +792,7 @@ export default function PICDashboard({ role }: { role: string }) {
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, margin: "-100px" }}
-                    className="p-4 sm:p-6 bg-gradient-to-r from-white/40 to-white/20 dark:from-gray-900/40 dark:to-gray-800/20 backdrop-blur-xl rounded-2xl border border-white/30 dark:border-gray-700/30 shadow-soft"
+                    className="py-4 sm:py-6 bg-gradient-to-r from-white/40 to-white/20 dark:from-gray-900/40 dark:to-gray-800/20 backdrop-blur-xl rounded-2xl border border-white/30 dark:border-gray-700/30 shadow-soft"
                 >
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
                         <div className="flex items-center gap-3">

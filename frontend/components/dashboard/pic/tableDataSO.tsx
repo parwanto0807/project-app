@@ -138,7 +138,7 @@ function MobileSalesOrderCard({ order, onExpand }: { order: SalesOrder; onExpand
     }
 
     return (
-        <div className="border rounded-lg p-3 mb-2 bg-white dark:bg-slate-950 shadow-sm">
+        <div className="border rounded-lg p-2 sm:p-3 mb-2 bg-white dark:bg-slate-950 shadow-sm">
             <div className="flex items-start justify-between mb-2">
                 <div className="flex items-center gap-2">
                     <div className="flex items-center justify-center h-6 w-6 rounded-full bg-blue-100 dark:bg-blue-900/50">
@@ -410,26 +410,26 @@ export function DashboardSalesOrderTable({ salesOrders: initialSalesOrders, isLo
     if (isMobile) {
         return (
             <Card className="border shadow-sm">
-                <CardHeader className="pb-3">
+                <CardHeader className="pb-2 px-1 sm:px-6">
                     <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg flex items-center gap-2">
-                            <ShoppingCartIcon className="h-5 w-5" />
-                            10 Recent Sales Orders
+                        <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                            <ShoppingCartIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                            <span className="text-sm sm:text-base">10 Recent Sales Orders</span>
                         </CardTitle>
                         {showViewAllButton && (
                             <Link href={`${basePath}`} passHref>
-                                <Button variant="outline" size="sm" className="text-xs h-8" hidden>
+                                <Button variant="outline" size="sm" className="text-xs h-7 sm:h-8" hidden>
                                     View All
                                 </Button>
                             </Link>
                         )}
                     </div>
                 </CardHeader>
-                <CardContent className="p-3 ">
+                <CardContent className="p-1">
                     {isLoading ? (
-                        <div className="space-y-3 ">
+                        <div className="space-y-2">
                             {[...Array(3)].map((_, i) => (
-                                <div key={i} className="border rounded-lg p-3 bg-white">
+                                <div key={i} className="border rounded-lg p-2 sm:p-3 bg-white">
                                     <div className="flex items-center justify-between mb-2">
                                         <div className="flex items-center gap-2">
                                             <Skeleton className="h-6 w-6 rounded-full" />
@@ -460,7 +460,7 @@ export function DashboardSalesOrderTable({ salesOrders: initialSalesOrders, isLo
                                             onExpand={() => row?.toggleExpanded(!row.getIsExpanded())}
                                         />
                                         {row?.getIsExpanded() && (
-                                            <div className="p-3 mb-2 bg-gray-50 dark:bg-slate-950 border rounded-md text-xs">
+                                            <div className="p-2 sm:p-3 mb-2 bg-gray-50 dark:bg-slate-950 border rounded-md text-xs">
                                                 <div className="font-medium mb-2 text-green-600">Detail Items:</div>
                                                 {order.items.map((item, idx) => (
                                                     <div key={idx} className="mb-2 pb-2 border-b border-gray-200 last:border-b-0 last:mb-0 last:pb-0">

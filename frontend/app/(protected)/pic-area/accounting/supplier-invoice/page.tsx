@@ -15,6 +15,9 @@ import { PicLayout } from '@/components/admin-panel/pic-layout';
 import HeaderCard from "@/components/ui/header-card";
 import { FileText } from "lucide-react";
 
+// Force dynamic rendering (uses cookies for auth)
+export const dynamic = 'force-dynamic';
+
 export default async function SupplierInvoicePage() {
     const user = await getUserFromToken();
 

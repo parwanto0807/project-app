@@ -13,6 +13,9 @@ import { redirect } from "next/navigation";
 import CreateSupplierInvoiceForm from "@/components/supplierInvoice/CreateSupplierInvoiceForm";
 import { PicLayout } from '@/components/admin-panel/pic-layout';
 
+// Force dynamic rendering (uses cookies for auth)
+export const dynamic = 'force-dynamic';
+
 export default async function CreateSupplierInvoicePage() {
     const user = await getUserFromToken();
 
