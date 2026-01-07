@@ -155,7 +155,20 @@ export function TransferForm({ onSuccess, onCancel }: TransferFormProps) {
 
                     const productOptions: ProductOption[] = stockData.map((item: any) => {
                         // Use availableStock as requested
-                        const stockValue = item.availableStock ?? 0;
+                        const rawStock = Number(item.availableStock ?? 0);
+
+                        let unit = item.usageUnit;
+                        let displayStock = rawStock;
+
+                        if (unit && unit.trim() !== '') {
+                            // Case 1: Usage Unit available
+                            const conversion = item.conversionToUsage ? Number(item.conversionToUsage) : 1;
+                            displayStock = rawStock * conversion;
+                        } else {
+                            // Case 2: No Usage Unit, fallback to Storage Unit
+                            unit = item.storageUnit || 'pcs';
+                            displayStock = rawStock;
+                        }
 
                         const product = {
                             id: item.productId,
@@ -163,11 +176,11 @@ export function TransferForm({ onSuccess, onCancel }: TransferFormProps) {
                             name: item.name || item.productName,
                             warehouseId: item.warehouseId,
                             warehouseName: item.warehouseName || item.warehouse?.name || 'Unknown',
-                            availableStock: stockValue,
-                            unit: item.unit || 'pcs'
+                            availableStock: displayStock,
+                            unit: unit
                         };
 
-                        console.log(`📦 Product: ${product.code} - Stock: ${stockValue} (from field: availableStock)`);
+                        console.log(`📦 Product: ${product.code} | Unit: ${unit} | Stock: ${displayStock} (Raw: ${rawStock})`);
 
                         return product;
                     });
@@ -457,8 +470,10 @@ export function TransferForm({ onSuccess, onCancel }: TransferFormProps) {
                                                         <Select
                                                             onValueChange={(value) => {
                                                                 field.onChange(value);
-                                                                const product = products.find(p => p.id === value);
+                                                                // Cari produk yang sesuai dengan warehouse yang dipilih
+                                                                const product = products.find(p => p.id === value && p.warehouseId === fromWarehouseId);
                                                                 if (product) {
+                                                                    console.log('🔄 Selected Product:', product.code, 'Unit:', product.unit);
                                                                     setValue(`items.${index}.unit`, product.unit);
                                                                 }
                                                             }}

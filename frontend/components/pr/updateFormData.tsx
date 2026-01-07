@@ -68,6 +68,7 @@ import { usePurchaseRequestsBySpkId } from "@/hooks/use-pr";
 import { SourceProductType } from "@/schemas/pr";
 import { ProductCombobox } from "./productCombobox";
 import { api } from "@/lib/http";
+import { toast } from "sonner";
 
 
 interface Product {
@@ -314,8 +315,15 @@ export function TabelUpdatePR({
 
                 if (karyawan && karyawan.id) {
                     setKaryawanData(karyawan);
-                    // ✅ REMOVED auto-set logic to prevent race condition with loadExistingData
-                    // requestedById will be set from existingData in loadExistingData useEffect
+
+                    // ✅ Auto-set requestedById HANYA jika mode CREATE (tidak ada existingData)
+                    // Dan jika requestedById masih kosong
+                    if (!existingData && !formData.requestedById) {
+                        setFormData(prev => ({
+                            ...prev,
+                            requestedById: karyawan.id
+                        }));
+                    }
                 } else {
                     setKaryawanData(null);
                 }
@@ -328,7 +336,7 @@ export function TabelUpdatePR({
         };
 
         fetchKaryawan();
-    }, [currentUser?.email]);
+    }, [currentUser?.email, existingData, formData.requestedById]);
 
     // ✅ Fetch all karyawan for requester dropdown
     useEffect(() => {
@@ -479,32 +487,83 @@ export function TabelUpdatePR({
 
     const validateForm = useCallback((): boolean => {
         const newErrors: Record<string, string> = {};
-        // if (!formData.spkId) newErrors.spkId = "SPK is required";
-        // if (!formData.projectId) newErrors.projectId = "Project is required";
-        if (!formData.tanggalPr) newErrors.tanggalPr = "Tanggal PR is required";
-        if (items.length === 0) newErrors.items = "At least one item is required";
+        let errorMessages: string[] = [];
 
+        // Validasi Requestor (Pemohon) - WAJIB
+        if (!formData.requestedById || formData.requestedById.trim() === "") {
+            newErrors.requestedById = "Requestor wajib dipilih";
+            errorMessages.push("• Requestor (Pemohon) wajib dipilih");
+        }
+
+        // Validasi Tanggal PR
+        if (!formData.tanggalPr) {
+            newErrors.tanggalPr = "Tanggal PR wajib diisi";
+            errorMessages.push("• Tanggal PR wajib diisi");
+        }
+
+        // Validasi items
+        if (items.length === 0) {
+            newErrors.items = "Minimal satu item harus ditambahkan";
+            errorMessages.push("• Minimal satu item harus ditambahkan");
+        }
+
+        // Validasi setiap item
         items.forEach((item, index) => {
-            if (!item.productId) newErrors[`productId-${index}`] = "Product is required";
-            if (item.jumlah <= 0) newErrors[`quantity-${index}`] = "Qty > 0";
-            if (item.estimasiHargaSatuan < 0) newErrors[`estimatedUnitCost-${index}`] = "Cost >= 0";
-            if (!item.satuan.trim()) newErrors[`unit-${index}`] = "Unit required";
-            if (!item.sourceProduct) newErrors[`sourceProduct-${index}`] = "Source is required";
+            const itemNumber = index + 1;
+            if (!item.productId) {
+                newErrors[`productId-${index}`] = "Product wajib dipilih";
+                errorMessages.push(`• Item ${itemNumber}: Product wajib dipilih`);
+            }
+            if (item.jumlah <= 0) {
+                newErrors[`quantity-${index}`] = "Qty harus > 0";
+                errorMessages.push(`• Item ${itemNumber}: Quantity harus lebih dari 0`);
+            }
+            if (item.estimasiHargaSatuan < 0) {
+                newErrors[`estimatedUnitCost-${index}`] = "Harga tidak boleh negatif";
+                errorMessages.push(`• Item ${itemNumber}: Harga tidak boleh negatif`);
+            }
+            if (!item.satuan || !item.satuan.trim()) {
+                newErrors[`unit-${index}`] = "Satuan wajib diisi";
+                errorMessages.push(`• Item ${itemNumber}: Satuan wajib diisi`);
+            }
+            if (!item.sourceProduct) {
+                newErrors[`sourceProduct-${index}`] = "Source product wajib dipilih";
+                errorMessages.push(`• Item ${itemNumber}: Source product wajib dipilih`);
+            }
         });
 
         setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
+
+        // Tampilkan toast error dengan detail field yang salah
+        if (errorMessages.length > 0) {
+            const errorList = errorMessages.slice(0, 5).join("\n");
+            const moreErrors = errorMessages.length > 5 ? `\n... dan ${errorMessages.length - 5} kesalahan lainnya` : "";
+
+            toast.error("Validasi Gagal", {
+                description: `Silakan perbaiki kesalahan berikut:\n${errorList}${moreErrors}`,
+                duration: 5000,
+            });
+            return false;
+        }
+
+        return true;
     }, [formData, items]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!validateForm()) return;
+
+        // Validasi form
+        if (!validateForm()) {
+            return;
+        }
 
         // Fallback: jika karyawanData tidak ditemukan, gunakan currentUser.id
         const finalKaryawanId = karyawanData?.id || currentUser?.id;
 
         if (!finalKaryawanId) {
-            alert("Employee data not found. Please contact administrator.");
+            toast.error("Data Karyawan Tidak Ditemukan", {
+                description: "Data karyawan tidak ditemukan. Silakan hubungi administrator."
+            });
             return;
         }
 
@@ -537,9 +596,17 @@ export function TabelUpdatePR({
             };
 
             await onSubmit(submitData);
+            // Toast success akan ditampilkan oleh parent component
             onSuccess();
         } catch (error) {
             console.error("Failed to update purchase request:", error);
+
+            // Tampilkan error message yang lebih informatif
+            const errorMessage = error instanceof Error ? error.message : "Terjadi kesalahan saat mengupdate Purchase Request";
+
+            toast.error("Gagal Update Purchase Request", {
+                description: errorMessage
+            });
         }
     };
 
@@ -675,15 +742,15 @@ export function TabelUpdatePR({
                                 <div className="space-y-2">
                                     <Label htmlFor="requestedById" className="font-semibold flex items-center gap-2">
                                         <UserIcon className="h-4 w-4 text-purple-600" />
-                                        Requester (Pemohon)
+                                        Requester (Pemohon) <span className="text-red-500">*</span>
                                     </Label>
                                     <Select
                                         value={formData.requestedById}
                                         onValueChange={(value) => setFormData((prev) => ({ ...prev, requestedById: value }))}
                                         disabled={loadingAllKaryawan}
                                     >
-                                        <SelectTrigger className="w-full">
-                                            <SelectValue placeholder={loadingAllKaryawan ? "Loading..." : "Select requester"} />
+                                        <SelectTrigger className={cn("w-full", errors.requestedById && "border-red-500")}>
+                                            <SelectValue placeholder={loadingAllKaryawan ? "Loading..." : "Pilih pemohon"} />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {allKaryawan.map((karyawan) => (
@@ -693,8 +760,9 @@ export function TabelUpdatePR({
                                             ))}
                                         </SelectContent>
                                     </Select>
+                                    {errors.requestedById && <p className="text-xs text-red-500">{errors.requestedById}</p>}
                                     <p className="text-xs text-muted-foreground">
-                                        Who is requesting this purchase? (Default: You)
+                                        Siapa yang mengajukan permintaan pembelian ini?
                                     </p>
                                 </div>
 

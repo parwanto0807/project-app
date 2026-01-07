@@ -177,11 +177,11 @@ export function CreateProductForm({ role, code }: { role: string; code: string }
     }, [purchaseUnitValue, form]);
 
     return (
-        <Card className="max-w-4xl mx-auto">
+        <Card className="max-w-7xl mx-auto">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <Package className="w-6 h-6 text-primary" />
-                    <span>Add New Product</span>
+                    <span>Tambah Produk Baru</span>
                 </CardTitle>
             </CardHeader>
             <CardContent>
@@ -192,7 +192,7 @@ export function CreateProductForm({ role, code }: { role: string; code: string }
                             <div className="space-y-4">
                                 <h3 className="flex items-center gap-2 text-lg font-medium">
                                     <Type className="w-5 h-5" />
-                                    Basic Information
+                                    Informasi Dasar
                                 </h3>
                                 <FormField
                                     control={form.control}
@@ -201,13 +201,13 @@ export function CreateProductForm({ role, code }: { role: string; code: string }
                                         <FormItem>
                                             <FormLabel className="flex items-center gap-2">
                                                 <Barcode className="w-4 h-4" />
-                                                Product Code
+                                                Kode Produk
                                             </FormLabel>
                                             <FormControl>
                                                 <Input placeholder="PRD-001" {...field} />
                                             </FormControl>
                                             <FormDescription>
-                                                Unique identifier/SKU for the product
+                                                Kode unik/SKU untuk produk ini
                                             </FormDescription>
                                             <FormMessage />
                                         </FormItem>
@@ -218,9 +218,9 @@ export function CreateProductForm({ role, code }: { role: string; code: string }
                                     name="name"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Product Name</FormLabel>
+                                            <FormLabel>Nama Produk</FormLabel>
                                             <FormControl>
-                                                <Input placeholder="e.g., Premium Steel Pipe" {...field} />
+                                                <Input placeholder="Contoh: Besi Beton 10mm" {...field} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -231,10 +231,10 @@ export function CreateProductForm({ role, code }: { role: string; code: string }
                                     name="description"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Description</FormLabel>
+                                            <FormLabel>Deskripsi</FormLabel>
                                             <FormControl>
                                                 <Textarea
-                                                    placeholder="Product description..."
+                                                    placeholder="Deskripsi produk..."
                                                     className="min-h-[100px]"
                                                     {...field}
                                                 />
@@ -250,12 +250,12 @@ export function CreateProductForm({ role, code }: { role: string; code: string }
                                         <FormItem>
                                             <FormLabel className="flex items-center gap-2">
                                                 <Wrench className="w-4 h-4" />
-                                                Product Type
+                                                Tipe Produk
                                             </FormLabel>
                                             <Select onValueChange={field.onChange} value={field.value}>
                                                 <FormControl>
                                                     <SelectTrigger>
-                                                        <SelectValue placeholder="Select product type" />
+                                                        <SelectValue placeholder="Pilih tipe produk" />
                                                     </SelectTrigger>
                                                 </FormControl>
                                                 <SelectContent>
@@ -278,12 +278,12 @@ export function CreateProductForm({ role, code }: { role: string; code: string }
                                             <FormItem>
                                                 <FormLabel className="flex items-center gap-2">
                                                     <List className="w-4 h-4" />
-                                                    Category
+                                                    Kategori
                                                 </FormLabel>
                                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                                                     <FormControl>
                                                         <SelectTrigger>
-                                                            <SelectValue placeholder="Select a category" />
+                                                            <SelectValue placeholder="Pilih kategori" />
                                                         </SelectTrigger>
                                                     </FormControl>
                                                     <SelectContent>
@@ -305,8 +305,26 @@ export function CreateProductForm({ role, code }: { role: string; code: string }
                             <div className="space-y-4">
                                 <h3 className="flex items-center gap-2 text-lg font-medium">
                                     <Ruler className="w-5 h-5" />
-                                    Units & Conversions
+                                    Satuan & Konversi
                                 </h3>
+                                <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4 space-y-2">
+                                    <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">💡 Panduan Konversi:</p>
+                                    <ul className="text-xs text-blue-800 dark:text-blue-200 space-y-1 list-disc list-inside">
+                                        <li><strong>Satuan Beli:</strong> Satuan saat membeli dari supplier (Contoh: Batang, Karton, Roll)</li>
+                                        <li><strong>Satuan Simpan:</strong> Satuan saat disimpan di gudang (Contoh: Meter, Pcs, Sak)</li>
+                                        <li><strong>Satuan Pakai:</strong> Satuan saat digunakan untuk proyek (Contoh: Meter, Kg, Liter)</li>
+                                        <li><strong>Konversi Beli → Simpan:</strong> Berapa banyak satuan simpan dalam 1 satuan beli</li>
+                                        <li><strong>Konversi Simpan → Pakai:</strong> Berapa banyak satuan pakai dalam 1 satuan simpan</li>
+                                    </ul>
+                                    <div className="mt-3 pt-3 border-t border-blue-200 dark:border-blue-700">
+                                        <p className="text-xs font-semibold text-blue-900 dark:text-blue-100 mb-2">📝 Contoh:</p>
+                                        <div className="bg-white dark:bg-blue-900/20 rounded p-2 text-xs space-y-1">
+                                            <p className="font-mono">• Besi Beton: 1 Batang = 3 Meter → Konversi = 3</p>
+                                            <p className="font-mono">• Kabel: 1 Roll = 100 Meter → Konversi = 100</p>
+                                            <p className="font-mono">• Semen: 1 Karton = 10 Sak → Konversi = 10</p>
+                                        </div>
+                                    </div>
+                                </div>
                                 <FormField
                                     control={form.control}
                                     name="purchaseUnit"
@@ -314,13 +332,13 @@ export function CreateProductForm({ role, code }: { role: string; code: string }
                                         <FormItem>
                                             <FormLabel className="flex items-center gap-2">
                                                 <ShoppingCart className="w-4 h-4" />
-                                                Purchase Unit
+                                                Satuan Beli (Purchase Unit)
                                             </FormLabel>
                                             <FormControl>
-                                                <Input placeholder="e.g., carton, box" {...field} />
+                                                <Input placeholder="Contoh: Batang, Karton, Roll, Dus" {...field} />
                                             </FormControl>
                                             <FormDescription>
-                                                Unit when purchasing (e.g., carton, box)
+                                                Satuan yang digunakan saat membeli dari supplier
                                             </FormDescription>
                                             <FormMessage />
                                         </FormItem>
@@ -333,13 +351,13 @@ export function CreateProductForm({ role, code }: { role: string; code: string }
                                         <FormItem>
                                             <FormLabel className="flex items-center gap-2">
                                                 <Warehouse className="w-4 h-4" />
-                                                Storage Unit
+                                                Satuan Simpan (Storage Unit)
                                             </FormLabel>
                                             <FormControl>
-                                                <Input placeholder="e.g., roll, piece" {...field} />
+                                                <Input placeholder="Contoh: Meter, Pcs, Sak, Liter" {...field} />
                                             </FormControl>
                                             <FormDescription>
-                                                Unit for inventory storage
+                                                Satuan yang digunakan untuk menyimpan di gudang
                                             </FormDescription>
                                             <FormMessage />
                                         </FormItem>
@@ -352,13 +370,13 @@ export function CreateProductForm({ role, code }: { role: string; code: string }
                                         <FormItem>
                                             <FormLabel className="flex items-center gap-2">
                                                 <Box className="w-4 h-4" />
-                                                Usage Unit
+                                                Satuan Pakai (Usage Unit)
                                             </FormLabel>
                                             <FormControl>
-                                                <Input placeholder="e.g., meter, kg" {...field} />
+                                                <Input placeholder="Contoh: Meter, Kg, Liter, M²" {...field} />
                                             </FormControl>
                                             <FormDescription>
-                                                Unit when using the product
+                                                Satuan yang digunakan saat memakai produk untuk proyek
                                             </FormDescription>
                                             <FormMessage />
                                         </FormItem>
@@ -369,16 +387,20 @@ export function CreateProductForm({ role, code }: { role: string; code: string }
                                     name="conversionToStorage"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Purchase → Storage Conversion</FormLabel>
+                                            <FormLabel className="font-semibold">Konversi: Beli → Simpan</FormLabel>
                                             <FormControl>
                                                 <Input
                                                     type="number"
                                                     step="0.01"
                                                     min="0.01"
-                                                    placeholder="e.g., 10 (1 carton = 10 rolls)"
+                                                    placeholder="Contoh: 3 (artinya 1 Batang = 3 Meter)"
                                                     {...field}
                                                 />
                                             </FormControl>
+                                            <FormDescription className="text-xs bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded p-2 mt-2">
+                                                <strong className="text-amber-900 dark:text-amber-100">Rumus:</strong> Berapa banyak <strong>Satuan Simpan</strong> yang didapat dari <strong>1 Satuan Beli</strong>?<br />
+                                                <span className="text-amber-800 dark:text-amber-200">Contoh: Jika 1 Batang = 3 Meter, maka isi <strong>3</strong></span>
+                                            </FormDescription>
                                             <FormMessage />
                                         </FormItem>
                                     )}
@@ -388,16 +410,20 @@ export function CreateProductForm({ role, code }: { role: string; code: string }
                                     name="conversionToUsage"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Storage → Usage Conversion</FormLabel>
+                                            <FormLabel className="font-semibold">Konversi: Simpan → Pakai</FormLabel>
                                             <FormControl>
                                                 <Input
                                                     type="number"
                                                     step="0.01"
                                                     min="0.01"
-                                                    placeholder="e.g., 100 (1 roll = 100 meters)"
+                                                    placeholder="Contoh: 1 (artinya 1 Meter simpan = 1 Meter pakai)"
                                                     {...field}
                                                 />
                                             </FormControl>
+                                            <FormDescription className="text-xs bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded p-2 mt-2">
+                                                <strong className="text-green-900 dark:text-green-100">Rumus:</strong> Berapa banyak <strong>Satuan Pakai</strong> yang didapat dari <strong>1 Satuan Simpan</strong>?<br />
+                                                <span className="text-green-800 dark:text-green-200">Contoh: Jika 1 Meter = 1 Meter, maka isi <strong>1</strong></span>
+                                            </FormDescription>
                                             <FormMessage />
                                         </FormItem>
                                     )}
@@ -412,7 +438,7 @@ export function CreateProductForm({ role, code }: { role: string; code: string }
                             <div className="space-y-4">
                                 <h3 className="flex items-center gap-2 text-lg font-medium">
                                     <ImageIcon className="w-5 h-5" />
-                                    Media & Identification
+                                    Media & Identifikasi
                                 </h3>
 
                                 <FormField
@@ -420,7 +446,7 @@ export function CreateProductForm({ role, code }: { role: string; code: string }
                                     name="image"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Upload Image</FormLabel>
+                                            <FormLabel>Upload Gambar</FormLabel>
                                             <FormControl>
                                                 <div>
                                                     {/* hidden input */}
@@ -449,7 +475,7 @@ export function CreateProductForm({ role, code }: { role: string; code: string }
                                                         className="flex items-center gap-2"
                                                     >
                                                         <UploadCloudIcon size={30} color="#2563eb" /> {/* biru elegan */}
-                                                        Choose File
+                                                        Pilih File
                                                     </Button>
                                                 </div>
                                             </FormControl>
@@ -479,7 +505,7 @@ export function CreateProductForm({ role, code }: { role: string; code: string }
                                         <FormItem>
                                             <FormLabel>Barcode/QR Code</FormLabel>
                                             <FormControl>
-                                                <Input placeholder="Optional barcode identifier" {...field} />
+                                                <Input placeholder="Kode barcode opsional" {...field} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -491,7 +517,7 @@ export function CreateProductForm({ role, code }: { role: string; code: string }
                                 <h3 className="flex items-center gap-2 text-lg font-medium">
                                     <Check className="w-5 h-5 text-green-500" />
                                     <X className="w-5 h-5 text-red-500" />
-                                    Status Flags
+                                    Status Produk
                                 </h3>
                                 <FormField
                                     control={form.control}
@@ -499,9 +525,9 @@ export function CreateProductForm({ role, code }: { role: string; code: string }
                                     render={({ field }) => (
                                         <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                                             <div className="space-y-0.5">
-                                                <FormLabel className="text-base">Consumable</FormLabel>
+                                                <FormLabel className="text-base">Habis Pakai (Consumable)</FormLabel>
                                                 <FormDescription>
-                                                    Does this product get used up/depleted?
+                                                    Apakah produk ini habis dipakai/berkurang?
                                                 </FormDescription>
                                             </div>
                                             <FormControl>
@@ -519,9 +545,9 @@ export function CreateProductForm({ role, code }: { role: string; code: string }
                                     render={({ field }) => (
                                         <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                                             <div className="space-y-0.5">
-                                                <FormLabel className="text-base">Active</FormLabel>
+                                                <FormLabel className="text-base">Aktif</FormLabel>
                                                 <FormDescription>
-                                                    Is this product currently available?
+                                                    Apakah produk ini tersedia saat ini?
                                                 </FormDescription>
                                             </div>
                                             <FormControl>
@@ -543,7 +569,7 @@ export function CreateProductForm({ role, code }: { role: string; code: string }
                                 onClick={() => router.back()}
                                 disabled={isSubmitting}
                             >
-                                Cancel
+                                Batal
                             </Button>
                             <Button type="submit" disabled={isSubmitting}>
                                 {isSubmitting ? (
@@ -568,10 +594,10 @@ export function CreateProductForm({ role, code }: { role: string; code: string }
                                                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                                             ></path>
                                         </svg>
-                                        Creating...
+                                        Membuat...
                                     </>
                                 ) : (
-                                    "Create Product"
+                                    "Buat Produk"
                                 )}
                             </Button>
                         </div>

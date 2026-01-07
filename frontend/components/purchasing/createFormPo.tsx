@@ -249,7 +249,7 @@ export default function CreateFormPO({
         updatedSelected[index] = {
             id: product.id,
             name: product.name,
-            unit: product.uom || "pcs",
+            unit: product.purchaseUnit || product.uom || "pcs",
             sku: product.code,
             stock: 0,
             ...items[index],
@@ -980,16 +980,18 @@ export default function CreateFormPO({
                                                                         name={`items.${index}.quantity`}
                                                                         render={({ field }) => (
                                                                             <FormItem>
-                                                                                <FormLabel className="text-xs font-medium flex items-center gap-2 mb-2">
-                                                                                    <div className="h-6 w-6 rounded-md bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/50 dark:to-blue-800/50 flex items-center justify-center">
-                                                                                        <TrendingUp className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                                                                                <FormLabel className="text-xs font-medium flex items-center justify-between mb-2">
+                                                                                    <div className="flex items-center gap-2">
+                                                                                        <div className="h-6 w-6 rounded-md bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/50 dark:to-blue-800/50 flex items-center justify-center">
+                                                                                            <TrendingUp className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                                                                                        </div>
+                                                                                        <span>Qty <span className="text-red-500">*</span></span>
                                                                                     </div>
-                                                                                    <span>Qty <span className="text-red-500">*</span></span>
 
                                                                                     {selectedItems[index] && (
-                                                                                        <FormDescription className="text-xs mt-1 uppercase">
+                                                                                        <span className="text-[10px] sm:text-xs font-normal text-muted-foreground uppercase bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">
                                                                                             {selectedItems[index]?.unit}
-                                                                                        </FormDescription>
+                                                                                        </span>
                                                                                     )}
                                                                                 </FormLabel>
                                                                                 <FormControl>

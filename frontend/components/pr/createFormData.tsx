@@ -85,6 +85,10 @@ interface Product {
     name: string;
     type: "Material" | "Jasa" | "Alat";
     usageUnit: string;
+    purchaseUnit?: string;
+    storageUnit?: string;
+    conversionToStorage?: number;
+    conversionToUsage?: number;
     description: string;
     price: number;
 }
@@ -389,6 +393,32 @@ export function TabelInputPR({
                 })
             );
 
+            // If sourceProduct changes, update satuan accordingly
+            if (field === "sourceProduct" && value) {
+                setItems((prev) =>
+                    prev.map((item) => {
+                        if (item.tempId === tempId && item.productId) {
+                            const selectedProduct = products.find(p => p.id === item.productId);
+                            if (selectedProduct) {
+                                const updatedItem = { ...item };
+
+                                // Set satuan berdasarkan sourceProduct yang baru
+                                if (value === SourceProductType.PEMBELIAN_BARANG) {
+                                    updatedItem.satuan = selectedProduct.purchaseUnit || selectedProduct.usageUnit || "pcs";
+                                } else if (value === SourceProductType.PENGAMBILAN_STOK) {
+                                    updatedItem.satuan = selectedProduct.storageUnit || selectedProduct.usageUnit || "pcs";
+                                } else {
+                                    updatedItem.satuan = selectedProduct.usageUnit || "pcs";
+                                }
+
+                                return updatedItem;
+                            }
+                        }
+                        return item;
+                    })
+                );
+            }
+
             // If product changes, fetch additional data
             if (field === "productId" && value) {
                 const selectedProduct = products.find(p => p.id === value);
@@ -414,8 +444,23 @@ export function TabelInputPR({
                             const updatedItem = { ...item };
                             updatedItem.itemName = selectedProduct.name;
                             updatedItem.catatanItem = selectedProduct.description || "";
-                            updatedItem.satuan = selectedProduct.usageUnit || "pcs";
-                            updatedItem.estimasiHargaSatuan = selectedProduct.price || 0;
+
+                            // Tentukan satuan berdasarkan sourceProduct
+                            // Jika sourceProduct belum diset, gunakan default berdasarkan SPK
+                            const currentSourceProduct = updatedItem.sourceProduct ||
+                                (!formData.spkId || formData.spkId === "no-spk"
+                                    ? SourceProductType.PEMBELIAN_BARANG
+                                    : SourceProductType.PEMBELIAN_BARANG);
+
+                            // Set satuan berdasarkan sourceProduct
+                            if (currentSourceProduct === SourceProductType.PEMBELIAN_BARANG) {
+                                updatedItem.satuan = selectedProduct.purchaseUnit || selectedProduct.usageUnit || "pcs";
+                            } else if (currentSourceProduct === SourceProductType.PENGAMBILAN_STOK) {
+                                updatedItem.satuan = selectedProduct.storageUnit || selectedProduct.usageUnit || "pcs";
+                            } else {
+                                updatedItem.satuan = selectedProduct.usageUnit || "pcs";
+                            }
+
                             updatedItem.estimasiHargaSatuan = selectedProduct.price || 0;
                             updatedItem.availableStock = stockValue;
                             updatedItem.stockBreakdown = stockBreakdown;
@@ -879,23 +924,79 @@ export function TabelInputPR({
                                                                                     <CardTitle className="text-sm font-bold flex items-center gap-2">
                                                                                         <Package className="w-4 h-4 text-emerald-600" />
                                                                                         Stock Details
+                                                                                        {(() => {
+                                                                                            const selectedProduct = products.find(p => p.id === item.productId);
+                                                                                            const storageUnit = selectedProduct?.storageUnit || selectedProduct?.usageUnit || "pcs";
+                                                                                            return (
+                                                                                                <span className="text-xs font-normal text-muted-foreground ml-auto">
+                                                                                                    ({storageUnit})
+                                                                                                </span>
+                                                                                            );
+                                                                                        })()}
                                                                                     </CardTitle>
                                                                                 </CardHeader>
                                                                                 <CardContent className="p-0">
                                                                                     {item.stockBreakdown && item.stockBreakdown.length > 0 ? (
                                                                                         <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                                                                                            {item.stockBreakdown.map((wh, idx) => (
-                                                                                                <div key={idx} className="flex items-center justify-between py-2 px-4 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
-                                                                                                    <span className="text-xs font-medium text-slate-600 dark:text-slate-400">{wh.warehouseName}</span>
-                                                                                                    <Badge variant="outline" className="text-xs font-bold font-mono h-5 bg-white dark:bg-slate-950">
-                                                                                                        {wh.stock}
-                                                                                                    </Badge>
-                                                                                                </div>
-                                                                                            ))}
+                                                                                            {(() => {
+                                                                                                const selectedProduct = products.find(p => p.id === item.productId);
+                                                                                                const conversionToStorage = selectedProduct?.conversionToStorage || 1;
+                                                                                                const purchaseUnit = selectedProduct?.purchaseUnit;
+                                                                                                const showConversion = purchaseUnit && conversionToStorage > 1;
+
+                                                                                                return item.stockBreakdown.map((wh, idx) => {
+                                                                                                    const stockInPurchaseUnit = showConversion
+                                                                                                        ? (wh.stock / conversionToStorage).toFixed(2)
+                                                                                                        : null;
+
+                                                                                                    return (
+                                                                                                        <div key={idx} className="py-2 px-4 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
+                                                                                                            <div className="flex items-center justify-between">
+                                                                                                                <span className="text-xs font-medium text-slate-600 dark:text-slate-400">{wh.warehouseName}</span>
+                                                                                                                <Badge variant="outline" className="text-xs font-bold font-mono h-5 bg-white dark:bg-slate-950">
+                                                                                                                    {wh.stock}
+                                                                                                                </Badge>
+                                                                                                            </div>
+                                                                                                            {showConversion && (
+                                                                                                                <div className="flex items-center justify-end mt-1 gap-1">
+                                                                                                                    <span className="text-[10px] text-blue-600 dark:text-blue-400">
+                                                                                                                        ≈ {stockInPurchaseUnit} {purchaseUnit}
+                                                                                                                    </span>
+                                                                                                                </div>
+                                                                                                            )}
+                                                                                                        </div>
+                                                                                                    );
+                                                                                                });
+                                                                                            })()}
                                                                                             <div className="flex items-center justify-between py-2 px-4 bg-emerald-50/50 dark:bg-emerald-900/10 font-bold border-t">
                                                                                                 <span className="text-xs text-emerald-700 dark:text-emerald-400">Total Valid</span>
                                                                                                 <span className="text-xs text-emerald-700 dark:text-emerald-400">{item.availableStock}</span>
                                                                                             </div>
+                                                                                            {(() => {
+                                                                                                const selectedProduct = products.find(p => p.id === item.productId);
+                                                                                                if (!selectedProduct) return null;
+
+                                                                                                // Hitung konversi ke purchaseUnit jika ada
+                                                                                                const conversionToStorage = selectedProduct.conversionToStorage || 1;
+                                                                                                const purchaseUnit = selectedProduct.purchaseUnit;
+                                                                                                const storageUnit = selectedProduct.storageUnit || selectedProduct.usageUnit;
+
+                                                                                                if (!purchaseUnit || conversionToStorage <= 1) return null;
+
+                                                                                                // Konversi: availableStock (storage) / conversionToStorage = purchaseUnit
+                                                                                                const stockInPurchaseUnit = (item.availableStock || 0) / conversionToStorage;
+
+                                                                                                return (
+                                                                                                    <div className="flex items-center justify-between py-2 px-4 bg-blue-50/50 dark:bg-blue-900/10 font-bold border-t">
+                                                                                                        <span className="text-xs text-blue-700 dark:text-blue-400">
+                                                                                                            ≈ Total {purchaseUnit}
+                                                                                                        </span>
+                                                                                                        <Badge variant="outline" className="text-xs font-bold font-mono h-5 bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-400 border-blue-300 dark:border-blue-700">
+                                                                                                            {stockInPurchaseUnit.toFixed(2)}
+                                                                                                        </Badge>
+                                                                                                    </div>
+                                                                                                );
+                                                                                            })()}
                                                                                         </div>
                                                                                     ) : (
                                                                                         <div className="p-4 text-center text-xs text-slate-400">

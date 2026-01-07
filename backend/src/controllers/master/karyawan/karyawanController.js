@@ -44,6 +44,32 @@ export const createKaryawan = async (req, res) => {
       isActive,
     } = req.body;
 
+    // ✅ Validasi userId jika diberikan
+    if (userId) {
+      const userExists = await prisma.user.findUnique({
+        where: { id: userId },
+      });
+
+      if (!userExists) {
+        return res.status(400).json({
+          message: "User ID tidak valid",
+          detail: `User dengan ID ${userId} tidak ditemukan di database`,
+        });
+      }
+
+      // ✅ Cek apakah userId sudah digunakan oleh karyawan lain
+      const existingKaryawan = await prisma.karyawan.findUnique({
+        where: { userId: userId },
+      });
+
+      if (existingKaryawan) {
+        return res.status(400).json({
+          message: "User ID sudah digunakan",
+          detail: `User ini sudah terhubung dengan karyawan ${existingKaryawan.namaLengkap}`,
+        });
+      }
+    }
+
     // pastikan teamIds array
     const teamIdsArray =
       typeof teamIds === "string" ? JSON.parse(teamIds) : teamIds;
@@ -65,7 +91,7 @@ export const createKaryawan = async (req, res) => {
         gajiPokok: gajiPokok ? Number(gajiPokok) : 0,
         tunjangan: tunjangan ? Number(tunjangan) : 0,
         potongan: potongan ? Number(potongan) : 0,
-        userId,
+        userId: userId || null, // ✅ Set null jika tidak ada
         foto: fotoPath,
         isActive: true,
         teamKaryawan: {
@@ -82,7 +108,19 @@ export const createKaryawan = async (req, res) => {
     res.status(201).json(karyawan);
   } catch (error) {
     console.error("[createKaryawan] error:", error);
-    res.status(500).json({ message: "Gagal membuat karyawan" });
+    
+    // ✅ Berikan error message yang lebih informatif
+    if (error.code === 'P2003') {
+      return res.status(400).json({
+        message: "Gagal membuat karyawan",
+        detail: "User ID yang diberikan tidak valid atau tidak ditemukan",
+      });
+    }
+    
+    res.status(500).json({
+      message: "Gagal membuat karyawan",
+      detail: error.message,
+    });
   }
 };
 
@@ -152,6 +190,32 @@ export const updateKaryawan = async (req, res) => {
       isActive,
     } = req.body;
 
+    // ✅ Validasi userId jika diberikan
+    if (userId) {
+      const userExists = await prisma.user.findUnique({
+        where: { id: userId },
+      });
+
+      if (!userExists) {
+        return res.status(400).json({
+          message: "User ID tidak valid",
+          detail: `User dengan ID ${userId} tidak ditemukan di database`,
+        });
+      }
+
+      // ✅ Cek apakah userId sudah digunakan oleh karyawan lain (bukan karyawan ini)
+      const existingKaryawan = await prisma.karyawan.findUnique({
+        where: { userId: userId },
+      });
+
+      if (existingKaryawan && existingKaryawan.id !== id) {
+        return res.status(400).json({
+          message: "User ID sudah digunakan",
+          detail: `User ini sudah terhubung dengan karyawan ${existingKaryawan.namaLengkap}`,
+        });
+      }
+    }
+
     const data = {
       namaLengkap,
       alamat,
@@ -217,6 +281,15 @@ export const updateKaryawan = async (req, res) => {
     res.json(karyawan);
   } catch (error) {
     console.error("[updateKaryawan] error:", error);
+    
+    // ✅ Berikan error message yang lebih informatif
+    if (error.code === 'P2003') {
+      return res.status(400).json({
+        message: "Gagal update karyawan",
+        detail: "User ID yang diberikan tidak valid atau tidak ditemukan",
+      });
+    }
+    
     res
       .status(500)
       .json({ message: "Gagal update karyawan", detail: error.message });

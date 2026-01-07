@@ -198,7 +198,7 @@ export default function UpdateFormPO({
                 productId: item.productId,
                 quantity: Number(item.quantity),
                 price: Number(item.unitPrice),
-                unit: item.product?.purchaseUnit || item.product?.unit || (item.product as any)?.uom || "",
+                unit: item.product?.purchaseUnit || item.product?.unit || "pcs",
                 total: Number(item.totalAmount),
             })) || [],
         },
@@ -296,7 +296,7 @@ export default function UpdateFormPO({
         const product = products.find(p => p.id.toString() === productId);
         if (product) {
             const currentItems = [...items];
-            const unit = (product as any).purchaseUnit || product.uom || (product as any).unit || (product as any).usageUnit || "pcs";
+            const unit = product.purchaseUnit || product.uom || "pcs";
             const price = Number(product.price) || 0;
 
             currentItems[index] = {
@@ -412,7 +412,7 @@ export default function UpdateFormPO({
                 productId: item.productId,
                 quantity: item.quantity,
                 price: item.unitPrice,
-                unit: item.product?.unit || "",
+                unit: (item.product as any)?.purchaseUnit || (item.product as any)?.uom || "",
                 total: item.totalAmount,
             })) || [],
         });
@@ -967,9 +967,10 @@ export default function UpdateFormPO({
                                                                 <Input
                                                                     {...field}
                                                                     className={cn(
-                                                                        "w-24 h-11 border-gray-300/80 rounded-lg",
+                                                                        "w-24 h-11 border-gray-300/80 rounded-lg bg-gray-50",
                                                                         errors.items?.[index]?.unit && "border-red-500"
                                                                     )}
+                                                                    readOnly={true}
                                                                 />
                                                             )}
                                                         />

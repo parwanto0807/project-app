@@ -44,6 +44,16 @@ import { updateSupplierInvoice } from "@/lib/actions/supplierInvoice";
 import { SupplierInvoice, SUPPLIER_INVOICE_STATUS_OPTIONS } from "@/types/supplierInvoice";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface UpdateSupplierInvoiceFormProps {
     invoice: SupplierInvoice;
@@ -54,6 +64,10 @@ export default function UpdateSupplierInvoiceForm({ invoice, role = "admin" }: U
     const router = useRouter();
     const basePath = role === "pic" ? "/pic-area" : role === "super" ? "/super-admin-area" : "/admin-area";
     const [loading, setLoading] = useState(false);
+
+    // Confirmation Dialog State
+    const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+    const [confirmationData, setConfirmationData] = useState<{ type: string; diffDays: number }>({ type: '', diffDays: 0 });
 
     // Form State
     const [supplierInvoiceNumber, setSupplierInvoiceNumber] = useState(invoice.invoiceNumber);
@@ -90,7 +104,7 @@ export default function UpdateSupplierInvoiceForm({ invoice, role = "admin" }: U
     const taxAmountNumber = parseFloat(taxAmount) || 0;
     const totalAmount = subtotal + taxAmountNumber;
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleFormSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
         if (!supplierInvoiceNumber || !invoiceDate || !dueDate) {
@@ -98,8 +112,23 @@ export default function UpdateSupplierInvoiceForm({ invoice, role = "admin" }: U
             return;
         }
 
+        const invDate = new Date(invoiceDate);
+        const dDate = new Date(dueDate);
+        invDate.setHours(0, 0, 0, 0);
+        dDate.setHours(0, 0, 0, 0);
+
+        const diffTime = dDate.getTime() - invDate.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const type = diffDays <= 0 ? 'CASH' : 'CREDIT';
+
+        setConfirmationData({ type, diffDays });
+        setConfirmDialogOpen(true);
+    };
+
+    const executeSubmit = async () => {
         try {
             setLoading(true);
+            setConfirmDialogOpen(false);
 
             const response = await updateSupplierInvoice(invoice.id, {
                 invoiceNumber: supplierInvoiceNumber,
@@ -159,7 +188,59 @@ export default function UpdateSupplierInvoiceForm({ invoice, role = "admin" }: U
                 </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Payment Confirmation Dialog */}
+            <AlertDialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Konfirmasi Update Invoice</AlertDialogTitle>
+                        <AlertDialogDescription asChild>
+                            <div className="space-y-4 pt-2">
+                                <p>Mohon verifikasi detail pembayaran sebelum menyimpan perubahan:</p>
+                                <div className="grid grid-cols-2 gap-4 text-sm p-4 bg-gray-50 rounded-lg border">
+                                    <div className="text-gray-500 self-center">Tipe Pembayaran</div>
+                                    <div className="font-bold text-gray-900 text-right">
+                                        {confirmationData.type === 'CASH' ? (
+                                            <span className="text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-100">CASH</span>
+                                        ) : (
+                                            <span className="text-blue-600 bg-blue-50 px-2.5 py-1 rounded border border-blue-100">CREDIT</span>
+                                        )}
+                                    </div>
+
+                                    <div className="text-gray-500 self-center">Jatuh Tempo</div>
+                                    <div className="font-semibold text-gray-900 text-right">
+                                        {dueDate && format(new Date(dueDate), "dd MMMM yyyy", { locale: idLocale })}
+                                        {confirmationData.type === 'CREDIT' && (
+                                            <span className="block text-xs text-blue-600 font-normal mt-0.5">
+                                                (Tempo {confirmationData.diffDays} Hari)
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <Separator className="col-span-2 my-1" />
+
+                                    <div className="text-gray-500 font-medium self-center">Total Tagihan</div>
+                                    <div className="font-bold text-lg text-primary text-right">
+                                        {formatCurrency(totalAmount)}
+                                    </div>
+                                </div>
+                                <p className="text-xs text-gray-500 italic bg-amber-50 p-2 rounded text-amber-700 border border-amber-100">
+                                    <CheckCircle2 className="inline h-3 w-3 mr-1 mb-0.5" />
+                                    Pastikan data sudah benar. Perubahan ini akan mempengaruhi pencatatan data.
+                                </p>
+                            </div>
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Periksa Kembali</AlertDialogCancel>
+                        <AlertDialogAction onClick={executeSubmit} className="bg-primary hover:bg-primary/90">
+                            <Save className="h-4 w-4 mr-2" />
+                            Simpan Perubahan
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <form onSubmit={handleFormSubmit} className="space-y-6">
                 {/* Invoice Information */}
                 <Card className="border-gray-100 shadow-sm">
                     <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-50/50 border-b">

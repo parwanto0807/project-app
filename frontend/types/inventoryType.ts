@@ -5,6 +5,10 @@ export interface StockMonitoringItem {
     name: string;
     category?: string;
     storageUnit: string;
+    purchaseUnit?: string;
+    conversionToStorage?: number;
+    usageUnit?: string;
+    conversionToUsage?: number;
     isActive: boolean;
     warehouse: string;
     warehouseId: string;

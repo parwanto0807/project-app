@@ -845,6 +845,10 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                                             const statusConfig = getStatusConfig(mr.status)
                                             const StatusIcon = statusConfig.icon
 
+                                            // Calculate unit display
+                                            const uniqueUnits = [...new Set(mr.items.map(i => i.unit || ''))].filter(u => u);
+                                            const unitDisplay = uniqueUnits.length === 1 ? uniqueUnits[0] : (uniqueUnits.length > 1 ? '(Beragam)' : '');
+
                                             return (
                                                 <TableRow
                                                     key={mr.id}
@@ -921,7 +925,7 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                                                                 </div>
                                                                 <p className="text-sm text-slate-500 dark:text-slate-300">
                                                                     Total Qty: <span className="font-semibold text-slate-700 dark:text-white">
-                                                                        {mr.items.reduce((sum, item) => sum + item.qtyRequested, 0).toLocaleString()}
+                                                                        {mr.items.reduce((sum, item) => sum + Number(item.qtyRequested), 0).toLocaleString()} {unitDisplay}
                                                                     </span>
                                                                 </p>
                                                             </div>

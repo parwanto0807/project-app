@@ -66,7 +66,16 @@ export class PurchaseRequestController {
             details: {
               include: {
                 product: {
-                  select: { id: true, name: true, code: true },
+                  select: {
+                    id: true,
+                    name: true,
+                    code: true,
+                    purchaseUnit: true,
+                    storageUnit: true,
+                    usageUnit: true,
+                    conversionToStorage: true,
+                    conversionToUsage: true,
+                  },
                 },
                 projectBudget: {
                   select: { id: true, description: true, amount: true },

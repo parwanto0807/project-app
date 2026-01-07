@@ -25,6 +25,7 @@ interface StockBalanceData {
         name: string;
         code?: string;
     };
+    storageUnit?: string;
 }
 
 interface StockBalancePdfProps {
@@ -584,8 +585,22 @@ const StockBalancePdf: React.FC<StockBalancePdfProps> = ({
                                             <Text style={[styles.tableCell, styles.colNumber, styles.cellRight, Number(item.stockOut) !== 0 && { fontWeight: 'bold', color: '#000000' } as any]}>{formatNumber(Number(item.stockOut))}</Text>
                                             <Text style={[styles.tableCell, styles.colNumber, styles.cellRight, Number(item.onPR) !== 0 && { fontWeight: 'bold', color: '#000000' } as any]}>{formatNumber(Number(item.onPR))}</Text>
                                             <Text style={[styles.tableCell, styles.colNumber, styles.cellRight, Number(item.bookedStock) !== 0 && { fontWeight: 'bold', color: '#000000' } as any]}>{formatNumber(Number(item.bookedStock))}</Text>
-                                            <Text style={[styles.tableCell, styles.colNumber, styles.cellRight, Number(item.stockAkhir) !== 0 && { fontWeight: 'bold', color: '#000000' } as any]}>{formatNumber(Number(item.stockAkhir))}</Text>
-                                            <Text style={[styles.tableCell, styles.colNumber, styles.cellRight, Number(item.availableStock) !== 0 && { fontWeight: 'bold', color: '#10b981' } as any]}>{formatNumber(Number(item.availableStock))}</Text>
+                                            <View style={[styles.tableCell, styles.colNumber, { alignItems: 'flex-end', justifyContent: 'center' }]}>
+                                                <Text style={{ textAlign: 'right', fontSize: 9, color: Number(item.stockAkhir) !== 0 ? '#000000' : '#334155', fontWeight: Number(item.stockAkhir) !== 0 ? 'bold' : 'normal' }}>
+                                                    {formatNumber(Number(item.stockAkhir))}
+                                                </Text>
+                                                <Text style={{ fontSize: 6, fontStyle: 'italic', color: '#64748b', textAlign: 'right', marginTop: 1 }}>
+                                                    {item.storageUnit || ''}
+                                                </Text>
+                                            </View>
+                                            <View style={[styles.tableCell, styles.colNumber, { alignItems: 'flex-end', justifyContent: 'center' }]}>
+                                                <Text style={{ textAlign: 'right', fontSize: 9, color: Number(item.availableStock) !== 0 ? '#10b981' : '#334155', fontWeight: Number(item.availableStock) !== 0 ? 'bold' : 'normal' }}>
+                                                    {formatNumber(Number(item.availableStock))}
+                                                </Text>
+                                                <Text style={{ fontSize: 6, fontStyle: 'italic', color: '#64748b', textAlign: 'right', marginTop: 1 }}>
+                                                    {item.storageUnit || ''}
+                                                </Text>
+                                            </View>
                                             <View style={[styles.tableCell, styles.colStatus, styles.cellCenter]}>
                                                 <View style={[styles.statusBadge, status.badge]}>
                                                     <Text style={[styles.statusText, status.text]}>{status.label}</Text>

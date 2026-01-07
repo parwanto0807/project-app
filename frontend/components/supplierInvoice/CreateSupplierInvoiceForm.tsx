@@ -75,10 +75,19 @@ interface PurchaseOrder {
     id: string;
     poNumber: string;
     totalAmount: number;
+    status: string;
     supplier?: {
         id: string;
         name: string;
     };
+    lines: {
+        notGr: boolean;
+    }[];
+    supplierInvoices?: {
+        id: string;
+        status: string;
+        totalAmount: number;
+    }[];
 }
 
 interface POLine {
@@ -131,6 +140,9 @@ export default function CreateSupplierInvoiceForm({ role = "admin" }: { role?: s
     const [varianceDialogOpen, setVarianceDialogOpen] = useState(false);
     const [varianceDetails, setVarianceDetails] = useState<{ productName: string; invoiceQty: number; grQty: number; isGr: boolean }[]>([]);
 
+    const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+    const [confirmationData, setConfirmationData] = useState<{ type: string; diffDays: number }>({ type: '', diffDays: 0 });
+
     // Generate auto number on load
     useEffect(() => {
         generateInvoiceNumber();
@@ -176,11 +188,31 @@ export default function CreateSupplierInvoiceForm({ role = "admin" }: { role?: s
                     // Service items don't require GR, so we don't filter by FULLY_RECEIVED status
                     // But we still need minimum status SENT to ensure PO has been sent to supplier
                     const response = await fetch(
-                        `${process.env.NEXT_PUBLIC_API_URL}/api/po?supplierId=${supplierId}&hasNotGr=true&minStatus=SENT`
+                        `${process.env.NEXT_PUBLIC_API_URL}/api/po?supplierId=${supplierId}&minStatus=SENT`
                     );
                     const data = await response.json();
                     if (data.success) {
-                        setPurchaseOrders(data.data);
+                        // Filter Logic:
+                        // 1. Check Invoice Status: Hide if fully invoiced
+                        // 2. Service POs: Allow SENT or higher
+                        // 3. Goods POs: Must be FULLY_RECEIVED
+                        const filteredPOs = data.data.filter((po: PurchaseOrder) => {
+                            // Check billing status
+                            const billedAmount = po.supplierInvoices?.reduce((sum, inv) => {
+                                if (['CANCELLED', 'VOIDED', 'REJECTED'].includes(inv.status)) return sum;
+                                return sum + Number(inv.totalAmount || 0);
+                            }, 0) || 0;
+
+                            // Tolerance for rounding differences
+                            const remainingAmount = Number(po.totalAmount) - billedAmount;
+                            if (remainingAmount <= 100) return false; // Already fully invoiced
+
+                            const isServicePO = po.lines?.some(line => line.notGr);
+                            if (isServicePO) return true;
+                            return po.status === 'FULLY_RECEIVED';
+                        });
+
+                        setPurchaseOrders(filteredPOs);
                         setStep(2);
                     }
                 } catch (error) {
@@ -361,8 +393,25 @@ export default function CreateSupplierInvoiceForm({ role = "admin" }: { role?: s
             setVarianceDetails(variances);
             setVarianceDialogOpen(true);
         } else {
-            executeSubmit();
+            openConfirmationDialog();
         }
+    };
+
+    const openConfirmationDialog = () => {
+        const invDate = new Date(invoiceDate);
+        const dDate = new Date(dueDate);
+        // Normalize time
+        invDate.setHours(0, 0, 0, 0);
+        dDate.setHours(0, 0, 0, 0);
+
+        const diffTime = dDate.getTime() - invDate.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        // Assume diffDays <= 0 implies CASH payment (paid immediately or before)
+        const type = diffDays <= 0 ? 'CASH' : 'CREDIT';
+
+        setConfirmationData({ type, diffDays });
+        setConfirmDialogOpen(true);
     };
 
     const executeSubmit = async () => {
@@ -493,8 +542,60 @@ export default function CreateSupplierInvoiceForm({ role = "admin" }: { role?: s
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Batal</AlertDialogCancel>
-                        <AlertDialogAction onClick={executeSubmit} className="bg-amber-600 hover:bg-amber-700">
+                        <AlertDialogAction onClick={openConfirmationDialog} className="bg-amber-600 hover:bg-amber-700">
                             Lanjutkan
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Payment Confirmation Dialog */}
+            <AlertDialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Konfirmasi Pembayaran</AlertDialogTitle>
+                        <AlertDialogDescription asChild>
+                            <div className="space-y-4 pt-2">
+                                <p>Mohon verifikasi detail pembayaran sebelum menyimpan:</p>
+                                <div className="grid grid-cols-2 gap-4 text-sm p-4 bg-gray-50 rounded-lg border">
+                                    <div className="text-gray-500 self-center">Tipe Pembayaran</div>
+                                    <div className="font-bold text-gray-900 text-right">
+                                        {confirmationData.type === 'CASH' ? (
+                                            <span className="text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-100">CASH</span>
+                                        ) : (
+                                            <span className="text-blue-600 bg-blue-50 px-2.5 py-1 rounded border border-blue-100">CREDIT</span>
+                                        )}
+                                    </div>
+
+                                    <div className="text-gray-500 self-center">Jatuh Tempo</div>
+                                    <div className="font-semibold text-gray-900 text-right">
+                                        {format(new Date(dueDate), "dd MMMM yyyy", { locale: idLocale })}
+                                        {confirmationData.type === 'CREDIT' && (
+                                            <span className="block text-xs text-blue-600 font-normal mt-0.5">
+                                                (Tempo {confirmationData.diffDays} Hari)
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <Separator className="col-span-2 my-1" />
+
+                                    <div className="text-gray-500 font-medium self-center">Total Tagihan</div>
+                                    <div className="font-bold text-lg text-primary text-right">
+                                        {formatCurrency(totalAmount)}
+                                    </div>
+                                </div>
+                                <p className="text-xs text-gray-500 italic bg-amber-50 p-2 rounded text-amber-700 border border-amber-100">
+                                    <CheckCircle2 className="inline h-3 w-3 mr-1 mb-0.5" />
+                                    Pastikan data sudah benar. Tipe pembayaran akan mempengaruhi pencatatan jurnal akuntansi.
+                                </p>
+                            </div>
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Periksa Kembali</AlertDialogCancel>
+                        <AlertDialogAction onClick={executeSubmit} className="bg-primary hover:bg-primary/90">
+                            <Save className="h-4 w-4 mr-2" />
+                            Simpan Invoice
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

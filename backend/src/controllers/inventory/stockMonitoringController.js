@@ -129,6 +129,10 @@ export const stockMonitoringController = {
                 code: true,
                 name: true,
                 storageUnit: true,
+                purchaseUnit: true, // Added
+                conversionToStorage: true, // Added
+                usageUnit: true, // Added
+                conversionToUsage: true, // Added
                 category: { select: { name: true } },
                 isActive: true
               }
@@ -195,6 +199,10 @@ export const stockMonitoringController = {
           name: balance.product.name,
           category: balance.product.category?.name,
           storageUnit: balance.product.storageUnit,
+          purchaseUnit: balance.product.purchaseUnit, // Added
+          conversionToStorage: Number(balance.product.conversionToStorage), // Added
+          usageUnit: balance.product.usageUnit, // Added
+          conversionToUsage: Number(balance.product.conversionToUsage), // Added
           isActive: balance.product.isActive,
           warehouse: balance.warehouse?.name || 'Unknown',
           warehouseId: balance.warehouseId,

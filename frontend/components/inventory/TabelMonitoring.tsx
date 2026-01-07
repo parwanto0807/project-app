@@ -176,7 +176,8 @@ export default function TabelMonitoring({
                 product: {
                     name: item.name,
                     code: item.code
-                }
+                },
+                storageUnit: item.storageUnit
             }));
 
             // Generate PDF Imperatively
@@ -924,10 +925,38 @@ export default function TabelMonitoring({
                                                         </div>
                                                     </TableCell>
                                                     <TableCell className="text-right">
-                                                        <div className="inline-block px-4 py-2 rounded-2xl bg-slate-50 dark:bg-slate-800/50 group-hover:bg-white dark:group-hover:bg-slate-800/80 border border-transparent group-hover:border-slate-100 dark:group-hover:border-slate-700 transition-all">
-                                                            <p className="text-xl font-black text-slate-900 dark:text-white tracking-tighter leading-none">{displayValue(item.stockAkhir)}</p>
-                                                            <p className="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 uppercase mt-1">{item.storageUnit}</p>
-                                                        </div>
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <div className="inline-block px-4 py-2 rounded-2xl bg-slate-50 dark:bg-slate-800/50 group-hover:bg-white dark:group-hover:bg-slate-800/80 border border-transparent group-hover:border-slate-100 dark:group-hover:border-slate-700 transition-all cursor-help">
+                                                                        <p className="text-xl font-black text-slate-900 dark:text-white tracking-tighter leading-none">{displayValue(item.stockAkhir)}</p>
+                                                                        <p className="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 uppercase mt-1">{item.storageUnit}</p>
+                                                                    </div>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-xl p-3 min-w-[200px]">
+                                                                    <div className="text-xs space-y-3">
+                                                                        <div>
+                                                                            <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px] mb-1">Conversion Rate</p>
+                                                                            <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50 p-1.5 rounded border border-slate-100 dark:border-slate-700 font-mono text-[10px]">
+                                                                                <span>1 {item.purchaseUnit || 'Unit'}</span>
+                                                                                <ArrowRight className="w-3 h-3" />
+                                                                                <span>{item.conversionToStorage || 1} {item.storageUnit}</span>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <div>
+                                                                            <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px] mb-1">Actual / Equivalent</p>
+                                                                            <div className="bg-indigo-50 dark:bg-indigo-900/20 p-2 rounded-lg border border-indigo-100 dark:border-indigo-800">
+                                                                                <p className="text-lg font-black text-indigo-700 dark:text-indigo-400 leading-none">
+                                                                                    {(item.stockAkhir / (item.conversionToStorage || 1)).toLocaleString('id-ID', { maximumFractionDigits: 2 })}
+                                                                                </p>
+                                                                                <p className="text-[10px] font-bold text-indigo-500 dark:text-indigo-300 uppercase mt-0.5">{item.purchaseUnit || 'Unit'}</p>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
                                                     </TableCell>
                                                     <TableCell className="text-right">
                                                         <div className="space-y-1">
@@ -943,10 +972,38 @@ export default function TabelMonitoring({
                                                     </TableCell>
 
                                                     <TableCell className="text-right">
-                                                        <div className="inline-block px-4 py-2 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 border border-transparent transition-all">
-                                                            <p className="text-xl font-black text-emerald-700 dark:text-emerald-400 tracking-tighter leading-none">{displayValue(item.availableStock)}</p>
-                                                            <p className="text-[10px] font-bold text-emerald-500 dark:text-emerald-300 uppercase mt-1">Ready</p>
-                                                        </div>
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <div className="inline-block px-4 py-2 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 border border-transparent transition-all cursor-help">
+                                                                        <p className="text-xl font-black text-emerald-700 dark:text-emerald-400 tracking-tighter leading-none">{displayValue(item.availableStock)}</p>
+                                                                        <p className="text-[10px] font-bold text-emerald-500 dark:text-emerald-300 uppercase mt-1">Ready</p>
+                                                                    </div>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-xl p-3 min-w-[200px]">
+                                                                    <div className="text-xs space-y-3">
+                                                                        <div>
+                                                                            <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px] mb-1">Conversion Rate</p>
+                                                                            <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50 p-1.5 rounded border border-slate-100 dark:border-slate-700 font-mono text-[10px]">
+                                                                                <span>1 {item.purchaseUnit || 'Unit'}</span>
+                                                                                <ArrowRight className="w-3 h-3" />
+                                                                                <span>{item.conversionToStorage || 1} {item.storageUnit}</span>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <div>
+                                                                            <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px] mb-1">Actual / Equivalent</p>
+                                                                            <div className="bg-emerald-50 dark:bg-emerald-900/20 p-2 rounded-lg border border-emerald-100 dark:border-emerald-800">
+                                                                                <p className="text-lg font-black text-emerald-700 dark:text-emerald-400 leading-none">
+                                                                                    {(item.availableStock / (item.conversionToStorage || 1)).toLocaleString('id-ID', { maximumFractionDigits: 2 })}
+                                                                                </p>
+                                                                                <p className="text-[10px] font-bold text-emerald-500 dark:text-emerald-300 uppercase mt-0.5">{item.purchaseUnit || 'Unit'}</p>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
                                                     </TableCell>
                                                     {canViewFinancials && (
                                                         <TableCell className="text-right">

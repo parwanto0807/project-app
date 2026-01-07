@@ -1052,7 +1052,7 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
                                                                                         {line.quantity}
                                                                                     </span>
                                                                                     <span className="text-muted-foreground text-sm dark:text-gray-400">
-                                                                                        {line.product?.unit || "pcs"}
+                                                                                        {line.product?.purchaseUnit || "pcs"}
                                                                                     </span>
                                                                                 </div>
                                                                             </TableCell>

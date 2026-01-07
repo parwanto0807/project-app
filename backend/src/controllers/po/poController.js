@@ -480,6 +480,13 @@ export const getAllPO = async (req, res) => {
               nomorPr: true
             }
           },
+          supplierInvoices: {
+            select: {
+              id: true,
+              status: true,
+              totalAmount: true
+            }
+          },
           PurchaseExecution: {
             select: {
               id: true,
@@ -844,7 +851,7 @@ export const updatePOStatus = async (req, res) => {
       const hasReceipts = await prisma.goodsReceipt.findFirst({
         where: { poId: id }
       });
-      if (hasReceipts) {
+      if (hasReceipts && hasReceipts.status !== 'CANCELLED') {
         return res.status(400).json({ 
           success: false, 
           error: "PO tidak bisa dibatalkan karena sudah ada penerimaan barang." 
@@ -852,10 +859,17 @@ export const updatePOStatus = async (req, res) => {
       }
     }
 
-    // Update PO status dan jumlahDipesan jika APPROVED
+    // Update PO status dan jumlahDipesan jika APPROVED/SENT
     const result = await prisma.$transaction(async (tx) => {
-      // Update PO status
-      // Update PO status
+      // 1. Get Old Status first to determine if we need to update stock
+      const oldPO = await tx.purchaseOrder.findUnique({ 
+        where: { id },
+        select: { status: true } 
+      });
+
+      if (!oldPO) throw new Error("PO tidak ditemukan");
+
+      // 2. Update PO status
       const updatedPO = await tx.purchaseOrder.update({
         where: { id },
         data: { 
@@ -865,14 +879,21 @@ export const updatePOStatus = async (req, res) => {
         include: {
           lines: {
             include: {
-              prDetail: true
+              prDetail: true,
+              product: true // ✅ Include product to get conversionToStorage
             }
           }
         }
       });
 
-      // Jika status APPROVED, update jumlahDipesan di PurchaseRequestDetail dan onPR di StockBalance
-      if (status === 'APPROVED') {
+      // 3. Logic Update Stock Balance (onPR)
+      // Jalankan jika status APPROVED
+      // ATAU status SENT tapi sebelumnya bukan APPROVED (loncat flow dari Draft/Revision)
+      const shouldUpdateStock = 
+          status === 'APPROVED' || 
+          (status === 'SENT' && ['DRAFT', 'REVISION_NEEDED', 'PENDING_APPROVAL'].includes(oldPO.status));
+
+      if (shouldUpdateStock) {
         // Get current period (start of month)
         const currentPeriod = new Date();
         currentPeriod.setDate(1);
@@ -883,23 +904,13 @@ export const updatePOStatus = async (req, res) => {
         if (updatedPO.requestRevisi && updatedPO.requestRevisi > 0) {
           console.log(`🔄 Handling PO Revision (requestRevisi=${updatedPO.requestRevisi})`);
           
-          // Fetch the PO's previous state from audit/history
-          // Since we don't have audit table, we'll fetch current lines and assume they represent the NEW state
-          // We need to get the OLD quantities from somewhere - let's use a different approach:
-          // We'll track the difference by comparing current DB state vs what we're about to save
-          
-          // Get all current StockBalance entries that were affected by this PO
-          // We'll identify them by checking all lines and reversing their onPR
           const previousLines = await tx.purchaseOrderLine.findMany({
             where: { 
               poId: id,
               notGr: { not: true } // Only physical goods
             },
-            select: {
-              id: true,
-              productId: true,
-              quantity: true,
-              notGr: true
+            include: {
+              product: true // ✅ Include product for conversion
             }
           });
 
@@ -908,6 +919,10 @@ export const updatePOStatus = async (req, res) => {
           // Reverse previous StockBalance updates
           for (const prevLine of previousLines) {
             if (prevLine.notGr === true) continue; // Skip service items
+
+            // ✅ Reverse Calculation with Conversion
+            const conversion = parseFloat(prevLine.product?.conversionToStorage) || 1;
+            const qtyToReverse = Number(prevLine.quantity) * conversion;
 
             const stockBalance = await tx.stockBalance.findFirst({
               where: {
@@ -919,29 +934,30 @@ export const updatePOStatus = async (req, res) => {
 
             if (stockBalance) {
               // Reverse the previous onPR increment
+              // Check to ensuring onPR doesn't go below 0
+              const currentOnPR = Number(stockBalance.onPR);
+              const newOnPR = Math.max(0, currentOnPR - qtyToReverse);
+
               await tx.stockBalance.update({
                 where: { id: stockBalance.id },
                 data: {
-                  onPR: {
-                    decrement: prevLine.quantity // Reverse previous quantity
-                  }
+                  onPR: newOnPR
                 }
               });
-              console.log(`  ↩️  Reversed onPR for ${prevLine.productId}: -${prevLine.quantity}`);
+              console.log(`  ↩️  Reversed onPR for ${prevLine.productId}: -${qtyToReverse} (${prevLine.quantity} x ${conversion})`);
             }
           }
         }
 
-        // ✅ APPLY NEW STOCKBALANCE (for both first-time approval and revision)
+        // ✅ APPLY NEW STOCKBALANCE
         for (const line of updatedPO.lines) {
           if (line.prDetailId) {
             // Recalculate Total Ordered Qty for this PR Detail
-            // This ensures data consistency even if PO status changes back and forth
             const totalOrdered = await tx.purchaseOrderLine.aggregate({
               where: {
                 prDetailId: line.prDetailId,
                 purchaseOrder: {
-                  status: 'APPROVED'
+                  status: { in: ['APPROVED', 'SENT', 'PARTIALLY_RECEIVED', 'FULLY_RECEIVED'] }
                 }
               },
               _sum: {
@@ -959,14 +975,15 @@ export const updatePOStatus = async (req, res) => {
           }
 
           // ✅ Skip StockBalance update for service items (notGr=true)
-          // Service items (JASA_PEMBELIAN) don't affect physical inventory
           if (line.notGr === true) {
-            console.log(`⏭️  Skipping StockBalance update for service item: ${line.productId} (notGr=true)`);
-            continue; // Skip to next line
+             continue;
           }
 
-          // Update StockBalance.onPR untuk product ini di warehouse PO
-          // Increment onPR dengan qty dari PO line (NEW quantity after revision)
+          // ✅ Calculate Qty with Conversion
+          const conversion = parseFloat(line.product?.conversionToStorage) || 1;
+          const qtyToAdd = Number(line.quantity) * conversion;
+
+          // Update StockBalance.onPR
           const stockBalance = await tx.stockBalance.findFirst({
             where: {
               productId: line.productId,
@@ -980,11 +997,11 @@ export const updatePOStatus = async (req, res) => {
               where: { id: stockBalance.id },
               data: {
                 onPR: {
-                  increment: line.quantity // Apply NEW quantity
+                  increment: qtyToAdd // Apply converted quantity
                 }
               }
             });
-            console.log(`  ✅ Applied onPR for ${line.productId}: +${line.quantity}`);
+            console.log(`  ✅ Applied onPR for ${line.productId}: +${qtyToAdd} (${line.quantity} x ${conversion})`);
           } else {
             // Create StockBalance if not exists for current period
             await tx.stockBalance.create({
@@ -992,7 +1009,7 @@ export const updatePOStatus = async (req, res) => {
                 productId: line.productId,
                 warehouseId: updatedPO.warehouseId,
                 period: currentPeriod,
-                onPR: line.quantity,
+                onPR: qtyToAdd, // Apply converted quantity
                 stockAwal: 0,
                 stockIn: 0,
                 stockOut: 0,
@@ -1001,7 +1018,7 @@ export const updatePOStatus = async (req, res) => {
                 availableStock: 0
               }
             });
-            console.log(`  ✅ Created StockBalance for ${line.productId}: onPR=${line.quantity}`);
+            console.log(`  ✅ Created StockBalance for ${line.productId}: onPR=${qtyToAdd}`);
           }
         }
       }
@@ -1015,6 +1032,7 @@ export const updatePOStatus = async (req, res) => {
       message: `Status PO berhasil diubah menjadi ${status}` 
     });
   } catch (error) {
+    console.error("Error updating PO status:", error);
     return res.status(400).json({ 
       success: false, 
       error: "Gagal update status PO", 

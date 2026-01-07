@@ -58,11 +58,14 @@ type PurchaseRequestDetailWithRelations = PurchaseRequestDetail & {
         name: string;
         code?: string;
         description?: string | null;
+        purchaseUnit?: string;
+        storageUnit?: string;
+        usageUnit?: string;
+        conversionToStorage?: number;
+        conversionToUsage?: number;
     } | null;
 };
 
-
-// Definisikan type untuk status berdasarkan type yang sudah ada
 type PurchaseRequestStatus = PurchaseRequest['status'];
 
 // Definisikan props untuk StatusActions
@@ -1042,6 +1045,24 @@ export function PurchaseRequestSheet({
                                                                                                                                         {wh.availableStock || 0}
                                                                                                                                     </span>
                                                                                                                                 </div>
+                                                                                                                                {(() => {
+                                                                                                                                    // Get product info for conversion
+                                                                                                                                    const product = detail.product as any;
+                                                                                                                                    const conversionToStorage = product?.conversionToStorage || 1;
+                                                                                                                                    const purchaseUnit = product?.purchaseUnit;
+                                                                                                                                    const showConversion = purchaseUnit && conversionToStorage > 1;
+
+                                                                                                                                    if (showConversion) {
+                                                                                                                                        const stockInPurchaseUnit = ((wh.availableStock || 0) / conversionToStorage).toFixed(2);
+                                                                                                                                        return (
+                                                                                                                                            <div className="flex justify-between items-center text-[10px] pt-0.5 border-t border-gray-200 mt-1">
+                                                                                                                                                <span className="text-blue-600">≈ {purchaseUnit}:</span>
+                                                                                                                                                <span className="font-semibold text-blue-600">{stockInPurchaseUnit}</span>
+                                                                                                                                            </div>
+                                                                                                                                        );
+                                                                                                                                    }
+                                                                                                                                    return null;
+                                                                                                                                })()}
                                                                                                                                 {((warehouseSelections[detail.id || ''] || []).includes(wh.warehouseId)) && (
                                                                                                                                     <Check className="h-3 w-3 text-green-600 ml-auto" />
                                                                                                                                 )}
@@ -1061,6 +1082,28 @@ export function PurchaseRequestSheet({
                                                                                                                 }
                                                                                                             </span>
                                                                                                         </div>
+                                                                                                        {(() => {
+                                                                                                            // Get product info for total conversion
+                                                                                                            const product = detail.product as any;
+                                                                                                            const conversionToStorage = product?.conversionToStorage || 1;
+                                                                                                            const purchaseUnit = product?.purchaseUnit;
+                                                                                                            const showConversion = purchaseUnit && conversionToStorage > 1;
+
+                                                                                                            if (showConversion) {
+                                                                                                                const totalSelectedStock = stockData[detail.id || '']?.breakdown
+                                                                                                                    .filter(wh => (warehouseSelections[detail.id || ''] || []).includes(wh.warehouseId))
+                                                                                                                    .reduce((sum, wh) => sum + wh.stock, 0) || 0;
+                                                                                                                const totalInPurchaseUnit = (totalSelectedStock / conversionToStorage).toFixed(2);
+
+                                                                                                                return (
+                                                                                                                    <div className="flex justify-between items-center text-xs font-medium mt-1 pt-1 border-t border-blue-200">
+                                                                                                                        <span className="text-blue-600">≈ Total {purchaseUnit}:</span>
+                                                                                                                        <span className="text-blue-600 font-bold">{totalInPurchaseUnit}</span>
+                                                                                                                    </div>
+                                                                                                                );
+                                                                                                            }
+                                                                                                            return null;
+                                                                                                        })()}
                                                                                                         <div className="flex justify-between items-center text-xs text-gray-500 mt-1">
                                                                                                             <span>Required:</span>
                                                                                                             <span>{detail.jumlah} {detail.satuan}</span>
@@ -1458,27 +1501,58 @@ export function PurchaseRequestSheet({
                                                                                                         <CardTitle className="text-sm font-bold flex items-center gap-2">
                                                                                                             <Package className="w-4 h-4 text-emerald-600" />
                                                                                                             Stock Details
+                                                                                                            {(() => {
+                                                                                                                const product = detail.product as any;
+                                                                                                                const storageUnit = product?.storageUnit || product?.usageUnit || "pcs";
+                                                                                                                return (
+                                                                                                                    <span className="text-xs font-normal text-muted-foreground ml-auto">
+                                                                                                                        ({storageUnit})
+                                                                                                                    </span>
+                                                                                                                );
+                                                                                                            })()}
                                                                                                         </CardTitle>
                                                                                                     </CardHeader>
                                                                                                     <CardContent className="p-0">
                                                                                                         {stockData[detail.id]?.breakdown && stockData[detail.id].breakdown.length > 0 ? (
                                                                                                             <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                                                                                                                {stockData[detail.id].breakdown
-                                                                                                                    .filter((wh: any) => {
-                                                                                                                        // If spkId exists, only show WIP warehouses
-                                                                                                                        if (selectedPurchaseRequest?.spkId) {
-                                                                                                                            return wh.isWip === true;
-                                                                                                                        }
-                                                                                                                        return true;
-                                                                                                                    })
-                                                                                                                    .map((wh: { warehouseName: string; stock: number; availableStock: number; isWip: boolean }, idx: number) => (
-                                                                                                                        <div key={idx} className="flex items-center justify-between py-2 px-4 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
-                                                                                                                            <span className="text-xs font-medium text-slate-600 dark:text-slate-400">{wh.warehouseName}</span>
-                                                                                                                            <Badge variant="outline" className="text-xs font-bold font-mono h-5 bg-white dark:bg-slate-950">
-                                                                                                                                {wh.availableStock || wh.stock}
-                                                                                                                            </Badge>
-                                                                                                                        </div>
-                                                                                                                    ))}
+                                                                                                                {(() => {
+                                                                                                                    const product = detail.product as any;
+                                                                                                                    const conversionToStorage = product?.conversionToStorage || 1;
+                                                                                                                    const purchaseUnit = product?.purchaseUnit;
+                                                                                                                    const showConversion = purchaseUnit && conversionToStorage > 1;
+
+                                                                                                                    return stockData[detail.id].breakdown
+                                                                                                                        .filter((wh: any) => {
+                                                                                                                            // If spkId exists, only show WIP warehouses
+                                                                                                                            if (selectedPurchaseRequest?.spkId) {
+                                                                                                                                return wh.isWip === true;
+                                                                                                                            }
+                                                                                                                            return true;
+                                                                                                                        })
+                                                                                                                        .map((wh: { warehouseName: string; stock: number; availableStock: number; isWip: boolean }, idx: number) => {
+                                                                                                                            const stockInPurchaseUnit = showConversion
+                                                                                                                                ? ((wh.availableStock || wh.stock) / conversionToStorage).toFixed(2)
+                                                                                                                                : null;
+
+                                                                                                                            return (
+                                                                                                                                <div key={idx} className="py-2 px-4 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
+                                                                                                                                    <div className="flex items-center justify-between">
+                                                                                                                                        <span className="text-xs font-medium text-slate-600 dark:text-slate-400">{wh.warehouseName}</span>
+                                                                                                                                        <Badge variant="outline" className="text-xs font-bold font-mono h-5 bg-white dark:bg-slate-950">
+                                                                                                                                            {wh.availableStock || wh.stock}
+                                                                                                                                        </Badge>
+                                                                                                                                    </div>
+                                                                                                                                    {showConversion && (
+                                                                                                                                        <div className="flex items-center justify-end mt-1 gap-1">
+                                                                                                                                            <span className="text-[10px] text-blue-600 dark:text-blue-400">
+                                                                                                                                                ≈ {stockInPurchaseUnit} {purchaseUnit}
+                                                                                                                                            </span>
+                                                                                                                                        </div>
+                                                                                                                                    )}
+                                                                                                                                </div>
+                                                                                                                            );
+                                                                                                                        });
+                                                                                                                })()}
                                                                                                                 <div className="flex items-center justify-between py-2 px-4 bg-emerald-50/50 dark:bg-emerald-900/10 font-bold border-t">
                                                                                                                     <span className="text-xs text-emerald-700 dark:text-emerald-400">Total Valid</span>
                                                                                                                     <span className="text-xs text-emerald-700 dark:text-emerald-400">
@@ -1493,6 +1567,37 @@ export function PurchaseRequestSheet({
                                                                                                                         })()}
                                                                                                                     </span>
                                                                                                                 </div>
+                                                                                                                {(() => {
+                                                                                                                    const product = detail.product as any;
+                                                                                                                    const conversionToStorage = product?.conversionToStorage || 1;
+                                                                                                                    const purchaseUnit = product?.purchaseUnit;
+                                                                                                                    const showConversion = purchaseUnit && conversionToStorage > 1;
+
+                                                                                                                    if (!showConversion) return null;
+
+                                                                                                                    // Calculate total based on context
+                                                                                                                    let totalStock = 0;
+                                                                                                                    if (selectedPurchaseRequest?.spkId) {
+                                                                                                                        totalStock = stockData[detail.id].breakdown
+                                                                                                                            .filter((wh: any) => wh.isWip === true)
+                                                                                                                            .reduce((sum: number, wh: any) => sum + (wh.availableStock || 0), 0);
+                                                                                                                    } else {
+                                                                                                                        totalStock = stockData[detail.id].available;
+                                                                                                                    }
+
+                                                                                                                    const totalInPurchaseUnit = (totalStock / conversionToStorage).toFixed(2);
+
+                                                                                                                    return (
+                                                                                                                        <div className="flex items-center justify-between py-2 px-4 bg-blue-50/50 dark:bg-blue-900/10 font-bold border-t">
+                                                                                                                            <span className="text-xs text-blue-700 dark:text-blue-400">
+                                                                                                                                ≈ Total {purchaseUnit}
+                                                                                                                            </span>
+                                                                                                                            <Badge variant="outline" className="text-xs font-bold font-mono h-5 bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-400 border-blue-300 dark:border-blue-700">
+                                                                                                                                {totalInPurchaseUnit}
+                                                                                                                            </Badge>
+                                                                                                                        </div>
+                                                                                                                    );
+                                                                                                                })()}
                                                                                                             </div>
                                                                                                         ) : (
                                                                                                             <div className="p-4 text-center text-xs text-slate-400">

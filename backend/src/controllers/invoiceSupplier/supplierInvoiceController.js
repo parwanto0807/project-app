@@ -432,6 +432,7 @@ export const updateSupplierInvoiceStatus = async (req, res) => {
                         items: true,
                         purchaseOrder: {
                             include: {
+                                orderedBy: true, // Include PO Creator for fallback
                                 PurchaseRequest: { // Fixed: purchaseRequest -> PurchaseRequest (Schema match)
                                     include: {
                                         requestedBy: true
@@ -453,12 +454,18 @@ export const updateSupplierInvoiceStatus = async (req, res) => {
                 
                 // Allow fallback if requestedBy is missing but check logic carefully
                 // Note: The capitalized PurchaseRequest affects how we access it here too
-                const requester = invoice.purchaseOrder?.PurchaseRequest?.requestedBy;
-                if (!requester?.id) {
-                    throw new Error('Cannot find requesting employee (PIC) for this transaction');
+                let karyawanId = invoice.purchaseOrder?.PurchaseRequest?.requestedBy?.id;
+                
+                // Fallback to PO Creator if PR requester is missing (e.g. Direct PO)
+                if (!karyawanId && invoice.purchaseOrder?.orderedById) {
+                    console.log('⚠️ No PR Requester found. Using PO Creator as PIC fallback.');
+                    karyawanId = invoice.purchaseOrder.orderedById;
                 }
 
-                const karyawanId = requester.id;
+                if (!karyawanId) {
+                    throw new Error('Cannot find requesting employee (PIC) nor PO Creator for this transaction');
+                }
+
                 const totalAmount = Number(invoice.totalAmount);
                 const category = 'OPERASIONAL_PROYEK'; // STRICTLY OPERASIONAL, NOT PINJAMAN_PRIBADI
 
@@ -520,7 +527,7 @@ export const updateSupplierInvoiceStatus = async (req, res) => {
                             debit: 0,
                             kredit: totalAmount,
                             saldo: newBalance,
-                            purchaseRequestId: invoice.purchaseOrder.PurchaseRequest.id, // Fixed: Capitalized PurchaseRequest
+                            purchaseRequestId: invoice.purchaseOrder.PurchaseRequest?.id || null,
                             refId: invoice.id,
                             createdBy: 'SYSTEM'
                         }

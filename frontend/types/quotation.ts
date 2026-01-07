@@ -189,6 +189,11 @@ export interface Product {
   description?: string;
   price: number;
   uom?: string;
+  purchaseUnit?: string;
+  storageUnit?: string;
+  usageUnit?: string;
+  conversionToStorage?: number;
+  conversionToUsage?: number;
   isActive: boolean;
 }
 

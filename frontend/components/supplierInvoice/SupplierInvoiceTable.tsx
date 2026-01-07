@@ -106,6 +106,15 @@ export default function SupplierInvoiceTable({ role }: SupplierInvoiceTableProps
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [alertDialogOpen, setAlertDialogOpen] = useState(false);
 
+    // Action Confirmation Dialog State
+    const [actionDialogOpen, setActionDialogOpen] = useState(false);
+    const [selectedAction, setSelectedAction] = useState<{
+        id: string;
+        newStatus: SupplierInvoiceStatus;
+        label: string;
+        description: string;
+    } | null>(null);
+
     const fetchInvoices = async () => {
         try {
             setLoading(true);
@@ -310,6 +319,32 @@ export default function SupplierInvoiceTable({ role }: SupplierInvoiceTableProps
             console.error("Error updates status:", error);
             toast.error("Failed to update status", { id: "update-status" });
         }
+    };
+
+    const openActionDialog = (id: string, newStatus: SupplierInvoiceStatus, label: string) => {
+        let description = `Apakah Anda yakin ingin mengubah status menjadi ${newStatus.replace(/_/g, " ")}?`;
+
+        // Custom messages based on status
+        if (newStatus === 'APPROVED') {
+            description = "Tindakan ini akan menyetujui invoice total dan akan memproses pencatatan akuntansi. Jika pembayaran TUNAI, saldo kasbon PIC akan otomatis terpotong.";
+        } else if (newStatus === 'UNVERIFIED') {
+            description = "Anda akan mengirimkan dokumen ini untuk diverifikasi admin finance. Pastikan Tanda Terima Invoice sudah dicetak dan fisik dokumen lengkap.";
+        } else if (newStatus === 'VERIFIED') {
+            description = "Anda memverifikasi bahwa dokumen fisik sudah lengkap dan sesuai. Lanjutkan ke Approval?";
+        } else if (newStatus === 'POSTED') {
+            description = "Invoice akan diposting ke Buku Besar (Ledger). Perubahan setelah ini membutuhkan jurnal koreksi.";
+        }
+
+        setSelectedAction({ id, newStatus, label, description });
+        setActionDialogOpen(true);
+    };
+
+    const confirmAction = async () => {
+        if (!selectedAction) return;
+
+        setActionDialogOpen(false);
+        await handleUpdateStatus(selectedAction.id, selectedAction.newStatus);
+        setSelectedAction(null);
     };
 
     return (
@@ -748,7 +783,7 @@ export default function SupplierInvoiceTable({ role }: SupplierInvoiceTableProps
                                                         icon: <Send className="h-4 w-4 mr-2" />,
                                                         className: "bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200",
                                                         disabled: false,
-                                                        action: () => handleUpdateStatus(invoice.id, 'UNVERIFIED') // Default action
+                                                        action: () => openActionDialog(invoice.id, 'UNVERIFIED', 'Submit Doc')
                                                     };
 
                                                     if (status === 'DRAFT' || status === 'REVISION_NEEDED') {
@@ -757,7 +792,7 @@ export default function SupplierInvoiceTable({ role }: SupplierInvoiceTableProps
                                                             icon: <Send className="h-4 w-4 mr-2" />,
                                                             className: "bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200 hover:border-blue-300",
                                                             disabled: false,
-                                                            action: () => handleUpdateStatus(invoice.id, 'UNVERIFIED')
+                                                            action: () => openActionDialog(invoice.id, 'UNVERIFIED', 'Submit')
                                                         };
                                                     } else if (status === 'UNVERIFIED') {
                                                         buttonConfig = {
@@ -765,7 +800,7 @@ export default function SupplierInvoiceTable({ role }: SupplierInvoiceTableProps
                                                             icon: <FileCheck className="h-4 w-4 mr-2" />,
                                                             className: "bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-200 hover:border-amber-300",
                                                             disabled: false, // Check role permission here
-                                                            action: () => handleUpdateStatus(invoice.id, 'VERIFIED')
+                                                            action: () => openActionDialog(invoice.id, 'VERIFIED', 'Verify')
                                                         };
                                                     } else if (status === 'VERIFIED') {
                                                         buttonConfig = {
@@ -773,7 +808,7 @@ export default function SupplierInvoiceTable({ role }: SupplierInvoiceTableProps
                                                             icon: <Send className="h-4 w-4 mr-2" />,
                                                             className: "bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200 hover:border-indigo-300",
                                                             disabled: false,
-                                                            action: () => handleUpdateStatus(invoice.id, 'PENDING_APPROVAL')
+                                                            action: () => openActionDialog(invoice.id, 'PENDING_APPROVAL', 'Request Approval')
                                                         };
                                                     } else if (status === 'PENDING_APPROVAL') {
                                                         buttonConfig = {
@@ -781,7 +816,7 @@ export default function SupplierInvoiceTable({ role }: SupplierInvoiceTableProps
                                                             icon: <CheckCircle className="h-4 w-4 mr-2" />,
                                                             className: "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200 hover:border-emerald-300",
                                                             disabled: false, // Check role permission here
-                                                            action: () => handleUpdateStatus(invoice.id, 'APPROVED')
+                                                            action: () => openActionDialog(invoice.id, 'APPROVED', 'Approve')
                                                         };
                                                     } else if (status === 'APPROVED') {
                                                         buttonConfig = {
@@ -789,7 +824,7 @@ export default function SupplierInvoiceTable({ role }: SupplierInvoiceTableProps
                                                             icon: <FileCheck className="h-4 w-4 mr-2" />,
                                                             className: "bg-purple-50 text-purple-700 hover:bg-purple-100 border-purple-200 hover:border-purple-300",
                                                             disabled: false,
-                                                            action: () => handleUpdateStatus(invoice.id, 'POSTED')
+                                                            action: () => openActionDialog(invoice.id, 'POSTED', 'Post Ledger')
                                                         };
                                                     } else if (status === 'POSTED') {
                                                         buttonConfig = {
@@ -797,7 +832,7 @@ export default function SupplierInvoiceTable({ role }: SupplierInvoiceTableProps
                                                             icon: <DollarSign className="h-4 w-4 mr-2" />,
                                                             className: "bg-cyan-50 text-cyan-700 hover:bg-cyan-100 border-cyan-200 hover:border-cyan-300",
                                                             disabled: false,
-                                                            action: () => handleUpdateStatus(invoice.id, 'AWAITING_PAYMENT')
+                                                            action: () => openActionDialog(invoice.id, 'AWAITING_PAYMENT', 'Schedule Payment')
                                                         };
                                                     } else {
                                                         // Hide button or show disabled state for end states
@@ -896,6 +931,24 @@ export default function SupplierInvoiceTable({ role }: SupplierInvoiceTableProps
                     <AlertDialogFooter>
                         <AlertDialogAction onClick={() => setAlertDialogOpen(false)}>
                             Mengerti
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Status Change Confirmation Dialog */}
+            <AlertDialog open={actionDialogOpen} onOpenChange={setActionDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Konfirmasi Tindakan: {selectedAction?.label}</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {selectedAction?.description}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Batal</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmAction} className="bg-primary hover:bg-primary/90">
+                            Ya, Lanjutkan
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

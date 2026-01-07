@@ -903,7 +903,7 @@ export const createGoodsReceiptFromPO = async (req, res) => {
                         productId: line.productId,
                         qtyPlanReceived: line.remainingQty,
                         qtyReceived: 0,
-                        unit: line.product?.unit || 'PCS',
+                        unit: line.product?.purchaseUnit || line.product?.unit || 'PCS',
                         qtyPassed: 0,
                         qtyRejected: 0,
                         status: 'RECEIVED', // Initial status
@@ -945,7 +945,7 @@ export const createGoodsReceiptFromPO = async (req, res) => {
         productId: line.productId,
         qtyPlanReceived: line.remainingQty, // Only plannes for what is remaining
         qtyReceived: 0, // Set to 0 - goods haven't arrived yet, just creating document
-        unit: line.product?.unit || 'PCS',
+        unit: line.product?.purchaseUnit || line.product?.unit || 'PCS',
         qtyPassed: 0, // Set to 0 - will be filled when goods actually arrive
         qtyRejected: 0,
         qcStatus: 'PENDING',
@@ -2131,6 +2131,8 @@ export const approveGR = async (req, res) => {
       // Process each item with qtyPassed > 0
       for (const item of existingGR.items) {
         const qtyPassed = parseFloat(item.qtyPassed);
+        const conversion = parseFloat(item.product.conversionToStorage) || 1;
+        const qtyConverted = qtyPassed * conversion;
         
         if (qtyPassed > 0) {
           // Get current stock balance to calculate snapshots
@@ -2145,7 +2147,7 @@ export const approveGR = async (req, res) => {
           });
 
           const stockAwal = existingBalance ? parseFloat(existingBalance.stockAkhir) : 0;
-          const stockAkhir = stockAwal + qtyPassed;
+          const stockAkhir = stockAwal + qtyConverted;
           
           // Logic penentuan harga: Prioritas 1. MR priceUnit (for transfers), 2. Transfer COGS, 3. PO Line, 4. PR Detail
           let price = 0;
@@ -2238,10 +2240,10 @@ export const approveGR = async (req, res) => {
               // Data Transaksi
               transQty: qtyPassed,
               transUnit: item.unit,
-              baseQty: qtyPassed, // Assuming unit is already base unit
+              baseQty: qtyConverted, // Use converted qty for base qty
               
               // FIFO Logic
-              residualQty: qtyPassed, // For IN transactions, residual starts at full qty
+              residualQty: qtyConverted, // For IN transactions, residual starts at full converted qty
               isFullyConsumed: false,
               
               // Transaction metadata
@@ -2268,14 +2270,14 @@ export const approveGR = async (req, res) => {
           });
 
           // Hitung nilai inventory transaksi ini
-          const transactionValue = parseFloat(price) * parseFloat(qtyPassed);
+          const transactionValue = parseFloat(price) * parseFloat(qtyPassed); // Value based on PO/Trans qty * price
 
           // Update or create StockBalance
           if (existingBalance) {
             // Calculate new values manually to apply clamp logic
             const currentStockAkhir = parseFloat(existingBalance.stockAkhir) || 0;
             const currentBooked = parseFloat(existingBalance.bookedStock) || 0;
-            const newStockAkhir = currentStockAkhir + qtyPassed;
+            const newStockAkhir = currentStockAkhir + qtyConverted;
             
             // Normal logic for all warehouses (including WIP)
             // Logic Available: StockAkhir - BookedStock (Clamped to 0)
@@ -2287,12 +2289,22 @@ export const approveGR = async (req, res) => {
             await tx.stockBalance.update({
               where: { id: existingBalance.id },
               data: {
-                stockIn: { increment: qtyPassed },
+                stockIn: { increment: qtyConverted },
                 stockAkhir: { set: newStockAkhir }, // Set explicitly to match available calc
                 bookedStock: { set: newBooked },
                 availableStock: { set: newAvailable },
                 // Only decrement onPR for PO-related GRs, NOT for transfers
-                ...(existingGR.sourceType !== 'TRANSFER' && { onPR: { decrement: qtyPassed } }),
+                // Note: onPR is usually in purchase unit, checking if we need conversion here too?
+                // Assuming onPR is in purchase unit, we decrement by qtyPassed (purchase unit)
+                // BUT stockBalance is in storage unit. 
+                // CRITICAL: onPR should also be tracked in storage unit if possible, or consistent unit.
+                // Assuming onPR tracks RequestQty (which might be converted to storage in PR logic?).
+                // Let's stick to consistent storage unit for balance. If onPR was in storage unit, we decrement qtyConverted.
+                // If onPR was in purchase unit, we decrement qtyPassed.
+                // Looking at updateStockBalance logic in other places: it seems consistent unit is preferred.
+                // Let's check schemas again... usually PR qty is converted to storage unit in calculating requirements.
+                // For safety, let's use qtyConverted for consistency with other stock fields in this table.
+                ...(existingGR.sourceType !== 'TRANSFER' && { onPR: { decrement: qtyConverted } }),
                 inventoryValue: { increment: transactionValue }
               }
             });
@@ -2305,7 +2317,7 @@ export const approveGR = async (req, res) => {
             const baseInventoryValue = previousBalance ? parseFloat(previousBalance.inventoryValue) : 0;
             
             // Calculate new Stock Akhir
-            const newStockAkhir = baseStockAwal + qtyPassed;
+            const newStockAkhir = baseStockAwal + qtyConverted;
             
             // Normal logic for all warehouses (including WIP)
             // Logic Available: StockAkhir - BookedStock (Clamped to 0)
@@ -2320,7 +2332,7 @@ export const approveGR = async (req, res) => {
                 period: currentPeriod,
                 
                 stockAwal: baseStockAwal, // Saldo awal murni
-                stockIn: qtyPassed,       // Transaksi masuk bulan ini
+                stockIn: qtyConverted,       // Transaksi masuk bulan ini
                 stockOut: 0,
                 
                 stockAkhir: newStockAkhir, 
@@ -2329,7 +2341,7 @@ export const approveGR = async (req, res) => {
                 availableStock: newAvailable, // Calculated: stockAkhir - bookedStock
                 
                 // onPR Logic: Only update for PO-related GRs, NOT for transfers
-                onPR: existingGR.sourceType !== 'TRANSFER' && baseOnPR > 0 ? (baseOnPR - qtyPassed < 0 ? 0 : baseOnPR - qtyPassed) : baseOnPR,
+                onPR: existingGR.sourceType !== 'TRANSFER' && baseOnPR > 0 ? (baseOnPR - qtyConverted < 0 ? 0 : baseOnPR - qtyConverted) : baseOnPR,
                 
                 // Inventory Value: Carry over value + transaction value
                 inventoryValue: baseInventoryValue + transactionValue

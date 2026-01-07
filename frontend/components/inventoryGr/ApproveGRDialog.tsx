@@ -40,6 +40,7 @@ export function ApproveGRDialog({
     const summary = {
         totalItems: gr.items?.length || 0,
         totalPassed: gr.items?.reduce((sum, item) => sum + Number(item.qtyPassed || 0), 0) || 0,
+        totalStockIn: gr.items?.reduce((sum, item) => sum + (Number(item.qtyPassed || 0) * (Number(item.product?.conversionToStorage) || 1)), 0) || 0,
         totalRejected: gr.items?.reduce((sum, item) => sum + Number(item.qtyRejected || 0), 0) || 0,
         passedItems: gr.items?.filter(item => item.qcStatus === 'PASSED').length || 0,
         partialItems: gr.items?.filter(item => item.qcStatus === 'PARTIAL').length || 0,
@@ -64,7 +65,7 @@ export function ApproveGRDialog({
                         <div className="text-sm text-slate-600 space-y-1">
                             <p>✓ Status GR: <span className="font-bold">COMPLETED</span></p>
                             <p>✓ Stock Balance: <span className="font-bold">Updated</span></p>
-                            <p>✓ Qty masuk stock: <span className="font-bold">{summary.totalPassed.toLocaleString()}</span></p>
+                            <p>✓ Qty masuk stock: <span className="font-bold">{summary.totalStockIn.toLocaleString()}</span> (Storage Unit)</p>
                             {hasAutoGR && (
                                 <>
                                     <div className="mt-2 pt-2 border-t border-green-300">
@@ -178,9 +179,16 @@ export function ApproveGRDialog({
                             <div className="pt-3 mt-3 border-t border-slate-200">
                                 <div className="flex items-center justify-between bg-green-100 p-3 rounded-lg border border-green-300 shadow-sm">
                                     <span className="text-sm font-bold text-green-900 uppercase tracking-wide">Qty Masuk Stock:</span>
-                                    <span className="text-2xl font-extrabold text-green-700">
-                                        {summary.totalPassed.toLocaleString()}
-                                    </span>
+                                    <div className="flex flex-col items-end">
+                                        <span className="text-2xl font-extrabold text-green-700">
+                                            {summary.totalPassed.toLocaleString()}
+                                        </span>
+                                        {summary.totalPassed !== summary.totalStockIn && (
+                                            <span className="text-xs text-slate-500 font-medium">
+                                                (≈ {summary.totalStockIn.toLocaleString()} in Storage Unit)
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                                 {summary.totalRejected > 0 && (
                                     <div className="flex items-center justify-between mt-1">
