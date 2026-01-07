@@ -22,7 +22,6 @@ import ItemsPerPageDropdown from "@/components/shared/itemsPerPageDropdown";
 import {
   PurchaseOrder,
 } from "@/types/poType";
-import { getAllPurchaseOrders } from "@/lib/action/po/po";
 import { Package, ShoppingCart, FileEdit, Clock, AlertCircle, CheckCircle, XCircle, Send } from "lucide-react";
 import { toast } from "sonner";
 import StatusFilterDropdown from "@/components/purchasing/statusFilterDropdown";
@@ -109,14 +108,14 @@ export default function PurchaseOrderPagePic() {
 
   // State
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [paginationMeta, setPaginationMeta] = useState({
     page: 1,
     limit: 10,
     totalCount: 0,
     totalPages: 1,
   });
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [highlightId, setHighlightId] = useState<string | null>(null);
 
@@ -129,7 +128,7 @@ export default function PurchaseOrderPagePic() {
   // Mobile detection
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    const checkMobile = () => setIsMobile(window.innerWidth < 1024);
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
@@ -140,14 +139,38 @@ export default function PurchaseOrderPagePic() {
     setIsLoading(true);
     setError(null);
     try {
-      const result = await getAllPurchaseOrders({
-        page,
-        limit: itemsPerPage,
-        search: urlSearchTerm,
-        status: statusFilter === "ALL" ? undefined : statusFilter,
+      // Build query params
+      const params = new URLSearchParams();
+      params.set('page', page.toString());
+      params.set('limit', itemsPerPage.toString());
+      if (urlSearchTerm) params.set('search', urlSearchTerm);
+      if (statusFilter !== "ALL") params.set('status', statusFilter);
+
+      // Direct fetch to backend API (bypasses Next.js server action caching)
+      const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/po?${params.toString()}`;
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
+        cache: 'no-store',
       });
 
-      setPurchaseOrders(result.data);
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+
+      setPurchaseOrders(result.data || []);
       setPaginationMeta({
         page: result.pagination?.currentPage || 1,
         limit: result.pagination?.pageSize || 10,
@@ -156,8 +179,13 @@ export default function PurchaseOrderPagePic() {
       });
     } catch (err: any) {
       console.error("Error fetching POs:", err);
-      setError(err.message || "Failed to fetch purchase orders");
-      toast.error("Gagal memuat data purchase order");
+      if (err.name === 'AbortError') {
+        setError("Request timed out (15s)");
+        toast.error("Request timeout - silakan coba lagi");
+      } else {
+        setError(err.message || "Failed to fetch purchase orders");
+        toast.error("Gagal memuat data purchase order");
+      }
     } finally {
       setIsLoading(false);
       setIsInitialLoad(false);
@@ -166,7 +194,7 @@ export default function PurchaseOrderPagePic() {
 
   // Initial Fetch & Params Sync
   useEffect(() => {
-    if (!userLoading && user?.role === "pic") {
+    if (!userLoading && user) {
       fetchPurchaseOrders();
     }
   }, [fetchPurchaseOrders, userLoading, user]);
@@ -227,7 +255,7 @@ export default function PurchaseOrderPagePic() {
     }
   }, [userLoading, user, router]);
 
-  if (userLoading || isInitialLoad) {
+  if (userLoading) {
     return (
       <PicLayout title="Purchase Order Management" role="pic">
         <div className="flex h-[80vh] items-center justify-center">
@@ -352,7 +380,7 @@ export default function PurchaseOrderPagePic() {
               gradientTo="to-emerald-600"
               showActionArea={!isMobile}
               actionArea={
-                <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                <div className="flex flex-col sm:flex-row flex-wrap gap-3 w-full sm:w-auto items-center justify-end">
                   <SearchInput
                     onSearch={handleSearch}
                     placeholder="Search PO Number, Supplier..."
@@ -384,6 +412,7 @@ export default function PurchaseOrderPagePic() {
                     variant="default"
                     size={isMobile ? "sm" : "default"}
                     disabled={isLoading}
+                    className="ml-auto"
                   />
                 </div>
               }
@@ -392,17 +421,17 @@ export default function PurchaseOrderPagePic() {
             {/* Mobile Action Area */}
             {isMobile && (
               <div className="p-3 bg-card rounded-lg border shadow-sm">
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 items-center">
                   <SearchInput
                     onSearch={handleSearch}
                     placeholder="Search PO Number, Supplier..."
-                    className="w-full"
+                    className="w-full sm:flex-1 min-w-[200px]"
                     disabled={isLoading}
                     initialValue={urlSearchTerm}
                   />
 
-                  <div className="flex gap-2">
-                    <div className="flex-1">
+                  <div className="flex flex-row gap-2 w-full sm:w-auto">
+                    <div className="flex-1 sm:flex-none">
                       <StatusFilterDropdown
                         statusFilter={statusFilter}
                         setStatusFilter={handleStatusFilterChange}
@@ -411,7 +440,7 @@ export default function PurchaseOrderPagePic() {
                       />
                     </div>
 
-                    <div className="flex-1">
+                    <div className="flex-1 sm:flex-none">
                       <ItemsPerPageDropdown
                         itemsPerPage={itemsPerPage}
                         itemsPerPageOptions={[10, 20, 50]}
@@ -427,7 +456,7 @@ export default function PurchaseOrderPagePic() {
                     variant="default"
                     size="sm"
                     disabled={isLoading}
-                    className="w-full"
+                    className="w-full sm:w-auto sm:ml-auto"
                   />
                 </div>
               </div>

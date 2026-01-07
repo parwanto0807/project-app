@@ -1445,8 +1445,8 @@ export function SalesOrderTable({
 
                 {isLoading ? (
                     <>
-                        {/* Mobile Skeleton */}
-                        <div className="md:hidden space-y-2 p-2">
+                        {/* Mobile & Tablet Skeleton */}
+                        <div className="lg:hidden space-y-2 p-2">
                             {[...Array(5)].map((_, i) => (
                                 <div key={i} className="border rounded-lg p-3 bg-white">
                                     <div className="flex items-center justify-between mb-2">
@@ -1466,7 +1466,7 @@ export function SalesOrderTable({
                         </div>
 
                         {/* Desktop Skeleton */}
-                        <div className="hidden md:block space-y-4 p-6">
+                        <div className="hidden lg:block space-y-4 p-6">
                             {[...Array(5)].map((_, i) => (
                                 <div
                                     key={i}
@@ -1485,8 +1485,8 @@ export function SalesOrderTable({
                     </>
                 ) : (
                     <>
-                        {/* Mobile View */}
-                        <div className="md:hidden space-y-1 p-1">
+                        {/* Mobile & Tablet View */}
+                        <div className="lg:hidden grid grid-cols-1 md:grid-cols-2 gap-4 p-2">
                             {salesOrders.map((order) => {
                                 const hasSPK = order.spk && order.spk.length > 0;
 
@@ -1494,11 +1494,11 @@ export function SalesOrderTable({
                                     <div
                                         key={order.id}
                                         className={cn(
-                                            "border rounded-lg bg-white dark:bg-slate-800 transition-colors",
+                                            "border rounded-lg bg-white dark:bg-slate-800 transition-colors h-full flex flex-col shadow-sm hover:shadow-md",
                                             highlightId === order.id ? "bg-yellow-100 border-yellow-300" : ""
                                         )}
                                     >
-                                        <div className="p-2">
+                                        <div className="p-3 flex-1 flex flex-col">
                                             <div className="flex items-center justify-between mb-2">
                                                 <div className="flex items-center gap-2 flex-1 min-w-0">
                                                     <div className="flex items-center justify-center h-8 w-8 rounded-full bg-blue-100 flex-shrink-0">
@@ -1606,7 +1606,7 @@ export function SalesOrderTable({
                                             )}
 
                                             {/* Actions untuk mobile */}
-                                            <div className="mt-2 flex justify-end gap-1">
+                                            <div className="mt-auto pt-3 flex justify-end gap-1 border-t border-gray-100 dark:border-gray-700">
                                                 <ActionsCell
                                                     order={order}
                                                     onDeleteSuccess={handleDeleteSuccess}
@@ -1683,7 +1683,7 @@ export function SalesOrderTable({
                         </div>
 
                         {/* Desktop View */}
-                        <div className="hidden md:block rounded-b-lg">
+                        <div className="hidden lg:block rounded-b-lg">
                             <Table>
                                 <TableHeader className="bg-muted/50">
                                     {table.getHeaderGroups().map((headerGroup) => (

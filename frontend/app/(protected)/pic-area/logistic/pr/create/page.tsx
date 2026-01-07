@@ -236,35 +236,37 @@ export default function CreatePRPagePIC() {
         role: "pic",
         children: (
             <>
-                <div className="h-full flex flex-col min-h-0 ml-4">
-                    <Breadcrumb>
-                        <BreadcrumbList>
-                            <BreadcrumbItem>
-                                <BreadcrumbLink asChild>
+                <div className="h-full flex flex-col min-h-0">
+                    <div className="flex-shrink-0 px-4 pt-4">
+                        <Breadcrumb>
+                            <BreadcrumbList>
+                                <BreadcrumbItem>
+                                    <BreadcrumbLink asChild>
+                                        <Badge variant="outline">
+                                            <Link href="/pic-area">Dashboard</Link>
+                                        </Badge>
+                                    </BreadcrumbLink>
+                                </BreadcrumbItem>
+                                <BreadcrumbSeparator />
+                                <BreadcrumbItem>
+                                    <BreadcrumbLink asChild>
+                                        <Badge variant="outline">
+                                            <Link href="/pic-area/logistic/pr">Purchase Request List</Link>
+                                        </Badge>
+                                    </BreadcrumbLink>
+                                </BreadcrumbItem>
+                                <BreadcrumbSeparator />
+                                <BreadcrumbItem>
                                     <Badge variant="outline">
-                                        <Link href="/pic-area">Dashboard</Link>
+                                        <BreadcrumbPage>Create PR</BreadcrumbPage>
                                     </Badge>
-                                </BreadcrumbLink>
-                            </BreadcrumbItem>
-                            <BreadcrumbSeparator />
-                            <BreadcrumbItem>
-                                <BreadcrumbLink asChild>
-                                    <Badge variant="outline">
-                                        <Link href="/pic-area/logistic/pr">Purchase Request List</Link>
-                                    </Badge>
-                                </BreadcrumbLink>
-                            </BreadcrumbItem>
-                            <BreadcrumbSeparator />
-                            <BreadcrumbItem>
-                                <Badge variant="outline">
-                                    <BreadcrumbPage>Create PR</BreadcrumbPage>
-                                </Badge>
-                            </BreadcrumbItem>
-                        </BreadcrumbList>
-                    </Breadcrumb>
+                                </BreadcrumbItem>
+                            </BreadcrumbList>
+                        </Breadcrumb>
+                    </div>
 
-                    <div className="h-full w-full">
-                        <div className="flex-1 space-y-2 py-2 pt-1 md:py-4">
+                    <div className="flex-1 min-h-0 overflow-auto">
+                        <div className="space-y-4 p-2 md:p-4">
                             {/* Tampilkan submit error jika ada */}
                             {submitError && (
                                 <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">

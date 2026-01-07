@@ -535,7 +535,7 @@ export function PurchaseRequestTable(props: PurchaseRequestTableProps) {
                     </div>
 
                     {/* Mobile Card View */}
-                    <div className="lg:hidden space-y-3 mt-4">
+                    <div className="lg:hidden mt-4 w-full">
                         <MobileCardView
                             purchaseRequests={purchaseRequests}
                             isLoading={false}

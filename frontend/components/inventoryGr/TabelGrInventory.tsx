@@ -59,6 +59,7 @@ import {
 } from '@/components/ui/tooltip';
 import { deleteGoodsReceiptAction } from '@/lib/action/grInventory/grAction';
 import { Sheet } from '@/components/ui/sheet';
+import { Card, CardContent } from "@/components/ui/card";
 import { GRDetailSheet } from './GRDetailSheet';
 import { MarkAsArrivedDialog } from './MarkAsArrivedDialog';
 import { QCCheckDialog } from './QCCheckDialog';
@@ -99,7 +100,7 @@ const getWarehouseStyle = (name: string = "") => {
 };
 
 const getStatusBadge = (status: DocumentStatus) => {
-    const commonClasses = "px-3 py-1 rounded-full text-xs font-semibold border flex items-center gap-1.5 w-fit";
+    const commonClasses = "px-3 py-1 rounded-full text-[10px] font-semibold border flex items-center gap-1.5 w-fit";
 
     switch (status) {
         case DocumentStatus.DRAFT:
@@ -223,6 +224,111 @@ export function TabelGrInventory({
         setApproveDialogOpen(true);
     };
 
+    const renderMobileCard = (gr: GoodsReceipt) => (
+        <Card key={gr.id} className="rounded-xl border shadow-sm bg-white dark:bg-slate-900 overflow-hidden hover:shadow-md transition-all">
+            <CardContent className="p-3">
+                <div className="flex justify-between items-start mb-3">
+                    <div>
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[10px] font-bold text-slate-400">GR NUMBER</span>
+                        </div>
+                        <span className="font-mono font-bold text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">{gr.grNumber}</span>
+                    </div>
+                    {getStatusBadge(gr.status)}
+                </div>
+
+                <div className="space-y-2 mb-4">
+                    <div className="grid grid-cols-2 gap-2 text-[10px]">
+                        <div className="flex flex-col gap-1">
+                            <span className="text-slate-400">Vendor</span>
+                            <div className="flex items-center gap-1.5 font-medium text-slate-700">
+                                <Truck className="w-3 h-3 text-slate-400" />
+                                <span className="truncate">{gr.PurchaseOrder?.supplier?.name || <span className="text-[10px] text-slate-400 italic font-normal">Internal Transaction</span>}</span>
+                            </div>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                            <span className="text-slate-400">Warehouse</span>
+                            <div className="flex items-center gap-1.5 font-medium text-slate-700">
+                                <Store className="w-3 h-3 text-slate-400" />
+                                <span className="truncate">{gr.Warehouse?.name || '-'}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-2 grid grid-cols-2 gap-3 text-[10px]">
+                        <div>
+                            <span className="text-slate-400 block mb-0.5">Created</span>
+                            <span className="font-medium text-slate-700">{gr.createdAt ? format(new Date(gr.createdAt), "dd MMM yyyy", { locale: id }) : '-'}</span>
+                        </div>
+                        <div>
+                            <span className="text-slate-400 block mb-0.5">Note</span>
+                            <span className="font-mono font-medium text-slate-700">{gr.vendorDeliveryNote || '-'}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2 justify-end border-t border-slate-100 pt-3">
+                    <TooltipProvider>
+                        {gr.status === DocumentStatus.DRAFT && (
+                            gr.sourceType === 'TRANSFER' ? (
+                                gr.transferStatus === 'IN_TRANSIT' ? (
+                                    <Button variant="default" size="sm" onClick={() => handleMarkArrived(gr)} className="h-8 text-[10px] px-3 bg-blue-600 hover:bg-blue-700">
+                                        <Truck className="h-3 w-3 mr-1.5" /> Terima
+                                    </Button>
+                                ) : (
+                                    <Button variant="outline" size="sm" disabled className="h-8 text-[10px] px-3 bg-amber-50 text-amber-700 border-amber-300 opacity-75">
+                                        <AlertCircle className="h-3 w-3 mr-1.5" /> Belum Diambil
+                                    </Button>
+                                )
+                            ) : (
+                                (() => {
+                                    const allItemsPending = gr.items?.every(item => item.qcStatus === QCStatus.PENDING);
+                                    if (!allItemsPending) return null;
+                                    const isWIPWarehouse = gr.Warehouse?.isWip === true;
+                                    if (isWIPWarehouse) {
+                                        const poLines = gr.PurchaseOrder?.lines || [];
+                                        const hasUncheckedReports = poLines.some((line: any) => line.checkPurchaseExecution === false);
+                                        const allFieldReportsChecked = poLines.length > 0 && poLines.every((line: any) => line.checkPurchaseExecution === true);
+                                        if (hasUncheckedReports || !allFieldReportsChecked) {
+                                            return (
+                                                <Button variant="outline" size="sm" disabled className="h-8 text-[10px] px-3 bg-amber-50 text-amber-700 border-amber-300 opacity-75">
+                                                    <AlertCircle className="h-3 w-3 mr-1.5" /> Cek Nota
+                                                </Button>
+                                            );
+                                        }
+                                    }
+                                    return (
+                                        <Button variant="default" size="sm" onClick={() => handleMarkArrived(gr)} className="h-8 text-[10px] px-3 bg-blue-600 hover:bg-blue-700">
+                                            <Truck className="h-3 w-3 mr-1.5" /> Terima
+                                        </Button>
+                                    );
+                                })()
+                            )
+                        )}
+
+                        {(gr.status === DocumentStatus.ARRIVED || gr.status === DocumentStatus.DRAFT) && gr.items?.every(item => item.qcStatus === QCStatus.ARRIVED) && (
+                            <Button variant="default" size="sm" onClick={() => handleQCCheck(gr)} className="h-8 text-[10px] px-3 bg-green-600 hover:bg-green-700">
+                                <PackageCheck className="h-3 w-3 mr-1.5" /> QC Check
+                            </Button>
+                        )}
+
+                        {(gr.status === DocumentStatus.PASSED || gr.status === DocumentStatus.DRAFT) && gr.items?.every(item =>
+                            item.qcStatus === QCStatus.PASSED || item.qcStatus === QCStatus.REJECTED || item.qcStatus === QCStatus.PARTIAL
+                        ) && gr.items.length > 0 && (
+                                <Button variant="default" size="sm" onClick={() => handleApprove(gr)} className="h-8 text-[10px] px-3 bg-emerald-600 hover:bg-emerald-700">
+                                    <ThumbsUp className="h-3 w-3 mr-1.5" /> Approve
+                                </Button>
+                            )}
+
+                        <Button variant="outline" size="sm" onClick={() => handleView(gr)} className="h-8 px-2 bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700">
+                            <Eye className="h-3 w-3" />
+                        </Button>
+                    </TooltipProvider>
+                </div>
+            </CardContent>
+        </Card>
+    );
+
     if (isLoading) {
         return (
             <div className="space-y-3">
@@ -245,7 +351,7 @@ export function TabelGrInventory({
 
     return (
         <div className="space-y-4">
-            <div className="rounded-md border">
+            <div className="rounded-md border hidden lg:block">
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -344,7 +450,7 @@ export function TabelGrInventory({
                                     {/* </TableCell>
                                 <TableCell> */}
                                     {gr.notes ? (
-                                        <div className="max-w-[200px] text-sm stext-slate-600 text-wrap" title={gr.notes}>
+                                        <div className="max-w-[500px] text-sm stext-slate-600 text-wrap" title={gr.notes}>
                                             {gr.notes}
                                         </div>
                                     ) : (
@@ -355,7 +461,7 @@ export function TabelGrInventory({
                                     <div className="flex items-center gap-2">
                                         <Truck className="w-4 h-4 text-slate-400" />
                                         <span className="font-bold text-slate-800 text-sm">
-                                            {gr.PurchaseOrder?.supplier?.name || 'N/A'}
+                                            {gr.PurchaseOrder?.supplier?.name || <span className="text-[10px] text-slate-500 italic font-normal">Internal Transaction</span>}
                                         </span>
                                     </div>
                                     {/* </TableCell>
@@ -604,6 +710,10 @@ export function TabelGrInventory({
                         ))}
                     </TableBody>
                 </Table>
+            </div>
+
+            <div className="lg:hidden grid grid-cols-1 md:grid-cols-2 gap-2">
+                {sortedData.map(gr => renderMobileCard(gr))}
             </div>
 
             {onPageChange && totalPages > 1 && (

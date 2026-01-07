@@ -79,7 +79,7 @@ export default function SalesOrderPageAdmin() {
   const { user, isLoading: userLoading } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const isMobile = useMediaQuery("(max-width: 768px)");
+  const isMobile = useMediaQuery("(max-width: 1024px)");
   const urlSearchTerm = searchParams.get("search") || "";
   const urlPage = Number(searchParams.get("page")) || 1;
   const urlPageSize = Number(searchParams.get("pageSize")) || 10;
@@ -407,7 +407,7 @@ export default function SalesOrderPageAdmin() {
                 gradientTo="to-purple-600"
                 showActionArea={!isMobile}
                 actionArea={
-                  <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                  <div className="flex flex-col sm:flex-row flex-wrap gap-3 w-full sm:w-auto items-center justify-end">
                     <SearchInput
                       onSearch={handleSearch}
                       placeholder="Search Sales Order..."
@@ -437,6 +437,7 @@ export default function SalesOrderPageAdmin() {
                       variant="default"
                       size={isMobile ? "sm" : "default"}
                       disabled={isSalesOrderFetching}
+                      className="ml-auto"
                     />
                   </div>
                 }
@@ -445,17 +446,17 @@ export default function SalesOrderPageAdmin() {
               {/* Action Area untuk Mobile */}
               {isMobile && (
                 <div className="mt-4 p-4 bg-white dark:bg-slate-900 rounded-lg shadow-sm border">
-                  <div className="flex flex-col gap-3">
+                  <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 items-center">
                     <SearchInput
                       onSearch={handleSearch}
                       placeholder="Search Sales Order..."
-                      className="w-full"
+                      className="w-full sm:flex-1 min-w-[200px]"
                       disabled={userLoading}
                       initialValue={urlSearchTerm}
                     />
 
-                    <div className="flex gap-2">
-                      <div className="flex-1">
+                    <div className="flex flex-row gap-2 w-full sm:w-auto">
+                      <div className="flex-1 sm:flex-none">
                         <StatusFilterDropdown
                           statusFilter={statusFilter}
                           setStatusFilter={handleStatusFilterChange}
@@ -464,7 +465,7 @@ export default function SalesOrderPageAdmin() {
                         />
                       </div>
 
-                      <div className="flex-1">
+                      <div className="flex-1 sm:flex-none">
                         <ItemsPerPageDropdown
                           itemsPerPage={itemsPerPage}
                           itemsPerPageOptions={[10, 20, 50, 100, 200, 300, 400]}
@@ -480,7 +481,7 @@ export default function SalesOrderPageAdmin() {
                       variant="default"
                       size="sm"
                       disabled={isSalesOrderFetching}
-                      className="w-full"
+                      className="w-full sm:w-auto sm:ml-auto"
                     />
                   </div>
                 </div>

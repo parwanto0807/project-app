@@ -19,7 +19,7 @@ interface DashboardClientProps {
         inactive: number;
     };
     defaultPeriod: string;
-    allWarehouses: { id: string; name: string; isMain: boolean }[];
+    allWarehouses: { id: string; name: string; isMain: boolean; isWip: boolean }[];
     role: string;
 }
 
@@ -46,7 +46,6 @@ export default function DashboardClient({
     const [loading, setLoading] = useState(false);
 
     // States untuk Filter (Menggunakan Period tunggal)
-    // States untuk Filter (Menggunakan Period tunggal)
     const [filters, setFilters] = useState({
         period: defaultPeriod, // Contoh: "2024-12"
         searchTerm: "",
@@ -60,7 +59,7 @@ export default function DashboardClient({
 
     // --- Responsive View Logic ---
     useEffect(() => {
-        const checkMobile = () => setViewMode(window.innerWidth < 768 ? 'mobile' : 'desktop');
+        const checkMobile = () => setViewMode(window.innerWidth < 1024 ? 'mobile' : 'desktop');
         checkMobile();
         window.addEventListener('resize', checkMobile);
         return () => window.removeEventListener('resize', checkMobile);

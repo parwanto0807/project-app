@@ -177,115 +177,117 @@ const MobilePOCard = ({ po, onView, basePath }: {
     const StatusIcon = statusConfig[po.status as keyof typeof statusConfig]?.icon || Clock;
 
     return (
-        <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm mb-3">
-            {/* Header */}
-            <div className="flex justify-between items-start mb-3">
-                <div>
-                    <Link
-                        href={`${basePath}/${po.id}`}
-                        className="hover:underline inline-block"
-                    >
-                        <Badge
-                            variant="outline"
-                            className="bg-blue-50 text-blue-700 border-blue-200 font-semibold text-base"
+        <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm h-full flex flex-col">
+            <div className="flex-1 space-y-3">
+                {/* Header */}
+                <div className="flex justify-between items-start mb-3">
+                    <div>
+                        <Link
+                            href={`${basePath}/${po.id}`}
+                            className="hover:underline inline-block"
                         >
-                            {po.poNumber}
-                        </Badge>
-                    </Link>
-                    {po.PurchaseRequest?.nomorPr && (
-                        <div className="flex items-center gap-1.5 mt-2">
-                            <span className="text-xs text-muted-foreground">dari</span>
                             <Badge
                                 variant="outline"
-                                className="bg-purple-50 text-purple-700 border-purple-200 text-xs"
+                                className="bg-blue-50 text-blue-700 border-blue-200 font-semibold text-base"
                             >
-                                {po.PurchaseRequest.nomorPr}
+                                {po.poNumber}
+                            </Badge>
+                        </Link>
+                        {po.PurchaseRequest?.nomorPr && (
+                            <div className="flex items-center gap-1.5 mt-2">
+                                <span className="text-xs text-muted-foreground">dari</span>
+                                <Badge
+                                    variant="outline"
+                                    className="bg-purple-50 text-purple-700 border-purple-200 text-xs"
+                                >
+                                    {po.PurchaseRequest.nomorPr}
+                                </Badge>
+                            </div>
+                        )}
+                        <div className="flex items-center gap-2 mt-1">
+                            <StatusIcon className={cn("h-4 w-4", statusConfig[po.status as keyof typeof statusConfig]?.iconColor)} />
+                            <Badge
+                                variant="outline"
+                                className={cn(
+                                    statusConfig[po.status as keyof typeof statusConfig]?.className,
+                                    "font-medium text-xs"
+                                )}
+                            >
+                                {statusConfig[po.status as keyof typeof statusConfig]?.label || po.status}
                             </Badge>
                         </div>
+                    </div>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => onView(po.id)}
+                    >
+                        <Eye className="h-4 w-4 text-blue-600" />
+                    </Button>
+                </div>
+
+                {/* Details */}
+                <div className="space-y-2 text-sm">
+                    <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-gray-400" />
+                        <span className="font-medium">Supplier:</span>
+                        <span className="truncate">{po.supplier?.name || "N/A"}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <Building className="h-4 w-4 text-gray-400" />
+                        <span className="font-medium">Gudang:</span>
+                        <span className="truncate">{po.warehouse?.name || "N/A"}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-gray-400" />
+                        <span className="font-medium">Tanggal:</span>
+                        <span>{format(new Date(po.orderDate), "dd MMM yyyy", { locale: id })}</span>
+                    </div>
+
+                    {po.expectedDeliveryDate && (
+                        <div className="flex items-center gap-2">
+                            <Truck className="h-4 w-4 text-gray-400" />
+                            <span className="font-medium">Pengiriman:</span>
+                            <span>{format(new Date(po.expectedDeliveryDate), "dd MMM yyyy", { locale: id })}</span>
+                        </div>
                     )}
-                    <div className="flex items-center gap-2 mt-1">
-                        <StatusIcon className={cn("h-4 w-4", statusConfig[po.status as keyof typeof statusConfig]?.iconColor)} />
-                        <Badge
-                            variant="outline"
-                            className={cn(
-                                statusConfig[po.status as keyof typeof statusConfig]?.className,
-                                "font-medium text-xs"
-                            )}
-                        >
-                            {statusConfig[po.status as keyof typeof statusConfig]?.label || po.status}
+
+                    <div className="flex items-center gap-2">
+                        <Package className="h-4 w-4 text-gray-400" />
+                        <span className="font-medium">Items:</span>
+                        <span>{po.lines?.length || 0} item</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        {/* <DollarSign className="h-4 w-4 text-gray-400" /> */}
+                        <span className="font-medium">Total:</span>
+                        <span className="font-semibold ml-auto">
+                            {currencyFormatter.format(po.totalAmount)}
+                        </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <span className="font-medium">Payment:</span>
+                        <Badge variant="outline" className="text-xs">
+                            {po.paymentTerm?.replace(/_/g, ' ') || 'N/A'}
                         </Badge>
                     </div>
+
+                    {po.project?.name && (
+                        <div className="flex items-center gap-2">
+                            <Folder className="h-4 w-4 text-gray-400" />
+                            <span className="font-medium">Proyek:</span>
+                            <span className="truncate">{po.project.name}</span>
+                        </div>
+                    )}
                 </div>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => onView(po.id)}
-                >
-                    <Eye className="h-4 w-4 text-blue-600" />
-                </Button>
-            </div>
-
-            {/* Details */}
-            <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-gray-400" />
-                    <span className="font-medium">Supplier:</span>
-                    <span className="truncate">{po.supplier?.name || "N/A"}</span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                    <Building className="h-4 w-4 text-gray-400" />
-                    <span className="font-medium">Gudang:</span>
-                    <span className="truncate">{po.warehouse?.name || "N/A"}</span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-gray-400" />
-                    <span className="font-medium">Tanggal:</span>
-                    <span>{format(new Date(po.orderDate), "dd MMM yyyy", { locale: id })}</span>
-                </div>
-
-                {po.expectedDeliveryDate && (
-                    <div className="flex items-center gap-2">
-                        <Truck className="h-4 w-4 text-gray-400" />
-                        <span className="font-medium">Pengiriman:</span>
-                        <span>{format(new Date(po.expectedDeliveryDate), "dd MMM yyyy", { locale: id })}</span>
-                    </div>
-                )}
-
-                <div className="flex items-center gap-2">
-                    <Package className="h-4 w-4 text-gray-400" />
-                    <span className="font-medium">Items:</span>
-                    <span>{po.lines?.length || 0} item</span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                    {/* <DollarSign className="h-4 w-4 text-gray-400" /> */}
-                    <span className="font-medium">Total:</span>
-                    <span className="font-semibold ml-auto">
-                        {currencyFormatter.format(po.totalAmount)}
-                    </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                    <span className="font-medium">Payment:</span>
-                    <Badge variant="outline" className="text-xs">
-                        {po.paymentTerm?.replace(/_/g, ' ') || 'N/A'}
-                    </Badge>
-                </div>
-
-                {po.project?.name && (
-                    <div className="flex items-center gap-2">
-                        <Folder className="h-4 w-4 text-gray-400" />
-                        <span className="font-medium">Proyek:</span>
-                        <span className="truncate">{po.project.name}</span>
-                    </div>
-                )}
             </div>
 
             {/* Action Buttons (Visible on Mobile) */}
-            <div className="mt-4 pt-3 border-t">
+            <div className="mt-auto pt-3 border-t">
                 <Button
                     variant="default"
                     size="sm"
@@ -382,7 +384,7 @@ export default function PurchaseOrderTable({
     return (
         <>
             {/* View Toggle for Mobile */}
-            <div className="flex justify-between items-center mb-4 md:hidden">
+            <div className="flex justify-between items-center mb-4 lg:hidden">
                 <h3 className="text-lg font-semibold">Purchase Orders</h3>
                 <Button
                     variant="outline"
@@ -414,7 +416,7 @@ export default function PurchaseOrderTable({
             </div>
 
             {/* Mobile Card View */}
-            <div className="md:hidden">
+            <div className="lg:hidden">
                 {isLoading ? (
                     <div className="space-y-3">
                         {Array.from({ length: 3 }).map((_, index) => (
@@ -429,9 +431,10 @@ export default function PurchaseOrderTable({
                         ))}
                     </div>
                 ) : viewMode === 'card' ? (
-                    <div className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {purchaseOrders.map((po) => (
                             <MobilePOCard
+                                key={po.id}
                                 po={po}
                                 basePath={basePath}
                                 onView={handleView}
@@ -501,7 +504,7 @@ export default function PurchaseOrderTable({
             </div>
 
             {/* Desktop Table View */}
-            <div className="hidden md:block overflow-x-auto">
+            <div className="hidden lg:block overflow-x-auto">
                 <Table>
                     <TableHeader>
                         <TableRow>

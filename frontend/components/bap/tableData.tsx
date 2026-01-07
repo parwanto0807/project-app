@@ -493,7 +493,7 @@ export function BAPDataTable({
             <Card className="w-full border-0 shadow-xl">
                 <CardContent className="p-1 md:p-6">
                     {/* Mobile View */}
-                    <div className="md:hidden space-y-3">
+                    <div className="lg:hidden grid grid-cols-1 md:grid-cols-2 gap-4">
                         {table.getRowModel().rows?.length ? (
                             table.getRowModel().rows.map((row) => {
                                 const bap = row.original;
@@ -711,7 +711,7 @@ export function BAPDataTable({
                     </div>
 
                     {/* Desktop Version - Premium Design */}
-                    <div className="hidden md:block rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm overflow-hidden">
+                    <div className="hidden lg:block rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm overflow-hidden">
                         <Table>
                             <TableHeader>
                                 {table.getHeaderGroups().map((headerGroup) => (

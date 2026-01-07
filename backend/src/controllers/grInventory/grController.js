@@ -2131,7 +2131,11 @@ export const approveGR = async (req, res) => {
       // Process each item with qtyPassed > 0
       for (const item of existingGR.items) {
         const qtyPassed = parseFloat(item.qtyPassed);
-        const conversion = parseFloat(item.product.conversionToStorage) || 1;
+        // FIX: For TRANSFER source type, allow 1:1 conversion (no conversion) regarding input qty vs stock qty
+        // to prevent inflating stock when transferring between warehouses.
+        const conversion = existingGR.sourceType === 'TRANSFER' 
+            ? 1 
+            : (parseFloat(item.product.conversionToStorage) || 1);
         const qtyConverted = qtyPassed * conversion;
         
         if (qtyPassed > 0) {
@@ -2222,6 +2226,31 @@ export const approveGR = async (req, res) => {
 
           if (isNaN(price)) price = 0;
 
+          // Calculate inventory value for this transaction
+          // The inventory value should represent the total value of goods added to stock (in storage/base units)
+          // 
+          // For PO: 
+          //   - price is per purchase unit (e.g., per Box)
+          //   - qtyPassed is in purchase units (e.g., 2 Boxes)
+          //   - qtyConverted is in storage units (e.g., 20 Pcs if conversionToStorage=10)
+          //   - Total value = price * qtyPassed (e.g., 100k/Box * 2 Boxes = 200k)
+          //
+          // For TRANSFER:
+          //   - price is per usage/storage unit from MR FIFO (e.g., per Pcs)
+          //   - qtyPassed = qtyConverted (since conversion=1)
+          //   - Total value = price * qtyPassed
+          //
+          // Both cases: transactionValue = price * qtyPassed is correct
+          const transactionValue = parseFloat(price) * parseFloat(qtyPassed);
+
+          // Calculate price per base/storage unit for FIFO
+          // This is critical for correct FIFO costing when stock is issued via MR
+          // For PO: price is per purchase unit, need to convert to per storage unit
+          // For TRANSFER: price is already per storage/usage unit (from MR FIFO)
+          const pricePerBaseUnit = existingGR.sourceType === 'TRANSFER' 
+            ? price  // Already per storage unit
+            : (qtyConverted > 0 ? transactionValue / qtyConverted : 0); // Total value / storage qty
+
           // Create StockDetail entry with all required fields
           // Using connect for relations to avoid "Argument product is missing" error
           const newStockDetail = await tx.stockDetail.create({
@@ -2232,24 +2261,24 @@ export const approveGR = async (req, res) => {
               warehouse: {
                 connect: { id: existingGR.warehouseId }
               },
-              
+
               // Audit Trail: Running Balance
               stockAwalSnapshot: stockAwal,
               stockAkhirSnapshot: stockAkhir,
-              
+
               // Data Transaksi
               transQty: qtyPassed,
               transUnit: item.unit,
               baseQty: qtyConverted, // Use converted qty for base qty
-              
-              // FIFO Logic
+
+              // FIFO
               residualQty: qtyConverted, // For IN transactions, residual starts at full converted qty
               isFullyConsumed: false,
-              
+
               // Transaction metadata
               type: 'IN',
               source: existingGR.sourceType || 'PO', // Use actual source type (PO, TRANSFER, DIRECT, etc.)
-              pricePerUnit: price,
+              pricePerUnit: pricePerBaseUnit, // Price per BASE/STORAGE unit for correct FIFO
               referenceNo: existingGR.grNumber,
               notes: `GR ${existingGR.grNumber} - QC Passed`
               // transactionDate removed as it is not in StockDetail schema, uses createdAt default
@@ -2260,7 +2289,7 @@ export const approveGR = async (req, res) => {
           // Logic Carry-Over: Cek saldo bulan sebelumnya
           const previousPeriod = new Date(currentPeriod);
           previousPeriod.setMonth(previousPeriod.getMonth() - 1);
-          
+
           const previousBalance = await tx.stockBalance.findFirst({
             where: {
               productId: item.productId,
@@ -2269,14 +2298,12 @@ export const approveGR = async (req, res) => {
             }
           });
 
-          // Hitung nilai inventory transaksi ini
-          const transactionValue = parseFloat(price) * parseFloat(qtyPassed); // Value based on PO/Trans qty * price
-
           // Update or create StockBalance
           if (existingBalance) {
             // Calculate new values manually to apply clamp logic
             const currentStockAkhir = parseFloat(existingBalance.stockAkhir) || 0;
             const currentBooked = parseFloat(existingBalance.bookedStock) || 0;
+
             const newStockAkhir = currentStockAkhir + qtyConverted;
             
             // Normal logic for all warehouses (including WIP)

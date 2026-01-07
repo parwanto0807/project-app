@@ -134,7 +134,7 @@ export default function SpkPageAdmin() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const searchParams = useSearchParams();
-  const isMobile = useMediaQuery("(max-width: 768px)");
+  const isMobile = useMediaQuery("(max-width: 1024px)");
   const router = useRouter();
 
   // Ambil nilai langsung dari URL params
@@ -448,7 +448,8 @@ export default function SpkPageAdmin() {
     children: (
       <div className="h-full flex flex-col min-h-0">
         {/* Breadcrumb */}
-        <div className="flex-shrink-0 ml-4">
+        {/* Breadcrumb */}
+        <div className="flex-shrink-0 px-4 pt-4">
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
@@ -478,11 +479,11 @@ export default function SpkPageAdmin() {
 
         {/* Konten utama yang bisa scroll */}
         <div className="flex-1 min-h-0 overflow-auto">
-          <div className="space-y-4 p-2 pt-1 md:p-4">
+          <div className="space-y-4 p-2 md:p-4">
             {/* HEADER CARD */}
             <>
               <HeaderCard
-                title={isMobile ? "SPK" : "SPK Management"}
+                title={isMobile ? "SPK Management" : "SPK Management"}
                 description={
                   isMobile ? "View all SPK records" : "Manage and monitor all SPK"
                 }
@@ -491,7 +492,7 @@ export default function SpkPageAdmin() {
                 gradientTo="to-purple-600"
                 showActionArea={!isMobile}
                 actionArea={
-                  <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                  <div className="flex flex-col sm:flex-row flex-wrap gap-3 w-full sm:w-auto items-center justify-end">
                     <SearchInput
                       onSearch={handleSearch}
                       placeholder="Search SPK..."
@@ -519,6 +520,7 @@ export default function SpkPageAdmin() {
                       variant="default"
                       size={isMobile ? "sm" : "default"}
                       disabled={isDataFetching}
+                      className="ml-auto"
                     />
                   </div>
                 }
@@ -527,23 +529,23 @@ export default function SpkPageAdmin() {
               {/* Action Area untuk Mobile */}
               {isMobile && (
                 <div className="mt-4 p-4 bg-white dark:bg-slate-900 rounded-lg shadow-sm border">
-                  <div className="flex flex-col gap-3">
+                  <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 items-center">
                     <SearchInput
                       onSearch={handleSearch}
                       placeholder="Search SPK..."
-                      className="w-full"
+                      className="w-full sm:flex-1 min-w-[200px]"
                       disabled={userLoading || isDataFetching}
                       initialValue={urlSearch}
                     />
-                    <SpkFilter
-                      filterBy={urlFilter} // Gunakan urlFilter dari URL
-                      onFilterChange={handleFilterChange} // Gunakan handler baru
-                      availableTeams={availableTeams}
-                      className="your-custom-class"
-                      variant="glass"
-                      size="md"
-                    />
-                    <div className="flex-1">
+                    <div className="flex flex-row gap-2 w-full sm:w-auto">
+                      <SpkFilter
+                        filterBy={urlFilter} // Gunakan urlFilter dari URL
+                        onFilterChange={handleFilterChange} // Gunakan handler baru
+                        availableTeams={availableTeams}
+                        className="flex-1 sm:flex-none"
+                        variant="glass"
+                        size="md"
+                      />
                       <ItemsPerPageDropdown
                         itemsPerPage={urlPageSize}
                         itemsPerPageOptions={[10, 20, 50, 100, 200, 300, 400]}
@@ -555,8 +557,9 @@ export default function SpkPageAdmin() {
                       role={user?.role || "pic"}
                       onSuccess={handleRefresh}
                       variant="default"
-                      size={isMobile ? "sm" : "default"}
+                      size={isMobile ? "default" : "default"}
                       disabled={isDataFetching}
+                      className="w-full sm:w-auto sm:ml-auto"
                     />
                   </div>
                 </div>

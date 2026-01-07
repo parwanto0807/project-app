@@ -65,12 +65,12 @@ export default function InventoryFilterBar({
 }: InventoryFilterBarProps) {
     return (
         <Card className="border-none shadow-sm bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl sticky top-6 z-50 border border-white/20 dark:border-slate-800 transition-colors">
-            <CardContent className="p-1 md:p-2 flex flex-col xl:flex-row gap-6 items-center">
+            <CardContent className="p-1 md:p-2 flex flex-col xl:flex-row gap-3 xl:gap-6 items-center">
                 <div className="relative w-full xl:max-w-md group">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-600 dark:group-focus-within:text-indigo-400 transition-colors" />
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3 h-3 md:w-4 md:h-4 text-slate-400 group-focus-within:text-indigo-600 dark:group-focus-within:text-indigo-400 transition-colors" />
                     <Input
                         placeholder="Find by product name or SKU code..."
-                        className="pl-12 h-14 bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-2xl focus-visible:ring-indigo-500 dark:focus-visible:ring-indigo-400 shadow-inner dark:text-white"
+                        className="pl-12 h-10 md:h-12 text-[10px] md:text-sm bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-2xl focus-visible:ring-indigo-500 dark:focus-visible:ring-indigo-400 shadow-inner dark:text-white"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -84,7 +84,7 @@ export default function InventoryFilterBar({
                                 type="month"
                                 value={period}
                                 onChange={(e) => setPeriod(e.target.value)}
-                                className="h-14 w-[180px] bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-2xl focus-visible:ring-indigo-500 dark:focus-visible:ring-indigo-400 shadow-sm dark:text-white"
+                                className="h-10 md:h-12 w-[180px] text-[10px] md:text-sm bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-2xl focus-visible:ring-indigo-500 dark:focus-visible:ring-indigo-400 shadow-sm dark:text-white"
                             />
                         ) : (
                             <DateRangePicker
@@ -98,8 +98,8 @@ export default function InventoryFilterBar({
                         )}
                     </div>
                     <Select value={warehouseFilter} onValueChange={setWarehouseFilter}>
-                        <SelectTrigger className="w-[180px] h-14 rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-sm dark:text-slate-100">
-                            <WarehouseIcon className="w-4 h-4 mr-2 text-slate-400" />
+                        <SelectTrigger className="w-[180px] h-10 md:h-12 text-[10px] md:text-sm rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-sm dark:text-slate-100">
+                            <WarehouseIcon className="w-3 h-3 md:w-4 md:h-4 mr-2 text-slate-400" />
                             <SelectValue placeholder="Location" />
                         </SelectTrigger>
                         <SelectContent className="rounded-xl dark:bg-slate-900 dark:border-slate-800">
@@ -109,8 +109,8 @@ export default function InventoryFilterBar({
                     </Select>
 
                     <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger className="w-[180px] h-14 rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-sm dark:text-slate-100">
-                            <Filter className="w-4 h-4 mr-2 text-slate-400" />
+                        <SelectTrigger className="w-[180px] h-10 md:h-12 text-[10px] md:text-sm rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-sm dark:text-slate-100">
+                            <Filter className="w-3 h-3 md:w-4 md:h-4 mr-2 text-slate-400" />
                             <SelectValue placeholder="Status Filter" />
                         </SelectTrigger>
                         <SelectContent className="rounded-xl dark:bg-slate-900 dark:border-slate-800">
@@ -131,7 +131,7 @@ export default function InventoryFilterBar({
                         </TabsList>
                     </Tabs>
 
-                    <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl shadow-inner">
+                    <div className="hidden lg:flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl shadow-inner">
                         <Button
                             variant={viewMode === 'desktop' ? 'secondary' : 'ghost'}
                             size="icon"

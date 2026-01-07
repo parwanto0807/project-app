@@ -133,72 +133,76 @@ export default function UpdateSalesOrderPageAdmin() {
   const userProp = user ? { id: user.id } : undefined;
 
   return (
-    <div className="h-full flex flex-col min-h-0 px-4">
-      <PicLayout title="Update Sales Order" role="pic">
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/pic-area/">Dashboard</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <Link href="/pic-area/sales/salesOrder">Sales Order List</Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>Update</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
+    <PicLayout title="Update Sales Order" role="pic">
+      <div className="h-full flex flex-col min-h-0">
+        <div className="flex-shrink-0 p-4 pb-0">
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink href="/pic-area/">Dashboard</BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link href="/pic-area/sales/salesOrder">Sales Order List</Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>Update</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+        </div>
 
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-12">
-            <div className="relative">
-              <Loader2 className="h-12 w-12 text-primary animate-spin" />
-              <div className="absolute inset-0 rounded-full border-4 border-primary/10 animate-pulse"></div>
+        <div className="flex-1 min-h-0 overflow-auto p-4 md:p-6">
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="relative">
+                <Loader2 className="h-12 w-12 text-primary animate-spin" />
+                <div className="absolute inset-0 rounded-full border-4 border-primary/10 animate-pulse"></div>
+              </div>
+              <p className="mt-4 text-lg text-gray-600">Loading sales order...</p>
             </div>
-            <p className="mt-4 text-lg text-gray-600">Loading sales order...</p>
-          </div>
-        ) : error ? (
-          <div className="flex flex-col items-center justify-center py-12 space-y-4">
-            <p className="text-red-500 text-lg font-medium">{error}</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-primary text-white rounded-md"
-            >
-              Try Again
-            </button>
-          </div>
-        ) : salesOrder ? (
-          <UpdateSalesOrderForm
-            salesOrder={salesOrder}
-            customers={customers}
-            user={userProp}
-            role={user?.role}
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center py-12 space-y-4">
+              <p className="text-red-500 text-lg font-medium">{error}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 bg-primary text-white rounded-md"
+              >
+                Try Again
+              </button>
+            </div>
+          ) : salesOrder ? (
+            <UpdateSalesOrderForm
+              salesOrder={salesOrder}
+              customers={customers}
+              user={userProp}
+              role={user?.role}
 
-            // 🔥 NEW: Kirim ke form
-            returnUrl={returnUrl}
-            page={page}
-            highlightId={highlightId}
-            highlightStatus={highlightStatus}
-            searchUrl={searchUrl}
-          />
-        ) : (
-          <div className="flex flex-col items-center justify-center py-12 space-y-4">
-            <p className="text-yellow-600 text-lg font-medium">
-              Data not found {id ? `(ID: ${id})` : ""}
-            </p>
-            <button
-              onClick={() => router.push("/pic-area/sales/salesOrder")}
-              className="px-4 py-2 bg-primary text-white rounded-md"
-            >
-              Back to Sales Order List
-            </button>
-          </div>
-        )}
-      </PicLayout>
-    </div>
+              // 🔥 NEW: Kirim ke form
+              returnUrl={returnUrl}
+              page={page}
+              highlightId={highlightId}
+              highlightStatus={highlightStatus}
+              searchUrl={searchUrl}
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12 space-y-4">
+              <p className="text-yellow-600 text-lg font-medium">
+                Data not found {id ? `(ID: ${id})` : ""}
+              </p>
+              <button
+                onClick={() => router.push("/pic-area/sales/salesOrder")}
+                className="px-4 py-2 bg-primary text-white rounded-md"
+              >
+                Back to Sales Order List
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </PicLayout>
   );
 }

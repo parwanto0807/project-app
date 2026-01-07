@@ -116,38 +116,42 @@ export default function CreateSpkPagePic() {
   }
 
   return (
-    <div className="h-full flex flex-col min-h-0 ml-4">
-    <PicLayout title="Create SPK" role="pic">
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link href="/pic-area">Dashboard</Link>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link href="/pic-area/logistic/spk">SPK List</Link>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>Create</BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
+    <div className="h-full flex flex-col min-h-0">
+      <PicLayout title="Create SPK" role="pic">
+        <div className="flex-shrink-0 px-4 pt-4">
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link href="/pic-area">Dashboard</Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link href="/pic-area/logistic/spk">SPK List</Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>Create</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+        </div>
 
-      <div className="mt-6">
-        <CreateFormSPK
-          salesOrders={salesOrders}
-          teamData={teams}
-          role={user.role}
-          user={userCreated}
-          isLoading={isDataLoading}
-        />
-      </div>
-    </PicLayout>
+        <div className="flex-1 min-h-0 overflow-auto">
+          <div className="space-y-4 p-2 md:p-4">
+            <CreateFormSPK
+              salesOrders={salesOrders}
+              teamData={teams}
+              role={user.role}
+              user={userCreated}
+              isLoading={isDataLoading}
+            />
+          </div>
+        </div>
+      </PicLayout>
     </div>
   );
 }

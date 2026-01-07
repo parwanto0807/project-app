@@ -150,7 +150,7 @@ export const createTransfer = async (req, res) => {
           warehouseId: fromWarehouseId,
           status: 'PENDING',
           // Add context that this MR is from an Internal Transfer
-          notes: `AUTO-GENERATED-TRANSFER: Internal Stock Transfer [${transferNumber}] to Warehouse ID: ${toWarehouseId}. ${notes ? `(${notes})` : ''}`,
+          notes: `AUTO-GENERATED-TRANSFER: Internal Stock Transfer [${transferNumber}] to: ${transfer.toWarehouse?.name || toWarehouseId}. ${notes ? `(${notes})` : ''}`,
           items: {
             create: items.map(item => ({
               productId: item.productId,
@@ -220,7 +220,7 @@ export const createTransfer = async (req, res) => {
               receivedById: receivedById,
               sourceType: 'TRANSFER',
               status: 'DRAFT',
-              notes: `AUTO-GENERATED-TRANSFER: Incoming Transfer from Warehouse ID: ${fromWarehouseId} [${transferNumber}]. ${notes || ''}`,
+              notes: `AUTO-GENERATED-TRANSFER: Incoming Transfer from: ${transfer.fromWarehouse?.name || fromWarehouseId} [${transferNumber}]. ${notes || ''}`,
               items: {
                 create: items.map(item => ({
                   productId: item.productId,

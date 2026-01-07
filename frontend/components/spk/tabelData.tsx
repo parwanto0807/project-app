@@ -519,16 +519,16 @@ export default function TabelDataSpk({
         };
     };
 
-    // 👇 RENDER MOBILE CARD VIEW YANG DIPERBAIKI
+    // 👇 RENDER MOBILE CARD VIEW YANG DIPERBAIKI (GRID LAYOUT UNTUK TABLET)
     const renderMobileView = () => (
-        <div className="space-y-3 p-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-2">
             {displayData.map((spk, idx) => {
                 const spkPdfData = mapSpkToPdfValues(spk);
                 const isExpanded = expandedRows.has(spk.id);
 
                 return (
-                    <Card key={`spk-card-${spk.id}`} className="border-l-4 border-l-primary shadow-sm hover:shadow-md transition-all duration-200">
-                        <CardContent className="px-2">
+                    <Card key={`spk-card-${spk.id}`} className="border-l-4 border-l-primary shadow-sm hover:shadow-md transition-all duration-200 h-full flex flex-col">
+                        <CardContent className="px-2 pt-3 pb-2 flex-1 flex flex-col">
                             {/* Header Ringkas */}
                             <div className="flex justify-between items-start mb-0">
                                 <div className="flex flex-col gap-2">
@@ -747,7 +747,7 @@ export default function TabelDataSpk({
                                         )}
 
                                         {/* Action Buttons */}
-                                        <div className="space-y-2 pt-2">
+                                        <div className="space-y-2 pt-2 mt-auto">
                                             {/* User Actions */}
                                             <div className="flex flex-col xs:flex-row gap-2 justify-end">
                                                 <Button
@@ -1427,13 +1427,13 @@ export default function TabelDataSpk({
                     </div>
                 ) : (
                     <>
-                        {/* Mobile View */}
-                        <div className="md:hidden">
+                        {/* Mobile & Tablet View (< lg) */}
+                        <div className="lg:hidden">
                             {renderMobileView()}
                         </div>
 
-                        {/* Desktop View */}
-                        <div className="hidden md:block">
+                        {/* Desktop View (>= lg) */}
+                        <div className="hidden lg:block">
                             {renderDesktopView()}
                         </div>
                     </>

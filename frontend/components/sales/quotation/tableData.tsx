@@ -685,7 +685,7 @@ export function QuotationTable({
         <div className="space-y-6">
             <Card className="shadow-sm border-slate-200 dark:border-slate-800 relative z-0"> {/* Tambahkan z-0 */}
                 <CardContent className="p-0">
-                    <div className="hidden md:block">
+                    <div className="hidden lg:block">
                         <Table>
                             <TableHeader>
                                 <TableRow className="hover:bg-slate-200/50 dark:hover:bg-slate-800 uppercase">
@@ -988,7 +988,7 @@ export function QuotationTable({
                     </div>
 
                     {/* Mobile Cards */}
-                    <div className="md:hidden space-y-2 p-1">
+                    <div className="lg:hidden grid grid-cols-1 md:grid-cols-2 gap-4 p-1">
                         {sortedQuotations.length === 0 ? (
                             <div className="text-center py-8 text-slate-500">
                                 <FileText className="h-12 w-12 mx-auto mb-2 text-slate-300" />

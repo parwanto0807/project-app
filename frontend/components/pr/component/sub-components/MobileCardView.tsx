@@ -51,7 +51,7 @@ export function MobileCardView({
   }
 
   return (
-    <>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {purchaseRequests.map((pr) => {
         const isExpanded = expandedRows.has(pr.id);
         const totalAmount = pr.details?.reduce(
@@ -60,8 +60,8 @@ export function MobileCardView({
         ) || 0;
 
         return (
-          <Card key={pr.id} className="hover:shadow-md transition-shadow">
-            <CardContent className="p-3 space-y-2">
+          <Card key={pr.id} className="hover:shadow-md transition-shadow h-full flex flex-col">
+            <CardContent className="p-3 space-y-2 flex-1 flex flex-col">
               {/* Header */}
               <div className="flex justify-between items-start gap-2">
                 <div className="flex items-center gap-1 flex-1 min-w-0">
@@ -86,7 +86,7 @@ export function MobileCardView({
                 </div>
                 <Badge
                   variant="outline"
-                  className={`${STATUS_CONFIG[pr.status].color} border font-medium text-xs px-1 py-0 uppercase`}
+                  className={`${STATUS_CONFIG[pr.status].color} border font-medium text-xs px-1 py-0 uppercase flex-shrink-0`}
                 >
                   {STATUS_CONFIG[pr.status].label}
                 </Badge>
@@ -98,7 +98,7 @@ export function MobileCardView({
                   <p className="font-medium text-muted-foreground">Project</p>
                   <div className="flex items-center gap-1">
                     <Building className="h-3 w-3 text-green-500 flex-shrink-0" />
-                    <span className="text-wrap text-xs">
+                    <span className="text-wrap text-xs break-words">
                       {pr.project?.name || pr.projectId}
                     </span>
                   </div>
@@ -115,7 +115,7 @@ export function MobileCardView({
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="space-y-1">
                   <p className="font-medium text-muted-foreground">Requested By</p>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 min-w-0">
                     <User className="h-3 w-3 text-purple-500 flex-shrink-0" />
                     <span className="truncate text-xs">
                       {pr.karyawan?.namaLengkap || pr.karyawanId}
@@ -131,7 +131,7 @@ export function MobileCardView({
                 </div>
               </div>
 
-              {/* Amount */}
+              {/* Amount - use mt-auto to push to bottom if needed, but not strictly required if using grid */}
               <div className="text-xs">
                 <p className="font-medium text-muted-foreground">Total Amount</p>
                 <p className="font-semibold text-sm">
@@ -141,10 +141,10 @@ export function MobileCardView({
 
               {/* Expanded Details */}
               {isExpanded && (
-                <div className="border-t pt-2 space-y-2">
+                <div className="border-t pt-2 space-y-2 mt-auto">
                   <div>
                     <h4 className="font-semibold mb-1 text-xs">Description</h4>
-                    <p className="text-xs">{pr.nomorPr || '-'}</p>
+                    <p className="text-xs text-wrap break-words">{pr.nomorPr || '-'}</p>
                   </div>
                   <div>
                     <h4 className="font-semibold mb-1 text-xs">Items ({pr.details?.length || 0})</h4>
@@ -172,11 +172,15 @@ export function MobileCardView({
                 </div>
               )}
 
+              {/* Spacer to push actions to bottom */}
+              <div className="flex-grow" />
+
               {/* Actions - Compact */}
-              <div className="flex justify-end gap-1 pt-2 border-t">
+              <div className="flex justify-end gap-1 pt-2 border-t mt-auto">
                 <Button
                   onClick={() => onViewPdf(pr)}
-                  className="flex items-center gap-1 text-red-600 hover:text-red-800 border px-2 py-1 rounded text-xs h-7"
+                  variant="outline"
+                  className="flex items-center gap-1 text-red-600 hover:text-red-800 border px-2 py-1 rounded text-xs h-8"
                 >
                   <PdfIcon className="w-3 h-3" />
                   PDF
@@ -211,7 +215,7 @@ export function MobileCardView({
           </Card>
         );
       })}
-    </>
+    </div>
   );
 }
 

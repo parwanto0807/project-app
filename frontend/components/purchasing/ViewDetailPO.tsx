@@ -598,7 +598,7 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
     const canSend = purchaseOrder.status === "APPROVED";
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/30 dark:from-gray-950 dark:via-gray-900 dark:to-blue-950/30 animate-in fade-in duration-700">
+        <div className="w-full min-h-full bg-gradient-to-br from-gray-50 via-white to-blue-50/30 dark:from-gray-950 dark:via-gray-900 dark:to-blue-950/30 animate-in fade-in duration-700">
             {/* Premium Header with Gradient */}
             <div className="relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 opacity-10"></div>
@@ -669,7 +669,7 @@ export default function ViewDetailPO({ poId, userRole = "admin" }: { poId: strin
 
 
 
-                                    <div className="flex items-center justify-end gap-2">
+                                    <div className="flex items-center justify-end gap-2 flex-wrap">
                                         {nextStatusOptions.length > 0 && (
                                             <Button
                                                 onClick={() => {

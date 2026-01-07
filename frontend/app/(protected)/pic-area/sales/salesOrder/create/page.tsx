@@ -95,31 +95,33 @@ export default function CreateSalesOrderPageAdmin() {
   }
 
   return (
-    <div className="h-full flex flex-col min-h-0 px-4">
-      <PicLayout title="Create Sales Order" role="pic">
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <Link href="/pic-area">Dashboard</Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <Link href="/pic-area/sales/salesOrder">
-                  Sales Order List
-                </Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>Create</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
+    <PicLayout title="Create Sales Order" role="pic">
+      <div className="h-full flex flex-col min-h-0">
+        <div className="flex-shrink-0 p-4 pb-0">
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link href="/pic-area">Dashboard</Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link href="/pic-area/sales/salesOrder">
+                    Sales Order List
+                  </Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>Create</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+        </div>
 
-        <div className="mt-6">
+        <div className="flex-1 min-h-0 overflow-auto p-4 md:p-6">
           <CreateSalesOrderForm
             customers={customers}
             projects={projects}
@@ -128,7 +130,7 @@ export default function CreateSalesOrderPageAdmin() {
             isLoading={isDataLoading}
           />
         </div>
-      </PicLayout>
-    </div>
+      </div>
+    </PicLayout>
   );
 }

@@ -134,216 +134,217 @@ export default function CreatePurchaseOrderPage() {
 
     return (
         <PicLayout title="Purchase Order Management" role="pic">
-            {/* Main Container */}
-            <div className="container mx-auto p-4 md:p-6 space-y-6">
-                {/* Breadcrumb Card */}
-                <Breadcrumb>
-                    <BreadcrumbList>
-                        <BreadcrumbItem>
-                            <BreadcrumbLink
-                                href="/pic-area"
-                                className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
-                            >
-                                <Home className="h-4 w-4" />
-                                Dashboard
-                            </BreadcrumbLink>
-                        </BreadcrumbItem>
-                        <BreadcrumbSeparator />
-                        <BreadcrumbItem>
-                            <BreadcrumbLink
-                                href="/pic-area/logistic/purchasing"
-                                className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
-                            >
-                                <FileText className="h-4 w-4" />
-                                Purchase Orders
-                            </BreadcrumbLink>
-                        </BreadcrumbItem>
-                        <BreadcrumbSeparator />
-                        <BreadcrumbItem>
-                            <BreadcrumbPage className="flex items-center gap-2 font-semibold text-primary">
-                                <ShoppingCart className="h-4 w-4" />
-                                Buat PO Baru
-                            </BreadcrumbPage>
-                        </BreadcrumbItem>
-                    </BreadcrumbList>
-                </Breadcrumb>
+            <div className="h-full flex flex-col min-h-0">
+                {/* Breadcrumb Area */}
+                <div className="flex-shrink-0 p-4 pb-0">
+                    <Breadcrumb>
+                        <BreadcrumbList>
+                            <BreadcrumbItem>
+                                <BreadcrumbLink
+                                    href="/pic-area"
+                                    className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
+                                >
+                                    <Home className="h-4 w-4" />
+                                    Dashboard
+                                </BreadcrumbLink>
+                            </BreadcrumbItem>
+                            <BreadcrumbSeparator />
+                            <BreadcrumbItem>
+                                <BreadcrumbLink
+                                    href="/pic-area/logistic/purchasing"
+                                    className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
+                                >
+                                    <FileText className="h-4 w-4" />
+                                    Purchase Orders
+                                </BreadcrumbLink>
+                            </BreadcrumbItem>
+                            <BreadcrumbSeparator />
+                            <BreadcrumbItem>
+                                <BreadcrumbPage className="flex items-center gap-2 font-semibold text-primary">
+                                    <ShoppingCart className="h-4 w-4" />
+                                    Buat PO Baru
+                                </BreadcrumbPage>
+                            </BreadcrumbItem>
+                        </BreadcrumbList>
+                    </Breadcrumb>
+                </div>
 
-                {/* Information & Tips Card - Collapsible */}
-                <Collapsible open={isTipsOpen} onOpenChange={setIsTipsOpen}>
-                    <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-blue-200 dark:border-blue-800">
-                        <CollapsibleTrigger asChild>
-                            <div className="w-full cursor-pointer hover:bg-blue-100/50 dark:hover:bg-blue-900/20 transition-colors">
-                                <CardContent className="p-4">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center flex-shrink-0">
-                                                <Lightbulb className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                {/* Main Scrollable Content */}
+                <div className="flex-1 min-h-0 overflow-auto p-4 md:p-6 space-y-6">
+                    {/* Information & Tips Card - Collapsible */}
+                    <Collapsible open={isTipsOpen} onOpenChange={setIsTipsOpen}>
+                        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-blue-200 dark:border-blue-800">
+                            <CollapsibleTrigger asChild>
+                                <div className="w-full cursor-pointer hover:bg-blue-100/50 dark:hover:bg-blue-900/20 transition-colors">
+                                    <CardContent className="p-4">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center flex-shrink-0">
+                                                    <Lightbulb className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                                </div>
+                                                <h3 className="font-semibold text-sm text-blue-900 dark:text-blue-100">Tips Membuat PO</h3>
                                             </div>
-                                            <h3 className="font-semibold text-sm text-blue-900 dark:text-blue-100">Tips Membuat PO</h3>
+                                            <ChevronDown className={cn(
+                                                "h-4 w-4 text-blue-600 dark:text-blue-400 transition-transform duration-200",
+                                                isTipsOpen ? "transform rotate-180" : ""
+                                            )} />
                                         </div>
-                                        <ChevronDown className={cn(
-                                            "h-4 w-4 text-blue-600 dark:text-blue-400 transition-transform duration-200",
-                                            isTipsOpen ? "transform rotate-180" : ""
-                                        )} />
+                                    </CardContent>
+                                </div>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                                <CardContent className="px-4 pb-2 pt-0">
+                                    <div className="flex flex-col md:flex-row md:items-start gap-4">
+                                        <div className="flex-1">
+                                            <ul className="space-y-1.5">
+                                                <li className="flex items-start gap-2 text-xs">
+                                                    <div className="h-1 w-1 rounded-full bg-blue-500 mt-1.5 flex-shrink-0" />
+                                                    <span className="text-blue-800 dark:text-blue-200">Pastikan supplier dan gudang telah dipilih</span>
+                                                </li>
+                                                <li className="flex items-start gap-2 text-xs">
+                                                    <div className="h-1 w-1 rounded-full bg-blue-500 mt-1.5 flex-shrink-0" />
+                                                    <span className="text-blue-800 dark:text-blue-200">Minimal 1 item produk untuk melanjutkan</span>
+                                                </li>
+                                                <li className="flex items-start gap-2 text-xs">
+                                                    <div className="h-1 w-1 rounded-full bg-blue-500 mt-1.5 flex-shrink-0" />
+                                                    <span className="text-blue-800 dark:text-blue-200">Periksa harga dan total sebelum submit</span>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                        <div className="flex md:flex-col gap-2">
+                                            <div className="flex items-center gap-2 px-3 py-2 bg-white/50 dark:bg-black/20 rounded-lg">
+                                                <Shield className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+                                                <div className="text-xs font-medium">Data Aman</div>
+                                            </div>
+                                            <div className="flex items-center gap-2 px-3 py-2 bg-white/50 dark:bg-black/20 rounded-lg">
+                                                <FileCheck className="h-4 w-4 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+                                                <div className="text-xs font-medium">Auto-Save</div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </CardContent>
+                            </CollapsibleContent>
+                        </Card>
+                    </Collapsible>
+
+                    {/* Main Form Card */}
+                    <Card className="bg-card border-border shadow-lg">
+                        <CardHeader className="pb-6">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <CardTitle className="text-2xl font-bold flex items-center gap-3">
+                                        <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                                            <ShoppingCart className="h-5 w-5 text-primary" />
+                                        </div>
+                                        Formulir Purchase Order
+                                    </CardTitle>
+                                    <CardDescription className="flex items-center gap-2">
+                                        <AlertCircle className="h-4 w-4" />
+                                        Semua field dengan tanda <span className="text-red-500 font-semibold">*</span> wajib diisi
+                                    </CardDescription>
+                                </div>
+                                <Badge variant="secondary" className="px-3 py-1.5">
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-2 w-2 rounded-full bg-muted-foreground" />
+                                        Draft Mode
+                                    </div>
+                                </Badge>
                             </div>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent>
-                            <CardContent className="px-4 pb-2 pt-0">
-                                <div className="flex flex-col md:flex-row md:items-start gap-4">
-                                    <div className="flex-1">
-                                        <ul className="space-y-1.5">
-                                            <li className="flex items-start gap-2 text-xs">
-                                                <div className="h-1 w-1 rounded-full bg-blue-500 mt-1.5 flex-shrink-0" />
-                                                <span className="text-blue-800 dark:text-blue-200">Pastikan supplier dan gudang telah dipilih</span>
-                                            </li>
-                                            <li className="flex items-start gap-2 text-xs">
-                                                <div className="h-1 w-1 rounded-full bg-blue-500 mt-1.5 flex-shrink-0" />
-                                                <span className="text-blue-800 dark:text-blue-200">Minimal 1 item produk untuk melanjutkan</span>
-                                            </li>
-                                            <li className="flex items-start gap-2 text-xs">
-                                                <div className="h-1 w-1 rounded-full bg-blue-500 mt-1.5 flex-shrink-0" />
-                                                <span className="text-blue-800 dark:text-blue-200">Periksa harga dan total sebelum submit</span>
-                                            </li>
-                                        </ul>
+                        </CardHeader>
+                        <CardContent className="pb-6">
+                            <CreateFormPO
+                                suppliers={suppliers}
+                                warehouses={warehouses}
+                                projects={projects}
+                                products={products}
+                                spkList={spkList}
+                                poNumber={poNumber}
+                                onSuccess={handleSuccess}
+                                onCancel={handleCancel}
+                            />
+                        </CardContent>
+                        <CardFooter className="border-t pt-6">
+                            <div className="flex items-center justify-between w-full">
+                                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                                    <Shield className="h-4 w-4" />
+                                    Data Anda aman dan terenkripsi
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <Button
+                                        variant="outline"
+                                        onClick={handleCancel}
+                                        className="border-border hover:bg-accent"
+                                    >
+                                        Batal
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        className="border-border hover:bg-accent"
+                                        onClick={() => {
+                                            // Save as draft functionality
+                                            toast.info("Draft berhasil disimpan");
+                                        }}
+                                    >
+                                        Simpan Draft
+                                    </Button>
+                                    <Button type="submit" form="create-po-form">
+                                        Buat Purchase Order
+                                    </Button>
+                                </div>
+                            </div>
+                        </CardFooter>
+                    </Card>
+
+                    {/* Quick Stats & Links */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <Card className="bg-gradient-to-br from-card to-green-50 dark:to-green-950/20 border-green-200 dark:border-green-800 hover:shadow-lg transition-shadow cursor-pointer group"
+                            onClick={() => router.push("/pic-area/master/supplier")}>
+                            <CardContent className="p-6">
+                                <div className="flex items-center gap-4">
+                                    <div className="h-12 w-12 rounded-xl bg-green-100 dark:bg-green-900/50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                        <User className="h-6 w-6 text-green-600 dark:text-green-400" />
                                     </div>
-                                    <div className="flex md:flex-col gap-2">
-                                        <div className="flex items-center gap-2 px-3 py-2 bg-white/50 dark:bg-black/20 rounded-lg">
-                                            <Shield className="h-4 w-4 text-green-600 dark:text-green-400 flex-shrink-0" />
-                                            <div className="text-xs font-medium">Data Aman</div>
-                                        </div>
-                                        <div className="flex items-center gap-2 px-3 py-2 bg-white/50 dark:bg-black/20 rounded-lg">
-                                            <FileCheck className="h-4 w-4 text-purple-600 dark:text-purple-400 flex-shrink-0" />
-                                            <div className="text-xs font-medium">Auto-Save</div>
-                                        </div>
+                                    <div className="space-y-1">
+                                        <h4 className="font-semibold">Kelola Supplier</h4>
+                                        <p className="text-sm text-muted-foreground">Total: {suppliers.length} supplier</p>
                                     </div>
+                                    <ChevronRight className="h-5 w-5 text-muted-foreground ml-auto group-hover:translate-x-1 transition-transform" />
                                 </div>
                             </CardContent>
-                        </CollapsibleContent>
-                    </Card>
-                </Collapsible>
+                        </Card>
 
-                {/* Main Form Card */}
-                <Card className="bg-card border-border shadow-lg">
-                    <CardHeader className="pb-6">
-                        <div className="flex items-center justify-between">
-                            <div className="space-y-1">
-                                <CardTitle className="text-2xl font-bold flex items-center gap-3">
-                                    <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                                        <ShoppingCart className="h-5 w-5 text-primary" />
+                        <Card className="bg-gradient-to-br from-card to-orange-50 dark:to-orange-950/20 border-orange-200 dark:border-orange-800 hover:shadow-lg transition-shadow cursor-pointer group"
+                            onClick={() => router.push("/pic-area/master/products")}>
+                            <CardContent className="p-6">
+                                <div className="flex items-center gap-4">
+                                    <div className="h-12 w-12 rounded-xl bg-orange-100 dark:bg-orange-900/50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                        <Package className="h-6 w-6 text-orange-600 dark:text-orange-400" />
                                     </div>
-                                    Formulir Purchase Order
-                                </CardTitle>
-                                <CardDescription className="flex items-center gap-2">
-                                    <AlertCircle className="h-4 w-4" />
-                                    Semua field dengan tanda <span className="text-red-500 font-semibold">*</span> wajib diisi
-                                </CardDescription>
-                            </div>
-                            <Badge variant="secondary" className="px-3 py-1.5">
-                                <div className="flex items-center gap-2">
-                                    <div className="h-2 w-2 rounded-full bg-muted-foreground" />
-                                    Draft Mode
+                                    <div className="space-y-1">
+                                        <h4 className="font-semibold">Kelola Produk</h4>
+                                        <p className="text-sm text-muted-foreground">Total: {products.length} produk</p>
+                                    </div>
+                                    <ChevronRight className="h-5 w-5 text-muted-foreground ml-auto group-hover:translate-x-1 transition-transform" />
                                 </div>
-                            </Badge>
-                        </div>
-                    </CardHeader>
-                    <CardContent className="pb-6">
-                        <CreateFormPO
-                            suppliers={suppliers}
-                            warehouses={warehouses}
-                            projects={projects}
-                            products={products}
-                            spkList={spkList}
-                            poNumber={poNumber}
-                            onSuccess={handleSuccess}
-                            onCancel={handleCancel}
-                        />
-                    </CardContent>
-                    <CardFooter className="border-t pt-6">
-                        <div className="flex items-center justify-between w-full">
-                            <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                                <Shield className="h-4 w-4" />
-                                Data Anda aman dan terenkripsi
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <Button
-                                    variant="outline"
-                                    onClick={handleCancel}
-                                    className="border-border hover:bg-accent"
-                                >
-                                    Batal
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    className="border-border hover:bg-accent"
-                                    onClick={() => {
-                                        // Save as draft functionality
-                                        toast.info("Draft berhasil disimpan");
-                                    }}
-                                >
-                                    Simpan Draft
-                                </Button>
-                                <Button type="submit" form="create-po-form">
-                                    Buat Purchase Order
-                                </Button>
-                            </div>
-                        </div>
-                    </CardFooter>
-                </Card>
+                            </CardContent>
+                        </Card>
 
-                {/* ... Form Buttons ... */}
-
-
-                {/* Quick Stats & Links */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <Card className="bg-gradient-to-br from-card to-green-50 dark:to-green-950/20 border-green-200 dark:border-green-800 hover:shadow-lg transition-shadow cursor-pointer group"
-                        onClick={() => router.push("/pic-area/master/supplier")}>
-                        <CardContent className="p-6">
-                            <div className="flex items-center gap-4">
-                                <div className="h-12 w-12 rounded-xl bg-green-100 dark:bg-green-900/50 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                    <User className="h-6 w-6 text-green-600 dark:text-green-400" />
+                        <Card className="bg-gradient-to-br from-card to-purple-50 dark:to-purple-950/20 border-purple-200 dark:border-purple-800 hover:shadow-lg transition-shadow cursor-pointer group"
+                            onClick={() => router.push("/pic-area/logistic/purchasing")}>
+                            <CardContent className="p-6">
+                                <div className="flex items-center gap-4">
+                                    <div className="h-12 w-12 rounded-xl bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                        <WarehouseIcon className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <h4 className="font-semibold">Lihat Semua PO</h4>
+                                        <p className="text-sm text-muted-foreground">Akses daftar purchase orders</p>
+                                    </div>
+                                    <ChevronRight className="h-5 w-5 text-muted-foreground ml-auto group-hover:translate-x-1 transition-transform" />
                                 </div>
-                                <div className="space-y-1">
-                                    <h4 className="font-semibold">Kelola Supplier</h4>
-                                    <p className="text-sm text-muted-foreground">Total: {suppliers.length} supplier</p>
-                                </div>
-                                <ChevronRight className="h-5 w-5 text-muted-foreground ml-auto group-hover:translate-x-1 transition-transform" />
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="bg-gradient-to-br from-card to-orange-50 dark:to-orange-950/20 border-orange-200 dark:border-orange-800 hover:shadow-lg transition-shadow cursor-pointer group"
-                        onClick={() => router.push("/pic-area/master/products")}>
-                        <CardContent className="p-6">
-                            <div className="flex items-center gap-4">
-                                <div className="h-12 w-12 rounded-xl bg-orange-100 dark:bg-orange-900/50 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                    <Package className="h-6 w-6 text-orange-600 dark:text-orange-400" />
-                                </div>
-                                <div className="space-y-1">
-                                    <h4 className="font-semibold">Kelola Produk</h4>
-                                    <p className="text-sm text-muted-foreground">Total: {products.length} produk</p>
-                                </div>
-                                <ChevronRight className="h-5 w-5 text-muted-foreground ml-auto group-hover:translate-x-1 transition-transform" />
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="bg-gradient-to-br from-card to-purple-50 dark:to-purple-950/20 border-purple-200 dark:border-purple-800 hover:shadow-lg transition-shadow cursor-pointer group"
-                        onClick={() => router.push("/pic-area/logistic/purchasing")}>
-                        <CardContent className="p-6">
-                            <div className="flex items-center gap-4">
-                                <div className="h-12 w-12 rounded-xl bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                    <WarehouseIcon className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-                                </div>
-                                <div className="space-y-1">
-                                    <h4 className="font-semibold">Lihat Semua PO</h4>
-                                    <p className="text-sm text-muted-foreground">Akses daftar purchase orders</p>
-                                </div>
-                                <ChevronRight className="h-5 w-5 text-muted-foreground ml-auto group-hover:translate-x-1 transition-transform" />
-                            </div>
-                        </CardContent>
-                    </Card>
+                            </CardContent>
+                        </Card>
+                    </div>
                 </div>
             </div>
         </PicLayout>

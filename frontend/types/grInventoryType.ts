@@ -44,6 +44,7 @@ export interface Product {
     purchaseUnit?: string;
     storageUnit?: string; // Satuan penyimpanan
     conversionToStorage?: number; // Faktor konversi: 1 unit beli = X unit simpan
+    conversionToUsage?: number;
     category?: ProductCategory;
     stockQuantity?: number;
     specifications?: Record<string, any>;

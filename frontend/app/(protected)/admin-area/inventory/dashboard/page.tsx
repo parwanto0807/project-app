@@ -42,10 +42,10 @@ export default async function InventoryPage() {
 
     return (
         <AdminLayout title="Inventory Dashboard" role={user?.role || "guest"}>
-            <div className="flex-1 space-y-4 p-4 md:p-6 pt-6">
+            <div className="flex-1 space-y-2 p-1 md:p-2 lg:px-6 pt-2">
 
                 {/* --- BREADCRUMB SHADCN UI --- */}
-                <Breadcrumb className="mb-4">
+                <Breadcrumb className="mb-2">
                     <BreadcrumbList>
                         <BreadcrumbItem>
                             <Badge variant="outline">
@@ -73,7 +73,7 @@ export default async function InventoryPage() {
                 <HeaderCard
                     title={
                         <div className="flex items-center gap-3">
-                            <span className="bg-clip-text text-transparent bg-gradient-to-b from-white to-white/70">
+                            <span className="text-lg md:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-white to-white/70">
                                 Inventory
                             </span>
                             <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 backdrop-blur-md rounded-full border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]">

@@ -205,124 +205,143 @@ export function Pagination({
       initial="hidden"
       animate="visible"
       variants={containerVariants}
-      className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0 pt-6 border-t border-gray-200 dark:border-gray-700"
+      className={clsx(
+        "flex flex-wrap items-center justify-between gap-y-4 pt-4 pb-2 border-t border-gray-200 dark:border-gray-800 w-full"
+      )}
     >
-      {/* Items per page */}
-      <motion.div variants={itemVariants} className="flex items-center space-x-2">
-        <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Rows per page:</span>
-        <Select
-          value={pagination.limit.toString()}
-          onValueChange={(value) => onLimitChange(Number(value))}
-        >
-          <SelectTrigger className="w-20 sm:w-24 h-8 text-xs border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:border-blue-300 dark:hover:border-blue-500 transition-colors">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600">
-            {PAGE_SIZES.map((size) => (
-              <SelectItem 
-                key={size} 
-                value={size.toString()} 
-                className="text-xs hover:bg-blue-50 dark:hover:bg-blue-900/20 focus:bg-blue-50 dark:focus:bg-blue-900/20"
-              >
-                {size}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      {/* LEFT: Items per page (Mobile: Bottom Left, Order 2) (Desktop: Left, Order 1) */}
+      <motion.div
+        variants={itemVariants}
+        className="w-1/2 sm:w-1/3 flex justify-start order-2 sm:order-1 pr-2"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">Rows:</span>
+          <Select
+            value={pagination.limit.toString()}
+            onValueChange={(value) => onLimitChange(Number(value))}
+          >
+            <SelectTrigger className="w-[70px] h-8 text-xs bg-background border-input hover:bg-accent hover:text-accent-foreground transition-colors focus:ring-1 focus:ring-ring">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PAGE_SIZES.map((size) => (
+                <SelectItem
+                  key={size}
+                  value={size.toString()}
+                  className="text-xs"
+                >
+                  {size}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </motion.div>
 
-      {/* Page info */}
-      <motion.div variants={itemVariants} className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 text-center">
-        {pagination.totalCount === 0 ? (
-          "No entries found"
-        ) : (
-          <>
-            Showing <span className="font-medium text-gray-800 dark:text-gray-200">{startItem}</span> to{" "}
-            <span className="font-medium text-gray-800 dark:text-gray-200">{endItem}</span> of{" "}
-            <span className="font-medium text-gray-800 dark:text-gray-200">{pagination.totalCount}</span> entries
-          </>
-        )}
-      </motion.div>
+      {/* CENTER: Pagination Controls (Mobile: Top, Order 1) (Desktop: Center, Order 2) */}
+      <motion.div
+        variants={itemVariants}
+        className="w-full sm:w-1/3 flex justify-center order-1 sm:order-2 mb-2 sm:mb-0"
+      >
+        <div className="flex items-center gap-1">
+          {/* First Page - Hidden on Mobile */}
+          <div className="hidden sm:block">
+            <PaginationEdgeButton
+              onClick={() => onPageChange(1)}
+              disabled={pagination.page <= 1}
+              className="hidden sm:flex"
+            >
+              First
+            </PaginationEdgeButton>
+          </div>
 
-      {/* Pagination controls */}
-      <motion.div variants={itemVariants} className="flex items-center space-x-1 md:space-x-2">
-        {/* First Page - Hidden on mobile */}
-        <div className="hidden md:block">
-          <PaginationEdgeButton
-            onClick={() => onPageChange(1)}
+          {/* Previous Page */}
+          <PaginationArrowButton
+            onClick={() => onPageChange(pagination.page - 1)}
             disabled={pagination.page <= 1}
-          >
-            First
-          </PaginationEdgeButton>
-        </div>
+            direction="left"
+          />
 
-        {/* Previous Page */}
-        <PaginationArrowButton
-          onClick={() => onPageChange(pagination.page - 1)}
-          disabled={pagination.page <= 1}
-          direction="left"
-        />
-
-        {/* Page numbers */}
-        <div className="flex items-center space-x-0.5 mx-0.5">
-          <AnimatePresence mode="popLayout">
-            {pageNumbers.map((page, index) => (
-              page === '...' ? (
-                <motion.span
-                  key={`ellipsis-${index}`}
-                  variants={pageNumberVariants}
-                  initial="hidden"
-                  animate="visible"
-                  exit="exit"
-                  className="flex h-8 w-8 items-center justify-center text-xs text-gray-400 dark:text-gray-500 px-2"
-                >
-                  ...
-                </motion.span>
-              ) : (
-                <motion.div
-                  key={page}
-                  variants={pageNumberVariants}
-                  initial="hidden"
-                  animate="visible"
-                  exit="exit"
-                  whileHover="hover"
-                  whileTap="tap"
-                >
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onPageChange(page as number)}
-                    className={clsx(
-                      "h-8 w-8 p-0 text-xs font-medium transition-all duration-200",
-                      "border border-gray-300 dark:border-gray-600",
-                      pagination.page === page
-                        ? "bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/25 border-transparent"
-                        : "text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-blue-700 dark:hover:text-blue-300 hover:border-blue-300 dark:hover:border-blue-500 shadow-sm hover:shadow-md cursor-pointer"
-                    )}
+          {/* Page numbers scrollable area on very small screens */}
+          <div className="flex items-center gap-1 mx-1 overflow-x-auto no-scrollbar max-w-[200px] sm:max-w-none justify-center px-1">
+            <AnimatePresence mode="popLayout" initial={false}>
+              {pageNumbers.map((page, index) => (
+                page === '...' ? (
+                  <motion.span
+                    key={`ellipsis-${index}`}
+                    variants={pageNumberVariants}
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                    className="flex h-8 w-6 items-center justify-center text-xs text-muted-foreground select-none"
                   >
-                    {page}
-                  </Button>
-                </motion.div>
-              )
-            ))}
-          </AnimatePresence>
-        </div>
+                    •••
+                  </motion.span>
+                ) : (
+                  <motion.div
+                    key={page}
+                    variants={pageNumberVariants}
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                    whileHover="hover"
+                    whileTap="tap"
+                    layout
+                  >
+                    <Button
+                      variant={pagination.page === page ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => onPageChange(page as number)}
+                      className={clsx(
+                        "h-8 w-8 p-0 text-xs font-medium transition-all duration-200 shadow-sm",
+                        pagination.page === page
+                          ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                          : "bg-background hover:bg-accent hover:text-accent-foreground border-input"
+                      )}
+                    >
+                      {page}
+                    </Button>
+                  </motion.div>
+                )
+              ))}
+            </AnimatePresence>
+          </div>
 
-        {/* Next Page */}
-        <PaginationArrowButton
-          onClick={() => onPageChange(pagination.page + 1)}
-          disabled={pagination.page >= totalPages}
-          direction="right"
-        />
-
-        {/* Last Page - Hidden on mobile */}
-        <div className="hidden md:block">
-          <PaginationEdgeButton
-            onClick={() => onPageChange(totalPages)}
+          {/* Next Page */}
+          <PaginationArrowButton
+            onClick={() => onPageChange(pagination.page + 1)}
             disabled={pagination.page >= totalPages}
-          >
-            Last
-          </PaginationEdgeButton>
+            direction="right"
+          />
+
+          {/* Last Page - Hidden on Mobile */}
+          <div className="hidden sm:block">
+            <PaginationEdgeButton
+              onClick={() => onPageChange(totalPages)}
+              disabled={pagination.page >= totalPages}
+              className="hidden sm:flex"
+            >
+              Last
+            </PaginationEdgeButton>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* RIGHT: Info (Mobile: Bottom Right, Order 3) (Desktop: Right, Order 3) */}
+      <motion.div
+        variants={itemVariants}
+        className="w-1/2 sm:w-1/3 flex justify-end order-3 sm:order-3 pl-2"
+      >
+        <div className="text-xs text-muted-foreground whitespace-nowrap text-right">
+          {pagination.totalCount === 0 ? (
+            "No data"
+          ) : (
+            <span>
+              <span className="font-medium text-foreground">{startItem}</span>-
+              <span className="font-medium text-foreground">{endItem}</span> of{" "}
+              <span className="font-medium text-foreground">{pagination.totalCount}</span>
+            </span>
+          )}
         </div>
       </motion.div>
     </motion.div>

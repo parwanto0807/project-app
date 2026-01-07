@@ -311,8 +311,8 @@ export default function TabelMonitoring({
         return (
             <Drawer>
                 <DrawerTrigger asChild>
-                    <Card className="border-none shadow-sm bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 mb-4 cursor-pointer group overflow-hidden">
-                        <CardContent className="p-6">
+                    <Card className="border-none shadow-sm bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 h-full cursor-pointer group overflow-hidden">
+                        <CardContent className="p-3">
                             {/* Header */}
                             <div className="flex items-start justify-between mb-4">
                                 <div className="flex-1">
@@ -325,9 +325,9 @@ export default function TabelMonitoring({
                                             <Package className="w-5 h-5" />
                                         </div>
                                         <div>
-                                            <h3 className="font-bold text-slate-900 text-base leading-tight">{item.name}</h3>
+                                            <h3 className="font-bold text-slate-900 text-xs leading-tight">{item.name}</h3>
                                             <div className="flex items-center gap-2 mt-1">
-                                                <code className="text-xs font-black bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-md border border-indigo-100">
+                                                <code className="text-[10px] font-black bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-md border border-indigo-100">
                                                     {item.code}
                                                 </code>
                                                 <Badge variant="outline" className="text-[10px] px-2 py-0 h-5">
@@ -336,7 +336,7 @@ export default function TabelMonitoring({
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2 text-sm text-slate-500">
+                                    <div className="flex items-center gap-2 text-[10px] text-slate-500">
                                         <WarehouseIcon className="w-3.5 h-3.5" />
                                         <span>{item.warehouse}</span>
                                         {item.category && (
@@ -361,40 +361,40 @@ export default function TabelMonitoring({
                             </div>
 
                             {/* Stock Summary */}
-                            <div className="grid grid-cols-2 gap-4 mb-4">
-                                <div className="bg-gradient-to-br from-indigo-50 to-white border border-indigo-100 rounded-2xl p-4 shadow-sm">
+                            <div className="grid grid-cols-2 gap-2 mb-2">
+                                <div className="bg-gradient-to-br from-indigo-50 to-white border border-indigo-100 rounded-xl p-2 shadow-sm">
                                     <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1">Stock</p>
-                                    <p className="text-xl font-black text-indigo-600">{displayValue(item.stockAkhir)}</p>
+                                    <p className="text-sm font-black text-indigo-600">{displayValue(item.stockAkhir)}</p>
                                     <p className="text-[9px] text-indigo-300 font-bold mt-1">PHYSICAL</p>
                                 </div>
-                                <div className="bg-gradient-to-br from-emerald-50 to-white border border-emerald-100 rounded-2xl p-4 shadow-sm">
+                                <div className="bg-gradient-to-br from-emerald-50 to-white border border-emerald-100 rounded-xl p-2 shadow-sm">
                                     <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1">Available</p>
-                                    <p className="text-xl font-black text-emerald-600">{displayValue(item.availableStock)}</p>
+                                    <p className="text-sm font-black text-emerald-600">{displayValue(item.availableStock)}</p>
                                     <p className="text-[9px] text-emerald-300 font-bold mt-1">READY</p>
                                 </div>
                             </div>
 
                             {/* Movement Info */}
-                            <div className="flex items-center justify-between bg-slate-50/50 rounded-2xl p-4 mb-4">
+                            <div className="flex items-center justify-between bg-slate-50/50 rounded-xl p-2 mb-2">
                                 <div className="text-center">
                                     <div className="flex items-center justify-center gap-1 mb-1">
-                                        <ArrowUpRight className="w-3.5 h-3.5 text-emerald-500" />
-                                        <span className="font-bold text-emerald-600">{displayValue(item.stockIn)}</span>
+                                        <ArrowUpRight className="w-3 h-3 text-emerald-500" />
+                                        <span className="font-bold text-emerald-600 text-xs">{displayValue(item.stockIn)}</span>
                                     </div>
                                     <p className="text-[9px] font-bold text-slate-400 uppercase">In</p>
                                 </div>
                                 <div className="h-8 w-px bg-slate-200" />
                                 <div className="text-center">
                                     <div className="flex items-center justify-center gap-1 mb-1">
-                                        <ArrowDownRight className="w-3.5 h-3.5 text-rose-500" />
-                                        <span className="font-bold text-rose-600">{displayValue(item.stockOut)}</span>
+                                        <ArrowDownRight className="w-3 h-3 text-rose-500" />
+                                        <span className="font-bold text-rose-600 text-xs">{displayValue(item.stockOut)}</span>
                                     </div>
                                     <p className="text-[9px] font-bold text-slate-400 uppercase">Out</p>
                                 </div>
                                 <div className="h-8 w-px bg-slate-200" />
                                 <div className="text-center">
                                     <div className="mb-1">
-                                        <span className="font-bold text-amber-600">{displayValue(item.bookedStock)}</span>
+                                        <span className="font-bold text-amber-600 text-xs">{displayValue(item.bookedStock)}</span>
                                     </div>
                                     <p className="text-[9px] font-bold text-slate-400 uppercase">Booked</p>
                                 </div>
@@ -404,7 +404,7 @@ export default function TabelMonitoring({
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Value</p>
-                                    <p className="text-lg font-black text-slate-900 dark:text-white">{formatCurrency(item.inventoryValue)}</p>
+                                    <p className="text-sm font-black text-slate-900 dark:text-white">{formatCurrency(item.inventoryValue)}</p>
                                 </div>
                                 <Button
                                     variant="ghost"
@@ -507,7 +507,7 @@ export default function TabelMonitoring({
 
     // Mobile Skeleton
     const MobileSkeleton = () => (
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {[...Array(5)].map((_, i) => (
                 <Card key={i} className="border-none shadow-sm bg-white/90 backdrop-blur-sm">
                     <CardContent className="p-6">
@@ -536,13 +536,13 @@ export default function TabelMonitoring({
     );
 
     return (
-        <div className="min-h-screen bg-[#f8fafc] dark:bg-slate-950 p-1 md:px-6 space-y-4 antialiased text-slate-900 dark:text-slate-50 font-sans transition-colors duration-300">
+        <div className="min-h-screen bg-[#f8fafc] dark:bg-slate-950 p-1 md:px-2 lg:px-6 space-y-4 antialiased text-slate-900 dark:text-slate-50 font-sans transition-colors duration-300">
             {/* HEADER SECTION IS MOVED TO PAGE.TSX */}
             <div className="hidden lg:block"></div>
 
             {/* DETAILED STATS */}
             <div className={cn(
-                "grid grid-cols-2 md:grid-cols-3 gap-4",
+                "grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4",
                 canViewFinancials ? "lg:grid-cols-6" : "lg:grid-cols-5"
             )}>
                 {[
@@ -562,30 +562,30 @@ export default function TabelMonitoring({
                 ].map((stat, i) => (
                     <div
                         key={i}
-                        className="group relative overflow-hidden bg-white/70 dark:bg-slate-900/40 backdrop-blur-xl rounded-[24px] p-5 border border-white dark:border-slate-800 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 dark:hover:shadow-none transition-all duration-300"
+                        className="group relative overflow-hidden bg-white/70 dark:bg-slate-900/40 backdrop-blur-xl rounded-2xl md:rounded-[24px] p-3 md:p-5 border border-white dark:border-slate-800 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 dark:hover:shadow-none transition-all duration-300"
                     >
                         {/* Soft Gradient Accent Background */}
                         <div className={cn("absolute -right-4 -top-4 w-24 h-24 bg-gradient-to-br opacity-40 blur-2xl transition-opacity group-hover:opacity-60", stat.accent)} />
 
                         <div className="relative flex items-center justify-between z-10">
                             <div className="space-y-1">
-                                <p className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em]">
+                                <p className="text-[9px] md:text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em]">
                                     {stat.label}
                                 </p>
                                 <p className={cn(
                                     "font-black text-slate-900 dark:text-slate-100 tracking-tight",
-                                    stat.label === "Total Value" ? "text-lg md:text-xl" : "text-2xl"
+                                    stat.label === "Total Value" ? "text-sm md:text-xl" : "text-lg md:text-2xl"
                                 )}>
                                     {stat.value}
                                 </p>
                             </div>
 
                             <div className={cn(
-                                "p-3 rounded-2xl transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3",
+                                "p-2 md:p-3 rounded-xl md:rounded-2xl transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3",
                                 stat.bgColor,
                                 stat.color
                             )}>
-                                <stat.icon className="w-5 h-5" />
+                                <stat.icon className="w-4 h-4 md:w-5 md:h-5" />
                             </div>
                         </div>
 
@@ -618,457 +618,457 @@ export default function TabelMonitoring({
             />
 
             {/* MAIN CONTENT AREA */}
-            {
-                viewMode === 'mobile' ? (
-                    /* MOBILE VIEW */
-                    <Card className="border-none shadow-xl shadow-slate-200/60 dark:shadow-none overflow-hidden bg-white dark:bg-slate-900 rounded-3xl transition-colors">
-                        <div className="p-2 border-b border-slate-100 dark:border-slate-800">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <h2 className="text-lg font-bold text-slate-900 dark:text-white">Stock Items</h2>
-                                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                                        Showing {data.length} of {stats.total} items
-                                    </p>
-                                </div>
-                                <Badge variant="outline" className="gap-2">
-                                    <Smartphone className="w-3 h-3" />
-                                    Mobile View
-                                </Badge>
+            {/* MOBILE / TABLET VIEW (lg:hidden) */}
+            <div className="lg:hidden">
+                <Card className="border-none shadow-xl shadow-slate-200/60 dark:shadow-none overflow-hidden bg-white dark:bg-slate-900 rounded-3xl transition-colors">
+                    <div className="p-2 border-b border-slate-100 dark:border-slate-800">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h2 className="text-lg font-bold text-slate-900 dark:text-white">Stock Items</h2>
+                                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                                    Showing {data.length} of {stats.total} items
+                                </p>
                             </div>
+                            <Badge variant="outline" className="gap-2">
+                                <Smartphone className="w-3 h-3" />
+                                Mobile View
+                            </Badge>
                         </div>
-                        <CardContent className="p-2">
-                            {loading ? (
-                                <MobileSkeleton />
-                            ) : data.length === 0 ? (
-                                <div className="text-center py-16">
-                                    <div className="mx-auto w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center mb-6">
-                                        <Package className="h-10 w-10 text-slate-400" />
-                                    </div>
-                                    <h3 className="font-bold text-xl text-slate-900 mb-2">No items found</h3>
-                                    <p className="text-slate-500 max-w-md mx-auto">
-                                        Try adjusting your search criteria or filters to find what you're looking for.
-                                    </p>
+                    </div>
+                    <CardContent className="p-1">
+                        {loading ? (
+                            <MobileSkeleton />
+                        ) : data.length === 0 ? (
+                            <div className="text-center py-16">
+                                <div className="mx-auto w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center mb-6">
+                                    <Package className="h-10 w-10 text-slate-400" />
                                 </div>
-                            ) : (
+                                <h3 className="font-bold text-xl text-slate-900 mb-2">No items found</h3>
+                                <p className="text-slate-500 max-w-md mx-auto">
+                                    Try adjusting your search criteria or filters to find what you're looking for.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                {data.map((item, index) => (
+                                    <MobileCardView key={item.id} item={item} index={index} />
+                                ))}
+                            </div>
+                        )}
+                    </CardContent>
+                    <div className="p-2 bg-slate-50/50 border-t border-slate-100">
+                        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                            <div className="flex items-center gap-3">
+                                <div className="p-3 bg-white rounded-xl shadow-sm">
+                                    <History className="w-5 h-5 text-indigo-600" />
+                                </div>
                                 <div>
-                                    {data.map((item, index) => (
-                                        <MobileCardView key={item.id} item={item} index={index} />
-                                    ))}
-                                </div>
-                            )}
-                        </CardContent>
-                        <div className="p-2 bg-slate-50/50 border-t border-slate-100">
-                            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-3 bg-white rounded-xl shadow-sm">
-                                        <History className="w-5 h-5 text-indigo-600" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Last Sync</p>
-                                        <p className="text-sm font-bold text-slate-700">{format(lastUpdated, "dd MMM yyyy, HH:mm", { locale: idLocale })}</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <p className="text-sm text-slate-500">
-                                        <span className="font-bold text-slate-900">{data.length}</span> items shown
-                                    </p>
-                                    <Button size="sm" className="rounded-xl gap-2" onClick={onRefresh}>
-                                        <RefreshCw className="w-3.5 h-3.5" />
-                                        Refresh
-                                    </Button>
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Last Sync</p>
+                                    <p className="text-sm font-bold text-slate-700">{format(lastUpdated, "dd MMM yyyy, HH:mm", { locale: idLocale })}</p>
                                 </div>
                             </div>
-                        </div>
-                    </Card>
-                ) : (
-                    /* DESKTOP VIEW */
-                    <Card className="border-none shadow-2xl shadow-slate-200/60 dark:shadow-none overflow-hidden bg-white dark:bg-slate-900 rounded-[2rem] transition-colors">
-                        <div className="p-2 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-slate-50 to-white/50 dark:from-slate-900 dark:to-slate-800/50 rounded-md">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
-                                        <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl">
-                                            <Activity className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                                        </div>
-                                        Live Stock Monitoring Dashboard
-                                    </h2>
-                                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                                        Real-time tracking of {stats.total} SKUs across {warehouses.length} locations
-                                    </p>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <Button variant="outline" size="sm" className="rounded-xl gap-2 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
-                                        <Eye className="w-3.5 h-3.5" />
-                                        View Options
-                                    </Button>
-                                    <Button variant="outline" size="sm" onClick={onRefresh} className="rounded-xl gap-2 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
-                                        <RefreshCw className="w-3.5 h-3.5" />
-                                        Refresh Data
-                                    </Button>
-
-                                    {/* Print Report PDF Button */}
-                                    {/* Print Report PDF Button */}
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        disabled={isGeneratingPdf}
-                                        className="rounded-xl gap-2 bg-purple-50/50 hover:bg-purple-100/70 border-purple-200 text-purple-700 hover:text-purple-800 dark:bg-purple-900/20 dark:border-purple-800 dark:text-purple-400"
-                                        onClick={handlePrintReport}
-                                    >
-                                        {isGeneratingPdf ? (
-                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                        ) : (
-                                            <Printer className="w-3.5 h-3.5" />
-                                        )}
-                                        {isGeneratingPdf ? "Creating PDF..." : "Print Report"}
-                                    </Button>
-                                </div>
+                            <div className="flex items-center gap-3">
+                                <p className="text-sm text-slate-500">
+                                    <span className="font-bold text-slate-900">{data.length}</span> items shown
+                                </p>
+                                <Button size="sm" className="rounded-xl gap-2" onClick={onRefresh}>
+                                    <RefreshCw className="w-3.5 h-3.5" />
+                                    Refresh
+                                </Button>
                             </div>
                         </div>
+                    </div>
+                </Card>
+            </div>
 
-                        {/* Inventory Value Summary Card (Admin Only) */}
+            {/* DESKTOP VIEW (hidden lg:block) */}
+            <div className="hidden lg:block">
+                <Card className="border-none shadow-2xl shadow-slate-200/60 dark:shadow-none overflow-hidden bg-white dark:bg-slate-900 rounded-[2rem] transition-colors">
+                    <div className="p-2 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-slate-50 to-white/50 dark:from-slate-900 dark:to-slate-800/50 rounded-md">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
+                                    <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl">
+                                        <Activity className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                                    </div>
+                                    Live Stock Monitoring Dashboard
+                                </h2>
+                                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                                    Real-time tracking of {stats.total} SKUs across {warehouses.length} locations
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <Button variant="outline" size="sm" className="rounded-xl gap-2 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+                                    <Eye className="w-3.5 h-3.5" />
+                                    View Options
+                                </Button>
+                                <Button variant="outline" size="sm" onClick={onRefresh} className="rounded-xl gap-2 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+                                    <RefreshCw className="w-3.5 h-3.5" />
+                                    Refresh Data
+                                </Button>
 
-
-                        <div className="overflow-x-auto">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow className="bg-slate-50/50 dark:bg-slate-800/30 hover:bg-slate-50 dark:hover:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
-                                        <TableHead className="w-20 text-center font-bold text-slate-400 dark:text-slate-500 py-6">#</TableHead>
-                                        <TableHead className="min-w-[300px] font-bold text-slate-900 dark:text-slate-200 text-[10px] uppercase tracking-[0.2em]">Detail Aset</TableHead>
-                                        <TableHead className="text-center font-bold text-slate-900 dark:text-slate-200 text-[10px] uppercase tracking-[0.2em]">Stok Awal</TableHead>
-                                        <TableHead className="min-w-[150px] font-bold text-slate-900 dark:text-slate-200 text-[10px] uppercase tracking-[0.2em]">Arus Stok (Periode)</TableHead>
-                                        <TableHead className="min-w-[150px] font-bold text-slate-900 dark:text-slate-200 text-[10px] uppercase tracking-[0.2em]">Aktivitas (Periode)</TableHead>
-                                        <TableHead className="text-right font-bold text-slate-900 dark:text-slate-200 text-[10px] uppercase tracking-[0.2em]">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <Sparkles className="w-3 h-3" />
-                                                Stok Akhir
-                                            </div>
-                                        </TableHead>
-                                        <TableHead className="text-right font-bold text-slate-900 dark:text-slate-200 text-[10px] uppercase tracking-[0.2em]">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <Package className="w-3 h-3" />
-                                                On PO
-                                            </div>
-                                        </TableHead>
-                                        <TableHead className="text-right font-bold text-slate-900 dark:text-slate-200 text-[10px] uppercase tracking-[0.2em]">Dialokasikan</TableHead>
-                                        <TableHead className="text-right font-bold text-slate-900 dark:text-slate-200 text-[10px] uppercase tracking-[0.2em]">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <CheckCircle className="w-3 h-3" />
-                                                Stok Tersedia
-                                            </div>
-                                        </TableHead>
-
-                                        {canViewFinancials && (
-                                            <TableHead className="text-right font-bold text-slate-900 dark:text-slate-200 text-[10px] uppercase tracking-[0.2em]">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    <DollarSign className="w-3 h-3" />
-                                                    Nilai Bersih
-                                                </div>
-                                            </TableHead>
-                                        )}
-                                        <TableHead className="text-center font-bold text-slate-900 dark:text-slate-200 text-[12px] uppercase tracking-[0.2em]">
-                                            <div className="flex items-center justify-center gap-2">
-                                                <History className="w-3 h-3" />
-                                                Diperbarui
-                                            </div>
-                                        </TableHead>
-                                        <TableHead className="text-center font-bold text-slate-900 dark:text-slate-200 text-[10px] uppercase tracking-[0.2em]">
-                                            <div className="flex items-center justify-center gap-2">
-                                                <Shield className="w-3 h-3" />
-                                                Kesehatan
-                                            </div>
-                                        </TableHead>
-                                        <TableHead className="w-10"></TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {loading ? (
-                                        <DesktopTableSkeleton />
-                                    ) : data.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={8} className="py-16 text-center">
-                                                <div className="flex flex-col items-center justify-center gap-4">
-                                                    <div className="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center">
-                                                        <Package className="h-10 w-10 text-slate-400" />
-                                                    </div>
-                                                    <div>
-                                                        <h3 className="font-bold text-xl text-slate-900 mb-2">No matching items found</h3>
-                                                        <p className="text-slate-500 max-w-md">
-                                                            Try adjusting your search terms or filters to find what you're looking for.
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
+                                {/* Print Report PDF Button */}
+                                {/* Print Report PDF Button */}
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={isGeneratingPdf}
+                                    className="rounded-xl gap-2 bg-purple-50/50 hover:bg-purple-100/70 border-purple-200 text-purple-700 hover:text-purple-800 dark:bg-purple-900/20 dark:border-purple-800 dark:text-purple-400"
+                                    onClick={handlePrintReport}
+                                >
+                                    {isGeneratingPdf ? (
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
                                     ) : (
-                                        data.map((item, idx) => {
-                                            const statusStyles = getStatusStyles(item.status, item.isActive);
-                                            return (
-                                                <TableRow
-                                                    key={item.id}
-                                                    className={cn(
-                                                        "group hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-all border-b border-slate-50 dark:border-slate-800",
-                                                        !item.isActive && "opacity-60"
-                                                    )}
-                                                >
-                                                    <TableCell className="text-center font-mono text-slate-400 text-sm italic py-5">
-                                                        <div className="flex items-center justify-center">
-                                                            <span className="font-bold text-slate-900 dark:text-slate-300">{idx + 1}</span>
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell className="py-4">
-                                                        <div className="flex items-center gap-5">
-                                                            <div className={cn(
-                                                                "w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300",
-                                                                statusStyles.bg,
-                                                                statusStyles.border
-                                                            )}>
-                                                                <Package className="w-6 h-6" />
-                                                            </div>
-                                                            <div className="space-y-1">
-                                                                <p className="font-bold text-slate-900 dark:text-white text-lg leading-tight tracking-tight">{item.name}</p>
-                                                                <div className="flex items-center gap-2">
-                                                                    <code className="text-[10px] font-black bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-md uppercase tracking-tighter border border-indigo-100/50 dark:border-indigo-800/50">
-                                                                        {item.code}
-                                                                    </code>
-                                                                    {(() => {
-                                                                        const whStyles = getWarehouseStyles(item.warehouse);
-                                                                        return (
-                                                                            <Badge variant="outline" className={cn("text-[10px] px-2 py-0.5 rounded-md border flex items-center gap-1 font-medium transition-colors cursor-default", whStyles.bg)}>
-                                                                                <WarehouseIcon className={cn("w-3 h-3", whStyles.icon)} />
-                                                                                {item.warehouse}
-                                                                            </Badge>
-                                                                        );
-                                                                    })()}
-                                                                    {item.category && (
-                                                                        <span className="text-xs text-slate-400 dark:text-slate-500">• {item.category}</span>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell className="text-center">
-                                                        <div className="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg inline-block">
-                                                            <span className="font-bold text-slate-600 dark:text-slate-300">{displayValue(item.stockAwal)}</span>
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className="flex items-center gap-6">
-                                                            <TooltipProvider>
-                                                                <Tooltip>
-                                                                    <TooltipTrigger asChild>
-                                                                        <div className="space-y-1">
-                                                                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Masuk</p>
-                                                                            <p className="text-sm font-bold text-emerald-600 flex items-center">
-                                                                                <ArrowUpRight className="w-3 h-3 mr-1" />
-                                                                                {displayValue(item.stockIn)}
-                                                                            </p>
-                                                                        </div>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent>
-                                                                        <p>Total stok masuk periode ini</p>
-                                                                    </TooltipContent>
-                                                                </Tooltip>
-                                                            </TooltipProvider>
-                                                            <TooltipProvider>
-                                                                <Tooltip>
-                                                                    <TooltipTrigger asChild>
-                                                                        <div className="space-y-1">
-                                                                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Keluar</p>
-                                                                            <p className="text-sm font-bold text-rose-500 flex items-center">
-                                                                                <ArrowDownRight className="w-3 h-3 mr-1" />
-                                                                                {displayValue(item.stockOut)}
-                                                                            </p>
-                                                                        </div>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent>
-                                                                        <p>Total stok keluar periode ini</p>
-                                                                    </TooltipContent>
-                                                                </Tooltip>
-                                                            </TooltipProvider>
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className="flex items-center gap-6">
-                                                            <TooltipProvider>
-                                                                <Tooltip>
-                                                                    <TooltipTrigger asChild>
-                                                                        <div className="space-y-1">
-                                                                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Just In</p>
-                                                                            <p className="text-sm font-bold text-emerald-600 flex items-center">
-                                                                                <ArrowUpRight className="w-3 h-3 mr-1" />
-                                                                                {displayValue(item.justIn)}
-                                                                            </p>
-                                                                        </div>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent>
-                                                                        <p>Stock received recently</p>
-                                                                    </TooltipContent>
-                                                                </Tooltip>
-                                                            </TooltipProvider>
-                                                            <TooltipProvider>
-                                                                <Tooltip>
-                                                                    <TooltipTrigger asChild>
-                                                                        <div className="space-y-1">
-                                                                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Just Out</p>
-                                                                            <p className="text-sm font-bold text-rose-500 flex items-center">
-                                                                                <ArrowDownRight className="w-3 h-3 mr-1" />
-                                                                                {displayValue(item.justOut)}
-                                                                            </p>
-                                                                        </div>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent>
-                                                                        <p>Stock shipped recently</p>
-                                                                    </TooltipContent>
-                                                                </Tooltip>
-                                                            </TooltipProvider>
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        <TooltipProvider>
-                                                            <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                    <div className="inline-block px-4 py-2 rounded-2xl bg-slate-50 dark:bg-slate-800/50 group-hover:bg-white dark:group-hover:bg-slate-800/80 border border-transparent group-hover:border-slate-100 dark:group-hover:border-slate-700 transition-all cursor-help">
-                                                                        <p className="text-xl font-black text-slate-900 dark:text-white tracking-tighter leading-none">{displayValue(item.stockAkhir)}</p>
-                                                                        <p className="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 uppercase mt-1">{item.storageUnit}</p>
-                                                                    </div>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-xl p-3 min-w-[200px]">
-                                                                    <div className="text-xs space-y-3">
-                                                                        <div>
-                                                                            <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px] mb-1">Conversion Rate</p>
-                                                                            <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50 p-1.5 rounded border border-slate-100 dark:border-slate-700 font-mono text-[10px]">
-                                                                                <span>1 {item.purchaseUnit || 'Unit'}</span>
-                                                                                <ArrowRight className="w-3 h-3" />
-                                                                                <span>{item.conversionToStorage || 1} {item.storageUnit}</span>
-                                                                            </div>
-                                                                        </div>
+                                        <Printer className="w-3.5 h-3.5" />
+                                    )}
+                                    {isGeneratingPdf ? "Creating PDF..." : "Print Report"}
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
 
-                                                                        <div>
-                                                                            <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px] mb-1">Actual / Equivalent</p>
-                                                                            <div className="bg-indigo-50 dark:bg-indigo-900/20 p-2 rounded-lg border border-indigo-100 dark:border-indigo-800">
-                                                                                <p className="text-lg font-black text-indigo-700 dark:text-indigo-400 leading-none">
-                                                                                    {(item.stockAkhir / (item.conversionToStorage || 1)).toLocaleString('id-ID', { maximumFractionDigits: 2 })}
-                                                                                </p>
-                                                                                <p className="text-[10px] font-bold text-indigo-500 dark:text-indigo-300 uppercase mt-0.5">{item.purchaseUnit || 'Unit'}</p>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </TooltipContent>
-                                                            </Tooltip>
-                                                        </TooltipProvider>
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        <div className="space-y-1">
-                                                            <p className="text-sm font-bold text-yellow-500 dark:text-yellow-300">{displayValue(item.onPR)}</p>
-                                                            <p className="text-[9px] text-blue-500 dark:text-blue-500 font-bold uppercase tracking-tighter">Purchase Req</p>
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        <div className="space-y-1">
-                                                            <p className="text-sm font-bold text-orange-400 dark:text-orange-500">{displayValue(item.bookedStock)}</p>
-                                                            <p className="text-[9px] text-blue-500 dark:text-blue-500 font-bold uppercase tracking-tighter">Booked PR</p>
-                                                        </div>
-                                                    </TableCell>
+                    {/* Inventory Value Summary Card (Admin Only) */}
 
-                                                    <TableCell className="text-right">
-                                                        <TooltipProvider>
-                                                            <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                    <div className="inline-block px-4 py-2 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 border border-transparent transition-all cursor-help">
-                                                                        <p className="text-xl font-black text-emerald-700 dark:text-emerald-400 tracking-tighter leading-none">{displayValue(item.availableStock)}</p>
-                                                                        <p className="text-[10px] font-bold text-emerald-500 dark:text-emerald-300 uppercase mt-1">Ready</p>
-                                                                    </div>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-xl p-3 min-w-[200px]">
-                                                                    <div className="text-xs space-y-3">
-                                                                        <div>
-                                                                            <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px] mb-1">Conversion Rate</p>
-                                                                            <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50 p-1.5 rounded border border-slate-100 dark:border-slate-700 font-mono text-[10px]">
-                                                                                <span>1 {item.purchaseUnit || 'Unit'}</span>
-                                                                                <ArrowRight className="w-3 h-3" />
-                                                                                <span>{item.conversionToStorage || 1} {item.storageUnit}</span>
-                                                                            </div>
-                                                                        </div>
 
-                                                                        <div>
-                                                                            <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px] mb-1">Actual / Equivalent</p>
-                                                                            <div className="bg-emerald-50 dark:bg-emerald-900/20 p-2 rounded-lg border border-emerald-100 dark:border-emerald-800">
-                                                                                <p className="text-lg font-black text-emerald-700 dark:text-emerald-400 leading-none">
-                                                                                    {(item.availableStock / (item.conversionToStorage || 1)).toLocaleString('id-ID', { maximumFractionDigits: 2 })}
-                                                                                </p>
-                                                                                <p className="text-[10px] font-bold text-emerald-500 dark:text-emerald-300 uppercase mt-0.5">{item.purchaseUnit || 'Unit'}</p>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                </TooltipContent>
-                                                            </Tooltip>
-                                                        </TooltipProvider>
-                                                    </TableCell>
-                                                    {canViewFinancials && (
-                                                        <TableCell className="text-right">
-                                                            <p className="text-sm font-black text-slate-900 dark:text-white tracking-tight">{formatCurrency(item.inventoryValue)}</p>
-                                                            <div className="h-1 w-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-full ml-auto mt-2 overflow-hidden">
-                                                                <div className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full w-2/3" />
-                                                            </div>
-                                                        </TableCell>
-                                                    )}
-                                                    <TableCell className="text-center">
-                                                        <div className="space-y-1">
-                                                            <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{format(new Date(item.updatedAt), 'dd MMM yy')}</p>
-                                                            <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-tighter">
-                                                                {format(new Date(item.updatedAt), 'HH:mm')}
-                                                            </p>
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell className="text-center">
-                                                        <Badge variant="outline" className={cn(
-                                                            "px-4 py-1.5 rounded-xl font-bold uppercase text-[9px] tracking-[0.15em] border-2",
+                    <div className="overflow-x-auto">
+                        <Table>
+                            <TableHeader>
+                                <TableRow className="bg-slate-50/50 dark:bg-slate-800/30 hover:bg-slate-50 dark:hover:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
+                                    <TableHead className="w-20 text-center font-bold text-slate-400 dark:text-slate-500 py-6">#</TableHead>
+                                    <TableHead className="min-w-[300px] font-bold text-slate-900 dark:text-slate-200 text-[10px] uppercase tracking-[0.2em]">Detail Aset</TableHead>
+                                    <TableHead className="text-center font-bold text-slate-900 dark:text-slate-200 text-[10px] uppercase tracking-[0.2em]">Stok Awal</TableHead>
+                                    <TableHead className="min-w-[150px] font-bold text-slate-900 dark:text-slate-200 text-[10px] uppercase tracking-[0.2em]">Arus Stok (Periode)</TableHead>
+                                    <TableHead className="min-w-[150px] font-bold text-slate-900 dark:text-slate-200 text-[10px] uppercase tracking-[0.2em]">Aktivitas (Periode)</TableHead>
+                                    <TableHead className="text-right font-bold text-slate-900 dark:text-slate-200 text-[10px] uppercase tracking-[0.2em]">
+                                        <div className="flex items-center justify-end gap-2">
+                                            <Sparkles className="w-3 h-3" />
+                                            Stok Akhir
+                                        </div>
+                                    </TableHead>
+                                    <TableHead className="text-right font-bold text-slate-900 dark:text-slate-200 text-[10px] uppercase tracking-[0.2em]">
+                                        <div className="flex items-center justify-end gap-2">
+                                            <Package className="w-3 h-3" />
+                                            On PO
+                                        </div>
+                                    </TableHead>
+                                    <TableHead className="text-right font-bold text-slate-900 dark:text-slate-200 text-[10px] uppercase tracking-[0.2em]">Dialokasikan</TableHead>
+                                    <TableHead className="text-right font-bold text-slate-900 dark:text-slate-200 text-[10px] uppercase tracking-[0.2em]">
+                                        <div className="flex items-center justify-end gap-2">
+                                            <CheckCircle className="w-3 h-3" />
+                                            Stok Tersedia
+                                        </div>
+                                    </TableHead>
+
+                                    {canViewFinancials && (
+                                        <TableHead className="text-right font-bold text-slate-900 dark:text-slate-200 text-[10px] uppercase tracking-[0.2em]">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <DollarSign className="w-3 h-3" />
+                                                Nilai Bersih
+                                            </div>
+                                        </TableHead>
+                                    )}
+                                    <TableHead className="text-center font-bold text-slate-900 dark:text-slate-200 text-[12px] uppercase tracking-[0.2em]">
+                                        <div className="flex items-center justify-center gap-2">
+                                            <History className="w-3 h-3" />
+                                            Diperbarui
+                                        </div>
+                                    </TableHead>
+                                    <TableHead className="text-center font-bold text-slate-900 dark:text-slate-200 text-[10px] uppercase tracking-[0.2em]">
+                                        <div className="flex items-center justify-center gap-2">
+                                            <Shield className="w-3 h-3" />
+                                            Kesehatan
+                                        </div>
+                                    </TableHead>
+                                    <TableHead className="w-10"></TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {loading ? (
+                                    <DesktopTableSkeleton />
+                                ) : data.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={8} className="py-16 text-center">
+                                            <div className="flex flex-col items-center justify-center gap-4">
+                                                <div className="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center">
+                                                    <Package className="h-10 w-10 text-slate-400" />
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-bold text-xl text-slate-900 mb-2">No matching items found</h3>
+                                                    <p className="text-slate-500 max-w-md">
+                                                        Try adjusting your search terms or filters to find what you're looking for.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ) : (
+                                    data.map((item, idx) => {
+                                        const statusStyles = getStatusStyles(item.status, item.isActive);
+                                        return (
+                                            <TableRow
+                                                key={item.id}
+                                                className={cn(
+                                                    "group hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-all border-b border-slate-50 dark:border-slate-800",
+                                                    !item.isActive && "opacity-60"
+                                                )}
+                                            >
+                                                <TableCell className="text-center font-mono text-slate-400 text-sm italic py-5">
+                                                    <div className="flex items-center justify-center">
+                                                        <span className="font-bold text-slate-900 dark:text-slate-300">{idx + 1}</span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="py-4">
+                                                    <div className="flex items-center gap-5">
+                                                        <div className={cn(
+                                                            "w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300",
                                                             statusStyles.bg,
-                                                            statusStyles.text,
                                                             statusStyles.border
                                                         )}>
-                                                            <div className="flex items-center gap-1.5">
-                                                                {statusStyles.icon}
-                                                                {!item.isActive ? "Inactive" : item.status}
-                                                            </div>
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell className="text-center">
+                                                            <Package className="w-6 h-6" />
+                                                        </div>
                                                         <div className="space-y-1">
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                onClick={() => handleViewDetail(item)}
-                                                                className="rounded-xl h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
-                                                            >
-                                                                <Eye className="w-4 h-4" />
-                                                            </Button>
+                                                            <p className="font-bold text-slate-900 dark:text-white text-lg leading-tight tracking-tight">{item.name}</p>
+                                                            <div className="flex items-center gap-2">
+                                                                <code className="text-[10px] font-black bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-md uppercase tracking-tighter border border-indigo-100/50 dark:border-indigo-800/50">
+                                                                    {item.code}
+                                                                </code>
+                                                                {(() => {
+                                                                    const whStyles = getWarehouseStyles(item.warehouse);
+                                                                    return (
+                                                                        <Badge variant="outline" className={cn("text-[10px] px-2 py-0.5 rounded-md border flex items-center gap-1 font-medium transition-colors cursor-default", whStyles.bg)}>
+                                                                            <WarehouseIcon className={cn("w-3 h-3", whStyles.icon)} />
+                                                                            {item.warehouse}
+                                                                        </Badge>
+                                                                    );
+                                                                })()}
+                                                                {item.category && (
+                                                                    <span className="text-xs text-slate-400 dark:text-slate-500">• {item.category}</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="text-center">
+                                                    <div className="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg inline-block">
+                                                        <span className="font-bold text-slate-600 dark:text-slate-300">{displayValue(item.stockAwal)}</span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-6">
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <div className="space-y-1">
+                                                                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Masuk</p>
+                                                                        <p className="text-sm font-bold text-emerald-600 flex items-center">
+                                                                            <ArrowUpRight className="w-3 h-3 mr-1" />
+                                                                            {displayValue(item.stockIn)}
+                                                                        </p>
+                                                                    </div>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <p>Total stok masuk periode ini</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <div className="space-y-1">
+                                                                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Keluar</p>
+                                                                        <p className="text-sm font-bold text-rose-500 flex items-center">
+                                                                            <ArrowDownRight className="w-3 h-3 mr-1" />
+                                                                            {displayValue(item.stockOut)}
+                                                                        </p>
+                                                                    </div>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <p>Total stok keluar periode ini</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-6">
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <div className="space-y-1">
+                                                                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Just In</p>
+                                                                        <p className="text-sm font-bold text-emerald-600 flex items-center">
+                                                                            <ArrowUpRight className="w-3 h-3 mr-1" />
+                                                                            {displayValue(item.justIn)}
+                                                                        </p>
+                                                                    </div>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <p>Stock received recently</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <div className="space-y-1">
+                                                                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Just Out</p>
+                                                                        <p className="text-sm font-bold text-rose-500 flex items-center">
+                                                                            <ArrowDownRight className="w-3 h-3 mr-1" />
+                                                                            {displayValue(item.justOut)}
+                                                                        </p>
+                                                                    </div>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <p>Stock shipped recently</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <div className="inline-block px-4 py-2 rounded-2xl bg-slate-50 dark:bg-slate-800/50 group-hover:bg-white dark:group-hover:bg-slate-800/80 border border-transparent group-hover:border-slate-100 dark:group-hover:border-slate-700 transition-all cursor-help">
+                                                                    <p className="text-xl font-black text-slate-900 dark:text-white tracking-tighter leading-none">{displayValue(item.stockAkhir)}</p>
+                                                                    <p className="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 uppercase mt-1">{item.storageUnit}</p>
+                                                                </div>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-xl p-3 min-w-[200px]">
+                                                                <div className="text-xs space-y-3">
+                                                                    <div>
+                                                                        <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px] mb-1">Conversion Rate</p>
+                                                                        <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50 p-1.5 rounded border border-slate-100 dark:border-slate-700 font-mono text-[10px]">
+                                                                            <span>1 {item.purchaseUnit || 'Unit'}</span>
+                                                                            <ArrowRight className="w-3 h-3" />
+                                                                            <span>{item.conversionToStorage || 1} {item.storageUnit}</span>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div>
+                                                                        <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px] mb-1">Actual / Equivalent</p>
+                                                                        <div className="bg-indigo-50 dark:bg-indigo-900/20 p-2 rounded-lg border border-indigo-100 dark:border-indigo-800">
+                                                                            <p className="text-lg font-black text-indigo-700 dark:text-indigo-400 leading-none">
+                                                                                {(item.stockAkhir / (item.conversionToStorage || 1)).toLocaleString('id-ID', { maximumFractionDigits: 2 })}
+                                                                            </p>
+                                                                            <p className="text-[10px] font-bold text-indigo-500 dark:text-indigo-300 uppercase mt-0.5">{item.purchaseUnit || 'Unit'}</p>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <div className="space-y-1">
+                                                        <p className="text-sm font-bold text-yellow-500 dark:text-yellow-300">{displayValue(item.onPR)}</p>
+                                                        <p className="text-[9px] text-blue-500 dark:text-blue-500 font-bold uppercase tracking-tighter">Purchase Req</p>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <div className="space-y-1">
+                                                        <p className="text-sm font-bold text-orange-400 dark:text-orange-500">{displayValue(item.bookedStock)}</p>
+                                                        <p className="text-[9px] text-blue-500 dark:text-blue-500 font-bold uppercase tracking-tighter">Booked PR</p>
+                                                    </div>
+                                                </TableCell>
+
+                                                <TableCell className="text-right">
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <div className="inline-block px-4 py-2 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 border border-transparent transition-all cursor-help">
+                                                                    <p className="text-xl font-black text-emerald-700 dark:text-emerald-400 tracking-tighter leading-none">{displayValue(item.availableStock)}</p>
+                                                                    <p className="text-[10px] font-bold text-emerald-500 dark:text-emerald-300 uppercase mt-1">Ready</p>
+                                                                </div>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-xl p-3 min-w-[200px]">
+                                                                <div className="text-xs space-y-3">
+                                                                    <div>
+                                                                        <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px] mb-1">Conversion Rate</p>
+                                                                        <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50 p-1.5 rounded border border-slate-100 dark:border-slate-700 font-mono text-[10px]">
+                                                                            <span>1 {item.purchaseUnit || 'Unit'}</span>
+                                                                            <ArrowRight className="w-3 h-3" />
+                                                                            <span>{item.conversionToStorage || 1} {item.storageUnit}</span>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div>
+                                                                        <p className="font-bold text-slate-400 uppercase tracking-wider text-[10px] mb-1">Actual / Equivalent</p>
+                                                                        <div className="bg-emerald-50 dark:bg-emerald-900/20 p-2 rounded-lg border border-emerald-100 dark:border-emerald-800">
+                                                                            <p className="text-lg font-black text-emerald-700 dark:text-emerald-400 leading-none">
+                                                                                {(item.availableStock / (item.conversionToStorage || 1)).toLocaleString('id-ID', { maximumFractionDigits: 2 })}
+                                                                            </p>
+                                                                            <p className="text-[10px] font-bold text-emerald-500 dark:text-emerald-300 uppercase mt-0.5">{item.purchaseUnit || 'Unit'}</p>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                </TableCell>
+                                                {canViewFinancials && (
+                                                    <TableCell className="text-right">
+                                                        <p className="text-sm font-black text-slate-900 dark:text-white tracking-tight">{formatCurrency(item.inventoryValue)}</p>
+                                                        <div className="h-1 w-12 bg-indigo-100 dark:bg-indigo-900/30 rounded-full ml-auto mt-2 overflow-hidden">
+                                                            <div className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full w-2/3" />
                                                         </div>
                                                     </TableCell>
-                                                </TableRow>
-                                            );
-                                        })
-                                    )}
-                                </TableBody>
-                            </Table>
+                                                )}
+                                                <TableCell className="text-center">
+                                                    <div className="space-y-1">
+                                                        <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{format(new Date(item.updatedAt), 'dd MMM yy')}</p>
+                                                        <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-tighter">
+                                                            {format(new Date(item.updatedAt), 'HH:mm')}
+                                                        </p>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="text-center">
+                                                    <Badge variant="outline" className={cn(
+                                                        "px-4 py-1.5 rounded-xl font-bold uppercase text-[9px] tracking-[0.15em] border-2",
+                                                        statusStyles.bg,
+                                                        statusStyles.text,
+                                                        statusStyles.border
+                                                    )}>
+                                                        <div className="flex items-center gap-1.5">
+                                                            {statusStyles.icon}
+                                                            {!item.isActive ? "Inactive" : item.status}
+                                                        </div>
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-center">
+                                                    <div className="space-y-1">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            onClick={() => handleViewDetail(item)}
+                                                            className="rounded-xl h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+                                                        >
+                                                            <Eye className="w-4 h-4" />
+                                                        </Button>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })
+                                )}
+                            </TableBody>
+                        </Table>
 
-                        </div>
+                    </div>
 
-                        {
-                            pagination && (
-                                <div className="p-4 border-t border-slate-100 dark:border-slate-800">
-                                    <PaginationComponent
-                                        currentPage={pagination.currentPage}
-                                        totalPages={pagination.totalPages}
-                                        onPageChange={onPageChange || (() => { })}
-                                    />
-                                </div>
-                            )
-                        }
-                    </Card >
-                )
-            }
+                    {
+                        pagination && (
+                            <div className="p-4 border-t border-slate-100 dark:border-slate-800">
+                                <PaginationComponent
+                                    currentPage={pagination.currentPage}
+                                    totalPages={pagination.totalPages}
+                                    onPageChange={onPageChange || (() => { })}
+                                />
+                            </div>
+                        )
+                    }
+                </Card >
+            </div>
 
             {/* Detail Sheet */}
             <StockDetailSheet

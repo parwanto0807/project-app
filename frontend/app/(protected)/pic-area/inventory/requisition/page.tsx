@@ -165,19 +165,11 @@ export default function MaterialRequisitionPage() {
                     description="Pantau dan kelola pengeluaran barang gudang"
                     icon={<ClipboardList className={isMobile ? "h-5 w-5" : "h-7 w-7"} />}
                     showActionArea={!isMobile}
-                    actionArea={
-                        <div className="flex flex-col sm:flex-row gap-3">
-                            <SearchInput
-                                onSearch={handleSearch}
-                                placeholder="Cari MR..."
-                                initialValue={urlSearchTerm}
-                            />
-                        </div>
-                    }
+                    actionArea={false}
                 />
 
                 {/* Mobile Search Area */}
-                {isMobile && (
+                {/* {isMobile && (
                     <div className="p-4 bg-white dark:bg-slate-900 rounded-lg shadow-sm border space-y-3">
                         <SearchInput
                             onSearch={handleSearch}
@@ -185,7 +177,7 @@ export default function MaterialRequisitionPage() {
                             initialValue={urlSearchTerm}
                         />
                     </div>
-                )}
+                )} */}
 
                 {/* Results Info */}
                 {urlSearchTerm && (

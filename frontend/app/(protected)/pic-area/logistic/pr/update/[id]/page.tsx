@@ -306,35 +306,37 @@ export default function UpdatePRPagePIC() {
         role: "pic",
         children: (
             <>
-                <div className="h-full flex flex-col min-h-0 ml-4">
-                    <Breadcrumb>
-                        <BreadcrumbList>
-                            <BreadcrumbItem>
-                                <BreadcrumbLink asChild>
+                <div className="h-full flex flex-col min-h-0">
+                    <div className="flex-shrink-0 px-4 pt-4">
+                        <Breadcrumb>
+                            <BreadcrumbList>
+                                <BreadcrumbItem>
+                                    <BreadcrumbLink asChild>
+                                        <Badge variant="outline">
+                                            <Link href="/pic-area">Dashboard</Link>
+                                        </Badge>
+                                    </BreadcrumbLink>
+                                </BreadcrumbItem>
+                                <BreadcrumbSeparator />
+                                <BreadcrumbItem>
+                                    <BreadcrumbLink asChild>
+                                        <Badge variant="outline">
+                                            <Link href="/pic-area/logistic/pr">Purchase Request List</Link>
+                                        </Badge>
+                                    </BreadcrumbLink>
+                                </BreadcrumbItem>
+                                <BreadcrumbSeparator />
+                                <BreadcrumbItem>
                                     <Badge variant="outline">
-                                        <Link href="/pic-area">Dashboard</Link>
+                                        <BreadcrumbPage>Update PR</BreadcrumbPage>
                                     </Badge>
-                                </BreadcrumbLink>
-                            </BreadcrumbItem>
-                            <BreadcrumbSeparator />
-                            <BreadcrumbItem>
-                                <BreadcrumbLink asChild>
-                                    <Badge variant="outline">
-                                        <Link href="/pic-area/logistic/pr">Purchase Request List</Link>
-                                    </Badge>
-                                </BreadcrumbLink>
-                            </BreadcrumbItem>
-                            <BreadcrumbSeparator />
-                            <BreadcrumbItem>
-                                <Badge variant="outline">
-                                    <BreadcrumbPage>Update PR</BreadcrumbPage>
-                                </Badge>
-                            </BreadcrumbItem>
-                        </BreadcrumbList>
-                    </Breadcrumb>
+                                </BreadcrumbItem>
+                            </BreadcrumbList>
+                        </Breadcrumb>
+                    </div>
 
-                    <div className="h-full w-full">
-                        <div className="flex-1 space-y-2 p-2 pt-1 md:p-4">
+                    <div className="flex-1 min-h-0 overflow-auto">
+                        <div className="space-y-4 p-2 md:p-4">
                             {/* Info PR yang sedang diupdate */}
                             {/* <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
                             <div className="flex items-center justify-between">
@@ -350,15 +352,7 @@ export default function UpdatePRPagePIC() {
                                             Status: <span className="font-medium">{purchaseRequest.status}</span>
                                         </p>
                                     )}
-                                    {purchaseRequest?.project?.name && (
-                                        <p className="text-blue-600 text-sm">
-                                            Project: <span className="font-medium">{purchaseRequest.project.name}</span>
-                                        </p>
-                                    )}
                                 </div>
-                                <Badge variant="outline" className="bg-white text-blue-700">
-                                    Editing Mode
-                                </Badge>
                             </div>
                         </div> */}
 

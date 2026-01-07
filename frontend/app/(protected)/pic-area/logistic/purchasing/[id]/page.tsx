@@ -29,140 +29,142 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
                 showBreadcrumb={false}
                 role="pic"
             >
-                {/* Premium Breadcrumb dengan Gradient */}
-                <div className="mb-8">
-                    <div className="bg-gradient-to-r from-blue-50/50 to-purple-50/30 dark:from-gray-900 dark:to-gray-800/50 rounded-xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm">
-                        {/* Breadcrumb Navigation */}
-                        <Breadcrumb>
-                            <BreadcrumbList>
-                                <BreadcrumbItem>
-                                    <BreadcrumbLink
-                                        href="/pic-area"
-                                        className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary-foreground hover:bg-blue-50 dark:hover:bg-blue-900/30 px-3 py-1.5 rounded-lg transition-all duration-200 group"
-                                    >
-                                        <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 flex items-center justify-center group-hover:from-blue-200 group-hover:to-blue-300">
-                                            <Home className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                                        </div>
-                                        <span className="font-medium">Dashboard</span>
-                                    </BreadcrumbLink>
-                                </BreadcrumbItem>
-                                <BreadcrumbSeparator>
-                                    <ChevronRight className="h-4 w-4 text-gray-400" />
-                                </BreadcrumbSeparator>
-                                <BreadcrumbItem>
-                                    <BreadcrumbLink
-                                        href="/pic-area/logistic/purchasing"
-                                        className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary-foreground hover:bg-green-50 dark:hover:bg-green-900/30 px-3 py-1.5 rounded-lg transition-all duration-200 group"
-                                    >
-                                        <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-green-100 to-green-200 dark:from-green-900 dark:to-green-800 flex items-center justify-center group-hover:from-green-200 group-hover:to-green-300">
-                                            <Package className="h-4 w-4 text-green-600 dark:text-green-400" />
-                                        </div>
-                                        <span className="font-medium">Logistik</span>
-                                    </BreadcrumbLink>
-                                </BreadcrumbItem>
-                                <BreadcrumbSeparator>
-                                    <ChevronRight className="h-4 w-4 text-gray-400" />
-                                </BreadcrumbSeparator>
-                                <BreadcrumbItem>
-                                    <BreadcrumbLink
-                                        href="/pic-area/logistic/purchasing"
-                                        className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary-foreground hover:bg-purple-50 dark:hover:bg-purple-900/30 px-3 py-1.5 rounded-lg transition-all duration-200 group"
-                                    >
-                                        <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900 dark:to-purple-800 flex items-center justify-center group-hover:from-purple-200 group-hover:to-purple-300">
-                                            <ShoppingCart className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                                        </div>
-                                        <span className="font-medium">Purchasing</span>
-                                    </BreadcrumbLink>
-                                </BreadcrumbItem>
-                                <BreadcrumbSeparator>
-                                    <ChevronRight className="h-4 w-4 text-gray-400" />
-                                </BreadcrumbSeparator>
-                                <BreadcrumbItem>
-                                    <BreadcrumbPage className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-900 border border-blue-100 dark:border-gray-700">
-                                        <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                                            <FileText className="h-4 w-4 text-white" />
-                                        </div>
-                                        <div className="flex flex-col">
-                                            <span className="font-bold text-gray-900 dark:text-gray-100">{purchaseOrder.poNumber}</span>
-                                            <span className="text-xs text-muted-foreground">Purchase Order</span>
-                                        </div>
-                                    </BreadcrumbPage>
-                                </BreadcrumbItem>
-                            </BreadcrumbList>
-                        </Breadcrumb>
+                <div className="h-full overflow-y-auto p-4 md:p-6 space-y-8">
+                    {/* Premium Breadcrumb dengan Gradient */}
+                    <div>
+                        <div className="bg-gradient-to-r from-blue-50/50 to-purple-50/30 dark:from-gray-900 dark:to-gray-800/50 rounded-xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm">
+                            {/* Breadcrumb Navigation */}
+                            <Breadcrumb>
+                                <BreadcrumbList>
+                                    <BreadcrumbItem>
+                                        <BreadcrumbLink
+                                            href="/pic-area"
+                                            className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary-foreground hover:bg-blue-50 dark:hover:bg-blue-900/30 px-3 py-1.5 rounded-lg transition-all duration-200 group"
+                                        >
+                                            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 flex items-center justify-center group-hover:from-blue-200 group-hover:to-blue-300">
+                                                <Home className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                                            </div>
+                                            <span className="font-medium">Dashboard</span>
+                                        </BreadcrumbLink>
+                                    </BreadcrumbItem>
+                                    <BreadcrumbSeparator>
+                                        <ChevronRight className="h-4 w-4 text-gray-400" />
+                                    </BreadcrumbSeparator>
+                                    <BreadcrumbItem>
+                                        <BreadcrumbLink
+                                            href="/pic-area/logistic/purchasing"
+                                            className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary-foreground hover:bg-green-50 dark:hover:bg-green-900/30 px-3 py-1.5 rounded-lg transition-all duration-200 group"
+                                        >
+                                            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-green-100 to-green-200 dark:from-green-900 dark:to-green-800 flex items-center justify-center group-hover:from-green-200 group-hover:to-green-300">
+                                                <Package className="h-4 w-4 text-green-600 dark:text-green-400" />
+                                            </div>
+                                            <span className="font-medium">Logistik</span>
+                                        </BreadcrumbLink>
+                                    </BreadcrumbItem>
+                                    <BreadcrumbSeparator>
+                                        <ChevronRight className="h-4 w-4 text-gray-400" />
+                                    </BreadcrumbSeparator>
+                                    <BreadcrumbItem>
+                                        <BreadcrumbLink
+                                            href="/pic-area/logistic/purchasing"
+                                            className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary-foreground hover:bg-purple-50 dark:hover:bg-purple-900/30 px-3 py-1.5 rounded-lg transition-all duration-200 group"
+                                        >
+                                            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900 dark:to-purple-800 flex items-center justify-center group-hover:from-purple-200 group-hover:to-purple-300">
+                                                <ShoppingCart className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                                            </div>
+                                            <span className="font-medium">Purchasing</span>
+                                        </BreadcrumbLink>
+                                    </BreadcrumbItem>
+                                    <BreadcrumbSeparator>
+                                        <ChevronRight className="h-4 w-4 text-gray-400" />
+                                    </BreadcrumbSeparator>
+                                    <BreadcrumbItem>
+                                        <BreadcrumbPage className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-50 to-purple-50 dark:from-gray-800 dark:to-gray-900 border border-blue-100 dark:border-gray-700">
+                                            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                                                <FileText className="h-4 w-4 text-white" />
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-gray-900 dark:text-gray-100">{purchaseOrder.poNumber}</span>
+                                                <span className="text-xs text-muted-foreground">Purchase Order</span>
+                                            </div>
+                                        </BreadcrumbPage>
+                                    </BreadcrumbItem>
+                                </BreadcrumbList>
+                            </Breadcrumb>
 
-                        {/* PO Summary Cards */}
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
-                            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100 dark:border-gray-700 shadow-sm">
-                                <div className="flex items-center gap-3">
-                                    <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 flex items-center justify-center">
-                                        <Building className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                                    </div>
-                                    <div>
-                                        <div className="text-sm text-muted-foreground">Supplier</div>
-                                        <div className="font-semibold truncate dark:text-gray-200">{purchaseOrder.supplier?.name || 'Tidak ada'}</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100 dark:border-gray-700 shadow-sm">
-                                <div className="flex items-center gap-3">
-                                    <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-100 to-green-200 dark:from-green-900 dark:to-green-800 flex items-center justify-center">
-                                        <Calendar className="h-5 w-5 text-green-600 dark:text-green-400" />
-                                    </div>
-                                    <div>
-                                        <div className="text-sm text-muted-foreground">Tanggal Order</div>
-                                        <div className="font-semibold dark:text-gray-200">
-                                            {new Date(purchaseOrder.orderDate).toLocaleDateString('id-ID', {
-                                                day: 'numeric',
-                                                month: 'short',
-                                                year: 'numeric'
-                                            })}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100 dark:border-gray-700 shadow-sm">
-                                <div className="flex items-center gap-3">
-                                    <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-100 to-amber-200 dark:from-amber-900 dark:to-amber-800 flex items-center justify-center">
-                                        <DollarSign className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                                    </div>
-                                    <div>
-                                        <div className="text-sm text-muted-foreground">Total Nilai</div>
-                                        <div className="font-bold text-primary dark:text-blue-400">
-                                            {new Intl.NumberFormat("id-ID", {
-                                                style: "currency",
-                                                currency: "IDR",
-                                                minimumFractionDigits: 0,
-                                            }).format(purchaseOrder.totalAmount)}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100 dark:border-gray-700 shadow-sm">
-                                <div className="flex items-center justify-between">
+                            {/* PO Summary Cards */}
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
+                                <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100 dark:border-gray-700 shadow-sm">
                                     <div className="flex items-center gap-3">
-                                        <div className={`h-10 w-10 rounded-lg ${statusColor.bg} flex items-center justify-center shadow-sm`}>
-                                            {getStatusIcon(purchaseOrder.status)}
+                                        <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900 dark:to-blue-800 flex items-center justify-center">
+                                            <Building className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                                         </div>
                                         <div>
-                                            <div className="text-sm text-muted-foreground">Status</div>
-                                            <div className="font-semibold dark:text-gray-200">{getStatusLabel(purchaseOrder.status)}</div>
+                                            <div className="text-sm text-muted-foreground">Supplier</div>
+                                            <div className="font-semibold truncate dark:text-gray-200">{purchaseOrder.supplier?.name || 'Tidak ada'}</div>
                                         </div>
                                     </div>
-                                    <Badge className={`${statusColor.badge} ${statusColor.text} border-0 shadow-sm`}>
-                                        {purchaseOrder.status.replace('_', ' ')}
-                                    </Badge>
+                                </div>
+
+                                <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100 dark:border-gray-700 shadow-sm">
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-green-100 to-green-200 dark:from-green-900 dark:to-green-800 flex items-center justify-center">
+                                            <Calendar className="h-5 w-5 text-green-600 dark:text-green-400" />
+                                        </div>
+                                        <div>
+                                            <div className="text-sm text-muted-foreground">Tanggal Order</div>
+                                            <div className="font-semibold dark:text-gray-200">
+                                                {new Date(purchaseOrder.orderDate).toLocaleDateString('id-ID', {
+                                                    day: 'numeric',
+                                                    month: 'short',
+                                                    year: 'numeric'
+                                                })}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100 dark:border-gray-700 shadow-sm">
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-amber-100 to-amber-200 dark:from-amber-900 dark:to-amber-800 flex items-center justify-center">
+                                            <DollarSign className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                                        </div>
+                                        <div>
+                                            <div className="text-sm text-muted-foreground">Total Nilai</div>
+                                            <div className="font-bold text-primary dark:text-blue-400">
+                                                {new Intl.NumberFormat("id-ID", {
+                                                    style: "currency",
+                                                    currency: "IDR",
+                                                    minimumFractionDigits: 0,
+                                                }).format(purchaseOrder.totalAmount)}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-100 dark:border-gray-700 shadow-sm">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`h-10 w-10 rounded-lg ${statusColor.bg} flex items-center justify-center shadow-sm`}>
+                                                {getStatusIcon(purchaseOrder.status)}
+                                            </div>
+                                            <div>
+                                                <div className="text-sm text-muted-foreground">Status</div>
+                                                <div className="font-semibold dark:text-gray-200">{getStatusLabel(purchaseOrder.status)}</div>
+                                            </div>
+                                        </div>
+                                        <Badge className={`${statusColor.badge} ${statusColor.text} border-0 shadow-sm`}>
+                                            {purchaseOrder.status.replace('_', ' ')}
+                                        </Badge>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <div className="min-h-screen">
-                    <ViewDetailPO poId={id} userRole={userRole} />
+                    <div className="pb-10">
+                        <ViewDetailPO poId={id} userRole={userRole} />
+                    </div>
                 </div>
             </PicLayout>
         );

@@ -176,7 +176,8 @@ export default function SpkReportPageAdmin() {
             <>
                 <div className="h-full flex flex-col min-h-0">
                     {/* Breadcrumb */}
-                    <div className="flex-shrink-0 ml-4">
+                    {/* Breadcrumb */}
+                    <div className="flex-shrink-0 px-4 pt-4">
                         <Breadcrumb>
                             <BreadcrumbList>
                                 <BreadcrumbItem>
@@ -202,17 +203,17 @@ export default function SpkReportPageAdmin() {
                                 </BreadcrumbItem>
                             </BreadcrumbList>
                         </Breadcrumb>
+                    </div>
 
-                        <div className="h-full w-full">
-                            <div className="flex-1 space-y-4 p-0 pt-6 md:py-4">
-                                <FormMonitoringProgressSpk
-                                    dataSpk={dataSpk}
-                                    isLoading={isLoading}
-                                    userEmail={email}
-                                    role={role}
-                                    userId={userId}
-                                />
-                            </div>
+                    <div className="flex-1 min-h-0 overflow-auto">
+                        <div className="space-y-4 p-2 md:p-4">
+                            <FormMonitoringProgressSpk
+                                dataSpk={dataSpk}
+                                isLoading={isLoading}
+                                userEmail={email}
+                                role={role}
+                                userId={userId}
+                            />
                         </div>
                     </div>
                 </div>

@@ -37,14 +37,22 @@ export function ApproveGRDialog({
     const [notes, setNotes] = useState('');
 
     // Calculate summary
+    const isTransfer = gr.sourceType === 'TRANSFER';
     const summary = {
         totalItems: gr.items?.length || 0,
         totalPassed: gr.items?.reduce((sum, item) => sum + Number(item.qtyPassed || 0), 0) || 0,
-        totalStockIn: gr.items?.reduce((sum, item) => sum + (Number(item.qtyPassed || 0) * (Number(item.product?.conversionToStorage) || 1)), 0) || 0,
+        totalStockIn: gr.items?.reduce((sum, item) => {
+            const qty = Number(item.qtyPassed || 0);
+            const conversion = isTransfer
+                ? (Number(item.product?.conversionToUsage) || 1)
+                : (Number(item.product?.conversionToStorage) || 1);
+            return sum + (qty * conversion);
+        }, 0) || 0,
         totalRejected: gr.items?.reduce((sum, item) => sum + Number(item.qtyRejected || 0), 0) || 0,
         passedItems: gr.items?.filter(item => item.qcStatus === 'PASSED').length || 0,
         partialItems: gr.items?.filter(item => item.qcStatus === 'PARTIAL').length || 0,
         rejectedItems: gr.items?.filter(item => item.qcStatus === 'REJECTED').length || 0,
+        unitLabel: isTransfer ? 'Usage Unit' : 'Storage Unit'
     };
 
     const handleSubmit = async () => {
@@ -65,7 +73,7 @@ export function ApproveGRDialog({
                         <div className="text-sm text-slate-600 space-y-1">
                             <p>✓ Status GR: <span className="font-bold">COMPLETED</span></p>
                             <p>✓ Stock Balance: <span className="font-bold">Updated</span></p>
-                            <p>✓ Qty masuk stock: <span className="font-bold">{summary.totalStockIn.toLocaleString()}</span> (Storage Unit)</p>
+                            <p>✓ Qty masuk stock: <span className="font-bold">{summary.totalStockIn.toLocaleString()}</span> ({summary.unitLabel})</p>
                             {hasAutoGR && (
                                 <>
                                     <div className="mt-2 pt-2 border-t border-green-300">
@@ -185,7 +193,7 @@ export function ApproveGRDialog({
                                         </span>
                                         {summary.totalPassed !== summary.totalStockIn && (
                                             <span className="text-xs text-slate-500 font-medium">
-                                                (≈ {summary.totalStockIn.toLocaleString()} in Storage Unit)
+                                                (≈ {summary.totalStockIn.toLocaleString()} in {summary.unitLabel})
                                             </span>
                                         )}
                                     </div>
