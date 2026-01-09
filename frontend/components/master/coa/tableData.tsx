@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -214,14 +214,25 @@ export function CoaTable({
     const router = useRouter();
     console.log("Role", role)
     // Debounce search untuk menghindari terlalu banyak request
-    const handleSearchChange = (value: string) => {
-        setLocalSearchTerm(value);
-        // Trigger search dengan delay
+    // Sync local search term with currentSearch prop changes (e.g. initial load or URL change)
+    useEffect(() => {
+        setLocalSearchTerm(currentSearch || "");
+    }, [currentSearch]);
+
+    // Debounce search effect
+    useEffect(() => {
         const timeoutId = setTimeout(() => {
-            onSearchChange(value);
-        }, 500);
+            // Only search if term changed from what parent has
+            if (localSearchTerm !== currentSearch) {
+                onSearchChange(localSearchTerm);
+            }
+        }, 800); // 800ms debounce
 
         return () => clearTimeout(timeoutId);
+    }, [localSearchTerm, onSearchChange, currentSearch]);
+
+    const handleSearchChange = (value: string) => {
+        setLocalSearchTerm(value);
     };
 
     const handleItemsPerPageChange = (value: string) => {
@@ -274,61 +285,8 @@ export function CoaTable({
         return pages;
     };
 
-    // Skeleton loader
-    if (isLoading) {
-        return (
-            <div className="space-y-6">
-                {/* Header Skeleton */}
-                <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-                    <CardHeader className="pb-4">
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                            <div className="space-y-2">
-                                <Skeleton className="h-8 w-64" />
-                                <Skeleton className="h-4 w-96" />
-                            </div>
-                            <Skeleton className="h-10 w-32" />
-                        </div>
-                    </CardHeader>
-                </Card>
-
-                {/* Search Bar Skeleton */}
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="flex flex-col sm:flex-row gap-4">
-                            <Skeleton className="h-10 flex-1" />
-                            <div className="flex gap-2">
-                                <Skeleton className="h-10 w-24" />
-                                <Skeleton className="h-10 w-24" />
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                {/* Table Skeleton */}
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="space-y-4">
-                            {[...Array(5)].map((_, i) => (
-                                <div key={i} className="flex items-center justify-between p-4 border rounded-lg">
-                                    <div className="flex items-center gap-4">
-                                        <Skeleton className="h-10 w-10 rounded-full" />
-                                        <div className="space-y-2">
-                                            <Skeleton className="h-4 w-32" />
-                                            <Skeleton className="h-3 w-24" />
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <Skeleton className="h-8 w-8 rounded" />
-                                        <Skeleton className="h-8 w-8 rounded" />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-        );
-    }
+    // Full page loading skeleton REMOVED to prevent search bar focus loss.
+    // Loading state is now handled inside individual sections.
 
     if (isError) {
         return (
@@ -349,79 +307,78 @@ export function CoaTable({
 
     return (
         <div className="space-y-6">
-            {/* Header dengan Gradient */}
-            <Card className="border-0 shadow-lg">
-                <div className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-6 rounded-xl">
-                    <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4 justify-between">
-                        {/* Kiri: Title dan Search dalam satu baris */}
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 flex-1 w-full">
-                            {/* Title Section */}
-                            <div className="flex items-center gap-3 min-w-[200px]">
-                                <div className="p-2 bg-white/20 rounded-lg">
-                                    <FileText className="h-5 w-5" />
-                                </div>
-                                <div>
-                                    <h1 className="text-xl font-bold whitespace-nowrap">Chart of Accounts</h1>
-                                    <p className="text-blue-100 text-sm whitespace-nowrap">Kelola akun keuangan</p>
-                                </div>
-                            </div>
-
-                            {/* Search Bar */}
-                            <div className="relative flex-1 min-w-[300px]">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-blue-200 h-4 w-4" />
-                                <Input
-                                    placeholder="Cari kode, nama, atau deskripsi..."
-                                    value={localSearchTerm}
-                                    onChange={(e) => handleSearchChange(e.target.value)}
-                                    className="pl-10 bg-white/10 border-white/20 text-white placeholder-blue-200"
-                                />
-                            </div>
+            {/* Header Title Card (Visual Only) */}
+            <Card className="border-0 shadow-sm overflow-hidden rounded-l">
+                <div className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white p-3 md:p-6 rounded-xl">
+                    <div className="flex items-center gap-3">
+                        <div className="p-1.5 md:p-2 bg-white/20 rounded-lg">
+                            <FileText className="h-4 w-4 md:h-6 md:w-6 shadow-sm" />
                         </div>
-
-                        {/* Kanan: Controls */}
-                        <div className="flex items-center gap-3 flex-wrap">
-                            {/* Items Per Page */}
-                            <div className="flex items-center gap-2">
-                                <span className="text-blue-100 text-sm whitespace-nowrap">Show:</span>
-                                <Select
-                                    value={limit.toString()}
-                                    onValueChange={handleItemsPerPageChange}
-                                >
-                                    <SelectTrigger className="w-20 h-9 bg-white/10 border-white/20 text-white">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="10">10</SelectItem>
-                                        <SelectItem value="25">25</SelectItem>
-                                        <SelectItem value="50">50</SelectItem>
-                                        <SelectItem value="100">100</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            {/* Filter Button */}
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-                            >
-                                <Filter className="h-4 w-4 mr-2" />
-                                Filter
-                            </Button>
-
-                            {/* Add COA Button */}
-                            <Button
-                                onClick={handleAddCOA}
-                                className="bg-white text-blue-600 hover:bg-blue-50 font-semibold shadow-md"
-                                size="sm"
-                            >
-                                <Plus className="h-4 w-4 mr-2" />
-                                Tambah COA
-                            </Button>
+                        <div>
+                            <h1 className="text-[10px] md:text-xl font-bold uppercase tracking-wider md:tracking-normal whitespace-nowrap shadow-sm">
+                                Chart of Accounts
+                            </h1>
+                            <p className="hidden md:block text-blue-100 text-sm whitespace-nowrap">
+                                Kelola akun keuangan system
+                            </p>
                         </div>
                     </div>
                 </div>
             </Card>
+
+            {/* Toolbar: Search, Filter, Actions (Separated from Header) */}
+            <div className="flex flex-col lg:flex-row gap-4 justify-between bg-white p-4 rounded-xl border shadow-sm">
+                {/* Search Bar */}
+                <div className="relative w-full lg:w-96">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <Input
+                        placeholder="Cari kode, nama, atau deskripsi..."
+                        value={localSearchTerm}
+                        onChange={(e) => handleSearchChange(e.target.value)}
+                        className="pl-10 bg-gray-50 border-gray-200 text-gray-900 focus-visible:ring-blue-500 placeholder:text-gray-400"
+                    />
+                    {isLoading && (
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Controls Group */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 lg:pb-0 scrollbar-hide">
+                    {/* Items Per Page */}
+                    <div className="flex items-center gap-2">
+                        <span className="text-gray-500 text-xs md:text-sm whitespace-nowrap hidden sm:inline">Show:</span>
+                        <Select value={limit.toString()} onValueChange={handleItemsPerPageChange}>
+                            <SelectTrigger className="w-[70px] md:w-20 h-9 text-xs md:text-sm bg-gray-50">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="10">10</SelectItem>
+                                <SelectItem value="25">25</SelectItem>
+                                <SelectItem value="50">50</SelectItem>
+                                <SelectItem value="100">100</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    {/* Filter Button */}
+                    <Button variant="outline" size="sm" className="h-9 px-3 text-gray-600 border-gray-300 hover:bg-gray-50">
+                        <Filter className="h-3.5 w-3.5 md:mr-2" />
+                        <span className="hidden md:inline text-xs md:text-sm">Filter</span>
+                    </Button>
+
+                    {/* Add Button */}
+                    <Button
+                        onClick={handleAddCOA}
+                        className="bg-blue-600 text-white hover:bg-blue-700 h-9 px-3 shadow-sm"
+                        size="sm"
+                    >
+                        <Plus className="h-4 w-4 md:mr-2" />
+                        <span className="hidden md:inline text-xs md:text-sm font-medium">Tambah Akun</span>
+                    </Button>
+                </div>
+            </div>
 
             {/* Summary Cards */}
             <Accordion type="single" collapsible className="w-full">
@@ -531,120 +488,149 @@ export function CoaTable({
                     <div className="rounded-md border">
                         <table className="w-full">
                             <thead>
-                                <tr className="border-b bg-gray-50/50 dark:bg-slate-700">
-                                    <th className="text-left py-3 px-4 font-semibold uppercase">Kode & Nama Akun</th>
-                                    <th className="text-left py-3 px-4 font-semibold uppercase">Tipe</th>
-                                    <th className="text-left py-3 px-4 font-semibold uppercase">Status</th>
-                                    <th className="text-left py-3 px-4 font-semibold uppercase">Saldo Normal</th>
-                                    <th className="text-left py-3 px-4 font-semibold uppercase">Posting Type</th>
-                                    <th className="text-left py-3 px-4 font-semibold uppercase">Arus Kas</th>
-                                    <th className="text-left py-3 px-4 font-semibold uppercase">Reconsiliasi</th>
-                                    <th className="text-left py-3 px-4 font-semibold uppercase">Aksi</th>
+                                <tr className="border-b bg-gray-50/80 dark:bg-slate-800/80">
+                                    <th className="text-left py-4 px-6 font-semibold uppercase text-xs text-gray-500 tracking-wider">Kode & Nama Akun</th>
+                                    <th className="text-left py-4 px-6 font-semibold uppercase text-xs text-gray-500 tracking-wider">Tipe</th>
+                                    <th className="text-left py-4 px-6 font-semibold uppercase text-xs text-gray-500 tracking-wider">Status</th>
+                                    <th className="text-left py-4 px-6 font-semibold uppercase text-xs text-gray-500 tracking-wider">Saldo Normal</th>
+                                    <th className="text-left py-4 px-6 font-semibold uppercase text-xs text-gray-500 tracking-wider">Posting Type</th>
+                                    <th className="text-left py-4 px-6 font-semibold uppercase text-xs text-gray-500 tracking-wider">Arus Kas</th>
+                                    <th className="text-left py-4 px-6 font-semibold uppercase text-xs text-gray-500 tracking-wider">Reconsiliasi</th>
+                                    <th className="text-center py-4 px-6 font-semibold uppercase text-xs text-gray-500 tracking-wider">Aksi</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                {coas.map((coa) => (
-                                    <tr key={coa.id} className="border-b hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors">
-                                        <td className="py-3 px-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className={coa.parentId ? "ml-8 flex items-center gap-3" : "flex items-center gap-3"}>
-                                                    <div className="flex-shrink-0">
-                                                        {getCoaTypeIcon(coa.type)}
+                            <tbody className="divide-y divide-gray-100">
+                                {isLoading ? (
+                                    // Loading Skeletons for Table Rows
+                                    [...Array(5)].map((_, index) => (
+                                        <tr key={`skeleton-${index}`} className="animate-pulse">
+                                            <td className="py-4 px-6">
+                                                <div className="flex items-center gap-3">
+                                                    <Skeleton className="h-8 w-8 rounded" />
+                                                    <div className="space-y-2">
+                                                        <Skeleton className="h-4 w-32" />
+                                                        <Skeleton className="h-3 w-24" />
                                                     </div>
-                                                    <div className="font-medium flex items-center gap-2">
-                                                        <Badge variant="outline" className="font-mono text-xs">
-                                                            {coa.code}
-                                                        </Badge>
-                                                        {coa.parentId && (
-                                                            <ChevronRight className="h-3 w-3 text-gray-400" />
-                                                        )}
-                                                        <span>
-                                                            {coa.name}
-                                                        </span>
-                                                    </div>
-                                                    {coa.description && (
-                                                        <div className="text-sm text-gray-500 mt-1">
-                                                            {coa.description}
-                                                        </div>
-                                                    )}
                                                 </div>
-                                            </div>
-                                        </td>
-                                        <td className="py-3 px-4">
-                                            <Badge variant="outline" className={getCoaTypeColor(coa.type)}>
-                                                {getCoaTypeIcon(coa.type)}
-                                                <span className="ml-1">{coa.type}</span>
-                                            </Badge>
-                                        </td>
-                                        <td className="py-3 px-4">
-                                            <Badge variant="outline" className={getStatusColor(coa.status)}>
-                                                {getStatusIcon(coa.status)}
-                                                <span className="ml-1">{coa.status}</span>
-                                            </Badge>
-                                        </td>
-                                        <td className="py-3 px-4">
-                                            <Badge variant="outline" className={
-                                                coa.normalBalance === CoaNormalBalance.DEBIT
-                                                    ? "bg-blue-100 text-blue-800 border-blue-200"
-                                                    : "bg-green-100 text-green-800 border-green-200"
-                                            }>
-                                                {coa.normalBalance}
-                                            </Badge>
-                                        </td>
-                                        <td className="py-3 px-4">
-                                            <Badge variant="outline" className={
-                                                coa.postingType === CoaPostingType.HEADER
-                                                    ? "bg-amber-100 text-amber-800 border-amber-200"
-                                                    : "bg-indigo-100 text-indigo-800 border-indigo-200"
-                                            }>
-                                                {getPostingTypeIcon(coa.postingType)}
-                                                <span className="ml-1">{coa.postingType}</span>
-                                            </Badge>
-                                        </td>
-                                        <td className="py-3 px-4">
-                                            <Badge variant="outline" className={getCashflowColor(coa.cashflowType)}>
-                                                {getCashflowIcon(coa.cashflowType)}
-                                                <span className="ml-1">{coa.cashflowType}</span>
-                                            </Badge>
-                                        </td>
-                                        <td className="py-3 px-4">
-                                            {coa.isReconcilable ? (
-                                                <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100">
-                                                    <CheckCircle2 className="h-4 w-4 mr-1.5" />
-                                                    <span>Reconcilable</span>
+                                            </td>
+                                            <td className="py-4 px-6"><Skeleton className="h-6 w-20 rounded-full" /></td>
+                                            <td className="py-4 px-6"><Skeleton className="h-6 w-16 rounded-full" /></td>
+                                            <td className="py-4 px-6"><Skeleton className="h-6 w-20 rounded-full" /></td>
+                                            <td className="py-4 px-6"><Skeleton className="h-6 w-24 rounded-md" /></td>
+                                            <td className="py-4 px-6"><Skeleton className="h-6 w-24 rounded-full" /></td>
+                                            <td className="py-4 px-6"><Skeleton className="h-6 w-20 rounded-full" /></td>
+                                            <td className="py-4 px-6 text-center">
+                                                <div className="flex justify-center gap-2">
+                                                    <Skeleton className="h-8 w-8 rounded-full" />
+                                                    <Skeleton className="h-8 w-8 rounded-full" />
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    coas.map((coa) => (
+                                        <tr key={coa.id} className="group hover:bg-gray-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                                            <td className="py-4 px-6">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={coa.parentId ? "ml-8 flex items-center gap-3" : "flex items-center gap-3"}>
+                                                        <div className="flex-shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
+                                                            {getCoaTypeIcon(coa.type)}
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <div className="font-medium text-gray-900 flex items-center gap-2">
+                                                                <span className="font-mono text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded border border-gray-200">
+                                                                    {coa.code}
+                                                                </span>
+                                                                {coa.parentId && (
+                                                                    <ChevronRight className="h-3 w-3 text-gray-400" />
+                                                                )}
+                                                                <span className="text-sm font-semibold text-gray-800">
+                                                                    {coa.name}
+                                                                </span>
+                                                            </div>
+                                                            {coa.description && (
+                                                                <span className="text-xs text-gray-500 mt-1 line-clamp-1">
+                                                                    {coa.description}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="py-4 px-6">
+                                                <Badge variant="secondary" className={`font-normal ${getCoaTypeColor(coa.type)} border-0 bg-opacity-15`}>
+                                                    {getCoaTypeIcon(coa.type)}
+                                                    <span className="ml-1.5 text-xs font-semibold">{coa.type}</span>
                                                 </Badge>
-                                            ) : (
-                                                <Badge variant="outline" className="bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100">
-                                                    <XCircle className="h-4 w-4 mr-1.5" />
-                                                    <span>Non-Rec.</span>
+                                            </td>
+                                            <td className="py-4 px-6">
+                                                <Badge variant="outline" className={`font-normal rounded-full px-3 py-0.5 ${getStatusColor(coa.status)} border`}>
+                                                    {getStatusIcon(coa.status)}
+                                                    <span className="ml-1.5 text-xs">{coa.status}</span>
                                                 </Badge>
-                                            )}
-                                        </td>
-                                        <td className="py-3 px-4">
-                                            <div className="flex gap-1">
-                                                <Link href={`/admin-area/master/coa/update/${coa.id}`}>
+                                            </td>
+                                            <td className="py-4 px-6">
+                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${coa.normalBalance === CoaNormalBalance.DEBIT
+                                                    ? "bg-blue-50 text-blue-700 border-blue-200"
+                                                    : "bg-green-50 text-green-700 border-green-200"
+                                                    }`}>
+                                                    {coa.normalBalance}
+                                                </span>
+                                            </td>
+                                            <td className="py-4 px-6">
+                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium border ${coa.postingType === CoaPostingType.HEADER
+                                                    ? "bg-amber-50 text-amber-700 border-amber-200"
+                                                    : "bg-indigo-50 text-indigo-700 border-indigo-200"
+                                                    }`}>
+                                                    {getPostingTypeIcon(coa.postingType)}
+                                                    <span className="ml-1">{coa.postingType}</span>
+                                                </span>
+                                            </td>
+                                            <td className="py-4 px-6">
+                                                <Badge variant="outline" className={`font-normal ${getCashflowColor(coa.cashflowType)} border`}>
+                                                    {getCashflowIcon(coa.cashflowType)}
+                                                    <span className="ml-1.5 text-xs whitespace-nowrap">{coa.cashflowType}</span>
+                                                </Badge>
+                                            </td>
+                                            <td className="py-4 px-6">
+                                                {coa.isReconcilable ? (
+                                                    <div className="flex items-center gap-1.5">
+                                                        <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"></div>
+                                                        <span className="text-xs font-medium text-emerald-700">Reconcilable</span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-1.5">
+                                                        <div className="h-2 w-2 rounded-full bg-gray-300"></div>
+                                                        <span className="text-xs text-gray-400">Non-Rec.</span>
+                                                    </div>
+                                                )}
+                                            </td>
+                                            <td className="py-4 px-6 text-center">
+                                                <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <Link href={`/admin-area/master/coa/update/${coa.id}`}>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600 rounded-full transition-colors"
+                                                        >
+                                                            <span className="sr-only">Edit Akun</span>
+                                                            <Edit className="h-4 w-4" />
+                                                        </Button>
+                                                    </Link>
                                                     <Button
                                                         variant="ghost"
                                                         size="sm"
-                                                        className="h-8 w-8 p-0 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                                                        className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 rounded-full transition-colors"
+                                                        onClick={() => onDelete(coa.id)}
+                                                        disabled={isDeleting}
                                                     >
-                                                        <span className="sr-only">Edit Akun</span> {/* Tambahan untuk aksesibilitas */}
-                                                        <Edit className="h-4 w-4" />
+                                                        <Trash2 className="h-4 w-4" />
                                                     </Button>
-                                                </Link>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-8 w-8 p-0 text-red-600 hover:text-red-800 hover:bg-red-50"
-                                                    onClick={() => onDelete(coa.id)}
-                                                    disabled={isDeleting}
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
                             </tbody>
                         </table>
                     </div>
@@ -662,96 +648,154 @@ export function CoaTable({
                 </CardContent>
             </Card>
 
-            {/* Mobile Card View */}
-            <div className="lg:hidden space-y-4">
-                {coas.map((coa) => (
-                    <Card key={coa.id} className="hover:shadow-md transition-shadow">
-                        <CardContent className="pt-6">
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="flex items-center gap-3">
-                                    {getCoaTypeIcon(coa.type)}
-                                    <div>
-                                        <div className="font-semibold text-gray-900">{coa.name}</div>
-                                        <div className="text-sm text-gray-500 font-mono">{coa.code}</div>
+            {/* Mobile/Tablet Card View (Accordion Style) */}
+            <div className="lg:hidden">
+                {isLoading ? (
+                    <div className="space-y-3">
+                        {[...Array(5)].map((_, i) => (
+                            <Skeleton key={i} className="h-16 w-full rounded-lg" />
+                        ))}
+                    </div>
+                ) : (
+                    <Accordion type="multiple" className="space-y-3">
+                        {coas.map((coa) => (
+                            <AccordionItem
+                                key={coa.id}
+                                value={coa.id}
+                                className={`border rounded-xl shadow-sm overflow-hidden ${coa.postingType === CoaPostingType.HEADER
+                                    ? "bg-blue-50/50 border-blue-200"
+                                    : "bg-white"
+                                    }`}
+                            >
+                                <AccordionTrigger className="px-4 py-3 hover:bg-black/5 hover:no-underline transition-all">
+                                    <div className="flex items-center gap-3 w-full text-left pr-2">
+                                        {/* Visual Hierarchy Indicator */}
+                                        {coa.parentId && (
+                                            <div className="flex-shrink-0 w-1 h-8 bg-gray-300 rounded-full mr-1 opacity-50"></div>
+                                        )}
+
+                                        <div className={`flex flex-col gap-1 flex-1 ${coa.parentId ? "opacity-90" : ""}`}>
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <Badge variant="outline" className="font-mono text-[10px] px-1.5 h-5 border-gray-300 text-gray-500 bg-white/50">
+                                                    {coa.code}
+                                                </Badge>
+                                                {/* Posting Type Badge */}
+                                                <Badge variant="secondary" className={`text-[10px] h-5 px-1.5 font-normal ${coa.postingType === CoaPostingType.HEADER
+                                                    ? "bg-blue-100 text-blue-700"
+                                                    : "bg-gray-100 text-gray-600"
+                                                    }`}>
+                                                    {coa.postingType}
+                                                </Badge>
+
+                                                {coa.isReconcilable && (
+                                                    <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-sm" title="Reconcilable"></div>
+                                                )}
+                                            </div>
+                                            <span className={`text-sm font-semibold ${coa.postingType === CoaPostingType.HEADER ? "text-blue-900" : "text-gray-900"
+                                                } line-clamp-1`}>
+                                                {coa.name}
+                                            </span>
+                                        </div>
+
+                                        {/* Minimal Status Indicator on Header */}
+                                        <Badge variant="secondary" className={`hidden sm:inline-flex text-[10px] px-2 h-6 ${getStatusColor(coa.status)} bg-opacity-10 border-0`}>
+                                            {coa.status === CoaStatus.ACTIVE ? 'Aktif' : 'Non'}
+                                        </Badge>
                                     </div>
-                                </div>
-                                <div className="flex gap-1">
-                                    <Link href={`/admin-area/master/coa/update/${coa.id}`}>
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-8 w-8 p-0 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-                                        >
-                                            <span className="sr-only">Edit Akun</span> {/* Tambahan untuk aksesibilitas */}
-                                            <Edit className="h-4 w-4" />
-                                        </Button>
-                                    </Link>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-8 w-8 p-0 text-red-600"
-                                        onClick={() => onDelete(coa.id)}
-                                        disabled={isDeleting}
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            </div>
+                                </AccordionTrigger>
 
-                            <div className="grid grid-cols-2 gap-2 text-sm">
-                                <div>
-                                    <span className="text-gray-500">Tipe:</span>
-                                    <Badge variant="outline" className={`ml-2 ${getCoaTypeColor(coa.type)}`}>
-                                        {coa.type}
-                                    </Badge>
-                                </div>
-                                <div>
-                                    <span className="text-gray-500">Status:</span>
-                                    <Badge variant="outline" className={`ml-2 ${getStatusColor(coa.status)}`}>
-                                        {coa.status}
-                                    </Badge>
-                                </div>
-                                <div>
-                                    <span className="text-gray-500">Saldo:</span>
-                                    <Badge variant="outline" className="ml-2">
-                                        {coa.normalBalance}
-                                    </Badge>
-                                </div>
-                                <div>
-                                    <span className="text-gray-500">Posting:</span>
-                                    <Badge variant="outline" className="ml-2">
-                                        {getPostingTypeIcon(coa.postingType)}
-                                        <span className="ml-1">{coa.postingType}</span>
-                                    </Badge>
-                                </div>
-                                <div className="col-span-2">
-                                    <span className="text-gray-500">Reconsiliasi:</span>
-                                    {coa.isReconcilable ? (
-                                        <Badge variant="outline" className="ml-2 bg-emerald-50 text-emerald-700 border-emerald-200">
-                                            <CheckCircle2 className="h-3 w-3 mr-1" />
-                                            Active
-                                        </Badge>
-                                    ) : (
-                                        <Badge variant="outline" className="ml-2 bg-gray-50 text-gray-500 border-gray-200">
-                                            <XCircle className="h-3 w-3 mr-1" />
-                                            None
-                                        </Badge>
-                                    )}
-                                </div>
-                            </div>
+                                <AccordionContent className="px-4 pb-4 pt-1 bg-gray-50/50 border-t border-gray-100">
+                                    <div className="space-y-4">
+                                        {/* Detail Grid */}
+                                        <div className="grid grid-cols-2 gap-3 mt-3">
+                                            <div className="space-y-1">
+                                                <span className="text-xs text-gray-400 uppercase font-medium tracking-wide">Tipe Akun</span>
+                                                <div className="flex items-center gap-2">
+                                                    {getCoaTypeIcon(coa.type)}
+                                                    <span className="text-sm font-medium text-gray-700">{coa.type}</span>
+                                                </div>
+                                            </div>
 
-                            {coa.description && (
-                                <div className="mt-3 text-sm text-gray-600">
-                                    {coa.description}
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-                ))}
+                                            <div className="space-y-1">
+                                                <span className="text-xs text-gray-400 uppercase font-medium tracking-wide">Posting</span>
+                                                <div className="flex items-center gap-1.5">
+                                                    {getPostingTypeIcon(coa.postingType)}
+                                                    <span className="text-sm text-gray-700">{coa.postingType}</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-1">
+                                                <span className="text-xs text-gray-400 uppercase font-medium tracking-wide">Saldo Normal</span>
+                                                <Badge variant="outline" className="font-normal text-xs">
+                                                    {coa.normalBalance}
+                                                </Badge>
+                                            </div>
+
+                                            <div className="space-y-1">
+                                                <span className="text-xs text-gray-400 uppercase font-medium tracking-wide">Arus Kas</span>
+                                                <Badge variant="outline" className={`font-normal text-xs ${getCashflowColor(coa.cashflowType)} border-0 bg-opacity-20`}>
+                                                    {coa.cashflowType}
+                                                </Badge>
+                                            </div>
+                                        </div>
+
+                                        {/* Description if any */}
+                                        {coa.description && (
+                                            <div className="p-3 bg-white rounded border border-gray-100 text-xs text-gray-600 italic">
+                                                "{coa.description}"
+                                            </div>
+                                        )}
+
+                                        {/* Full Status Badges Area (if header simplified logic excluded something) */}
+                                        <div className="flex flex-wrap gap-2 pt-2 border-t border-dashed border-gray-200">
+                                            <Badge variant="outline" className={`text-xs ${getStatusColor(coa.status)}`}>
+                                                Status: {coa.status}
+                                            </Badge>
+
+                                            {coa.isReconcilable ? (
+                                                <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">
+                                                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                                                    Reconcilable
+                                                </Badge>
+                                            ) : (
+                                                <Badge variant="outline" className="text-xs text-gray-400">
+                                                    Non-Reconcilable
+                                                </Badge>
+                                            )}
+                                        </div>
+
+                                        {/* Action Buttons */}
+                                        <div className="flex gap-2 pt-2">
+                                            <Link href={`/admin-area/master/coa/update/${coa.id}`} className="flex-1">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="w-full h-9 border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+                                                >
+                                                    <Edit className="h-3.5 w-3.5 mr-2" />
+                                                    Edit Akun
+                                                </Button>
+                                            </Link>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-9 w-12 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-300"
+                                                onClick={() => onDelete(coa.id)}
+                                                disabled={isDeleting}
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </AccordionContent>
+                            </AccordionItem>
+                        ))}
+                    </Accordion>
+                )}
 
                 {/* Empty State Mobile */}
-                {coas.length === 0 && (
-                    <Card>
+                {(!isLoading && coas.length === 0) && (
+                    <Card className="border-dashed">
                         <CardContent className="pt-6">
                             <div className="text-center py-8">
                                 <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />

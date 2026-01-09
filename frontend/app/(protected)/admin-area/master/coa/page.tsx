@@ -21,12 +21,12 @@ import { AdminLoading } from "@/components/admin-loading";
 export default function COAPageAdmin() {
     const [filters, setFilters] = useState({
         page: 1,
-        limit: 10,
+        limit: 50,
         search: "",
     });
 
     const router = useRouter();
-    
+
     // Role auth dummy → ganti sesuai auth system kamu
     const userRole = "admin";
 
@@ -87,7 +87,7 @@ export default function COAPageAdmin() {
                     <div className="text-gray-600 text-sm">
                         {error?.message || "Terjadi kesalahan saat memuat data"}
                     </div>
-                    <button 
+                    <button
                         onClick={() => window.location.reload()}
                         className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
                     >
@@ -137,11 +137,11 @@ export default function COAPageAdmin() {
                             isLoading={isLoading}
                             isError={isError}
                             role="admin"
-                            pagination={coasResponse?.pagination || { 
-                                page: filters.page, 
-                                limit: filters.limit, 
-                                total: 0, 
-                                pages: 1 
+                            pagination={coasResponse?.pagination || {
+                                page: filters.page,
+                                limit: filters.limit,
+                                total: 0,
+                                pages: 1
                             }}
                             onDelete={handleDelete}
                             isDeleting={isDeleting}
