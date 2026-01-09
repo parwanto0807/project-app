@@ -64,7 +64,9 @@ class InvoiceController {
   constructor() {
     this.createInvoice = this.createInvoice.bind(this);
     this.updateInvoice = this.updateInvoice.bind(this);
+    this.updateInvoice = this.updateInvoice.bind(this);
     this.getNextInvoiceCode = this.getNextInvoiceCode.bind(this);
+    this.postToJournal = this.postToJournal.bind(this);
   }
 
   async getNextInvoiceCode(tx = prisma) {
@@ -1168,7 +1170,8 @@ class InvoiceController {
       ]);
 
       // Transform data untuk memastikan field amount sesuai dengan model
-      const transformedInvoices = invoices.map((invoice) => ({
+      const transformedInvoices = invoices.map((invoice) => {        
+        return {
         ...invoice,
         // Pastikan semua field financial ada dan dalam format yang benar
         subtotal: invoice.subtotal
@@ -1200,9 +1203,10 @@ class InvoiceController {
         // Payment term dan installment type
         paymentTerm: invoice.paymentTerm || null,
         installmentType: invoice.installmentType || "FULL",
-        // Approval status
+        // Status fields
+        status: invoice.status || "DRAFT",
         approvalStatus: invoice.approvalStatus || "PENDING",
-      }));
+      }});
 
       const totalPages = Math.ceil(total / limitNum);
       const hasNextPage = pageNum < totalPages;
@@ -1210,7 +1214,7 @@ class InvoiceController {
 
       res.json({
         success: true,
-        data: invoices,
+        data: transformedInvoices, // ✅ FIXED - gunakan transformedInvoices
         pagination: {
           page: pageNum,
           limit: limitNum,
@@ -1704,6 +1708,389 @@ class InvoiceController {
       res
         .status(500)
         .json({ success: false, message: "Internal server error" });
+    }
+  }
+
+  // ====== POSTING TO JOURNAL ======
+  async postToJournal(req, res) {
+    try {
+      const { id } = req.params;
+      const userId = req.user?.id;
+      const userName = req.user?.name || "System";
+
+      if (!id) return res.status(400).json({ success: false, message: "Invoice ID required" });
+
+      // 1. Validasi Invoice
+      const invoice = await prisma.invoice.findUnique({
+        where: { id },
+        include: {
+          items: true,
+          salesOrder: {
+            include: { customer: true }
+          },
+          invoiceTax: true // Assuming this exists for tax breakdown
+        }
+      });
+
+      if (!invoice) return res.status(404).json({ success: false, message: "Invoice not found" });
+      
+      if (invoice.approvalStatus !== 'APPROVED') {
+        return res.status(400).json({ success: false, message: "Only APPROVED invoices can be posted" });
+      }
+
+      // Check if already posted
+      const existingLedger = await prisma.ledger.findFirst({
+        where: {
+          referenceNumber: invoice.invoiceNumber,
+          referenceType: 'JOURNAL',
+          status: { not: 'VOID' }
+        }
+      });
+
+      if (existingLedger) {
+        return res.status(400).json({ success: false, message: "Invoice already posted to Journal" });
+      }
+
+      // 2. Cek Periode Akuntansi
+      const period = await prisma.accountingPeriod.findFirst({
+        where: {
+          startDate: { lte: invoice.invoiceDate },
+          endDate: { gte: invoice.invoiceDate },
+          isClosed: false
+        }
+      });
+
+      if (!period) {
+        // Fallback: Check if period exists but closed? Or just no period.
+        return res.status(400).json({ success: false, message: `No open accounting period found for date ${invoice.invoiceDate.toISOString().slice(0, 10)}` });
+      }
+
+      // 3. Tentukan COA (Updated based on Provided Data)
+      // AR = Piutang Usaha (1-10101)
+      // Sales = Pendapatan Jasa Konstruksi (4-10101)
+      // Tax = PPN (Belum ada di data, cari by Name)
+
+      // AR Account (Piutang Usaha)
+      const arAccount = await prisma.chartOfAccounts.findUnique({
+        where: { code: '1-10101' }
+      });
+      
+      // Sales Account (Pendapatan Jasa Konstruksi)
+      const salesAccountDefault = await prisma.chartOfAccounts.findUnique({
+         where: { code: '4-10101' }
+      });
+
+      // VAT Out Account (PPN Keluaran)
+      // Karena belum ada kode spesifik di data, kita cari berdasarkan nama atau estimasi
+      const vatOutAccount = await prisma.chartOfAccounts.findFirst({
+         where: { 
+             OR: [
+                 { name: { contains: 'PPN Keluaran', mode: 'insensitive' } },
+                 { name: { contains: 'Utang Pajak', mode: 'insensitive' } },
+                 { name: { contains: 'VAT Out', mode: 'insensitive' } }
+             ]
+         }
+      });
+
+      if (!arAccount) return res.status(500).json({ success: false, message: "System Error: COA '1-10101' (Piutang Usaha) not found. Please create it." });
+      if (!salesAccountDefault) return res.status(500).json({ success: false, message: "System Error: COA '4-10101' (Pendapatan Jasa Konstruksi) not found. Please create it." });
+
+      // 4. Proses Transaksi Ledger
+      const ledgerResult = await prisma.$transaction(async (tx) => {
+        const ledgerNumber = `JNL-${invoice.invoiceNumber.replace(/\//g, '-')}`; 
+
+        // A. Header
+        const ledger = await tx.ledger.create({
+          data: {
+            ledgerNumber: ledgerNumber,
+            referenceNumber: invoice.invoiceNumber,
+            referenceType: 'JOURNAL', // Type JOURNAL for Sales Invoice
+            transactionDate: invoice.invoiceDate,
+            postingDate: new Date(),
+            description: `Posting Invoice #${invoice.invoiceNumber} - ${invoice.salesOrder?.customer?.name || 'No Customer'}`,
+            periodId: period.id,
+            status: 'POSTED',
+            currency: invoice.currency,
+            exchangeRate: invoice.exchangeRate,
+            createdBy: userId || 'System',
+            postedBy: userId || 'System',
+            postedAt: new Date(),
+          }
+        });
+
+        // B. Debit AR (Total Tagihan)
+        // AR harus mencatat total piutang (grandTotal)
+        console.log(`[POSTING] Creating AR Debit Entry: ${invoice.grandTotal}`);
+        const arLine = await tx.ledgerLine.create({
+          data: {
+            ledgerId: ledger.id,
+            coaId: arAccount.id,
+            lineNumber: 1,
+            description: `Piutang Usaha - ${invoice.invoiceNumber}`,
+            debitAmount: invoice.grandTotal,
+            creditAmount: 0,
+            // localAmount untuk debit = positif (debit side)
+            localAmount: invoice.grandTotal * invoice.exchangeRate,
+            currency: invoice.currency,
+            exchangeRate: invoice.exchangeRate,
+            customerId: invoice.salesOrder?.customer?.id
+          }
+        });
+        console.log(`[POSTING] AR Line Created: ID=${arLine.id}, Debit=${arLine.debitAmount}`);
+
+        // C. Credit Sales Revenue (Per Lines)
+        // Setiap item invoice dicatat sebagai revenue
+        let lineSeq = 2;
+        let totalRevenue = 0;
+        console.log(`[POSTING] Creating ${invoice.items.length} Revenue Lines`);
+        
+        for (const item of invoice.items) {
+           // Find Product Specific COA if needed. For now use Default.
+           const revenueCoaId = salesAccountDefault.id;
+
+           // Convert Decimal to Number to prevent string concatenation
+           let itemAmount = parseFloat(item.lineTotal) || 0;
+           
+           // FALLBACK: If lineTotal is 0, calculate from item details
+           if (itemAmount === 0) {
+             const qty = parseFloat(item.qty) || 0;
+             const unitPrice = parseFloat(item.unitPrice) || 0;
+             const discountFixed = parseFloat(item.discount) || 0;
+             const discountPercent = parseFloat(item.discountPercent) || 0;
+             const taxRate = parseFloat(item.taxRate) || 0;
+             
+             // Step 1: Calculate subtotal
+             const subtotal = qty * unitPrice;
+             
+             // Step 2: Calculate discount amount
+             let discountAmount = 0;
+             if (discountPercent > 0) {
+               // Percentage discount takes priority
+               discountAmount = subtotal * (discountPercent / 100);
+             } else if (discountFixed > 0) {
+               // Fixed discount
+               discountAmount = discountFixed;
+             }
+             
+             // Step 3: Amount after discount (this is the lineTotal - revenue before tax)
+             const amountAfterDiscount = subtotal - discountAmount;
+             
+             // Step 4: Calculate tax (for information, but not included in lineTotal for revenue)
+             const taxAmount = amountAfterDiscount * (taxRate / 100);
+             
+             // Step 5: lineTotal = amount after discount (revenue portion, excluding tax)
+             itemAmount = amountAfterDiscount;
+             
+             console.log(`[POSTING] ⚠️  LineTotal was 0, calculated:`);
+             console.log(`           Qty: ${qty} × UnitPrice: ${unitPrice} = Subtotal: ${subtotal}`);
+             console.log(`           Discount: ${discountAmount} (${discountPercent > 0 ? discountPercent + '%' : 'Fixed ' + discountFixed})`);
+             console.log(`           After Discount: ${amountAfterDiscount}`);
+             console.log(`           Tax (${taxRate}%): ${taxAmount}`);
+             console.log(`           → Revenue (lineTotal): ${itemAmount}`);
+           }
+           
+           console.log(`[POSTING] Item ${lineSeq - 1}: ${item.name}, Amount: ${itemAmount}`);
+           
+           const revenueLine = await tx.ledgerLine.create({
+             data: {
+               ledgerId: ledger.id,
+               coaId: revenueCoaId,
+               lineNumber: lineSeq,
+               description: `Revenue: ${item.name}`,
+               debitAmount: 0,
+               creditAmount: itemAmount,
+               // localAmount untuk credit = negatif (credit side) 
+               localAmount: -(itemAmount * parseFloat(invoice.exchangeRate)),
+               currency: invoice.currency,
+               exchangeRate: parseFloat(invoice.exchangeRate),
+             }
+           });
+           
+           console.log(`[POSTING] Revenue Line Created: ID=${revenueLine.id}, Line=${lineSeq}, Credit=${revenueLine.creditAmount}`);
+           totalRevenue += itemAmount;
+           lineSeq++;
+        }
+
+        // D. Credit Tax (PPN)
+        let taxLine = null;
+        const taxAmount = parseFloat(invoice.taxTotal) || 0;
+        
+        if (taxAmount > 0) {
+           if (!vatOutAccount) throw new Error("VAT Account (PPN Keluaran) not found");
+           
+           console.log(`[POSTING] Creating Tax Entry: ${taxAmount}`);
+           taxLine = await tx.ledgerLine.create({
+             data: {
+                ledgerId: ledger.id,
+                coaId: vatOutAccount.id,
+                lineNumber: lineSeq,
+                description: `PPN Keluaran - ${invoice.invoiceNumber}`,
+                debitAmount: 0,
+                creditAmount: taxAmount,
+                // localAmount untuk credit = negatif (credit side)
+                localAmount: -(taxAmount * parseFloat(invoice.exchangeRate)),
+                currency: invoice.currency,
+                exchangeRate: parseFloat(invoice.exchangeRate)
+             }
+           });
+           console.log(`[POSTING] Tax Line Created: ID=${taxLine.id}, Credit=${taxLine.creditAmount}`);
+           lineSeq++;
+        }
+
+        // E. Validation - Check Balance
+        const totalCredit = totalRevenue + taxAmount;
+        const debitAmount = parseFloat(invoice.grandTotal);
+        
+        console.log(`[POSTING] Validation:`);
+        console.log(`  - Total Debit (AR): ${debitAmount}`);
+        console.log(`  - Total Credit (Revenue + Tax): ${totalCredit}`);
+        console.log(`  - Revenue: ${totalRevenue}, Tax: ${taxAmount}`);
+        console.log(`  - Balance: ${debitAmount - totalCredit}`);
+        
+        // Check if all items have zero amount
+        if (totalRevenue === 0 && invoice.items.length > 0) {
+          throw new Error(`All invoice items have zero amount! Please check invoice calculation. Invoice has ${invoice.items.length} items but total revenue is 0.`);
+        }
+        
+        if (Math.abs(debitAmount - totalCredit) > 0.01) {
+          throw new Error(`Journal entry not balanced! Debit: ${debitAmount}, Credit: ${totalCredit} (Revenue: ${totalRevenue} + Tax: ${taxAmount})`);
+        }
+
+        console.log(`[POSTING] Journal Entry Complete. Total Lines: ${lineSeq - 1}`);
+        
+        // F. Update Related Models
+        console.log(`[POSTING] Updating related accounting models...`);
+        
+        // F1. Update Invoice ApprovalStatus to POSTED
+        await tx.invoice.update({
+          where: { id: invoice.id },
+          data: {
+            approvalStatus: 'POSTED',
+            notes: invoice.notes ? `${invoice.notes}\n[Posted to Journal: ${ledger.ledgerNumber}]` : `Posted to Journal: ${ledger.ledgerNumber}`
+          }
+        });
+        console.log(`[POSTING] ✓ Invoice approvalStatus updated to POSTED`);
+        
+        // F2. Update Trial Balance for all affected COAs
+        const affectedCOAs = new Map(); // coaId -> {debit, credit}
+        
+        // Collect all COA impacts from ledger lines
+        const allLines = await tx.ledgerLine.findMany({
+          where: { ledgerId: ledger.id },
+          select: { coaId: true, debitAmount: true, creditAmount: true }
+        });
+        
+        for (const line of allLines) {
+          if (!affectedCOAs.has(line.coaId)) {
+            affectedCOAs.set(line.coaId, { debit: 0, credit: 0 });
+          }
+          const coa = affectedCOAs.get(line.coaId);
+          coa.debit += line.debitAmount;
+          coa.credit += line.creditAmount;
+        }
+        
+        // Update or create TrialBalance for each COA
+        for (const [coaId, amounts] of affectedCOAs) {
+          const existing = await tx.trialBalance.findUnique({
+            where: {
+              periodId_coaId: {
+                periodId: period.id,
+                coaId: coaId
+              }
+            }
+          });
+          
+          if (existing) {
+            // Update existing
+            await tx.trialBalance.update({
+              where: { id: existing.id },
+              data: {
+                periodDebit: existing.periodDebit + amounts.debit,
+                periodCredit: existing.periodCredit + amounts.credit,
+                endingDebit: existing.endingDebit + amounts.debit,
+                endingCredit: existing.endingCredit + amounts.credit,
+                ytdDebit: existing.ytdDebit + amounts.debit,
+                ytdCredit: existing.ytdCredit + amounts.credit,
+                calculatedAt: new Date()
+              }
+            });
+          } else {
+            // Create new
+            await tx.trialBalance.create({
+              data: {
+                periodId: period.id,
+                coaId: coaId,
+                openingDebit: 0,
+                openingCredit: 0,
+                periodDebit: amounts.debit,
+                periodCredit: amounts.credit,
+                endingDebit: amounts.debit,
+                endingCredit: amounts.credit,
+                ytdDebit: amounts.debit,
+                ytdCredit: amounts.credit,
+                calculatedAt: new Date()
+              }
+            });
+          }
+        }
+        console.log(`[POSTING] ✓ Trial Balance updated for ${affectedCOAs.size} COAs`);
+        
+        // F3. Update General Ledger Summary (Daily)
+        const transactionDate = new Date(invoice.invoiceDate);
+        transactionDate.setHours(0, 0, 0, 0); // Normalize to start of day
+        
+        for (const [coaId, amounts] of affectedCOAs) {
+          const existingSummary = await tx.generalLedgerSummary.findUnique({
+            where: {
+              coaId_periodId_date: {
+                coaId: coaId,
+                periodId: period.id,
+                date: transactionDate
+              }
+            }
+          });
+          
+          const netChange = amounts.debit - amounts.credit;
+          
+          if (existingSummary) {
+            await tx.generalLedgerSummary.update({
+              where: { id: existingSummary.id },
+              data: {
+                debitTotal: existingSummary.debitTotal + amounts.debit,
+                creditTotal: existingSummary.creditTotal + amounts.credit,
+                closingBalance: existingSummary.closingBalance + netChange,
+                transactionCount: existingSummary.transactionCount + 1
+              }
+            });
+          } else {
+            await tx.generalLedgerSummary.create({
+              data: {
+                coaId: coaId,
+                periodId: period.id,
+                date: transactionDate,
+                openingBalance: 0,
+                debitTotal: amounts.debit,
+                creditTotal: amounts.credit,
+                closingBalance: netChange,
+                transactionCount: 1
+              }
+            });
+          }
+        }
+        console.log(`[POSTING] ✓ General Ledger Summary updated for ${transactionDate.toISOString().split('T')[0]}`);
+        
+        return ledger;
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Invoice successfully posted to Journal",
+        data: ledgerResult
+      });
+
+    } catch (error) {
+      console.error("Post Journal Error:", error);
+      return res.status(500).json({ success: false, message: error.message });
     }
   }
 }

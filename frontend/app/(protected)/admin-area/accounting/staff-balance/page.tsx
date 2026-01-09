@@ -45,7 +45,7 @@ export default async function StaffBalancePage({ searchParams }: PageProps) {
 
     return (
         <AdminLayout title="Staff Balance" role="admin">
-            <div className="container mx-auto py-6 space-y-6">
+            <div className="w-full px-4 lg:px-6 py-6 space-y-6">
                 {/* Breadcrumb */}
                 <Breadcrumb>
                     <BreadcrumbList>

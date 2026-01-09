@@ -1331,6 +1331,8 @@ enum ApprovalStatus {
   PENDING
   APPROVED
   REJECTED
+  VOID
+  POSTED
 }
 
 enum PaymentMethod {
@@ -1868,12 +1870,12 @@ model ProjectExpense {
 
 // ENUM BARU UNTUK KONTROL AKUNTANSI
 enum CoaType {
-  ASET
-  LIABILITAS
-  EKUITAS
-  PENDAPATAN
-  HPP
-  BEBAN
+  ASET // Aset
+  LIABILITAS // Liabilitas
+  EKUITAS // Ekuitas
+  PENDAPATAN // Pendapatan
+  HPP // HPP (Harga Pokok Penjualan / Cost of Goods Sold)
+  BEBAN // Beban
 }
 
 enum CoaNormalBalance {

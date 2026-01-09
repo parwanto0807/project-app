@@ -21,6 +21,7 @@ import taxRoutes from "./routes/quotation/taxRoutes.js";
 import paymentTermRoutes from "./routes/quotation/paymentTermRoutes.js";
 import rabRoutes from "./routes/rab/rabRoutes.js";
 import coaRoutes from "./routes/coa/coaRouters.js";
+import periodRoutes from "./routes/accounting/periodRoutes.js";
 import prRoutes from "./routes/pr/prRouters.js";
 import umRoutes from "./routes/um/umRouters.js";
 import lppRouter from "./routes/lpp/lppRouters.js";
@@ -37,8 +38,10 @@ import poRoutes from './routes/po/poRoutes.js';
 import grRoutes from './routes/grInventory/grRoute.js';
 import tfRoutes from './routes/tf/tfRoutes.js';
 import staffBalanceRoutes from './routes/staffBalance/staffBalanceRoutes.js';
+import trialBalanceRoutes from './routes/accounting/trialBalanceRoutes.js';
 import supplierInvoiceRoutes from './routes/invoiceSupplier/supplierInvoiceRoutes.js';
 import supplierPaymentRoutes from './routes/invoiceSupplier/supplierPaymentRoutes.js';
+import ledgerRoutes from './routes/accounting/ledgerRoutes.js';
 
 import path from "path";
 
@@ -147,6 +150,8 @@ app.use("/api/master/tax", taxRoutes);
 app.use("/api/master/payment-term", paymentTermRoutes);
 app.use("/api/rabs", rabRoutes);
 app.use("/api/coa", coaRoutes);
+app.use("/api/accounting/periods", periodRoutes);
+app.use("/api/accounting/trial-balance", trialBalanceRoutes);
 app.use("/api/pr", prRoutes);
 app.use("/api/um", umRoutes);
 app.use("/api/lpp", lppRouter);
@@ -164,6 +169,7 @@ app.use('/api/tf', tfRoutes);
 app.use('/api/staff-balance', staffBalanceRoutes);
 app.use('/api/supplier-invoices', supplierInvoiceRoutes);
 app.use('/api/supplier-payments', supplierPaymentRoutes);
+app.use('/api/accounting/ledger', ledgerRoutes);
 
 // Health Check Endpoint
 app.get("/api/health", (req, res) => {

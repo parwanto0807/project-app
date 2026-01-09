@@ -210,6 +210,25 @@ export function CoaTable({
     onSearchChange,
     currentSearch,
 }: CoaTableProps) {
+    const getIndentLevel = (coa: ChartOfAccountsWithRelations, allCoas: ChartOfAccountsWithRelations[]) => {
+        let level = 0;
+        let currentParentId = coa.parentId;
+
+        while (currentParentId) {
+            level++;
+            // Safety break
+            if (level > 10) break;
+
+            const parent = allCoas.find(c => c.id === currentParentId);
+            if (parent) {
+                currentParentId = parent.parentId;
+            } else {
+                break;
+            }
+        }
+        return level;
+    };
+
     const [localSearchTerm, setLocalSearchTerm] = useState(currentSearch || "");
     const router = useRouter();
     console.log("Role", role)
@@ -528,108 +547,111 @@ export function CoaTable({
                                         </tr>
                                     ))
                                 ) : (
-                                    coas.map((coa) => (
-                                        <tr key={coa.id} className="group hover:bg-gray-50/50 dark:hover:bg-slate-800/50 transition-colors">
-                                            <td className="py-4 px-6">
-                                                <div className="flex items-center gap-3">
-                                                    <div className={coa.parentId ? "ml-8 flex items-center gap-3" : "flex items-center gap-3"}>
-                                                        <div className="flex-shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
-                                                            {getCoaTypeIcon(coa.type)}
-                                                        </div>
-                                                        <div className="flex flex-col">
-                                                            <div className="font-medium text-gray-900 flex items-center gap-2">
-                                                                <span className="font-mono text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded border border-gray-200">
-                                                                    {coa.code}
-                                                                </span>
-                                                                {coa.parentId && (
-                                                                    <ChevronRight className="h-3 w-3 text-gray-400" />
-                                                                )}
-                                                                <span className="text-sm font-semibold text-gray-800">
-                                                                    {coa.name}
-                                                                </span>
+                                    coas.map((coa) => {
+                                        const indentLevel = getIndentLevel(coa, coas);
+                                        return (
+                                            <tr key={coa.id} className="group hover:bg-gray-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                                                <td className="py-4 px-6">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="flex items-center gap-3" style={{ paddingLeft: `${indentLevel * 32}px` }}>
+                                                            <div className="flex-shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
+                                                                {getCoaTypeIcon(coa.type)}
                                                             </div>
-                                                            {coa.description && (
-                                                                <span className="text-xs text-gray-500 mt-1 line-clamp-1">
-                                                                    {coa.description}
-                                                                </span>
-                                                            )}
+                                                            <div className="flex flex-col">
+                                                                <div className="font-medium text-gray-900 flex items-center gap-2">
+                                                                    <span className="font-mono text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded border border-gray-200">
+                                                                        {coa.code}
+                                                                    </span>
+                                                                    {coa.parentId && (
+                                                                        <ChevronRight className="h-3 w-3 text-gray-400" />
+                                                                    )}
+                                                                    <span className="text-sm font-semibold text-gray-800">
+                                                                        {coa.name}
+                                                                    </span>
+                                                                </div>
+                                                                {coa.description && (
+                                                                    <span className="text-xs text-gray-500 mt-1 line-clamp-1">
+                                                                        {coa.description}
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            </td>
-                                            <td className="py-4 px-6">
-                                                <Badge variant="secondary" className={`font-normal ${getCoaTypeColor(coa.type)} border-0 bg-opacity-15`}>
-                                                    {getCoaTypeIcon(coa.type)}
-                                                    <span className="ml-1.5 text-xs font-semibold">{coa.type}</span>
-                                                </Badge>
-                                            </td>
-                                            <td className="py-4 px-6">
-                                                <Badge variant="outline" className={`font-normal rounded-full px-3 py-0.5 ${getStatusColor(coa.status)} border`}>
-                                                    {getStatusIcon(coa.status)}
-                                                    <span className="ml-1.5 text-xs">{coa.status}</span>
-                                                </Badge>
-                                            </td>
-                                            <td className="py-4 px-6">
-                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${coa.normalBalance === CoaNormalBalance.DEBIT
-                                                    ? "bg-blue-50 text-blue-700 border-blue-200"
-                                                    : "bg-green-50 text-green-700 border-green-200"
-                                                    }`}>
-                                                    {coa.normalBalance}
-                                                </span>
-                                            </td>
-                                            <td className="py-4 px-6">
-                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium border ${coa.postingType === CoaPostingType.HEADER
-                                                    ? "bg-amber-50 text-amber-700 border-amber-200"
-                                                    : "bg-indigo-50 text-indigo-700 border-indigo-200"
-                                                    }`}>
-                                                    {getPostingTypeIcon(coa.postingType)}
-                                                    <span className="ml-1">{coa.postingType}</span>
-                                                </span>
-                                            </td>
-                                            <td className="py-4 px-6">
-                                                <Badge variant="outline" className={`font-normal ${getCashflowColor(coa.cashflowType)} border`}>
-                                                    {getCashflowIcon(coa.cashflowType)}
-                                                    <span className="ml-1.5 text-xs whitespace-nowrap">{coa.cashflowType}</span>
-                                                </Badge>
-                                            </td>
-                                            <td className="py-4 px-6">
-                                                {coa.isReconcilable ? (
-                                                    <div className="flex items-center gap-1.5">
-                                                        <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"></div>
-                                                        <span className="text-xs font-medium text-emerald-700">Reconcilable</span>
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex items-center gap-1.5">
-                                                        <div className="h-2 w-2 rounded-full bg-gray-300"></div>
-                                                        <span className="text-xs text-gray-400">Non-Rec.</span>
-                                                    </div>
-                                                )}
-                                            </td>
-                                            <td className="py-4 px-6 text-center">
-                                                <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <Link href={`/admin-area/master/coa/update/${coa.id}`}>
+                                                </td>
+                                                <td className="py-4 px-6">
+                                                    <Badge variant="secondary" className={`font-normal ${getCoaTypeColor(coa.type)} border-0 bg-opacity-15`}>
+                                                        {getCoaTypeIcon(coa.type)}
+                                                        <span className="ml-1.5 text-xs font-semibold">{coa.type}</span>
+                                                    </Badge>
+                                                </td>
+                                                <td className="py-4 px-6">
+                                                    <Badge variant="outline" className={`font-normal rounded-full px-3 py-0.5 ${getStatusColor(coa.status)} border`}>
+                                                        {getStatusIcon(coa.status)}
+                                                        <span className="ml-1.5 text-xs">{coa.status}</span>
+                                                    </Badge>
+                                                </td>
+                                                <td className="py-4 px-6">
+                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${coa.normalBalance === CoaNormalBalance.DEBIT
+                                                        ? "bg-blue-50 text-blue-700 border-blue-200"
+                                                        : "bg-green-50 text-green-700 border-green-200"
+                                                        }`}>
+                                                        {coa.normalBalance}
+                                                    </span>
+                                                </td>
+                                                <td className="py-4 px-6">
+                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium border ${coa.postingType === CoaPostingType.HEADER
+                                                        ? "bg-amber-50 text-amber-700 border-amber-200"
+                                                        : "bg-indigo-50 text-indigo-700 border-indigo-200"
+                                                        }`}>
+                                                        {getPostingTypeIcon(coa.postingType)}
+                                                        <span className="ml-1">{coa.postingType}</span>
+                                                    </span>
+                                                </td>
+                                                <td className="py-4 px-6">
+                                                    <Badge variant="outline" className={`font-normal ${getCashflowColor(coa.cashflowType)} border`}>
+                                                        {getCashflowIcon(coa.cashflowType)}
+                                                        <span className="ml-1.5 text-xs whitespace-nowrap">{coa.cashflowType}</span>
+                                                    </Badge>
+                                                </td>
+                                                <td className="py-4 px-6">
+                                                    {coa.isReconcilable ? (
+                                                        <div className="flex items-center gap-1.5">
+                                                            <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"></div>
+                                                            <span className="text-xs font-medium text-emerald-700">Reconcilable</span>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center gap-1.5">
+                                                            <div className="h-2 w-2 rounded-full bg-gray-300"></div>
+                                                            <span className="text-xs text-gray-400">Non-Rec.</span>
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td className="py-4 px-6 text-center">
+                                                    <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <Link href={`/admin-area/master/coa/update/${coa.id}`}>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600 rounded-full transition-colors"
+                                                            >
+                                                                <span className="sr-only">Edit Akun</span>
+                                                                <Edit className="h-4 w-4" />
+                                                            </Button>
+                                                        </Link>
                                                         <Button
                                                             variant="ghost"
                                                             size="sm"
-                                                            className="h-8 w-8 p-0 hover:bg-blue-50 hover:text-blue-600 rounded-full transition-colors"
+                                                            className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 rounded-full transition-colors"
+                                                            onClick={() => onDelete(coa.id)}
+                                                            disabled={isDeleting}
                                                         >
-                                                            <span className="sr-only">Edit Akun</span>
-                                                            <Edit className="h-4 w-4" />
+                                                            <Trash2 className="h-4 w-4" />
                                                         </Button>
-                                                    </Link>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 rounded-full transition-colors"
-                                                        onClick={() => onDelete(coa.id)}
-                                                        disabled={isDeleting}
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
                                 )}
                             </tbody>
                         </table>
@@ -658,138 +680,141 @@ export function CoaTable({
                     </div>
                 ) : (
                     <Accordion type="multiple" className="space-y-3">
-                        {coas.map((coa) => (
-                            <AccordionItem
-                                key={coa.id}
-                                value={coa.id}
-                                className={`border rounded-xl shadow-sm overflow-hidden ${coa.postingType === CoaPostingType.HEADER
-                                    ? "bg-blue-50/50 border-blue-200"
-                                    : "bg-white"
-                                    }`}
-                            >
-                                <AccordionTrigger className="px-4 py-3 hover:bg-black/5 hover:no-underline transition-all">
-                                    <div className="flex items-center gap-3 w-full text-left pr-2">
-                                        {/* Visual Hierarchy Indicator */}
-                                        {coa.parentId && (
-                                            <div className="flex-shrink-0 w-1 h-8 bg-gray-300 rounded-full mr-1 opacity-50"></div>
-                                        )}
+                        {coas.map((coa) => {
+                            const indentLevel = getIndentLevel(coa, coas);
+                            return (
+                                <AccordionItem
+                                    key={coa.id}
+                                    value={coa.id}
+                                    className={`border rounded-xl shadow-sm overflow-hidden ${coa.postingType === CoaPostingType.HEADER
+                                        ? "bg-blue-50/50 border-blue-200"
+                                        : "bg-white"
+                                        }`}
+                                >
+                                    <AccordionTrigger className="px-4 py-3 hover:bg-black/5 hover:no-underline transition-all">
+                                        <div className="flex items-center gap-3 w-full text-left pr-2" style={{ paddingLeft: `${indentLevel * 12}px` }}>
+                                            {/* Visual Hierarchy Indicator */}
+                                            {coa.parentId && (
+                                                <div className="flex-shrink-0 w-1 h-8 bg-gray-300 rounded-full mr-1 opacity-50"></div>
+                                            )}
 
-                                        <div className={`flex flex-col gap-1 flex-1 ${coa.parentId ? "opacity-90" : ""}`}>
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                                <Badge variant="outline" className="font-mono text-[10px] px-1.5 h-5 border-gray-300 text-gray-500 bg-white/50">
-                                                    {coa.code}
-                                                </Badge>
-                                                {/* Posting Type Badge */}
-                                                <Badge variant="secondary" className={`text-[10px] h-5 px-1.5 font-normal ${coa.postingType === CoaPostingType.HEADER
-                                                    ? "bg-blue-100 text-blue-700"
-                                                    : "bg-gray-100 text-gray-600"
-                                                    }`}>
-                                                    {coa.postingType}
+                                            <div className={`flex flex-col gap-1 flex-1 ${coa.parentId ? "opacity-90" : ""}`}>
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <Badge variant="outline" className="font-mono text-[10px] px-1.5 h-5 border-gray-300 text-gray-500 bg-white/50">
+                                                        {coa.code}
+                                                    </Badge>
+                                                    {/* Posting Type Badge */}
+                                                    <Badge variant="secondary" className={`text-[10px] h-5 px-1.5 font-normal ${coa.postingType === CoaPostingType.HEADER
+                                                        ? "bg-blue-100 text-blue-700"
+                                                        : "bg-gray-100 text-gray-600"
+                                                        }`}>
+                                                        {coa.postingType}
+                                                    </Badge>
+
+                                                    {coa.isReconcilable && (
+                                                        <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-sm" title="Reconcilable"></div>
+                                                    )}
+                                                </div>
+                                                <span className={`text-sm font-semibold ${coa.postingType === CoaPostingType.HEADER ? "text-blue-900" : "text-gray-900"
+                                                    } line-clamp-1`}>
+                                                    {coa.name}
+                                                </span>
+                                            </div>
+
+                                            {/* Minimal Status Indicator on Header */}
+                                            <Badge variant="secondary" className={`hidden sm:inline-flex text-[10px] px-2 h-6 ${getStatusColor(coa.status)} bg-opacity-10 border-0`}>
+                                                {coa.status === CoaStatus.ACTIVE ? 'Aktif' : 'Non'}
+                                            </Badge>
+                                        </div>
+                                    </AccordionTrigger>
+
+                                    <AccordionContent className="px-4 pb-4 pt-1 bg-gray-50/50 border-t border-gray-100">
+                                        <div className="space-y-4">
+                                            {/* Detail Grid */}
+                                            <div className="grid grid-cols-2 gap-3 mt-3">
+                                                <div className="space-y-1">
+                                                    <span className="text-xs text-gray-400 uppercase font-medium tracking-wide">Tipe Akun</span>
+                                                    <div className="flex items-center gap-2">
+                                                        {getCoaTypeIcon(coa.type)}
+                                                        <span className="text-sm font-medium text-gray-700">{coa.type}</span>
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-1">
+                                                    <span className="text-xs text-gray-400 uppercase font-medium tracking-wide">Posting</span>
+                                                    <div className="flex items-center gap-1.5">
+                                                        {getPostingTypeIcon(coa.postingType)}
+                                                        <span className="text-sm text-gray-700">{coa.postingType}</span>
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-1">
+                                                    <span className="text-xs text-gray-400 uppercase font-medium tracking-wide">Saldo Normal</span>
+                                                    <Badge variant="outline" className="font-normal text-xs">
+                                                        {coa.normalBalance}
+                                                    </Badge>
+                                                </div>
+
+                                                <div className="space-y-1">
+                                                    <span className="text-xs text-gray-400 uppercase font-medium tracking-wide">Arus Kas</span>
+                                                    <Badge variant="outline" className={`font-normal text-xs ${getCashflowColor(coa.cashflowType)} border-0 bg-opacity-20`}>
+                                                        {coa.cashflowType}
+                                                    </Badge>
+                                                </div>
+                                            </div>
+
+                                            {/* Description if any */}
+                                            {coa.description && (
+                                                <div className="p-3 bg-white rounded border border-gray-100 text-xs text-gray-600 italic">
+                                                    "{coa.description}"
+                                                </div>
+                                            )}
+
+                                            {/* Full Status Badges Area (if header simplified logic excluded something) */}
+                                            <div className="flex flex-wrap gap-2 pt-2 border-t border-dashed border-gray-200">
+                                                <Badge variant="outline" className={`text-xs ${getStatusColor(coa.status)}`}>
+                                                    Status: {coa.status}
                                                 </Badge>
 
-                                                {coa.isReconcilable && (
-                                                    <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-sm" title="Reconcilable"></div>
+                                                {coa.isReconcilable ? (
+                                                    <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">
+                                                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                                                        Reconcilable
+                                                    </Badge>
+                                                ) : (
+                                                    <Badge variant="outline" className="text-xs text-gray-400">
+                                                        Non-Reconcilable
+                                                    </Badge>
                                                 )}
                                             </div>
-                                            <span className={`text-sm font-semibold ${coa.postingType === CoaPostingType.HEADER ? "text-blue-900" : "text-gray-900"
-                                                } line-clamp-1`}>
-                                                {coa.name}
-                                            </span>
-                                        </div>
 
-                                        {/* Minimal Status Indicator on Header */}
-                                        <Badge variant="secondary" className={`hidden sm:inline-flex text-[10px] px-2 h-6 ${getStatusColor(coa.status)} bg-opacity-10 border-0`}>
-                                            {coa.status === CoaStatus.ACTIVE ? 'Aktif' : 'Non'}
-                                        </Badge>
-                                    </div>
-                                </AccordionTrigger>
-
-                                <AccordionContent className="px-4 pb-4 pt-1 bg-gray-50/50 border-t border-gray-100">
-                                    <div className="space-y-4">
-                                        {/* Detail Grid */}
-                                        <div className="grid grid-cols-2 gap-3 mt-3">
-                                            <div className="space-y-1">
-                                                <span className="text-xs text-gray-400 uppercase font-medium tracking-wide">Tipe Akun</span>
-                                                <div className="flex items-center gap-2">
-                                                    {getCoaTypeIcon(coa.type)}
-                                                    <span className="text-sm font-medium text-gray-700">{coa.type}</span>
-                                                </div>
-                                            </div>
-
-                                            <div className="space-y-1">
-                                                <span className="text-xs text-gray-400 uppercase font-medium tracking-wide">Posting</span>
-                                                <div className="flex items-center gap-1.5">
-                                                    {getPostingTypeIcon(coa.postingType)}
-                                                    <span className="text-sm text-gray-700">{coa.postingType}</span>
-                                                </div>
-                                            </div>
-
-                                            <div className="space-y-1">
-                                                <span className="text-xs text-gray-400 uppercase font-medium tracking-wide">Saldo Normal</span>
-                                                <Badge variant="outline" className="font-normal text-xs">
-                                                    {coa.normalBalance}
-                                                </Badge>
-                                            </div>
-
-                                            <div className="space-y-1">
-                                                <span className="text-xs text-gray-400 uppercase font-medium tracking-wide">Arus Kas</span>
-                                                <Badge variant="outline" className={`font-normal text-xs ${getCashflowColor(coa.cashflowType)} border-0 bg-opacity-20`}>
-                                                    {coa.cashflowType}
-                                                </Badge>
-                                            </div>
-                                        </div>
-
-                                        {/* Description if any */}
-                                        {coa.description && (
-                                            <div className="p-3 bg-white rounded border border-gray-100 text-xs text-gray-600 italic">
-                                                "{coa.description}"
-                                            </div>
-                                        )}
-
-                                        {/* Full Status Badges Area (if header simplified logic excluded something) */}
-                                        <div className="flex flex-wrap gap-2 pt-2 border-t border-dashed border-gray-200">
-                                            <Badge variant="outline" className={`text-xs ${getStatusColor(coa.status)}`}>
-                                                Status: {coa.status}
-                                            </Badge>
-
-                                            {coa.isReconcilable ? (
-                                                <Badge variant="outline" className="text-xs bg-emerald-50 text-emerald-700 border-emerald-200">
-                                                    <CheckCircle2 className="h-3 w-3 mr-1" />
-                                                    Reconcilable
-                                                </Badge>
-                                            ) : (
-                                                <Badge variant="outline" className="text-xs text-gray-400">
-                                                    Non-Reconcilable
-                                                </Badge>
-                                            )}
-                                        </div>
-
-                                        {/* Action Buttons */}
-                                        <div className="flex gap-2 pt-2">
-                                            <Link href={`/admin-area/master/coa/update/${coa.id}`} className="flex-1">
+                                            {/* Action Buttons */}
+                                            <div className="flex gap-2 pt-2">
+                                                <Link href={`/admin-area/master/coa/update/${coa.id}`} className="flex-1">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="w-full h-9 border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+                                                    >
+                                                        <Edit className="h-3.5 w-3.5 mr-2" />
+                                                        Edit Akun
+                                                    </Button>
+                                                </Link>
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
-                                                    className="w-full h-9 border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+                                                    className="h-9 w-12 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-300"
+                                                    onClick={() => onDelete(coa.id)}
+                                                    disabled={isDeleting}
                                                 >
-                                                    <Edit className="h-3.5 w-3.5 mr-2" />
-                                                    Edit Akun
+                                                    <Trash2 className="h-4 w-4" />
                                                 </Button>
-                                            </Link>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="h-9 w-12 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-300"
-                                                onClick={() => onDelete(coa.id)}
-                                                disabled={isDeleting}
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
+                                            </div>
                                         </div>
-                                    </div>
-                                </AccordionContent>
-                            </AccordionItem>
-                        ))}
+                                    </AccordionContent>
+                                </AccordionItem>
+                            );
+                        })}
                     </Accordion>
                 )}
 
@@ -810,62 +835,64 @@ export function CoaTable({
             </div>
 
             {/* Pagination */}
-            {total > 0 && (
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                            <div className="text-sm text-gray-600">
-                                Menampilkan {startIndex}-{endIndex} dari {total} akun
-                            </div>
+            {
+                total > 0 && (
+                    <Card>
+                        <CardContent className="pt-6">
+                            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                                <div className="text-sm text-gray-600">
+                                    Menampilkan {startIndex}-{endIndex} dari {total} akun
+                                </div>
 
-                            <Pagination>
-                                <PaginationContent>
-                                    <PaginationItem>
-                                        <PaginationPrevious
-                                            href="#"
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                if (page > 1) handlePageChange(page - 1);
-                                            }}
-                                            className={page === 1 ? "pointer-events-none opacity-50" : ""}
-                                        />
-                                    </PaginationItem>
-
-                                    {paginationNumbers.map((pageNum, index) => (
-                                        <PaginationItem key={index}>
-                                            {pageNum === 'ellipsis' ? (
-                                                <PaginationEllipsis />
-                                            ) : (
-                                                <PaginationLink
-                                                    href="#"
-                                                    onClick={(e) => {
-                                                        e.preventDefault();
-                                                        handlePageChange(pageNum as number);
-                                                    }}
-                                                    isActive={page === pageNum}
-                                                >
-                                                    {pageNum}
-                                                </PaginationLink>
-                                            )}
+                                <Pagination>
+                                    <PaginationContent>
+                                        <PaginationItem>
+                                            <PaginationPrevious
+                                                href="#"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    if (page > 1) handlePageChange(page - 1);
+                                                }}
+                                                className={page === 1 ? "pointer-events-none opacity-50" : ""}
+                                            />
                                         </PaginationItem>
-                                    ))}
 
-                                    <PaginationItem>
-                                        <PaginationNext
-                                            href="#"
-                                            onClick={(e) => {
-                                                e.preventDefault();
-                                                if (page < totalPages) handlePageChange(page + 1);
-                                            }}
-                                            className={page === totalPages ? "pointer-events-none opacity-50" : ""}
-                                        />
-                                    </PaginationItem>
-                                </PaginationContent>
-                            </Pagination>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
+                                        {paginationNumbers.map((pageNum, index) => (
+                                            <PaginationItem key={index}>
+                                                {pageNum === 'ellipsis' ? (
+                                                    <PaginationEllipsis />
+                                                ) : (
+                                                    <PaginationLink
+                                                        href="#"
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            handlePageChange(pageNum as number);
+                                                        }}
+                                                        isActive={page === pageNum}
+                                                    >
+                                                        {pageNum}
+                                                    </PaginationLink>
+                                                )}
+                                            </PaginationItem>
+                                        ))}
+
+                                        <PaginationItem>
+                                            <PaginationNext
+                                                href="#"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    if (page < totalPages) handlePageChange(page + 1);
+                                                }}
+                                                className={page === totalPages ? "pointer-events-none opacity-50" : ""}
+                                            />
+                                        </PaginationItem>
+                                    </PaginationContent>
+                                </Pagination>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )
+            }
         </div>
     );
 }

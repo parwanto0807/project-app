@@ -38,7 +38,25 @@ import {
     Loader2,
     Download,
     BanknoteArrowDown,
+    BookCheck,
+    AlertTriangle,
 } from "lucide-react";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Invoice } from "@/schemas/invoice";
 import { InvoiceDetailDrawer } from "./invoiceDetailDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
@@ -46,10 +64,12 @@ import { PDFDownloadLink, PDFViewer } from "@react-pdf/renderer";
 import InvoicePdfDocument from "./invoicePdfPreview";
 import { PaymentProcessDialog } from "./paymentProcessDialog";
 import { BankAccount } from "@/schemas/bank";
-import { deleteInvoice } from "@/lib/action/invoice/invoice";
+import { deleteInvoice, postInvoiceToJournal } from "@/lib/action/invoice/invoice";
 import { toast } from "sonner";
 import InvoicePdfDocumentOld from "./invoicePdfPreviewOld";
 import { FaToolbox } from "react-icons/fa";
+
+
 
 interface InvoiceDataTableProps {
     invoiceData: Invoice[];
@@ -66,6 +86,29 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser, o
     const [isOldPdfPreviewOpen, setIsOldPdfPreviewOpen] = useState(false);
     const [isNewPdfPreviewOpen, setIsNewPdfPreviewOpen] = useState(false);
     const [dialogOpen, setDialogOpen] = useState(false);
+    const [isPostJournalOpen, setIsPostJournalOpen] = useState(false); // Added
+
+    const handlePostJournalClick = (invoice: Invoice) => {
+        setSelectedInvoice(invoice);
+        setIsPostJournalOpen(true);
+    };
+
+    const executePostToJournal = async () => {
+        if (!selectedInvoice) return;
+
+        toast.promise(
+            postInvoiceToJournal(selectedInvoice.id),
+            {
+                loading: 'Posting ke Jurnal...',
+                success: () => {
+                    onRefresh?.();
+                    setIsPostJournalOpen(false);
+                    return 'Invoice berhasil diposting ke Jurnal!';
+                },
+                error: (err) => `Gagal memposting jurnal: ${err.message}`,
+            }
+        );
+    };
 
     const handleDeleteInvoice = async (invoiceId: string) => {
         if (confirm('Are you sure you want to delete this invoice? This action cannot be undone.')) {
@@ -121,14 +164,31 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser, o
 
     const getApproveStatusBadge = (approvalStatus: string) => {
         const approvalStatusConfig = {
-            PENDING: { variant: "outline" as const, label: "PENDING" },
-            APPROVED: { variant: "default" as const, label: "APPROVED" },
-            REJECTED: { variant: "destructive" as const, label: "REJECTED" },
+            PENDING: {
+                variant: "outline" as const,
+                label: "PENDING",
+                className: "border-amber-200 bg-amber-50 text-amber-700"
+            },
+            APPROVED: {
+                variant: "default" as const,
+                label: "APPROVED",
+                className: "bg-blue-500 text-white border-blue-600"
+            },
+            REJECTED: {
+                variant: "destructive" as const,
+                label: "REJECTED",
+                className: "bg-red-500 text-white border-red-600"
+            },
+            POSTED: {
+                variant: "secondary" as const,
+                label: "POSTED",
+                className: "bg-emerald-500 text-white border-emerald-600" // ✅ Green for success
+            },
         };
 
         const config = approvalStatusConfig[approvalStatus as keyof typeof approvalStatusConfig] || approvalStatusConfig.PENDING;
 
-        return <Badge variant={config.variant}>{config.label}</Badge>;
+        return <Badge variant={config.variant} className={config.className}>{config.label}</Badge>;
     };
 
     const formatCurrency = (amount: number) => {
@@ -332,6 +392,30 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser, o
                                                         </Button>
                                                     </div>
 
+                                                    {/* Posting Journal Button */}
+                                                    {/* Posting Journal Button */}
+                                                    {invoice.status !== "PAID" && invoice.approvalStatus === "APPROVED" && (
+                                                        <div>
+                                                            <TooltipProvider>
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <Button
+                                                                            size="sm"
+                                                                            onClick={() => handlePostJournalClick(invoice)}
+                                                                            className="flex cursor-pointer items-center gap-1 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white border-0 shadow-md transition-all duration-200"
+                                                                        >
+                                                                            <BookCheck className="h-4 w-4 mr-2" />
+                                                                            Posting
+                                                                        </Button>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent>
+                                                                        <p className="max-w-xs text-center">Mencatat invoice ini ke dalam Buku Besar sebagai Piutang Usaha dan Pendapatan.</p>
+                                                                    </TooltipContent>
+                                                                </Tooltip>
+                                                            </TooltipProvider>
+                                                        </div>
+                                                    )}
+
                                                     <div className="flex items-center gap-2">
                                                         {/* View Details Button */}
                                                         <Button
@@ -455,6 +539,15 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser, o
                                     >
                                         <CreditCard className="h-4 w-4" />
                                     </Button>
+                                    {invoice.status !== "PAID" && invoice.approvalStatus === "APPROVED" && (
+                                        <Button
+                                            size="sm"
+                                            onClick={() => handlePostJournalClick(invoice)}
+                                            className="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white border-0 shadow-sm"
+                                        >
+                                            <BookCheck className="h-4 w-4" />
+                                        </Button>
+                                    )}
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <Button variant="outline" size="sm">
@@ -608,6 +701,59 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser, o
                     )}
                 </DialogContent>
             </Dialog>
+
+            {/* Confirmation Dialog Posting Jurnal */}
+            {/* Confirmation Dialog Posting Jurnal */}
+            <AlertDialog open={isPostJournalOpen} onOpenChange={setIsPostJournalOpen}>
+                <AlertDialogContent className="max-w-[480px] p-0 overflow-hidden border-0 shadow-2xl rounded-2xl bg-white">
+                    {/* Decorative Header Bar */}
+                    <div className="bg-gradient-to-r from-emerald-500 to-green-600 h-2 w-full" />
+
+                    <div className="p-6 pt-8">
+                        <AlertDialogHeader className="mb-6">
+                            {/* Centered Icon with Ring Animation Effect */}
+                            <div className="mx-auto bg-emerald-50 w-20 h-20 rounded-full flex items-center justify-center mb-4 shadow-inner ring-8 ring-emerald-50/50">
+                                <BookCheck className="h-9 w-9 text-emerald-600 drop-shadow-sm" />
+                            </div>
+
+                            <AlertDialogTitle className="text-center text-2xl font-bold text-gray-900 tracking-tight">
+                                Posting Jurnal
+                            </AlertDialogTitle>
+
+                            <AlertDialogDescription className="text-center text-gray-500 text-[15px] leading-relaxed mt-2 max-w-sm mx-auto">
+                                Anda akan mencatat transaksi Invoice <span className="font-semibold text-gray-900">{selectedInvoice?.invoiceNumber}</span> ke dalam Buku Besar.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+
+                        {/* Warning / Information Box */}
+                        <div className="bg-amber-50/80 border border-amber-100 rounded-xl p-4 mb-8">
+                            <div className="flex gap-3 items-start">
+                                <div className="p-1.5 bg-amber-100 rounded-full shrink-0 mt-0.5">
+                                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-xs font-bold text-amber-800 uppercase tracking-wide">Penting Diperhatikan</p>
+                                    <p className="text-sm text-amber-700/90 leading-snug">
+                                        Invoice yang sudah diposting <strong>tidak dapat diedit langsung</strong>. Koreksi data memerlukan proses <span className="font-medium">Jurnal Balik (Reversal)</span> secara manual.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <AlertDialogFooter className="flex-col-reverse sm:flex-row sm:justify-center gap-3 w-full">
+                            <AlertDialogCancel className="w-full sm:w-auto h-11 px-6 rounded-xl border-gray-200 text-gray-600 font-semibold hover:bg-gray-50 hover:text-gray-900 hover:border-gray-300 transition-all shadow-sm order-1 sm:order-none mt-2 sm:mt-0">
+                                Batal
+                            </AlertDialogCancel>
+                            <AlertDialogAction
+                                onClick={executePostToJournal}
+                                className="w-full sm:w-auto h-11 px-8 rounded-xl bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white font-semibold shadow-lg shadow-emerald-200 transition-all hover:shadow-emerald-300 transform active:scale-[0.98]"
+                            >
+                                Ya, Posting Sekarang
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </div>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

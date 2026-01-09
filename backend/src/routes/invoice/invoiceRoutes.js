@@ -164,4 +164,10 @@ router.post(
   InvoiceController.rejectInvoice
 );
 
+router.post(
+  "/:id/post",
+  [param("id").isUUID().withMessage("Invalid invoice ID")],
+  InvoiceController.postToJournal
+);
+
 export default router;
