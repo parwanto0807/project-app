@@ -169,7 +169,7 @@ export const updateCoaSchema = coaSchema
 // Schema untuk filter COA - PERBAIKAN: tambahkan field baru
 export const coaFilterSchema = z.object({
   page: z.number().min(1).default(1),
-  limit: z.number().min(1).max(100).default(10),
+  limit: z.number().min(1).max(1000).default(10),
   search: z.string().optional(),
   type: z.nativeEnum(CoaType).optional(),
   status: z.nativeEnum(CoaStatus).optional(),
@@ -224,120 +224,120 @@ export const coaTypeOptions: Array<{
   label: string;
   description: string;
 }> = [
-  {
-    value: CoaType.ASET,
-    label: "Aset",
-    description: "Sumber daya yang dimiliki perusahaan",
-  },
-  {
-    value: CoaType.LIABILITAS,
-    label: "Liabilitas",
-    description: "Kewajiban perusahaan kepada pihak lain",
-  },
-  {
-    value: CoaType.EKUITAS,
-    label: "Ekuitas",
-    description: "Hak pemilik atas aset perusahaan",
-  },
-  {
-    value: CoaType.PENDAPATAN,
-    label: "Pendapatan",
-    description: "Penghasilan dari aktivitas operasional",
-  },
-  {
-    value: CoaType.HPP,
-    label: "HPP",
-    description: "Harga Pokok Penjualan",
-  },
-  {
-    value: CoaType.BEBAN,
-    label: "Beban",
-    description: "Pengeluaran untuk operasional perusahaan",
-  },
-];
+    {
+      value: CoaType.ASET,
+      label: "Aset",
+      description: "Sumber daya yang dimiliki perusahaan",
+    },
+    {
+      value: CoaType.LIABILITAS,
+      label: "Liabilitas",
+      description: "Kewajiban perusahaan kepada pihak lain",
+    },
+    {
+      value: CoaType.EKUITAS,
+      label: "Ekuitas",
+      description: "Hak pemilik atas aset perusahaan",
+    },
+    {
+      value: CoaType.PENDAPATAN,
+      label: "Pendapatan",
+      description: "Penghasilan dari aktivitas operasional",
+    },
+    {
+      value: CoaType.HPP,
+      label: "HPP",
+      description: "Harga Pokok Penjualan",
+    },
+    {
+      value: CoaType.BEBAN,
+      label: "Beban",
+      description: "Pengeluaran untuk operasional perusahaan",
+    },
+  ];
 
 export const normalBalanceOptions: Array<{
   value: CoaNormalBalance;
   label: string;
   description: string;
 }> = [
-  {
-    value: CoaNormalBalance.DEBIT,
-    label: "Debit",
-    description: "Peningkatan untuk Aset, Beban, HPP",
-  },
-  {
-    value: CoaNormalBalance.CREDIT,
-    label: "Kredit",
-    description: "Peningkatan untuk Liabilitas, Ekuitas, Pendapatan",
-  },
-];
+    {
+      value: CoaNormalBalance.DEBIT,
+      label: "Debit",
+      description: "Peningkatan untuk Aset, Beban, HPP",
+    },
+    {
+      value: CoaNormalBalance.CREDIT,
+      label: "Kredit",
+      description: "Peningkatan untuk Liabilitas, Ekuitas, Pendapatan",
+    },
+  ];
 
 export const postingTypeOptions: Array<{
   value: CoaPostingType;
   label: string;
   description: string;
 }> = [
-  {
-    value: CoaPostingType.HEADER,
-    label: "Header",
-    description: "Akun group untuk pengelompokan (tidak bisa transaksi)",
-  },
-  {
-    value: CoaPostingType.POSTING,
-    label: "Posting",
-    description: "Akun detail yang bisa menerima transaksi",
-  },
-];
+    {
+      value: CoaPostingType.HEADER,
+      label: "Header",
+      description: "Akun group untuk pengelompokan (tidak bisa transaksi)",
+    },
+    {
+      value: CoaPostingType.POSTING,
+      label: "Posting",
+      description: "Akun detail yang bisa menerima transaksi",
+    },
+  ];
 
 export const cashflowTypeOptions: Array<{
   value: CoaCashflowType;
   label: string;
   description: string;
 }> = [
-  {
-    value: CoaCashflowType.OPERASIONAL,
-    label: "Operasi",
-    description: "Aktivitas operasional utama perusahaan",
-  },
-  {
-    value: CoaCashflowType.INVESTASI,
-    label: "Investasi",
-    description: "Aktivitas investasi aset tetap",
-  },
-  {
-    value: CoaCashflowType.PENDANAAN,
-    label: "Pendanaan",
-    description: "Aktivitas pendanaan dan pembayaran dividen",
-  },
-  {
-    value: CoaCashflowType.NONE,
-    label: "Tidak Termasuk",
-    description: "Tidak masuk dalam laporan arus kas",
-  },
-];
+    {
+      value: CoaCashflowType.OPERASIONAL,
+      label: "Operasi",
+      description: "Aktivitas operasional utama perusahaan",
+    },
+    {
+      value: CoaCashflowType.INVESTASI,
+      label: "Investasi",
+      description: "Aktivitas investasi aset tetap",
+    },
+    {
+      value: CoaCashflowType.PENDANAAN,
+      label: "Pendanaan",
+      description: "Aktivitas pendanaan dan pembayaran dividen",
+    },
+    {
+      value: CoaCashflowType.NONE,
+      label: "Tidak Termasuk",
+      description: "Tidak masuk dalam laporan arus kas",
+    },
+  ];
 
 export const statusOptions: Array<{
   value: CoaStatus;
   label: string;
   description: string;
 }> = [
-  {
-    value: CoaStatus.ACTIVE,
-    label: "Aktif",
-    description: "Akun dapat digunakan untuk transaksi",
-  },
-  {
-    value: CoaStatus.INACTIVE,
-    label: "Non-Aktif",
-    description: "Akun tidak dapat digunakan sementara",
-  },
-  {
-    value: CoaStatus.LOCKED,
-    label: "Terkunci",
-    description: "Akun dikunci (misal: saat audit)",
-  },
-];
+    {
+      value: CoaStatus.ACTIVE,
+      label: "Aktif",
+      description: "Akun dapat digunakan untuk transaksi",
+    },
+    {
+      value: CoaStatus.INACTIVE,
+      label: "Non-Aktif",
+      description: "Akun tidak dapat digunakan sementara",
+    },
+    {
+      value: CoaStatus.LOCKED,
+      label: "Terkunci",
+      description: "Akun dikunci (misal: saat audit)",
+    },
+  ];
 
 // Utility functions untuk schema
 export const coaSchemaUtils = {

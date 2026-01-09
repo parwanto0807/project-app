@@ -9,8 +9,8 @@ export const coaValidation = {
       .withMessage("Page must be a positive integer"),
     query("limit")
       .optional()
-      .isInt({ min: 1, max: 100 })
-      .withMessage("Limit must be between 1 and 100"),
+      .isInt({ min: 1, max: 1000 })
+      .withMessage("Limit must be between 1 and 1000"),
     query("search")
       .optional()
       .isString()
@@ -43,9 +43,9 @@ export const coaValidation = {
       .isString()
       .isLength({ min: 1, max: 1000 })
       .withMessage("COA code must be between 1 and 1000 characters")
-      .matches(/^[A-Z0-9-]+$/)
+      .matches(/^[A-Z0-9.\-]+$/)
       .withMessage(
-        "COA code can only contain uppercase letters, numbers, and hyphens"
+        "COA code can only contain uppercase letters, numbers, dots, and hyphens"
       ),
 
     body("name")
@@ -143,7 +143,7 @@ export const coaValidation = {
       .isString()
       .isLength({ min: 2, max: 20 })
       .withMessage("COA code must be between 2 and 20 characters")
-      .matches(/^[A-Z0-9.-]+$/)
+      .matches(/^[A-Z0-9.\-]+$/)
       .withMessage(
         "COA code can only contain uppercase letters, numbers, dots, and hyphens"
       ),

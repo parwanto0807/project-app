@@ -18,6 +18,7 @@ import { useCreateCOA, useCOAs } from "@/hooks/use-coa";
 import { useEffect } from "react";
 import { AdminLoading } from "@/components/admin-loading";
 import { CoaFormData } from "@/schemas/coa";
+import { CoaPostingType, CoaStatus } from "@/types/coa";
 import { useSession } from "@/components/clientSessionProvider";
 
 export default function CreateCOAPageAdmin() {
@@ -36,7 +37,11 @@ export default function CreateCOAPageAdmin() {
 
     const {
         data: coasResponse,
-    } = useCOAs();
+    } = useCOAs({
+        limit: 1000,
+        postingType: CoaPostingType.HEADER,
+        status: CoaStatus.ACTIVE
+    });
 
     const handleSubmit = (formData: CoaFormData) => {
         createCOA(formData, {

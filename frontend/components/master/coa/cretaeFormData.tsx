@@ -20,7 +20,7 @@ interface CoaFormProps {
     isLoading: boolean;
     role: { id: string } | null;
     initialData?: CoaFormDefaultValues;
-    parentAccounts?: Array<{ id: string; code: string; name: string; type: CoaType }>;
+    parentAccounts?: Array<{ id: string; code: string; name: string; type: CoaType; postingType: CoaPostingType }>;
 }
 
 export function CreateCoaForm({ onSubmit, onCancel, isLoading, role, initialData, parentAccounts = [] }: CoaFormProps) {
@@ -44,11 +44,11 @@ export function CreateCoaForm({ onSubmit, onCancel, isLoading, role, initialData
     useEffect(() => {
         if (formData.type) {
             const filtered = parentAccounts.filter(account =>
-                account.type === formData.type
+                account.type === formData.type && account.postingType === CoaPostingType.HEADER
             );
             setFilteredParentAccounts(filtered);
         } else {
-            setFilteredParentAccounts(parentAccounts);
+            setFilteredParentAccounts(parentAccounts.filter(account => account.postingType === CoaPostingType.HEADER));
         }
     }, [formData.type, parentAccounts]);
 
@@ -84,6 +84,11 @@ export function CreateCoaForm({ onSubmit, onCancel, isLoading, role, initialData
                         newData.parentId = null;
                     }
                 }
+            }
+
+            // PERBAIKAN: HEADER accounts tidak boleh isReconcilable
+            if (field === 'postingType' && value === CoaPostingType.HEADER) {
+                newData.isReconcilable = false;
             }
 
             return newData;
@@ -195,7 +200,7 @@ export function CreateCoaForm({ onSubmit, onCancel, isLoading, role, initialData
                                             placeholder="e.g., 1001"
                                             required
                                             className="focus:ring-2 focus:ring-blue-500 uppercase"
-                                            pattern="[A-Z0-9.-]+"
+                                            pattern="[A-Z0-9.\-]+"
                                             title="Hanya huruf kapital, angka, titik, dan strip diperbolehkan"
                                         />
 
@@ -377,7 +382,7 @@ export function CreateCoaForm({ onSubmit, onCancel, isLoading, role, initialData
                                         )}
                                         {filteredParentAccounts.length === 0 && formData.type && (
                                             <p className="text-amber-600 font-medium">
-                                                ℹ️ Tidak ada account induk yang tersedia untuk tipe {formData.type}
+                                                ℹ️ Tidak ada account induk (Header) yang tersedia untuk tipe {formData.type}
                                             </p>
                                         )}
                                     </div>
@@ -461,19 +466,23 @@ export function CreateCoaForm({ onSubmit, onCancel, isLoading, role, initialData
                                 </div>
 
                                 {/* Reconcilable Switch */}
-                                <div className="flex items-center justify-between p-3 border rounded-lg bg-gray-50">
+                                <div className={`flex items-center justify-between p-3 border rounded-lg ${formData.postingType === CoaPostingType.HEADER ? 'bg-gray-100 opacity-70' : 'bg-gray-50'}`}>
                                     <div className="space-y-1">
                                         <Label htmlFor="isReconcilable" className="font-semibold cursor-pointer">
                                             Reconcile Account
                                         </Label>
-                                        <p className="text-xs text-gray-500">
-                                            Enable for bank accounts that need reconciliation
-                                        </p>
+                                        <div className="text-xs text-gray-500">
+                                            {formData.postingType === CoaPostingType.HEADER
+                                                ? <span className="text-amber-600 font-medium">Not available for Header accounts</span>
+                                                : "Enable for bank accounts that need reconciliation"
+                                            }
+                                        </div>
                                     </div>
                                     <Switch
                                         id="isReconcilable"
                                         checked={formData.isReconcilable}
                                         onCheckedChange={(checked) => handleChange("isReconcilable", checked)}
+                                        disabled={formData.postingType === CoaPostingType.HEADER}
                                     />
                                 </div>
                             </div>

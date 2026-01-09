@@ -43,6 +43,8 @@ import {
     Filter,
     ChevronRight,
     ChevronDown,
+    CheckCircle2,
+    XCircle,
 } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ChartOfAccountsWithRelations, CoaCashflowType } from "@/types/coa";
@@ -536,6 +538,7 @@ export function CoaTable({
                                     <th className="text-left py-3 px-4 font-semibold uppercase">Saldo Normal</th>
                                     <th className="text-left py-3 px-4 font-semibold uppercase">Posting Type</th>
                                     <th className="text-left py-3 px-4 font-semibold uppercase">Arus Kas</th>
+                                    <th className="text-left py-3 px-4 font-semibold uppercase">Reconsiliasi</th>
                                     <th className="text-left py-3 px-4 font-semibold uppercase">Aksi</th>
                                 </tr>
                             </thead>
@@ -603,6 +606,19 @@ export function CoaTable({
                                                 {getCashflowIcon(coa.cashflowType)}
                                                 <span className="ml-1">{coa.cashflowType}</span>
                                             </Badge>
+                                        </td>
+                                        <td className="py-3 px-4">
+                                            {coa.isReconcilable ? (
+                                                <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100">
+                                                    <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                                                    <span>Reconcilable</span>
+                                                </Badge>
+                                            ) : (
+                                                <Badge variant="outline" className="bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100">
+                                                    <XCircle className="h-4 w-4 mr-1.5" />
+                                                    <span>Non-Rec.</span>
+                                                </Badge>
+                                            )}
                                         </td>
                                         <td className="py-3 px-4">
                                             <div className="flex gap-1">
@@ -707,6 +723,20 @@ export function CoaTable({
                                         {getPostingTypeIcon(coa.postingType)}
                                         <span className="ml-1">{coa.postingType}</span>
                                     </Badge>
+                                </div>
+                                <div className="col-span-2">
+                                    <span className="text-gray-500">Reconsiliasi:</span>
+                                    {coa.isReconcilable ? (
+                                        <Badge variant="outline" className="ml-2 bg-emerald-50 text-emerald-700 border-emerald-200">
+                                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                                            Active
+                                        </Badge>
+                                    ) : (
+                                        <Badge variant="outline" className="ml-2 bg-gray-50 text-gray-500 border-gray-200">
+                                            <XCircle className="h-3 w-3 mr-1" />
+                                            None
+                                        </Badge>
+                                    )}
                                 </div>
                             </div>
 

@@ -645,9 +645,11 @@ export const getAllSPK = async (req, res) => {
 export const getAllSPKPr = async (req, res) => {
   try {
     const spkList = await prisma.sPK.findMany({
-      where: {
-        spkStatusClose: false, // ← TAMBAHKAN INI
-      },
+      // where: {
+      // where: {
+      //   // spkStatusClose: false, // Commented out to show ALL SPKs
+      // },
+      // },
       include: {
         createdBy: true,
         salesOrder: {
@@ -676,7 +678,7 @@ export const getAllSPKPr = async (req, res) => {
           },
         },
       },
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: "desc" },
     });
 
     res.json(spkList);
