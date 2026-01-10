@@ -990,6 +990,7 @@ export const uangMukaController = {
             });
 
             if (summary) {
+              // Update existing summary
               await prismaTx.generalLedgerSummary.update({
                 where: { id: summary.id },
                 data: {
@@ -1000,18 +1001,63 @@ export const uangMukaController = {
                 }
               });
             } else {
+              // Create new summary - need to get opening balance from previous day
+              // Find the most recent GL Summary before this date for this COA
+              const previousSummary = await prismaTx.generalLedgerSummary.findFirst({
+                where: {
+                  coaId: item.id,
+                  periodId: period.id,
+                  date: { lt: dayDate }
+                },
+                orderBy: { date: 'desc' }
+              });
+
+              // Opening balance = previous day's closing balance
+              const openingBalance = previousSummary ? Number(previousSummary.closingBalance) : 0;
+              
+              // Closing balance = opening + debit - credit
+              const closingBalance = openingBalance + item.debit - item.credit;
+
               await prismaTx.generalLedgerSummary.create({
                 data: {
                   coaId: item.id,
                   periodId: period.id,
                   date: dayDate,
-                  openingBalance: 0,
+                  openingBalance: openingBalance,
                   debitTotal: item.debit,
                   creditTotal: item.credit,
-                  closingBalance: item.debit - item.credit,
+                  closingBalance: closingBalance,
                   transactionCount: 1
                 }
               });
+
+              // IMPORTANT: Update all future dates' opening and closing balances
+              // This ensures the carry-forward effect
+              const futureSummaries = await prismaTx.generalLedgerSummary.findMany({
+                where: {
+                  coaId: item.id,
+                  periodId: period.id,
+                  date: { gt: dayDate }
+                },
+                orderBy: { date: 'asc' }
+              });
+
+              // Cascade update for all future dates
+              let runningBalance = closingBalance;
+              for (const futureSummary of futureSummaries) {
+                const newOpening = runningBalance;
+                const newClosing = newOpening + Number(futureSummary.debitTotal) - Number(futureSummary.creditTotal);
+                
+                await prismaTx.generalLedgerSummary.update({
+                  where: { id: futureSummary.id },
+                  data: {
+                    openingBalance: newOpening,
+                    closingBalance: newClosing
+                  }
+                });
+
+                runningBalance = newClosing;
+              }
             }
           }
         }

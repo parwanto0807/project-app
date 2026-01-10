@@ -1816,7 +1816,8 @@ class InvoiceController {
 
       // 4. Proses Transaksi Ledger
       const ledgerResult = await prisma.$transaction(async (tx) => {
-        const ledgerNumber = `JNL-${invoice.invoiceNumber.replace(/\//g, '-')}`; 
+        // Generate Ledger Number: JV-SI (Journal Voucher - Sales Invoice)
+        const ledgerNumber = `JV-SI-${invoice.invoiceNumber.replace(/\//g, '-')}`; 
 
         // A. Header
         const ledger = await tx.ledger.create({
@@ -2082,18 +2083,57 @@ class InvoiceController {
               }
             });
           } else {
+            // Get opening balance from previous day
+            const previousSummary = await tx.generalLedgerSummary.findFirst({
+              where: {
+                coaId: coaId,
+                periodId: period.id,
+                date: { lt: transactionDate }
+              },
+              orderBy: { date: 'desc' }
+            });
+
+            const openingBalance = previousSummary ? Number(previousSummary.closingBalance) : 0;
+            const closingBalance = openingBalance + netChange;
+
             await tx.generalLedgerSummary.create({
               data: {
                 coaId: coaId,
                 periodId: period.id,
                 date: transactionDate,
-                openingBalance: 0,
+                openingBalance: openingBalance,
                 debitTotal: amounts.debit,
                 creditTotal: amounts.credit,
-                closingBalance: netChange,
+                closingBalance: closingBalance,
                 transactionCount: 1
               }
             });
+
+            // Update all future dates' balances
+            const futureSummaries = await tx.generalLedgerSummary.findMany({
+              where: {
+                coaId: coaId,
+                periodId: period.id,
+                date: { gt: transactionDate }
+              },
+              orderBy: { date: 'asc' }
+            });
+
+            let runningBalance = closingBalance;
+            for (const futureSummary of futureSummaries) {
+              const newOpening = runningBalance;
+              const newClosing = newOpening + Number(futureSummary.debitTotal) - Number(futureSummary.creditTotal);
+              
+              await tx.generalLedgerSummary.update({
+                where: { id: futureSummary.id },
+                data: {
+                  openingBalance: newOpening,
+                  closingBalance: newClosing
+                }
+              });
+
+              runningBalance = newClosing;
+            }
           }
         }
         console.log(`[POSTING] ✓ General Ledger Summary updated for ${transactionDate.toISOString().split('T')[0]}`);

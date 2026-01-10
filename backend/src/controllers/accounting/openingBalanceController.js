@@ -182,14 +182,63 @@ class OpeningBalanceController {
 
       if (!period) return res.status(400).json({ success: false, message: "No open accounting period found for this date" });
 
+      // Generate Ledger Number for Opening Balance
+      // Using JV-OB (Journal Voucher - Opening Balance) as per accounting standards
+      const counter = await prisma.counter.upsert({
+        where: { name: "OPENING_BALANCE" },
+        update: { lastNumber: { increment: 1 } },
+        create: { name: "OPENING_BALANCE", lastNumber: 1 }
+      });
+      const ledgerNumber = `JV-OB-${String(counter.lastNumber).padStart(6, "0")}`;
+
       await prisma.$transaction(async (tx) => {
-        // Mark as posted
+        // 1. Create Ledger Entry
+        const ledger = await tx.ledger.create({
+          data: {
+            ledgerNumber,
+            referenceNumber: `OB-${ob.id.substring(0, 8)}`,
+            referenceType: "JOURNAL",
+            transactionDate: ob.asOfDate,
+            postingDate: new Date(),
+            description: `Opening Balance: ${ob.description || "Initial Balances"}`,
+            notes: "Auto-generated from Opening Balance posting",
+            periodId: period.id,
+            status: "POSTED",
+            currency: "IDR",
+            exchangeRate: 1.0,
+            createdBy: req.user?.id || "system",
+            postedBy: req.user?.id || "system",
+            postedAt: new Date()
+          }
+        });
+
+        // 2. Create Ledger Lines for each detail
+        let lineNumber = 1;
+        for (const detail of ob.details) {
+          await tx.ledgerLine.create({
+            data: {
+              ledgerId: ledger.id,
+              coaId: detail.accountId,
+              debitAmount: detail.debit,
+              creditAmount: detail.credit,
+              currency: "IDR",
+              localAmount: detail.debit > 0 ? detail.debit : detail.credit,
+              exchangeRate: 1.0,
+              description: `Opening Balance - ${ob.description || ""}`,
+              reference: `OB-${ob.id.substring(0, 8)}`,
+              lineNumber: lineNumber++,
+              reconciliationStatus: "UNRECONCILED"
+            }
+          });
+        }
+
+        // 3. Mark Opening Balance as posted
         await tx.openingBalance.update({
           where: { id },
           data: { isPosted: true, postedAt: new Date() }
         });
 
-        // Update Trial Balance for each detail
+        // 4. Update Trial Balance for each detail
         for (const detail of ob.details) {
           const tb = await tx.trialBalance.findUnique({
             where: {
@@ -231,9 +280,107 @@ class OpeningBalanceController {
             });
           }
         }
+
+        // 5. Update GeneralLedgerSummary for daily summary
+        const summaryDate = new Date(ob.asOfDate);
+        summaryDate.setHours(0, 0, 0, 0); // Normalize to start of day
+
+        for (const detail of ob.details) {
+          const existingSummary = await tx.generalLedgerSummary.findUnique({
+            where: {
+              coaId_periodId_date: {
+                coaId: detail.accountId,
+                periodId: period.id,
+                date: summaryDate
+              }
+            }
+          });
+
+          const debitAmount = Number(detail.debit) || 0;
+          const creditAmount = Number(detail.credit) || 0;
+          const netAmount = debitAmount - creditAmount;
+
+          if (existingSummary) {
+            // Update existing summary
+            await tx.generalLedgerSummary.update({
+              where: { id: existingSummary.id },
+              data: {
+                openingBalance: { increment: netAmount },
+                debitTotal: { increment: debitAmount },
+                creditTotal: { increment: creditAmount },
+                closingBalance: { increment: netAmount },
+                transactionCount: { increment: 1 }
+              }
+            });
+          } else {
+            // Get opening balance from previous day
+            const previousSummary = await tx.generalLedgerSummary.findFirst({
+              where: {
+                coaId: detail.accountId,
+                periodId: period.id,
+                date: { lt: summaryDate }
+              },
+              orderBy: { date: 'desc' }
+            });
+
+            // Opening balance = previous day's closing balance (NOT previous + netAmount)
+            const previousClosing = previousSummary ? Number(previousSummary.closingBalance) : 0;
+            const newOpening = previousClosing;
+            
+            // Closing balance = opening + debit - credit
+            const debitAmount = Number(detail.debit) || 0;
+            const creditAmount = Number(detail.credit) || 0;
+            const newClosing = newOpening + debitAmount - creditAmount;
+
+            // Create new summary
+            await tx.generalLedgerSummary.create({
+              data: {
+                coaId: detail.accountId,
+                periodId: period.id,
+                date: summaryDate,
+                openingBalance: newOpening,
+                debitTotal: debitAmount,
+                creditTotal: creditAmount,
+                closingBalance: newClosing,
+                transactionCount: 1,
+                currency: "IDR"
+              }
+            });
+
+            // Update all future dates' balances
+            const futureSummaries = await tx.generalLedgerSummary.findMany({
+              where: {
+                coaId: detail.accountId,
+                periodId: period.id,
+                date: { gt: summaryDate }
+              },
+              orderBy: { date: 'asc' }
+            });
+
+            let runningBalance = newClosing;
+            for (const futureSummary of futureSummaries) {
+              const futureOpening = runningBalance;
+              const futureClosing = futureOpening + Number(futureSummary.debitTotal) - Number(futureSummary.creditTotal);
+              
+              await tx.generalLedgerSummary.update({
+                where: { id: futureSummary.id },
+                data: {
+                  openingBalance: futureOpening,
+                  closingBalance: futureClosing
+                }
+              });
+
+              runningBalance = futureClosing;
+            }
+          }
+        }
       });
 
-      return res.status(200).json({ success: true, message: "Opening Balance posted successfully" });
+      return res.status(200).json({ 
+        success: true, 
+        message: "Opening Balance posted successfully to Ledger, Trial Balance, and Summary",
+        ledgerNumber 
+      });
     } catch (error) {
       console.error("Post Opening Balance Error:", error);
       return res.status(500).json({ success: false, message: error.message });
@@ -250,7 +397,16 @@ class OpeningBalanceController {
       if (!ob) return res.status(404).json({ success: false, message: "Not found" });
       if (ob.isPosted) return res.status(400).json({ success: false, message: "Cannot delete posted opening balance" });
 
-      await prisma.openingBalance.delete({ where: { id } });
+      // Delete in transaction to ensure data consistency
+      await prisma.$transaction(async (tx) => {
+        // First, delete all related details
+        await tx.openingBalanceDetail.deleteMany({
+          where: { openingBalanceId: id }
+        });
+
+        // Then delete the opening balance header
+        await tx.openingBalance.delete({ where: { id } });
+      });
 
       return res.status(200).json({ success: true, message: "Opening Balance deleted" });
     } catch (error) {

@@ -279,6 +279,12 @@ export function getMenuList(pathname: string, role: string) {
               disabled: role === "user" || role === "pic",
             },
             {
+              href: `${basePath}/accounting/general-ledger`,
+              label: "General Ledger Summary",
+              active: isActive(`${basePath}/accounting/general-ledger`, pathname),
+              disabled: role === "user" || role === "pic",
+            },
+            {
               href: `${basePath}/accounting/trial-balance`,
               label: "Trial Balance",
               active: isActive(`${basePath}/accounting/trial-balance`, pathname),

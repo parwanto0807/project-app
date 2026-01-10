@@ -79,10 +79,10 @@ const HeaderCard = ({
   // Default icon dengan desain yang lebih modern
   const defaultIcon = (
     <div className={`flex items-center justify-center rounded-2xl backdrop-blur-sm border border-white/25 shadow-lg ${isCompact
-      ? "h-10 w-10"
+      ? "h-8 w-8"
       : isElegant
-        ? "h-16 w-16 rounded-3xl"
-        : "h-14 w-14"
+        ? "h-14 w-14 rounded-3xl"
+        : "h-12 w-12"
       } ${backgroundStyle === "glass"
         ? "bg-white/25"
         : "bg-white/20"
@@ -90,8 +90,8 @@ const HeaderCard = ({
       {icon || (
         <svg
           className={
-            isCompact ? "h-5 w-5" :
-              isElegant ? "h-7 w-7" : "h-6 w-6"
+            isCompact ? "h-4 w-4" :
+              isElegant ? "h-6 w-6" : "h-5 w-5"
           }
           fill="none"
           stroke="currentColor"
@@ -128,8 +128,8 @@ const HeaderCard = ({
               <CardTitle className={`
                 font-bold text-white tracking-tight
                 ${titleClassName}
-                ${isCompact ? "text-lg" :
-                  isElegant ? "text-3xl font-semibold" : "text-2xl"
+                ${isCompact ? "text-base" :
+                  isElegant ? "text-2xl font-semibold" : "text-xl"
                 }
               `}>
                 {title}

@@ -60,5 +60,11 @@ export interface GeneralLedgerResponse {
         page: number;
         limit: number;
         totalPages: number;
-    }
+    };
+    aggregates?: {
+        totalTransactions: number;
+        totalDebit: number;
+        totalCredit: number;
+        balancedCount: number;
+    };
 }

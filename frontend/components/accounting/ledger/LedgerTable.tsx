@@ -56,6 +56,12 @@ import {
 interface LedgerTableProps {
     data: Ledger[];
     isLoading: boolean;
+    globalStats?: {
+        totalTransactions: number;
+        totalDebit: number;
+        totalCredit: number;
+        balancedCount: number;
+    };
 }
 
 interface LedgerGroup {
@@ -68,7 +74,7 @@ interface LedgerGroup {
     totalCredit: number;
 }
 
-export function LedgerTable({ data, isLoading }: LedgerTableProps) {
+export function LedgerTable({ data, isLoading, globalStats }: LedgerTableProps) {
     const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
     const [searchQuery, setSearchQuery] = useState("");
     const [groupedData, setGroupedData] = useState<LedgerGroup[]>([]);
@@ -319,7 +325,11 @@ export function LedgerTable({ data, isLoading }: LedgerTableProps) {
                                         {group.lines.length} entries
                                     </div>
                                     <div className="font-medium text-gray-800">
-                                        Balance: {formatCurrencyCompact(Math.abs(group.totalDebit - group.totalCredit))}
+                                        Balance: {(() => {
+                                            const balance = Math.abs(group.totalDebit - group.totalCredit);
+                                            const roundedBalance = Math.round(balance * 100) / 100;
+                                            return roundedBalance < 0.01 ? 'Rp 0' : formatCurrencyCompact(roundedBalance);
+                                        })()}
                                     </div>
                                 </div>
                             </div>
@@ -459,11 +469,21 @@ export function LedgerTable({ data, isLoading }: LedgerTableProps) {
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                {/* Total Transactions */}
                 <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-4">
                     <div className="flex items-center justify-between">
-                        <div>
+                        <div className="flex-1">
                             <p className="text-xs font-medium text-blue-800">Total Transactions</p>
-                            <p className="text-xl font-bold text-blue-900 mt-1">{groupedData.length}</p>
+                            <p className="text-xl font-bold text-blue-900 mt-1">
+                                {globalStats ? globalStats.totalTransactions : groupedData.length}
+                            </p>
+                            {globalStats && (
+                                <div className="mt-1 pt-1 border-t border-blue-200">
+                                    <p className="text-[10px] text-blue-600 font-medium">
+                                        This Page: <span className="font-bold">{groupedData.length}</span>
+                                    </p>
+                                </div>
+                            )}
                         </div>
                         <div className="text-blue-600">
                             <Receipt className="h-8 w-8" />
@@ -471,18 +491,32 @@ export function LedgerTable({ data, isLoading }: LedgerTableProps) {
                     </div>
                 </div>
 
+                {/* Total Debit */}
                 <div className="bg-gradient-to-r from-emerald-50 to-emerald-100 border border-emerald-200 rounded-lg p-4">
                     <div className="flex items-center justify-between">
-                        <div>
+                        <div className="flex-1">
                             <p className="text-xs font-medium text-emerald-800">Total Debit</p>
                             <p className="text-xl font-bold text-emerald-900 mt-1">
                                 <span className="lg:hidden">
-                                    {formatCurrencyCompact(groupedData.reduce((sum, g) => sum + g.totalDebit, 0))}
+                                    {formatCurrencyCompact(
+                                        globalStats ? globalStats.totalDebit : groupedData.reduce((sum, g) => sum + g.totalDebit, 0)
+                                    )}
                                 </span>
                                 <span className="hidden lg:inline text-lg">
-                                    {formatCurrency(groupedData.reduce((sum, g) => sum + g.totalDebit, 0))}
+                                    {formatCurrency(
+                                        globalStats ? globalStats.totalDebit : groupedData.reduce((sum, g) => sum + g.totalDebit, 0)
+                                    )}
                                 </span>
                             </p>
+                            {globalStats && (
+                                <div className="mt-1 pt-1 border-t border-emerald-200">
+                                    <p className="text-[10px] text-emerald-600 font-medium">
+                                        This Page: <span className="font-bold">
+                                            {formatCurrencyCompact(groupedData.reduce((sum, g) => sum + g.totalDebit, 0))}
+                                        </span>
+                                    </p>
+                                </div>
+                            )}
                         </div>
                         <div className="text-emerald-600">
                             <TrendingUp className="h-8 w-8" />
@@ -490,18 +524,32 @@ export function LedgerTable({ data, isLoading }: LedgerTableProps) {
                     </div>
                 </div>
 
+                {/* Total Credit */}
                 <div className="bg-gradient-to-r from-rose-50 to-rose-100 border border-rose-200 rounded-lg p-4">
                     <div className="flex items-center justify-between">
-                        <div>
+                        <div className="flex-1">
                             <p className="text-xs font-medium text-rose-800">Total Credit</p>
                             <p className="text-xl font-bold text-rose-900 mt-1">
                                 <span className="lg:hidden">
-                                    {formatCurrencyCompact(groupedData.reduce((sum, g) => sum + g.totalCredit, 0))}
+                                    {formatCurrencyCompact(
+                                        globalStats ? globalStats.totalCredit : groupedData.reduce((sum, g) => sum + g.totalCredit, 0)
+                                    )}
                                 </span>
                                 <span className="hidden lg:inline text-lg">
-                                    {formatCurrency(groupedData.reduce((sum, g) => sum + g.totalCredit, 0))}
+                                    {formatCurrency(
+                                        globalStats ? globalStats.totalCredit : groupedData.reduce((sum, g) => sum + g.totalCredit, 0)
+                                    )}
                                 </span>
                             </p>
+                            {globalStats && (
+                                <div className="mt-1 pt-1 border-t border-rose-200">
+                                    <p className="text-[10px] text-rose-600 font-medium">
+                                        This Page: <span className="font-bold">
+                                            {formatCurrencyCompact(groupedData.reduce((sum, g) => sum + g.totalCredit, 0))}
+                                        </span>
+                                    </p>
+                                </div>
+                            )}
                         </div>
                         <div className="text-rose-600">
                             <TrendingDown className="h-8 w-8" />
@@ -509,13 +557,26 @@ export function LedgerTable({ data, isLoading }: LedgerTableProps) {
                     </div>
                 </div>
 
+                {/* Balanced */}
                 <div className="bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200 rounded-lg p-4">
                     <div className="flex items-center justify-between">
-                        <div>
+                        <div className="flex-1">
                             <p className="text-xs font-medium text-purple-800">Balanced</p>
                             <p className="text-xl font-bold text-purple-900 mt-1">
-                                {groupedData.filter(g => Math.abs(g.totalDebit - g.totalCredit) < 0.01).length} / {groupedData.length}
+                                {globalStats
+                                    ? `${globalStats.balancedCount} / ${globalStats.totalTransactions}`
+                                    : `${groupedData.filter(g => Math.abs(g.totalDebit - g.totalCredit) < 0.01).length} / ${groupedData.length}`
+                                }
                             </p>
+                            {globalStats && (
+                                <div className="mt-1 pt-1 border-t border-purple-200">
+                                    <p className="text-[10px] text-purple-600 font-medium">
+                                        This Page: <span className="font-bold">
+                                            {groupedData.filter(g => Math.abs(g.totalDebit - g.totalCredit) < 0.01).length} / {groupedData.length}
+                                        </span>
+                                    </p>
+                                </div>
+                            )}
                         </div>
                         <div className="text-purple-600">
                             <CheckCircle className="h-8 w-8" />
@@ -779,10 +840,14 @@ export function LedgerTable({ data, isLoading }: LedgerTableProps) {
                                         <span>Credit: {formatCurrencyCompact(groupedData.reduce((sum, g) => sum + g.totalCredit, 0))}</span>
                                     </div>
                                     <div className="font-bold text-gray-900">
-                                        Balance: {formatCurrencyCompact(
-                                            Math.abs(groupedData.reduce((sum, g) => sum + g.totalDebit, 0) -
-                                                groupedData.reduce((sum, g) => sum + g.totalCredit, 0))
-                                        )}
+                                        Balance: {(() => {
+                                            const totalDebit = groupedData.reduce((sum, g) => sum + g.totalDebit, 0);
+                                            const totalCredit = groupedData.reduce((sum, g) => sum + g.totalCredit, 0);
+                                            const balance = Math.abs(totalDebit - totalCredit);
+                                            // Round to 2 decimal places to avoid floating point errors
+                                            const roundedBalance = Math.round(balance * 100) / 100;
+                                            return roundedBalance < 0.01 ? 'Rp 0' : formatCurrencyCompact(roundedBalance);
+                                        })()}
                                     </div>
                                 </div>
                             </div>

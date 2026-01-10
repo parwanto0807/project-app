@@ -55,6 +55,37 @@ class LedgerController {
         prisma.ledger.count({ where }),
       ]);
 
+      // Calculate global aggregated stats (ALL data, not just current page)
+      const allLedgers = await prisma.ledger.findMany({
+        where,
+        include: {
+          ledgerLines: {
+            select: {
+              debitAmount: true,
+              creditAmount: true,
+            },
+          },
+        },
+      });
+
+      // Calculate totals from ALL ledgers
+      let totalDebit = 0;
+      let totalCredit = 0;
+      let balancedCount = 0;
+
+      allLedgers.forEach((ledger) => {
+        const ledgerDebit = ledger.ledgerLines.reduce((sum, line) => sum + Number(line.debitAmount), 0);
+        const ledgerCredit = ledger.ledgerLines.reduce((sum, line) => sum + Number(line.creditAmount), 0);
+        
+        totalDebit += ledgerDebit;
+        totalCredit += ledgerCredit;
+
+        // Check if this ledger is balanced
+        if (Math.abs(ledgerDebit - ledgerCredit) < 0.01) {
+          balancedCount++;
+        }
+      });
+
       return res.status(200).json({
         success: true,
         data: ledgers,
@@ -63,6 +94,12 @@ class LedgerController {
           page: parseInt(page),
           limit: parseInt(limit),
           totalPages: Math.ceil(total / limit),
+        },
+        aggregates: {
+          totalTransactions: total,
+          totalDebit: Number(totalDebit.toFixed(2)),
+          totalCredit: Number(totalCredit.toFixed(2)),
+          balancedCount,
         },
       });
     } catch (error) {
@@ -200,6 +237,37 @@ class LedgerController {
         prisma.ledger.count({ where }),
       ]);
 
+      // Calculate global aggregated stats (ALL data, not just current page)
+      const allLedgers = await prisma.ledger.findMany({
+        where,
+        include: {
+          ledgerLines: {
+            select: {
+              debitAmount: true,
+              creditAmount: true,
+            },
+          },
+        },
+      });
+
+      // Calculate totals from ALL ledgers
+      let totalDebit = 0;
+      let totalCredit = 0;
+      let balancedCount = 0;
+
+      allLedgers.forEach((ledger) => {
+        const ledgerDebit = ledger.ledgerLines.reduce((sum, line) => sum + Number(line.debitAmount), 0);
+        const ledgerCredit = ledger.ledgerLines.reduce((sum, line) => sum + Number(line.creditAmount), 0);
+        
+        totalDebit += ledgerDebit;
+        totalCredit += ledgerCredit;
+
+        // Check if this ledger is balanced
+        if (Math.abs(ledgerDebit - ledgerCredit) < 0.01) {
+          balancedCount++;
+        }
+      });
+
       return res.status(200).json({
         success: true,
         data: ledgers,
@@ -208,6 +276,12 @@ class LedgerController {
           page: parseInt(page),
           limit: parseInt(limit),
           totalPages: Math.ceil(total / limit),
+        },
+        aggregates: {
+          totalTransactions: total,
+          totalDebit: Number(totalDebit.toFixed(2)),
+          totalCredit: Number(totalCredit.toFixed(2)),
+          balancedCount,
         },
       });
 

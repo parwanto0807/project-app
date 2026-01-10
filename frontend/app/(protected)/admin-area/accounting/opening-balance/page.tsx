@@ -38,13 +38,26 @@ import {
     Download,
     Wallet,
     TrendingUp,
-    ShieldCheck
+    ShieldCheck,
+    AlertTriangle,
+    Send,
+    ShieldAlert,
+    Lock,
+    CheckCircle2
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import HeaderCard from "@/components/ui/header-card";
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function OpeningBalancePage() {
     const [data, setData] = useState<OpeningBalance[]>([]);
@@ -111,12 +124,27 @@ export default function OpeningBalancePage() {
         }
     };
 
-    const handlePost = async (id: string) => {
-        if (!confirm("Peringatan: Saldo awal yang sudah diposting tidak dapat diubah lagi. Lanjutkan?")) return;
+    const [postDialogOpen, setPostDialogOpen] = useState(false);
+    const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+
+    const handlePostClick = (id: string) => {
+        setSelectedPostId(id);
+        setPostDialogOpen(true);
+    };
+
+    const handlePostConfirm = async () => {
+        if (!selectedPostId) return;
+
         try {
-            await postOpeningBalance(id);
-            toast.success("Berhasil! Saldo awal telah diposting ke Ledger");
+            const result = await postOpeningBalance(selectedPostId);
+            toast.success(
+                result.ledgerNumber
+                    ? `Berhasil! Saldo awal telah diposting ke Ledger dengan nomor: ${result.ledgerNumber}`
+                    : "Berhasil! Saldo awal telah diposting ke Ledger"
+            );
             fetchData();
+            setPostDialogOpen(false);
+            setSelectedPostId(null);
         } catch (error: any) {
             toast.error(error.message);
         }
@@ -237,7 +265,7 @@ export default function OpeningBalancePage() {
                             isLoading={isLoading}
                             onEdit={handleEdit}
                             onDelete={handleDelete}
-                            onPost={handlePost}
+                            onPost={handlePostClick}
                             onView={handleView}
                         />
                     </CardContent>
@@ -256,6 +284,129 @@ export default function OpeningBalancePage() {
                     onOpenChange={setIsViewOpen}
                     data={viewData}
                 />
+
+                {/* Professional Post Confirmation Dialog */}
+                <Dialog open={postDialogOpen} onOpenChange={setPostDialogOpen}>
+                    <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden border-none shadow-2xl">
+                        {/* Header with Gradient Background */}
+                        <div className="relative bg-gradient-to-br from-amber-500 via-orange-500 to-red-500 p-6 pb-8">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl" />
+                            <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full -ml-12 -mb-12 blur-xl" />
+
+                            <div className="relative flex items-start gap-4">
+                                <div className="p-3 bg-white/20 backdrop-blur-sm rounded-2xl border-2 border-white/30 shadow-lg">
+                                    <AlertTriangle className="h-8 w-8 text-white animate-pulse" />
+                                </div>
+                                <div className="flex-1">
+                                    <DialogTitle className="text-2xl font-black text-white mb-2 tracking-tight">
+                                        Konfirmasi Posting ke Ledger
+                                    </DialogTitle>
+                                    <DialogDescription className="text-amber-50 text-sm leading-relaxed">
+                                        Tindakan ini akan memposting saldo awal ke sistem akuntansi secara permanen
+                                    </DialogDescription>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Content Body */}
+                        <div className="p-6 space-y-6 bg-gradient-to-b from-white to-slate-50">
+                            {/* Warning Box */}
+                            <div className="p-4 rounded-xl bg-gradient-to-r from-red-50 to-orange-50 border-2 border-red-200">
+                                <div className="flex items-start gap-3">
+                                    <div className="p-2 bg-red-100 rounded-lg">
+                                        <ShieldAlert className="h-5 w-5 text-red-600" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <h4 className="font-bold text-red-900 mb-1 text-sm">⚠️ PERINGATAN PENTING</h4>
+                                        <p className="text-xs text-red-700 leading-relaxed">
+                                            Setelah diposting, saldo awal <span className="font-bold underline">TIDAK DAPAT DIUBAH atau DIHAPUS</span> lagi.
+                                            Data akan tercatat secara permanen dalam sistem akuntansi.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* What Will Happen Section */}
+                            <div className="space-y-3">
+                                <h4 className="font-bold text-slate-900 flex items-center gap-2 text-sm">
+                                    <Send className="h-4 w-4 text-blue-600" />
+                                    Apa yang akan terjadi?
+                                </h4>
+                                <div className="space-y-2.5">
+                                    <div className="flex items-start gap-3 p-3 rounded-lg bg-blue-50/50 border border-blue-100">
+                                        <div className="p-1.5 bg-blue-100 rounded-full mt-0.5">
+                                            <div className="h-2 w-2 bg-blue-600 rounded-full" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-xs text-slate-700 leading-relaxed">
+                                                <span className="font-semibold text-slate-900">Ledger Entry:</span> Sistem akan membuat jurnal otomatis dengan nomor referensi unik
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-3 p-3 rounded-lg bg-emerald-50/50 border border-emerald-100">
+                                        <div className="p-1.5 bg-emerald-100 rounded-full mt-0.5">
+                                            <div className="h-2 w-2 bg-emerald-600 rounded-full" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-xs text-slate-700 leading-relaxed">
+                                                <span className="font-semibold text-slate-900">Trial Balance:</span> Saldo akan ter-update di Trial Balance periode berjalan
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-3 p-3 rounded-lg bg-purple-50/50 border border-purple-100">
+                                        <div className="p-1.5 bg-purple-100 rounded-full mt-0.5">
+                                            <div className="h-2 w-2 bg-purple-600 rounded-full" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-xs text-slate-700 leading-relaxed">
+                                                <span className="font-semibold text-slate-900">GL Summary:</span> General Ledger Summary akan di-update untuk setiap akun
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-3 p-3 rounded-lg bg-red-50/50 border border-red-100">
+                                        <div className="p-1.5 bg-red-100 rounded-full mt-0.5">
+                                            <Lock className="h-3 w-3 text-red-600" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-xs text-slate-700 leading-relaxed">
+                                                <span className="font-semibold text-slate-900">Status Locked:</span> Data akan dikunci dan tidak bisa diedit/dihapus
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Confirmation Question */}
+                            <div className="p-4 rounded-xl bg-gradient-to-r from-slate-100 to-slate-200 border border-slate-300">
+                                <p className="text-center text-sm font-bold text-slate-900">
+                                    Apakah Anda yakin ingin melanjutkan posting ini?
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Footer Actions */}
+                        <DialogFooter className="p-6 pt-0 bg-gradient-to-b from-slate-50 to-white">
+                            <div className="flex items-center gap-3 w-full">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setPostDialogOpen(false)}
+                                    className="flex-1 h-11 border-2 border-slate-300 hover:bg-slate-100 font-semibold text-slate-700"
+                                >
+                                    Batal
+                                </Button>
+                                <Button
+                                    type="button"
+                                    onClick={handlePostConfirm}
+                                    className="flex-1 h-11 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white font-bold shadow-lg shadow-emerald-500/30 border-0"
+                                >
+                                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                                    Ya, Posting Sekarang
+                                </Button>
+                            </div>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
         </AdminLayout>
     );

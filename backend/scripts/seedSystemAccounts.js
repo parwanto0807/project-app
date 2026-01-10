@@ -47,6 +47,12 @@ async function main() {
       searchNames: ['Bank BRI KC. TAMBUN']
     },
     {
+      key: 'EQUITY_OPENING_BALANCE',
+      description: 'Digunakan sebagai akun penyeimbang (offset account) saat pertama kali memasukkan saldo migrasi data (Aset, Piutang, Hutang) ke dalam sistem. Akun ini memastikan Neraca tetap seimbang (Balance) pada posisi awal Go-Live. Saldo akan berada di posisi Kredit untuk menyeimbangkan saldo Kas/Bank di posisi Debit',
+      fallbackCode: '3-10101',
+      searchNames: ['Saldo Awal Ekuitas']
+    },
+    {
       key: 'OFFICE_SALARY',
       description: 'Digunakan untuk mencatat beban gaji, tunjangan, dan upah tetap bagi staf administrasi atau kantor pusat (overhead)',
       fallbackCode: '6-10101',

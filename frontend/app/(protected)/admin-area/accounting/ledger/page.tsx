@@ -53,6 +53,19 @@ export default function LedgerPage() {
     const [totalEntries, setTotalEntries] = useState(0);
     const [pageSize, setPageSize] = useState(10); // Reduced for visibility
 
+    // Global Stats (calculated from all data, not just current page)
+    const [globalStats, setGlobalStats] = useState<{
+        totalTransactions: number;
+        totalDebit: number;
+        totalCredit: number;
+        balancedCount: number;
+    }>({
+        totalTransactions: 0,
+        totalDebit: 0,
+        totalCredit: 0,
+        balancedCount: 0
+    });
+
     // Load Initial Data (Periods)
     useEffect(() => {
         const loadPeriods = async () => {
@@ -93,6 +106,40 @@ export default function LedgerPage() {
                     if (result.pagination) {
                         setTotalPages(result.pagination.totalPages || 1);
                         setTotalEntries(result.pagination.total || 0);
+                    }
+
+                    // Use backend-calculated aggregates for global stats
+                    if (result.aggregates) {
+                        setGlobalStats({
+                            totalTransactions: result.aggregates.totalTransactions,
+                            totalDebit: result.aggregates.totalDebit,
+                            totalCredit: result.aggregates.totalCredit,
+                            balancedCount: result.aggregates.balancedCount,
+                        });
+                    } else {
+                        // Fallback: calculate from current page data if aggregates not available
+                        const totalDebit = result.data.reduce((sum: number, ledger: Ledger) => {
+                            const ledgerDebit = ledger.ledgerLines?.reduce((s, line) => s + line.debitAmount, 0) || 0;
+                            return sum + ledgerDebit;
+                        }, 0);
+
+                        const totalCredit = result.data.reduce((sum: number, ledger: Ledger) => {
+                            const ledgerCredit = ledger.ledgerLines?.reduce((s, line) => s + line.creditAmount, 0) || 0;
+                            return sum + ledgerCredit;
+                        }, 0);
+
+                        const balancedCount = result.data.filter((ledger: Ledger) => {
+                            const debit = ledger.ledgerLines?.reduce((s, line) => s + line.debitAmount, 0) || 0;
+                            const credit = ledger.ledgerLines?.reduce((s, line) => s + line.creditAmount, 0) || 0;
+                            return Math.abs(debit - credit) < 0.01;
+                        }).length;
+
+                        setGlobalStats({
+                            totalTransactions: result.pagination?.total || result.data.length,
+                            totalDebit,
+                            totalCredit,
+                            balancedCount
+                        });
                     }
                 } else {
                     toast.error("Failed to fetch ledger data");
@@ -222,7 +269,11 @@ export default function LedgerPage() {
                 </div>
 
                 <div className="flex-1 overflow-visible min-h-0 space-y-4">
-                    <LedgerTable data={ledgers} isLoading={isDataFetching} />
+                    <LedgerTable
+                        data={ledgers}
+                        isLoading={isDataFetching}
+                        globalStats={globalStats}
+                    />
 
                     {!isDataFetching && totalPages > 1 && (
                         <div className="py-6 border-t bg-white dark:bg-slate-800 rounded-xl shadow-sm px-6 flex flex-col md:flex-row items-center justify-between gap-4">

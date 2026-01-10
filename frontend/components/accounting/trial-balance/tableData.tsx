@@ -70,22 +70,13 @@ export function TrialBalanceDataTable({ data, totals, isLoading }: TrialBalanceD
         return new Intl.NumberFormat("id-ID", {
             style: "currency",
             currency: "IDR",
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
         }).format(amount);
     };
 
     const formatCurrencyCompact = (amount: number) => {
-        if (amount >= 1000000000) {
-            return `Rp${(amount / 1000000000).toFixed(1)}M`;
-        }
-        if (amount >= 1000000) {
-            return `Rp${(amount / 1000000).toFixed(1)}JT`;
-        }
-        if (amount >= 1000) {
-            return `Rp${(amount / 1000).toFixed(0)}RB`;
-        }
-        return `Rp${amount}`;
+        return formatCurrency(amount);
     };
 
     const getDisplayAmount = (debit: number, credit: number) => {
