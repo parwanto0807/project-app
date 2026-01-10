@@ -324,6 +324,7 @@ export const uangMukaController = {
         namaBankTujuan,
         nomorRekeningTujuan,
         namaEwalletTujuan,
+        accountPencairanId,
       } = validationResult.data;
 
       // -----------------------------
@@ -397,6 +398,7 @@ export const uangMukaController = {
             namaBankTujuan,
             nomorRekeningTujuan,
             namaEwalletTujuan,
+            accountPencairanId: accountPencairanId || null,
           },
           include: {
             karyawan: { select: { id: true, namaLengkap: true } },
@@ -674,6 +676,7 @@ export const uangMukaController = {
         nomorRekeningTujuan,
         namaEwalletTujuan,
         replaceImages, // opsional: true | false
+        accountPencairanId,
       } = bodyValidation.data;
 
       // 4. Ambil data existing
@@ -723,6 +726,7 @@ export const uangMukaController = {
         ...(finalImages && {
           buktiPencairanUrl: JSON.stringify(finalImages),
         }),
+        accountPencairanId: accountPencairanId || null,
       };
 
       // 6. Transaction update
@@ -746,7 +750,10 @@ export const uangMukaController = {
         if (status === UangMukaStatus.DISBURSED && existingUangMuka.purchaseRequest) {
           await prismaTx.purchaseRequest.update({
             where: { id: existingUangMuka.purchaseRequest.id },
-            data: { status: "COMPLETED" },
+            data: { 
+              status: "COMPLETED",
+              accountPencairanId: accountPencairanId || null
+            },
           });
         }
 
@@ -812,6 +819,201 @@ export const uangMukaController = {
               createdBy: req.user?.id || "SYSTEM", // Ambil dari user yang login
             },
           });
+
+          // 3. LOGIKA AKUNTANSI: Generate Jurnal Otomatis
+          const effectiveDate = tanggalPencairan || new Date();
+          
+          // A. Dapatkan Periode Akuntansi yang Terbuka
+          const period = await prismaTx.accountingPeriod.findFirst({
+            where: {
+              startDate: { lte: effectiveDate },
+              endDate: { gte: effectiveDate },
+              isClosed: false
+            }
+          });
+
+          if (!period) {
+            throw new Error(`Tidak ada periode akuntansi terbuka untuk tanggal ${effectiveDate.toISOString().split('T')[0]}`);
+          }
+
+          // B. Dapatkan Akun STAFF_ADVANCE (Uang Muka Kerja Staff) dari System Account
+          const staffAdvanceAccount = await prismaTx.systemAccount.findUnique({
+            where: { key: 'STAFF_ADVANCE' },
+            include: { coa: true }
+          });
+
+          if (!staffAdvanceAccount || !staffAdvanceAccount.coa) {
+            throw new Error("Pemetaan akun sistem 'STAFF_ADVANCE' tidak ditemukan. Mohon konfigurasi di Mapping Akun Sistem.");
+          }
+
+          // C. Tentukan Akun Kas/Bank (Kredit)
+          const targetCoaId = accountPencairanId || existingUangMuka.accountPencairanId;
+          if (!targetCoaId) {
+            throw new Error("Akun sumber pencairan (Kas/Bank) harus ditentukan untuk mencatat jurnal.");
+          }
+
+          // C2. VALIDASI SALDO: Cek apakah saldo Kas/Bank mencukupi
+          const disbursementAmount = Number(existingUangMuka.jumlah);
+          const sourceAccount = await prismaTx.chartOfAccounts.findUnique({
+            where: { id: targetCoaId },
+            include: {
+              TrialBalance: {
+                where: { periodId: period.id }
+              }
+            }
+          });
+
+          if (sourceAccount && sourceAccount.TrialBalance.length > 0) {
+            const tb = sourceAccount.TrialBalance[0];
+            const currentBalance = Number(tb.endingDebit) - Number(tb.endingCredit);
+
+            if (currentBalance < disbursementAmount) {
+              const formattedBalance = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(currentBalance);
+              const formattedAmount = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(disbursementAmount);
+              throw new Error(`Saldo tidak mencukupi pada akun ${sourceAccount.name}. Saldo saat ini: ${formattedBalance}, Jumlah pencairan: ${formattedAmount}`);
+            }
+          } else {
+            // Jika belum ada TrialBalance, berarti saldo masih 0
+            throw new Error(`Tidak dapat mencairkan dana. Akun ${sourceAccount?.name || 'Kas/Bank'} belum memiliki saldo awal atau transaksi di periode ini.`);
+          }
+
+          // D. Buat Ledger Header
+          const ledgerNumber = `JV-UM-${existingUangMuka.nomor.replace(/\//g, '-')}`;
+          const ledger = await prismaTx.ledger.create({
+            data: {
+              ledgerNumber,
+              referenceNumber: existingUangMuka.nomor,
+              referenceType: 'PAYMENT',
+              transactionDate: effectiveDate,
+              postingDate: new Date(),
+              description: `Pencairan Uang Muka #${existingUangMuka.nomor} - ${existingUangMuka.karyawan?.namaLengkap || 'Staff'}`,
+              periodId: period.id,
+              status: 'POSTED',
+              currency: 'IDR',
+              exchangeRate: 1.0,
+              createdBy: req.user?.id || 'SYSTEM',
+              postedBy: req.user?.id || 'SYSTEM',
+              postedAt: new Date(),
+            }
+          });
+
+          // E. Buat Ledger Lines
+          const amount = Number(existingUangMuka.jumlah);
+
+          // E1. Debit: Uang Muka Kerja (Staff)
+          await prismaTx.ledgerLine.create({
+            data: {
+              ledgerId: ledger.id,
+              coaId: staffAdvanceAccount.coa.id,
+              lineNumber: 1,
+              description: `Debit Uang Muka Kerja - ${existingUangMuka.nomor}`,
+              debitAmount: amount,
+              creditAmount: 0,
+              localAmount: amount,
+              karyawanId: existingUangMuka.karyawanId
+            }
+          });
+
+          // E2. Kredit: Kas/Bank
+          await prismaTx.ledgerLine.create({
+            data: {
+              ledgerId: ledger.id,
+              coaId: targetCoaId,
+              lineNumber: 2,
+              description: `Kredit Kas/Bank - ${existingUangMuka.nomor}`,
+              debitAmount: 0,
+              creditAmount: amount,
+              localAmount: -amount,
+            }
+          });
+
+          // F. Update Trial Balance & GL Summary
+          const affectedCoas = [
+            { id: staffAdvanceAccount.coa.id, debit: amount, credit: 0 },
+            { id: targetCoaId, debit: 0, credit: amount }
+          ];
+
+          for (const item of affectedCoas) {
+            // F1. Update Trial Balance
+            const tb = await prismaTx.trialBalance.findUnique({
+              where: {
+                periodId_coaId: {
+                  periodId: period.id,
+                  coaId: item.id
+                }
+              }
+            });
+
+            if (tb) {
+              await prismaTx.trialBalance.update({
+                where: { id: tb.id },
+                data: {
+                  periodDebit: { increment: item.debit },
+                  periodCredit: { increment: item.credit },
+                  endingDebit: { increment: item.debit },
+                  endingCredit: { increment: item.credit },
+                  ytdDebit: { increment: item.debit },
+                  ytdCredit: { increment: item.credit },
+                  calculatedAt: new Date()
+                }
+              });
+            } else {
+              await prismaTx.trialBalance.create({
+                data: {
+                  periodId: period.id,
+                  coaId: item.id,
+                  openingDebit: 0,
+                  openingCredit: 0,
+                  periodDebit: item.debit,
+                  periodCredit: item.credit,
+                  endingDebit: item.debit,
+                  endingCredit: item.credit,
+                  ytdDebit: item.debit,
+                  ytdCredit: item.credit,
+                  calculatedAt: new Date()
+                }
+              });
+            }
+
+            // F2. Update GL Summary
+            const dayDate = new Date(effectiveDate);
+            dayDate.setHours(0, 0, 0, 0);
+
+            const summary = await prismaTx.generalLedgerSummary.findUnique({
+              where: {
+                coaId_periodId_date: {
+                  coaId: item.id,
+                  periodId: period.id,
+                  date: dayDate
+                }
+              }
+            });
+
+            if (summary) {
+              await prismaTx.generalLedgerSummary.update({
+                where: { id: summary.id },
+                data: {
+                  debitTotal: { increment: item.debit },
+                  creditTotal: { increment: item.credit },
+                  closingBalance: { increment: item.debit - item.credit },
+                  transactionCount: { increment: 1 }
+                }
+              });
+            } else {
+              await prismaTx.generalLedgerSummary.create({
+                data: {
+                  coaId: item.id,
+                  periodId: period.id,
+                  date: dayDate,
+                  openingBalance: 0,
+                  debitTotal: item.debit,
+                  creditTotal: item.credit,
+                  closingBalance: item.debit - item.credit,
+                  transactionCount: 1
+                }
+              });
+            }
+          }
         }
 
         return uangMuka;

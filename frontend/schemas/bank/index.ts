@@ -9,7 +9,8 @@ export const bankAccountCreateSchema = z.object({
     .min(5, "Account number must be at least 5 characters"),
   accountHolder: z.string().min(1, "Account holder is required"),
   branch: z.string().optional(),
-  isActive: z.boolean().default(true),
+  isActive: z.boolean(),
+  accountCOAId: z.string().optional(),
 });
 
 // Zod schema for updating a bank account
@@ -27,6 +28,13 @@ export type BankAccount = {
   accountHolder: string;
   branch?: string | null;
   isActive: boolean;
+  accountCOAId?: string | null;
+  accountCOA?: {
+    id: string;
+    code: string;
+    name: string;
+  } | null;
+  currentBalance: number;
   createdAt: string;
   updatedAt: string;
 };

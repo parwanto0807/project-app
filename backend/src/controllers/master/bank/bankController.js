@@ -1,10 +1,7 @@
-// backend/src/controllers/bankController.js
+// backend/src/controllers/master/bank/bankController.js
 
-// import { PrismaClient } from "../../../../prisma/generated/prisma/index.js";
 import { prisma } from "../../../config/db.js";
 import { validationResult } from "express-validator";
-
-// const prisma = new PrismaClient();
 
 export const bankController = {
   // Create
@@ -15,7 +12,7 @@ export const bankController = {
         return res.status(400).json({ success: false, errors: errors.array() });
       }
 
-      const { bankName, accountNumber, accountHolder, branch, isActive } =
+      const { bankName, accountNumber, accountHolder, branch, isActive, accountCOAId } =
         req.body;
 
       const bankAccount = await prisma.bankAccount.create({
@@ -25,7 +22,11 @@ export const bankController = {
           accountHolder,
           branch,
           isActive,
+          accountCOAId,
         },
+        include: {
+          accountCOA: true,
+        }
       });
 
       return res.status(201).json({
@@ -46,13 +47,51 @@ export const bankController = {
   // Read All
   async getAllBankAccounts(req, res) {
     try {
+      const now = new Date();
+      // Cari periode akuntansi yang aktif saat ini
+      const currentPeriod = await prisma.accountingPeriod.findFirst({
+        where: {
+          startDate: { lte: now },
+          endDate: { gte: now },
+          isClosed: false,
+        },
+      });
+
       const accounts = await prisma.bankAccount.findMany({
-        orderBy: { createdAt: "desc" },
+        include: {
+          accountCOA: {
+            include: {
+              TrialBalance: {
+                where: currentPeriod ? { periodId: currentPeriod.id } : { id: 'none' }, // Jika tidak ada periode, jangan ambil TB
+              },
+            },
+          },
+        },
+        orderBy: { bankName: "asc" },
+      });
+
+      // Transformasi data untuk menyertakan field balance secara eksplisit
+      const transformed = accounts.map(acc => {
+        let currentBalance = 0;
+        if (acc.accountCOA && acc.accountCOA.TrialBalance && acc.accountCOA.TrialBalance.length > 0) {
+          const tb = acc.accountCOA.TrialBalance[0];
+          // Saldo = Debit - Kredit (Asumsi normal balance Kas/Bank adalah Debit)
+          currentBalance = Number(tb.endingDebit) - Number(tb.endingCredit);
+        }
+        
+        // Hapus detail TrialBalance agar response tidak terlalu gemuk
+        const { TrialBalance, ...coaRest } = acc.accountCOA || {};
+        
+        return {
+          ...acc,
+          currentBalance,
+          accountCOA: acc.accountCOA ? coaRest : null
+        };
       });
 
       return res.json({
         success: true,
-        data: accounts,
+        data: transformed,
       });
     } catch (error) {
       console.error("❌ Error getAllBankAccounts:", error);
@@ -71,6 +110,9 @@ export const bankController = {
 
       const account = await prisma.bankAccount.findUnique({
         where: { id },
+        include: {
+          accountCOA: true,
+        }
       });
 
       if (!account) {
@@ -98,7 +140,7 @@ export const bankController = {
   async updateBankAccount(req, res) {
     try {
       const { id } = req.params;
-      const { bankName, accountNumber, accountHolder, branch, isActive } =
+      const { bankName, accountNumber, accountHolder, branch, isActive, accountCOAId } =
         req.body;
 
       const account = await prisma.bankAccount.findUnique({ where: { id } });
@@ -111,7 +153,17 @@ export const bankController = {
 
       const updated = await prisma.bankAccount.update({
         where: { id },
-        data: { bankName, accountNumber, accountHolder, branch, isActive },
+        data: { 
+          bankName, 
+          accountNumber, 
+          accountHolder, 
+          branch, 
+          isActive,
+          accountCOAId,
+        },
+        include: {
+          accountCOA: true,
+        }
       });
 
       return res.json({
@@ -158,3 +210,4 @@ export const bankController = {
     }
   },
 };
+

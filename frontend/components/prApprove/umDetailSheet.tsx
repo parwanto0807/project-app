@@ -14,6 +14,23 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { UangMukaDetail, CairkanUangMukaData } from "@/types/typesUm";
+import { getBankAccounts } from "@/lib/action/master/bank/bank";
+import { BankAccount } from "@/schemas/bank/index";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+    DialogDescription,
+} from "@/components/ui/dialog";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import {
     Calendar,
     Eye,
@@ -32,6 +49,7 @@ import {
     MessageSquareText,
     Download,
     ImageIcon,
+    Loader2,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -60,6 +78,23 @@ export function UMDetailSheet({
         new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })
     );
     const [buktiTransaksi, setBuktiTransaksi] = useState<FileWithPreview[]>([]);
+    const [isCoaDialogOpen, setIsCoaDialogOpen] = useState(false);
+    const [selectedCoaId, setSelectedCoaId] = useState<string>("");
+    const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
+    const [isLoadingBanks, setIsLoadingBanks] = useState(false);
+
+    // Fetch Bank Accounts when Dialog is opened
+    const fetchBankAccounts = async () => {
+        setIsLoadingBanks(true);
+        try {
+            const data = await getBankAccounts();
+            setBankAccounts(data.filter(bank => bank.isActive));
+        } catch (error) {
+            toast.error("Gagal memuat daftar rekening bank");
+        } finally {
+            setIsLoadingBanks(false);
+        }
+    };
 
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = event.target.files;
@@ -179,6 +214,13 @@ export function UMDetailSheet({
                 namaEwalletTujuan: data.namaEwalletTujuan
             };
 
+            // Validasi Saldo (Frontend Check)
+            const selectedBank = bankAccounts.find(b => b.accountCOAId === selectedCoaId);
+            if (selectedBank && selectedBank.currentBalance < data.jumlah) {
+                toast.error(`Saldo tidak mencukupi pada akun ${selectedBank.bankName}.`);
+                return;
+            }
+
             // Ensure date is valid and create from the Jakarta-based string
             if (!tanggalPencairan) {
                 toast.error("Tanggal pencairan wajib diisi");
@@ -208,11 +250,14 @@ export function UMDetailSheet({
                 id: data.id,
                 tanggalPencairan: finalDate,
                 buktiTransaksi: fileObjects,
+                accountPencairanId: selectedCoaId,
                 existingData: existingData
             });
 
             // Reset form setelah success
             handleRemoveAllFiles();
+            setSelectedCoaId("");
+            setIsCoaDialogOpen(false);
             onOpenChange(false);
 
         } catch (error) {
@@ -680,7 +725,14 @@ export function UMDetailSheet({
 
                                 {/* Button Cairkan */}
                                 <Button
-                                    onClick={handleCairkan}
+                                    onClick={() => {
+                                        if (buktiTransaksi.length === 0) {
+                                            toast.error("Minimal satu bukti transaksi wajib diupload");
+                                            return;
+                                        }
+                                        fetchBankAccounts();
+                                        setIsCoaDialogOpen(true);
+                                    }}
                                     disabled={isSubmitting || buktiTransaksi.length === 0}
                                     className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-base shadow-lg shadow-emerald-200 dark:shadow-emerald-900/30"
                                 >
@@ -700,6 +752,113 @@ export function UMDetailSheet({
                         </div>
                     )}
                 </div>
+
+                {/* Dialog Pemilihan Akun Kas/Bank */}
+                <Dialog open={isCoaDialogOpen} onOpenChange={setIsCoaDialogOpen}>
+                    <DialogContent className="sm:max-w-[500px]">
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2">
+                                <Wallet className="h-5 w-5 text-emerald-600" />
+                                Pilih Akun Kas & Bank
+                            </DialogTitle>
+                            <DialogDescription>
+                                Pilih sumber dana yang akan digunakan untuk pencairan biaya ini.
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="py-6 space-y-4">
+                            <div className="space-y-2">
+                                <Label className="text-sm font-medium">Pilih Sumber Dana</Label>
+                                <Select
+                                    value={selectedCoaId}
+                                    onValueChange={setSelectedCoaId}
+                                >
+                                    <SelectTrigger className="h-12">
+                                        <SelectValue placeholder="-- Pilih Rekening Bank --" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {isLoadingBanks ? (
+                                            <div className="p-4 text-center text-sm text-gray-500">
+                                                <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
+                                                Memuat daftar rekening...
+                                            </div>
+                                        ) : bankAccounts.length > 0 ? (
+                                            bankAccounts.map((bank) => (
+                                                <SelectItem key={bank.id} value={bank.accountCOAId || ""}>
+                                                    <div className="flex flex-col w-full">
+                                                        <div className="flex items-center justify-between gap-4">
+                                                            <div className="flex items-center gap-2">
+                                                                <Wallet className="h-3 w-3 text-emerald-600" />
+                                                                <span className="font-medium text-sm">
+                                                                    {bank.bankName} - {bank.accountNumber}
+                                                                </span>
+                                                            </div>
+                                                            <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${bank.currentBalance < data.jumlah ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"}`}>
+                                                                {formatCurrency(bank.currentBalance)}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center justify-between mt-0.5">
+                                                            {bank.accountCOA && (
+                                                                <span className="text-[10px] text-gray-500 ml-5 italic">
+                                                                    Mapping: {bank.accountCOA.code} - {bank.accountCOA.name}
+                                                                </span>
+                                                            )}
+                                                            {bank.currentBalance < data.jumlah && (
+                                                                <span className="ml-4 text-[9px] text-red-500 font-medium">
+                                                                    Saldo Tidak Cukup
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </SelectItem>
+                                            ))
+                                        ) : (
+                                            <div className="p-4 text-center text-sm text-gray-500">
+                                                Tidak ada rekening bank yang aktif
+                                            </div>
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="bg-emerald-50 dark:bg-emerald-900/20 p-4 rounded-lg border border-emerald-100 dark:border-emerald-800">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm text-emerald-700 dark:text-emerald-300">Total Pencairan:</span>
+                                    <span className="text-lg font-bold text-emerald-800 dark:text-emerald-100">
+                                        {formatCurrency(data.jumlah)}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <DialogFooter className="gap-2 sm:gap-4">
+                            <Button
+                                variant="outline"
+                                onClick={() => setIsCoaDialogOpen(false)}
+                                className="flex-1 sm:flex-none"
+                            >
+                                <X className="h-4 w-4 mr-2" />
+                                Batal
+                            </Button>
+                            <Button
+                                onClick={handleCairkan}
+                                disabled={
+                                    isSubmitting ||
+                                    !selectedCoaId ||
+                                    (bankAccounts.find(b => b.accountCOAId === selectedCoaId)?.currentBalance ?? 0) < (data?.jumlah ?? 0)
+                                }
+                                className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white"
+                            >
+                                {isSubmitting ? (
+                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                ) : (
+                                    <CreditCard className="h-4 w-4 mr-2" />
+                                )}
+                                Konfirmasi & Cairkan
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </SheetContent>
         </Sheet>
     );

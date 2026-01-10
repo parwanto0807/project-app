@@ -42,6 +42,9 @@ import trialBalanceRoutes from './routes/accounting/trialBalanceRoutes.js';
 import supplierInvoiceRoutes from './routes/invoiceSupplier/supplierInvoiceRoutes.js';
 import supplierPaymentRoutes from './routes/invoiceSupplier/supplierPaymentRoutes.js';
 import ledgerRoutes from './routes/accounting/ledgerRoutes.js';
+import systemAccountRoutes from './routes/accounting/systemAccountRoutes.js';
+import openingBalanceRoutes from './routes/accounting/openingBalanceRoutes.js';
+
 
 import path from "path";
 
@@ -170,6 +173,9 @@ app.use('/api/staff-balance', staffBalanceRoutes);
 app.use('/api/supplier-invoices', supplierInvoiceRoutes);
 app.use('/api/supplier-payments', supplierPaymentRoutes);
 app.use('/api/accounting/ledger', ledgerRoutes);
+app.use('/api/accounting/system-accounts', systemAccountRoutes);
+app.use('/api/accounting/opening-balance', openingBalanceRoutes);
+
 
 // Health Check Endpoint
 app.get("/api/health", (req, res) => {

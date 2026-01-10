@@ -10,6 +10,7 @@ const bankValidation = [
   body("bankName").notEmpty().withMessage("Bank name is required"),
   body("accountNumber").notEmpty().withMessage("Account number is required"),
   body("accountHolder").notEmpty().withMessage("Account holder is required"),
+  body("accountCOAId").optional().isUUID().withMessage("Invalid COA ID format"),
 ];
 
 // CRUD routes

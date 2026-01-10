@@ -1369,10 +1369,14 @@ model BankAccount {
   branch        String?
   isActive      Boolean @default(true)
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  invoice   Invoice[]
-  payment   Payment[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accountCOAId String?
+  accountCOA   ChartOfAccounts? @relation(fields: [accountCOAId], references: [id], onDelete: Cascade)
+
+  invoice Invoice[]
+  payment Payment[]
 }
 
 model Invoice {
@@ -1611,11 +1615,13 @@ model PurchaseRequest {
   spk   SPK?    @relation(fields: [spkId], references: [id])
 
   // Relasi ke detail permintaan
-  details        PurchaseRequestDetail[]
-  uangMuka       UangMuka[]
-  purchaseOrders PurchaseOrder[]
+  details            PurchaseRequestDetail[]
+  uangMuka           UangMuka[]
+  purchaseOrders     PurchaseOrder[]
   // Memungkinkan satu PR menghasilkan satu atau lebih catatan ledger (misal: belanja bertahap)
-  staffLedgers   StaffLedger[]
+  staffLedgers       StaffLedger[]
+  accountPencairanId String?
+  accountPencairan   ChartOfAccounts?        @relation(fields: [accountPencairanId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1726,6 +1732,10 @@ model UangMuka {
   // Relasi ke SPK untuk tracking per proyek
   spkId String?
   spk   SPK?    @relation(fields: [spkId], references: [id])
+
+  // Relasi ke COA (Kas/Bank) sumber pencairan
+  accountPencairanId String?
+  accountPencairan   ChartOfAccounts? @relation(fields: [accountPencairanId], references: [id])
 
   // Relasi ke dokumen pertanggungjawaban yang menutup uang muka ini
   pertanggungjawaban Pertanggungjawaban[]
@@ -1946,6 +1956,11 @@ model ChartOfAccounts {
   TrialBalance         TrialBalance[]
   GeneralLedgerSummary GeneralLedgerSummary[]
   Reconciliation       Reconciliation[]
+  systemAccounts       SystemAccount[]
+  purchaseRequests     PurchaseRequest[]
+  bankAccount          BankAccount[]
+  uangMuka             UangMuka[]
+  openingBalanceDetail OpeningBalanceDetail[]
 }
 
 // 2. BUKU JURNAL / BUKU BESAR (MODEL BARU YANG PENTING)
@@ -2888,4 +2903,42 @@ enum CalculationType {
   AVERAGE
   FORMULA
   PERCENTAGE
+}
+
+model SystemAccount {
+  id          String          @id @default(uuid())
+  key         String          @unique // e.g. "ACCOUNTS_RECEIVABLE", "SALES_REVENUE", "VAT_OUT"
+  description String?
+  coaId       String
+  coa         ChartOfAccounts @relation(fields: [coaId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model OpeningBalance {
+  id          String   @id @default(uuid())
+  asOfDate    DateTime // Biasanya 1 Januari atau awal bulan Go-Live
+  description String
+
+  // Relasi ke detail saldo per akun
+  details OpeningBalanceDetail[]
+
+  // Track status (apakah sudah diposting ke Ledger atau belum)
+  isPosted Boolean   @default(false)
+  postedAt DateTime?
+
+  createdAt DateTime @default(now())
+}
+
+model OpeningBalanceDetail {
+  id               String         @id @default(uuid())
+  openingBalanceId String
+  openingBalance   OpeningBalance @relation(fields: [openingBalanceId], references: [id])
+
+  accountId String
+  account   ChartOfAccounts @relation(fields: [accountId], references: [id])
+
+  debit  Decimal @default(0)
+  credit Decimal @default(0)
 }

@@ -1770,30 +1770,49 @@ class InvoiceController {
       // Sales = Pendapatan Jasa Konstruksi (4-10101)
       // Tax = PPN (Belum ada di data, cari by Name)
 
+      // Helper function to get COA by System Key or fallback
+      const getCoaBySystemKey = async (key, fallbackCode, fallbackNameSearch) => {
+          // 1. Try SystemAccount mapping
+          if (prisma.systemAccount) {
+             try {
+                const systemMap = await prisma.systemAccount.findUnique({
+                    where: { key: key },
+                    include: { coa: true }
+                });
+                if (systemMap && systemMap.coa) return systemMap.coa;
+             } catch (e) {
+                console.warn(`[SystemAccount] Lookup failed for ${key}, using fallback. Error: ${e.message}`);
+             }
+          }
+
+          // 2. Fallback by Code
+          if (fallbackCode) {
+              const byCode = await prisma.chartOfAccounts.findUnique({ where: { code: fallbackCode } });
+              if (byCode) return byCode;
+          }
+
+          // 3. Fallback by Name Search (last resort)
+          if (fallbackNameSearch) {
+              return await prisma.chartOfAccounts.findFirst({
+                  where: {
+                      OR: fallbackNameSearch.map(n => ({ name: { contains: n, mode: 'insensitive' } }))
+                  }
+              });
+          }
+          return null;
+      };
+
       // AR Account (Piutang Usaha)
-      const arAccount = await prisma.chartOfAccounts.findUnique({
-        where: { code: '1-10101' }
-      });
+      const arAccount = await getCoaBySystemKey('ACCOUNTS_RECEIVABLE', '1-10101', ['Piutang Usaha']);
       
       // Sales Account (Pendapatan Jasa Konstruksi)
-      const salesAccountDefault = await prisma.chartOfAccounts.findUnique({
-         where: { code: '4-10101' }
-      });
+      const salesAccountDefault = await getCoaBySystemKey('SALES_REVENUE', '4-10101', ['Pendapatan Jasa', 'Sales']);
 
       // VAT Out Account (PPN Keluaran)
-      // Karena belum ada kode spesifik di data, kita cari berdasarkan nama atau estimasi
-      const vatOutAccount = await prisma.chartOfAccounts.findFirst({
-         where: { 
-             OR: [
-                 { name: { contains: 'PPN Keluaran', mode: 'insensitive' } },
-                 { name: { contains: 'Utang Pajak', mode: 'insensitive' } },
-                 { name: { contains: 'VAT Out', mode: 'insensitive' } }
-             ]
-         }
-      });
+      const vatOutAccount = await getCoaBySystemKey('VAT_OUT', null, ['PPN Keluaran', 'Utang Pajak', 'VAT Out']);
 
-      if (!arAccount) return res.status(500).json({ success: false, message: "System Error: COA '1-10101' (Piutang Usaha) not found. Please create it." });
-      if (!salesAccountDefault) return res.status(500).json({ success: false, message: "System Error: COA '4-10101' (Pendapatan Jasa Konstruksi) not found. Please create it." });
+      if (!arAccount) return res.status(500).json({ success: false, message: "System Error: Mapping for 'ACCOUNTS_RECEIVABLE' not found. Please configure it in System Account Mapping." });
+      if (!salesAccountDefault) return res.status(500).json({ success: false, message: "System Error: Mapping for 'SALES_REVENUE' not found. Please configure it in System Account Mapping." });
 
       // 4. Proses Transaksi Ledger
       const ledgerResult = await prisma.$transaction(async (tx) => {

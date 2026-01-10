@@ -26,7 +26,7 @@ export async function getBankAccounts(): Promise<BankAccount[]> {
 // Get one bank account by ID
 export async function getBankAccountById(id: string): Promise<BankAccount> {
   try {
-    const res = await fetch(`${API_URL}/api/banks/${id}`, {
+    const res = await fetch(`${API_URL}/api/master/banks/getBankAccountById/${id}`, {
       credentials: "include",
       cache: "no-store",
     });
@@ -44,7 +44,7 @@ export async function createBankAccount(
   payload: BankAccountCreateSchema
 ): Promise<BankAccount> {
   try {
-    const res = await fetch(`${API_URL}/api/banks`, {
+    const res = await fetch(`${API_URL}/api/master/banks/createBankAccount`, {
       method: "POST",
       credentials: 'include',
       headers: { "Content-Type": "application/json" },
@@ -65,7 +65,7 @@ export async function updateBankAccount(
   payload: BankAccountUpdateSchema
 ): Promise<BankAccount> {
   try {
-    const res = await fetch(`${API_URL}/api/banks/${id}`, {
+    const res = await fetch(`${API_URL}/api/master/banks/updateBankAccount/${id}`, {
       method: "PUT",
       credentials: 'include',
       headers: { "Content-Type": "application/json" },
@@ -83,7 +83,10 @@ export async function updateBankAccount(
 // Delete bank account
 export async function deleteBankAccount(id: string): Promise<void> {
   try {
-    const res = await fetch(`${API_URL}/api/banks/${id}`, { method: "DELETE", credentials: 'include' });
+    const res = await fetch(`${API_URL}/api/master/banks/deleteBankAccount/${id}`, {
+      method: "DELETE",
+      credentials: 'include'
+    });
     if (!res.ok) throw new Error(`Gagal delete bank account id=${id}`);
   } catch (error) {
     console.error("deleteBankAccount error:", error);

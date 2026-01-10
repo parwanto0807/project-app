@@ -262,6 +262,8 @@ export async function updateUangMukaStatus(
       formData.append("nomorRekeningTujuan", data.nomorRekeningTujuan);
     if (data.namaEwalletTujuan)
       formData.append("namaEwalletTujuan", data.namaEwalletTujuan);
+    if (data.accountPencairanId)
+      formData.append("accountPencairanId", data.accountPencairanId);
 
     // console.log(
     //   "🟡 3d. Making fetch request to:",

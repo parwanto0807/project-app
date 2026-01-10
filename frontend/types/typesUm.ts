@@ -145,6 +145,8 @@ export interface UpdateStatusInput {
 
   // NEW: replace total gambar lama?
   replaceImages?: boolean;
+
+  accountPencairanId?: string;
 }
 
 // ===================================================
@@ -323,6 +325,7 @@ export interface CairkanUangMukaData {
   id: string;
   tanggalPencairan: Date;
   buktiTransaksi: File[]; // NEW multiple
+  accountPencairanId?: string;
   existingData: {
     metodePencairan: string;
     namaBankTujuan?: string;

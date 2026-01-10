@@ -100,6 +100,13 @@ export const coaController = {
                 rate: true,
               },
             },
+            bankAccount: {
+              select: {
+                id: true,
+                bankName: true,
+                accountNumber: true,
+              },
+            },
           },
           orderBy: [{ code: "asc" }],
           skip,

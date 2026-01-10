@@ -32,6 +32,7 @@ export const createUangMukaValidation = z
     nomorRekeningTujuan: z.string().optional(),
     namaEwalletTujuan: z.string().optional(),
     buktiPencairanUrl: z.string().optional(),
+    accountPencairanId: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     // Validasi metode pembayaran
@@ -70,6 +71,7 @@ export const updateUangMukaValidation = z
     namaBankTujuan: z.string().optional(),
     nomorRekeningTujuan: z.string().optional(),
     namaEwalletTujuan: z.string().optional(),
+    accountPencairanId: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     // Validasi metode pembayaran
@@ -120,6 +122,7 @@ export const updateStatusValidation = z
     namaBankTujuan: z.string().optional(),
     nomorRekeningTujuan: z.string().optional(),
     namaEwalletTujuan: z.string().optional(),
+    accountPencairanId: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     // Validasi status DISBURSED

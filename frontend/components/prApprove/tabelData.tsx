@@ -184,7 +184,8 @@ export function PrApprovalTable({
                     metodePencairan: data.existingData.metodePencairan as MetodePembayaran,
                     namaBankTujuan: data.existingData.namaBankTujuan,
                     nomorRekeningTujuan: data.existingData.nomorRekeningTujuan,
-                    namaEwalletTujuan: data.existingData.namaEwalletTujuan
+                    namaEwalletTujuan: data.existingData.namaEwalletTujuan,
+                    accountPencairanId: data.accountPencairanId
                 }
                 // ❌ HAPUS parameter existingData ketiga
             );
