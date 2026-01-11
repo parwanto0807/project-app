@@ -228,6 +228,7 @@ export function PaymentProcessDialog({
                 verifiedById: currentUser?.id || undefined,
                 accountCOAId: result.data.accountCOAId || undefined,
                 adminFee: formData.adminFee || 0,
+                paymentType: formData.paymentType,
             };
 
             await addPayment(invoiceId, paymentData);

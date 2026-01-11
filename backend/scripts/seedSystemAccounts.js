@@ -117,6 +117,18 @@ async function main() {
       description: 'Digunakan untuk mencatat beban biaya administrasi bank yang ditanggung perusahaan saat menerima pembayaran dari customer (transfer fee, admin bank, dll). Akun ini akan di-Debit (bertambah) sebesar admin fee yang diinput.',
       fallbackCode: '6-10102',
       searchNames: ['Beban Admin Bank', 'Biaya Admin Bank']
+    },
+    {
+      key: 'INVENTORY_WIP',
+      description: 'Digunakan untuk mencatat nilai material atau barang yang sudah berada di lokasi proyek dan sedang dalam proses pengerjaan/pemasangan sebelum diserahterimakan (Project Site Inventory).',
+      fallbackCode: '1-10205',
+      searchNames: ['Persediaan On WIP']
+    },
+    {
+      key: 'UNBILLED_RECEIPT',
+      description: 'Akun sementara untuk mencatat penerimaan barang yang belum ditagih oleh supplier. Akan diimbangi saat Invoice Supplier (Bill) dicatat.',
+      fallbackCode: '2-10102',
+      searchNames: ['Penerimaan Barang Belum Ditagih']
     }
   ];
 

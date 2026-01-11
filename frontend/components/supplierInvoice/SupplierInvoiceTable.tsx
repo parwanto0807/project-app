@@ -113,6 +113,8 @@ export default function SupplierInvoiceTable({ role }: SupplierInvoiceTableProps
         newStatus: SupplierInvoiceStatus;
         label: string;
         description: string;
+        invoiceNumber?: string;
+        variant?: 'primary' | 'success' | 'warning' | 'info';
     } | null>(null);
 
     const fetchInvoices = async () => {
@@ -322,20 +324,33 @@ export default function SupplierInvoiceTable({ role }: SupplierInvoiceTableProps
     };
 
     const openActionDialog = (id: string, newStatus: SupplierInvoiceStatus, label: string) => {
+        const invoice = invoices.find(inv => inv.id === id);
         let description = `Apakah Anda yakin ingin mengubah status menjadi ${newStatus.replace(/_/g, " ")}?`;
+        let variant: 'primary' | 'success' | 'warning' | 'info' = 'primary';
 
-        // Custom messages based on status
+        // Custom messages and variants based on status
         if (newStatus === 'APPROVED') {
-            description = "Tindakan ini akan menyetujui invoice total dan akan memproses pencatatan akuntansi. Jika pembayaran TUNAI, saldo kasbon PIC akan otomatis terpotong.";
+            variant = 'success';
+            description = "Tindakan ini akan menyetujui invoice. Sistem akan otomatis:\n\n(1) Menghapus saldo Penerimaan Belum Ditagih (Unbilled Receipt),\n(2) Mencatat Hutang Usaha (CREDIT) atau pemotongan Saldo Kasbon PIC (CASH), dan\n(3) Memperbarui Buku Besar & Neraca Saldo secara real-time.";
         } else if (newStatus === 'UNVERIFIED') {
+            variant = 'info';
             description = "Anda akan mengirimkan dokumen ini untuk diverifikasi admin finance. Pastikan Tanda Terima Invoice sudah dicetak dan fisik dokumen lengkap.";
         } else if (newStatus === 'VERIFIED') {
-            description = "Anda memverifikasi bahwa dokumen fisik sudah lengkap dan sesuai. Lanjutkan ke Approval?";
+            variant = 'warning';
+            description = "Anda memverifikasi bahwa dokumen fisik sudah lengkap dan sesuai. Lanjutkan ke tahap Approval?";
         } else if (newStatus === 'POSTED') {
-            description = "Invoice akan diposting ke Buku Besar (Ledger). Perubahan setelah ini membutuhkan jurnal koreksi.";
+            variant = 'success';
+            description = "Invoice akan diposting ke Buku Besar (Ledger). Perubahan setelah ini membutuhkan jurnal koreksi untuk pembatalan.";
         }
 
-        setSelectedAction({ id, newStatus, label, description });
+        setSelectedAction({
+            id,
+            newStatus,
+            label,
+            description,
+            invoiceNumber: invoice?.invoiceNumber,
+            variant
+        });
         setActionDialogOpen(true);
     };
 
@@ -938,19 +953,64 @@ export default function SupplierInvoiceTable({ role }: SupplierInvoiceTableProps
 
             {/* Status Change Confirmation Dialog */}
             <AlertDialog open={actionDialogOpen} onOpenChange={setActionDialogOpen}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Konfirmasi Tindakan: {selectedAction?.label}</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            {selectedAction?.description}
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Batal</AlertDialogCancel>
-                        <AlertDialogAction onClick={confirmAction} className="bg-primary hover:bg-primary/90">
-                            Ya, Lanjutkan
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
+                <AlertDialogContent className="max-w-md border-none shadow-2xl p-0 overflow-hidden rounded-2xl">
+                    <div className={cn(
+                        "h-2 w-full",
+                        selectedAction?.variant === 'success' ? "bg-emerald-500" :
+                            selectedAction?.variant === 'warning' ? "bg-amber-500" :
+                                selectedAction?.variant === 'info' ? "bg-blue-500" : "bg-primary"
+                    )} />
+
+                    <div className="p-6">
+                        <div className="flex items-center gap-4 mb-4">
+                            <div className={cn(
+                                "p-3 rounded-xl",
+                                selectedAction?.variant === 'success' ? "bg-emerald-50 text-emerald-600" :
+                                    selectedAction?.variant === 'warning' ? "bg-amber-50 text-amber-600" :
+                                        selectedAction?.variant === 'info' ? "bg-blue-50 text-blue-600" : "bg-primary/10 text-primary"
+                            )}>
+                                {selectedAction?.newStatus === 'APPROVED' ? <CheckCircle className="h-6 w-6" /> :
+                                    selectedAction?.newStatus === 'UNVERIFIED' ? <Send className="h-6 w-6" /> :
+                                        selectedAction?.newStatus === 'VERIFIED' ? <FileCheck className="h-6 w-6" /> :
+                                            <AlertCircle className="h-6 w-6" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <AlertDialogTitle className="text-xl font-bold text-gray-900 truncate">
+                                    {selectedAction?.label === 'Submit' ? 'Kirim Dokumen' :
+                                        selectedAction?.label === 'Verify' ? 'Verifikasi Fisik' :
+                                            selectedAction?.label === 'Approve' ? 'Konfirmasi Akunting' :
+                                                `Konfirmasi ${selectedAction?.label}`}
+                                </AlertDialogTitle>
+                                <div className="text-sm font-medium text-gray-500 truncate">
+                                    Invoice: <span className="text-primary font-bold">{selectedAction?.invoiceNumber}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 mb-6">
+                            <AlertDialogDescription className="text-sm leading-relaxed text-gray-700 italic whitespace-pre-line">
+                                {selectedAction?.description}
+                            </AlertDialogDescription>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-3">
+                            <AlertDialogCancel className="flex-1 h-11 border-gray-200 hover:bg-gray-50 font-semibold rounded-xl m-0">
+                                Batalkan
+                            </AlertDialogCancel>
+                            <AlertDialogAction
+                                onClick={confirmAction}
+                                className={cn(
+                                    "flex-[1.5] h-11 text-white font-bold rounded-xl m-0 shadow-lg transition-all active:scale-95",
+                                    selectedAction?.variant === 'success' ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200" :
+                                        selectedAction?.variant === 'warning' ? "bg-amber-600 hover:bg-amber-700 shadow-amber-200" :
+                                            selectedAction?.variant === 'info' ? "bg-blue-600 hover:bg-blue-700 shadow-blue-200" :
+                                                "bg-primary hover:bg-primary/90 shadow-primary/20"
+                                )}
+                            >
+                                Ya, Lanjutkan
+                            </AlertDialogAction>
+                        </div>
+                    </div>
                 </AlertDialogContent>
             </AlertDialog>
         </div>

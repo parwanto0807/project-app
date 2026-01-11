@@ -23,9 +23,16 @@ class LedgerController {
       if (status) where.status = status;
 
       if (startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        
+        if (startDate === endDate) {
+          end.setHours(23, 59, 59, 999);
+        }
+
         where.transactionDate = {
-          gte: new Date(startDate),
-          lte: new Date(endDate),
+          gte: start,
+          lte: end,
         };
       }
 
@@ -55,8 +62,8 @@ class LedgerController {
         prisma.ledger.count({ where }),
       ]);
 
-      // Calculate global aggregated stats (ALL data, not just current page)
-      const allLedgers = await prisma.ledger.findMany({
+      // Calculate global aggregated stats
+      const aggregatedResult = await prisma.ledger.findMany({
         where,
         include: {
           ledgerLines: {
@@ -68,19 +75,17 @@ class LedgerController {
         },
       });
 
-      // Calculate totals from ALL ledgers
       let totalDebit = 0;
       let totalCredit = 0;
       let balancedCount = 0;
 
-      allLedgers.forEach((ledger) => {
+      aggregatedResult.forEach((ledger) => {
         const ledgerDebit = ledger.ledgerLines.reduce((sum, line) => sum + Number(line.debitAmount), 0);
         const ledgerCredit = ledger.ledgerLines.reduce((sum, line) => sum + Number(line.creditAmount), 0);
         
         totalDebit += ledgerDebit;
         totalCredit += ledgerCredit;
 
-        // Check if this ledger is balanced
         if (Math.abs(ledgerDebit - ledgerCredit) < 0.01) {
           balancedCount++;
         }
@@ -130,16 +135,8 @@ class LedgerController {
               karyawan: true,
             },
           },
-          createdByUser: {
-             select: { name: true }
-          }
         },
       });
-
-      // Note: createdByUser relation might not exist or be named differently based on User model. 
-      // Checking Schema... schema doesn't seem to have explicit relation for createdBy to User model in what was provided.
-      // The provided schema snippet for Ledger shows `createdBy String`. It doesn't show a @relation to User.
-      // So I will remove `createdByUser` include to avoid errors.
 
       if (!ledger) {
         return res.status(404).json({
@@ -162,7 +159,8 @@ class LedgerController {
     }
   }
 
-  // Get General Ledger (Grouped by Ledger Transactions)
+  // Get General Ledger (Grouped by Ledger Transactions/Journals)
+  // This is used for the main Ledger page which expects Ledger objects
   async getGeneralLedger(req, res) {
     try {
       const {
@@ -181,14 +179,21 @@ class LedgerController {
       const where = {};
 
       if (periodId) where.periodId = periodId;
+      
       if (startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        
+        if (startDate === endDate) {
+          end.setHours(23, 59, 59, 999);
+        }
+
         where.transactionDate = {
-          gte: new Date(startDate),
-          lte: new Date(endDate),
+          gte: start,
+          lte: end,
         };
       }
 
-      // If filtering by COA, we need to find Ledgers that have those COA lines
       if (coaId) {
         where.ledgerLines = {
           some: { coaId: coaId }
@@ -237,7 +242,7 @@ class LedgerController {
         prisma.ledger.count({ where }),
       ]);
 
-      // Calculate global aggregated stats (ALL data, not just current page)
+      // Calculate aggregates
       const allLedgers = await prisma.ledger.findMany({
         where,
         include: {
@@ -250,7 +255,6 @@ class LedgerController {
         },
       });
 
-      // Calculate totals from ALL ledgers
       let totalDebit = 0;
       let totalCredit = 0;
       let balancedCount = 0;
@@ -262,7 +266,6 @@ class LedgerController {
         totalDebit += ledgerDebit;
         totalCredit += ledgerCredit;
 
-        // Check if this ledger is balanced
         if (Math.abs(ledgerDebit - ledgerCredit) < 0.01) {
           balancedCount++;
         }
@@ -287,6 +290,132 @@ class LedgerController {
 
     } catch (error) {
       console.error("Get General Ledger Error:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal Server Error",
+        error: error.message,
+      });
+    }
+  }
+
+  // Get Individual Ledger Lines (Postings)
+  // This is used for Detail Sheets or analytical views where every line counts
+  async getGeneralLedgerPostings(req, res) {
+    try {
+      const {
+        periodId,
+        startDate,
+        endDate,
+        coaId,
+        search,
+        page = 1,
+        limit = 10,
+      } = req.query;
+
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+      const take = parseInt(limit);
+
+      const where = {};
+
+      if (periodId) where.ledger = { periodId };
+      
+      if (startDate && endDate) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        
+        if (startDate === endDate) {
+          // Robust 24-hour window from the exact start moment
+          end.setTime(start.getTime() + 24 * 60 * 60 * 1000 - 1);
+        }
+
+        where.ledger = {
+          ...where.ledger,
+          transactionDate: {
+            gte: start,
+            lte: end,
+          },
+          status: 'POSTED' // Only show posted transactions to match GL Summary
+        };
+      } else {
+        // Even without specific dates, we should only see posted lines in this context
+        where.ledger = { ...where.ledger, status: 'POSTED' };
+      }
+
+      if (coaId) {
+        where.coaId = coaId;
+      }
+
+      if (search) {
+        where.OR = [
+          { description: { contains: search, mode: "insensitive" } },
+          { reference: { contains: search, mode: "insensitive" } },
+          { ledger: { ledgerNumber: { contains: search, mode: "insensitive" } } },
+          { ledger: { description: { contains: search, mode: "insensitive" } } },
+          { coa: { name: { contains: search, mode: "insensitive" } } },
+          { coa: { code: { contains: search, mode: "insensitive" } } },
+        ];
+      }
+
+      const [ledgerLines, total] = await Promise.all([
+        prisma.ledgerLine.findMany({
+          where,
+          include: {
+            coa: true,
+            project: true,
+            customer: true,
+            supplier: true,
+            karyawan: true,
+            ledger: {
+              include: {
+                period: true,
+                ledgerLines: {
+                   include: { coa: true }
+                }
+              }
+            }
+          },
+          orderBy: { ledger: { transactionDate: 'desc' } },
+          skip,
+          take,
+        }),
+        prisma.ledgerLine.count({ where }),
+      ]);
+
+      const allLines = await prisma.ledgerLine.findMany({
+        where,
+        select: {
+          debitAmount: true,
+          creditAmount: true,
+        },
+      });
+
+      let totalDebit = 0;
+      let totalCredit = 0;
+
+      allLines.forEach((line) => {
+        totalDebit += Number(line.debitAmount);
+        totalCredit += Number(line.creditAmount);
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: ledgerLines,
+        pagination: {
+          total,
+          page: parseInt(page),
+          limit: parseInt(limit),
+          totalPages: Math.ceil(total / limit),
+        },
+        aggregates: {
+          totalTransactions: total,
+          totalDebit: Number(totalDebit.toFixed(2)),
+          totalCredit: Number(totalCredit.toFixed(2)),
+          balancedCount: 0,
+        },
+      });
+
+    } catch (error) {
+      console.error("Get General Ledger Postings Error:", error);
       return res.status(500).json({
         success: false,
         message: "Internal Server Error",

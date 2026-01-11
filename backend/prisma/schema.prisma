@@ -413,6 +413,10 @@ model Warehouse {
   isActive Boolean @default(true)
   isWip    Boolean @default(false) // Penanda gudang WIP  
 
+  // Integrasi Accounting: Akun Persediaan untuk gudang ini
+  inventoryAccountId String?
+  inventoryAccount   ChartOfAccounts? @relation("WarehouseInventory", fields: [inventoryAccountId], references: [id])
+
   // --- Relasi Balik ---
   stockBalances        StockBalance[]
   stockDetails         StockDetail[]
@@ -1968,6 +1972,7 @@ model ChartOfAccounts {
   fundTransferSource   FundTransfer[]         @relation("FundTransferSource")
   fundTransferDest     FundTransfer[]         @relation("FundTransferDestination")
   fundTransferFee      FundTransfer[]         @relation("FundTransferFee")
+  warehouses           Warehouse[]            @relation("WarehouseInventory")
 }
 
 // 2. BUKU JURNAL / BUKU BESAR (MODEL BARU YANG PENTING)
@@ -2561,6 +2566,7 @@ enum LedgerEntryType {
   RECEIPT
   ADJUSTMENT
   CLOSING
+  GOODS_RECEIPT
   REVERSAL
 }
 

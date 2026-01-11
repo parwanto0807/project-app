@@ -25,7 +25,8 @@ import {
     TrendingDown,
     Hash,
     Calendar,
-    DollarSign
+    DollarSign,
+    ExternalLink
 } from "lucide-react";
 import { GeneralLedgerSummary } from "@/types/glSummary";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -38,6 +39,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
+import { TransactionDetailSheet } from "./TransactionDetailSheet";
 
 interface TabelGeneralLedgerSummaryProps {
     data: GeneralLedgerSummary[];
@@ -46,6 +48,25 @@ interface TabelGeneralLedgerSummaryProps {
 
 export const TabelGeneralLedgerSummary = ({ data, isLoading }: TabelGeneralLedgerSummaryProps) => {
     const [isScrolled, setIsScrolled] = useState(false);
+    const [detailConfig, setDetailConfig] = useState<{
+        open: boolean;
+        coaId?: string;
+        coaName?: string;
+        coaCode?: string;
+        date?: string;
+        periodId?: string;
+    }>({ open: false });
+
+    const handleRowClick = (item: GeneralLedgerSummary) => {
+        setDetailConfig({
+            open: true,
+            coaId: item.coaId,
+            coaName: item.coa.name,
+            coaCode: item.coa.code,
+            date: item.date,
+            periodId: item.periodId
+        });
+    };
 
     // Calculations for Totals
     const totals = data.reduce((acc, curr) => ({
@@ -384,12 +405,25 @@ export const TabelGeneralLedgerSummary = ({ data, isLoading }: TabelGeneralLedge
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-center py-4">
-                                                <Badge
-                                                    variant="secondary"
-                                                    className="rounded-full bg-gradient-to-r from-slate-100 to-slate-50 text-slate-700 font-bold px-3 py-1 text-xs"
-                                                >
-                                                    {item.transactionCount} trx
-                                                </Badge>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <button
+                                                            onClick={() => handleRowClick(item)}
+                                                            className="focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-full transition-transform active:scale-95"
+                                                        >
+                                                            <Badge
+                                                                variant="secondary"
+                                                                className="rounded-full bg-gradient-to-r from-blue-100 to-indigo-50 text-blue-700 font-bold px-3 py-1 text-xs border border-blue-200 hover:from-blue-200 hover:to-indigo-100 cursor-pointer shadow-sm group-hover:shadow-md transition-all"
+                                                            >
+                                                                {item.transactionCount} trx
+                                                                <ExternalLink className="h-3 w-3 ml-1.5 opacity-50 group-hover:opacity-100" />
+                                                            </Badge>
+                                                        </button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p className="text-xs font-medium">Klik untuk lihat detail {item.transactionCount} transaksi</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -428,12 +462,15 @@ export const TabelGeneralLedgerSummary = ({ data, isLoading }: TabelGeneralLedge
                                         {item.coa.name}
                                     </h4>
                                 </div>
-                                <Badge
-                                    variant="secondary"
-                                    className="text-[10px] font-bold bg-slate-100"
-                                >
-                                    {item.transactionCount} trx
-                                </Badge>
+                                <button onClick={() => handleRowClick(item)}>
+                                    <Badge
+                                        variant="secondary"
+                                        className="text-[10px] font-bold bg-blue-100 text-blue-700 border border-blue-200 flex items-center gap-1"
+                                    >
+                                        {item.transactionCount} trx
+                                        <ExternalLink className="h-2.5 w-2.5" />
+                                    </Badge>
+                                </button>
                             </div>
 
                             <div className="mb-3">
@@ -580,6 +617,16 @@ export const TabelGeneralLedgerSummary = ({ data, isLoading }: TabelGeneralLedge
                     </Card>
                 </div>
             </div>
+
+            <TransactionDetailSheet
+                open={detailConfig.open}
+                onOpenChange={(open) => setDetailConfig(prev => ({ ...prev, open }))}
+                coaId={detailConfig.coaId}
+                coaName={detailConfig.coaName}
+                coaCode={detailConfig.coaCode}
+                date={detailConfig.date}
+                periodId={detailConfig.periodId}
+            />
         </TooltipProvider>
     );
 };

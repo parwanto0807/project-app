@@ -1,5 +1,100 @@
-import { prisma } from '../../config/db.js'; 
+import { prisma } from '../../config/db.js';
 import { ApiResponse, ListResponse } from '../../validations/api.js';
+import { updateTrialBalance, updateGeneralLedgerSummary } from '../../services/accounting/financialSummaryService.js';
+
+/**
+ * Helper: Get System Account by Key
+ */
+async function getSystemAccount(key, tx) {
+  const prismaClient = tx || prisma;
+  const systemAccount = await prismaClient.systemAccount.findUnique({
+    where: { key },
+    include: { coa: true }
+  });
+
+  return systemAccount?.coa || null;
+}
+
+/**
+ * Helper: Get COA by Code
+ */
+async function getCOAByCode(code, tx) {
+  const prismaClient = tx || prisma;
+  return await prismaClient.chartOfAccounts.findUnique({
+    where: { code }
+  });
+}
+
+/**
+ * Helper: Get Active Accounting Period
+ */
+async function getActivePeriod(transactionDate, tx) {
+  const prismaClient = tx || prisma;
+  const period = await prismaClient.accountingPeriod.findFirst({
+    where: {
+      startDate: { lte: transactionDate },
+      endDate: { gte: transactionDate },
+      isClosed: false
+    }
+  });
+
+  if (!period) {
+    throw new Error(`No open accounting period found for date ${transactionDate.toISOString().slice(0, 10)}`);
+  }
+
+  return period;
+}
+
+/**
+ * Helper: Generate GR Ledger Number
+ * Format: JV-GRN-YYYYMMDD-XXXX
+ */
+async function generateGRLedgerNumber(date, tx) {
+  const prismaClient = tx || prisma;
+  const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
+  
+  const startOfDay = new Date(date);
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(date);
+  endOfDay.setHours(23, 59, 59, 999);
+
+  const count = await prismaClient.ledger.count({
+    where: {
+      ledgerNumber: { startsWith: `JV-GRN-${dateStr}` },
+      transactionDate: { gte: startOfDay, lte: endOfDay }
+    }
+  });
+
+  const sequence = String(count + 1).padStart(4, '0');
+  return `JV-GRN-${dateStr}-${sequence}`;
+}
+
+/**
+ * Helper: Generate GR Number within a transaction
+ */
+async function generateGRNumberWithinTx(tx) {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const prefix = `GRN-${year}${month}`;
+  
+  const latestGR = await tx.goodsReceipt.findFirst({
+    where: { grNumber: { startsWith: prefix } },
+    orderBy: { grNumber: 'desc' },
+    select: { grNumber: true }
+  });
+
+  let nextNumber = 1;
+  if (latestGR) {
+    const match = latestGR.grNumber.match(/GRN-\d{6}-(\d{4})$/);
+    if (match) {
+      nextNumber = parseInt(match[1]) + 1;
+    }
+  }
+
+  const sequence = String(nextNumber).padStart(4, '0');
+  return `${prefix}-${sequence}`;
+}
 
 
 /**
@@ -2091,7 +2186,8 @@ export const approveGR = async (req, res) => {
             purchaseRequestDetail: true
           }
         },
-        Warehouse: true
+        Warehouse: true,
+        PurchaseOrder: true
       }
     });
 
@@ -2128,6 +2224,8 @@ export const approveGR = async (req, res) => {
       const currentPeriod = new Date(now.getFullYear(), now.getMonth(), 1);
 
 
+      let totalInventoryValue = 0;
+
       // Process each item with qtyPassed > 0
       for (const item of existingGR.items) {
         const qtyPassed = parseFloat(item.qtyPassed);
@@ -2140,8 +2238,6 @@ export const approveGR = async (req, res) => {
         
         if (qtyPassed > 0) {
           // Get current stock balance to calculate snapshots
-          // We use findFirst instead of findUnique because the composite unique constraint might not be fully recognized by Prisma types here
-          // or simply to match existing pattern.
           const existingBalance = await tx.stockBalance.findFirst({
             where: {
               productId: item.productId,
@@ -2176,12 +2272,9 @@ export const approveGR = async (req, res) => {
             });
 
             if (mr && mr.items.length > 0) {
-              // Use price from MR item (populated during MR issuance with FIFO)
               const mrItem = mr.items[0];
               price = Number(mrItem.priceUnit || 0);
-              console.log(`💰 Using MR price for transfer product ${item.productId}: ${price}`);
             } else {
-              // Fallback: Try to get from StockTransfer COGS
               const stockTransfer = await tx.stockTransfer.findFirst({
                 where: { transferNumber: transferNumber },
                 include: {
@@ -2199,60 +2292,30 @@ export const approveGR = async (req, res) => {
                 const transferItem = stockTransfer.items[0];
                 if (Number(transferItem.quantity) > 0) {
                   price = Number(transferItem.cogs || 0) / Number(transferItem.quantity);
-                  console.log(`💰 Using Transfer COGS for product ${item.productId}: ${price}`);
                 }
               }
             }
           }
           // For PO-based GRs, use PO Line or PR pricing
           else {
-            // Cek apakah ada relasi ke PO Line dan ambil harga aktual (Prioritas Utama)
-            // UPDATE: Prioritaskan unitPriceActual jika ada dan tidak 0
             if (item.purchaseOrderLine) {
                const actualPrice = parseFloat(item.purchaseOrderLine.unitPriceActual || 0);
                const standardPrice = parseFloat(item.purchaseOrderLine.unitPrice || 0);
-               
-               if (actualPrice !== 0) {
-                 price = actualPrice;
-               } else {
-                 price = standardPrice;
-               }
-            }
-            // Jika tidak ada (misal Direct Purchase tanpa PO), baru ambil estimasi dari PR
-            else if (item.purchaseRequestDetail && item.purchaseRequestDetail.estimasiHargaSatuan) {
+               price = actualPrice !== 0 ? actualPrice : standardPrice;
+            } else if (item.purchaseRequestDetail && item.purchaseRequestDetail.estimasiHargaSatuan) {
               price = parseFloat(item.purchaseRequestDetail.estimasiHargaSatuan);
             }
           }
 
           if (isNaN(price)) price = 0;
 
-          // Calculate inventory value for this transaction
-          // The inventory value should represent the total value of goods added to stock (in storage/base units)
-          // 
-          // For PO: 
-          //   - price is per purchase unit (e.g., per Box)
-          //   - qtyPassed is in purchase units (e.g., 2 Boxes)
-          //   - qtyConverted is in storage units (e.g., 20 Pcs if conversionToStorage=10)
-          //   - Total value = price * qtyPassed (e.g., 100k/Box * 2 Boxes = 200k)
-          //
-          // For TRANSFER:
-          //   - price is per usage/storage unit from MR FIFO (e.g., per Pcs)
-          //   - qtyPassed = qtyConverted (since conversion=1)
-          //   - Total value = price * qtyPassed
-          //
-          // Both cases: transactionValue = price * qtyPassed is correct
           const transactionValue = parseFloat(price) * parseFloat(qtyPassed);
+          totalInventoryValue += transactionValue;
 
-          // Calculate price per base/storage unit for FIFO
-          // This is critical for correct FIFO costing when stock is issued via MR
-          // For PO: price is per purchase unit, need to convert to per storage unit
-          // For TRANSFER: price is already per storage/usage unit (from MR FIFO)
           const pricePerBaseUnit = existingGR.sourceType === 'TRANSFER' 
-            ? price  // Already per storage unit
-            : (qtyConverted > 0 ? transactionValue / qtyConverted : 0); // Total value / storage qty
+            ? price 
+            : (qtyConverted > 0 ? transactionValue / qtyConverted : 0);
 
-          // Create StockDetail entry with all required fields
-          // Using connect for relations to avoid "Argument product is missing" error
           const newStockDetail = await tx.stockDetail.create({
             data: {
               product: {
@@ -2261,32 +2324,22 @@ export const approveGR = async (req, res) => {
               warehouse: {
                 connect: { id: existingGR.warehouseId }
               },
-
-              // Audit Trail: Running Balance
               stockAwalSnapshot: stockAwal,
               stockAkhirSnapshot: stockAkhir,
-
-              // Data Transaksi
               transQty: qtyPassed,
               transUnit: item.unit,
-              baseQty: qtyConverted, // Use converted qty for base qty
-
-              // FIFO
-              residualQty: qtyConverted, // For IN transactions, residual starts at full converted qty
+              baseQty: qtyConverted,
+              residualQty: qtyConverted,
               isFullyConsumed: false,
-
-              // Transaction metadata
               type: 'IN',
-              source: existingGR.sourceType || 'PO', // Use actual source type (PO, TRANSFER, DIRECT, etc.)
-              pricePerUnit: pricePerBaseUnit, // Price per BASE/STORAGE unit for correct FIFO
+              source: existingGR.sourceType || 'PO',
+              pricePerUnit: pricePerBaseUnit,
               referenceNo: existingGR.grNumber,
               notes: `GR ${existingGR.grNumber} - QC Passed`
-              // transactionDate removed as it is not in StockDetail schema, uses createdAt default
             }
           });
 
-            // Update or create StockBalance
-          // Logic Carry-Over: Cek saldo bulan sebelumnya
+          // Update or create StockBalance
           const previousPeriod = new Date(currentPeriod);
           previousPeriod.setMonth(previousPeriod.getMonth() - 1);
 
@@ -2298,57 +2351,32 @@ export const approveGR = async (req, res) => {
             }
           });
 
-          // Update or create StockBalance
           if (existingBalance) {
-            // Calculate new values manually to apply clamp logic
             const currentStockAkhir = parseFloat(existingBalance.stockAkhir) || 0;
             const currentBooked = parseFloat(existingBalance.bookedStock) || 0;
-
             const newStockAkhir = currentStockAkhir + qtyConverted;
             
-            // Normal logic for all warehouses (including WIP)
-            // Logic Available: StockAkhir - BookedStock (Clamped to 0)
-            const newBooked = currentBooked; // Keep existing booked stock
             let newAvailable = newStockAkhir - currentBooked;
             if (newAvailable < 0) newAvailable = 0;
 
-            // Update existing balance
             await tx.stockBalance.update({
               where: { id: existingBalance.id },
               data: {
                 stockIn: { increment: qtyConverted },
-                stockAkhir: { set: newStockAkhir }, // Set explicitly to match available calc
-                bookedStock: { set: newBooked },
+                stockAkhir: { set: newStockAkhir },
+                bookedStock: { set: currentBooked },
                 availableStock: { set: newAvailable },
-                // Only decrement onPR for PO-related GRs, NOT for transfers
-                // Note: onPR is usually in purchase unit, checking if we need conversion here too?
-                // Assuming onPR is in purchase unit, we decrement by qtyPassed (purchase unit)
-                // BUT stockBalance is in storage unit. 
-                // CRITICAL: onPR should also be tracked in storage unit if possible, or consistent unit.
-                // Assuming onPR tracks RequestQty (which might be converted to storage in PR logic?).
-                // Let's stick to consistent storage unit for balance. If onPR was in storage unit, we decrement qtyConverted.
-                // If onPR was in purchase unit, we decrement qtyPassed.
-                // Looking at updateStockBalance logic in other places: it seems consistent unit is preferred.
-                // Let's check schemas again... usually PR qty is converted to storage unit in calculating requirements.
-                // For safety, let's use qtyConverted for consistency with other stock fields in this table.
                 ...(existingGR.sourceType !== 'TRANSFER' && { onPR: { decrement: qtyConverted } }),
                 inventoryValue: { increment: transactionValue }
               }
             });
           } else {
-            // Create new balance for this period dengan Logic Carry-Over
-            // Base values dari bulan lalu
             const baseStockAwal = previousBalance ? parseFloat(previousBalance.stockAkhir) : 0;
             const baseBooked = previousBalance ? parseFloat(previousBalance.bookedStock) : 0;
             const baseOnPR = previousBalance ? parseFloat(previousBalance.onPR) : 0;
             const baseInventoryValue = previousBalance ? parseFloat(previousBalance.inventoryValue) : 0;
             
-            // Calculate new Stock Akhir
             const newStockAkhir = baseStockAwal + qtyConverted;
-            
-            // Normal logic for all warehouses (including WIP)
-            // Logic Available: StockAkhir - BookedStock (Clamped to 0)
-            const newBooked = baseBooked; // Keep existing booked stock
             let newAvailable = newStockAkhir - baseBooked;
             if (newAvailable < 0) newAvailable = 0;
 
@@ -2357,48 +2385,188 @@ export const approveGR = async (req, res) => {
                 productId: item.productId,
                 warehouseId: existingGR.warehouseId,
                 period: currentPeriod,
-                
-                stockAwal: baseStockAwal, // Saldo awal murni
-                stockIn: qtyConverted,       // Transaksi masuk bulan ini
+                stockAwal: baseStockAwal,
+                stockIn: qtyConverted,
                 stockOut: 0,
-                
                 stockAkhir: newStockAkhir, 
-                bookedStock: newBooked, // Carry over existing booked stock
-                
-                availableStock: newAvailable, // Calculated: stockAkhir - bookedStock
-                
-                // onPR Logic: Only update for PO-related GRs, NOT for transfers
+                bookedStock: baseBooked,
+                availableStock: newAvailable,
                 onPR: existingGR.sourceType !== 'TRANSFER' && baseOnPR > 0 ? (baseOnPR - qtyConverted < 0 ? 0 : baseOnPR - qtyConverted) : baseOnPR,
-                
-                // Inventory Value: Carry over value + transaction value
                 inventoryValue: baseInventoryValue + transactionValue
               }
             });
           }
 
-          // Link StockDetail to GoodsReceiptItem
           await tx.goodsReceiptItem.update({
             where: { id: item.id },
             data: {
               stockDetail: {
-                connect: {
-                  id: newStockDetail.id
-                }
+                connect: { id: newStockDetail.id }
               }
             }
           });
 
-          // Update PurchaseOrderLine receivedQuantity
           if (item.purchaseOrderLineId) {
             await tx.purchaseOrderLine.update({
               where: { id: item.purchaseOrderLineId },
               data: {
-                receivedQuantity: {
-                  increment: qtyPassed
-                }
+                receivedQuantity: { increment: qtyPassed }
               }
             });
           }
+        }
+      }
+
+      // ========================================
+      // ACCOUNTING LEDGER INTEGRATION
+      // ========================================
+      if (totalInventoryValue > 0) {
+        const period = await getActivePeriod(now, tx);
+        const ledgerNumber = await generateGRLedgerNumber(now, tx);
+
+        // Get Accounts
+        // Debit Account (Inventory)
+        let debitAccount = null;
+        // Priority 1: Warehouse specific inventory account
+        if (existingGR.Warehouse?.inventoryAccountId) {
+          debitAccount = await tx.chartOfAccounts.findUnique({
+            where: { id: existingGR.Warehouse.inventoryAccountId }
+          });
+        }
+        
+        // Priority 2: System Account Mapping
+        if (!debitAccount) {
+          debitAccount = await getSystemAccount('INVENTORY_WIP', tx);
+        }
+
+        // Priority 3: Fallback by Code
+        if (!debitAccount) {
+          debitAccount = await getCOAByCode('1-10205', tx);
+        }
+
+        // Credit Account (Unbilled or Source Warehouse)
+        let creditAccount = null;
+
+        if (existingGR.sourceType === 'TRANSFER') {
+          // Internal Transfer: Credit the SOURCE warehouse inventory account
+          let fromWarehouseId = null;
+          const transferNumber = existingGR.vendorDeliveryNote;
+
+          if (transferNumber) {
+            // Priority 1: Check StockTransfer model
+            const stockTransfer = await tx.stockTransfer.findFirst({
+              where: { transferNumber: transferNumber }
+            });
+            
+            if (stockTransfer) {
+              fromWarehouseId = stockTransfer.fromWarehouseId;
+            } else {
+              // Priority 2: Check MaterialRequisition (often used for MR-based transfers)
+              const mr = await tx.materialRequisition.findFirst({
+                where: { notes: { contains: `[${transferNumber}]` } }
+              });
+              if (mr) fromWarehouseId = mr.warehouseId;
+            }
+          }
+
+          if (fromWarehouseId) {
+            const fromWarehouse = await tx.warehouse.findUnique({
+              where: { id: fromWarehouseId }
+            });
+            
+            if (fromWarehouse?.inventoryAccountId) {
+              creditAccount = await tx.chartOfAccounts.findUnique({
+                where: { id: fromWarehouse.inventoryAccountId }
+              });
+            }
+          }
+
+          // Fallback for Transfer: System Mapping (INVENTORY_WIP)
+          if (!creditAccount) {
+            creditAccount = await getSystemAccount('INVENTORY_WIP', tx) || await getCOAByCode('1-10205', tx);
+          }
+        } else {
+          // Regular Purchase: Credit Unbilled Receipt System Account
+          // Priority 1: System Account Mapping
+          creditAccount = await getSystemAccount('UNBILLED_RECEIPT', tx);
+
+          // Priority 2: Fallback by Code
+          if (!creditAccount) {
+            creditAccount = await getCOAByCode('2-10102', tx);
+          }
+        }
+
+        if (!debitAccount || !creditAccount) {
+          console.warn('Accounting accounts for GR not found. Ledger entry skipped.');
+        } else {
+          // Create Ledger
+          const ledger = await tx.ledger.create({
+            data: {
+              ledgerNumber: ledgerNumber,
+              referenceNumber: existingGR.grNumber,
+              referenceType: 'GOODS_RECEIPT',
+              transactionDate: now,
+              postingDate: new Date(),
+              description: `Inventory Receipt: ${existingGR.grNumber} at ${existingGR.Warehouse?.name || 'Warehouse'}`,
+              notes: notes || existingGR.notes,
+              periodId: period.id,
+              status: 'POSTED',
+              currency: 'IDR',
+              exchangeRate: 1.0,
+              createdBy: existingGR.receivedById,
+              postedBy: existingGR.receivedById,
+              postedAt: new Date()
+            }
+          });
+
+          // Create Ledger Lines
+          const ledgerLines = [
+            {
+              ledgerId: ledger.id,
+              coaId: debitAccount.id,
+              debitAmount: totalInventoryValue,
+              creditAmount: 0,
+              currency: 'IDR',
+              localAmount: totalInventoryValue,
+              description: `Stock In: ${existingGR.grNumber}`,
+              lineNumber: 1
+            },
+            {
+              ledgerId: ledger.id,
+              coaId: creditAccount.id,
+              debitAmount: 0,
+              creditAmount: totalInventoryValue,
+              currency: 'IDR',
+              localAmount: totalInventoryValue,
+              description: `Unbilled Receipt: ${existingGR.grNumber}`,
+              lineNumber: 2
+            }
+          ];
+
+          await tx.ledgerLine.createMany({
+            data: ledgerLines
+          });
+
+          // Update Financial Summaries
+          for (const line of ledgerLines) {
+            await updateTrialBalance({
+              periodId: period.id,
+              coaId: line.coaId,
+              debitAmount: line.debitAmount,
+              creditAmount: line.creditAmount,
+              tx
+            });
+
+            await updateGeneralLedgerSummary({
+              coaId: line.coaId,
+              periodId: period.id,
+              date: now,
+              debitAmount: line.debitAmount,
+              creditAmount: line.creditAmount,
+              tx
+            });
+          }
+          console.log(`✅ Accounting entry created for GR ${existingGR.grNumber}. Total: ${totalInventoryValue}`);
         }
       }
 
@@ -2430,52 +2598,42 @@ export const approveGR = async (req, res) => {
         await tx.stockTransfer.updateMany({
           where: {
             transferNumber: existingGR.vendorDeliveryNote,
-            status: 'IN_TRANSIT' // Only update if currently in transit
+            status: 'IN_TRANSIT'
           },
           data: {
             status: 'RECEIVED'
           }
         });
-        console.log(`📦 Updated StockTransfer ${existingGR.vendorDeliveryNote} status to RECEIVED`);
       }
 
-      // --- NEW LOGIC: Update Purchase Order Status based on Receipt ---
+      // Update Purchase Order Status
       if (existingGR.purchaseOrderId) {
-        // Fetch fresh PO data with lines
         const po = await tx.purchaseOrder.findUnique({
           where: { id: existingGR.purchaseOrderId },
           include: { lines: true }
         });
 
         if (po) {
-          // Calculate totals
           const totalOrdered = po.lines.reduce((sum, line) => sum + Number(line.quantity || 0), 0);
           const totalReceived = po.lines.reduce((sum, line) => sum + Number(line.receivedQuantity || 0), 0);
           
           let newPoStatus = po.status;
-          
-          // Determine new status
-          // PENTING: Gunakan toleransi kecil untuk floating point comparison jika perlu, 
-          // tapi biasanya prisma decimal/number cukup presisi untuk equality sederhana.
           if (totalReceived >= totalOrdered && totalOrdered > 0) {
             newPoStatus = 'FULLY_RECEIVED';
           } else if (totalReceived > 0) {
             newPoStatus = 'PARTIALLY_RECEIVED';
           }
           
-          // Only update if status changed and not already completed/cancelled
           if (newPoStatus !== po.status && !['CANCELLED', 'REJECTED'].includes(po.status)) {
              await tx.purchaseOrder.update({
                where: { id: po.id },
                data: { status: newPoStatus }
              });
-             console.log(`Updated PO ${po.poNumber} status to ${newPoStatus} (Received: ${totalReceived}/${totalOrdered})`);
           }
         }
       }
 
-      // ========== AUTO-CREATE GR FOR REMAINING QUANTITIES ==========
-      // Check if any items have remaining quantities (qtyReceived < qtyPlanReceived)
+      // AUTO-CREATE GR FOR REMAINING
       const itemsWithRemaining = existingGR.items.filter(item => {
         const qtyReceived = parseFloat(item.qtyReceived || 0);
         const qtyPlan = parseFloat(item.qtyPlanReceived || 0);
@@ -2483,42 +2641,9 @@ export const approveGR = async (req, res) => {
       });
 
       let autoCreatedGR = null;
-      
       if (itemsWithRemaining.length > 0 && existingGR.purchaseOrderId) {
-        console.log(`🔄 Auto-creating GR for ${itemsWithRemaining.length} items with remaining quantities...`);
-        
-        // Generate new GR number
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const prefix = `GRN-${year}${month}`;
-        
-        const latestGR = await tx.goodsReceipt.findFirst({
-          where: {
-            grNumber: {
-              startsWith: prefix
-            }
-          },
-          orderBy: {
-            grNumber: 'desc'
-          },
-          select: {
-            grNumber: true
-          }
-        });
+        const newGRNumber = await generateGRNumberWithinTx(tx);
 
-        let nextNumber = 1;
-        if (latestGR) {
-          const match = latestGR.grNumber.match(/GRN-\d{6}-(\d{4})$/);
-          if (match) {
-            nextNumber = parseInt(match[1]) + 1;
-          }
-        }
-
-        const sequence = String(nextNumber).padStart(4, '0');
-        const newGRNumber = `${prefix}-${sequence}`;
-
-        // Create new GR for remaining quantities
         autoCreatedGR = await tx.goodsReceipt.create({
           data: {
             grNumber: newGRNumber,
@@ -2549,15 +2674,9 @@ export const approveGR = async (req, res) => {
             }
           },
           include: {
-            items: {
-              include: {
-                product: true
-              }
-            }
+            items: { include: { product: true } }
           }
         });
-
-        console.log(`✅ Auto-created GR ${newGRNumber} with ${itemsWithRemaining.length} items`);
       }
 
       return { updatedGR, autoCreatedGR };

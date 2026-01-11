@@ -11,8 +11,18 @@ import {
     Loader2,
     Package,
     Calendar,
-    AlertCircle
+    AlertCircle,
+    Settings2,
+    Database
 } from "lucide-react";
+import { coaApi } from "@/lib/action/coa/coa";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 // Shadcn components
 import { Button } from "@/components/ui/button";
@@ -55,6 +65,8 @@ export default function UpdateWhForm({
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(false);
     const [lastUpdated, setLastUpdated] = useState<string>("");
+    const [coaList, setCoaList] = useState<any[]>([]);
+    const [isLoadingCoa, setIsLoadingCoa] = useState(false);
 
     // Initialize form
     const form = useForm<UpdateWarehouseInput>({
@@ -65,8 +77,30 @@ export default function UpdateWhForm({
             address: "",
             isMain: false,
             isActive: true,
+            isWip: false,
+            inventoryAccountId: "",
         },
     });
+
+    const fetchCoa = async () => {
+        setIsLoadingCoa(true);
+        try {
+            const data = await coaApi.getCOAs({
+                limit: 1000,
+                status: "ACTIVE" as any,
+                postingType: "POSTING" as any
+            });
+            setCoaList(data.data || []);
+        } catch (error) {
+            toast.error("Gagal memuat daftar akun");
+        } finally {
+            setIsLoadingCoa(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchCoa();
+    }, []);
 
     // Update form when defaultValues changes
     useEffect(() => {
@@ -77,6 +111,8 @@ export default function UpdateWhForm({
                 address: defaultValues.address || "",
                 isMain: defaultValues.isMain,
                 isActive: defaultValues.isActive,
+                isWip: defaultValues.isWip || false,
+                inventoryAccountId: defaultValues.inventoryAccountId || "",
             });
 
             // Format last updated date
@@ -372,6 +408,75 @@ export default function UpdateWhForm({
                                                     disabled={isLoading}
                                                 />
                                             </FormControl>
+                                        </FormItem>
+                                    )}
+                                />
+
+                                <FormField
+                                    control={form.control}
+                                    name="isWip"
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                                            <div className="space-y-0.5">
+                                                <FormLabel className="flex items-center gap-2 text-[11px] md:text-sm">
+                                                    <Settings2 className="h-3 w-3 md:h-4 md:w-4 text-blue-500" />
+                                                    Gudang WIP
+                                                </FormLabel>
+                                                <FormDescription className="text-[10px] md:text-xs">
+                                                    Tandai jika gudang digunakan untuk barang setengah jadi
+                                                </FormDescription>
+                                            </div>
+                                            <FormControl>
+                                                <Switch
+                                                    checked={field.value}
+                                                    onCheckedChange={field.onChange}
+                                                    disabled={isLoading}
+                                                />
+                                            </FormControl>
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+
+                            <Separator />
+
+                            {/* Accounting Integration */}
+                            <div className="space-y-4">
+                                <h3 className="flex items-center gap-2 text-[11px] md:text-sm font-semibold">
+                                    <Database className="h-4 w-4 text-indigo-500" />
+                                    Integrasi Akuntansi
+                                </h3>
+
+                                <FormField
+                                    control={form.control}
+                                    name="inventoryAccountId"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel className="text-[11px] md:text-sm">Akun Persediaan (COA)</FormLabel>
+                                            <Select
+                                                onValueChange={field.onChange}
+                                                defaultValue={field.value || ""}
+                                                value={field.value || ""}
+                                                disabled={isLoading || isLoadingCoa}
+                                            >
+                                                <FormControl>
+                                                    <SelectTrigger className="text-[11px] md:text-sm h-9 md:h-10">
+                                                        <SelectValue placeholder={isLoadingCoa ? "Memuat akun..." : "Pilih Akun Persediaan..."} />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    {coaList.map((coa) => (
+                                                        <SelectItem key={coa.id} value={coa.id} className="text-[11px] md:text-sm">
+                                                            <span className="font-mono text-blue-600 mr-2">{coa.code}</span>
+                                                            {coa.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <FormDescription className="text-[10px] md:text-xs">
+                                                Akun Chart of Account yang digunakan untuk mencatat persediaan di gudang ini
+                                            </FormDescription>
+                                            <FormMessage />
                                         </FormItem>
                                     )}
                                 />

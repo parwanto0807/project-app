@@ -570,9 +570,9 @@ export function CoaTable({
                                                                     </span>
                                                                 </div>
                                                                 {coa.description && (
-                                                                    <span className="text-xs text-gray-500 mt-1 line-clamp-1">
+                                                                    <p className="text-xs text-gray-500 mt-1 max-w-[700px] leading-relaxed">
                                                                         {coa.description}
-                                                                    </span>
+                                                                    </p>
                                                                 )}
                                                             </div>
                                                         </div>

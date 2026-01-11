@@ -799,6 +799,8 @@ export async function approveGRAction(
         if (result.success) {
             revalidatePath('/admin-area/inventory/goods-receipt');
             revalidatePath(`/admin-area/inventory/goods-receipt/${grId}`);
+            revalidatePath('/admin-area/accounting/ledger');
+            revalidatePath('/admin-area/accounting/trial-balance');
             revalidatePath('/dashboard');
             return {
                 success: true,

@@ -187,6 +187,7 @@ export interface AddPaymentRequest {
   verifiedById?: string;
   accountCOAId?: string; // ✅ Added
   adminFee?: number;
+  paymentType?: "FULL" | "PARTIAL";
 }
 
 export interface RejectInvoiceRequest {

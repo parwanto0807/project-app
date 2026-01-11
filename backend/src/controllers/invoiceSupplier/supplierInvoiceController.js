@@ -1,4 +1,73 @@
 import { prisma } from '../../config/db.js';
+import { updateTrialBalance, updateGeneralLedgerSummary } from '../../services/accounting/financialSummaryService.js';
+
+/**
+ * Helper: Get System Account by Key
+ */
+async function getSystemAccount(key, tx) {
+  const prismaClient = tx || prisma;
+  const systemAccount = await prismaClient.systemAccount.findUnique({
+    where: { key },
+    include: { coa: true }
+  });
+
+  return systemAccount?.coa || null;
+}
+
+/**
+ * Helper: Get COA by Code
+ */
+async function getCOAByCode(code, tx) {
+  const prismaClient = tx || prisma;
+  return await prismaClient.chartOfAccounts.findUnique({
+    where: { code }
+  });
+}
+
+/**
+ * Helper: Get Active Accounting Period
+ */
+async function getActivePeriod(transactionDate, tx) {
+  const prismaClient = tx || prisma;
+  const period = await prismaClient.accountingPeriod.findFirst({
+    where: {
+      startDate: { lte: transactionDate },
+      endDate: { gte: transactionDate },
+      isClosed: false
+    }
+  });
+
+  if (!period) {
+    throw new Error(`No open accounting period found for date ${transactionDate.toISOString().slice(0, 10)}`);
+  }
+
+  return period;
+}
+
+/**
+ * Helper: Generate Invoice Ledger Number
+ * Format: JV-INV-YYYYMMDD-XXXX
+ */
+async function generateInvoiceLedgerNumber(date, tx) {
+  const prismaClient = tx || prisma;
+  const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
+  
+  const startOfDay = new Date(date);
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(date);
+  endOfDay.setHours(23, 59, 59, 999);
+
+  const count = await prismaClient.ledger.count({
+    where: {
+      ledgerNumber: { startsWith: `JV-INV-${dateStr}` },
+      transactionDate: { gte: startOfDay, lte: endOfDay }
+    }
+  });
+
+  const sequence = String(count + 1).padStart(4, '0');
+  return `JV-INV-${dateStr}-${sequence}`;
+}
+
 
 /**
  * Generate next invoice number
@@ -432,8 +501,8 @@ export const updateSupplierInvoiceStatus = async (req, res) => {
                         items: true,
                         purchaseOrder: {
                             include: {
-                                orderedBy: true, // Include PO Creator for fallback
-                                PurchaseRequest: { // Fixed: purchaseRequest -> PurchaseRequest (Schema match)
+                                orderedBy: true,
+                                PurchaseRequest: {
                                     include: {
                                         requestedBy: true
                                     }
@@ -447,18 +516,19 @@ export const updateSupplierInvoiceStatus = async (req, res) => {
                     throw new Error('Supplier invoice not found');
                 }
 
+                if (invoice.status === 'APPROVED') {
+                    throw new Error('Invoice is already approved');
+                }
+
                 // Validation checks
                 if (!invoice.purchaseOrderId) {
                     throw new Error('Invoice is not linked to a Purchase Order');
                 }
                 
-                // Allow fallback if requestedBy is missing but check logic carefully
-                // Note: The capitalized PurchaseRequest affects how we access it here too
                 let karyawanId = invoice.purchaseOrder?.PurchaseRequest?.requestedBy?.id;
                 
-                // Fallback to PO Creator if PR requester is missing (e.g. Direct PO)
+                // Fallback to PO Creator if PR requester is missing
                 if (!karyawanId && invoice.purchaseOrder?.orderedById) {
-                    console.log('⚠️ No PR Requester found. Using PO Creator as PIC fallback.');
                     karyawanId = invoice.purchaseOrder.orderedById;
                 }
 
@@ -467,7 +537,7 @@ export const updateSupplierInvoiceStatus = async (req, res) => {
                 }
 
                 const totalAmount = Number(invoice.totalAmount);
-                const category = 'OPERASIONAL_PROYEK'; // STRICTLY OPERASIONAL, NOT PINJAMAN_PRIBADI
+                const category = 'OPERASIONAL_PROYEK';
 
                 // CHECK PAYMENT TERM: CASH OR CREDIT
                 const invDate = new Date(invoice.invoiceDate);
@@ -476,11 +546,103 @@ export const updateSupplierInvoiceStatus = async (req, res) => {
                 dDate.setHours(0,0,0,0);
                 const isCash = invDate.getTime() === dDate.getTime();
 
+                // =======================================
+                // ACCOUNTING LEDGER INTEGRATION
+                // =======================================
+                const now = new Date();
+                const period = await getActivePeriod(invDate, tx);
+                const ledgerNumber = await generateInvoiceLedgerNumber(now, tx);
+
+                // Get Accounts
+                // Debit: Unbilled Receipt (Reverse the GR entry)
+                const debitAccount = await getSystemAccount('UNBILLED_RECEIPT', tx) || await getCOAByCode('2-10102', tx);
+                
+                // Credit Account: AP or Staff Advance
+                let creditAccount = null;
+                if (isCash) {
+                    // Credit Staff Advance (since PIC balance is used)
+                    creditAccount = await getSystemAccount('STAFF_ADVANCE', tx) || await getCOAByCode('1-10302', tx);
+                } else {
+                    // Credit Accounts Payable
+                    creditAccount = await getSystemAccount('ACCOUNTS_PAYABLE', tx) || await getCOAByCode('2-10101', tx);
+                }
+
+                if (!debitAccount || !creditAccount) {
+                    throw new Error('Accounting accounts (Unbilled/AP/StaffAdvance) not found. Please check System Account mappings.');
+                }
+
+                // Create Ledger
+                const ledger = await tx.ledger.create({
+                    data: {
+                        ledgerNumber: ledgerNumber,
+                        referenceNumber: invoice.invoiceNumber,
+                        referenceType: 'JOURNAL',
+                        transactionDate: invoice.invoiceDate,
+                        postingDate: now,
+                        description: `Supplier Invoice Approval: ${invoice.invoiceNumber} (Supplier: ${invoice.supplier.name})`,
+                        notes: invoice.notes,
+                        periodId: period.id,
+                        status: 'POSTED',
+                        currency: 'IDR',
+                        exchangeRate: 1.0,
+                        createdBy: req.user?.id || 'SYSTEM',
+                        postedBy: req.user?.id || 'SYSTEM',
+                        postedAt: now
+                    }
+                });
+
+                // Create Ledger Lines
+                const ledgerLines = [
+                    {
+                        ledgerId: ledger.id,
+                        coaId: debitAccount.id,
+                        debitAmount: totalAmount,
+                        creditAmount: 0,
+                        currency: 'IDR',
+                        localAmount: totalAmount,
+                        description: `Clearing Unbilled Receipt: ${invoice.invoiceNumber}`,
+                        lineNumber: 1
+                    },
+                    {
+                        ledgerId: ledger.id,
+                        coaId: creditAccount.id,
+                        debitAmount: 0,
+                        creditAmount: totalAmount,
+                        currency: 'IDR',
+                        localAmount: totalAmount,
+                        description: isCash ? `Settlement via Staff Advance: ${invoice.invoiceNumber}` : `Accounts Payable: ${invoice.invoiceNumber}`,
+                        lineNumber: 2
+                    }
+                ];
+
+                await tx.ledgerLine.createMany({
+                    data: ledgerLines
+                });
+
+                // Update Financial Summaries
+                for (const line of ledgerLines) {
+                    await updateTrialBalance({
+                        periodId: period.id,
+                        coaId: line.coaId,
+                        debitAmount: line.debitAmount,
+                        creditAmount: line.creditAmount,
+                        tx
+                    });
+
+                    await updateGeneralLedgerSummary({
+                        coaId: line.coaId,
+                        periodId: period.id,
+                        date: invoice.invoiceDate,
+                        debitAmount: line.debitAmount,
+                        creditAmount: line.creditAmount,
+                        tx
+                    });
+                }
+
                 if (isCash) {
                     console.log(`💰 Invoice ${invoice.invoiceNumber} is CASH. Processing Staff Balance deduction...`);
                     
                     // 2. Manage Staff Balance
-                    // Check if balance exists
                     let staffBalance = await tx.staffBalance.findUnique({
                         where: {
                             karyawanId_category: {
@@ -490,7 +652,6 @@ export const updateSupplierInvoiceStatus = async (req, res) => {
                         }
                     });
 
-                    // Create if not exists
                     if (!staffBalance) {
                         staffBalance = await tx.staffBalance.create({
                             data: {
@@ -506,7 +667,6 @@ export const updateSupplierInvoiceStatus = async (req, res) => {
                     const currentAmount = Number(staffBalance.amount);
                     const newBalance = currentAmount - totalAmount;
 
-                    // Update Staff Balance
                     await tx.staffBalance.update({
                         where: { id: staffBalance.id },
                         data: {
@@ -520,8 +680,8 @@ export const updateSupplierInvoiceStatus = async (req, res) => {
                         data: {
                             karyawanId,
                             category,
-                            type: 'EXPENSE_REPORT', // Assumed type for invoice settlement/usage
-                            tanggal: new Date(),
+                            type: 'EXPENSE_REPORT',
+                            tanggal: now,
                             keterangan: `Invoice Supplier Approved (CASH): ${invoice.invoiceNumber} (PO: ${invoice.purchaseOrder.poNumber})`,
                             saldoAwal: currentAmount,
                             debit: 0,
@@ -529,11 +689,9 @@ export const updateSupplierInvoiceStatus = async (req, res) => {
                             saldo: newBalance,
                             purchaseRequestId: invoice.purchaseOrder.PurchaseRequest?.id || null,
                             refId: invoice.id,
-                            createdBy: 'SYSTEM'
+                            createdBy: req.user?.id || 'SYSTEM'
                         }
                     });
-                } else {
-                    console.log(`💳 Invoice ${invoice.invoiceNumber} is CREDIT. Skipping Staff Balance deduction.`);
                 }
 
                 // 4. Update Purchase Order Status
@@ -557,10 +715,13 @@ export const updateSupplierInvoiceStatus = async (req, res) => {
                     }
                 }
 
-                // 6. Finally Update Invoice Status
+                // 6. Finally Update Invoice Status & Link Ledger
                 return await tx.supplierInvoice.update({
                     where: { id },
-                    data: { status: 'APPROVED' },
+                    data: { 
+                        status: 'APPROVED',
+                        amountPaid: isCash ? totalAmount : 0 // If CASH, it's fully paid
+                    },
                     include: {
                         supplier: true,
                         items: true,

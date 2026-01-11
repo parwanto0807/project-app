@@ -19,6 +19,7 @@ import {
   MapPin,
   CheckCircle,
   XCircle,
+  Database
 } from "lucide-react";
 import clsx from "clsx";
 import { useState } from "react";
@@ -113,6 +114,7 @@ export default function WarehouseTable({
               <TableHead>Kode</TableHead>
               <TableHead>Nama</TableHead>
               <TableHead>Alamat</TableHead>
+              <TableHead>Akun Inventory</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">
                 Aksi
@@ -149,6 +151,17 @@ export default function WarehouseTable({
 
                 <TableCell className="text-muted-foreground">
                   {wh.address || "-"}
+                </TableCell>
+
+                <TableCell>
+                  {wh.inventoryAccount ? (
+                    <div className="flex flex-col">
+                      <span className="text-xs font-mono text-blue-600">{wh.inventoryAccount.code}</span>
+                      <span className="text-[11px] text-muted-foreground line-clamp-1">{wh.inventoryAccount.name}</span>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-slate-400 italic">Belum diset</span>
+                  )}
                 </TableCell>
 
                 <TableCell>
@@ -239,6 +252,16 @@ export default function WarehouseTable({
               <div className="flex items-start gap-2 text-sm text-muted-foreground">
                 <MapPin className="h-4 w-4 mt-0.5 text-orange-500" />
                 <span>{wh.address}</span>
+              </div>
+            )}
+
+            {wh.inventoryAccount && (
+              <div className="flex items-start gap-2 text-[11px] bg-slate-50 dark:bg-slate-900 p-2 rounded border border-slate-100 dark:border-slate-800">
+                <Database className="h-3.5 w-3.5 mt-0.5 text-indigo-500" />
+                <div className="flex flex-col">
+                  <span className="font-mono text-blue-600 font-semibold">{wh.inventoryAccount.code}</span>
+                  <span className="text-muted-foreground">{wh.inventoryAccount.name}</span>
+                </div>
               </div>
             )}
 

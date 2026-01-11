@@ -19,6 +19,7 @@ export const LedgerLineSchema = z.object({
     lineNumber: z.number(),
     createdAt: z.string().or(z.date()),
     updatedAt: z.string().or(z.date()),
+    ledger: z.any().optional(), // Adding ledger relation context
 });
 
 export const LedgerSchema = z.object({

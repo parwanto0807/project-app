@@ -174,8 +174,8 @@ export async function processInvoicePayment(paymentData) {
     // ========================================
     // 6. CALCULATE AMOUNTS
     // ========================================
-    const netAmount = amount - adminFee; // Amount yang masuk ke bank
-    const totalCharged = amount + adminFee; // Total yang dicharge (untuk validasi)
+    const totalCharged = amount + adminFee; // Total yang dicharge ke Invoice & Payment
+    const netAmount = amount; // Amount yang masuk ke bank (Pay Amount)
 
     // ========================================
     // 7. CREATE PAYMENT RECORD
@@ -185,9 +185,9 @@ export async function processInvoicePayment(paymentData) {
         invoiceId: invoiceId,
         installmentId: installmentId || null,
         payDate: paymentDate,
-        amount: amount, // Amount tanpa admin fee
+        amount: totalCharged, // Menggunakan Total Charged (Amount + Admin Fee)
         method: method,
-        bankAccountId: bankAccountId, // Use bankAccountId instead of account number
+        bankAccountId: bankAccountId, 
         reference: reference,
         notes: notes,
         verifiedById: verifiedById,
@@ -264,9 +264,9 @@ export async function processInvoicePayment(paymentData) {
       ledgerId: ledger.id,
       coaId: receivableAccount.id,
       debitAmount: 0,
-      creditAmount: amount,
+      creditAmount: totalCharged, // Piutang berkurang sebesar Total Charged
       currency: invoice.currency || 'IDR',
-      localAmount: amount * (invoice.exchangeRate || 1.0),
+      localAmount: totalCharged * (invoice.exchangeRate || 1.0),
       description: 'Receivable reduction',
       reference: invoice.invoiceNumber,
       lineNumber: adminFee > 0 ? 3 : 2,
@@ -310,14 +310,21 @@ export async function processInvoicePayment(paymentData) {
     // ========================================
     // 10. UPDATE INVOICE BALANCE
     // ========================================
-    const newBalanceDue = invoice.balanceDue - amount;
-    const newPaidTotal = invoice.paidTotal + amount;
+    const newPaidTotal = invoice.paidTotal + totalCharged;
+    const newBalanceDue = invoice.balanceDue - totalCharged;
     
     let newStatus = invoice.status;
-    if (newBalanceDue <= 0) {
+    if (paymentType === 'FULL') {
       newStatus = 'PAID';
-    } else if (newPaidTotal > 0) {
+    } else if (paymentType === 'PARTIAL') {
       newStatus = 'PARTIALLY_PAID';
+    } else {
+      // Fallback logic if paymentType is not provided
+      if (newBalanceDue <= 0) {
+        newStatus = 'PAID';
+      } else if (newPaidTotal > 0) {
+        newStatus = 'PARTIALLY_PAID';
+      }
     }
 
     await tx.invoice.update({
@@ -338,8 +345,8 @@ export async function processInvoicePayment(paymentData) {
       });
 
       if (installment) {
-        const newInstallmentBalance = installment.balance - amount;
-        const newInstallmentPaid = installment.paidAmount + amount;
+        const newInstallmentPaid = installment.paidAmount + totalCharged;
+        const newInstallmentBalance = installment.balance - totalCharged;
 
         await tx.installment.update({
           where: { id: installmentId },

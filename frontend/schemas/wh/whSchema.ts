@@ -10,6 +10,8 @@ export const CreateWarehouseSchema = z.object({
   address: z.string().optional(),
   isMain: z.boolean().default(false),
   isActive: z.boolean().default(true),
+  isWip: z.boolean().default(false),
+  inventoryAccountId: z.string().optional().nullable(),
 });
 
 export type CreateWarehouseInput = z.infer<typeof CreateWarehouseSchema>;

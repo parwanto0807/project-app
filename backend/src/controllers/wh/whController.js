@@ -79,7 +79,8 @@ export const getWarehouses = async (req, res) => {
         where,
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { createdAt: "desc" }
+        orderBy: { createdAt: "desc" },
+        include: { inventoryAccount: true }
       }),
       prisma.warehouse.count({ where })
     ]);
@@ -118,7 +119,8 @@ export const getWarehouseById = async (req, res) => {
     const warehouse = await prisma.warehouse.findFirst({
       where: {
         id
-      }
+      },
+      include: { inventoryAccount: true }
     });
 
     if (!warehouse) {
@@ -158,7 +160,8 @@ export const updateWarehouse = async (req, res) => {
 
     const warehouse = await prisma.warehouse.update({
       where: { id },
-      data: validated
+      data: validated,
+      include: { inventoryAccount: true }
     });
 
     return successResponse(

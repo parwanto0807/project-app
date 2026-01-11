@@ -105,7 +105,7 @@ const MenuItem = ({
             </span>
             <p
               className={cn(
-                "max-w-[140px] truncate transition-all duration-300 text-sm font-medium",
+                "max-w-[190px] truncate transition-all duration-300 text-[11px] font-bold uppercase tracking-wider",
                 !isOpen ? "w-0 opacity-0" : "w-auto opacity-100",
                 theme === 'dark' && active ? "text-white" : "text-current",
                 theme === 'light' && active ? "text-white" : "text-current",
@@ -125,15 +125,17 @@ const MenuItem = ({
       {!isOpen && (
         <TooltipContent
           side="right"
-          sideOffset={8}
+          sideOffset={10}
           className={cn(
-            theme === 'dark' ? "bg-gray-800 text-white border-gray-700" : "bg-white text-gray-800 border-gray-200",
-            "z-50 px-2 py-1.5 rounded-lg text-xs shadow-lg border"
+            "z-[100] px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-[0.1em] shadow-2xl border-none",
+            theme === 'dark'
+              ? "bg-cyan-400 text-black"
+              : "bg-cyan-500 text-white"
           )}
         >
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             <span>{label}</span>
-            {hasSubmenu && <ChevronDown size={10} className="opacity-60" />}
+            {hasSubmenu && <ChevronDown size={10} strokeWidth={3} />}
           </div>
         </TooltipContent>
       )}
@@ -144,12 +146,14 @@ const MenuItem = ({
 const SubmenuItem = ({
   href,
   label,
+  icon: Icon,
   active,
   isOpen,
   theme = 'dark'
 }: {
   href: string;
   label: string;
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   active: boolean;
   isOpen?: boolean;
   theme?: 'dark' | 'light';
@@ -160,47 +164,65 @@ const SubmenuItem = ({
         <Link
           href={href}
           className={cn(
-            "block px-3 py-1.5 text-xs rounded-md transition-all duration-200 hover:scale-[1.02] group relative",
+            "rounded-xl transition-all duration-300 hover:scale-[1.05] group relative",
+            !isOpen
+              ? "flex flex-col items-center justify-center p-2 text-center h-[85px] w-[85px] border shadow-sm overflow-hidden"
+              : "block px-3 py-1.5 text-xs",
             theme === 'dark'
               ? cn(
                 active
-                  ? "bg-cyan-600/20 text-cyan-300 border border-cyan-500/20 shadow"
-                  : "text-gray-400 hover:text-white hover:bg-gray-700/50",
+                  ? "bg-gradient-to-br from-cyan-500/20 to-blue-600/20 text-cyan-300 border-cyan-500/40 shadow-lg shadow-cyan-900/30"
+                  : "bg-gray-800/40 text-gray-400 hover:text-white hover:bg-gray-700/60 border-gray-700/50 backdrop-blur-md",
               )
               : cn(
                 active
-                  ? "bg-cyan-100 text-cyan-700 border border-cyan-300 shadow"
-                  : "text-gray-600 hover:text-cyan-700 hover:bg-cyan-50/80",
+                  ? "bg-gradient-to-br from-cyan-50 to-blue-50 text-cyan-700 border-cyan-200 shadow-md shadow-cyan-100"
+                  : "bg-white/60 text-gray-600 hover:text-cyan-700 hover:bg-white/90 border-gray-200/80 backdrop-blur-md",
               )
           )}
         >
+          {/* Smooth Background Glow on Hover */}
           <div className={cn(
-            "absolute inset-0 rounded-md opacity-0 transition-opacity duration-200 group-hover:opacity-100",
-            theme === 'dark' ? "bg-gradient-to-r from-cyan-500/5 to-blue-500/5" : "bg-gradient-to-r from-cyan-400/5 to-blue-400/5"
+            "absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100",
+            theme === 'dark' ? "bg-gradient-to-br from-cyan-500/10 via-transparent to-purple-500/10" : "bg-gradient-to-br from-cyan-400/5 via-transparent to-blue-400/5"
           )} />
 
-          <span className="relative z-10 flex items-center gap-1.5">
+          <span className={cn(
+            "relative z-10 flex items-center gap-1.5",
+            !isOpen ? "flex-col gap-2" : "flex-row"
+          )}>
             <div className={cn(
-              "w-1 h-1 rounded-full transition-all duration-200",
+              "flex items-center justify-center transition-all duration-300 transform group-hover:rotate-6",
+              !isOpen
+                ? "w-8 h-8 rounded-lg"
+                : "w-4 h-4 rounded-md mr-1",
               active
-                ? (theme === 'dark' ? "bg-cyan-400" : "bg-cyan-500")
-                : (theme === 'dark' ? "bg-gray-600 group-hover:bg-cyan-400" : "bg-gray-400 group-hover:bg-cyan-400")
-            )} />
-            <span className="truncate flex-1">{label}</span>
+                ? (theme === 'dark' ? "bg-cyan-500 text-white shadow-[0_0_15px_rgba(34,211,238,0.4)]" : "bg-cyan-500 text-white")
+                : (theme === 'dark' ? "bg-gray-700 text-cyan-400 group-hover:bg-cyan-500 group-hover:text-white" : "bg-cyan-50 text-cyan-600 group-hover:bg-cyan-500 group-hover:text-white")
+            )}>
+              <Icon width={!isOpen ? 16 : 12} height={!isOpen ? 16 : 12} className={cn(active ? "animate-pulse" : "")} />
+            </div>
+            <span className={cn(
+              "w-full transition-colors duration-200 px-1 uppercase tracking-wider font-bold",
+              !isOpen ? "text-[8.5px] leading-[1.2] line-clamp-2 break-words text-center" : "truncate flex-1 text-[10px]"
+            )} title={label}>
+              {label}
+            </span>
           </span>
         </Link>
       </TooltipTrigger>
-      {!isOpen && (
-        <TooltipContent
-          side="right"
-          className={cn(
-            theme === 'dark' ? "bg-gray-800 text-white border-gray-700" : "bg-white text-gray-800 border-gray-200",
-            "z-50 max-w-xs px-2 py-1.5 rounded-lg text-xs shadow-lg border"
-          )}
-        >
-          {label}
-        </TooltipContent>
-      )}
+      <TooltipContent
+        side={!isOpen ? "top" : "right"}
+        sideOffset={5}
+        className={cn(
+          "z-[100] px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-[0.1em] shadow-2xl border-none whitespace-nowrap",
+          theme === 'dark'
+            ? "bg-cyan-400 text-black"
+            : "bg-cyan-500 text-white"
+        )}
+      >
+        {label}
+      </TooltipContent>
     </Tooltip>
   </TooltipProvider>
 );
@@ -234,11 +256,13 @@ const MenuGroupLabel = ({
           <TooltipContent
             side="right"
             className={cn(
-              theme === 'dark' ? "bg-gray-800 text-white border-gray-700" : "bg-white text-gray-800 border-gray-200",
-              "z-20 px-2 py-1.5 rounded-lg text-xs font-medium border"
+              "z-[100] px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-[0.1em] shadow-2xl border-none",
+              theme === 'dark'
+                ? "bg-cyan-400 text-black"
+                : "bg-cyan-500 text-white"
             )}
           >
-            <span className="ml-2">{label}</span>
+            {label}
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
@@ -385,28 +409,37 @@ export function Menu({ isOpen, role, theme = 'dark' }: MenuProps) {
                             <PopoverContent
                               side="right"
                               align="start"
-                              sideOffset={8}
+                              sideOffset={15}
                               className={cn(
                                 theme === 'dark'
-                                  ? "bg-gray-800/95 text-white border-gray-700 backdrop-blur-md"
-                                  : "bg-white/95 text-gray-800 border-gray-200 backdrop-blur-md",
-                                "z-55 w-56 p-2 shadow-xl border rounded-lg"
+                                  ? "bg-gray-900/95 text-white border-gray-700/50 backdrop-blur-xl"
+                                  : "bg-white/95 text-gray-800 border-gray-200/80 backdrop-blur-xl",
+                                "z-55 w-auto max-w-[450px] p-4 shadow-[0_20px_50px_rgba(0,0,0,0.3)] border rounded-2xl"
                               )}
                             >
-                              <div className="flex flex-col gap-1">
+                              <div className="flex flex-col gap-4">
                                 <div className={cn(
-                                  "font-semibold text-sm mb-1 px-2 py-0.5 border-b flex items-center gap-1.5",
-                                  theme === 'dark' ? "border-gray-700" : "border-gray-200"
+                                  "font-black text-[10px] uppercase tracking-[0.2em] mb-1 px-1 pb-3 border-b flex items-center gap-2",
+                                  theme === 'dark' ? "border-gray-800 text-cyan-400/80" : "border-gray-100 text-cyan-600/80"
                                 )}>
-                                  <Icon className="h-3.5 w-3.5" />
+                                  <div className={cn(
+                                    "p-1.5 rounded-lg shadow-inner",
+                                    theme === 'dark' ? "bg-gray-800 text-cyan-400" : "bg-cyan-50 text-cyan-600"
+                                  )}>
+                                    <Icon className="h-3.5 w-3.5" />
+                                  </div>
                                   {label}
                                 </div>
-                                <div className="space-y-0.5">
+                                <div className={cn(
+                                  "grid gap-3",
+                                  submenus.length > 3 ? "grid-rows-3 grid-flow-col" : "grid-cols-1"
+                                )}>
                                   {submenus.map((submenu, subIndex) => (
                                     <SubmenuItem
                                       key={`submenu-${groupIndex}-${menuIndex}-${subIndex}`}
                                       href={submenu.href}
                                       label={submenu.label}
+                                      icon={submenu.icon}
                                       active={submenu.active || false}
                                       isOpen={isOpen}
                                       theme={theme}
@@ -433,6 +466,7 @@ export function Menu({ isOpen, role, theme = 'dark' }: MenuProps) {
                             key={`submenu-${groupIndex}-${menuIndex}-${subIndex}`}
                             href={submenu.href}
                             label={submenu.label}
+                            icon={submenu.icon}
                             active={submenu.active || false}
                             isOpen={isOpen}
                             theme={theme}

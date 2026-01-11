@@ -5,6 +5,13 @@ export interface Warehouse {
   address?: string | null;
   isMain: boolean;
   isActive: boolean;
+  isWip: boolean;
+  inventoryAccountId?: string | null;
+  inventoryAccount?: {
+    id: string;
+    code: string;
+    name: string;
+  } | null;
   createdAt: string; // ISO string dari backend
   updatedAt: string;
 }
