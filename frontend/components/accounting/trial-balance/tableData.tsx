@@ -441,7 +441,7 @@ export function TrialBalanceDataTable({ data, totals, isLoading }: TrialBalanceD
                                                         </div>
                                                         {getCOAIcon(record.coa.type)}
                                                         <div className="min-w-0">
-                                                            <div className="text-xs font-medium text-gray-900 truncate max-w-[160px]">
+                                                            <div className="text-xs font-medium text-gray-900 truncate max-w-[260px]">
                                                                 {record.coa.name}
                                                             </div>
                                                             <div className="text-[10px] text-gray-500">ID: {record.id.substring(0, 8)}</div>

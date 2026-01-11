@@ -185,6 +185,8 @@ export interface AddPaymentRequest {
   notes?: string;
   installmentId?: string;
   verifiedById?: string;
+  accountCOAId?: string; // ✅ Added
+  adminFee?: number;
 }
 
 export interface RejectInvoiceRequest {

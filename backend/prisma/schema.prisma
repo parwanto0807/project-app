@@ -1319,6 +1319,7 @@ enum InvoiceStatus {
   DRAFT
   WAITING_APPROVAL
   APPROVED
+  POSTED // Invoice sudah di-posting ke General Ledger, siap terima pembayaran
   REJECTED
   UNPAID
   PARTIALLY_PAID

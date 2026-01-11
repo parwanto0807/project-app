@@ -78,6 +78,16 @@ const addPaymentValidation = [
     "E_WALLET",
     "CHEQUE",
   ]),
+  body("bankAccountId")
+    .isUUID()
+    .withMessage("Valid bank account ID is required"),
+  body("adminFee")
+    .optional()
+    .isDecimal({ min: 0 })
+    .withMessage("Admin fee must be a positive number"),
+  body("reference")
+    .notEmpty()
+    .withMessage("Payment reference is required"),
 ];
 
 // Public routes

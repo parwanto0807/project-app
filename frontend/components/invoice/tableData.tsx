@@ -365,7 +365,17 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser, o
                                                             {formatCurrency(invoice.totalAmount)}
                                                         </span>
                                                     </div>
-                                                    <div className="text-xs text-green-700 font-medium mt-1">INVOICE TOTAL</div>
+                                                    <div className="flex justify-end mt-1">
+                                                        <Badge
+                                                            variant="outline"
+                                                            className={`${new Date(invoice.dueDate) < new Date() && invoice.balanceDue > 0
+                                                                ? "bg-red-500 text-white border-red-600 hover:bg-red-600"
+                                                                : "text-green-700 bg-green-100 border-green-200 hover:bg-green-200"
+                                                                }`}
+                                                        >
+                                                            Balance Due = {formatCurrency(invoice.balanceDue)}
+                                                        </Badge>
+                                                    </div>
                                                 </div>
                                             </TableCell>
 
@@ -378,19 +388,21 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser, o
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex flex-row-reverse gap-2">
-                                                    <div>
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            onClick={() => handlePaymentClick(invoice)}
-                                                            disabled={invoice.status !== "UNPAID" || invoice.balanceDue <= 0}
-                                                            className={`flex cursor-pointer items-center gap-1 ${invoice.status !== "UNPAID" ? "opacity-50 cursor-not-allowed" : ""
-                                                                }`}
-                                                        >
-                                                            <CreditCard className="h-4 w-4 mr-2 text-green-600" />
-                                                            Pay
-                                                        </Button>
-                                                    </div>
+                                                    {invoice.approvalStatus === "POSTED" && (
+                                                        <div>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => handlePaymentClick(invoice)}
+                                                                disabled={invoice.balanceDue <= 0}
+                                                                className={`flex cursor-pointer items-center gap-1 ${invoice.balanceDue <= 0 ? "opacity-50 cursor-not-allowed" : ""
+                                                                    }`}
+                                                            >
+                                                                <CreditCard className="h-4 w-4 mr-2 text-green-600" />
+                                                                Pay
+                                                            </Button>
+                                                        </div>
+                                                    )}
 
                                                     {/* Posting Journal Button */}
                                                     {/* Posting Journal Button */}

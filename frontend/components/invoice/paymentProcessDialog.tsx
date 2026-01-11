@@ -22,7 +22,8 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, CreditCard, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { CalendarIcon, CreditCard, CheckCircle, XCircle, Loader2, AlertTriangle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -31,6 +32,7 @@ import { AddPaymentRequest } from "@/schemas/invoice";
 import { formatCurrencyNumber } from "@/lib/utils";
 import { BankAccount } from "@/schemas/bank";
 import { paymentFormSchema } from "@/lib/validations/invoice";
+import { toast } from "sonner";
 
 interface PaymentProcessDialogProps {
     open: boolean;
@@ -59,6 +61,9 @@ interface PaymentFormData {
     notes: string;
     installmentId?: string;
     verifiedById?: string;
+    accountCOAId?: string;
+    paymentType?: "FULL" | "PARTIAL";
+    adminFee?: number;
 }
 
 export function PaymentProcessDialog({
@@ -72,7 +77,7 @@ export function PaymentProcessDialog({
     onRefresh, // ✅ NEW
     installments = []
 }: PaymentProcessDialogProps) {
-    const router = useRouter();
+
     const [loading, setLoading] = useState(false);
     const [date, setDate] = useState<Date>(new Date());
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -85,8 +90,21 @@ export function PaymentProcessDialog({
         notes: "",
         installmentId: "",
         verifiedById: currentUser?.id || undefined,
+        accountCOAId: "",
+        paymentType: "FULL",
+        adminFee: 0,
     });
     const formSchema = paymentFormSchema(balanceDue);
+
+    // Auto-set amount when switching to FULL payment or when admin fee changes
+    useEffect(() => {
+        if (formData.paymentType === "FULL") {
+            // For FULL payment: amount = balanceDue - adminFee
+            // So that: amount + adminFee = balanceDue
+            const calculatedAmount = balanceDue - (formData.adminFee || 0);
+            setFormData(prev => ({ ...prev, amount: Math.max(0, calculatedAmount) }));
+        }
+    }, [formData.paymentType, formData.adminFee, balanceDue]);
 
     const paymentMethods = [
         { value: "TRANSFER", label: "Bank Transfer", icon: "🏦" },
@@ -116,13 +134,56 @@ export function PaymentProcessDialog({
     };
 
     const handleSelectChange = (field: keyof PaymentFormData) => (value: string) => {
-        handleInputChange(field, value);
+        if (field === "bankAccountId") {
+            const selectedBank = banks.find(b => b.id === value);
+            setFormData(prev => ({
+                ...prev,
+                [field]: value,
+                accountCOAId: selectedBank?.accountCOAId || ""
+            }));
+        } else {
+            handleInputChange(field, value);
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         setFormErrors({}); // Reset error sebelum validasi
+
+        const totalCharged = (formData.amount || 0) + (formData.adminFee || 0);
+
+        // 1. Validasi Lebih Bayar
+        if (totalCharged > balanceDue) {
+            toast.error("Total Pembayaran melebihi sisa tagihan!", {
+                position: "top-center",
+                description: `Maksimal: ${formatCurrencyNumber(balanceDue)}, Input: ${formatCurrencyNumber(totalCharged)}`
+            });
+            setLoading(false);
+            return;
+        }
+
+        // 2. Validasi Kurang Bayar tapi Mode FULL
+        console.log('💰 Payment Validation:', {
+            totalCharged,
+            balanceDue,
+            amount: formData.amount,
+            adminFee: formData.adminFee,
+            paymentType: formData.paymentType,
+            isUnderpayment: totalCharged < balanceDue && formData.paymentType === "FULL"
+        });
+
+        if (totalCharged < balanceDue && formData.paymentType === "FULL") {
+            toast.warning("Nominal kurang dari tagihan.", {
+                position: "top-center",
+                description: "Mode pembayaran otomatis diubah ke 'Partial Payment'. Silakan konfirmasi kembali."
+            });
+            setFormData(prev => ({ ...prev, paymentType: "PARTIAL" }));
+            setLoading(false);
+            return;
+        }
+
+        console.log('✅ Validation passed, proceeding to Zod validation...');
 
         const result = formSchema.safeParse(formData);
 
@@ -133,10 +194,26 @@ export function PaymentProcessDialog({
                 const path = issue.path.join('.'); // misal: "reference", "amount"
                 fieldErrors[path] = issue.message;
             });
+
+            console.error('❌ Zod Validation Failed:', {
+                errors: fieldErrors,
+                formData: formData
+            });
+
+            // Show toast for each validation error
+            Object.entries(fieldErrors).forEach(([field, message]) => {
+                toast.error(`Validasi Gagal: ${field}`, {
+                    position: "top-center",
+                    description: message
+                });
+            });
+
             setFormErrors(fieldErrors);
             setLoading(false);
             return;
         }
+
+        console.log('✅ Zod validation passed, submitting payment...');
 
 
         try {
@@ -149,6 +226,8 @@ export function PaymentProcessDialog({
                 notes: result.data.notes || undefined,
                 installmentId: result.data.installmentId || undefined,
                 verifiedById: currentUser?.id || undefined,
+                accountCOAId: result.data.accountCOAId || undefined,
+                adminFee: formData.adminFee || 0,
             };
 
             await addPayment(invoiceId, paymentData);
@@ -157,12 +236,15 @@ export function PaymentProcessDialog({
             setFormData({
                 payDate: new Date(),
                 amount: balanceDue,
-                method: "bank_transfer",
+                method: "TRANSFER",
                 bankAccountId: "",
                 reference: "",
                 notes: "",
                 installmentId: "",
                 verifiedById: currentUser?.id,
+                accountCOAId: "",
+                paymentType: "FULL",
+                adminFee: 0,
             });
 
             onOpenChange(false);
@@ -186,161 +268,197 @@ export function PaymentProcessDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-green-100 rounded-lg">
-                            <CreditCard className="h-6 w-6 text-green-600" />
+            <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader className="border-b pb-4 mb-4">
+                    <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-green-100 rounded-lg">
+                                <CreditCard className="h-6 w-6 text-green-600" />
+                            </div>
+                            <div>
+                                <DialogTitle className="text-xl">Process Payment</DialogTitle>
+                                <DialogDescription>
+                                    Invoice <strong>#{invoiceNumber}</strong>
+                                </DialogDescription>
+                            </div>
                         </div>
-                        <div>
-                            <DialogTitle className="text-xl">Process Payment</DialogTitle>
-                            <DialogDescription>
-                                Add payment for invoice <strong>#{invoiceNumber}</strong>
-                            </DialogDescription>
-                        </div>
-                    </div>
-                </DialogHeader>
-
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* Balance Summary */}
-                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                        <div className="flex justify-between items-center">
-                            <span className="text-blue-700 font-medium">Balance Due:</span>
-                            <span className="text-2xl font-bold text-blue-700">
+                        <div className="text-right">
+                            <span className="text-sm text-gray-500 block">Balance Due</span>
+                            <span className="text-xl font-bold text-blue-700">
                                 {formatCurrencyNumber(balanceDue)}
                             </span>
                         </div>
                     </div>
+                </DialogHeader>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Payment Date */}
-                        <div className="space-y-2">
-                            <Label htmlFor="payDate" className="flex items-center gap-2">
-                                <CalendarIcon className="h-4 w-4 text-gray-500" />
-                                Payment Date
-                            </Label>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button
-                                        variant={"outline"}
-                                        className={cn(
-                                            "w-full justify-start text-left font-normal",
-                                            !date && "text-muted-foreground"
-                                        )}
-                                    >
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {date ? format(date, "PPP") : <span>Pick a date</span>}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0">
-                                    <Calendar
-                                        mode="single"
-                                        selected={date}
-                                        onSelect={(newDate) => {
-                                            const selectedDate = newDate || new Date();
-                                            setDate(selectedDate);
-                                            handleInputChange("payDate", selectedDate);
-                                        }}
-                                        initialFocus
-                                    />
-                                </PopoverContent>
-                            </Popover>
-                        </div>
+                <form onSubmit={handleSubmit} className="grid grid-cols-12 gap-4">
 
-                        {/* Amount */}
-                        <div className="space-y-2">
-                            <Label htmlFor="amount">Amount</Label>
-                            <div className="relative">
-                                <span className="absolute left-3 top-3 text-gray-500">$</span>
-                                <Input
-                                    id="amount"
-                                    type="number"
-                                    value={formData.amount}
-                                    onChange={(e) => handleInputChange("amount", parseFloat(e.target.value) || 0)}
-                                    className={`pl-8 ${formErrors.amount ? "border-red-500" : ""}`}
-                                    max={balanceDue}
-                                    step="0.01"
-                                    required
+                    {/* Row 1: Date, Type, Method */}
+                    <div className="col-span-12 sm:col-span-4 space-y-1.5">
+                        <Label htmlFor="payDate" className="text-xs font-semibold text-gray-600">Payment Date</Label>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant={"outline"}
+                                    className={cn(
+                                        "w-full justify-start text-left font-normal h-9",
+                                        !date && "text-muted-foreground"
+                                    )}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {date ? format(date, "PPP") : <span>Pick a date</span>}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0">
+                                <Calendar
+                                    mode="single"
+                                    selected={date}
+                                    onSelect={(newDate) => {
+                                        const selectedDate = newDate || new Date();
+                                        setDate(selectedDate);
+                                        handleInputChange("payDate", selectedDate);
+                                    }}
+                                    initialFocus
                                 />
-                            </div>
-                            {formErrors.amount && (
-                                <p className="text-xs text-red-500">{formErrors.amount}</p>
-                            )}
-                            <p className="text-xs text-gray-500">
-                                Max: {formatCurrencyNumber(balanceDue)}
-                            </p>
-                        </div>
+                            </PopoverContent>
+                        </Popover>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Payment Method */}
-                        <div className="space-y-2">
-                            <Label htmlFor="method">Payment Method</Label>
-                            <Select
-                                value={formData.method}
-                                onValueChange={handleSelectChange("method")}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue>
+                    <div className="col-span-12 sm:col-span-4 space-y-1.5">
+                        <Label htmlFor="paymentType" className="text-xs font-semibold text-gray-600">Payment Type</Label>
+                        <Select
+                            value={formData.paymentType}
+                            onValueChange={(val) => handleInputChange("paymentType", val)}
+                        >
+                            <SelectTrigger className="h-9">
+                                <SelectValue placeholder="Select Type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="FULL">Full Payment</SelectItem>
+                                <SelectItem value="PARTIAL">Partial Payment</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <div className="col-span-12 sm:col-span-4 space-y-1.5">
+                        <Label htmlFor="method" className="text-xs font-semibold text-gray-600">Payment Method</Label>
+                        <Select
+                            value={formData.method}
+                            onValueChange={handleSelectChange("method")}
+                        >
+                            <SelectTrigger className="h-9">
+                                <SelectValue>
+                                    <div className="flex items-center gap-2">
+                                        <span>{getPaymentMethodIcon(formData.method)}</span>
+                                        <span className="truncate">
+                                            {paymentMethods.find(m => m.value === formData.method)?.label}
+                                        </span>
+                                    </div>
+                                </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                                {paymentMethods.map((method) => (
+                                    <SelectItem key={method.value} value={method.value}>
                                         <div className="flex items-center gap-2">
-                                            <span>{getPaymentMethodIcon(formData.method)}</span>
-                                            <span>
-                                                {paymentMethods.find(m => m.value === formData.method)?.label}
-                                            </span>
+                                            <span>{method.icon}</span>
+                                            <span>{method.label}</span>
                                         </div>
-                                    </SelectValue>
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {paymentMethods.map((method) => (
-                                        <SelectItem key={method.value} value={method.value}>
-                                            <div className="flex items-center gap-2">
-                                                <span>{method.icon}</span>
-                                                <span>{method.label}</span>
-                                            </div>
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
 
-                        {/* Bank Account */}
-                        <div className="space-y-2">
-                            <Label htmlFor="bankAccountId">Bank Account</Label>
-                            <Select
-                                value={formData.bankAccountId}
-                                onValueChange={handleSelectChange("bankAccountId")}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select bank account" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {banks.map((account) => (
-                                        <SelectItem key={account.id} value={account.id}>
-                                            {account.accountNumber} - {account.bankName}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                    {/* Row 2: Bank Account & Reference */}
+                    <div className="col-span-12 sm:col-span-8 space-y-1.5">
+                        <Label htmlFor="bankAccountId" className="text-xs font-semibold text-gray-600">Bank Account</Label>
+                        <Select
+                            value={formData.bankAccountId}
+                            onValueChange={handleSelectChange("bankAccountId")}
+                        >
+                            <SelectTrigger className={`truncate h-9 ${formErrors.bankAccountId ? "border-red-500 border-2" : ""}`}>
+                                <SelectValue placeholder="Select Bank Account" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {banks.map((account) => (
+                                    <SelectItem key={account.id} value={account.id}>
+                                        <span className="font-bold">{account.accountNumber}</span> - {account.bankName} - {account.branch} {account.accountCOA?.code ? <span className="font-bold text-gray-500">({account.accountCOA.code})</span> : ''}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        {formErrors.bankAccountId && (
+                            <p className="text-xs text-red-500 mt-1">{formErrors.bankAccountId}</p>
+                        )}
+                    </div>
+
+                    <div className="col-span-12 sm:col-span-4 space-y-1.5">
+                        <Label htmlFor="reference" className="text-xs font-semibold text-gray-600">Reference No.</Label>
+                        <Input
+                            id="reference"
+                            value={formData.reference}
+                            onChange={(e) => handleInputChange("reference", e.target.value)}
+                            className={`h-9 ${formErrors.reference ? "border-red-500" : ""}`}
+                            placeholder="e.g. TRX-001"
+                        />
+                    </div>
+
+                    {/* Row 3: Financials */}
+                    <div className="col-span-12 sm:col-span-4 space-y-1.5">
+                        <Label htmlFor="amount" className="text-xs font-semibold text-gray-600">Pay Amount</Label>
+                        <Input
+                            id="amount"
+                            type="number"
+                            value={formData.amount}
+                            onChange={(e) => handleInputChange("amount", parseFloat(e.target.value) || 0)}
+                            className={`h-9 font-bold ${formErrors.amount ? "border-red-500" : ""}`}
+                            max={balanceDue}
+                            step="0.01"
+                        />
+                        {/* Compact Warning */}
+                        {formData.paymentType === "FULL" && (formData.amount + (formData.adminFee || 0)) < balanceDue && (
+                            <p className="text-[10px] text-amber-600 font-bold flex items-center gap-1 mt-1">
+                                <AlertTriangle className="h-3 w-3" />
+                                Underpayment! Total charged is less than balance due.
+                            </p>
+                        )}
+                    </div>
+
+                    <div className="col-span-12 sm:col-span-4 space-y-1.5">
+                        <Label htmlFor="adminFee" className="text-xs font-semibold text-gray-600">Admin Bank / Admin Fee</Label>
+                        <Input
+                            id="adminFee"
+                            type="number"
+                            value={formData.adminFee}
+                            onChange={(e) => handleInputChange("adminFee", parseFloat(e.target.value) || 0)}
+                            className="h-9"
+                            min="0"
+                        />
+                    </div>
+
+                    <div className="col-span-12 sm:col-span-4 space-y-1.5">
+                        <Label className="text-xs font-semibold text-gray-600">Total Charged</Label>
+                        <div className="h-9 px-3 flex items-center bg-slate-100 rounded-md border border-slate-200 text-slate-800 font-bold">
+                            {formatCurrencyNumber((formData.amount || 0) + (formData.adminFee || 0))}
                         </div>
                     </div>
 
-                    {/* Installment Selection */}
+                    {/* Row 4: Installment (Conditional) */}
                     {installments.length > 0 && (
-                        <div className="space-y-2">
-                            <Label htmlFor="installmentId">Apply to Installment (Optional)</Label>
+                        <div className="col-span-12 space-y-1.5">
+                            <Label htmlFor="installmentId" className="text-xs font-semibold text-gray-600">Installment Allocation</Label>
                             <Select
                                 value={formData.installmentId || ""}
                                 onValueChange={handleSelectChange("installmentId")}
                             >
-                                <SelectTrigger>
+                                <SelectTrigger className="h-9">
                                     <SelectValue placeholder="Select installment" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="">None - Apply to general balance</SelectItem>
+                                    <SelectItem value="">General Balance (No specific installment)</SelectItem>
                                     {installments.map((installment) => (
                                         <SelectItem key={installment.id} value={installment.id}>
-                                            {installment.description || `Installment - ${format(installment.dueDate, "MMM dd, yyyy")}`}
-                                            (Balance: ${installment.balance.toLocaleString()})
+                                            {installment.description || `Due: ${format(installment.dueDate, "dd MMM yyyy")}`} - Bal: {formatCurrencyNumber(installment.balance)}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -348,62 +466,58 @@ export function PaymentProcessDialog({
                         </div>
                     )}
 
-                    {/* Reference */}
-                    <div className="space-y-2">
-                        <Label htmlFor="reference">Reference Number</Label>
-                        <Input
-                            id="reference"
-                            value={formData.reference}
-                            onChange={(e) => handleInputChange("reference", e.target.value)}
-                            className={formErrors.reference ? "border-red-500" : ""}
-                            placeholder="e.g., TRX-123456, Check #789"
-                        />
-                        {formErrors.reference && (
-                            <p className="text-xs text-red-500">{formErrors.reference}</p>
-                        )}
-                    </div>
-
-                    {/* Notes */}
-                    <div className="space-y-2">
-                        <Label htmlFor="notes">Notes</Label>
+                    {/* Row 5: Notes */}
+                    <div className="col-span-12 space-y-1.5">
+                        <Label htmlFor="notes" className="text-xs font-semibold text-gray-600">Notes</Label>
                         <Textarea
                             id="notes"
                             value={formData.notes}
                             onChange={(e) => handleInputChange("notes", e.target.value)}
-                            placeholder="Additional payment notes..."
-                            rows={3}
+                            placeholder="Add memo..."
+                            className="resize-none"
+                            rows={2}
                         />
                     </div>
 
-                    <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-4">
+                    {/* Row 6: Alert */}
+                    <div className="col-span-12">
+                        <Alert className="py-2 px-3 bg-amber-50 border-amber-200 text-amber-900 flex items-start gap-2">
+                            <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5" />
+                            <div className="text-xs leading-tight">
+                                <span className="font-bold block mb-0.5">Update Ledger Otomatis</span>
+                                Tindakan ini berdampak langsung pada General Ledger & Laporan Keuangan. Mohon verifikasi nominal dan akun bank sebelum melanjutkan.
+                            </div>
+                        </Alert>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="col-span-12 flex justify-end gap-2 pt-2 border-t mt-2">
                         <Button
                             type="button"
                             variant="outline"
                             onClick={() => onOpenChange(false)}
                             disabled={loading}
-                            className="flex items-center gap-2"
                         >
-                            <XCircle className="h-4 w-4" />
                             Cancel
                         </Button>
                         <Button
                             type="submit"
                             disabled={loading || formData.amount <= 0}
-                            className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                            className="bg-green-600 hover:bg-green-700"
                         >
                             {loading ? (
                                 <>
-                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
                                     Processing...
                                 </>
                             ) : (
                                 <>
-                                    <CheckCircle className="h-4 w-4" />
-                                    Process Payment
+                                    <CheckCircle className="h-4 w-4 mr-2" />
+                                    Confirm Payment
                                 </>
                             )}
                         </Button>
-                    </DialogFooter>
+                    </div>
                 </form>
             </DialogContent>
         </Dialog>

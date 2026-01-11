@@ -1363,7 +1363,7 @@ class InvoiceController {
     }
   }
 
-  // Add payment to invoice
+  // Add payment to invoice with Ledger Integration
   async addPayment(req, res) {
     try {
       const { id } = req.params;
@@ -1371,83 +1371,109 @@ class InvoiceController {
         payDate,
         amount,
         method,
-        bankAccount,
+        bankAccountId,
         reference,
         notes,
         installmentId,
         verifiedById,
+        accountCOAId,
+        adminFee = 0,
+        paymentType = 'FULL'
       } = req.body;
 
-      const result = await prisma.$transaction(async (tx) => {
-        // Create payment
-        const payment = await tx.payment.create({
-          data: {
-            invoiceId: id,
-            installmentId: installmentId || null,
-            payDate: new Date(payDate),
-            amount,
-            method,
-            bankAccount,
-            reference,
-            notes,
-            verifiedById,
-          },
+      console.log('📝 Payment Request Data:', {
+        invoiceId: id,
+        amount,
+        adminFee,
+        method,
+        bankAccountId,
+        reference,
+        paymentType
+      });
+
+      // Validasi input
+      if (!payDate || !amount || !method || !bankAccountId || !reference) {
+        return res.status(400).json({
+          success: false,
+          message: 'Missing required fields: payDate, amount, method, bankAccountId, reference'
         });
+      }
 
-        // Update invoice paid total and balance
-        await tx.invoice.update({
-          where: { id },
-          data: {
-            paidTotal: { increment: amount },
-            balanceDue: { decrement: amount },
-            status: "PAID",
-          },
+      if (amount <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Payment amount must be greater than 0'
         });
+      }
 
-        // Update installment if provided
-        if (installmentId) {
-          await tx.installment.update({
-            where: { id: installmentId },
-            data: {
-              paidAmount: { increment: amount },
-              balance: { decrement: amount },
-            },
-          });
-        }
-
-        const completeInvoice = await prisma.invoice.findUnique({
-          where: { id },
-          include: {
-            salesOrder: {
-              select: {
-                id: true,
-              },
-            },
-          },
+      if (adminFee < 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Admin fee cannot be negative'
         });
+      }
 
-        // Update status sales order → "INVOICED"
-        if (completeInvoice?.salesOrder?.id) {
-          await prisma.salesOrder.update({
-            where: { id: completeInvoice.salesOrder.id },
-            data: { status: "PAID" },
-          });
-        }
+      // Import service dynamically
+      const { processInvoicePayment } = await import('../../services/invoice/paymentLedgerService.js');
 
-        return payment;
+      // Process payment dengan ledger
+      const result = await processInvoicePayment({
+        invoiceId: id,
+        amount: parseFloat(amount),
+        adminFee: parseFloat(adminFee),
+        method,
+        bankAccountId,
+        reference,
+        notes: notes || '',
+        payDate,
+        verifiedById: verifiedById || req.user?.id,
+        installmentId: installmentId || null,
+        accountCOAId: accountCOAId || null,
+        paymentType
       });
 
       res.status(201).json({
         success: true,
-        message: "Payment added successfully",
-        data: result,
+        message: 'Payment processed successfully with ledger entry',
+        data: {
+          payment: result.payment,
+          ledger: {
+            ledgerNumber: result.ledger.ledgerNumber,
+            description: result.ledger.description,
+            totalDebit: result.ledger.lines.reduce((sum, line) => sum + line.debitAmount, 0),
+            totalCredit: result.ledger.lines.reduce((sum, line) => sum + line.creditAmount, 0),
+            linesCount: result.ledger.lines.length
+          },
+          invoice: result.invoice,
+          bankAccount: result.bankAccount
+        }
       });
     } catch (error) {
-      console.error("Add payment error:", error);
+      console.error('Add payment error:', error);
+      
+      // Handle specific errors
+      if (error.message.includes('not found') || 
+          error.message.includes('not active') ||
+          error.message.includes('not configured')) {
+        return res.status(400).json({
+          success: false,
+          message: error.message
+        });
+      }
+
+      if (error.message.includes('exceeds balance') ||
+          error.message.includes('already paid') ||
+          error.message.includes('Only POSTED')) {
+        return res.status(400).json({
+          success: false,
+          message: error.message
+        });
+      }
+
       res.status(500).json({
         success: false,
-        message: "Failed to add payment",
-        error: error.message,
+        message: 'Failed to process payment',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
       });
     }
   }
@@ -2137,6 +2163,16 @@ class InvoiceController {
           }
         }
         console.log(`[POSTING] ✓ General Ledger Summary updated for ${transactionDate.toISOString().split('T')[0]}`);
+        
+        // G. Update Invoice Status to POSTED
+        await tx.invoice.update({
+          where: { id: invoice.id },
+          data: {
+            status: 'UNPAID',           // Payment status: belum dibayar
+            approvalStatus: 'POSTED'    // Posting status: sudah di-posting ke GL
+          }
+        });
+        console.log(`[POSTING] ✓ Invoice status updated to UNPAID (Posted to GL, awaiting payment)`);
         
         return ledger;
       });

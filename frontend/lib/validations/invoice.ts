@@ -93,6 +93,10 @@ export const paymentFormSchema = (balanceDue: number) =>
       installmentId: z.string().trim().optional(), // ✅ benar
 
       verifiedById: z.string().trim().optional(), // ✅ benar
+
+      accountCOAId: z.string().trim().optional(), // ✅ Added
+
+      adminFee: z.number().min(0).default(0), // Biaya admin, default 0
     })
     .superRefine((data, ctx) => {
       if (data.method === "TRANSFER" && !data.bankAccountId) {

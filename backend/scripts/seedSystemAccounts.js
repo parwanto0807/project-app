@@ -105,6 +105,18 @@ async function main() {
       description: 'Digunakan untuk menampung PPN yang kita pungut dari pelanggan (PPN Keluaran). Ini adalah utang pajak kita ke negara. Saldo akun ini bertambah di Kredit saat Penjualan.',
       fallbackCode: '2-10301',
       searchNames: ['PPN Pengeluaran']
+    },
+    {
+      key: 'PAYMENT_RECEIVABLE_ACCOUNT',
+      description: 'Digunakan untuk mencatat pengurangan piutang saat pembayaran invoice diterima dari customer. Akun ini akan di-Kredit (berkurang) saat payment diproses, baik Full maupun Partial Payment.',
+      fallbackCode: '1-10101',
+      searchNames: ['Piutang Usaha']
+    },
+    {
+      key: 'PAYMENT_BANK_CHARGE_EXPENSE',
+      description: 'Digunakan untuk mencatat beban biaya administrasi bank yang ditanggung perusahaan saat menerima pembayaran dari customer (transfer fee, admin bank, dll). Akun ini akan di-Debit (bertambah) sebesar admin fee yang diinput.',
+      fallbackCode: '6-10102',
+      searchNames: ['Beban Admin Bank', 'Biaya Admin Bank']
     }
   ];
 
