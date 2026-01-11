@@ -45,6 +45,7 @@ import ledgerRoutes from './routes/accounting/ledgerRoutes.js';
 import systemAccountRoutes from './routes/accounting/systemAccountRoutes.js';
 import openingBalanceRoutes from './routes/accounting/openingBalanceRoutes.js';
 import glSummaryRoutes from './routes/accounting/glSummaryRoutes.js';
+import fundTransferRoutes from './routes/finance/fundTransferRoutes.js';
 
 
 import path from "path";
@@ -177,6 +178,7 @@ app.use('/api/accounting/ledger', ledgerRoutes);
 app.use('/api/accounting/system-accounts', systemAccountRoutes);
 app.use('/api/accounting/opening-balance', openingBalanceRoutes);
 app.use('/api/accounting/gl-summary', glSummaryRoutes);
+app.use('/api/finance/fund-transfer', fundTransferRoutes);
 
 
 // Health Check Endpoint

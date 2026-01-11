@@ -339,7 +339,13 @@ export function getMenuList(pathname: string, role: string) {
               label: "Request Approval",
               active: isActive(`${basePath}/finance/prApprove`, pathname),
               disabled: role === "user" || role === "pic",
-            }
+            },
+            {
+              href: `${basePath}/finance/fund-transfer`,
+              label: "Transfer Antar Kas & Bank",
+              active: isActive(`${basePath}/finance/fund-transfer`, pathname),
+              disabled: role === "user" || role === "pic",
+            },
           ],
         },
       ],

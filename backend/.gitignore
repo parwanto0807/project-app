@@ -4,6 +4,7 @@ dist/
 build/
 .next/
 *.log
+docs/
 
 # Prisma
 prisma/generated/
