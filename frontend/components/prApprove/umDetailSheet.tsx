@@ -782,39 +782,43 @@ export function UMDetailSheet({
                                                 <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
                                                 Memuat daftar rekening...
                                             </div>
-                                        ) : bankAccounts.length > 0 ? (
-                                            bankAccounts.map((bank) => (
-                                                <SelectItem key={bank.id} value={bank.accountCOAId || ""}>
-                                                    <div className="flex flex-col w-full">
-                                                        <div className="flex items-center justify-between gap-4">
-                                                            <div className="flex items-center gap-2">
-                                                                <Wallet className="h-3 w-3 text-emerald-600" />
-                                                                <span className="font-medium text-sm">
-                                                                    {bank.bankName} - {bank.accountNumber}
+                                        ) : bankAccounts.filter((bank) => bank.accountCOAId).length > 0 ? (
+                                            bankAccounts
+                                                .filter((bank) => bank.accountCOAId) // Filter out banks without accountCOAId
+                                                .map((bank) => (
+                                                    <SelectItem key={bank.id} value={bank.accountCOAId!}>
+                                                        <div className="flex flex-col w-full">
+                                                            <div className="flex items-center justify-between gap-4">
+                                                                <div className="flex items-center gap-2">
+                                                                    <Wallet className="h-3 w-3 text-emerald-600" />
+                                                                    <span className="font-medium text-sm">
+                                                                        {bank.bankName} - {bank.accountNumber}
+                                                                    </span>
+                                                                </div>
+                                                                <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${bank.currentBalance < data.jumlah ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"}`}>
+                                                                    {formatCurrency(bank.currentBalance)}
                                                                 </span>
                                                             </div>
-                                                            <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${bank.currentBalance < data.jumlah ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"}`}>
-                                                                {formatCurrency(bank.currentBalance)}
-                                                            </span>
+                                                            <div className="flex items-center justify-between mt-0.5">
+                                                                {bank.accountCOA && (
+                                                                    <span className="text-[10px] text-gray-500 ml-5 italic">
+                                                                        Mapping: {bank.accountCOA.code} - {bank.accountCOA.name}
+                                                                    </span>
+                                                                )}
+                                                                {bank.currentBalance < data.jumlah && (
+                                                                    <span className="ml-4 text-[9px] text-red-500 font-medium">
+                                                                        Saldo Tidak Cukup
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                         </div>
-                                                        <div className="flex items-center justify-between mt-0.5">
-                                                            {bank.accountCOA && (
-                                                                <span className="text-[10px] text-gray-500 ml-5 italic">
-                                                                    Mapping: {bank.accountCOA.code} - {bank.accountCOA.name}
-                                                                </span>
-                                                            )}
-                                                            {bank.currentBalance < data.jumlah && (
-                                                                <span className="ml-4 text-[9px] text-red-500 font-medium">
-                                                                    Saldo Tidak Cukup
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </SelectItem>
-                                            ))
+                                                    </SelectItem>
+                                                ))
                                         ) : (
                                             <div className="p-4 text-center text-sm text-gray-500">
-                                                Tidak ada rekening bank yang aktif
+                                                {bankAccounts.length > 0
+                                                    ? "Tidak ada rekening bank dengan mapping COA yang valid"
+                                                    : "Tidak ada rekening bank yang aktif"}
                                             </div>
                                         )}
                                     </SelectContent>
