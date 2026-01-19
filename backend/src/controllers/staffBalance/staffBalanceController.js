@@ -412,4 +412,230 @@ export const staffBalanceController = {
       next(error);
     }
   },
+
+  /**
+   * Process Staff Refund (Staff returns money to company)
+   */
+  async processStaffRefund(req, res, next) {
+    try {
+      const { karyawanId, category, amount, coaId, tanggal, keterangan, refId } = req.body;
+
+      if (!karyawanId || !category || !amount || !coaId) {
+        return res.status(400).json({
+          success: false,
+          message: "Data tidak lengkap (karyawanId, category, amount, coaId wajib diisi)",
+        });
+      }
+
+      const numAmount = Number(amount);
+      const transDate = tanggal ? new Date(tanggal) : new Date();
+      const now = new Date();
+
+      const result = await prisma.$transaction(async (tx) => {
+        // 1. Get Employee Balance
+        const staffBalance = await tx.staffBalance.findUnique({
+          where: {
+            karyawanId_category: {
+              karyawanId,
+              category
+            }
+          },
+          include: { karyawan: true }
+        });
+
+        if (!staffBalance) {
+          throw new Error("Staff Balance tidak ditemukan");
+        }
+
+        const currentBalance = Number(staffBalance.amount);
+        const newBalance = currentBalance - numAmount;
+
+        // 2. Update StaffBalance
+        await tx.staffBalance.update({
+          where: { id: staffBalance.id },
+          data: {
+            amount: newBalance,
+            totalOut: { increment: numAmount }
+          }
+        });
+
+        // 3. Create StaffLedger Entry
+        const staffLedger = await tx.staffLedger.create({
+          data: {
+            karyawanId,
+            category,
+            type: 'SETTLEMENT_REFUND',
+            tanggal: transDate,
+            keterangan: keterangan || `Pengembalian dana operasional oleh ${staffBalance.karyawan.namaLengkap}`,
+            saldoAwal: currentBalance,
+            debit: 0,
+            kredit: numAmount, // Staff money decreases
+            saldo: newBalance,
+            refId: refId || null,
+            createdBy: req.user?.id || 'SYSTEM'
+          }
+        });
+
+        // 4. Accounting Integration (Ledger)
+        const period = await getActivePeriod(transDate, tx);
+        const ledgerNumber = await generateRefundLedgerNumber(now, tx);
+
+        // Get Accounts
+        // Debit: Kas/Bank (Target Account from UI)
+        // Credit: Staff Advance (Account 1-10302)
+        const creditAccount = await getSystemAccount('STAFF_ADVANCE', tx);
+        if (!creditAccount) {
+          throw new Error("System Account 'STAFF_ADVANCE' (1-10302) tidak ditemukan");
+        }
+
+        const debitAccount = await tx.chartOfAccounts.findUnique({
+           where: { id: coaId }
+        });
+
+        if (!debitAccount) {
+          throw new Error("Akun Kas/Bank tujuan tidak ditemukan");
+        }
+
+        // Create General Ledger
+        const ledger = await tx.ledger.create({
+          data: {
+            ledgerNumber,
+            referenceNumber: refId || `REFUND-${staffLedger.id.slice(0, 8)}`,
+            referenceType: 'RECEIPT',
+            transactionDate: transDate,
+            postingDate: now,
+            description: `Pengembalian Dana Staff: ${staffBalance.karyawan.namaLengkap}`,
+            notes: keterangan,
+            periodId: period.id,
+            status: 'POSTED',
+            createdBy: req.user?.id || 'SYSTEM',
+            postedBy: req.user?.id || 'SYSTEM',
+            postedAt: now
+          }
+        });
+
+        // Create Ledger Lines
+        const ledgerLinesData = [
+          {
+            ledgerId: ledger.id,
+            coaId: debitAccount.id, // Kas/Bank
+            debitAmount: numAmount,
+            creditAmount: 0,
+            localAmount: numAmount,
+            description: `Penerimaan dana dari ${staffBalance.karyawan.namaLengkap}`,
+            lineNumber: 1
+          },
+          {
+            ledgerId: ledger.id,
+            coaId: creditAccount.id, // Staff Advance
+            debitAmount: 0,
+            creditAmount: numAmount,
+            localAmount: numAmount,
+            description: `Pengembalian Uang Muka Kerka oleh ${staffBalance.karyawan.namaLengkap}`,
+            lineNumber: 2
+          }
+        ];
+
+        await tx.ledgerLine.createMany({
+          data: ledgerLinesData
+        });
+
+        // Import services for summary updates
+        // Note: Using dynamic imports or assume they are available if we have them at top level
+        // But since this is a controller, we should have them at top usually.
+        // Let's check imports in this file.
+        const { updateTrialBalance, updateGeneralLedgerSummary } = await import('../../services/accounting/financialSummaryService.js');
+
+        for (const line of ledgerLinesData) {
+          await updateTrialBalance({
+            periodId: period.id,
+            coaId: line.coaId,
+            debitAmount: line.debitAmount,
+            creditAmount: line.creditAmount,
+            tx
+          });
+
+          await updateGeneralLedgerSummary({
+            coaId: line.coaId,
+            periodId: period.id,
+            date: transDate,
+            debitAmount: line.debitAmount,
+            creditAmount: line.creditAmount,
+            tx
+          });
+        }
+
+        return { staffBalance, staffLedger, ledger };
+      });
+
+      res.status(200).json({
+        success: true,
+        message: "Pengembalian dana berhasil diproses",
+        data: result
+      });
+
+    } catch (error) {
+      console.error("Error in processStaffRefund:", error);
+      res.status(500).json({
+        success: false,
+        message: "Gagal memproses pengembalian dana",
+        error: error.message
+      });
+    }
+  }
 };
+
+/**
+ * Helper: Get System Account by Key
+ */
+async function getSystemAccount(key, tx) {
+  const prismaClient = tx || prisma;
+  const systemAccount = await prismaClient.systemAccount.findUnique({
+    where: { key },
+    include: { coa: true }
+  });
+  return systemAccount?.coa || null;
+}
+
+/**
+ * Helper: Get Active Accounting Period
+ */
+async function getActivePeriod(transactionDate, tx) {
+  const prismaClient = tx || prisma;
+  const period = await prismaClient.accountingPeriod.findFirst({
+    where: {
+      startDate: { lte: transactionDate },
+      endDate: { gte: transactionDate },
+      isClosed: false
+    }
+  });
+
+  if (!period) {
+    throw new Error(`Periode akuntansi tidak ditemukan atau sudah ditutup untuk tanggal ${transactionDate.toISOString().slice(0, 10)}`);
+  }
+  return period;
+}
+
+/**
+ * Helper: Generate Refund Ledger Number
+ * Format: RV-STF-YYYYMMDD-XXXX
+ */
+async function generateRefundLedgerNumber(date, tx) {
+  const prismaClient = tx || prisma;
+  const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
+  
+  const startOfDay = new Date(date);
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(date);
+  endOfDay.setHours(23, 59, 59, 999);
+
+  const count = await prismaClient.ledger.count({
+    where: {
+      ledgerNumber: { startsWith: `RV-STF-${dateStr}` },
+      transactionDate: { gte: startOfDay, lte: endOfDay }
+    }
+  });
+
+  const sequence = String(count + 1).padStart(4, '0');
+  return `RV-STF-${dateStr}-${sequence}`;
+}

@@ -38,4 +38,11 @@ router.get("/ledger/:karyawanId", staffBalanceController.getStaffLedgerByKaryawa
  */
 router.post("/opening-balance", staffBalanceController.createOpeningBalance);
 
+/**
+ * @route   POST /api/staff-balance/refund
+ * @desc    Process staff refund (money back to company)
+ * @access  Private
+ */
+router.post("/refund", staffBalanceController.processStaffRefund);
+
 export default router;

@@ -210,3 +210,45 @@ export async function createOpeningBalance(data: {
     }
 }
 
+/**
+ * Process Staff Refund (Staff returns money to company)
+ */
+export async function processStaffRefundAction(data: {
+    karyawanId: string;
+    category: string;
+    amount: number;
+    coaId: string;
+    tanggal?: string;
+    keterangan?: string;
+    refId?: string;
+}) {
+    try {
+        const cookieStore = await cookies();
+        const sessionCookie = cookieStore.get("connect.sid");
+
+        const response = await fetch(
+            `${API_BASE_URL}/api/staff-balance/refund`,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Cookie: sessionCookie ? `${sessionCookie.name}=${sessionCookie.value}` : "",
+                },
+                credentials: "include",
+                body: JSON.stringify(data),
+            }
+        );
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.message || "Gagal memproses pengembalian dana");
+        }
+
+        return result;
+    } catch (error) {
+        console.error("Error processing staff refund action:", error);
+        throw error;
+    }
+}
+

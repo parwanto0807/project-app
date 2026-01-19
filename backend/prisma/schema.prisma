@@ -2558,6 +2558,7 @@ enum TransactionStafBalanceType {
   LOAN_DISBURSEMENT // Pencairan pinjaman pribadi
   LOAN_REPAYMENT // Pembayaran pinjaman (Potong gaji/Transfer balik)
   REIMBURSEMENT // Penggantian uang pribadi karyawan
+  SETTLEMENT_REFUND // Pengembalian sisa dana ke perusahaan
 }
 
 enum LedgerEntryType {

@@ -50,14 +50,16 @@ export function ActionButtons({
         Preview Pdf
       </Button>
 
-      <Button
-        onClick={onCreateLpp}
-        disabled={pr.status !== "COMPLETED"}
-        className="flex items-center gap-1 text-red-600 hover:text-red-800 border px-2 py-1 cursor-pointer rounded text-sm bg-slate-300 hover:bg-white"
-      >
-        <DockIcon className="w-5 h-5" />
-        Create LPP
-      </Button>
+      {pr.spkId && (
+        <Button
+          onClick={onCreateLpp}
+          disabled={pr.status !== "COMPLETED"}
+          className="flex items-center gap-1 text-red-600 hover:text-red-800 border px-2 py-1 cursor-pointer rounded text-sm bg-slate-300 hover:bg-white"
+        >
+          <DockIcon className="w-5 h-5" />
+          Create LPP
+        </Button>
+      )}
 
       {canEdit && (
         <Button

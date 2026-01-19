@@ -2345,7 +2345,40 @@ export const submitPOToAccounting = async (req, res) => {
             // 3. Generate Invoice Number
             const invoiceNumber = await generateInvoiceNumberInternal(tx);
 
-            // 4. Create SupplierInvoice
+            // 4. Calculate Invoice Totals based on unitPriceActual if available
+            let invoiceSubtotal = 0;
+            const invoiceItems = po.lines.map(line => {
+                // Use unitPriceActual if it's > 0, otherwise use original unitPrice
+                const effectiveUnitPrice = Number(line.unitPriceActual) !== 0 ? Number(line.unitPriceActual) : Number(line.unitPrice);
+                const quantity = Number(line.quantity);
+                const lineTotal = effectiveUnitPrice * quantity;
+                
+                invoiceSubtotal += lineTotal;
+
+                return {
+                    productId: line.productId,
+                    productName: line.description || "Product",
+                    quantity: line.quantity,
+                    unitPrice: effectiveUnitPrice,
+                    totalPrice: lineTotal,
+                    poLineId: line.id,
+                    priceVariance: Number(line.unitPrice) - effectiveUnitPrice
+                };
+            });
+
+            // Calculate Tax Amount proportionally if there was a tax in the original PO
+            let invoiceTaxAmount = 0;
+            if (Number(po.subtotal) > 0) {
+                const taxRate = Number(po.taxAmount) / Number(po.subtotal);
+                invoiceTaxAmount = invoiceSubtotal * taxRate;
+            } else {
+                // Fallback to original taxAmount if subtotal was 0
+                invoiceTaxAmount = Number(po.taxAmount);
+            }
+
+            const invoiceTotalAmount = invoiceSubtotal + invoiceTaxAmount;
+
+            // 5. Create SupplierInvoice
             const invoice = await tx.supplierInvoice.create({
                 data: {
                     invoiceNumber,
@@ -2354,24 +2387,17 @@ export const submitPOToAccounting = async (req, res) => {
                     status: 'UNVERIFIED',
                     supplierId: po.supplierId,
                     purchaseOrderId: po.id,
-                    subtotal: po.subtotal,
-                    taxAmount: po.taxAmount,
-                    totalAmount: po.totalAmount,
+                    subtotal: invoiceSubtotal,
+                    taxAmount: invoiceTaxAmount,
+                    totalAmount: invoiceTotalAmount,
                     amountPaid: 0,
                     items: {
-                        create: po.lines.map(line => ({
-                            productId: line.productId,
-                            productName: line.description || "Product",
-                            quantity: line.quantity,
-                            unitPrice: line.unitPrice,
-                            totalPrice: line.totalAmount,
-                            poLineId: line.id
-                        }))
+                        create: invoiceItems
                     }
                 }
             });
 
-            // 5. Update PO Status
+            // 6. Update PO Status
             await tx.purchaseOrder.update({
                 where: { id },
                 data: { status: 'UNVERIFIED_ACCOUNTING' }

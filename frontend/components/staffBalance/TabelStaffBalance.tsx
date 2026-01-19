@@ -17,11 +17,12 @@ import {
     getCategoryColor,
 } from "@/types/staffBalance";
 import { formatCurrency } from "@/lib/utils";
-import { Eye, TrendingUp, TrendingDown, Mail, Building, Briefcase, ArrowDownCircle, ArrowUpCircle, Plus } from "lucide-react";
+import { Eye, TrendingUp, TrendingDown, Mail, Building, Briefcase, ArrowDownCircle, ArrowUpCircle, Plus, Undo2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { CreateOpeningBalanceDialog } from "./CreateOpeningBalanceDialog";
+import { StaffRefundDialog } from "./StaffRefundDialog";
 
 interface TabelStaffBalanceProps {
     data: StaffBalance[];
@@ -31,7 +32,9 @@ interface TabelStaffBalanceProps {
 export function TabelStaffBalance({ data, isLoading }: TabelStaffBalanceProps) {
     const router = useRouter();
     const [openingBalanceDialogOpen, setOpeningBalanceDialogOpen] = useState(false);
+    const [refundDialogOpen, setRefundDialogOpen] = useState(false);
     const [selectedKaryawan, setSelectedKaryawan] = useState<{ id: string; name: string } | null>(null);
+    const [selectedBalance, setSelectedBalance] = useState<StaffBalance | null>(null);
 
     const handleViewLedger = (karyawanId: string) => {
         router.push(`/admin-area/accounting/staff-balance/ledger/${karyawanId}`);
@@ -42,8 +45,13 @@ export function TabelStaffBalance({ data, isLoading }: TabelStaffBalanceProps) {
         setOpeningBalanceDialogOpen(true);
     };
 
+    const handleRefund = (balance: StaffBalance) => {
+        setSelectedBalance(balance);
+        setRefundDialogOpen(true);
+    };
+
     const handleDialogSuccess = () => {
-        router.refresh(); // Refresh data after creating opening balance
+        router.refresh(); // Refresh data after creating opening balance or refund
     };
 
     // Skeleton Loader
@@ -347,6 +355,19 @@ export function TabelStaffBalance({ data, isLoading }: TabelStaffBalanceProps) {
                                                         <span>Saldo Awal</span>
                                                     </Button>
                                                 )}
+
+                                                {/* Show "Refund" button if saldo > 0 or has transactions */}
+                                                {(amount > 0 || (totalIn > 0 && totalOut > 0)) && (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => handleRefund(balance)}
+                                                        className="gap-2 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-600 hover:text-white transition-all duration-200"
+                                                    >
+                                                        <Undo2 className="h-4 w-4" />
+                                                        <span>Refund</span>
+                                                    </Button>
+                                                )}
                                             </div>
                                         </TableCell>
                                     </TableRow>
@@ -364,6 +385,19 @@ export function TabelStaffBalance({ data, isLoading }: TabelStaffBalanceProps) {
                     onOpenChange={setOpeningBalanceDialogOpen}
                     karyawanId={selectedKaryawan.id}
                     karyawanName={selectedKaryawan.name}
+                    onSuccess={handleDialogSuccess}
+                />
+            )}
+
+            {/* Staff Refund Dialog */}
+            {selectedBalance && (
+                <StaffRefundDialog
+                    open={refundDialogOpen}
+                    onOpenChange={setRefundDialogOpen}
+                    karyawanId={selectedBalance.karyawanId}
+                    karyawanName={selectedBalance.karyawan.namaLengkap}
+                    category={selectedBalance.category}
+                    currentBalance={Number(selectedBalance.amount)}
                     onSuccess={handleDialogSuccess}
                 />
             )}

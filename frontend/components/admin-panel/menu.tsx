@@ -105,7 +105,7 @@ const MenuItem = ({
             </span>
             <p
               className={cn(
-                "max-w-[190px] truncate transition-all duration-300 text-[11px] font-bold uppercase tracking-wider",
+                "max-w-[190px] truncate transition-all duration-300 text-[13px] font-bold uppercase tracking-wider",
                 !isOpen ? "w-0 opacity-0" : "w-auto opacity-100",
                 theme === 'dark' && active ? "text-white" : "text-current",
                 theme === 'light' && active ? "text-white" : "text-current",
@@ -164,10 +164,10 @@ const SubmenuItem = ({
         <Link
           href={href}
           className={cn(
-            "rounded-xl transition-all duration-300 hover:scale-[1.05] group relative",
+            "rounded-xl transition-all duration-300 hover:scale-[1.02] group relative",
             !isOpen
               ? "flex flex-col items-center justify-center p-2 text-center h-[85px] w-[85px] border shadow-sm overflow-hidden"
-              : "block px-3 py-1.5 text-xs",
+              : "block px-3 py-2 text-xs border-[0.5px]",
             theme === 'dark'
               ? cn(
                 active
@@ -204,7 +204,7 @@ const SubmenuItem = ({
             </div>
             <span className={cn(
               "w-full transition-colors duration-200 px-1 uppercase tracking-wider font-bold",
-              !isOpen ? "text-[8.5px] leading-[1.2] line-clamp-2 break-words text-center" : "truncate flex-1 text-[10px]"
+              !isOpen ? "text-[10px] leading-[1.2] line-clamp-2 break-words text-center" : "truncate flex-1 text-[12px]"
             )} title={label}>
               {label}
             </span>
@@ -414,12 +414,12 @@ export function Menu({ isOpen, role, theme = 'dark' }: MenuProps) {
                                 theme === 'dark'
                                   ? "bg-gray-900/95 text-white border-gray-700/50 backdrop-blur-xl"
                                   : "bg-white/95 text-gray-800 border-gray-200/80 backdrop-blur-xl",
-                                "z-55 w-auto max-w-[450px] p-4 shadow-[0_20px_50px_rgba(0,0,0,0.3)] border rounded-2xl"
+                                "z-55 w-[240px] p-3 shadow-[0_20px_50px_rgba(0,0,0,0.3)] border rounded-2xl"
                               )}
                             >
                               <div className="flex flex-col gap-4">
                                 <div className={cn(
-                                  "font-black text-[10px] uppercase tracking-[0.2em] mb-1 px-1 pb-3 border-b flex items-center gap-2",
+                                  "font-black text-[12px] uppercase tracking-[0.2em] mb-1 px-1 pb-3 border-b flex items-center gap-2",
                                   theme === 'dark' ? "border-gray-800 text-cyan-400/80" : "border-gray-100 text-cyan-600/80"
                                 )}>
                                   <div className={cn(
@@ -430,10 +430,7 @@ export function Menu({ isOpen, role, theme = 'dark' }: MenuProps) {
                                   </div>
                                   {label}
                                 </div>
-                                <div className={cn(
-                                  "grid gap-3",
-                                  submenus.length > 3 ? "grid-rows-3 grid-flow-col" : "grid-cols-1"
-                                )}>
+                                <div className="flex flex-col gap-1.5">
                                   {submenus.map((submenu, subIndex) => (
                                     <SubmenuItem
                                       key={`submenu-${groupIndex}-${menuIndex}-${subIndex}`}
@@ -441,7 +438,7 @@ export function Menu({ isOpen, role, theme = 'dark' }: MenuProps) {
                                       label={submenu.label}
                                       icon={submenu.icon}
                                       active={submenu.active || false}
-                                      isOpen={isOpen}
+                                      isOpen={true} // Force list style in popover
                                       theme={theme}
                                     />
                                   ))}
