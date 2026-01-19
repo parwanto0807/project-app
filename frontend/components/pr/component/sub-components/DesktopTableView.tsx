@@ -463,8 +463,8 @@ export function DesktopTableView({
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent border-none">
-                <TableHead className="w-12 text-center font-bold text-gray-700 dark:text-gray-300 py-4">#</TableHead>
-                <TableHead className="font-bold text-gray-700 dark:text-gray-300 py-4">PR Number</TableHead>
+                <TableHead className="w-6 text-center font-bold text-gray-700 dark:text-gray-300 py-4">#</TableHead>
+                <TableHead className="w-40 font-bold text-gray-700 dark:text-gray-300 py-4">PR Number</TableHead>
                 <TableHead className="w-20 font-bold text-gray-700 dark:text-gray-300 py-4">Project</TableHead>
                 <TableHead className="font-bold text-gray-700 dark:text-gray-300 py-4">Admin & Request</TableHead>
                 <TableHead className="font-bold text-gray-700 dark:text-gray-300 py-4">Total Amount</TableHead>

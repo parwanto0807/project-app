@@ -48,6 +48,7 @@ import {
     History,
     AlertTriangle,
     Save,
+    CheckCircle,
 } from "lucide-react";
 import {
     Accordion,
@@ -69,6 +70,14 @@ import { SourceProductType } from "@/schemas/pr";
 import { ProductCombobox } from "./productCombobox";
 import { api } from "@/lib/http";
 import { toast } from "sonner";
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from "@/components/ui/command";
 
 
 interface Product {
@@ -214,18 +223,44 @@ export function TabelUpdatePR({
     const [formData, setFormData] = useState({
         projectId: existingData?.projectId || "",
         spkId: existingData?.spkId || "",
+        parentPrId: existingData?.parentPrId || "", // ✅ Parent PR reference
         keterangan: existingData?.keterangan || "",
         tanggalPr: existingData?.tanggalPr ? new Date(existingData.tanggalPr) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         requestedById: existingData?.requestedById || "", // ✅ Add requester field
     });
     const [items, setItems] = useState<FormItem[]>([]);
+    const [localProducts, setLocalProducts] = useState<Product[]>(products);
     const [errors, setErrors] = useState<Record<string, string>>({});
+
+    // Sync localProducts with prop
+    useEffect(() => {
+        setLocalProducts(products);
+    }, [products]);
+
+    const handleProductCreated = useCallback((newProduct: { id: string, name: string }) => {
+        setLocalProducts(prev => {
+            if (prev.some(p => p.id === newProduct.id)) return prev;
+            const fullNewProduct: Product = {
+                id: newProduct.id,
+                name: newProduct.name,
+                type: "Material", // Default type
+                usageUnit: "",
+                description: "",
+                price: 0
+            };
+            return [...prev, fullNewProduct];
+        });
+    }, []);
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
     const [selectedSpk, setSelectedSpk] = useState<SPK | null>(null);
     const [karyawanData, setKaryawanData] = useState<Karyawan | null>(null);
     const [allKaryawan, setAllKaryawan] = useState<Karyawan[]>([]); // ✅ List of all karyawan
+    const [availableParentPRs, setAvailableParentPRs] = useState<PurchaseRequest[]>([]); // ✅ Available parent PRs
+    const [selectedParentPR, setSelectedParentPR] = useState<PurchaseRequest | null>(null); // ✅ Selected parent PR
+    const [loadingParentPRs, setLoadingParentPRs] = useState(false);
     const [loadingKaryawan, setLoadingKaryawan] = useState(false);
     const [loadingAllKaryawan, setLoadingAllKaryawan] = useState(false);
+    const [parentPROpen, setParentPROpen] = useState(false); // ✅ Parent PR popover state
 
 
     // Hook untuk mendapatkan histori PR berdasarkan SPK
@@ -243,6 +278,7 @@ export function TabelUpdatePR({
                 setFormData({
                     projectId: existingData.projectId || "",
                     spkId: existingData.spkId || "",
+                    parentPrId: existingData.parentPrId || "", // ✅ Load existing parent PR
                     keterangan: existingData.keterangan || "",
                     tanggalPr: existingData.tanggalPr ? new Date(existingData.tanggalPr) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
                     requestedById: existingData.requestedById || "", // ✅ Load existing requester
@@ -357,6 +393,49 @@ export function TabelUpdatePR({
         fetchAllKaryawanData();
     }, []);
 
+    // ✅ Fetch available parent PRs when SPK is selected
+    useEffect(() => {
+        const fetchParentPRs = async () => {
+            // Only fetch if SPK is selected (PR SPK needs parent)
+            if (!formData.spkId || formData.spkId === "no-spk") {
+                setAvailableParentPRs([]);
+                setSelectedParentPR(null);
+                return;
+            }
+
+            setLoadingParentPRs(true);
+            try {
+                // Fetch COMPLETED PR UM (spkId=null, status=COMPLETED)
+                const response = await api.get('/api/pr/getAllPurchaseRequests', {
+                    params: {
+                        status: 'COMPLETED',
+                        spkId: 'null', // Filter for PR UM only
+                        limit: 100,
+                    }
+                });
+
+                if (response.data.success) {
+                    setAvailableParentPRs(response.data.data);
+
+                    // If editing and has parentPrId, set selected parent
+                    if (existingData?.parentPrId) {
+                        const parent = response.data.data.find((pr: PurchaseRequest) => pr.id === existingData.parentPrId);
+                        if (parent) {
+                            setSelectedParentPR(parent);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error("Error fetching parent PRs:", error);
+                setAvailableParentPRs([]);
+            } finally {
+                setLoadingParentPRs(false);
+            }
+        };
+
+        fetchParentPRs();
+    }, [formData.spkId, existingData?.parentPrId]);
+
     const handleSpkChange = (spkId: string) => {
         const spk = dataSpk.find(s => s.id === spkId);
 
@@ -376,13 +455,25 @@ export function TabelUpdatePR({
         } else {
             setSelectedProject(null);
             setSelectedSpk(null);
+            setSelectedParentPR(null); // ✅ Reset parent PR
             setFormData(prev => ({
                 ...prev,
                 spkId: "",
                 projectId: "",
+                parentPrId: "", // ✅ Reset parent PR ID
                 keterangan: ""
             }));
         }
+    };
+
+    // ✅ Handle parent PR selection
+    const handleParentPRChange = (parentPrId: string) => {
+        const parentPR = availableParentPRs.find(pr => pr.id === parentPrId);
+        setSelectedParentPR(parentPR || null);
+        setFormData(prev => ({
+            ...prev,
+            parentPrId: parentPrId || "",
+        }));
     };
 
     const addItem = useCallback(() => {
@@ -578,7 +669,8 @@ export function TabelUpdatePR({
 
             const submitData: CreatePurchaseRequestData = {
                 projectId: formData.projectId,
-                spkId: formData.spkId,
+                spkId: formData.spkId === "no-spk" ? null : formData.spkId,
+                parentPrId: formData.parentPrId && formData.parentPrId !== "" ? formData.parentPrId : null, // ✅ Include parent PR
                 karyawanId: finalKaryawanId, // Gunakan fallback
                 requestedById: formData.requestedById, // ✅ Send as-is, let backend handle
                 tanggalPr: formData.tanggalPr,
@@ -739,6 +831,121 @@ export function TabelUpdatePR({
                                     {errors.tanggalPr && <p className="text-xs text-red-500">{errors.tanggalPr}</p>}
                                 </div>
 
+                                {/* ✅ Parent PR Selector - Only show when SPK is selected */}
+                                {formData.spkId && formData.spkId !== "no-spk" && (
+                                    <div className="space-y-2 md:col-span-2 p-4 bg-gradient-to-r from-amber-50 to-yellow-50 border-2 border-amber-300 rounded-lg shadow-sm">
+                                        <Label htmlFor="parentPrId" className="font-bold flex items-center gap-2 text-base">
+                                            <FileText className="h-5 w-5 text-amber-600" />
+                                            Parent PR (PR UM)
+                                            <span className="ml-2 px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-md animate-pulse">
+                                                WAJIB DIISI
+                                            </span>
+                                        </Label>
+                                        <Popover open={parentPROpen} onOpenChange={setParentPROpen}>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    variant="outline"
+                                                    role="combobox"
+                                                    aria-expanded={parentPROpen}
+                                                    className={cn(
+                                                        "w-full justify-between border-2",
+                                                        errors.parentPrId ? "border-red-500 bg-red-50" : "border-amber-400 bg-white shadow-sm",
+                                                        !formData.parentPrId && "text-muted-foreground"
+                                                    )}
+                                                    disabled={loadingParentPRs || editMode}
+                                                >
+                                                    {loadingParentPRs ? (
+                                                        "Loading parent PRs..."
+                                                    ) : formData.parentPrId ? (
+                                                        availableParentPRs.find((pr) => pr.id === formData.parentPrId)?.nomorPr
+                                                    ) : (
+                                                        "⚠️ Pilih Parent PR"
+                                                    )}
+                                                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-[400px] p-0" align="start">
+                                                <Command>
+                                                    <CommandInput
+                                                        placeholder="Cari nomor PR..."
+                                                        className="h-9"
+                                                    />
+                                                    <CommandList>
+                                                        <CommandEmpty>
+                                                            <div className="p-4 text-center text-sm text-muted-foreground">
+                                                                <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-yellow-500" />
+                                                                <p>Tidak ditemukan</p>
+                                                                <p className="text-xs mt-1">Coba kata kunci lain</p>
+                                                            </div>
+                                                        </CommandEmpty>
+                                                        <CommandGroup className="max-h-64 overflow-auto">
+                                                            {availableParentPRs.map((pr) => {
+                                                                const parentBudget = pr.details?.reduce((sum, d) => sum + (Number(d.jumlah) * Number(d.estimasiHargaSatuan)), 0) || 0;
+                                                                return (
+                                                                    <CommandItem
+                                                                        key={pr.id}
+                                                                        value={pr.nomorPr}
+                                                                        onSelect={() => {
+                                                                            handleParentPRChange(pr.id);
+                                                                            setParentPROpen(false);
+                                                                        }}
+                                                                        className="cursor-pointer"
+                                                                    >
+                                                                        <div className="flex flex-col w-full">
+                                                                            <span className="font-medium">{pr.nomorPr}</span>
+                                                                            <span className="text-xs text-muted-foreground">
+                                                                                Budget: {formatCurrency(parentBudget)}
+                                                                            </span>
+                                                                        </div>
+                                                                        {formData.parentPrId === pr.id && (
+                                                                            <CheckCircle className="ml-auto h-4 w-4 text-green-600" />
+                                                                        )}
+                                                                    </CommandItem>
+                                                                );
+                                                            })}
+                                                        </CommandGroup>
+                                                    </CommandList>
+                                                </Command>
+                                            </PopoverContent>
+                                        </Popover>
+                                        {errors.parentPrId && <p className="text-xs text-red-500">{errors.parentPrId}</p>}
+
+                                        {/* Budget Info */}
+                                        {selectedParentPR && (
+                                            <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-md">
+                                                <div className="flex items-start gap-2">
+                                                    <CheckCircle className="h-4 w-4 text-green-600 mt-0.5" />
+                                                    <div className="flex-1 text-sm">
+                                                        <p className="font-medium text-green-900">Parent PR: {selectedParentPR.nomorPr}</p>
+                                                        <p className="text-xs text-green-700 mt-1">
+                                                            Total Budget: {formatCurrency(
+                                                                selectedParentPR.details?.reduce((sum, d) =>
+                                                                    sum + (Number(d.jumlah) * Number(d.estimasiHargaSatuan)), 0
+                                                                ) || 0
+                                                            )}
+                                                        </p>
+                                                        <p className="text-xs text-muted-foreground mt-1">
+                                                            Pastikan total PR SPK tidak melebihi budget parent
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {editMode && (
+                                            <p className="text-xs text-muted-foreground mt-1">
+                                                Parent PR tidak dapat diubah dalam mode edit
+                                            </p>
+                                        )}
+
+                                        {!editMode && (
+                                            <p className="text-xs text-muted-foreground">
+                                                PR SPK wajib terkait dengan PR UM yang sudah COMPLETED
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+
                                 <div className="space-y-2">
                                     <Label htmlFor="requestedById" className="font-semibold flex items-center gap-2">
                                         <UserIcon className="h-4 w-4 text-purple-600" />
@@ -822,8 +1029,9 @@ export function TabelUpdatePR({
                                                             <ProductCombobox
                                                                 value={item.productId}
                                                                 onValueChange={(value) => updateItem(item.tempId, "productId", value)}
-                                                                products={products}
+                                                                products={localProducts}
                                                                 error={!!errors[`productId-${index}`]}
+                                                                onCreated={handleProductCreated}
                                                             />
                                                             {errors[`productId-${index}`] && (
                                                                 <p className="text-xs text-red-500 mt-1">{errors[`productId-${index}`]}</p>
@@ -1128,113 +1336,65 @@ export function TabelUpdatePR({
                                         ) : purchaseRequests && purchaseRequests.length > 0 ? (
                                             <div className="space-y-4">
                                                 {purchaseRequests.map((pr) => {
-                                                    // Filter PR yang hanya terkait dengan SPK yang dipilih
                                                     if (pr.spkId !== selectedSpk.id) {
                                                         return null;
                                                     }
 
                                                     return (
                                                         <div key={pr.id} className="border rounded-lg hover:bg-muted/30 transition-colors">
-                                                            {/* Header - Always Visible */}
-                                                            <div className="p-4 rounded-lg border bg-card shadow-sm">
-                                                                {/* Header */}
+                                                            <div className="p-4 bg-card rounded-lg shadow-sm">
                                                                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                                                                    <div className="flex items-center gap-3">
-                                                                        <div
-                                                                            className={cn(
-                                                                                "font-semibold text-base",
-                                                                                pr.id === existingData?.id ? "text-green-600" : "text-blue-600"
-                                                                            )}
-                                                                        >
-                                                                            {pr.nomorPr || `PR-${pr.id.slice(0, 8)}`}
-                                                                            {pr.id === existingData?.id && (
-                                                                                <Badge
-                                                                                    variant="outline"
-                                                                                    className="ml-2 bg-green-100 text-green-800 text-xs"
-                                                                                >
-                                                                                    Current
-                                                                                </Badge>
-                                                                            )}
-                                                                        </div>
-                                                                        {getStatusBadge(pr.status || "draft")}
+                                                                    <div className={cn(
+                                                                        "font-semibold text-base",
+                                                                        pr.id === existingData?.id ? "text-green-600" : "text-blue-600"
+                                                                    )}>
+                                                                        {pr.nomorPr || `PR-${pr.id.slice(0, 8)}`}
+                                                                        {pr.id === existingData?.id && (
+                                                                            <Badge variant="outline" className="ml-2 bg-green-100 text-green-800 text-xs">
+                                                                                Current
+                                                                            </Badge>
+                                                                        )}
                                                                     </div>
-
-                                                                    <div className="text-sm text-muted-foreground">
-                                                                        {pr.tanggalPr ? format(new Date(pr.tanggalPr), "dd MMM yyyy") : "No date"}
-                                                                    </div>
+                                                                    {getStatusBadge(pr.status || "draft")}
                                                                 </div>
+                                                                <div className="text-sm text-muted-foreground">
+                                                                    {pr.tanggalPr ? format(new Date(pr.tanggalPr), "dd MMM yyyy") : "No date"}
+                                                                </div>
+                                                            </div>
 
-                                                                {/* Divider */}
-                                                                <div className="border-t my-3" />
+                                                            <div className="border-t my-3" />
 
-                                                                {/* Body */}
-                                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                                                                    <div>
-                                                                        <div className="font-medium text-muted-foreground mb-1">
-                                                                            Total Items
-                                                                        </div>
-                                                                        <div className="text-base font-semibold">{pr.details?.length || 0}</div>
-                                                                    </div>
-
-                                                                    <div className="md:col-span-2 space-y-2">
-                                                                        <div className="flex justify-between">
-                                                                            <span className="font-medium">💰 Total Pengajuan Biaya</span>
-                                                                            <span className="font-semibold text-right">
-                                                                                Rp {formatCurrency(totalBiaya)}
-                                                                            </span>
-                                                                        </div>
-
-                                                                        <div className="flex justify-between">
-                                                                            <span className="font-medium">🏭 Total biaya tidak diajukan</span>
-                                                                            <span className="font-semibold text-right">
-                                                                                Rp {formatCurrency(totalHPP)}
-                                                                            </span>
-                                                                        </div>
-
-                                                                        <div className="border-t pt-2 flex justify-between text-base font-bold">
-                                                                            <span>🧾 Grand Total HPP</span>
-                                                                            <span>Rp {formatCurrency(grandTotal)}</span>
-                                                                        </div>
-                                                                    </div>
-
-                                                                    <div className="md:col-span-3 text-sm pt-3 border-t">
-                                                                        <span className="font-medium text-muted-foreground">Created By :</span>{" "}
-                                                                        {pr.karyawan?.namaLengkap || "N/A"}
+                                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                                                                <div>
+                                                                    <div className="font-medium text-muted-foreground mb-1">Total Items</div>
+                                                                    <div className="text-base font-semibold">{pr.details?.length || 0}</div>
+                                                                </div>
+                                                                <div className="md:col-span-2 space-y-2">
+                                                                    <div className="flex justify-between">
+                                                                        <span className="font-medium">💰 Total Biaya</span>
+                                                                        <span className="font-semibold">Rp {formatCurrency(pr.details?.reduce((acc, curr) => acc + (curr.jumlah * curr.estimasiHargaSatuan), 0) || 0)}</span>
                                                                     </div>
                                                                 </div>
                                                             </div>
 
-
-                                                            {/* Accordion Content untuk semua items PR */}
                                                             {pr.details && pr.details.length > 0 && (
-                                                                <div className="border-t">
+                                                                <div className="border-t mt-4 pt-4">
                                                                     <Accordion type="single" collapsible className="w-full">
                                                                         <AccordionItem value={`details-${pr.id}`} className="border-b-0">
-                                                                            <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/50">
+                                                                            <AccordionTrigger className="px-0 py-1 hover:no-underline">
                                                                                 <div className="flex items-center gap-2 text-sm font-medium">
-                                                                                    <ChevronDown className="h-4 w-4 transition-transform duration-200" />
                                                                                     View Items ({pr.details.length})
                                                                                 </div>
                                                                             </AccordionTrigger>
-                                                                            <AccordionContent className="px-4 pb-4">
+                                                                            <AccordionContent className="px-0 pt-3">
                                                                                 <div className="space-y-3">
                                                                                     {pr.details.map((detail, index) => (
-                                                                                        <div
-                                                                                            key={`${detail.id}-${index}`}
-                                                                                            className="flex justify-between items-start p-3 rounded-lg border"
-                                                                                        >
+                                                                                        <div key={`${detail.id}-${index}`} className="flex justify-between items-start p-3 rounded-lg border">
                                                                                             <div className="flex-1">
                                                                                                 <div className="font-medium flex items-center gap-2">
-                                                                                                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                                                                                                        {index + 1}
-                                                                                                    </span>
-                                                                                                    {detail.catatanItem || `Item ${index + 1}`}
+                                                                                                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">{index + 1}</span>
+                                                                                                    {detail.catatanItem || detail.product?.name || `Item ${index + 1}`}
                                                                                                 </div>
-                                                                                                {detail.catatanItem && detail.productId && (
-                                                                                                    <div className="text-xs text-muted-foreground mt-1">
-                                                                                                        {detail.catatanItem}
-                                                                                                    </div>
-                                                                                                )}
                                                                                                 {detail.sourceProduct && (
                                                                                                     <div className="text-xs text-muted-foreground mt-1">
                                                                                                         Source: {getSourceProductLabel(detail.sourceProduct as SourceProductType)}
@@ -1242,15 +1402,9 @@ export function TabelUpdatePR({
                                                                                                 )}
                                                                                             </div>
                                                                                             <div className="text-right">
-                                                                                                <div className="font-medium">
-                                                                                                    {detail.jumlah} {detail.satuan}
-                                                                                                </div>
-                                                                                                <div className="text-sm text-muted-foreground">
-                                                                                                    Rp. {formatCurrency(detail.estimasiHargaSatuan || 0)}/unit
-                                                                                                </div>
-                                                                                                <div className="font-semibold text-green-600 mt-1">
-                                                                                                    Rp. {formatCurrency((detail.jumlah || 0) * (detail.estimasiHargaSatuan || 0))}
-                                                                                                </div>
+                                                                                                <div className="font-medium">{detail.jumlah} {detail.satuan}</div>
+                                                                                                <div className="text-xs text-muted-foreground">Rp {formatCurrency(detail.estimasiHargaSatuan || 0)}/unit</div>
+                                                                                                <div className="font-semibold text-green-600 mt-1">Rp {formatCurrency((detail.jumlah || 0) * (detail.estimasiHargaSatuan || 0))}</div>
                                                                                             </div>
                                                                                         </div>
                                                                                     ))}
@@ -1262,7 +1416,7 @@ export function TabelUpdatePR({
                                                             )}
                                                         </div>
                                                     );
-                                                }).filter(Boolean) /* Remove null values */}
+                                                }).filter(Boolean)}
                                             </div>
                                         ) : (
                                             <div className="text-center py-8 border-2 border-dashed rounded-lg">
@@ -1276,27 +1430,29 @@ export function TabelUpdatePR({
                                     </CardContent>
                                 </Card>
                             )}
+
                             <Separator />
+
                             <CardContent>
-                                <div className="mt-4 border-t pt-3 space-y-2 text-sm">
+                                <div className="space-y-2 text-sm">
                                     <div className="flex justify-between">
-                                        <span className="font-medium">💰 Total Pengajuan Biaya :</span>
+                                        <span className="font-medium">💰 Total Pengajuan Biaya:</span>
                                         <span className="font-semibold">
-                                            Rp. {formatCurrency(totalBiaya)}
+                                            Rp {formatCurrency(totalBiaya)}
                                         </span>
                                     </div>
 
                                     <div className="flex justify-between">
-                                        <span className="font-medium">🏭 Total biaya tidak diajukan :</span>
+                                        <span className="font-medium">🏭 Total biaya tidak diajukan:</span>
                                         <span className="font-semibold">
-                                            Rp. {formatCurrency(totalHPP)}
+                                            Rp {formatCurrency(totalHPP)}
                                         </span>
                                     </div>
 
                                     <div className="flex justify-between border-t pt-2 text-base">
-                                        <span className="font-bold">🧾 Grand Total HPP :</span>
+                                        <span className="font-bold">🧾 Grand Total HPP:</span>
                                         <span className="font-bold">
-                                            Rp. {formatCurrency(grandTotal)}
+                                            Rp {formatCurrency(grandTotal)}
                                         </span>
                                     </div>
                                 </div>

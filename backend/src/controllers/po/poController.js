@@ -26,18 +26,30 @@ const generatePONumber = async (db) => {
   const startOfYear = new Date(year, 0, 1); // January 1st
   const endOfYear = new Date(year, 11, 31, 23, 59, 59); // December 31st
 
-  // Count POs created in current year
-  const countThisYear = await db.purchaseOrder.count({
+  // Cari PO terakhir di tahun ini untuk menentukan sequence
+  const lastPO = await db.purchaseOrder.findFirst({
     where: {
       orderDate: {
         gte: startOfYear,
-        lte: endOfYear
-      }
-    }
+        lte: endOfYear,
+      },
+    },
+    orderBy: {
+      poNumber: "desc",
+    },
   });
 
+  let sequence = 1;
+  if (lastPO && lastPO.poNumber) {
+    // Extract sequence number dari format: 000001/PO-RYLIF/XII/2025
+    const matches = lastPO.poNumber.match(/^(\d+)\//);
+    if (matches && matches[1]) {
+      sequence = parseInt(matches[1]) + 1;
+    }
+  }
+
   // Sequential number (6 digits, padded with zeros)
-  const sequentialNumber = (countThisYear + 1).toString().padStart(6, '0');
+  const sequentialNumber = sequence.toString().padStart(6, '0');
 
   // Format: 000001/PO-RYLIF/XII/2025
   return `${sequentialNumber}/PO-RYLIF/${romanMonth}/${year}`;
@@ -411,7 +423,14 @@ export const getAllPO = async (req, res) => {
     if (search) {
       where.OR = [
         { poNumber: { contains: search, mode: 'insensitive' } },
-        { supplier: { name: { contains: search, mode: 'insensitive' } } }
+        { supplier: { name: { contains: search, mode: 'insensitive' } } },
+        {
+          PurchaseRequest: {
+            is: {
+              nomorPr: { contains: search, mode: 'insensitive' }
+            }
+          }
+        }
       ];
     }
 

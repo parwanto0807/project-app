@@ -59,7 +59,7 @@ import {
 import { ChevronDown } from "lucide-react";
 import { format } from "date-fns";
 import { cn, formatDateIndo } from "@/lib/utils";
-import { PurchaseRequestDetail, CreatePurchaseRequestData } from "@/types/pr";
+import { PurchaseRequestDetail, CreatePurchaseRequestData, PurchaseRequest } from "@/types/pr";
 import { Project } from "@/types/salesOrder";
 import { Textarea } from "../ui/textarea";
 import { Separator } from "../ui/separator";
@@ -79,6 +79,14 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from "@/components/ui/command";
 
 interface Product {
     id: string;
@@ -224,21 +232,50 @@ export function TabelInputPR({
     const [formData, setFormData] = useState({
         projectId: "",
         spkId: "",
+        parentPrId: "", // ✅ Parent PR reference
         keterangan: "",
         tanggalPr: new Date(),
         requestedById: "", // ✅ Add requester field
     });
     const [items, setItems] = useState<FormItem[]>([]);
+    const [localProducts, setLocalProducts] = useState<Product[]>(products);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
     const [selectedSpk, setSelectedSpk] = useState<SPK | null>(null);
     const [karyawanData, setKaryawanData] = useState<Karyawan | null>(null);
     const [allKaryawan, setAllKaryawan] = useState<Karyawan[]>([]); // ✅ List of all karyawan
+    const [availableParentPRs, setAvailableParentPRs] = useState<PurchaseRequest[]>([]); // ✅ Available parent PRs
+    const [selectedParentPR, setSelectedParentPR] = useState<PurchaseRequest | null>(null); // ✅ Selected parent PR
+    const [loadingParentPRs, setLoadingParentPRs] = useState(false);
+    const [parentPROpen, setParentPROpen] = useState(false); // ✅ Parent PR popover state
     const [loadingKaryawan, setLoadingKaryawan] = useState(false);
     const [loadingAllKaryawan, setLoadingAllKaryawan] = useState(false);
     const lastProductRef = useRef<HTMLButtonElement | null>(null);
     const lastRowRef = useRef<HTMLTableRowElement | null>(null);
     const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+
+    // Sync localProducts with prop
+    useEffect(() => {
+        setLocalProducts(products);
+    }, [products]);
+
+    const handleProductCreated = useCallback((newProduct: { id: string, name: string }) => {
+        setLocalProducts(prev => {
+            // Check if product already exists to avoid duplicates
+            if (prev.some(p => p.id === newProduct.id)) return prev;
+
+            // Create a full product object (with dummy values for fields we don't have yet)
+            const fullNewProduct: Product = {
+                id: newProduct.id,
+                name: newProduct.name,
+                type: "Material", // Default type
+                usageUnit: "",
+                description: "",
+                price: 0
+            };
+            return [...prev, fullNewProduct];
+        });
+    }, []);
 
 
     // Hook untuk mendapatkan histori PR berdasarkan SPK
@@ -303,6 +340,42 @@ export function TabelInputPR({
         fetchAllKaryawanData();
     }, []);
 
+    // ✅ Fetch available parent PRs when SPK is selected
+    useEffect(() => {
+        const fetchParentPRs = async () => {
+            // Only fetch if SPK is selected (PR SPK needs parent)
+            if (!formData.spkId || formData.spkId === "no-spk") {
+                setAvailableParentPRs([]);
+                setSelectedParentPR(null);
+                setFormData(prev => ({ ...prev, parentPrId: "" }));
+                return;
+            }
+
+            setLoadingParentPRs(true);
+            try {
+                // Fetch COMPLETED PR UM (spkId=null, status=COMPLETED)
+                const response = await api.get('/api/pr/getAllPurchaseRequests', {
+                    params: {
+                        status: 'COMPLETED',
+                        spkId: 'null', // Filter for PR UM only
+                        limit: 100,
+                    }
+                });
+
+                if (response.data.success) {
+                    setAvailableParentPRs(response.data.data);
+                }
+            } catch (error) {
+                console.error("Error fetching parent PRs:", error);
+                setAvailableParentPRs([]);
+            } finally {
+                setLoadingParentPRs(false);
+            }
+        };
+
+        fetchParentPRs();
+    }, [formData.spkId]);
+
     // Debug log ketika karyawanData berubah
     // useEffect(() => {
     //     console.log("Karyawan data updated:", karyawanData);
@@ -313,10 +386,12 @@ export function TabelInputPR({
         if (spkId === "no-spk") {
             setSelectedProject(null);
             setSelectedSpk(null);
+            setSelectedParentPR(null); // ✅ Reset parent PR
             setFormData(prev => ({
                 ...prev,
                 spkId: "",
                 projectId: "",
+                parentPrId: "", // ✅ Reset parent PR ID
                 keterangan: ""
             }));
             return;
@@ -340,13 +415,25 @@ export function TabelInputPR({
         } else {
             setSelectedProject(null);
             setSelectedSpk(null);
+            setSelectedParentPR(null); // ✅ Reset parent PR
             setFormData(prev => ({
                 ...prev,
                 spkId: "",
                 projectId: "",
+                parentPrId: "", // ✅ Reset parent PR ID
                 keterangan: ""
             }));
         }
+    };
+
+    // ✅ Handle parent PR selection
+    const handleParentPRChange = (parentPrId: string) => {
+        const parentPR = availableParentPRs.find(pr => pr.id === parentPrId);
+        setSelectedParentPR(parentPR || null);
+        setFormData(prev => ({
+            ...prev,
+            parentPrId: parentPrId || "",
+        }));
     };
 
     const addItem = useCallback(() => {
@@ -587,6 +674,11 @@ export function TabelInputPR({
         // ✅ SPK tidak wajib lagi (optional)
         // if (!formData.spkId) newErrors.spkId = "SPK is required"; // ❌ Dihapus
 
+        // ✅ Parent PR wajib jika SPK dipilih (PR SPK)
+        if (formData.spkId && formData.spkId !== "no-spk" && !formData.parentPrId) {
+            newErrors.parentPrId = "Parent PR is required for PR SPK";
+        }
+
         // Validasi minimal 1 item
         if (items.length === 0) newErrors.items = "At least one item is required";
 
@@ -632,7 +724,8 @@ export function TabelInputPR({
 
             const submitData: CreatePurchaseRequestData = {
                 projectId: formData.projectId,
-                spkId: formData.spkId,
+                spkId: formData.spkId === "no-spk" ? null : formData.spkId,
+                parentPrId: formData.parentPrId && formData.parentPrId !== "" ? formData.parentPrId : null, // ✅ Send null if empty
                 karyawanId: finalKaryawanId,
                 requestedById: formData.requestedById || finalKaryawanId, // ✅ Include requester
                 tanggalPr: formData.tanggalPr,
@@ -701,6 +794,35 @@ export function TabelInputPR({
                 </div>
             </div>
 
+            {/* ✅ PR Type Indicator */}
+            <div className={cn(
+                "p-4 rounded-lg shadow-md border-2 transition-all duration-300",
+                formData.spkId && formData.spkId !== "no-spk"
+                    ? "bg-gradient-to-r from-green-100 to-emerald-100 border-green-400"
+                    : "bg-gradient-to-r from-orange-100 to-orange-100 border-orange-400"
+            )}>
+                <div className="flex items-center justify-center gap-3">
+                    <FileText className={cn(
+                        "h-6 w-6",
+                        formData.spkId && formData.spkId !== "no-spk" ? "text-green-700" : "text-orange-700"
+                    )} />
+                    <h2 className={cn(
+                        "text-xl md:text-2xl font-bold",
+                        formData.spkId && formData.spkId !== "no-spk" ? "text-green-800" : "text-red-800"
+                    )}>
+                        {formData.spkId && formData.spkId !== "no-spk" ? "PR SPK" : "PR UMUM"}
+                    </h2>
+                    <Badge className={cn(
+                        "text-xs font-semibold",
+                        formData.spkId && formData.spkId !== "no-spk"
+                            ? "bg-green-600 hover:bg-green-700"
+                            : "bg-red-600 hover:bg-red-700"
+                    )}>
+                        {formData.spkId && formData.spkId !== "no-spk" ? "Dengan SPK" : "Tanpa SPK"}
+                    </Badge>
+                </div>
+            </div>
+
             <form onSubmit={handleSubmit}>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Left Column: Main Form */}
@@ -758,6 +880,157 @@ export function TabelInputPR({
                                     </Popover>
                                     {errors.tanggalPr && <p className="text-xs text-red-500">{errors.tanggalPr}</p>}
                                 </div>
+
+                                {/* ✅ Parent PR Selector - Only show when SPK is selected */}
+                                {formData.spkId && formData.spkId !== "no-spk" && (
+                                    <div className="space-y-2 md:col-span-2 p-4 bg-gradient-to-r from-amber-50 to-yellow-50 border-2 border-amber-300 rounded-lg shadow-sm">
+                                        <Label htmlFor="parentPrId" className="font-bold flex items-center gap-2 text-base">
+                                            <FileText className="h-5 w-5 text-amber-600" />
+                                            Parent PR (PR UM)
+                                            <span className="ml-2 px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-md animate-pulse">
+                                                WAJIB DIISI
+                                            </span>
+                                        </Label>
+                                        <Popover open={parentPROpen} onOpenChange={setParentPROpen}>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    variant="outline"
+                                                    role="combobox"
+                                                    aria-expanded={parentPROpen}
+                                                    className={cn(
+                                                        "w-full justify-between border-2",
+                                                        errors.parentPrId ? "border-red-500 bg-red-50" : "border-amber-400 bg-white",
+                                                        !formData.parentPrId && "text-muted-foreground"
+                                                    )}
+                                                    disabled={loadingParentPRs}
+                                                >
+                                                    {loadingParentPRs ? (
+                                                        "Loading parent PRs..."
+                                                    ) : formData.parentPrId ? (
+                                                        availableParentPRs.find((pr) => pr.id === formData.parentPrId)?.nomorPr
+                                                    ) : (
+                                                        "⚠️ Pilih Parent PR"
+                                                    )}
+                                                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-[400px] p-0" align="start">
+                                                <Command>
+                                                    <CommandInput
+                                                        placeholder="Cari nomor PR..."
+                                                        className="h-9"
+                                                    />
+                                                    <CommandList>
+                                                        <CommandEmpty>
+                                                            <div className="p-4 text-center text-sm text-muted-foreground">
+                                                                <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-yellow-500" />
+                                                                <p>Tidak ditemukan</p>
+                                                                <p className="text-xs mt-1">Coba kata kunci lain</p>
+                                                            </div>
+                                                        </CommandEmpty>
+                                                        <CommandGroup className="max-h-64 overflow-auto">
+                                                            {availableParentPRs.map((pr) => {
+                                                                const parentBudget = pr.details?.reduce((sum, d) => sum + (Number(d.jumlah) * Number(d.estimasiHargaSatuan)), 0) || 0;
+                                                                return (
+                                                                    <CommandItem
+                                                                        key={pr.id}
+                                                                        value={pr.nomorPr}
+                                                                        onSelect={() => {
+                                                                            handleParentPRChange(pr.id);
+                                                                            setParentPROpen(false);
+                                                                        }}
+                                                                        className="cursor-pointer"
+                                                                    >
+                                                                        <div className="flex flex-col w-full">
+                                                                            <span className="font-medium">{pr.nomorPr}</span>
+                                                                            <span className="text-xs text-muted-foreground">
+                                                                                Budget: {formatCurrency(parentBudget)}
+                                                                            </span>
+                                                                        </div>
+                                                                        {formData.parentPrId === pr.id && (
+                                                                            <CheckCircle className="ml-auto h-4 w-4 text-green-600" />
+                                                                        )}
+                                                                    </CommandItem>
+                                                                );
+                                                            })}
+                                                        </CommandGroup>
+                                                    </CommandList>
+                                                </Command>
+                                            </PopoverContent>
+                                        </Popover>
+                                        {errors.parentPrId && (
+                                            <p className="text-sm text-red-600 font-semibold flex items-center gap-1">
+                                                <AlertTriangle className="h-4 w-4" />
+                                                {errors.parentPrId}
+                                            </p>
+                                        )}
+
+                                        {/* Budget Info */}
+                                        {selectedParentPR && (
+                                            <>
+                                                <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-md">
+                                                    <div className="flex items-start gap-2">
+                                                        <CheckCircle className="h-4 w-4 text-green-600 mt-0.5" />
+                                                        <div className="flex-1 text-sm">
+                                                            <p className="font-medium text-green-900">Parent PR: {selectedParentPR.nomorPr}</p>
+                                                            <p className="text-xs text-green-700 mt-1">
+                                                                Total Budget: {formatCurrency(
+                                                                    selectedParentPR.details?.reduce((sum, d) =>
+                                                                        sum + (Number(d.jumlah) * Number(d.estimasiHargaSatuan)), 0
+                                                                    ) || 0
+                                                                )}
+                                                            </p>
+                                                            <p className="text-xs text-muted-foreground mt-1">
+                                                                Pastikan total PR SPK tidak melebihi budget parent
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Parent PR Items Detail */}
+                                                {selectedParentPR.details && selectedParentPR.details.length > 0 && (
+                                                    <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                                                        <p className="text-xs font-semibold text-blue-900 mb-2">Parent PR Items:</p>
+                                                        <div className="max-h-48 overflow-y-auto">
+                                                            <table className="w-full text-xs">
+                                                                <thead className="bg-blue-100 sticky top-0">
+                                                                    <tr>
+                                                                        <th className="text-left p-1 text-blue-900">Product</th>
+                                                                        <th className="text-right p-1 text-blue-900">Qty</th>
+                                                                        <th className="text-right p-1 text-blue-900">Unit Price</th>
+                                                                        <th className="text-right p-1 text-blue-900">Total</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {selectedParentPR.details.map((detail, idx) => (
+                                                                        <tr key={idx} className="border-b border-blue-100">
+                                                                            <td className="p-1 text-blue-900">
+                                                                                {detail.product?.name || detail.productId}
+                                                                            </td>
+                                                                            <td className="text-right p-1 text-blue-700">
+                                                                                {detail.jumlah} {detail.satuan}
+                                                                            </td>
+                                                                            <td className="text-right p-1 text-blue-700">
+                                                                                {formatCurrency(Number(detail.estimasiHargaSatuan))}
+                                                                            </td>
+                                                                            <td className="text-right p-1 font-medium text-blue-900">
+                                                                                {formatCurrency(Number(detail.jumlah) * Number(detail.estimasiHargaSatuan))}
+                                                                            </td>
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
+
+                                        <p className="text-xs text-amber-800 font-medium bg-amber-100 p-2 rounded border border-amber-300">
+                                            ⚠️ PR SPK wajib terkait dengan PR UM yang sudah COMPLETED
+                                        </p>
+                                    </div>
+                                )}
 
                                 <div className="space-y-2">
                                     <Label htmlFor="requestedById" className="font-semibold flex items-center gap-2">
@@ -851,8 +1124,9 @@ export function TabelInputPR({
                                                                 onValueChange={(value) =>
                                                                     updateItem(item.tempId, "productId", value)
                                                                 }
-                                                                products={products}
+                                                                products={localProducts}
                                                                 error={!!errors[`productId-${index}`]}
+                                                                onCreated={handleProductCreated}
                                                             />
                                                             {errors[`productId-${index}`] && (
                                                                 <p className="text-xs text-red-500 mt-1">

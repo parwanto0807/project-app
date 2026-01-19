@@ -104,7 +104,7 @@ export const ManualCreateQuotationForm: React.FC<ManualCreateQuotationFormProps>
 }) => {
     const router = useRouter();
     const [lineStates, setLineStates] = useState<{ [key: number]: LineItemState }>({});
-    
+
     // State untuk produk yang bisa di-update
     const [products, setProducts] = useState<Product[]>(initialProducts);
 
@@ -212,7 +212,7 @@ export const ManualCreateQuotationForm: React.FC<ManualCreateQuotationFormProps>
             lineSubtotal: 0,
             taxId: null
         }]);
-        
+
         // Initialize state for new line
         initializeLineState(newIndex);
     };
@@ -328,15 +328,15 @@ export const ManualCreateQuotationForm: React.FC<ManualCreateQuotationFormProps>
 
     const handleProductCreated = (index: number, createdProduct: CreatedProduct) => {
         const newProduct = convertToProduct(createdProduct);
-        
+
         // Update products state dengan produk baru
         setProducts(prev => [...prev, newProduct]);
 
         // Select the newly created product
         handleProductSelect(index, newProduct.id);
-        updateItemState(index, { 
+        updateItemState(index, {
             productSearchOpen: false,
-            productSearchQuery: "" 
+            productSearchQuery: ""
         });
     };
 
@@ -668,9 +668,9 @@ export const ManualCreateQuotationForm: React.FC<ManualCreateQuotationFormProps>
                                 productSearchOpen: false,
                                 productSearchQuery: '',
                             };
-                            
+
                             const filteredOptions = itemState.productSearchQuery
-                                ? products.filter(opt => 
+                                ? products.filter(opt =>
                                     opt.name.toLowerCase().includes(itemState.productSearchQuery.toLowerCase()))
                                 : products;
 
@@ -766,9 +766,30 @@ export const ManualCreateQuotationForm: React.FC<ManualCreateQuotationFormProps>
                                                                 </div>
                                                                 <CommandList>
                                                                     <CommandEmpty>
-                                                                        {itemState.productSearchQuery
-                                                                            ? "Tidak ditemukan"
-                                                                            : "Tidak ada data"}
+                                                                        <div className="p-4 text-center">
+                                                                            <p className="text-sm text-muted-foreground mb-3">
+                                                                                {itemState.productSearchQuery
+                                                                                    ? `"${itemState.productSearchQuery}" tidak ditemukan`
+                                                                                    : "Tidak ada data"}
+                                                                            </p>
+                                                                            {itemState.productSearchQuery && (
+                                                                                <ProductCreateDialog
+                                                                                    createEndpoint={`${process.env.NEXT_PUBLIC_API_URL}/api/master/product/createProduct`}
+                                                                                    onCreated={(createdProduct: CreatedProduct) => handleProductCreated(index, createdProduct)}
+                                                                                    trigger={
+                                                                                        <Button
+                                                                                            type="button"
+                                                                                            variant="outline"
+                                                                                            size="sm"
+                                                                                            className="w-full"
+                                                                                        >
+                                                                                            <Plus className="h-4 w-4 mr-2" />
+                                                                                            Tambah Produk Baru
+                                                                                        </Button>
+                                                                                    }
+                                                                                />
+                                                                            )}
+                                                                        </div>
                                                                     </CommandEmpty>
                                                                     <CommandGroup>
                                                                         {filteredOptions.map((opt) => (

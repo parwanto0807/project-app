@@ -12,6 +12,7 @@ import {
   CalendarIcon,
   FileText,
   Hash,
+  Plus,
   PlusCircle,
   Trash2,
   Calculator,
@@ -508,7 +509,7 @@ export function CreateSalesOrderForm({
                               <SelectContent>
                                 {customerOptions.map((c) => (
                                   <SelectItem key={c.id} value={c.id}>
-                                    {c.branch ? `( ${c.branch} )` : ""} 
+                                    {c.branch ? `( ${c.branch} )` : ""}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
@@ -893,9 +894,43 @@ export function CreateSalesOrderForm({
                                           </div>
                                           <CommandList>
                                             <CommandEmpty>
-                                              {itemState.productSearchQuery
-                                                ? "Tidak ditemukan"
-                                                : "Tidak ada data"}
+                                              <div className="p-4 text-center">
+                                                <p className="text-sm text-muted-foreground mb-3">
+                                                  {itemState.productSearchQuery
+                                                    ? `"${itemState.productSearchQuery}" tidak ditemukan`
+                                                    : "Tidak ada data"}
+                                                </p>
+                                                {itemState.productSearchQuery && (
+                                                  <ProductCreateDialog
+                                                    createEndpoint={`${process.env.NEXT_PUBLIC_API_URL}/api/master/product/createProduct`}
+                                                    onCreated={(created) => {
+                                                      const newProduct = {
+                                                        id: created.id,
+                                                        name: created.name,
+                                                      };
+                                                      updateItemState(index, {
+                                                        productOptions: [...optionsForType, newProduct],
+                                                      });
+                                                      handleProductSelect(index, created.id);
+                                                      updateItemState(index, {
+                                                        productSearchOpen: false,
+                                                        productSearchQuery: ""
+                                                      });
+                                                    }}
+                                                    trigger={
+                                                      <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="w-full"
+                                                      >
+                                                        <Plus className="h-4 w-4 mr-2" />
+                                                        Tambah Produk Baru
+                                                      </Button>
+                                                    }
+                                                  />
+                                                )}
+                                              </div>
                                             </CommandEmpty>
                                             <CommandGroup>
                                               {filteredOptions.map((opt) => (

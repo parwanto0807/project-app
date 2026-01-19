@@ -39,17 +39,24 @@ export const CreatePurchaseRequestSchema = z.object({
   projectId: z.string().optional().nullable(),
   spkId: z.string().optional().nullable(),
   karyawanId: z.string().min(1, "Karyawan is required"),
+  parentPrId: z.string().optional().nullable(), // ✅ Parent PR reference
   requestedById: z.string().optional().nullable(), // ✅ Add requester field
   tanggalPr: z.date().optional(), // Optional karena default di model Prisma
   keterangan: z.string().max(1000, "Keterangan too long").optional(),
   details: z
     .array(PurchaseRequestDetailSchema)
     .min(1, "At least one item is required"),
-});
+}).transform((data) => ({
+  ...data,
+  spkId: !data.spkId || data.spkId === "" || data.spkId === "no-spk" ? null : data.spkId,
+  parentPrId: !data.parentPrId || data.parentPrId === "" || data.parentPrId === "no-parent" ? null : data.parentPrId,
+}));
 
 // ======================= UPDATE =======================
 export const UpdatePurchaseRequestSchema = z.object({
+  projectId: z.string().optional().nullable(),
   spkId: z.string().optional().nullable(),
+  parentPrId: z.string().optional().nullable(),
   requestedById: z.string().optional().nullable(), // ✅ Add requester field for update
   keterangan: z.string().max(1000, "Keterangan too long").optional(),
   status: z
@@ -66,7 +73,11 @@ export const UpdatePurchaseRequestSchema = z.object({
     .array(PurchaseRequestDetailSchema)
     .min(1, "At least one item is required")
     .optional(),
-});
+}).transform((data) => ({
+  ...data,
+  spkId: !data.spkId || data.spkId === "" || data.spkId === "no-spk" ? null : data.spkId,
+  parentPrId: !data.parentPrId || data.parentPrId === "" || data.parentPrId === "no-parent" ? null : data.parentPrId,
+}));
 
 // ======================= UPDATE STATUS =======================
 export const UpdatePurchaseRequestStatusSchema = z.object({

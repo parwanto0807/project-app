@@ -113,7 +113,15 @@ export default function PurchaseOrderPageAdmin() {
 
   // Fetch purchase orders
   const fetchPurchaseOrders = useCallback(async () => {
-    if (userLoading || !user) return;
+    // If session is still loading, wait
+    if (userLoading) return;
+
+    // If no user, loading should stop (auth check will handle redirect)
+    if (!user) {
+      setIsLoading(false);
+      setIsRefreshing(false);
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
@@ -145,26 +153,20 @@ export default function PurchaseOrderPageAdmin() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [userLoading, user, urlPage, itemsPerPage, urlSearchTerm, statusFilter]);
+  }, [userLoading, user?.id, urlPage, itemsPerPage, urlSearchTerm, statusFilter]);
 
-  // Initial fetch and refresh on dependencies change
+  // Combined effect for initial load, URL changes, and manual refresh
   useEffect(() => {
     fetchPurchaseOrders();
-  }, [fetchPurchaseOrders]);
-
-  // Handle refresh trigger
-  useEffect(() => {
-    if (!isInitialLoad) {
-      fetchPurchaseOrders();
-    }
-  }, [refreshTrigger]);
+  }, [fetchPurchaseOrders, refreshTrigger]);
 
   // Track initial load completion
   useEffect(() => {
-    if (!isLoading && isInitialLoad) {
+    // Only set isInitialLoad to false when isLoading becomes false for the first time
+    if (!isLoading && isInitialLoad && !userLoading) {
       setIsInitialLoad(false);
     }
-  }, [isLoading, isInitialLoad]);
+  }, [isLoading, isInitialLoad, userLoading]);
 
   // Status filter handler
   const handleStatusFilterChange = useCallback(
@@ -413,8 +415,9 @@ export default function PurchaseOrderPageAdmin() {
                 <div className="hidden lg:flex flex-row gap-3 w-full sm:w-auto items-center">
                   <SearchInput
                     onSearch={handleSearch}
-                    placeholder="Search PO Number, Supplier..."
+                    placeholder="Search PO Number, PR Number, Supplier..."
                     className="w-full sm:w-64"
+                    isLoading={isLoading}
                     disabled={isLoading || isRefreshing}
                     initialValue={urlSearchTerm}
                   />
@@ -452,8 +455,9 @@ export default function PurchaseOrderPageAdmin() {
               <div className="flex flex-col gap-3">
                 <SearchInput
                   onSearch={handleSearch}
-                  placeholder="Search PO Number, Supplier..."
+                  placeholder="Search PO Number, PR Number, Supplier..."
                   className="w-full"
+                  isLoading={isLoading}
                   disabled={isLoading || isRefreshing}
                   initialValue={urlSearchTerm}
                 />

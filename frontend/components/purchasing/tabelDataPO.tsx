@@ -169,10 +169,11 @@ const TableSkeleton = () => {
 };
 
 // Mobile Card View Component
-const MobilePOCard = ({ po, onView, basePath }: {
+const MobilePOCard = ({ po, onView, basePath, role }: {
     po: PurchaseOrder;
     onView: (id: string) => void;
     basePath: string;
+    role: string;
 }) => {
     const StatusIcon = statusConfig[po.status as keyof typeof statusConfig]?.icon || Clock;
 
@@ -196,12 +197,17 @@ const MobilePOCard = ({ po, onView, basePath }: {
                         {po.PurchaseRequest?.nomorPr && (
                             <div className="flex items-center gap-1.5 mt-2">
                                 <span className="text-xs text-muted-foreground">dari</span>
-                                <Badge
-                                    variant="outline"
-                                    className="bg-purple-50 text-purple-700 border-purple-200 text-xs"
+                                <Link
+                                    href={`${role === 'pic' ? '/pic-area' : role === 'super' ? '/super-admin-area' : '/admin-area'}/logistic/pr?search=${encodeURIComponent(po.PurchaseRequest.nomorPr)}&page=1`}
+                                    className="group inline-block transition-all"
                                 >
-                                    {po.PurchaseRequest.nomorPr}
-                                </Badge>
+                                    <Badge
+                                        variant="outline"
+                                        className="bg-purple-50 text-purple-700 border-purple-200 text-xs cursor-pointer group-hover:underline decoration-purple-700 underline-offset-4"
+                                    >
+                                        {po.PurchaseRequest.nomorPr}
+                                    </Badge>
+                                </Link>
                             </div>
                         )}
                         <div className="flex items-center gap-2 mt-1">
@@ -437,6 +443,7 @@ export default function PurchaseOrderTable({
                                 key={po.id}
                                 po={po}
                                 basePath={basePath}
+                                role={role}
                                 onView={handleView}
                             />
                         ))}
@@ -562,13 +569,17 @@ export default function PurchaseOrderTable({
                                                 </Link>
                                                 {po.PurchaseRequest?.nomorPr && (
                                                     <div className="flex items-center gap-2 ml-6">
-                                                        {/* <span className="text-xs text-muted-foreground"></span> */}
-                                                        <Badge
-                                                            variant="outline"
-                                                            className="bg-purple-50 text-purple-700 border-purple-200 text-xs"
+                                                        <Link
+                                                            href={`${role === 'pic' ? '/pic-area' : role === 'super' ? '/super-admin-area' : '/admin-area'}/logistic/pr?search=${encodeURIComponent(po.PurchaseRequest.nomorPr)}&page=1`}
+                                                            className="group hover:opacity-80 transition-all font-medium"
                                                         >
-                                                            {po.PurchaseRequest.nomorPr}
-                                                        </Badge>
+                                                            <Badge
+                                                                variant="outline"
+                                                                className="bg-purple-50 text-purple-700 border-purple-200 text-xs cursor-pointer group-hover:underline decoration-purple-700 underline-offset-4"
+                                                            >
+                                                                {po.PurchaseRequest.nomorPr}
+                                                            </Badge>
+                                                        </Link>
                                                     </div>
                                                 )}
                                             </div>

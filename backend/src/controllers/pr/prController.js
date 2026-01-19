@@ -63,6 +63,26 @@ export class PurchaseRequestController {
                 },
               },
             },
+            parentPr: {
+              select: {
+                id: true,
+                nomorPr: true,
+                status: true,
+                details: {
+                  select: { estimasiTotalHarga: true }
+                }
+              },
+            },
+            childPrs: {
+              select: {
+                id: true,
+                nomorPr: true,
+                status: true,
+                details: {
+                  select: { estimasiTotalHarga: true }
+                }
+              },
+            },
             details: {
               include: {
                 product: {
@@ -254,9 +274,19 @@ export class PurchaseRequestController {
    */
   async createPurchaseRequest(req, res) {
     try {
+      console.log("📥 [Backend] Received req.body:", req.body);
       const validatedData = createPurchaseRequestSchema.parse(req.body);
+      console.log("✅ [Backend] Validated data:", {
+        spkId: validatedData.spkId,
+        parentPrId: validatedData.parentPrId,
+        projectId: validatedData.projectId
+      });
 
-      const nomorPr = await generatePRNumber();
+      // Generate nomor PR berdasarkan apakah ada SPK atau tidak
+      const hasSPK = !!(validatedData.spkId && validatedData.spkId !== "" && validatedData.spkId !== "no-spk" && validatedData.spkId !== "null" && validatedData.spkId !== "undefined");
+      console.log("🔍 [Backend] hasSPK (calculated):", hasSPK);
+
+      const nomorPr = await generatePRNumber(hasSPK);
 
       // Hitung total harga untuk setiap detail
       const detailsWithTotal = validatedData.details.map((detail) => ({
@@ -271,11 +301,50 @@ export class PurchaseRequestController {
         catatanItem: detail.catatanItem,
       }));
 
+      // ✅ PARENT-CHILD PR VALIDATION
+      const { 
+        validateParentPr, 
+        calculatePRBudget, 
+        validateChildBudget 
+      } = await import("../../utils/prParentChildHelpers.js");
+
+      // 1. Validasi: PR SPK WAJIB memiliki parentPrId
+      if (hasSPK && !validatedData.parentPrId) {
+        return res.status(400).json({
+          success: false,
+          message: "PR SPK wajib memiliki Parent PR (PR UM yang sudah APPROVED)",
+          error: "PARENT_PR_REQUIRED",
+        });
+      }
+
+      // 2. Validasi: PR UM tidak boleh memiliki parentPrId
+      if (!hasSPK && validatedData.parentPrId) {
+        return res.status(400).json({
+          success: false,
+          message: "PR UM tidak boleh memiliki Parent PR",
+          error: "PARENT_PR_NOT_ALLOWED_FOR_UM",
+        });
+      }
+
+      // 3. Jika PR SPK, validasi parent dan budget
+      if (hasSPK && validatedData.parentPrId) {
+        // Validasi parent PR (harus PR UM dengan status APPROVED)
+        await validateParentPr(validatedData.parentPrId);
+
+        // Hitung total budget PR ini
+        const thisPRBudget = calculatePRBudget(detailsWithTotal);
+
+        // Validasi budget tidak melebihi sisa budget parent
+        await validateChildBudget(validatedData.parentPrId, thisPRBudget);
+      }
+
       // ✅ PENTING: Handle nullable spkId and requestedById
     console.log("🔍 Backend received validatedData:", {
       karyawanId: validatedData.karyawanId,
       requestedById: validatedData.requestedById,
-      hasRequestedById: !!validatedData.requestedById
+      hasRequestedById: !!validatedData.requestedById,
+      parentPrId: validatedData.parentPrId,
+      hasSPK,
     });
 
     const prData = {
@@ -283,6 +352,8 @@ export class PurchaseRequestController {
       nomorPr,
       // Pastikan spkId null jika tidak diisi
       spkId: validatedData.spkId || null,
+      // Pastikan parentPrId null jika tidak diisi
+      parentPrId: validatedData.parentPrId || null,
       // Default requestedById to karyawanId if not provided
       requestedById: validatedData.requestedById || validatedData.karyawanId,
       details: {
@@ -293,6 +364,7 @@ export class PurchaseRequestController {
     console.log("💾 Backend will save prData:", {
       karyawanId: prData.karyawanId,
       requestedById: prData.requestedById,
+      parentPrId: prData.parentPrId,
       willUse: prData.requestedById
     });
 
@@ -310,6 +382,14 @@ export class PurchaseRequestController {
         },
         spk: {
           select: { id: true, spkNumber: true, notes: true },
+        },
+        parentPr: {
+          select: { 
+            id: true, 
+            nomorPr: true, 
+            status: true,
+            details: true,
+          },
         },
         details: {
           include: {
@@ -438,6 +518,30 @@ export class PurchaseRequestController {
               "SPK tidak ditemukan. Pastikan SPK ID valid atau kosongkan field ini.",
           });
         }
+        if (field.includes("parentPrId")) {
+          return res.status(400).json({
+            success: false,
+            message: "Parent PR tidak ditemukan. Pastikan Parent PR ID valid.",
+            error: "PARENT_PR_NOT_FOUND",
+          });
+        }
+      }
+
+      // ✅ Handle parent-child validation errors
+      if (error.message.includes("Parent PR")) {
+        return res.status(400).json({
+          success: false,
+          message: error.message,
+          error: "PARENT_PR_VALIDATION_ERROR",
+        });
+      }
+
+      if (error.message.includes("Budget melebihi")) {
+        return res.status(400).json({
+          success: false,
+          message: error.message,
+          error: "BUDGET_EXCEEDED",
+        });
       }
 
       res.status(500).json({
@@ -752,6 +856,26 @@ export class PurchaseRequestController {
         });
       }
 
+      // ✅ PARENT-CHILD STATUS VALIDATION
+      // Import helper functions
+      const { cascadeStatusToChildren } = await import("../../utils/prParentChildHelpers.js");
+
+      // 1. If this is a child PR being approved, verify parent is still APPROVED
+      if (status === "APPROVED" && existingPR.parentPrId) {
+        const parentPR = await prisma.purchaseRequest.findUnique({
+          where: { id: existingPR.parentPrId },
+          select: { status: true, nomorPr: true },
+        });
+
+        if (!parentPR || parentPR.status !== "APPROVED") {
+          return res.status(400).json({
+            success: false,
+            message: `Cannot approve child PR because parent PR ${parentPR?.nomorPr || ''} is not APPROVED (current status: ${parentPR?.status || 'NOT FOUND'})`,
+            error: "PARENT_PR_NOT_APPROVED",
+          });
+        }
+      }
+
       // Use transaction to update PR status and allocations
       const updatedPR = await prisma.$transaction(async (tx) => {
         // 1. Update PR Status
@@ -771,6 +895,12 @@ export class PurchaseRequestController {
             spk: {
               select: { id: true, spkNumber: true, notes: true },
             },
+            parentPr: {
+              select: { id: true, nomorPr: true, status: true },
+            },
+            childPrs: {
+              select: { id: true, nomorPr: true, status: true },
+            },
             details: {
               include: {
                 product: {
@@ -783,6 +913,12 @@ export class PurchaseRequestController {
             },
           },
         });
+
+        // 2. Cascade status to children if parent is rejected
+        if (status === "REJECTED" && pr.childPrs && pr.childPrs.length > 0) {
+          const cascadedCount = await cascadeStatusToChildren(id, status, tx);
+          console.log(`✅ Cascaded REJECTED status to ${cascadedCount} child PRs`);
+        }
 
         // 2. Handle Split Items (created when stock is insufficient)
         if (warehouseAllocations && warehouseAllocations['__splitItems__']) {

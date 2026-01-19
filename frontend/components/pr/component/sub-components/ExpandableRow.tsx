@@ -1,4 +1,5 @@
 import { Fragment, forwardRef } from "react";
+import Link from "next/link";
 import { TableRow, TableCell } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -105,7 +106,7 @@ export const ExpandableRow = forwardRef<HTMLTableRowElement, ExpandableRowProps>
                         </div>
                     </TableCell>
 
-                    <TableCell className="font-medium max-w-[180px]">
+                    <TableCell className="font-medium max-w-[300px]">
                         <div className="flex items-center gap-0.5 flex-wrap">
                             {/* Nomor PR */}
                             <Badge
@@ -115,27 +116,110 @@ export const ExpandableRow = forwardRef<HTMLTableRowElement, ExpandableRowProps>
                                 {pr.nomorPr}
                             </Badge>
 
-                            {/* SPK */}
-                            <Badge
-                                variant="outline"
-                                className="bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 text-xs px-1 py-0.5"
-                            >
-                                <FileText className="h-2 w-2 mr-0.5" />
-                                {pr.spk?.spkNumber || pr.spkId || "-"}
-                            </Badge>
+                            {/* Conditional: Show PO if spkId is null (PR UM), otherwise show SPK/SO (PR SPK) */}
+                            {!pr.spkId ? (
+                                // PR UM - Show Purchase Orders and Child PRs
+                                <Fragment>
+                                    {pr.purchaseOrders && pr.purchaseOrders.length > 0 ? (
+                                        pr.purchaseOrders.map((po) => (
+                                            <Link
+                                                key={po.id}
+                                                href={`${role === 'pic' ? '/pic-area' : role === 'super' ? '/super-admin-area' : '/admin-area'}/logistic/purchasing/${po.id}`}
+                                                className="group"
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                <Badge
+                                                    variant="outline"
+                                                    className="bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300 text-[12px] px-1 py-0.5 cursor-pointer hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors group-hover:underline underline-offset-2 decoration-orange-400"
+                                                >
+                                                    <FileText className="h-2 w-2 mr-0.5" />
+                                                    No PO : {po.poNumber}
+                                                </Badge>
+                                            </Link>
+                                        ))
+                                    ) : (
+                                        <Badge
+                                            variant="outline"
+                                            className="bg-gray-50 text-gray-500 border-gray-200 dark:bg-gray-900/20 dark:text-gray-400 text-xs px-1 py-0.5"
+                                        >
+                                            <FileText className="h-2 w-2 mr-0.5" />
+                                            No PO
+                                        </Badge>
+                                    )}
 
-                            {/* Sales Order */}
-                            <Badge
-                                variant="outline"
-                                className="bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-300 text-xs px-1 py-0.5"
-                            >
-                                <FileText className="h-2 w-2 mr-0.5" />
-                                {pr.spk?.salesOrder?.soNumber || "-"}
-                            </Badge>
+                                    {/* Child PR Badges - Show if childPrs exist (for Parent PR) */}
+                                    {pr.childPrs && pr.childPrs.length > 0 && (
+                                        pr.childPrs.map((child) => (
+                                            <Link
+                                                key={child.id}
+                                                href={`${role === 'pic' ? '/pic-area' : role === 'super' ? '/super-admin-area' : '/admin-area'}/logistic/pr?search=${encodeURIComponent(child.nomorPr)}&page=1`}
+                                                className="group"
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                <Badge
+                                                    variant="outline"
+                                                    className="bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-300 text-[12px] px-1 py-0.5 cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors group-hover:underline underline-offset-2 decoration-indigo-400"
+                                                >
+                                                    <FileText className="h-2 w-2 mr-0.5" />
+                                                    PR SPK : {child.nomorPr}
+                                                </Badge>
+                                            </Link>
+                                        ))
+                                    )}
+                                </Fragment>
+                            ) : (
+                                // PR SPK - Show SPK, SO, and Parent PR with clickable links
+                                <Fragment>
+                                    <Link
+                                        href={`${role === 'pic' ? '/pic-area' : role === 'super' ? '/super-admin-area' : '/admin-area'}/logistic/spk?search=${encodeURIComponent(pr.spk?.spkNumber || pr.spkId || "")}&filter=all&page=1`}
+                                        className="group"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <Badge
+                                            variant="outline"
+                                            className="bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 text-xs px-1 py-0.5 cursor-pointer hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors group-hover:underline underline-offset-2 decoration-emerald-400"
+                                        >
+                                            <FileText className="h-2 w-2 mr-0.5" />
+                                            No SPK : {pr.spk?.spkNumber || pr.spkId || "-"}
+                                        </Badge>
+                                    </Link>
+
+                                    <Link
+                                        href={`${role === 'pic' ? '/pic-area' : role === 'super' ? '/super-admin-area' : '/admin-area'}/sales/salesOrder?search=${encodeURIComponent(pr.spk?.salesOrder?.soNumber || "")}`}
+                                        className="group"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <Badge
+                                            variant="outline"
+                                            className="bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-300 text-xs px-1 py-0.5 cursor-pointer hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors group-hover:underline underline-offset-2 decoration-purple-400"
+                                        >
+                                            <FileText className="h-2 w-2 mr-0.5" />
+                                            No SO : {pr.spk?.salesOrder?.soNumber || "-"}
+                                        </Badge>
+                                    </Link>
+
+                                    {/* Parent PR Badge - Show if parentPr exists */}
+                                    {pr.parentPr && (
+                                        <Link
+                                            href={`${role === 'pic' ? '/pic-area' : role === 'super' ? '/super-admin-area' : '/admin-area'}/logistic/pr?search=${encodeURIComponent(pr.parentPr.nomorPr)}&page=1`}
+                                            className="group"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <Badge
+                                                variant="outline"
+                                                className="bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-900/20 dark:text-cyan-300 text-[12px] px-1 py-0.5 cursor-pointer hover:bg-cyan-100 dark:hover:bg-cyan-900/30 transition-colors group-hover:underline underline-offset-2 decoration-cyan-400"
+                                            >
+                                                <FileText className="h-2 w-2 mr-0.5" />
+                                                PR UMUM : {pr.parentPr.nomorPr}
+                                            </Badge>
+                                        </Link>
+                                    )}
+                                </Fragment>
+                            )}
                         </div>
                     </TableCell>
 
-                    <TableCell className="min-w-[400px]">
+                    <TableCell className="min-w-[350px]">
                         <div className="group relative">
                             {/* ✅ Background berbeda berdasarkan status */}
                             <div className={`border rounded-xl p-4 hover:shadow-md transition-all duration-200 ${pr.projectId && pr.project?.name
@@ -266,15 +350,59 @@ export const ExpandableRow = forwardRef<HTMLTableRowElement, ExpandableRowProps>
                         </div>
                     </TableCell>
 
-                    <TableCell className="text-right">
-                        <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border border-green-200 dark:border-green-800 rounded-lg px-3 py-2 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                                <BanknoteArrowUp className="h-4 w-4 text-green-600 dark:text-green-400" />
-                                <span className="text-sm font-bold text-gray-900 dark:text-white">
-                                    {formatCurrency(totalAmount)}
-                                </span>
+                    <TableCell className="text-right min-w-[220px]">
+                        <div className="bg-gradient-to-r from-green-50/50 to-emerald-50/50 dark:from-green-900/10 dark:to-emerald-900/10 border border-green-400/60 dark:border-green-800/60 rounded-lg px-3 py-2">
+                            <div className="flex flex-col gap-1.5 text-[12px] font-bold">
+                                {(() => {
+                                    const totalPO = pr.purchaseOrders?.reduce((sum, po) => sum + cleanNumber(po.totalAmount), 0) ?? 0;
+                                    const totalPrSpk = pr.childPrs?.reduce((sum, child) => {
+                                        const childTotal = (child as any).details?.reduce((s: number, d: any) => s + cleanNumber(d.estimasiTotalHarga), 0) ?? 0;
+                                        return sum + childTotal;
+                                    }, 0) ?? 0;
+
+                                    const prLabel = !pr.spkId ? "PR-UM" : "PR-SPK";
+
+                                    return (
+                                        <>
+                                            {/* PR Amount */}
+                                            <div className="group flex justify-between items-center gap-4 transition-all cursor-default w-full">
+                                                <span className="text-emerald-700 dark:text-emerald-400 font-bold shrink-0">{prLabel} </span>
+                                                <span className="text-emerald-700 dark:text-emerald-400 font-bold text-right tabular-nums group-hover:underline underline-offset-4">
+                                                    {formatCurrency(totalAmount)}
+                                                </span>
+                                            </div>
+
+                                            {/* PO Amount */}
+                                            {totalPO > 0 && (
+                                                <Link
+                                                    href={`${role === 'pic' ? '/pic-area' : role === 'super' ? '/super-admin-area' : '/admin-area'}/logistic/purchasing?search=${encodeURIComponent(pr.nomorPr)}&page=1`}
+                                                    className="group flex justify-between items-center gap-4 pt-1 border-t border-green-400/40 dark:border-green-800/40 transition-all cursor-pointer w-full"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                >
+                                                    <span className="text-orange-600 dark:text-orange-400 font-bold shrink-0">PO </span>
+                                                    <span className="text-orange-600 dark:text-orange-400 font-bold text-right tabular-nums group-hover:underline underline-offset-4">
+                                                        {formatCurrency(totalPO)}
+                                                    </span>
+                                                </Link>
+                                            )}
+
+                                            {/* Child PR Amount */}
+                                            {totalPrSpk > 0 && (
+                                                <Link
+                                                    href={`${role === 'pic' ? '/pic-area' : role === 'super' ? '/super-admin-area' : '/admin-area'}/logistic/pr?search=${encodeURIComponent(pr.nomorPr)}&page=1`}
+                                                    className="group flex justify-between items-center gap-4 pt-1 border-t border-green-400/40 dark:border-green-800/40 transition-all cursor-pointer w-full"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                >
+                                                    <span className="text-indigo-600 dark:text-indigo-400 font-bold shrink-0">PR SPK </span>
+                                                    <span className="text-indigo-600 dark:text-indigo-400 font-bold text-right tabular-nums group-hover:underline underline-offset-4">
+                                                        {formatCurrency(totalPrSpk)}
+                                                    </span>
+                                                </Link>
+                                            )}
+                                        </>
+                                    );
+                                })()}
                             </div>
-                            <div className="text-xs text-green-700 dark:text-green-300 font-medium mt-0.5">TOTAL REQUEST</div>
                         </div>
                     </TableCell>
 
@@ -341,14 +469,16 @@ export const ExpandableRow = forwardRef<HTMLTableRowElement, ExpandableRowProps>
                     </TableCell>
                 </MotionTableRow>
 
-                {isExpanded && (
-                    <TableRow>
-                        <TableCell colSpan={11} className="bg-muted/30 p-4">
-                            <ExpandedDetails details={pr.details} />
-                        </TableCell>
-                    </TableRow>
-                )}
-            </Fragment>
+                {
+                    isExpanded && (
+                        <TableRow>
+                            <TableCell colSpan={11} className="bg-muted/30 p-4">
+                                <ExpandedDetails details={pr.details} />
+                            </TableCell>
+                        </TableRow>
+                    )
+                }
+            </Fragment >
         );
     }
 );

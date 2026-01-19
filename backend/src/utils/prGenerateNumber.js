@@ -2,18 +2,25 @@
 import { prisma } from "../config/db.js";
 
 /**
- * Generate nomor PR dengan format: 00001/PR-RYLIF/X/2025
- * Format: NNNNN/PR-RYLIF/BULANROM/TAHUN
+ * Generate nomor PR dengan format: 
+ * - Tanpa SPK: 00001/PR-UM-RYLIF/X/26
+ * - Dengan SPK: 00001/PR-SPK-RYLIF/X/26
+ * Format: NNNNN/PR-[UM|SPK]-RYLIF/BULANROM/TAHUN
+ * @param {boolean} hasSPK - Apakah PR ini terkait dengan SPK
  */
-export const generatePRNumber = async () => {
+export const generatePRNumber = async (hasSPK = false) => {
   try {
     const now = new Date();
     const year = now.getFullYear();
+    const yearShort = String(year).slice(-2); // Ambil 2 digit terakhir tahun (26 untuk 2026)
 
     // Konversi bulan ke angka romawi
     const bulanRomawi = convertToRoman(now.getMonth() + 1);
 
-    // Cari PR terakhir di tahun ini untuk menentukan sequence
+    // Tentukan tipe PR berdasarkan SPK
+    const prType = hasSPK ? "PR-SPK-RYLIF" : "PR-UM-RYLIF";
+
+    // Cari PR terakhir di tahun ini dengan tipe yang sama untuk menentukan sequence
     const startOfYear = new Date(year, 0, 1); // 1 Januari tahun ini
     const endOfYear = new Date(year, 11, 31, 23, 59, 59, 999); // 31 Desember tahun ini
 
@@ -23,6 +30,9 @@ export const generatePRNumber = async () => {
           gte: startOfYear,
           lte: endOfYear,
         },
+        nomorPr: {
+          contains: prType, // Filter berdasarkan tipe PR
+        },
       },
       orderBy: {
         nomorPr: "desc",
@@ -31,7 +41,7 @@ export const generatePRNumber = async () => {
 
     let sequence = 1;
     if (lastPR && lastPR.nomorPr) {
-      // Extract sequence number dari format: 00001/PR-RYLIF/X/2025
+      // Extract sequence number dari format: 00001/PR-UM-RYLIF/X/26 atau 00001/PR-SPK-RYLIF/X/26
       const matches = lastPR.nomorPr.match(/^(\d+)\//);
       if (matches && matches[1]) {
         sequence = parseInt(matches[1]) + 1;
@@ -39,7 +49,7 @@ export const generatePRNumber = async () => {
     }
 
     const sequenceFormatted = String(sequence).padStart(5, "0");
-    return `${sequenceFormatted}/PR-RYLIF/${bulanRomawi}/${year}`;
+    return `${sequenceFormatted}/${prType}/${bulanRomawi}/${yearShort}`;
   } catch (error) {
     console.error("Error generating PR number:", error);
     throw new Error("Failed to generate PR number");

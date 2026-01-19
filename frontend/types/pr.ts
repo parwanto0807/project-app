@@ -34,6 +34,7 @@ export interface PurchaseRequest {
   projectId: string | null;
   spkId: string | null; // ✅ Ubah dari string ke string | null
   spkIds?: string; // ✅ Tambahkan ? karena ini optional (tidak ada di model)
+  parentPrId?: string | null; // ✅ Parent PR reference
   karyawanId: string;
   requestedById?: string; // ✅ Karyawan yang request (optional untuk backward compatibility)
   tanggalPr: Date;
@@ -55,6 +56,16 @@ export interface PurchaseRequest {
       };
     };
   } | null; // ✅ Tambahkan | null karena bisa null
+  parentPr?: {
+    id: string;
+    nomorPr: string;
+    status: PRStatus;
+  } | null;
+  childPrs?: {
+    id: string;
+    nomorPr: string;
+    status: PRStatus;
+  }[];
   karyawan?: {
     id: string;
     namaLengkap: string;
@@ -150,6 +161,7 @@ export type PurchaseRequestItem = PurchaseRequestDetail;
 export interface CreatePurchaseRequestData {
   projectId?: string | null;
   spkId?: string | null; // ✅ Ubah menjadi optional
+  parentPrId?: string | null; // ✅ Parent PR reference for PR SPK
   karyawanId: string;
   requestedById?: string; // ✅ Optional, defaults to karyawanId if not provided
   tanggalPr?: Date; // ✅ Tambahkan ? karena biasanya auto-generated
@@ -241,6 +253,16 @@ export interface PurchaseRequestWithRelations extends PurchaseRequest {
       namaBudget: string;
     };
   })[];
+  parentPr?: {
+    id: string;
+    nomorPr: string;
+    status: PRStatus;
+  } | null;
+  childPrs?: {
+    id: string;
+    nomorPr: string;
+    status: PRStatus;
+  }[];
   uangMuka?: UangMukaWithRelations[];
 }
 

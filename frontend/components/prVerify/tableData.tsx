@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, Fragment, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -691,19 +692,111 @@ export function PurchaseRequestVerifyTable({
                                                 key={pr.id}
                                                 className="hover:bg-muted/50 transition-colors"
                                             >
-                                                <TableCell className="font-medium">
-                                                    <div className="flex items-center gap-2">
-                                                        <FileText className="h-4 w-4 text-blue-500" />
-                                                        {pr.nomorPr}
-                                                    </div>
-                                                    <div className="ml-6 text-xs text-muted-foreground">
-                                                        SPK : {pr.spk?.spkNumber || pr.spkId}
-                                                    </div>
-                                                    <div className="ml-6 text-xs text-muted-foreground">
-                                                        SO : {pr.spk?.salesOrder?.soNumber || "-"}
+                                                <TableCell className="font-medium max-w-[250px]">
+                                                    <div className="flex flex-col gap-1.5">
+                                                        {/* Nomor PR Utama */}
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <Badge
+                                                                className="bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0 text-xs px-1.5 py-0.5"
+                                                            >
+                                                                <FileText className="h-3 w-3 mr-1" />
+                                                                {pr.nomorPr}
+                                                            </Badge>
+                                                        </div>
+
+                                                        <div className="flex flex-wrap gap-1.5">
+                                                            {/* Conditional Logic: PR UM vs PR SPK */}
+                                                            {!pr.spkId ? (
+                                                                // PR UM - Show Purchase Orders and Child PRs
+                                                                <Fragment>
+                                                                    {pr.purchaseOrders && pr.purchaseOrders.length > 0 ? (
+                                                                        pr.purchaseOrders.map((po) => (
+                                                                            <Link
+                                                                                key={po.id}
+                                                                                href={`${role === 'admin' ? '/admin-area' : '/pic-area'}/logistic/purchasing/${po.id}`}
+                                                                                className="group"
+                                                                            >
+                                                                                <Badge
+                                                                                    variant="outline"
+                                                                                    className="bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300 text-[12px] px-1.5 py-0.5 cursor-pointer group-hover:underline underline-offset-2 decoration-orange-400"
+                                                                                >
+                                                                                    PO : {po.poNumber}
+                                                                                </Badge>
+                                                                            </Link>
+                                                                        ))
+                                                                    ) : (
+                                                                        <Badge
+                                                                            variant="outline"
+                                                                            className="bg-gray-50 text-gray-500 border-gray-200 dark:bg-gray-900/20 dark:text-gray-400 text-[10px] px-1.5 py-0.5"
+                                                                        >
+                                                                            No PO
+                                                                        </Badge>
+                                                                    )}
+
+                                                                    {/* Child PRs */}
+                                                                    {pr.childPrs && pr.childPrs.length > 0 && (
+                                                                        pr.childPrs.map((child) => (
+                                                                            <Link
+                                                                                key={child.id}
+                                                                                href={`${role === 'admin' ? '/admin-area' : '/pic-area'}/logistic/pr?search=${encodeURIComponent(child.nomorPr)}&page=1`}
+                                                                                className="group"
+                                                                            >
+                                                                                <Badge
+                                                                                    variant="outline"
+                                                                                    className="bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-300 text-[12px] px-1.5 py-0.5 cursor-pointer group-hover:underline underline-offset-2 decoration-indigo-400"
+                                                                                >
+                                                                                    PR SPK : {child.nomorPr}
+                                                                                </Badge>
+                                                                            </Link>
+                                                                        ))
+                                                                    )}
+                                                                </Fragment>
+                                                            ) : (
+                                                                // PR SPK - Show SPK, SO, and Parent PR
+                                                                <Fragment>
+                                                                    <Link
+                                                                        href={`${role === 'admin' ? '/admin-area' : '/pic-area'}/logistic/spk?search=${encodeURIComponent(pr.spk?.spkNumber || pr.spkId || "")}&filter=all&page=1`}
+                                                                        className="group"
+                                                                    >
+                                                                        <Badge
+                                                                            variant="outline"
+                                                                            className="bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-300 text-[12px] px-1.5 py-0.5 cursor-pointer group-hover:underline underline-offset-2 decoration-emerald-400"
+                                                                        >
+                                                                            No SPK : {pr.spk?.spkNumber || pr.spkId || "-"}
+                                                                        </Badge>
+                                                                    </Link>
+
+                                                                    <Link
+                                                                        href={`${role === 'admin' ? '/admin-area' : '/pic-area'}/sales/salesOrder?search=${encodeURIComponent(pr.spk?.salesOrder?.soNumber || "")}`}
+                                                                        className="group"
+                                                                    >
+                                                                        <Badge
+                                                                            variant="outline"
+                                                                            className="bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/20 dark:text-purple-300 text-[12px] px-1.5 py-0.5 cursor-pointer group-hover:underline underline-offset-2 decoration-purple-400"
+                                                                        >
+                                                                            No SO : {pr.spk?.salesOrder?.soNumber || "-"}
+                                                                        </Badge>
+                                                                    </Link>
+
+                                                                    {pr.parentPr && (
+                                                                        <Link
+                                                                            href={`${role === 'admin' ? '/admin-area' : '/pic-area'}/logistic/pr?search=${encodeURIComponent(pr.parentPr.nomorPr)}&page=1`}
+                                                                            className="group"
+                                                                        >
+                                                                            <Badge
+                                                                                variant="outline"
+                                                                                className="bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-900/20 dark:text-cyan-300 text-[12px] px-1.5 py-0.5 cursor-pointer group-hover:underline underline-offset-2 decoration-cyan-400"
+                                                                            >
+                                                                                PR UMUM : {pr.parentPr.nomorPr}
+                                                                            </Badge>
+                                                                        </Link>
+                                                                    )}
+                                                                </Fragment>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="min-w-[400px]">
+                                                <TableCell className="min-w-[350px]">
                                                     <div className="group relative">
                                                         {/* ✅ Background berbeda berdasarkan status */}
                                                         <div className={`border rounded-xl p-4 hover:shadow-md transition-all duration-200 ${pr.projectId && pr.project?.name
@@ -832,8 +925,58 @@ export function PurchaseRequestVerifyTable({
                                                         {formatDate(pr.tanggalPr)}
                                                     </div>
                                                 </TableCell>
-                                                <TableCell className="font-bold text-right">
-                                                    {formatCurrency(totalAmount)}
+                                                <TableCell className="text-right min-w-[180px]">
+                                                    <div className="bg-gradient-to-r from-green-50/50 to-emerald-50/50 dark:from-green-900/10 dark:to-emerald-900/10 border border-green-400/60 dark:border-green-800/60 rounded-lg px-3 py-2">
+                                                        <div className="flex flex-col gap-1.5 text-[12px] font-bold">
+                                                            {(() => {
+                                                                const totalPO = pr.purchaseOrders?.reduce((sum, po) => sum + cleanNumber(po.totalAmount), 0) ?? 0;
+                                                                const totalPrSpk = pr.childPrs?.reduce((sum, child) => {
+                                                                    const childTotal = (child as any).details?.reduce((s: number, d: any) => s + cleanNumber(d.estimasiTotalHarga), 0) ?? 0;
+                                                                    return sum + childTotal;
+                                                                }, 0) ?? 0;
+
+                                                                const prLabel = !pr.spkId ? "PR-UM" : "PR-SPK";
+
+                                                                return (
+                                                                    <>
+                                                                        {/* PR Amount */}
+                                                                        <div className="group flex justify-between items-center gap-4 transition-all cursor-default w-full text-right">
+                                                                            <span className="text-emerald-700 dark:text-emerald-400 font-bold shrink-0">{prLabel} </span>
+                                                                            <span className="text-emerald-700 dark:text-emerald-400 font-bold text-right tabular-nums group-hover:underline underline-offset-4 decoration-emerald-600">
+                                                                                {formatCurrency(totalAmount)}
+                                                                            </span>
+                                                                        </div>
+
+                                                                        {/* PO Amount */}
+                                                                        {totalPO > 0 && (
+                                                                            <Link
+                                                                                href={`${role === 'admin' ? '/admin-area' : '/pic-area'}/logistic/purchasing?search=${encodeURIComponent(pr.nomorPr)}&page=1`}
+                                                                                className="group flex justify-between items-center gap-4 pt-1 border-t border-green-400/40 dark:border-green-800/40 transition-all cursor-pointer w-full text-right"
+                                                                            >
+                                                                                <span className="text-orange-600 dark:text-orange-400 font-bold shrink-0">PO </span>
+                                                                                <span className="text-orange-600 dark:text-orange-400 font-bold text-right tabular-nums group-hover:underline underline-offset-4 decoration-orange-600">
+                                                                                    {formatCurrency(totalPO)}
+                                                                                </span>
+                                                                            </Link>
+                                                                        )}
+
+                                                                        {/* Child PR Amount */}
+                                                                        {totalPrSpk > 0 && (
+                                                                            <Link
+                                                                                href={`${role === 'admin' ? '/admin-area' : '/pic-area'}/logistic/pr?search=${encodeURIComponent(pr.nomorPr)}&page=1`}
+                                                                                className="group flex justify-between items-center gap-4 pt-1 border-t border-green-400/40 dark:border-green-800/40 transition-all cursor-pointer w-full text-right"
+                                                                            >
+                                                                                <span className="text-indigo-600 dark:text-indigo-400 font-bold shrink-0">PR SPK </span>
+                                                                                <span className="text-indigo-600 dark:text-indigo-400 font-bold text-right tabular-nums group-hover:underline underline-offset-4 decoration-indigo-600">
+                                                                                    {formatCurrency(totalPrSpk)}
+                                                                                </span>
+                                                                            </Link>
+                                                                        )}
+                                                                    </>
+                                                                );
+                                                            })()}
+                                                        </div>
+                                                    </div>
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge

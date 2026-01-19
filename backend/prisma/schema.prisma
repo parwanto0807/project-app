@@ -1622,6 +1622,12 @@ model PurchaseRequest {
   spkId String?
   spk   SPK?    @relation(fields: [spkId], references: [id])
 
+  // Self-relation untuk Parent-Child PR
+  // PR SPK (spkId != null) WAJIB memiliki parentPrId yang merujuk ke PR UM (spkId = null)
+  parentPrId String?
+  parentPr   PurchaseRequest?  @relation("PRParentChild", fields: [parentPrId], references: [id], onDelete: Restrict)
+  childPrs   PurchaseRequest[] @relation("PRParentChild")
+
   // Relasi ke detail permintaan
   details            PurchaseRequestDetail[]
   uangMuka           UangMuka[]

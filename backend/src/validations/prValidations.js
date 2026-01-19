@@ -29,6 +29,7 @@ export const createPurchaseRequestSchema = z
     karyawanId: z.string().min(1, "Karyawan ID is required"),
     requestedById: z.string().optional().nullable(), // ✅ Add requester field
     spkId: z.string().optional().nullable(), // Sementara string dulu
+    parentPrId: z.string().uuid().optional().nullable(), // ✅ Parent PR reference
     keterangan: z.string().max(500).optional().nullable(),
     details: z
       .array(
@@ -51,8 +52,9 @@ export const createPurchaseRequestSchema = z
       data.projectId === "" || data.projectId === undefined
         ? null
         : data.projectId,
-    spkId: data.spkId === "" || data.spkId === undefined ? null : data.spkId,
-  }))
+    spkId: !data.spkId || data.spkId === "" || data.spkId === "no-spk" || data.spkId === "null" || data.spkId === "undefined" ? null : data.spkId,
+    parentPrId: !data.parentPrId || data.parentPrId === "" || data.parentPrId === "no-parent" || data.parentPrId === "null" || data.parentPrId === "undefined" ? null : data.parentPrId,
+  }));
   // PERBAIKAN: Fix the refine logic
   // .refine(
   //   (data) => {
@@ -86,6 +88,7 @@ export const updatePurchaseRequestSchema = z
     // ✅ PERUBAHAN: Tambahkan projectId di update schema
     projectId: projectIdSchema,
     spkId: uuidSchema.optional().nullable(),
+    parentPrId: uuidSchema.optional().nullable(), // ✅ Parent PR reference
     requestedById: z.string().optional().nullable(), // ✅ Add requester field for update
     keterangan: z.string().max(500).optional().nullable(),
     status: z
@@ -118,9 +121,10 @@ export const updatePurchaseRequestSchema = z
   // ✅ Transform untuk update juga
   .transform((data) => ({
     ...data,
-    projectId: data.projectId?.trim() === "" ? null : data.projectId,
-    spkId: data.spkId?.trim() === "" ? null : data.spkId,
-  }))
+    projectId: !data.projectId || data.projectId.trim() === "" ? null : data.projectId,
+    spkId: !data.spkId || data.spkId.trim() === "" || data.spkId === "no-spk" || data.spkId === "null" ? null : data.spkId,
+    parentPrId: !data.parentPrId || data.parentPrId.trim() === "" || data.parentPrId === "no-parent" || data.parentPrId === "null" ? null : data.parentPrId,
+  }));
   // ✅ Validasi untuk update
   // .refine(
   //   (data) => {

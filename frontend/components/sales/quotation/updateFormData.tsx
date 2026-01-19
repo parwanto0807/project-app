@@ -820,9 +820,30 @@ export const UpdateQuotationForm: React.FC<UpdateQuotationFormProps> = ({
                                                                     </div>
                                                                     <CommandList>
                                                                         <CommandEmpty>
-                                                                            {itemState[index]?.productSearchQuery
-                                                                                ? "Tidak ditemukan"
-                                                                                : "Tidak ada data"}
+                                                                            <div className="p-4 text-center">
+                                                                                <p className="text-sm text-muted-foreground mb-3">
+                                                                                    {itemState[index]?.productSearchQuery
+                                                                                        ? `"${itemState[index]?.productSearchQuery}" tidak ditemukan`
+                                                                                        : "Tidak ada data"}
+                                                                                </p>
+                                                                                {itemState[index]?.productSearchQuery && (
+                                                                                    <ProductCreateDialog
+                                                                                        createEndpoint={`${process.env.NEXT_PUBLIC_API_URL}/api/master/product/createProduct`}
+                                                                                        onCreated={(createdProduct: CreatedProduct) => handleProductCreated(index, createdProduct)}
+                                                                                        trigger={
+                                                                                            <Button
+                                                                                                type="button"
+                                                                                                variant="outline"
+                                                                                                size="sm"
+                                                                                                className="w-full"
+                                                                                            >
+                                                                                                <Plus className="h-4 w-4 mr-2" />
+                                                                                                Tambah Produk Baru
+                                                                                            </Button>
+                                                                                        }
+                                                                                    />
+                                                                                )}
+                                                                            </div>
                                                                         </CommandEmpty>
                                                                         <CommandGroup>
                                                                             {filteredProducts(index).map((opt) => (

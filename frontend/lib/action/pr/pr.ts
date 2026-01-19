@@ -107,6 +107,9 @@ export async function getAllPurchaseRequests(
 
     if (filters?.search) queryParams.append("search", filters.search);
 
+    // ✅ Always include existing POs to show PO numbers in PR list
+    queryParams.append("includeExistingPOs", "true");
+
     const url = `${API_BASE_URL}/api/pr/getAllPurchaseRequests${queryParams.toString() ? `?${queryParams.toString()}` : ""
       }`;
 
