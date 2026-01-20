@@ -444,7 +444,8 @@ const POLineItem: React.FC<{
                                     size="sm"
                                     variant="outline"
                                     onClick={() => setIsEditing(true)}
-                                    // disabled={purchaseOrderStatus === 'FULLY_RECEIVED'} // Removed restricted access
+                                    disabled={purchaseOrderStatus === 'CANCELLED'}
+                                    title={purchaseOrderStatus === 'CANCELLED' ? "PO Dibatalkan" : "Input Data Aktual"}
                                     className="h-8"
                                 >
                                     <Edit2 className="w-3.5 h-3.5 mr-1" />

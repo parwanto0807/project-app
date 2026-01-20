@@ -103,9 +103,9 @@ const statusConfig = {
     },
     CANCELLED: {
         label: "Dibatalkan",
-        className: "bg-slate-100 text-slate-800 border-slate-300",
+        className: "bg-red-600 text-white border-red-600 shadow-md font-semibold hover:bg-red-700",
         icon: XCircle,
-        iconColor: "text-slate-600"
+        iconColor: "text-white"
     },
     UNVERIFIED_ACCOUNTING: {
         label: "Verifikasi Accounting",
@@ -178,8 +178,11 @@ const MobilePOCard = ({ po, onView, basePath, role }: {
     const StatusIcon = statusConfig[po.status as keyof typeof statusConfig]?.icon || Clock;
 
     return (
-        <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm h-full flex flex-col">
-            <div className="flex-1 space-y-3">
+        <div className={cn(
+            "rounded-lg border shadow-sm h-full flex flex-col transition-colors",
+            po.status === 'CANCELLED' ? "bg-gray-50 border-gray-100" : "bg-white border-gray-200"
+        )}>
+            <div className={cn("flex-1 space-y-3", po.status === 'CANCELLED' && "opacity-75 grayscale-[0.3]")}>
                 {/* Header */}
                 <div className="flex justify-between items-start mb-3">
                     <div>
@@ -466,13 +469,14 @@ export default function PurchaseOrderTable({
                                             key={po.id}
                                             className={cn(
                                                 highlightId === po.id && "bg-blue-50",
-                                                "hover:bg-muted/50"
+                                                "hover:bg-muted/50",
+                                                po.status === 'CANCELLED' && "bg-gray-50/80 text-gray-400"
                                             )}
                                         >
                                             <TableCell className="font-medium">
                                                 <Link
                                                     href={`${basePath}/${po.id}`}
-                                                    className="text-primary hover:underline"
+                                                    className={cn("hover:underline", po.status === 'CANCELLED' ? "text-gray-500" : "text-primary")}
                                                 >
                                                     {po.poNumber}
                                                 </Link>
@@ -550,7 +554,8 @@ export default function PurchaseOrderTable({
                                         key={po.id}
                                         className={cn(
                                             highlightId === po.id && "bg-blue-50 dark:bg-blue-950/20",
-                                            "hover:bg-muted/50 transition-colors"
+                                            "hover:bg-muted/50 transition-colors",
+                                            po.status === 'CANCELLED' && "bg-gray-50/80 text-gray-400 dark:bg-gray-900/50 dark:text-gray-600"
                                         )}
                                     >
                                         <TableCell className="font-medium">
@@ -559,7 +564,10 @@ export default function PurchaseOrderTable({
                                                     href={`${basePath}/${po.id}`}
                                                     className="hover:underline group flex items-center gap-2"
                                                 >
-                                                    <FileText className="h-4 w-4 text-primary/70 group-hover:text-primary flex-shrink-0" />
+                                                    <FileText className={cn(
+                                                        "h-4 w-4 flex-shrink-0",
+                                                        po.status === 'CANCELLED' ? "text-gray-400" : "text-primary/70 group-hover:text-primary"
+                                                    )} />
                                                     <Badge
                                                         variant="outline"
                                                         className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 font-semibold"

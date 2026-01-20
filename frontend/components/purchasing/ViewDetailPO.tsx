@@ -165,10 +165,10 @@ const statusConfig: Record<string, any> = {
     },
     CANCELLED: {
         label: "Dibatalkan",
-        className: "bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 shadow-sm",
+        className: "bg-red-600 text-white border-red-600 dark:bg-red-700 dark:text-white dark:border-red-500 shadow-sm",
         icon: XCircle,
-        iconColor: "text-slate-600 dark:text-slate-400",
-        gradient: "from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900",
+        iconColor: "text-white",
+        gradient: "from-red-600 to-red-700 dark:from-red-700 dark:to-red-800",
     },
     INVOICE_RECEIVED: {
         label: "Invoice Diterima",

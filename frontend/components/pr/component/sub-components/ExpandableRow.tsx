@@ -130,7 +130,12 @@ export const ExpandableRow = forwardRef<HTMLTableRowElement, ExpandableRowProps>
                                             >
                                                 <Badge
                                                     variant="outline"
-                                                    className="bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300 text-[12px] px-1 py-0.5 cursor-pointer hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors group-hover:underline underline-offset-2 decoration-orange-400"
+                                                    className={cn(
+                                                        "text-[12px] px-1 py-0.5 cursor-pointer transition-colors group-hover:underline underline-offset-2",
+                                                        po.status === 'CANCELLED'
+                                                            ? "bg-gray-100 text-gray-400 border-gray-200 dark:bg-gray-800 dark:text-gray-500 line-through decoration-gray-400"
+                                                            : "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-300 hover:bg-orange-100 dark:hover:bg-orange-900/30 decoration-orange-400"
+                                                    )}
                                                 >
                                                     <FileText className="h-2 w-2 mr-0.5" />
                                                     No PO : {po.poNumber}
@@ -354,7 +359,7 @@ export const ExpandableRow = forwardRef<HTMLTableRowElement, ExpandableRowProps>
                         <div className="bg-gradient-to-r from-green-50/50 to-emerald-50/50 dark:from-green-900/10 dark:to-emerald-900/10 border border-green-400/60 dark:border-green-800/60 rounded-lg px-3 py-2">
                             <div className="flex flex-col gap-1.5 text-[12px] font-bold">
                                 {(() => {
-                                    const totalPO = pr.purchaseOrders?.reduce((sum, po) => sum + cleanNumber(po.totalAmount), 0) ?? 0;
+                                    const totalPO = pr.purchaseOrders?.reduce((sum, po) => po.status === 'CANCELLED' ? sum : sum + cleanNumber(po.totalAmount), 0) ?? 0;
                                     const totalPrSpk = pr.childPrs?.reduce((sum, child) => {
                                         const childTotal = (child as any).details?.reduce((s: number, d: any) => s + cleanNumber(d.estimasiTotalHarga), 0) ?? 0;
                                         return sum + childTotal;
