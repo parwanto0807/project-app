@@ -337,8 +337,9 @@ export const stockMonitoringController = {
         return res.status(400).json({ success: false, message: "ProductId is required" });
       }
 
-      // Period bulan ini
-      const currentPeriod = startOfMonth(new Date());
+      // Period bulan ini (Force UTC 00:00:00 to match DB stored periods)
+      const now = new Date();
+      const currentPeriod = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
 
       let stockValue = 0;
       let breakdown = [];

@@ -867,10 +867,11 @@ export class PurchaseRequestController {
           select: { status: true, nomorPr: true },
         });
 
-        if (!parentPR || parentPR.status !== "APPROVED") {
+        // Allow APPROVED or COMPLETED (since PR UM might be completed/disbursed)
+        if (!parentPR || !["APPROVED", "COMPLETED"].includes(parentPR.status)) {
           return res.status(400).json({
             success: false,
-            message: `Cannot approve child PR because parent PR ${parentPR?.nomorPr || ''} is not APPROVED (current status: ${parentPR?.status || 'NOT FOUND'})`,
+            message: `Cannot approve child PR because parent PR ${parentPR?.nomorPr || ''} is not APPROVED or COMPLETED (current status: ${parentPR?.status || 'NOT FOUND'})`,
             error: "PARENT_PR_NOT_APPROVED",
           });
         }
@@ -2060,7 +2061,7 @@ export class PurchaseRequestController {
         }
 
         return pr;
-      });
+      }, { timeout: 20000 });
 
       // 5. Auto-create Purchase Order if PR contains purchase items
       // This happens AFTER the transaction completes successfully
