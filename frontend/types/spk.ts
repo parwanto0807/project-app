@@ -164,6 +164,15 @@ export interface SPKDataApi extends SPKBase {
     lokasiUnit?: string | null;
     status?: "PENDING" | "DONE";
   }[];
+
+  spkFieldReport?: {
+    id: string;
+    soDetailId?: string;
+    progress?: number;
+    status?: string;
+    reportedAt?: Date;
+    createdAt: Date;
+  }[] | null;
 }
 
 export interface FetchSpkParams {

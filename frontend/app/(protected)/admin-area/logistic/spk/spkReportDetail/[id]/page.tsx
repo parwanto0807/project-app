@@ -45,6 +45,13 @@ export default function SpkReportDetailByIdPageAdmin() {
             let result: SPKDataApi | null = null;
             if (role === "admin" || role === 'super') {
                 result = await fetchSpkById(spkId);
+
+                // DEBUG: Check API response
+                console.log('🔴 PAGE DEBUG - fetchSpkById result:', result);
+                console.log('📊 PAGE - Has spkFieldReport?', !!result?.spkFieldReport);
+                console.log('📊 PAGE - spkFieldReport:', result?.spkFieldReport);
+
+
             }
 
             setDataSpk(result);

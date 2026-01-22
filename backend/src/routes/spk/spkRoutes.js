@@ -8,6 +8,7 @@ import {
   deleteSPK,
   getSpkByEmail,
   getAllSPKAdmin,
+  updateSPKProgress,
 } from "../../controllers/spk/spkController.js";
 
 const router = express.Router();
@@ -20,6 +21,7 @@ router.get("/getAllSPKPr", getAllSPKPr);
 router.get("/getSpkByEmail", getSpkByEmail);
 router.get("/getSPKById/:id", getSPKById);
 router.put("/updateSPK/:id", updateSPK);
+router.put("/updateSPKProgress/:id", updateSPKProgress);
 router.delete("/deleteSPK/:id", deleteSPK);
 
 export default router;

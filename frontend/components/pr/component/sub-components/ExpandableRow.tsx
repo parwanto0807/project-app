@@ -361,9 +361,27 @@ export const ExpandableRow = forwardRef<HTMLTableRowElement, ExpandableRowProps>
                                 {(() => {
                                     const totalPO = pr.purchaseOrders?.reduce((sum, po) => po.status === 'CANCELLED' ? sum : sum + cleanNumber(po.totalAmount), 0) ?? 0;
                                     const totalPrSpk = pr.childPrs?.reduce((sum, child) => {
-                                        const childTotal = (child as any).details?.reduce((s: number, d: any) => s + cleanNumber(d.estimasiTotalHarga), 0) ?? 0;
+                                        const childTotal = child.details?.reduce((s, d) => s + cleanNumber(d.estimasiTotalHarga), 0) ?? 0;
                                         return sum + childTotal;
                                     }, 0) ?? 0;
+
+                                    // 1. Summary from Child PRs (for PR-UM view -> breakdown of PR SPK)
+                                    const childSourceProductSummaries = pr.childPrs?.reduce((acc, child) => {
+                                        child.details?.forEach((detail) => {
+                                            if (detail.sourceProduct) {
+                                                acc[detail.sourceProduct] = (acc[detail.sourceProduct] || 0) + cleanNumber(detail.estimasiTotalHarga);
+                                            }
+                                        });
+                                        return acc;
+                                    }, {} as Record<string, number>);
+
+                                    // 2. Summary from OWN details (for PR-SPK view -> breakdown of itself)
+                                    const ownSourceProductSummaries = pr.details?.reduce((acc, detail) => {
+                                        if (detail.sourceProduct) {
+                                            acc[detail.sourceProduct] = (acc[detail.sourceProduct] || 0) + cleanNumber(detail.estimasiTotalHarga);
+                                        }
+                                        return acc;
+                                    }, {} as Record<string, number>);
 
                                     const prLabel = !pr.spkId ? "PR-UM" : "PR-SPK";
 
@@ -376,6 +394,23 @@ export const ExpandableRow = forwardRef<HTMLTableRowElement, ExpandableRowProps>
                                                     {formatCurrency(totalAmount)}
                                                 </span>
                                             </div>
+
+                                            {/* Breakdown for PR SPK (Own Details) - Only if it IS an SPK based PR */}
+                                            {pr.spkId && ownSourceProductSummaries && Object.entries(ownSourceProductSummaries).map(([source, amount]) => (
+                                                amount > 0 && (
+                                                    <div
+                                                        key={source}
+                                                        className="group flex justify-between items-center gap-4 pt-1 border-dotted border-t border-emerald-200 dark:border-emerald-800/40 transition-all cursor-default w-full pl-2"
+                                                    >
+                                                        <span className="text-emerald-600 dark:text-emerald-400 font-bold shrink-0 text-[10px] uppercase">
+                                                            - {source.replace(/_/g, " ")}
+                                                        </span>
+                                                        <span className="text-emerald-600 dark:text-emerald-400 font-bold text-right tabular-nums text-[11px]">
+                                                            {formatCurrency(amount)}
+                                                        </span>
+                                                    </div>
+                                                )
+                                            ))}
 
                                             {/* PO Amount */}
                                             {totalPO > 0 && (
@@ -391,18 +426,37 @@ export const ExpandableRow = forwardRef<HTMLTableRowElement, ExpandableRowProps>
                                                 </Link>
                                             )}
 
-                                            {/* Child PR Amount */}
+                                            {/* Child PR Amount (PR SPK) */}
                                             {totalPrSpk > 0 && (
-                                                <Link
-                                                    href={`${role === 'pic' ? '/pic-area' : role === 'super' ? '/super-admin-area' : '/admin-area'}/logistic/pr?search=${encodeURIComponent(pr.nomorPr)}&page=1`}
-                                                    className="group flex justify-between items-center gap-4 pt-1 border-t border-green-400/40 dark:border-green-800/40 transition-all cursor-pointer w-full"
-                                                    onClick={(e) => e.stopPropagation()}
-                                                >
-                                                    <span className="text-indigo-600 dark:text-indigo-400 font-bold shrink-0">PR SPK </span>
-                                                    <span className="text-indigo-600 dark:text-indigo-400 font-bold text-right tabular-nums group-hover:underline underline-offset-4">
-                                                        {formatCurrency(totalPrSpk)}
-                                                    </span>
-                                                </Link>
+                                                <>
+                                                    <Link
+                                                        href={`${role === 'pic' ? '/pic-area' : role === 'super' ? '/super-admin-area' : '/admin-area'}/logistic/pr?search=${encodeURIComponent(pr.nomorPr)}&page=1`}
+                                                        className="group flex justify-between items-center gap-4 pt-1 border-t border-green-400/40 dark:border-green-800/40 transition-all cursor-pointer w-full"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    >
+                                                        <span className="text-indigo-600 dark:text-indigo-400 font-bold shrink-0">PR SPK </span>
+                                                        <span className="text-indigo-600 dark:text-indigo-400 font-bold text-right tabular-nums group-hover:underline underline-offset-4">
+                                                            {formatCurrency(totalPrSpk)}
+                                                        </span>
+                                                    </Link>
+
+                                                    {/* Source Product Breakdown for PR SPK children (when viewing PR-UM) */}
+                                                    {!pr.spkId && childSourceProductSummaries && Object.entries(childSourceProductSummaries).map(([source, amount]) => (
+                                                        amount > 0 && (
+                                                            <div
+                                                                key={source}
+                                                                className="group flex justify-between items-center gap-4 pt-1 border-dotted border-t border-indigo-200 dark:border-indigo-800/40 transition-all cursor-default w-full pl-2"
+                                                            >
+                                                                <span className="text-indigo-600 dark:text-indigo-400 font-bold shrink-0 text-[10px] uppercase">
+                                                                    - {source.replace(/_/g, " ")}
+                                                                </span>
+                                                                <span className="text-indigo-600 dark:text-indigo-400 font-bold text-right tabular-nums text-[11px]">
+                                                                    {formatCurrency(amount)}
+                                                                </span>
+                                                            </div>
+                                                        )
+                                                    ))}
+                                                </>
                                             )}
                                         </>
                                     );
@@ -430,6 +484,8 @@ export const ExpandableRow = forwardRef<HTMLTableRowElement, ExpandableRowProps>
                             <div className="text-xs text-blue-700 dark:text-blue-300 font-medium mt-0.5">ACC FINANCE</div>
                         </div>
                     </TableCell>
+
+
 
                     <TableCell className="text-right">
                         <PercentageBadge

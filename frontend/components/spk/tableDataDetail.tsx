@@ -100,6 +100,15 @@ interface SPKDataApi {
         status?: 'PENDING' | 'DONE';
     }[];
 
+    spkFieldReport?: {
+        id: string;
+        soDetailId?: string;
+        progress?: number;
+        status?: string;
+        reportedAt?: Date;
+        createdAt: Date;
+    }[] | null;
+
     notes?: string | null;
     createdAt: Date;
     updatedAt: Date;
@@ -177,10 +186,82 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
     const [previewPdfOpen, setPreviewPdfOpen] = useState(false);
     const [selectedItemForPdf, setSelectedItemForPdf] = useState<string>('');
     const [isFiltering, setIsFiltering] = useState(false);
+    const [isRecalculating, setIsRecalculating] = useState(false);
 
     const totalPages = Math.ceil(reports.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
     const currentReports = reports.slice(startIndex, startIndex + itemsPerPage);
+
+    // Handler untuk recalculate progress
+    const handleRecalculateProgress = useCallback(async () => {
+        if (!dataSpk) {
+            toast.error("Data SPK tidak tersedia");
+            return;
+        }
+
+        setIsRecalculating(true);
+
+        try {
+            // Calculate progress locally first
+            const recalculated = mapToSPKData(dataSpk);
+
+            if (recalculated.length > 0) {
+                const spk = recalculated[0];
+                const totalProgress = spk.items.reduce((sum, i) => sum + i.progress, 0);
+                const avgProgress = spk.items.length > 0 ? Math.round(totalProgress / spk.items.length) : 0;
+
+                // ✅ Call backend API to save progress to database
+                const response = await fetch(
+                    `${process.env.NEXT_PUBLIC_API_URL}/api/spk/updateSPKProgress/${dataSpk.id}`,
+                    {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        credentials: 'include',
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error('Failed to update progress');
+                }
+
+                const result = await response.json();
+
+                // Update local state
+                setUserSpk(recalculated);
+
+                // Check specifically for the completion flag from backend
+                if (result.data && result.data.spkStatusClose) {
+                    toast.success(
+                        `🎉 SPK SELESAI (100%)!\n` +
+                        `----------------------\n` +
+                        `✅ Status SPK: CLOSED\n` +
+                        `✅ Sales Order: FULFILLED\n` +
+                        `✅ Progress: 100% Saved`,
+                        { duration: 6000 }
+                    );
+
+                    // Optional: Refresh entire page data to reflect status change immediately
+                    // router.refresh(); 
+                } else {
+                    toast.success(
+                        `Progress berhasil dihitung ulang dan disimpan!\n` +
+                        `Total Item: ${spk.items.length}\n` +
+                        `Total Progress: ${totalProgress}%\n` +
+                        `Rata-rata: ${avgProgress}%`,
+                        { duration: 4000 }
+                    );
+                }
+            }
+        } catch (error) {
+            console.error('Error recalculating progress:', error);
+            toast.error('Gagal menyimpan progress ke database');
+        } finally {
+            setIsRecalculating(false);
+        }
+    }, [dataSpk]);
+
 
     // Kelompokkan laporan berdasarkan spkNumber
     const groupedReports = currentReports.reduce<Record<string, typeof currentReports>>(
@@ -208,9 +289,18 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
         window.history.back();
     };
 
-    // 👇 MAP KE SPKData (DIBENARKAN)
+    // 👇 MAP KE SPKData (DIBENARKAN) - FIXED PROGRESS CALCULATION
     const mapToSPKData = (raw: SPKDataApi | null): SPKData[] => {
-        if (!raw) return [];
+        console.log('🚀 ==== mapToSPKData CALLED ====');
+        console.log('📦 Raw data:', raw);
+
+        if (!raw) {
+            console.warn('⚠️ mapToSPKData: raw is null!');
+            return [];
+        }
+
+        console.log('✅ SPK Number:', raw.spkNumber);
+        console.log('📄 spkFieldReport:', raw.spkFieldReport);
 
         const clientName = raw.salesOrder?.customer?.name || 'Client Tidak Dikenal';
         const projectName = raw.salesOrder?.project?.name || 'Project Tidak Dikenal';
@@ -219,24 +309,40 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
             raw.createdBy?.namaLengkap ||
             'Tidak Ditugaskan';
 
-        const totalDetails = raw.details?.length || 0;
-        const completedDetails = raw.details?.filter(d => d.status === 'DONE').length || 0;
-        const progress = totalDetails > 0 ? Math.round((completedDetails / totalDetails) * 100) : 0;
         const teamName = raw.team?.namaTeam || 'Team belum ditentukan';
         const email = raw.team?.teamKaryawan?.karyawan?.email || ' Email belum ditentukan';
 
-        let status: 'PENDING' | 'PROGRESS' | 'COMPLETED';
-        if (progress === 100) status = 'COMPLETED';
-        else if (progress > 0) status = 'PROGRESS';
-        else status = 'PENDING';
-
         const deadline = new Date(raw.spkDate).toISOString();
 
+        // ✅ FIRST: Map items to calculate individual item status and progress from field reports
         let items = raw.salesOrder?.items?.map(itemSales => {
-            const relatedDetails = raw.details?.filter(detail => detail.salesOrderItem?.id === itemSales.id) || [];
-            const hasDoneDetail = relatedDetails.some(detail => detail.status === 'DONE');
-            const itemStatus: 'PENDING' | 'DONE' = hasDoneDetail ? 'DONE' : 'PENDING';
-            const itemProgress = hasDoneDetail ? 100 : 0;
+            // DEBUG: Log untuk cek data
+            console.log('🔍 Item:', itemSales.name);
+            console.log('📄 All spkFieldReport:', raw.spkFieldReport);
+
+            // Get all field reports for this specific item
+            const itemFieldReports = raw.spkFieldReport?.filter(
+                (report: { soDetailId?: string }) => report.soDetailId === itemSales.id
+            ) || [];
+
+            console.log('📊 Field reports for this item:', itemFieldReports);
+
+            // Sort by reportedAt descending to get the latest report
+            const sortedReports = itemFieldReports.sort((a: any, b: any) => {
+                const dateA = new Date(a.reportedAt || a.createdAt || 0);
+                const dateB = new Date(b.reportedAt || b.createdAt || 0);
+                return dateB.getTime() - dateA.getTime();
+            });
+
+            // Get the latest report's progress
+            const latestReport = sortedReports[0];
+            const itemProgress = latestReport?.progress ?? 0;
+
+            console.log('✅ Latest report:', latestReport);
+            console.log('📊 Item Progress:', itemProgress);
+
+            // Determine status based on progress
+            const itemStatus: 'PENDING' | 'DONE' = itemProgress >= 100 ? 'DONE' : 'PENDING';
 
             return {
                 id: itemSales.id,
@@ -254,6 +360,19 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
 
         // ✅ Urutkan items berdasarkan lineNo ascending
         items = items.sort((a, b) => a.lineNo - b.lineNo);
+
+        // ✅ CORRECT PROGRESS CALCULATION: Weighted Average to support partial progress
+        // Each item contributes its progress percentage to the total
+        // Example: Item with 25% progress contributes 25% to total, not 0%
+        const totalItems = items.length;
+        const totalProgress = items.reduce((sum, item) => sum + item.progress, 0);
+        const progress = totalItems > 0 ? Math.round(totalProgress / totalItems) : 0;
+
+        // ✅ Determine overall SPK status based on weighted average progress
+        let status: 'PENDING' | 'PROGRESS' | 'COMPLETED';
+        if (progress === 100) status = 'COMPLETED';
+        else if (progress > 0) status = 'PROGRESS';
+        else status = 'PENDING';
 
         return [{
             id: raw.id,
@@ -442,51 +561,85 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
 
     return (
         <div className="h-full w-full p-1 md:p-2">
+            {/* Header dengan Back Button dan SPK Badge - ALWAYS VISIBLE */}
+            <div className="flex flex-col gap-2 bg-gradient-to-r from-blue-600 to-purple-600 p-3 rounded-lg text-white shadow-lg mb-4">
+                {/* Bar Atas */}
+                <div className="flex items-center justify-between">
+                    {/* Back Button */}
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleBack}
+                        className="text-white hover:bg-white/20 h-8 w-8 p-0 rounded-full"
+                    >
+                        <ArrowLeft className="h-4 w-4" />
+                    </Button>
+
+                    {/* Badge - selalu di center */}
+                    <div className="flex-1 flex justify-center items-center gap-2">
+                        <Badge
+                            variant="secondary"
+                            className="px-3 py-1 text-sm font-semibold md:px-5 md:py-2 md:text-base bg-white/20 backdrop-blur-sm border-white/30 text-white"
+                        >
+                            {filteredUserSpk[0]?.spkNumber || 'SPK'}
+                        </Badge>
+
+                        {/* Re-Calculate Button */}
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleRecalculateProgress}
+                            disabled={isRecalculating}
+                            className="text-white hover:bg-white/20 h-8 px-3 rounded-full border border-white/30 backdrop-blur-sm"
+                            title="Hitung ulang progress berdasarkan item yang selesai"
+                        >
+                            {isRecalculating ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <>
+                                    <TrendingUp className="h-4 w-4 mr-1" />
+                                    <span className="hidden sm:inline text-xs">Re-Calculate</span>
+                                </>
+                            )}
+                        </Button>
+                    </div>
+
+                    {/* Kosong untuk keseimbangan layout di desktop, tapi kecil */}
+                    <div className="w-6 sm:w-20"></div>
+                </div>
+
+                {/* Judul */}
+                <div className="flex items-center gap-2 justify-center">
+                    <TrendingUp className="h-5 w-5 md:h-6 md:w-6" />
+                    <h1 className="text-lg md:text-2xl font-bold tracking-tight text-center">
+                        Laporan Progress SPK
+                    </h1>
+                </div>
+
+                {/* Subtext */}
+                <p className="text-[10px] md:text-sm text-blue-100 opacity-90 text-center leading-tight">
+                    {role === 'admin' || role === 'super' || role === 'pic'
+                        ? 'Monitor semua SPK yang sedang berjalan'
+                        : 'Laporkan progress pekerjaan untuk SPK Anda'}
+                </p>
+
+                {/* Progress Calculation Info */}
+                {filteredUserSpk.length > 0 && (
+                    <div className="flex items-center justify-center gap-2 mt-2">
+                        <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-3 py-1 flex items-center gap-2">
+                            <CheckCircle className="h-3.5 w-3.5 text-green-300" />
+                            <span className="text-[10px] md:text-xs text-white font-medium">
+                                Progress: {filteredUserSpk[0].items.filter(i => i.status === 'DONE').length} / {filteredUserSpk[0].items.length} Item
+                                <span className="ml-1 font-bold">= {filteredUserSpk[0].progress}%</span>
+                            </span>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Content Section */}
             {(loadingReports || isFiltering) && (
                 <div className="flex flex-col gap-4">
-                    {/* Header dengan Back Button dan SPK Badge */}
-                    <div className="flex flex-col gap-2 bg-gradient-to-r from-blue-600 to-purple-600 p-3 rounded-lg text-white shadow-lg">
-                        {/* Bar Atas */}
-                        <div className="flex items-center justify-between">
-                            {/* Back Button */}
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={handleBack}
-                                className="text-white hover:bg-white/20 h-8 w-8 p-0 rounded-full"
-                            >
-                                <ArrowLeft className="h-4 w-4" />
-                            </Button>
-
-                            {/* Badge - selalu di center */}
-                            <div className="flex-1 flex justify-center">
-                                <Badge
-                                    variant="secondary"
-                                    className="px-3 ml-12 py-1 text-sm font-semibold md:px-5 md:py-2 md:text-base bg-white/20 backdrop-blur-sm border-white/30 text-white"
-                                >
-                                    {filteredUserSpk[0]?.spkNumber || 'SPK'}
-                                </Badge>
-                            </div>
-
-                            {/* Kosong untuk keseimbangan layout di desktop, tapi kecil */}
-                            <div className="w-6 sm:w-20"></div>
-                        </div>
-
-                        {/* Judul */}
-                        <div className="flex items-center gap-2 justify-center">
-                            <TrendingUp className="h-5 w-5 md:h-6 md:w-6" />
-                            <h1 className="text-lg md:text-2xl font-bold tracking-tight text-center">
-                                Laporan Progress SPK
-                            </h1>
-                        </div>
-
-                        {/* Subtext */}
-                        <p className="text-[10px] md:text-sm text-blue-100 opacity-90 text-center leading-tight">
-                            {role === 'admin' || role === 'super' || role === 'pic'
-                                ? 'Monitor semua SPK yang sedang berjalan'
-                                : 'Laporkan progress pekerjaan untuk SPK Anda'}
-                        </p>
-                    </div>
 
                     <Card className="border-border/40 bg-card/90 backdrop-blur-sm shadow-md rounded-xl overflow-hidden transition-all duration-300 hover:shadow-lg">
                         {/* Header Card — Judul + Filter */}
@@ -755,6 +908,13 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
                                                                     </td>
                                                                 </tr>
 
+                                                                {/* Header for Item List */}
+                                                                <tr className="bg-slate-200 dark:bg-slate-700">
+                                                                    <td className="p-2 text-xs font-semibold text-slate-700 dark:text-slate-300">Item Name</td>
+                                                                    <td className="p-2 text-xs font-semibold text-slate-700 dark:text-slate-300 text-center">Qty / UOM</td>
+                                                                    <td className="p-2 text-xs font-semibold text-slate-700 dark:text-slate-300">Progress</td>
+                                                                </tr>
+
                                                                 {spk?.items?.map((item, index) => {
                                                                     return (
                                                                         <tr key={item.id} className="hover:bg-slate-50 border-b border-slate-100 dark:border-slate-800 dark:hover:bg-slate-800">
@@ -765,6 +925,32 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
                                                                                 <div className="flex items-center justify-center space-x-1">
                                                                                     <span className="text-xs md:text-sm font-semibold">
                                                                                         {item.qty || "0"} - {item.uom}
+                                                                                    </span>
+                                                                                </div>
+                                                                            </td>
+                                                                            {/* Progress Column */}
+                                                                            <td className="p-3">
+                                                                                <div className="flex items-center gap-2">
+                                                                                    {/* Progress Bar */}
+                                                                                    <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2 min-w-[60px]">
+                                                                                        <div
+                                                                                            className={`h-2 rounded-full transition-all duration-300 ${item.progress >= 100 ? 'bg-green-500' :
+                                                                                                item.progress >= 75 ? 'bg-blue-500' :
+                                                                                                    item.progress >= 50 ? 'bg-yellow-500' :
+                                                                                                        item.progress >= 25 ? 'bg-orange-500' :
+                                                                                                            item.progress > 0 ? 'bg-red-500' : 'bg-gray-400'
+                                                                                                }`}
+                                                                                            style={{ width: `${item.progress}%` }}
+                                                                                        ></div>
+                                                                                    </div>
+                                                                                    {/* Progress Percentage */}
+                                                                                    <span className={`text-xs md:text-sm font-bold min-w-[40px] text-right ${item.progress >= 100 ? 'text-green-600 dark:text-green-400' :
+                                                                                        item.progress >= 75 ? 'text-blue-600 dark:text-blue-400' :
+                                                                                            item.progress >= 50 ? 'text-yellow-600 dark:text-yellow-400' :
+                                                                                                item.progress >= 25 ? 'text-orange-600 dark:text-orange-400' :
+                                                                                                    item.progress > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-500'
+                                                                                        }`}>
+                                                                                        {item.progress}%
                                                                                     </span>
                                                                                 </div>
                                                                             </td>

@@ -262,6 +262,10 @@ export interface PurchaseRequestWithRelations extends PurchaseRequest {
     id: string;
     nomorPr: string;
     status: PRStatus;
+    details?: {
+      estimasiTotalHarga: number;
+      sourceProduct?: SourceProductType | null;
+    }[];
   }[];
   uangMuka?: UangMukaWithRelations[];
 }

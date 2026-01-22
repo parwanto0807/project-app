@@ -339,29 +339,41 @@ export const stockMonitoringController = {
 
       // Period bulan ini (Force UTC 00:00:00 to match DB stored periods)
       const now = new Date();
+      // Keep currentPeriod for legacy/fallback if needed
       const currentPeriod = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1));
 
       let stockValue = 0;
       let breakdown = [];
 
       if (req.query.detail === 'true') {
-         const balances = await prisma.stockBalance.findMany({
-           where: {
-             productId: productId,
-             period: currentPeriod
-           },
-           include: {
-             warehouse: { select: { name: true, isWip: true } }
-           }
+         // Get all active warehouses to ensure we check every possible storage location
+         const warehouses = await prisma.warehouse.findMany({
+             where: { isActive: true },
+             select: { id: true, name: true, isWip: true }
          });
          
-         // Fetch prices for each warehouse (FIFO basis - oldest available batch)
-         breakdown = await Promise.all(balances.map(async (b) => {
-             // Find the oldest batch that still has stock for this product in this warehouse
+         // Fetch latest balance for each warehouse regardless of period (Snapshot approach)
+         breakdown = await Promise.all(warehouses.map(async (wh) => {
+             // Find the latest balance entry for this product & warehouse
+             const latestBalance = await prisma.stockBalance.findFirst({
+                 where: {
+                     productId: productId,
+                     warehouseId: wh.id
+                 },
+                 orderBy: { period: 'desc' },
+                 take: 1
+             });
+             
+             // If no balance record exists at all, we skip
+             if (!latestBalance) {
+                 return null;
+             }
+             
+             // Find the oldest batch that still has stock for this product in this warehouse (FIFO)
              const oldestBatch = await prisma.stockDetail.findFirst({
                  where: {
                      productId: productId,
-                     warehouseId: b.warehouseId,
+                     warehouseId: wh.id,
                      residualQty: { gt: 0 },
                      isFullyConsumed: false
                  },
@@ -370,16 +382,19 @@ export const stockMonitoringController = {
              });
              
              return {
-                 warehouseId: b.warehouseId,
-                 warehouseName: b.warehouse?.name || 'Unknown',
-                 stock: Number(b.availableStock), // Keep for backward compatibility
+                 warehouseId: wh.id,
+                 warehouseName: wh.name,
+                 stock: Number(latestBalance.availableStock), // Use availableStock as stock for simple display
                  price: oldestBatch ? Number(oldestBatch.pricePerUnit) : 0,
-                 stockAkhir: Number(b.stockAkhir),
-                 bookedStock: Number(b.bookedStock),
-                 availableStock: Number(b.availableStock),
-                 isWip: b.warehouse?.isWip || false
+                 stockAkhir: Number(latestBalance.stockAkhir),
+                 bookedStock: Number(latestBalance.bookedStock),
+                 availableStock: Number(latestBalance.availableStock),
+                 isWip: wh.isWip
              };
          }));
+
+         // Filter out nulls
+         breakdown = breakdown.filter(b => b !== null);
 
          // Calculate total from breakdown to ensure consistency
          stockValue = breakdown.reduce((sum, item) => sum + item.stock, 0);
@@ -392,26 +407,33 @@ export const stockMonitoringController = {
       }
 
       if (warehouseId) {
-        // Specific Warehouse
+        // Specific Warehouse - Find Latest
         const balance = await prisma.stockBalance.findFirst({
           where: {
             productId: productId,
-            warehouseId: warehouseId,
-            period: currentPeriod
+            warehouseId: warehouseId
           },
+          orderBy: { period: 'desc' },
           select: { availableStock: true }
         });
         stockValue = balance ? Number(balance.availableStock) : 0;
       } else {
-        // All Warehouses (Aggregate)
-        const aggregation = await prisma.stockBalance.aggregate({
-           where: {
-             productId: productId,
-             period: currentPeriod
-           },
-           _sum: { availableStock: true }
-        });
-        stockValue = aggregation._sum.availableStock ? Number(aggregation._sum.availableStock) : 0;
+        // All Warehouses (Aggregate) - Sum of Latest of each warehouse
+         const warehouses = await prisma.warehouse.findMany({
+             where: { isActive: true },
+             select: { id: true }
+         });
+
+         const balances = await Promise.all(warehouses.map(async (wh) => {
+             const b = await prisma.stockBalance.findFirst({
+                 where: { productId, warehouseId: wh.id },
+                 orderBy: { period: 'desc' },
+                 select: { availableStock: true }
+             });
+             return b ? Number(b.availableStock) : 0;
+         }));
+
+         stockValue = balances.reduce((a, b) => a + b, 0);
       }
 
       return res.status(200).json({

@@ -194,26 +194,17 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
   const [userSpk, setUserSpk] = useState<SPKData[]>([]);
   const [spkItemProgress, setSpkItemProgress] = useState<SPKItemProgressMap>({});
 
-  // 👇 MAP KE SPKData
+  // 👇 MAP KE SPKData - FIXED PROGRESS CALCULATION
   const mapToSPKData = (raw: SPKDataApi[]): SPKData[] => {
     return raw.map(item => {
       const clientName = item.salesOrder?.customer?.name || 'Client Tidak Dikenal';
       const projectName = item.salesOrder?.project?.name || 'Project Tidak Dikenal';
       const assignedTo = item.team?.teamKaryawan?.karyawan?.namaLengkap || item.createdBy?.namaLengkap || 'Tidak Ditugaskan';
-
-      const totalDetails = item.details?.length || 0;
-      const completedDetails = item.details?.filter(d => d.status === 'DONE').length || 0;
-      const progress = totalDetails > 0 ? Math.round((completedDetails / totalDetails) * 100) : 0;
       const teamName = item.team?.namaTeam || 'Team belum ditentukan';
       const email = item.team?.teamKaryawan?.karyawan?.email || 'Email belum ditentukan';
-
-      let status: 'PENDING' | 'PROGRESS' | 'COMPLETED';
-      if (progress === 100) status = 'COMPLETED';
-      else if (progress > 0) status = 'PROGRESS';
-      else status = 'PENDING';
-
       const deadline = new Date(item.spkDate).toISOString();
 
+      // ✅ FIRST: Map items to calculate individual item status
       const items = item.salesOrder?.items?.map(itemSales => {
         const relatedDetails = item.details?.filter(detail => detail.salesOrderItem?.id === itemSales.id) || [];
         const hasDoneDetail = relatedDetails.some(detail => detail.status === 'DONE');
@@ -230,6 +221,19 @@ const FormMonitoringProgressSpk = ({ dataSpk, isLoading, userEmail, role, userId
           progress: itemProgress,
         };
       }) || [];
+
+      // ✅ CORRECT PROGRESS CALCULATION: Weighted Average to support partial progress
+      // Each item contributes its progress percentage to the total
+      // Example: Item with 25% progress contributes 25% to total, not 0%
+      const totalItems = items.length;
+      const totalProgress = items.reduce((sum, item) => sum + item.progress, 0);
+      const progress = totalItems > 0 ? Math.round(totalProgress / totalItems) : 0;
+
+      // ✅ Determine overall SPK status based on weighted average progress
+      let status: 'PENDING' | 'PROGRESS' | 'COMPLETED';
+      if (progress === 100) status = 'COMPLETED';
+      else if (progress > 0) status = 'PROGRESS';
+      else status = 'PENDING';
 
       return {
         id: item.id,

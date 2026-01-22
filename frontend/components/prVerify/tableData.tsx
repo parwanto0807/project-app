@@ -674,10 +674,30 @@ export function PurchaseRequestVerifyTable({
                                 ) : (
                                     purchaseRequests.map((pr) => {
                                         const cleanNumber = (value: string | number | null | undefined): number => {
-                                            if (typeof value === "string") {
-                                                return Number(value.replace(/\D/g, "")) || 0;
+                                            if (value === null || value === undefined) return 0;
+                                            if (typeof value === "number") return value;
+
+                                            // 1. Try standard JS number parsing first
+                                            const asNum = Number(value);
+                                            if (!isNaN(asNum)) return asNum;
+
+                                            const strVal = String(value).trim();
+
+                                            // 2. Handle Indonesian/EU format (dots=thousands, comma=decimal)
+                                            // "1.000,50" -> 1000.50
+                                            if (strVal.includes(",") && strVal.includes(".")) {
+                                                if (strVal.lastIndexOf(",") > strVal.lastIndexOf(".")) {
+                                                    return Number(strVal.replace(/\./g, "").replace(",", ".")) || 0;
+                                                }
                                             }
-                                            return typeof value === "number" ? value : 0;
+
+                                            // 3. Handle simple comma decimal "10,50" -> 10.50
+                                            if (strVal.includes(",") && !strVal.includes(".")) {
+                                                return Number(strVal.replace(",", ".")) || 0;
+                                            }
+
+                                            // Fallback
+                                            return Number(strVal.replace(/[^\d.-]/g, "")) || 0;
                                         };
 
                                         const totalAmount = pr.details?.reduce(

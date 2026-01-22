@@ -79,7 +79,10 @@ export class PurchaseRequestController {
                 nomorPr: true,
                 status: true,
                 details: {
-                  select: { estimasiTotalHarga: true }
+                  select: { 
+                    estimasiTotalHarga: true,
+                    sourceProduct: true
+                  }
                 }
               },
             },

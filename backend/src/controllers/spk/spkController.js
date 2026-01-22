@@ -707,6 +707,19 @@ export const getSPKById = async (req, res) => {
         details: {
           include: { karyawan: true, salesOrderItem: true },
         },
+        spkFieldReport: {  // ✅ TAMBAHAN: Include field reports untuk progress tracking
+          select: {
+            id: true,
+            soDetailId: true,
+            progress: true,
+            status: true,
+            reportedAt: true,
+            createdAt: true,
+          },
+          orderBy: {
+            reportedAt: 'desc',
+          },
+        },
       },
     });
 
@@ -811,5 +824,101 @@ export const deleteSPK = async (req, res) => {
   } catch (error) {
     console.error("Error deleteSPK:", error);
     res.status(500).json({ error: "Failed to delete SPK" });
+  }
+};
+
+// ✅ NEW: Update SPK Progress based on field reports
+export const updateSPKProgress = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 1️⃣ Fetch SPK with field reports
+    const spk = await prisma.sPK.findUnique({
+      where: { id },
+      include: {
+        salesOrder: {
+          include: {
+            items: true,
+          },
+        },
+        spkFieldReport: {
+          select: {
+            soDetailId: true,
+            progress: true,
+            reportedAt: true,
+          },
+          orderBy: {
+            reportedAt: 'desc',
+          },
+        },
+      },
+    });
+
+    if (!spk) {
+      return res.status(404).json({ error: "SPK not found" });
+    }
+
+    // 2️⃣ Calculate progress based on items
+    const items = spk.salesOrder?.items || [];
+    let totalProgress = 0;
+
+    items.forEach((item) => {
+      // Find latest field report for this item
+      const latestReport = spk.spkFieldReport?.find(
+        (report) => report.soDetailId === item.id
+      );
+      
+      const itemProgress = latestReport?.progress || 0;
+      totalProgress += itemProgress;
+    });
+
+    // Calculate weighted average
+    const avgProgress = items.length > 0 
+      ? Math.round(totalProgress / items.length) 
+      : 0;
+
+    // ✅ Check if progress is 100%
+    const isCompleted = avgProgress === 100;
+
+    // 3️⃣ Update SPK progress in database
+    await prisma.sPK.update({
+      where: { id },
+      data: {
+        progress: avgProgress,
+        spkStatusClose: isCompleted,  // ✅ Set to true if 100%
+        updatedAt: new Date(),
+      },
+    });
+
+    // 4️⃣ If completed, update SalesOrder status to FULFILLED
+    if (isCompleted && spk.salesOrderId) {
+      await prisma.salesOrder.update({
+        where: { id: spk.salesOrderId },
+        data: {
+          status: "FULFILLED",  // ✅ Mark as fulfilled
+        },
+      });
+    }
+
+    res.json({
+      success: true,
+      message: isCompleted 
+        ? "SPK completed! Progress 100%, SPK closed, and Sales Order marked as FULFILLED" 
+        : "SPK progress updated successfully",
+      data: {
+        spkId: id,
+        totalItems: items.length,
+        totalProgress: totalProgress,
+        averageProgress: avgProgress,
+        spkStatusClose: isCompleted,
+        salesOrderStatus: isCompleted ? "FULFILLED" : spk.salesOrder?.status,
+      },
+    });
+  } catch (error) {
+    console.error("Error updateSPKProgress:", error);
+    res.status(500).json({ 
+      error: "Failed to update SPK progress",
+      details: error.message 
+    });
   }
 };

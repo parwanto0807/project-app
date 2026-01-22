@@ -59,12 +59,21 @@ import {
   History,
 } from "lucide-react";
 
+interface Permission {
+  code: string;
+  canRead: boolean;
+  canCreate: boolean;
+  canUpdate: boolean;
+  canDelete: boolean;
+}
+
 interface Submenu {
   href: string;
   label: string;
   icon: LucideIcon;
   active?: boolean;
   disabled?: boolean;
+  requiredPermission?: string;
 }
 
 interface MenuItem {
@@ -74,6 +83,7 @@ interface MenuItem {
   active?: boolean;
   disabled?: boolean;
   submenus: Submenu[];
+  requiredPermission?: string;
 }
 
 interface MenuGroup {
@@ -86,13 +96,23 @@ function isActive(path: string, pathname: string) {
   return pathname === path || pathname.startsWith(path + "/");
 }
 
-export function getMenuList(pathname: string, role: string) {
+export function getMenuList(pathname: string, role: string, permissions: Permission[] = []) {
   const basePath =
     role === "super"
       ? "/super-admin-area"
       : role === "admin"
         ? "/admin-area"
         : "/pic-area";
+
+  // Helper to check if user has permission
+  const hasPermission = (permissionCode?: string) => {
+    if (!permissionCode) return true;
+    if (role === 'super') return true; // Super admin always has access
+
+    const permission = permissions.find(p => p.code === permissionCode);
+    return permission?.canRead || false;
+  };
+
   const allMenus: MenuGroup[] = [
     {
       groupLabel: "DASHBOARD SUPER ADMIN",
@@ -155,6 +175,7 @@ export function getMenuList(pathname: string, role: string) {
           href: "#",
           icon: CreditCardIcon,
           active: isActive("#", pathname),
+          requiredPermission: "sales.view",
           submenus: [
             {
               href: `${basePath}/sales/salesOrder`,
@@ -162,6 +183,7 @@ export function getMenuList(pathname: string, role: string) {
               icon: ReceiptText,
               active: isActive(`${basePath}/sales/salesOrder`, pathname),
               disabled: role === "user",
+              requiredPermission: "sales.view",
             },
             {
               href: `${basePath}/sales/quotation`,
@@ -169,6 +191,7 @@ export function getMenuList(pathname: string, role: string) {
               icon: FileText,
               active: isActive(`${basePath}/sales/quotation`, pathname),
               disabled: role === "user" || role === "pic",
+              requiredPermission: "sales.view",
             },
           ],
         },
@@ -190,6 +213,7 @@ export function getMenuList(pathname: string, role: string) {
               icon: ClipboardList,
               active: isActive(`${basePath}/logistic/spk`, pathname),
               disabled: role === "user",
+              requiredPermission: "project.manage",
             },
             {
               href: `${basePath}/logistic/pr`,
@@ -197,6 +221,7 @@ export function getMenuList(pathname: string, role: string) {
               icon: ShoppingBag,
               active: isActive(`${basePath}/logistic/pr`, pathname),
               disabled: role === "user",
+              requiredPermission: "pr.view",
             },
             {
               href: `${basePath}/logistic/purchasing`,
@@ -204,6 +229,7 @@ export function getMenuList(pathname: string, role: string) {
               icon: FilePlus,
               active: isActive(`${basePath}/logistic/purchasing`, pathname),
               disabled: role === "user", // Biasanya PIC hanya buat PR, Admin yang buat PO
+              requiredPermission: "po.view",
             },
             {
               href: `${basePath}/logistic/bap`,
@@ -211,6 +237,7 @@ export function getMenuList(pathname: string, role: string) {
               icon: FileCheck,
               active: isActive(`${basePath}/logistic/bap`, pathname),
               disabled: role === "user" || role === "pic",
+              requiredPermission: "bap.manage",
             },
             {
               href: `${basePath}/logistic/rab`,
@@ -218,6 +245,7 @@ export function getMenuList(pathname: string, role: string) {
               icon: Calculator,
               active: isActive(`${basePath}/logistic/rab`, pathname),
               disabled: role === "user" || role === "pic",
+              requiredPermission: "project.manage",
             },
           ],
         },
@@ -227,42 +255,49 @@ export function getMenuList(pathname: string, role: string) {
           href: "#",
           icon: Warehouse,
           active: isActive(`${basePath}/inventory`, pathname),
+          requiredPermission: "inventory.view",
           submenus: [
             {
               href: `${basePath}/inventory/dashboard`,
               label: "Stock Monitor",
               icon: Monitor,
               active: isActive(`${basePath}/inventory/dashboard`, pathname),
+              requiredPermission: "inventory.view",
             },
             {
               href: `${basePath}/inventory/goods-receipt`,
               label: "Penerimaan Barang (GR)",
               icon: PackageSearch,
               active: isActive(`${basePath}/inventory/goods-receipt`, pathname),
+              requiredPermission: "inventory.manage",
             },
             {
               href: `${basePath}/inventory/requisition`,
               label: "Pengeluaran Barang (MR)",
               icon: ShoppingBag,
               active: isActive(`${basePath}/inventory/requisition`, pathname),
+              requiredPermission: "inventory.manage",
             },
             {
               href: `${basePath}/inventory/transfer`,
               label: "Transfer Gudang",
               icon: ArrowLeftRight,
               active: isActive(`${basePath}/inventory/transfer`, pathname),
+              requiredPermission: "inventory.manage",
             },
             {
               href: `${basePath}/inventory/stock-opname`,
               label: "Stock Opname",
               icon: ClipboardCheck,
               active: isActive(`${basePath}/inventory/stock-opname`, pathname),
+              requiredPermission: "inventory.manage",
             },
             {
               href: `${basePath}/inventory/wh`,
               label: "Data Gudang",
               icon: Container,
               active: isActive(`${basePath}/inventory/wh`, pathname),
+              requiredPermission: "warehouse.manage",
             },
           ],
         },
@@ -277,6 +312,7 @@ export function getMenuList(pathname: string, role: string) {
           href: "#",
           icon: PackageCheckIcon,
           active: isActive("#", pathname),
+          requiredPermission: "project.view",
           submenus: [
             {
               href: `${basePath}/logistic/spkReport`,
@@ -284,6 +320,7 @@ export function getMenuList(pathname: string, role: string) {
               icon: TrendingUp,
               active: isActive(`${basePath}/logistic/spkReport`, pathname),
               disabled: role === "user",
+              requiredPermission: "project.view",
             },
           ],
         },
@@ -298,6 +335,7 @@ export function getMenuList(pathname: string, role: string) {
           href: "/accounting",
           icon: Wallet2,
           active: isActive("/accounting", pathname),
+          requiredPermission: "accounting.manage",
           submenus: [
             {
               href: `${basePath}/accounting/prVerify`,
@@ -305,6 +343,7 @@ export function getMenuList(pathname: string, role: string) {
               icon: CheckSquare,
               active: isActive(`${basePath}/accounting/prVerify`, pathname),
               disabled: role === "user" || role === "pic",
+              requiredPermission: "finance.manage",
             },
             {
               href: `${basePath}/accounting/staff-balance`,
@@ -312,6 +351,7 @@ export function getMenuList(pathname: string, role: string) {
               icon: Scale,
               active: isActive(`${basePath}/accounting/staff-balance`, pathname),
               disabled: role === "user" || role === "pic",
+              requiredPermission: "accounting.manage",
             },
             {
               href: `${basePath}/accounting/supplier-invoice`,
@@ -319,6 +359,7 @@ export function getMenuList(pathname: string, role: string) {
               icon: FileSpreadsheet,
               active: isActive(`${basePath}/accounting/supplier-invoice`, pathname),
               disabled: role === "user",
+              requiredPermission: "invoice.manage",
             },
             {
               href: `${basePath}/accounting/ledger`,
@@ -326,6 +367,7 @@ export function getMenuList(pathname: string, role: string) {
               icon: Book,
               active: isActive(`${basePath}/accounting/ledger`, pathname),
               disabled: role === "user" || role === "pic",
+              requiredPermission: "accounting.manage",
             },
             {
               href: `${basePath}/accounting/general-ledger`,
@@ -333,6 +375,7 @@ export function getMenuList(pathname: string, role: string) {
               icon: PieChart,
               active: isActive(`${basePath}/accounting/general-ledger`, pathname),
               disabled: role === "user" || role === "pic",
+              requiredPermission: "accounting.manage",
             },
             {
               href: `${basePath}/accounting/trial-balance`,
@@ -340,6 +383,7 @@ export function getMenuList(pathname: string, role: string) {
               icon: Landmark,
               active: isActive(`${basePath}/accounting/trial-balance`, pathname),
               disabled: role === "user" || role === "pic",
+              requiredPermission: "accounting.manage",
             },
             {
               href: `${basePath}/accounting/accounting-period`,
@@ -347,6 +391,7 @@ export function getMenuList(pathname: string, role: string) {
               icon: Calendar,
               active: isActive(`${basePath}/accounting/accounting-period`, pathname),
               disabled: role === "user" || role === "pic",
+              requiredPermission: "accounting.manage",
             },
             {
               href: `${basePath}/accounting/system-account`,
@@ -354,6 +399,7 @@ export function getMenuList(pathname: string, role: string) {
               icon: Cpu,
               active: isActive(`${basePath}/accounting/system-account`, pathname),
               disabled: role === "user" || role === "pic",
+              requiredPermission: "accounting.manage",
             },
             {
               href: `${basePath}/master/bank-account`,
@@ -361,6 +407,7 @@ export function getMenuList(pathname: string, role: string) {
               icon: Landmark,
               active: isActive(`${basePath}/master/bank-account`, pathname),
               disabled: role === "user" || role === "pic",
+              requiredPermission: "finance.manage",
             },
             {
               href: `${basePath}/accounting/opening-balance`,
@@ -368,6 +415,7 @@ export function getMenuList(pathname: string, role: string) {
               icon: Activity,
               active: isActive(`${basePath}/accounting/opening-balance`, pathname),
               disabled: role === "user" || role === "pic",
+              requiredPermission: "accounting.manage",
             },
             {
               href: `${basePath}/master/coa`,
@@ -375,6 +423,7 @@ export function getMenuList(pathname: string, role: string) {
               icon: LayoutList,
               active: isActive(`${basePath}/master/coa`, pathname),
               disabled: role === "user" || role === "pic",
+              requiredPermission: "accounting.manage",
             },
           ],
         },
@@ -389,6 +438,7 @@ export function getMenuList(pathname: string, role: string) {
           href: "/finance",
           icon: Banknote,
           active: isActive("/finance", pathname),
+          requiredPermission: "finance.view",
           submenus: [
             {
               href: `${basePath}/finance/invoice`,
@@ -396,6 +446,7 @@ export function getMenuList(pathname: string, role: string) {
               icon: FileBadge,
               active: isActive(`${basePath}/finance/invoice`, pathname),
               disabled: role === "user" || role === "pic",
+              requiredPermission: "invoice.manage",
             },
             {
               href: `${basePath}/finance/prApprove`,
@@ -403,6 +454,7 @@ export function getMenuList(pathname: string, role: string) {
               icon: UserCheck,
               active: isActive(`${basePath}/finance/prApprove`, pathname),
               disabled: role === "user" || role === "pic",
+              requiredPermission: "pr.approve",
             },
             {
               href: `${basePath}/finance/fund-transfer`,
@@ -410,6 +462,7 @@ export function getMenuList(pathname: string, role: string) {
               icon: ArrowRightLeft,
               active: isActive(`${basePath}/finance/fund-transfer`, pathname),
               disabled: role === "user" || role === "pic",
+              requiredPermission: "finance.manage",
             },
             {
               href: `${basePath}/accounting/supplier-payment`,
@@ -417,6 +470,7 @@ export function getMenuList(pathname: string, role: string) {
               icon: CreditCardIcon,
               active: isActive(`${basePath}/accounting/supplier-payment`, pathname),
               disabled: role === "user" || role === "pic",
+              requiredPermission: "payment.approve",
             },
           ],
         },
@@ -429,7 +483,7 @@ export function getMenuList(pathname: string, role: string) {
         {
           label: "Master Data",
           href: "/super-admin-area/master",
-          icon: BriefcaseIcon, // Menggunakan BriefcaseIcon sebagai pengganti
+          icon: BriefcaseIcon,
           active: isActive("/super-admin-area/master", pathname),
           submenus: [
             {
@@ -463,44 +517,58 @@ export function getMenuList(pathname: string, role: string) {
           href: "/users",
           icon: UsersIcon,
           active: isActive("/users", pathname),
+          requiredPermission: "settings.users",
           submenus: [
             {
               href: "/users/list",
               label: "Daftar Pengguna",
               icon: Users,
               active: isActive("/users/list", pathname),
+              requiredPermission: "settings.users",
             },
             {
               href: "/users/roles",
               label: "Manajemen Role",
               icon: ShieldCheck,
               active: isActive("/users/roles", pathname),
+              requiredPermission: "settings.permissions",
             },
           ],
         },
         {
           label: "Konfigurasi Sistem",
-          href: "/settings",
+          href: "/super-admin-area/settings",
           icon: SettingsIcon,
-          active: isActive("/settings", pathname),
+          active: isActive("/super-admin-area/setting", pathname),
+          requiredPermission: "settings.system",
           submenus: [
             {
-              href: "/settings/umum",
+              href: "/super-admin-area/settings/umum",
               label: "Pengaturan Umum",
               icon: SettingsIcon,
-              active: isActive("/settings/umum", pathname),
+              active: isActive("/super-admin-area/setting/umum", pathname),
+              requiredPermission: "settings.system",
             },
             {
-              href: "/settings/notifikasi",
+              href: "/super-admin-area/settings/notifikasi",
               label: "Notifikasi",
-              icon: BarChart3Icon, // Alternative since Bell not explicitly needed, using stats style
-              active: isActive("/settings/notifikasi", pathname),
+              icon: BarChart3Icon,
+              active: isActive("/super-admin-area/setting/notifikasi", pathname),
+              requiredPermission: "settings.system",
             },
             {
-              href: "/settings/pembayaran",
+              href: "/super-admin-area/setting/pembayaran",
               label: "Metode Pembayaran",
               icon: Banknote,
-              active: isActive("/settings/pembayaran", pathname),
+              active: isActive("/super-admin-area/setting/pembayaran", pathname),
+              requiredPermission: "settings.system",
+            },
+            {
+              href: "/super-admin-area/setting/permissions",
+              label: "Permissions",
+              icon: ShieldCheck,
+              active: isActive("/super-admin-area/setting/permissions", pathname),
+              requiredPermission: "settings.permissions",
             },
           ],
         },
@@ -509,6 +577,7 @@ export function getMenuList(pathname: string, role: string) {
           href: "#",
           icon: FileSearchIcon,
           active: isActive("#", pathname),
+          requiredPermission: "settings.system", // Assuming system setting permission for audit logs
           submenus: [
             {
               href: `${basePath}/setting/auditLog/loginLog`,
@@ -516,6 +585,7 @@ export function getMenuList(pathname: string, role: string) {
               icon: History,
               active: isActive(`${basePath}/auditLog/loginLog`, pathname),
               disabled: role === "admin" || role === "pic" || role === "user",
+              requiredPermission: "settings.system",
             },
           ],
         },
@@ -528,7 +598,7 @@ export function getMenuList(pathname: string, role: string) {
         {
           label: "Master Data",
           href: `${basePath}/master`,
-          icon: BriefcaseIcon, // Menggunakan BriefcaseIcon sebagai pengganti
+          icon: BriefcaseIcon,
           active: isActive("/admin-area/master", pathname),
           submenus: [
             {
@@ -537,6 +607,7 @@ export function getMenuList(pathname: string, role: string) {
               icon: Users,
               active: isActive(`${basePath}/master/customers`, pathname),
               disabled: role === "user",
+              requiredPermission: "sales.view",
             },
             {
               href: `${basePath}/master/supplier`,
@@ -544,6 +615,7 @@ export function getMenuList(pathname: string, role: string) {
               icon: Truck,
               active: isActive(`${basePath}/master/supplier`, pathname),
               disabled: role === "user" || role === "pic",
+              requiredPermission: "po.view",
             },
             {
               href: `${basePath}/master/products`,
@@ -551,6 +623,7 @@ export function getMenuList(pathname: string, role: string) {
               icon: Package,
               active: isActive(`${basePath}/master/products`, pathname),
               disabled: role === "user",
+              requiredPermission: "inventory.view",
             },
             {
               href: `${basePath}/master/karyawan`,
@@ -558,6 +631,7 @@ export function getMenuList(pathname: string, role: string) {
               icon: Contact,
               active: isActive(`${basePath}/master/karyawan`, pathname),
               disabled: role === "user" || role === "pic",
+              requiredPermission: "hr.view",
             },
             {
               href: `${basePath}/master/team`,
@@ -565,6 +639,7 @@ export function getMenuList(pathname: string, role: string) {
               icon: Network,
               active: isActive(`${basePath}/master/team`, pathname),
               disabled: role === "user",
+              requiredPermission: "project.manage",
             }
           ],
         },
@@ -604,26 +679,54 @@ export function getMenuList(pathname: string, role: string) {
     },
   ];
 
-  // Filter menu berdasarkan role
+  // Filter menu berdasarkan role AND permission
   const filteredMenus = allMenus
     .filter((group) => group.allowedRoles.includes(role))
     .map((group) => ({
       ...group,
       menus: group.menus
-        .filter((menu) => !menu.disabled)
-        .map((menu) => ({
-          ...menu,
-          active:
-            isActive(menu.href, pathname) ||
-            menu.submenus.some((sub) => isActive(sub.href, pathname)),
-          submenus: menu.submenus
-            .filter((sub) => !sub.disabled)
-            .map((submenu) => ({
+        .filter((menu) => {
+          if (menu.disabled) return false;
+          // Check menu permission if exists
+          if (menu.requiredPermission && !hasPermission(menu.requiredPermission)) return false;
+
+          // Check if it has any valid submenu
+          const validSubmenus = menu.submenus.filter(sub => {
+            if (sub.disabled) return false;
+            if (sub.requiredPermission && !hasPermission(sub.requiredPermission)) return false;
+            return true;
+          });
+
+          // Only show menu if it has submenus OR it doesn't have submenus (is a direct link)
+          // But if it was intended to have submenus (e.g. grouped), we might want to hide it if empty.
+          // However, existing logic doesn't strictly enforce this.
+          // Let's rely on standard logic: if submenus are filtered out, should we hide parent?
+          // Usually yes for group parents like "Sales Management" # link.
+          if (menu.href === '#' && validSubmenus.length === 0) return false;
+
+          return true;
+        })
+        .map((menu) => {
+          // Re-filter submenus inside map to actually remove them
+          const validSubmenus = menu.submenus.filter(sub => {
+            if (sub.disabled) return false;
+            if (sub.requiredPermission && !hasPermission(sub.requiredPermission)) return false;
+            return true;
+          });
+
+          return {
+            ...menu,
+            submenus: validSubmenus.map((submenu) => ({
               ...submenu,
               active: isActive(submenu.href, pathname),
             })),
-        })),
-    }));
+            active:
+              isActive(menu.href, pathname) ||
+              validSubmenus.some((sub) => isActive(sub.href, pathname)),
+          };
+        }),
+    }))
+    .filter(group => group.menus.length > 0); // Remove empty groups
 
   return filteredMenus;
 }

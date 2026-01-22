@@ -5,9 +5,10 @@ import { Ellipsis, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { getMenuList } from "@/lib/menu-list";
+import { getMyPermissions } from "@/lib/action/permission/userPermission";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Tooltip,
   TooltipTrigger,
@@ -35,6 +36,15 @@ interface MenuItemProps {
   isOpen?: boolean;
   hasSubmenu?: boolean;
   theme?: 'dark' | 'light';
+}
+
+// Define Permission type locally if not exported
+interface Permission {
+  code: string;
+  canRead: boolean;
+  canCreate: boolean;
+  canUpdate: boolean;
+  canDelete: boolean;
 }
 
 const MenuItem = ({
@@ -292,7 +302,27 @@ const MenuGroupLabel = ({
 
 export function Menu({ isOpen, role, theme = 'dark' }: MenuProps) {
   const pathname = usePathname();
-  const menuList = getMenuList(pathname, role);
+  const [permissions, setPermissions] = useState<Permission[]>([]);
+
+  useEffect(() => {
+    // Fetch permissions when component mounts
+    async function fetchPermissions() {
+      if (role === 'super') return; // Super admin doesn't usually need filtered permissions, but good to have
+      const result = await getMyPermissions();
+      if (result.success !== false) { // Ensure success (API usually returns array directly or {data: []})
+        // getMyPermissions returns response.data which is likely the array itself based on controller
+        // Controller: res.json(permissionList) -> Array
+        // But my Action Wrapper: returns response.data
+        // Let's assume it returns array directly, or check controller again
+        // Controller `getMyPermissions` uses `getUserPermissions` helper which returns array.
+        // And `res.json(updatedPermissions)`
+        setPermissions(Array.isArray(result) ? result : (result.data || []));
+      }
+    }
+    fetchPermissions();
+  }, [role]);
+
+  const menuList = getMenuList(pathname, role, permissions); // Pass permissions here
 
   const [openSubmenuIndex, setOpenSubmenuIndex] = useState<string | null>(null);
 

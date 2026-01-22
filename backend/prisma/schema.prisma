@@ -91,19 +91,20 @@ model User {
   trustedDevices        TrustedDevice[]
   sessions              UserSession[]
   loginAttempts         LoginAttempt[]
-  salesOrders           SalesOrder[]    @relation("UserSalesOrders")
+  salesOrders           SalesOrder[]     @relation("UserSalesOrders")
   karyawan              Karyawan?
-  createdBAP            BAP[]           @relation("BAPCreatedBy") // semua BAP yang dibuat user ini
-  createdInvoices       Invoice[]       @relation("InvoiceCreatedBy")
+  createdBAP            BAP[]            @relation("BAPCreatedBy") // semua BAP yang dibuat user ini
+  createdInvoices       Invoice[]        @relation("InvoiceCreatedBy")
   verifiedPayments      Payment[]
   rab                   RAB[]
   auditLogs             AuditLog[]
   notifications         Notification[]
-  stockOpnames          StockOpname[]   @relation("OpnamePetugas")
-  receivedGoodsReceipts GoodsReceipt[]  @relation("GoodsReceiptReceivedBy")
-  createdFundTransfers  FundTransfer[]  @relation("FundTransferCreator")
-  approvedFundTransfers FundTransfer[]  @relation("FundTransferApprover")
-  voidedFundTransfers   FundTransfer[]  @relation("FundTransferVoider")
+  stockOpnames          StockOpname[]    @relation("OpnamePetugas")
+  receivedGoodsReceipts GoodsReceipt[]   @relation("GoodsReceiptReceivedBy")
+  createdFundTransfers  FundTransfer[]   @relation("FundTransferCreator")
+  approvedFundTransfers FundTransfer[]   @relation("FundTransferApprover")
+  voidedFundTransfers   FundTransfer[]   @relation("FundTransferVoider")
+  userPermissions       UserPermission[]
 }
 
 model LoginAttempt {
@@ -169,6 +170,61 @@ model Notification {
   @@index([userId, read])
   @@index([createdAt])
   @@index([expiresAt])
+}
+
+// ==========================================
+// RBAC: Permission Management System
+// ==========================================
+model Permission {
+  id          String   @id @default(uuid())
+  code        String   @unique // Contoh: "pr.view", "po.create", "inventory.manage"
+  name        String // Contoh: "View Purchase Request"
+  module      String // Contoh: "purchasing", "inventory", "finance"
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  rolePermissions RolePermission[]
+  userPermissions UserPermission[]
+
+  @@index([module])
+  @@index([code])
+}
+
+// Mapping Role ke Permission dengan CRUD granularity
+model RolePermission {
+  id           String     @id @default(uuid())
+  role         UserRole // super, admin, pic, user
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  canCreate    Boolean    @default(false)
+  canRead      Boolean    @default(true)
+  canUpdate    Boolean    @default(false)
+  canDelete    Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([role, permissionId])
+  @@index([role])
+}
+
+// User-specific permission overrides (per username)
+model UserPermission {
+  id           String     @id @default(uuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permissionId String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  canCreate    Boolean    @default(false)
+  canRead      Boolean    @default(true)
+  canUpdate    Boolean    @default(false)
+  canDelete    Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([userId, permissionId])
+  @@index([userId])
 }
 
 model Counter {
