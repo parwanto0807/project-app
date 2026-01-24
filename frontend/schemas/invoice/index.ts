@@ -188,6 +188,7 @@ export interface AddPaymentRequest {
   accountCOAId?: string; // ✅ Added
   adminFee?: number;
   paymentType?: "FULL" | "PARTIAL";
+  skipLedger?: boolean; // ✅ Added to skip accounting ledger entries
 }
 
 export interface RejectInvoiceRequest {

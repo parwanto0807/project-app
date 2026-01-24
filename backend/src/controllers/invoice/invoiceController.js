@@ -1378,7 +1378,8 @@ class InvoiceController {
         verifiedById,
         accountCOAId,
         adminFee = 0,
-        paymentType = 'FULL'
+        paymentType = 'FULL',
+        skipLedger = false
       } = req.body;
 
       console.log('📝 Payment Request Data:', {
@@ -1429,7 +1430,8 @@ class InvoiceController {
         verifiedById: verifiedById || req.user?.id,
         installmentId: installmentId || null,
         accountCOAId: accountCOAId || null,
-        paymentType
+        paymentType,
+        skipLedger: !!skipLedger
       });
 
       res.status(201).json({

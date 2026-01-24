@@ -43,6 +43,7 @@ interface PaymentProcessDialogProps {
     banks: BankAccount[];
     currentUser: { id: string, name: string } | undefined;
     onRefresh?: () => void; // ✅ NEW: Callback untuk refresh data
+    invoiceDate?: string; // ✅ NEW: Tanggal invoice untuk deteksi periode transisi
     installments?: Array<{
         id: string;
         dueDate: Date;
@@ -64,6 +65,7 @@ interface PaymentFormData {
     accountCOAId?: string;
     paymentType?: "FULL" | "PARTIAL";
     adminFee?: number;
+    skipLedger?: boolean; // ✅ Added skipLedger
 }
 
 export function PaymentProcessDialog({
@@ -75,6 +77,7 @@ export function PaymentProcessDialog({
     banks,
     currentUser,
     onRefresh, // ✅ NEW
+    invoiceDate, // ✅ NEW
     installments = []
 }: PaymentProcessDialogProps) {
 
@@ -93,6 +96,7 @@ export function PaymentProcessDialog({
         accountCOAId: "",
         paymentType: "FULL",
         adminFee: 0,
+        skipLedger: false, // ✅ Added default
     });
     const formSchema = paymentFormSchema(balanceDue);
 
@@ -117,16 +121,20 @@ export function PaymentProcessDialog({
 
     useEffect(() => {
         if (open) {
+            // Auto-check skipLedger for historical invoices (< Jan 2026)
+            const isHistorical = invoiceDate ? new Date(invoiceDate) < new Date('2026-01-01') : false;
+
             setFormData(prev => ({
                 ...prev,
                 amount: Number(balanceDue), // ✅
-                payDate: new Date()
+                payDate: new Date(),
+                skipLedger: isHistorical || prev.skipLedger // ✅ Auto-check if historical
             }));
             setDate(new Date());
         }
-    }, [open, balanceDue]);
+    }, [open, balanceDue, invoiceDate]);
 
-    const handleInputChange = (field: keyof PaymentFormData, value: string | number | Date) => {
+    const handleInputChange = (field: keyof PaymentFormData, value: string | number | Date | boolean) => {
         setFormData(prev => ({
             ...prev,
             [field]: value
@@ -229,6 +237,7 @@ export function PaymentProcessDialog({
                 accountCOAId: result.data.accountCOAId || undefined,
                 adminFee: formData.adminFee || 0,
                 paymentType: formData.paymentType,
+                skipLedger: formData.skipLedger, // ✅ Pass the flag
             };
 
             await addPayment(invoiceId, paymentData);
@@ -246,6 +255,7 @@ export function PaymentProcessDialog({
                 accountCOAId: "",
                 paymentType: "FULL",
                 adminFee: 0,
+                skipLedger: false,
             });
 
             onOpenChange(false);
@@ -489,6 +499,30 @@ export function PaymentProcessDialog({
                                 Tindakan ini berdampak langsung pada General Ledger & Laporan Keuangan. Mohon verifikasi nominal dan akun bank sebelum melanjutkan.
                             </div>
                         </Alert>
+                    </div>
+
+                    {/* ✅ Skip Ledger Checkbox */}
+                    <div className="col-span-12">
+                        <div className="flex items-center space-x-2 p-3 bg-red-50 border border-red-200 rounded-md">
+                            <input
+                                type="checkbox"
+                                id="skipLedger"
+                                checked={formData.skipLedger}
+                                onChange={(e) => handleInputChange("skipLedger", e.target.checked)}
+                                className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded cursor-pointer"
+                            />
+                            <div className="grid gap-1.5 leading-none">
+                                <label
+                                    htmlFor="skipLedger"
+                                    className="text-xs font-bold text-red-700 cursor-pointer uppercase"
+                                >
+                                    Skip Accounting Ledger Posting
+                                </label>
+                                <p className="text-[10px] text-red-600">
+                                    Hanya gunakan untuk Invoice lama (masa transisi). Data Ledger, Trial Balance, dan GL tidak akan diupdate.
+                                </p>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Footer */}

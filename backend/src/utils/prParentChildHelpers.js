@@ -168,12 +168,11 @@ export const validateChildBudget = async (parentPrId, childBudget, excludePrId =
   const budgetInfo = await getRemainingParentBudget(parentPrId, excludePrId);
   
   if (childBudget > budgetInfo.remainingBudget) {
-    throw new Error(
-      `Budget melebihi sisa budget Parent PR. ` +
-      `Parent Budget: ${budgetInfo.parentBudget.toLocaleString('id-ID')}, ` +
-      `Sudah dialokasikan: ${budgetInfo.allocatedBudget.toLocaleString('id-ID')}, ` +
-      `Sisa: ${budgetInfo.remainingBudget.toLocaleString('id-ID')}, ` +
-      `Diminta: ${childBudget.toLocaleString('id-ID')}`
+    // User requested to allow over-budget saves with a warning on frontend.
+    // Backend will log warning but allow the operation to continue.
+    console.warn(
+      `⚠️ Budget Warning: Child PR budget (${childBudget}) exceeds parent's remaining budget (${budgetInfo.remainingBudget}). ` +
+      `Parent PR: ${parentPrId}`
     );
   }
 

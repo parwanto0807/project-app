@@ -388,45 +388,47 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser, o
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex flex-row-reverse gap-2">
-                                                    {invoice.approvalStatus === "POSTED" && (
-                                                        <div>
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                onClick={() => handlePaymentClick(invoice)}
-                                                                disabled={invoice.balanceDue <= 0}
-                                                                className={`flex cursor-pointer items-center gap-1 ${invoice.balanceDue <= 0 ? "opacity-50 cursor-not-allowed" : ""
-                                                                    }`}
-                                                            >
-                                                                <CreditCard className="h-4 w-4 mr-2 text-green-600" />
-                                                                Pay
-                                                            </Button>
-                                                        </div>
-                                                    )}
+                                                    {(invoice.approvalStatus === "POSTED" ||
+                                                        (invoice.approvalStatus === "APPROVED" && new Date(invoice.invoiceDate) < new Date('2026-01-01'))) && (
+                                                            <div>
+                                                                <Button
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={() => handlePaymentClick(invoice)}
+                                                                    disabled={invoice.balanceDue <= 0}
+                                                                    className={`flex cursor-pointer items-center gap-1 ${invoice.balanceDue <= 0 ? "opacity-50 cursor-not-allowed" : ""
+                                                                        }`}
+                                                                >
+                                                                    <CreditCard className="h-4 w-4 mr-2 text-green-600" />
+                                                                    Pay
+                                                                </Button>
+                                                            </div>
+                                                        )}
 
                                                     {/* Posting Journal Button */}
-                                                    {/* Posting Journal Button */}
-                                                    {invoice.status !== "PAID" && invoice.approvalStatus === "APPROVED" && (
-                                                        <div>
-                                                            <TooltipProvider>
-                                                                <Tooltip>
-                                                                    <TooltipTrigger asChild>
-                                                                        <Button
-                                                                            size="sm"
-                                                                            onClick={() => handlePostJournalClick(invoice)}
-                                                                            className="flex cursor-pointer items-center gap-1 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white border-0 shadow-md transition-all duration-200"
-                                                                        >
-                                                                            <BookCheck className="h-4 w-4 mr-2" />
-                                                                            Posting
-                                                                        </Button>
-                                                                    </TooltipTrigger>
-                                                                    <TooltipContent>
-                                                                        <p className="max-w-xs text-center">Mencatat invoice ini ke dalam Buku Besar sebagai Piutang Usaha dan Pendapatan.</p>
-                                                                    </TooltipContent>
-                                                                </Tooltip>
-                                                            </TooltipProvider>
-                                                        </div>
-                                                    )}
+                                                    {invoice.status !== "PAID" &&
+                                                        invoice.approvalStatus === "APPROVED" &&
+                                                        new Date(invoice.invoiceDate) >= new Date('2026-01-01') && (
+                                                            <div>
+                                                                <TooltipProvider>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <Button
+                                                                                size="sm"
+                                                                                onClick={() => handlePostJournalClick(invoice)}
+                                                                                className="flex cursor-pointer items-center gap-1 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white border-0 shadow-md transition-all duration-200"
+                                                                            >
+                                                                                <BookCheck className="h-4 w-4 mr-2" />
+                                                                                Posting
+                                                                            </Button>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>
+                                                                            <p className="max-w-xs text-center">Mencatat invoice ini ke dalam Buku Besar sebagai Piutang Usaha dan Pendapatan.</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                </TooltipProvider>
+                                                            </div>
+                                                        )}
 
                                                     <div className="flex items-center gap-2">
                                                         {/* View Details Button */}
@@ -546,20 +548,24 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser, o
                                         variant="outline"
                                         size="sm"
                                         onClick={() => handlePaymentClick(invoice)}
-                                        disabled={invoice.status !== "UNPAID" || invoice.balanceDue <= 0}
-                                        className={invoice.status !== "UNPAID" ? "opacity-50 cursor-not-allowed" : ""}
+                                        disabled={(invoice.approvalStatus !== "POSTED" &&
+                                            !(invoice.approvalStatus === "APPROVED" && new Date(invoice.invoiceDate) < new Date('2026-01-01'))) ||
+                                            invoice.balanceDue <= 0}
+                                        className={(invoice.balanceDue <= 0) ? "opacity-50 cursor-not-allowed" : ""}
                                     >
                                         <CreditCard className="h-4 w-4" />
                                     </Button>
-                                    {invoice.status !== "PAID" && invoice.approvalStatus === "APPROVED" && (
-                                        <Button
-                                            size="sm"
-                                            onClick={() => handlePostJournalClick(invoice)}
-                                            className="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white border-0 shadow-sm"
-                                        >
-                                            <BookCheck className="h-4 w-4" />
-                                        </Button>
-                                    )}
+                                    {invoice.status !== "PAID" &&
+                                        invoice.approvalStatus === "APPROVED" &&
+                                        new Date(invoice.invoiceDate) >= new Date('2026-01-01') && (
+                                            <Button
+                                                size="sm"
+                                                onClick={() => handlePostJournalClick(invoice)}
+                                                className="bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white border-0 shadow-sm"
+                                            >
+                                                <BookCheck className="h-4 w-4" />
+                                            </Button>
+                                        )}
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <Button variant="outline" size="sm">
@@ -621,6 +627,7 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser, o
                     currentUser={currentUser}
                     installments={[]}
                     onRefresh={onRefresh} // ✅ Pass onRefresh
+                    invoiceDate={selectedInvoice.invoiceDate} // ✅ Pass invoiceDate
                 />
             )}
 

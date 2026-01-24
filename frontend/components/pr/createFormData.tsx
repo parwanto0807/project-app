@@ -253,6 +253,7 @@ export function TabelInputPR({
     const lastProductRef = useRef<HTMLButtonElement | null>(null);
     const lastRowRef = useRef<HTMLTableRowElement | null>(null);
     const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+    const [isBudgetWarningOpen, setIsBudgetWarningOpen] = useState(false); // ✅ New state for budget warning
 
     // Sync localProducts with prop
     useEffect(() => {
@@ -357,13 +358,15 @@ export function TabelInputPR({
                 const response = await api.get('/api/pr/getAllPurchaseRequests', {
                     params: {
                         status: 'COMPLETED',
-                        spkId: 'null', // Filter for PR UM only
-                        limit: 100,
+                        type: 'umum', // Correct filter for PR UM only (spkId=null)
+                        limit: 300,
                     }
                 });
 
                 if (response.data.success) {
-                    setAvailableParentPRs(response.data.data);
+                    // Client-side filter as double-check: only PRs without spkId
+                    const prUmumOnly = response.data.data.filter((pr: any) => !pr.spkId);
+                    setAvailableParentPRs(prUmumOnly);
                 }
             } catch (error) {
                 console.error("Error fetching parent PRs:", error);
@@ -704,6 +707,16 @@ export function TabelInputPR({
         if (!finalKaryawanId) {
             alert("Employee data not found. Please contact administrator.");
             return;
+        }
+
+        // Check if over budget (only for PR SPK)
+        const isPrSpk = !!(formData.spkId && formData.spkId !== "no-spk");
+        if (isPrSpk && selectedParentPR) {
+            const currentSisa = Number(selectedParentPR.sisaBudget || 0);
+            if (totalBiaya > currentSisa) {
+                setIsBudgetWarningOpen(true);
+                return;
+            }
         }
 
         setIsConfirmDialogOpen(true);
@@ -1794,6 +1807,62 @@ export function TabelInputPR({
                         <AlertDialogCancel>Batal</AlertDialogCancel>
                         <AlertDialogAction onClick={handleConfirmSubmit}>
                             Ya, Simpan
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* ✅ Budget Warning Dialog */}
+            <AlertDialog open={isBudgetWarningOpen} onOpenChange={setIsBudgetWarningOpen}>
+                <AlertDialogContent className="border-2 border-red-500">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+                            <AlertTriangle className="h-6 w-6" />
+                            Peringatan Budget Melebihi Batas
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="space-y-4" asChild>
+                            <div className="space-y-4">
+                                <div className="p-4 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg text-red-800 dark:text-red-200">
+                                    <p className="font-bold text-lg mb-2">Hati-hati!</p>
+                                    <p className="text-sm leading-relaxed">
+                                        PR SPK yang anda buat melebihi Budget yang ditentukan pada Parent PR ({selectedParentPR?.nomorPr}).
+                                    </p>
+                                    <div className="mt-4 grid grid-cols-2 gap-4 text-xs font-mono">
+                                        <div className="flex flex-col">
+                                            <span className="text-red-600 uppercase">Sisa Budget:</span>
+                                            <span className="text-base font-bold">{formatCurrency(selectedParentPR?.sisaBudget || 0)}</span>
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-red-600 uppercase">Input PR ini:</span>
+                                            <span className="text-base font-bold">{formatCurrency(totalBiaya)}</span>
+                                        </div>
+                                        <div className="col-span-2 pt-2 border-t border-red-200">
+                                            <span className="text-red-600 uppercase font-black">Defisit:</span>
+                                            <span className="text-lg font-black ml-2">
+                                                {formatCurrency(totalBiaya - (Number(selectedParentPR?.sisaBudget || 0)))}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <p className="mt-4 text-xs font-medium italic">
+                                        Sisa budget akan menjadi minus (-) jika Anda tetap menyimpan data ini.
+                                    </p>
+                                </div>
+                                <p className="text-sm font-semibold text-center text-muted-foreground">
+                                    Apakah anda ingin Batal atau tetap Simpan?
+                                </p>
+                            </div>
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="gap-2 sm:gap-0">
+                        <AlertDialogCancel className="font-bold border-2">Batal</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => {
+                                setIsBudgetWarningOpen(false);
+                                setTimeout(() => setIsConfirmDialogOpen(true), 100);
+                            }}
+                            className="bg-red-600 hover:bg-red-700 text-white font-bold px-6"
+                        >
+                            Tetap Simpan
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

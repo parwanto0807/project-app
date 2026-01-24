@@ -94,7 +94,7 @@ async function generatePaymentLedgerNumber(paymentDate) {
  * @returns {Object} - Created payment and ledger
  */
 export async function processInvoicePayment(paymentData) {
-  const {
+    const {
     invoiceId,
     amount,
     adminFee = 0,
@@ -106,7 +106,8 @@ export async function processInvoicePayment(paymentData) {
     verifiedById,
     installmentId,
     accountCOAId,
-    paymentType
+    paymentType,
+    skipLedger = false // ✅ Added skipLedger flag
   } = paymentData;
 
   return await prisma.$transaction(async (tx) => {
@@ -130,8 +131,8 @@ export async function processInvoicePayment(paymentData) {
       throw new Error('Invoice not found');
     }
 
-    if (invoice.approvalStatus !== 'POSTED') {
-      throw new Error('Only POSTED invoices can receive payment');
+    if (invoice.approvalStatus !== 'POSTED' && !(skipLedger && invoice.approvalStatus === 'APPROVED')) {
+      throw new Error('Only POSTED invoices can receive payment (Historical APPROVED invoices must use Skip Ledger)');
     }
 
     if (invoice.balanceDue <= 0) {
@@ -163,23 +164,23 @@ export async function processInvoicePayment(paymentData) {
     }
 
     // ========================================
-    // 3. GET SYSTEM ACCOUNTS
+    // 3. GET SYSTEM ACCOUNTS & PERIOD (Only if NOT skipLedger)
     // ========================================
-    const receivableAccount = await getSystemAccount('PAYMENT_RECEIVABLE_ACCOUNT');
-    const bankChargeAccount = adminFee > 0 
-      ? await getSystemAccount('PAYMENT_BANK_CHARGE_EXPENSE') 
-      : null;
-
-    // ========================================
-    // 4. GET ACCOUNTING PERIOD
-    // ========================================
+    let receivableAccount = null;
+    let bankChargeAccount = null;
+    let period = null;
+    let ledgerNumber = null;
     const paymentDate = new Date(payDate);
-    const period = await getActivePeriod(paymentDate);
 
-    // ========================================
-    // 5. GENERATE LEDGER NUMBER
-    // ========================================
-    const ledgerNumber = await generatePaymentLedgerNumber(paymentDate);
+    if (!skipLedger) {
+        receivableAccount = await getSystemAccount('PAYMENT_RECEIVABLE_ACCOUNT');
+        bankChargeAccount = adminFee > 0 
+          ? await getSystemAccount('PAYMENT_BANK_CHARGE_EXPENSE') 
+          : null;
+        
+        period = await getActivePeriod(paymentDate);
+        ledgerNumber = await generatePaymentLedgerNumber(paymentDate);
+    }
 
     // ========================================
     // 6. CALCULATE AMOUNTS
@@ -199,122 +200,125 @@ export async function processInvoicePayment(paymentData) {
         method: method,
         bankAccountId: bankAccountId, 
         reference: reference,
-        notes: notes,
+        notes: notes + (skipLedger ? " (Skipped Ledger)" : ""),
         verifiedById: verifiedById,
         status: 'COMPLETED' // Payment completed
       }
     });
 
-    // ========================================
-    // 8. CREATE LEDGER ENTRY
-    // ========================================
-    const customerName = invoice.salesOrder?.customer?.name || 'Unknown Customer';
-    const projectName = invoice.salesOrder?.project?.name || '';
-    
-    const ledgerDescription = `Payment for Invoice #${invoice.invoiceNumber} - ${customerName}${projectName ? ` (${projectName})` : ''}`;
-
-    const ledger = await tx.ledger.create({
-      data: {
-        ledgerNumber: ledgerNumber,
-        referenceNumber: invoice.invoiceNumber,
-        referenceType: 'PAYMENT',
-        transactionDate: paymentDate,
-        postingDate: new Date(),
-        description: ledgerDescription,
-        notes: notes || `Payment via ${method} - Ref: ${reference}`,
-        periodId: period.id,
-        status: 'POSTED',
-        currency: invoice.currency || 'IDR',
-        exchangeRate: invoice.exchangeRate || 1.0,
-        createdBy: verifiedById,
-        postedBy: verifiedById,
-        postedAt: new Date()
-      }
-    });
+    let ledger = null;
+    let ledgerLines = [];
 
     // ========================================
-    // 9. CREATE LEDGER LINES
+    // 8. CREATE LEDGER ENTRY (Only if NOT skipLedger)
     // ========================================
-    const ledgerLines = [];
+    if (!skipLedger) {
+        const customerName = invoice.salesOrder?.customer?.name || 'Unknown Customer';
+        const projectName = invoice.salesOrder?.project?.name || '';
+        
+        const ledgerDescription = `Payment for Invoice #${invoice.invoiceNumber} - ${customerName}${projectName ? ` (${projectName})` : ''}`;
 
-    // Line 1: DEBIT Bank Account (uang masuk)
-    ledgerLines.push({
-      ledgerId: ledger.id,
-      coaId: bankAccount.accountCOA.id,
-      debitAmount: netAmount,
-      creditAmount: 0,
-      currency: invoice.currency || 'IDR',
-      localAmount: netAmount * (invoice.exchangeRate || 1.0),
-      description: `Payment received via ${method}`,
-      reference: reference,
-      lineNumber: 1,
-      projectId: invoice.salesOrder?.projectId || null,
-      customerId: invoice.salesOrder?.customerId || null
-    });
+        ledger = await tx.ledger.create({
+          data: {
+            ledgerNumber: ledgerNumber,
+            referenceNumber: invoice.invoiceNumber,
+            referenceType: 'PAYMENT',
+            transactionDate: paymentDate,
+            postingDate: new Date(),
+            description: ledgerDescription,
+            notes: notes || `Payment via ${method} - Ref: ${reference}`,
+            periodId: period.id,
+            status: 'POSTED',
+            currency: invoice.currency || 'IDR',
+            exchangeRate: invoice.exchangeRate || 1.0,
+            createdBy: verifiedById,
+            postedBy: verifiedById,
+            postedAt: new Date()
+          }
+        });
 
-    // Line 2: DEBIT Beban Admin Bank (jika ada)
-    if (adminFee > 0 && bankChargeAccount) {
-      ledgerLines.push({
-        ledgerId: ledger.id,
-        coaId: bankChargeAccount.id,
-        debitAmount: adminFee,
-        creditAmount: 0,
-        currency: invoice.currency || 'IDR',
-        localAmount: adminFee * (invoice.exchangeRate || 1.0),
-        description: 'Bank admin fee',
-        reference: reference,
-        lineNumber: 2,
-        projectId: invoice.salesOrder?.projectId || null,
-        customerId: invoice.salesOrder?.customerId || null
-      });
-    }
+        // ========================================
+        // 9. CREATE LEDGER LINES
+        // ========================================
+        // Line 1: DEBIT Bank Account (uang masuk)
+        ledgerLines.push({
+          ledgerId: ledger.id,
+          coaId: bankAccount.accountCOA.id,
+          debitAmount: netAmount,
+          creditAmount: 0,
+          currency: invoice.currency || 'IDR',
+          localAmount: netAmount * (invoice.exchangeRate || 1.0),
+          description: `Payment received via ${method}`,
+          reference: reference,
+          lineNumber: 1,
+          projectId: invoice.salesOrder?.projectId || null,
+          customerId: invoice.salesOrder?.customerId || null
+        });
 
-    // Line 3: CREDIT Piutang Usaha (piutang berkurang)
-    ledgerLines.push({
-      ledgerId: ledger.id,
-      coaId: receivableAccount.id,
-      debitAmount: 0,
-      creditAmount: totalCharged, // Piutang berkurang sebesar Total Charged
-      currency: invoice.currency || 'IDR',
-      localAmount: totalCharged * (invoice.exchangeRate || 1.0),
-      description: 'Receivable reduction',
-      reference: invoice.invoiceNumber,
-      lineNumber: adminFee > 0 ? 3 : 2,
-      projectId: invoice.salesOrder?.projectId || null,
-      customerId: invoice.salesOrder?.customerId || null
-    });
+        // Line 2: DEBIT Beban Admin Bank (jika ada)
+        if (adminFee > 0 && bankChargeAccount) {
+          ledgerLines.push({
+            ledgerId: ledger.id,
+            coaId: bankChargeAccount.id,
+            debitAmount: adminFee,
+            creditAmount: 0,
+            currency: invoice.currency || 'IDR',
+            localAmount: adminFee * (invoice.exchangeRate || 1.0),
+            description: 'Bank admin fee',
+            reference: reference,
+            lineNumber: 2,
+            projectId: invoice.salesOrder?.projectId || null,
+            customerId: invoice.salesOrder?.customerId || null
+          });
+        }
 
-    // Create all ledger lines
-    await tx.ledgerLine.createMany({
-      data: ledgerLines
-    });
+        // Line 3: CREDIT Piutang Usaha (piutang berkurang)
+        ledgerLines.push({
+          ledgerId: ledger.id,
+          coaId: receivableAccount.id,
+          debitAmount: 0,
+          creditAmount: totalCharged, // Piutang berkurang sebesar Total Charged
+          currency: invoice.currency || 'IDR',
+          localAmount: totalCharged * (invoice.exchangeRate || 1.0),
+          description: 'Receivable reduction',
+          reference: invoice.invoiceNumber,
+          lineNumber: adminFee > 0 ? 3 : 2,
+          projectId: invoice.salesOrder?.projectId || null,
+          customerId: invoice.salesOrder?.customerId || null
+        });
 
-    // ========================================
-    // 9B. UPDATE FINANCIAL SUMMARIES
-    // ========================================
-    // Import financial summary service
-    const { updateTrialBalance, updateGeneralLedgerSummary } = await import('../accounting/financialSummaryService.js');
+        // Create all ledger lines
+        await tx.ledgerLine.createMany({
+          data: ledgerLines
+        });
 
-    // Update Trial Balance and GL Summary for each ledger line
-    for (const line of ledgerLines) {
-      // Update Trial Balance
-      await updateTrialBalance({
-        periodId: period.id,
-        coaId: line.coaId,
-        debitAmount: line.debitAmount,
-        creditAmount: line.creditAmount,
-        tx
-      });
+        // ========================================
+        // 9B. UPDATE FINANCIAL SUMMARIES
+        // ========================================
+        // Import financial summary service
+        const { updateTrialBalance, updateGeneralLedgerSummary } = await import('../accounting/financialSummaryService.js');
 
-      // Update General Ledger Summary
-      await updateGeneralLedgerSummary({
-        coaId: line.coaId,
-        periodId: period.id,
-        date: paymentDate,
-        debitAmount: line.debitAmount,
-        creditAmount: line.creditAmount,
-        tx
-      });
+        // Update Trial Balance and GL Summary for each ledger line
+        for (const line of ledgerLines) {
+          // Update Trial Balance
+          await updateTrialBalance({
+            periodId: period.id,
+            coaId: line.coaId,
+            debitAmount: line.debitAmount,
+            creditAmount: line.creditAmount,
+            tx
+          });
+
+          // Update General Ledger Summary
+          await updateGeneralLedgerSummary({
+            coaId: line.coaId,
+            periodId: period.id,
+            date: paymentDate,
+            debitAmount: line.debitAmount,
+            creditAmount: line.creditAmount,
+            tx
+          });
+        }
     }
 
     // ========================================
@@ -391,9 +395,13 @@ export async function processInvoicePayment(paymentData) {
     // ========================================
     return {
       payment,
-      ledger: {
+      ledger: ledger ? {
         ...ledger,
         lines: ledgerLines
+      } : {
+        ledgerNumber: 'SKIPPED',
+        description: 'Ledger entry skipped',
+        lines: []
       },
       invoice: {
         id: invoice.id,

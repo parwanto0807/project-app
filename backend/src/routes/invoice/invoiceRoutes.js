@@ -88,6 +88,10 @@ const addPaymentValidation = [
   body("reference")
     .notEmpty()
     .withMessage("Payment reference is required"),
+  body("skipLedger")
+    .optional()
+    .isBoolean()
+    .withMessage("Skip ledger must be a boolean"),
 ];
 
 // Public routes
