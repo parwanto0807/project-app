@@ -183,4 +183,5 @@ export const queryParamsSchema = z.object({
   startDate: z.coerce.date().optional(),
   endDate: z.coerce.date().optional(),
   search: z.string().optional(),
+  type: z.enum(["umum", "project"]).optional(), // "umum" (spkId null), "project" (spkId not null)
 });

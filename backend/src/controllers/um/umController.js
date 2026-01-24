@@ -2,6 +2,7 @@
 import { prisma } from "../../config/db.js";
 import { generateUangMukaNumber } from "../../utils/umGenerateNumber.js";
 import { UangMukaStatus } from "../../../prisma/generated/prisma/client.js";
+import { createLedgerEntry } from "../../utils/journalHelper.js";
 import {
   createUangMukaValidation,
   updateUangMukaValidation,
@@ -324,8 +325,11 @@ export const uangMukaController = {
         namaBankTujuan,
         nomorRekeningTujuan,
         namaEwalletTujuan,
-        accountPencairanId,
+        accountPencairanId: accountPencairanIdInput,
       } = validationResult.data;
+
+      // Initialize accountPencairanId (will be auto-selected later if needed)
+      let accountPencairanId = accountPencairanIdInput;
 
       // -----------------------------
       // CEK RELASI
@@ -336,10 +340,41 @@ export const uangMukaController = {
         purchaseRequestId
           ? prisma.purchaseRequest.findUnique({
               where: { id: purchaseRequestId },
-              include: { uangMuka: true },
+              include: { 
+                uangMuka: true,
+                details: true,
+                project: true,
+                spk: true
+              },
             })
           : Promise.resolve(null),
       ]);
+
+      // -----------------------------
+      // AUTO-SELECT ACCOUNT FOR MOBILIZATION
+      // -----------------------------
+      // ✅ Jika ada spkId DAN ada PR dengan OPERATIONAL items
+      // → Otomatis gunakan PETTY_CASH dari SystemAccount
+      if (spkId && existingPR && !accountPencairanId) {
+        const hasOperationalItems = existingPR.details?.some(d => d.sourceProduct === "OPERATIONAL");
+        
+        if (hasOperationalItems) {
+          console.log(`🔧 [UM-AUTO] Detecting OPERATIONAL items for SPK, auto-selecting PETTY_CASH`);
+          
+          // Ambil PETTY_CASH dari SystemAccount
+          const pettyCashAccount = await prisma.systemAccount.findUnique({
+            where: { key: "PETTY_CASH" },
+            include: { coa: true }
+          });
+
+          if (pettyCashAccount) {
+            accountPencairanId = pettyCashAccount.coaId;
+            console.log(`✅ [UM-AUTO] Auto-selected account: ${pettyCashAccount.coa.name} (${pettyCashAccount.coa.code})`);
+          } else {
+            console.warn(`⚠️ [UM-AUTO] PETTY_CASH SystemAccount not found, will require manual selection`);
+          }
+        }
+      }
 
       if (!karyawan) {
         if (req.files) req.files.forEach((f) => fs.unlinkSync(f.path));
@@ -373,10 +408,26 @@ export const uangMukaController = {
       // -----------------------------
       const nomor = await generateUangMukaNumber();
 
-      // Set status to DISBURSED if spkId exists, otherwise check tanggalPencairan
-      const status = spkId 
+      // ✅ FIX: Jika ada spkId, OTOMATIS set tanggalPencairan agar status = DISBURSED
+      // Ini penting agar logic accounting jalan untuk PR proyek
+      let finalTanggalPencairan = tanggalPencairan;
+      if (spkId && !tanggalPencairan) {
+        finalTanggalPencairan = new Date();
+        console.log(`🔧 [UM-FIX] Auto-setting tanggalPencairan for SPK-related UM: ${nomor}`);
+      }
+
+      // Set status to DISBURSED if spkId exists OR tanggalPencairan is provided
+      const status = spkId || finalTanggalPencairan
         ? UangMukaStatus.DISBURSED
-        : (tanggalPencairan ? UangMukaStatus.DISBURSED : UangMukaStatus.PENDING);
+        : UangMukaStatus.PENDING;
+
+      console.log(`📋 [UM-STATUS] UM Status determined:`, {
+        nomor,
+        status,
+        spkId: !!spkId,
+        tanggalPencairan: finalTanggalPencairan,
+        accountPencairanId: !!accountPencairanId,
+      });
 
       // -----------------------------
       // CREATE (TRANSACTION)
@@ -386,7 +437,7 @@ export const uangMukaController = {
           data: {
             nomor,
             tanggalPengajuan: tanggalPengajuan || new Date(),
-            tanggalPencairan,
+            tanggalPencairan: finalTanggalPencairan,
             jumlah,
             keterangan,
             buktiPencairanUrl, // <-- JSON string!!
@@ -421,64 +472,207 @@ export const uangMukaController = {
           });
         }
 
-        // ✅ LOGIKA BARU: Jika spkId = null/kosong DAN status = DISBURSED
-        // Maka tambahkan record di StaffBalance dan StaffLedger
-        if (!spkId && status === UangMukaStatus.DISBURSED) {
-          // 1. Cari atau buat StaffBalance untuk kategori OPERASIONAL_PROYEK
-          const existingBalance = await prismaTx.staffBalance.findUnique({
-            where: {
-              karyawanId_category: {
-                karyawanId,
-                category: "OPERASIONAL_PROYEK",
-              },
-            },
+        // -----------------------------------------------------------------
+        // 🚀 LOGIKA AKUNTANSI KONSOLIDASI (DISBURSED)
+        // -----------------------------------------------------------------
+        console.log(`🔍 [UM-DEBUG] Checking Accounting Logic Conditions:`, {
+          status,
+          accountPencairanId,
+          hasAccountPencairanId: !!accountPencairanId,
+          isDisbursed: status === UangMukaStatus.DISBURSED,
+          willExecuteAccounting: status === UangMukaStatus.DISBURSED && !!accountPencairanId,
+          spkId,
+          hasSpk: !!spkId,
+          prId: purchaseRequestId,
+          hasPR: !!existingPR,
+          prDetailsCount: existingPR?.details?.length || 0,
+        });
+
+        if (status === UangMukaStatus.DISBURSED && accountPencairanId) {
+          console.log(`💰 [UM-ACCOUNTING] Processing Disbursement for UM: ${nomor}`);
+
+          // A. DETEKSI MOBILISASI / OPERASIONAL PROYEK
+          // ✅ Hanya cek sourceProduct = "OPERATIONAL" dari PR details
+          const hasOperationalItems = existingPR?.details?.some(d => d.sourceProduct === "OPERATIONAL");
+          const isMobilization = hasOperationalItems;
+
+          console.log(`📊 [UM-ACCOUNTING] Mobilization Detection:`, {
+            hasOperationalItems,
+            isMobilization,
+            spkId: !!spkId,
           });
 
-          const currentBalance = existingBalance ? Number(existingBalance.amount) : 0;
-          const currentTotalIn = existingBalance ? Number(existingBalance.totalIn) : 0;
-          const currentTotalOut = existingBalance ? Number(existingBalance.totalOut) : 0;
-          
-          const newBalance = currentBalance + Number(jumlah);
-          const newTotalIn = currentTotalIn + Number(jumlah);
-
-          // Upsert StaffBalance (update jika ada, create jika tidak)
-          await prismaTx.staffBalance.upsert({
-            where: {
-              karyawanId_category: {
-                karyawanId,
-                category: "OPERASIONAL_PROYEK",
-              },
-            },
-            update: {
-              amount: newBalance,
-              totalIn: newTotalIn,
-            },
-            create: {
+          // B. JURNAL PEMBAYARAN (D: Staff Advance, C: Kas/Bank)
+          // ✅ SKIP untuk mobilisasi karena uang muka sudah dicairkan sebelumnya
+          // ✅ HANYA buat untuk non-mobilisasi (material, dll)
+          if (!isMobilization) {
+            console.log(`📝 [UM-PAYMENT] Creating payment entry (non-mobilization):`, {
+              nomor,
+              accountPencairanId,
+              jumlah,
               karyawanId,
-              category: "OPERASIONAL_PROYEK",
-              amount: jumlah,
-              totalIn: jumlah,
-              totalOut: 0,
-            },
-          });
+            });
 
-          // 2. Tambahkan record di StaffLedger
-          await prismaTx.staffLedger.create({
-            data: {
-              karyawanId,
-              tanggal: tanggalPencairan || new Date(),
-              keterangan: keterangan || `Pencairan uang muka ${nomor}`,
-              saldoAwal: currentBalance, // Saldo sebelum transaksi
-              debit: jumlah, // Uang bertambah bagi karyawan
-              kredit: 0,
-              saldo: newBalance, // Running balance setelah transaksi
-              category: "OPERASIONAL_PROYEK",
-              type: "CASH_ADVANCE",
-              purchaseRequestId: purchaseRequestId || null,
-              refId: uangMuka.id, // ID UangMuka sebagai referensi
-              createdBy: req.user?.id || "SYSTEM", // Ambil dari user yang login
-            },
-          });
+            await createLedgerEntry({
+              referenceType: "PAYMENT",
+              referenceId: uangMuka.id,
+              referenceNumber: nomor,
+              tanggal: finalTanggalPencairan || new Date(),
+              keterangan: (keterangan || `Pencairan Uang Muka #${nomor} - ${karyawan.namaLengkap}`).trim(),
+              entries: [
+                {
+                  systemAccountKey: "STAFF_ADVANCE",
+                  debit: jumlah,
+                  karyawanId: karyawanId,
+                },
+                {
+                  coaId: accountPencairanId,
+                  credit: jumlah,
+                },
+              ],
+              createdById: req.user?.id || "SYSTEM",
+              tx: prismaTx,
+            });
+          } else {
+            console.log(`⏭️ [UM-SKIP] Skipping payment entry for mobilization (advance already disbursed)`);
+          }
+
+          // C. SETTLEMENT KE PROYEK (Jika ada spkId)
+          if (spkId) {
+            console.log(`🚀 [UM-ACCOUNTING] Project Expense Detection for UM: ${nomor}`);
+            console.log(`📊 [UM-ACCOUNTING] PR Details:`, existingPR?.details?.map(d => ({ sourceProduct: d.sourceProduct })));
+            console.log(`� [UM-ACCOUNTING] Has Operational Items: ${hasOperationalItems}`);
+            
+            // Tentukan apakah masuk Beban Mobilisasi (5-10102) atau Biaya Material (5-10101)
+            // ✅ HANYA berdasarkan sourceProduct = "OPERATIONAL"
+            const isMobilization = hasOperationalItems;
+            const expenseSystemKey = isMobilization ? "PROJECT_MOBILIZATION" : "PURCHASE_EXPENSE";
+            
+            console.log(`📌 [UM-ACCOUNTING] Using Account Key: ${expenseSystemKey} for Project Settlement`);
+
+            // JURNAL 2: AUTO-SETTLEMENT (D: Project Expense, C: Staff Advance)
+            await createLedgerEntry({
+              referenceType: "JOURNAL",
+              referenceId: uangMuka.id,
+              referenceNumber: nomor,
+              tanggal: finalTanggalPencairan || new Date(),
+              keterangan: `Auto-Settlement: ${isMobilization ? 'Beban Mobilisasi' : 'Biaya Project'} ${existingPR?.project?.name || ''} (${existingPR?.nomorPr || nomor})`,
+              entries: [
+                {
+                  systemAccountKey: expenseSystemKey,
+                  debit: jumlah,
+                  projectId: existingPR?.projectId || null,
+                  spkId: spkId,
+                },
+                {
+                  systemAccountKey: "STAFF_ADVANCE",
+                  credit: jumlah,
+                  karyawanId: karyawanId,
+                },
+              ],
+              createdById: req.user?.id || "SYSTEM",
+              tx: prismaTx,
+            });
+
+
+            /* DISABLED: Staff Ledger & Balance (Mobilization/Standard)
+            const currentBalanceRecord = await prismaTx.staffBalance.findUnique({
+              where: { karyawanId_category: { karyawanId, category: "OPERASIONAL_PROYEK" } }
+            });
+            const currentBalance = currentBalanceRecord ? Number(currentBalanceRecord.amount) : 0;
+
+            if (spkId) {
+              // UPDATE STAFF BALANCE - HANYA totalOut (saldo berkurang)
+              await prismaTx.staffBalance.upsert({
+                where: {
+                  karyawanId_category: {
+                    karyawanId,
+                    category: "OPERASIONAL_PROYEK",
+                  },
+                },
+                update: {
+                  totalOut: { increment: Number(jumlah) },
+                  amount: { decrement: Number(jumlah) },
+                },
+                create: {
+                  karyawanId,
+                  category: "OPERASIONAL_PROYEK",
+                  amount: -Number(jumlah), // Negative karena langsung keluar
+                  totalIn: 0,
+                  totalOut: jumlah,
+                },
+              });
+
+              // STAFF LEDGER - HANYA 1 Entry: OUT (Settlement)
+              await prismaTx.staffLedger.create({
+                data: {
+                  karyawanId,
+                  tanggal: finalTanggalPencairan || new Date(),
+                  keterangan: `Settlement Mobilisasi Proyek: ${existingPR?.project?.name || ''} (${existingPR?.nomorPr || nomor})`,
+                  saldoAwal: currentBalance,
+                  debit: 0,
+                  kredit: jumlah,
+                  saldo: currentBalance - Number(jumlah),
+                  category: "OPERASIONAL_PROYEK",
+                  type: "EXPENSE_REPORT",
+                  purchaseRequestId: purchaseRequestId || null,
+                  refId: uangMuka.id,
+                  createdBy: req.user?.id || "SYSTEM",
+                },
+              });
+            } else {
+              // C. FLOW STANDAR (Potong Piutang Staff - Tanpa SPK)
+              const existingBalance = await prismaTx.staffBalance.findUnique({
+                where: {
+                  karyawanId_category: {
+                    karyawanId,
+                    category: "OPERASIONAL_PROYEK",
+                  },
+                },
+              });
+
+              const currentBalance = existingBalance ? Number(existingBalance.amount) : 0;
+              const newBalance = currentBalance + Number(jumlah);
+
+              await prismaTx.staffBalance.upsert({
+                where: {
+                  karyawanId_category: {
+                    karyawanId,
+                    category: "OPERASIONAL_PROYEK",
+                  },
+                },
+                update: {
+                  amount: newBalance,
+                  totalIn: { increment: Number(jumlah) },
+                },
+                create: {
+                  karyawanId,
+                  category: "OPERASIONAL_PROYEK",
+                  amount: jumlah,
+                  totalIn: jumlah,
+                  totalOut: 0,
+                },
+              });
+
+              await prismaTx.staffLedger.create({
+                data: {
+                  karyawanId,
+                  tanggal: finalTanggalPencairan || new Date(),
+                  keterangan: (keterangan || `Pencairan uang muka ${nomor}`).trim(),
+                  saldoAwal: currentBalance,
+                  debit: jumlah,
+                  kredit: 0,
+                  saldo: newBalance,
+                  category: "OPERASIONAL_PROYEK",
+                  type: "CASH_ADVANCE",
+                  purchaseRequestId: purchaseRequestId || null,
+                  refId: uangMuka.id,
+                  createdBy: req.user?.id || "SYSTEM",
+                },
+              });
+            }
+            */
+          }
         }
 
         return uangMuka;
@@ -764,6 +958,7 @@ export const uangMukaController = {
           status === UangMukaStatus.DISBURSED &&
           existingUangMuka.status !== UangMukaStatus.DISBURSED
         ) {
+          /* DISABLED: StaffBalance & StaffLedger (UM Update Disbursed)
           // 1. Cari atau buat StaffBalance untuk kategori OPERASIONAL_PROYEK
           const existingBalance = await prismaTx.staffBalance.findUnique({
             where: {
@@ -819,6 +1014,7 @@ export const uangMukaController = {
               createdBy: req.user?.id || "SYSTEM", // Ambil dari user yang login
             },
           });
+          */
 
           // 3. LOGIKA AKUNTANSI: Generate Jurnal Otomatis
           const effectiveDate = tanggalPencairan || new Date();

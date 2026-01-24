@@ -23,6 +23,7 @@ interface SearchParams {
     projectId?: string;
     dateFrom?: string;
     dateTo?: string;
+    tab?: string; // "all", "umum", "project"
 }
 
 interface PurchaseRequestPageAdminProps {
@@ -59,6 +60,7 @@ export default async function PurchaseRequestPageAdmin({ searchParams }: Purchas
         : undefined;
 
     const projectId = resolvedSearchParams.projectId || undefined;
+    const tab = (resolvedSearchParams.tab as "all" | "umum" | "project") || "umum";
 
     let dateFrom: Date | undefined;
     let dateTo: Date | undefined;
@@ -81,6 +83,7 @@ export default async function PurchaseRequestPageAdmin({ searchParams }: Purchas
         page,
         limit,
         search,
+        type: tab === "all" ? undefined : (tab as "umum" | "project"),
     };
 
     try {
@@ -97,6 +100,7 @@ export default async function PurchaseRequestPageAdmin({ searchParams }: Purchas
             limit: pagination?.limit || limit,
             totalCount: pagination?.totalCount || 0,
             totalPages: pagination?.totalPages || 1,
+            counts: pagination?.counts,
         };
 
         const initialData = {
@@ -107,6 +111,7 @@ export default async function PurchaseRequestPageAdmin({ searchParams }: Purchas
             currentProjectId: projectId,
             currentDateFrom: dateFrom,
             currentDateTo: dateTo,
+            currentTab: tab || "umum",
         };
 
         // Gunakan nested children pattern

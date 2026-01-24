@@ -63,7 +63,8 @@ import { id } from "date-fns/locale"
 import QRCode from "qrcode"
 import { MRDetailSheet } from "./MRDetailSheet"
 import { QRScannerDialog } from "./QRScannerDialog"
-import { issueMR, validateMRForApproval } from "@/lib/action/inventory/mrInventroyAction"
+import { MRIssueConfirmDialog } from "./MRIssueConfirmDialog"
+import { issueMR, validateMRForApproval, postMRJournal } from "@/lib/action/inventory/mrInventroyAction"
 import { toast } from "sonner"
 import {
     AlertDialog,
@@ -93,6 +94,7 @@ interface MaterialRequisition {
     updatedAt: Date
     Warehouse?: {
         name: string
+        isWip?: boolean
     }
     project?: {
         name: string
@@ -151,6 +153,11 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
         title: string;
         description: string;
         poNumber?: string;
+    } | null>(null)
+    const [showConfirmDialog, setShowConfirmDialog] = React.useState(false)
+    const [pendingIssueData, setPendingIssueData] = React.useState<{
+        scannedToken: string;
+        mr: MaterialRequisition;
     } | null>(null)
 
     const itemsPerPage = 10
@@ -368,7 +375,7 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                                 <div>
                                     <p className="font-semibold text-slate-800 dark:text-white">{mr.items.length} items</p>
                                     <p className="text-xs text-slate-400 dark:text-slate-300">
-                                        Total: {mr.items.reduce((sum, item) => sum + item.qtyRequested, 0).toLocaleString()}
+                                        Total: {mr.items.reduce((sum: number, item: any) => sum + item.qtyRequested, 0).toLocaleString()}
                                     </p>
                                 </div>
                             </div>
@@ -398,6 +405,7 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                             </Button>
                         )}
 
+                        {/* Posting button removed from mobile view - now automated */}
                         <Sheet open={showDetailSheet && selectedMR?.id === mr.id} onOpenChange={setShowDetailSheet}>
                             <SheetTrigger asChild>
                                 <Button
@@ -949,26 +957,28 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
 
                                                     {columnVisibility.status && (
                                                         <TableCell className="py-5 px-6">
-                                                            <Badge
-                                                                className={`
-                                                                ${statusConfig.bg} 
-                                                                ${statusConfig.color} 
-                                                                ${statusConfig.border}
-                                                                border
-                                                                font-semibold
-                                                                text-sm
-                                                                px-4 py-2.5
-                                                                rounded-xl
-                                                                flex items-center gap-2
-                                                                w-fit
-                                                                backdrop-blur-sm
-                                                                shadow-sm
-                                                            `}
-                                                                variant="outline"
-                                                            >
-                                                                <StatusIcon className="h-4 w-4" />
-                                                                {statusConfig.label}
-                                                            </Badge>
+                                                            <div className="flex items-center gap-2">
+                                                                <Badge
+                                                                    className={`
+                                                                    ${statusConfig.bg} 
+                                                                    ${statusConfig.color} 
+                                                                    ${statusConfig.border}
+                                                                    border
+                                                                    font-semibold
+                                                                    text-sm
+                                                                    px-4 py-2.5
+                                                                    rounded-xl
+                                                                    flex items-center gap-2
+                                                                    w-fit
+                                                                    backdrop-blur-sm
+                                                                    shadow-sm
+                                                                `}
+                                                                    variant="outline"
+                                                                >
+                                                                    <StatusIcon className="h-4 w-4" />
+                                                                    {statusConfig.label}
+                                                                </Badge>
+                                                            </div>
                                                         </TableCell>
                                                     )}
 
@@ -1061,39 +1071,27 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                 title="Scan QR Code untuk Approve"
                 description="Scan QR Code pada Material Requisition untuk memverifikasi dan menyetujui permintaan"
                 onScanSuccess={async (scannedToken) => {
-                    console.log("QR Scanned successfully:", scannedToken)
-                    console.log("Approve MR:", selectedMR?.id)
+                    console.log("🔍 QR Scanned successfully:", scannedToken)
+                    console.log("🔍 Selected MR:", selectedMR?.id)
+                    console.log("🔍 Selected MR Warehouse:", selectedMR?.Warehouse)
 
-                    try {
-                        setIsProcessingQR(true)
-                        setShowQRScanner(false)
+                    // Close QR scanner and show confirmation dialog
+                    console.log("🔍 Closing QR Scanner...")
+                    setShowQRScanner(false)
 
-                        // Call backend API to issue MR
-                        const result = await issueMR({
-                            qrToken: scannedToken,
-                            issuedById: "temp-user-id" // TODO: Get from auth session
+                    if (selectedMR) {
+                        console.log("🔍 Setting pending issue data...")
+                        setPendingIssueData({
+                            scannedToken,
+                            mr: selectedMR
                         })
 
-                        console.log("API Response:", result)
+                        console.log("🔍 Opening confirmation dialog...")
+                        setShowConfirmDialog(true)
 
-                        if (result.success) {
-                            toast.success("Material berhasil dikeluarkan!", {
-                                description: "Stok telah diperbarui dan MR telah diproses."
-                            })
-                            // Refresh data
-                            onRefresh()
-                        } else {
-                            toast.error("Gagal mengeluarkan material", {
-                                description: result.error || "Terjadi kesalahan saat memproses"
-                            })
-                        }
-                    } catch (error: any) {
-                        console.error("Issue MR Error:", error)
-                        toast.error("Terjadi kesalahan", {
-                            description: "Koneksi ke server terputus"
-                        })
-                    } finally {
-                        setIsProcessingQR(false)
+                        console.log("✅ Confirmation dialog should now be visible")
+                    } else {
+                        console.error("❌ No selected MR found!")
                     }
                 }}
             />
@@ -1132,6 +1130,76 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {/* Confirmation Dialog for MR Issue */}
+            <MRIssueConfirmDialog
+                open={showConfirmDialog}
+                onOpenChange={setShowConfirmDialog}
+                mrNumber={pendingIssueData?.mr.mrNumber || ""}
+                isWipWarehouse={pendingIssueData?.mr.Warehouse?.isWip || false}
+                totalAmount={pendingIssueData?.mr.items.reduce((sum: number, item: any) => {
+                    return sum + (Number(item.qtyRequested) * 0); // TODO: Get price from item
+                }, 0) || 0}
+                isLoading={isProcessingQR}
+                onConfirm={async () => {
+                    if (!pendingIssueData) return;
+
+                    try {
+                        setIsProcessingQR(true);
+
+                        // Call backend API to issue MR
+                        const result = await issueMR({
+                            qrToken: pendingIssueData.scannedToken,
+                            issuedById: "temp-user-id" // TODO: Get from auth session
+                        });
+
+                        console.log("API Response:", result);
+
+                        if (result.success) {
+                            // Auto-post journal for WIP warehouse
+                            if (pendingIssueData.mr.Warehouse?.isWip) {
+                                console.log("📝 Auto-posting journal for WIP warehouse...");
+                                try {
+                                    const postResult = await postMRJournal(pendingIssueData.mr.id);
+                                    if (postResult.success) {
+                                        console.log("✅ Auto-posting success:", postResult.message);
+                                    } else {
+                                        console.error("❌ Auto-posting failed:", postResult.error);
+                                        toast.error("Material berhasil dikeluarkan, namun gagal posting jurnal", {
+                                            description: postResult.error
+                                        });
+                                    }
+                                } catch (postError: any) {
+                                    console.error("❌ Auto-posting error:", postError);
+                                    toast.error("Terjadi kesalahan saat posting jurnal otomatis");
+                                }
+                            }
+
+                            toast.success("Material berhasil dikeluarkan!", {
+                                description: pendingIssueData.mr.Warehouse?.isWip
+                                    ? "Stok telah diperbarui, jurnal akuntansi telah dibuat, dan MR telah diproses."
+                                    : "Stok telah diperbarui dan MR telah diproses."
+                            });
+
+                            // Close dialog and refresh data
+                            setShowConfirmDialog(false);
+                            setPendingIssueData(null);
+                            onRefresh();
+                        } else {
+                            toast.error("Gagal mengeluarkan material", {
+                                description: result.error || "Terjadi kesalahan saat memproses"
+                            });
+                        }
+                    } catch (error: any) {
+                        console.error("Issue MR Error:", error);
+                        toast.error("Terjadi kesalahan", {
+                            description: error.message || "Koneksi ke server terputus"
+                        });
+                    } finally {
+                        setIsProcessingQR(false);
+                    }
+                }}
+            />
         </div>
     )
 }

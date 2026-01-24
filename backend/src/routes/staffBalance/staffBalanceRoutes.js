@@ -45,4 +45,11 @@ router.post("/opening-balance", staffBalanceController.createOpeningBalance);
  */
 router.post("/refund", staffBalanceController.processStaffRefund);
 
+/**
+ * @route   POST /api/staff-balance/settle-pr
+ * @desc    Settle PR budget (Refund or Reimburse)
+ * @access  Private
+ */
+router.post("/settle-pr", staffBalanceController.settlePRBudget);
+
 export default router;

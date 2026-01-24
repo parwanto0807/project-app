@@ -12,6 +12,9 @@ router.post('/create', mrController.createMR);
 // Finalize MR (Triggered by QR Code Scan at Warehouse)
 router.post('/issue-scan', mrController.issueMR);
 
+// Post Journal for ISSUED MR (WIP Warehouse only)
+router.post('/post-journal', mrController.postMRJournal);
+
 // Create MR from PO (Direct Issue Flow)
 router.post('/from-po/:poId', mrController.createMRFromPO);
 

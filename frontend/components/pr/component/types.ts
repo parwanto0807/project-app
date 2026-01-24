@@ -15,6 +15,7 @@ export interface PurchaseRequestTableProps {
   currentProjectId?: string;
   currentDateFrom?: Date;
   currentDateTo?: Date;
+  currentTab?: "all" | "umum" | "project";
 }
 
 export interface UsePurchaseRequestTableProps {
@@ -64,6 +65,15 @@ export interface DesktopTableViewProps {
   showSkeleton?: boolean;
   skeletonRows?: number;
   enableTabFilter?: boolean;
+  activeTab?: "all" | "umum" | "project";
+  onTabChange?: (tab: "all" | "umum" | "project") => void;
+  counts?: {
+    all: number;
+    umum: number;
+    project: number;
+  };
+  onPrNumberSearch?: (tab: "umum" | "project", search: string) => void;
+  onSettleBudget?: (prId: string) => void;
 }
 
 export interface MobileCardViewProps {

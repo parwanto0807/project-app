@@ -65,6 +65,7 @@ export interface PurchaseRequest {
   nomorPr: string;
   keterangan?: string | null;
   status: string;
+  sisaBudget?: number;
   details?: PurchaseRequestDetail[];
 }
 
@@ -104,6 +105,7 @@ export interface CreateUangMukaInput {
   karyawanId?: string | null;
   spkId?: string | null;
   status?: UangMukaStatus;
+  accountPencairanId?: string;
 }
 
 export interface UpdateUangMukaInput {

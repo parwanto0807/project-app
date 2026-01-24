@@ -106,6 +106,7 @@ export async function getAllPurchaseRequests(
     queryParams.append("limit", (filters?.limit ?? 10).toString());
 
     if (filters?.search) queryParams.append("search", filters.search);
+    if (filters?.type) queryParams.append("type", filters.type);
 
     // ✅ Always include existing POs to show PO numbers in PR list
     queryParams.append("includeExistingPOs", "true");

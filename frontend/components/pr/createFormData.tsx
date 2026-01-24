@@ -980,8 +980,19 @@ export function TabelInputPR({
                                                                     ) || 0
                                                                 )}
                                                             </p>
+                                                            <p className="text-xs font-bold text-amber-700 mt-1">
+                                                                Sisa Budget Tersedia: {formatCurrency(selectedParentPR.sisaBudget || 0)}
+                                                            </p>
+                                                            {totalBiaya > 0 && (
+                                                                <p className={cn(
+                                                                    "text-xs font-bold mt-1",
+                                                                    (selectedParentPR.sisaBudget || 0) - totalBiaya < 0 ? "text-red-600" : "text-blue-600"
+                                                                )}>
+                                                                    Proyeksi Sisa Setelah PR ini: {formatCurrency((selectedParentPR.sisaBudget || 0) - totalBiaya)}
+                                                                </p>
+                                                            )}
                                                             <p className="text-xs text-muted-foreground mt-1">
-                                                                Pastikan total PR SPK tidak melebihi budget parent
+                                                                Pastikan total PR SPK tidak melebihi budget parent (hanya item Biaya/Cash yang memotong budget)
                                                             </p>
                                                         </div>
                                                     </div>

@@ -1,5 +1,6 @@
 import { prisma } from "../../config/db.js";
 import QRCode from "qrcode";
+import { updatePRRemainingBudget } from "../../utils/prParentChildHelpers.js";
 
 /**
  * Helper function to convert month number to Roman numerals
@@ -159,6 +160,7 @@ export const createPOFromApprovedPR = async (prId, tx) => {
         subtotal,
         taxAmount: 0,
         totalAmount: subtotal,
+        sisaBudget: subtotal,
         lines: {
           create: pembelianBarangItems.map(item => ({
             productId: item.productId,
@@ -207,6 +209,7 @@ export const createPOFromApprovedPR = async (prId, tx) => {
         subtotal,
         taxAmount: 0,
         totalAmount: subtotal,
+        sisaBudget: subtotal,
         lines: {
           create: jasaPembelianItems.map(item => ({
             productId: item.productId,
@@ -235,7 +238,16 @@ export const createPOFromApprovedPR = async (prId, tx) => {
     console.log(`✅ Created PO ${poNumber} for JASA_PEMBELIAN items (${jasaPembelianItems.length} items)`);
   }
 
-  // 6. Return result
+  // 6. Update PR Sisa Budget
+  if (createdPOs.length > 0) {
+    try {
+      await updatePRRemainingBudget(prId, db);
+    } catch (e) {
+      console.error("Error updating PR remaining budget after PO creation:", e);
+    }
+  }
+
+  // 7. Return result
   // If only one PO created, return it directly (backward compatible)
   // If multiple POs created, return array with summary
   if (createdPOs.length === 1) {
@@ -325,6 +337,7 @@ export const createPO = async (req, res) => {
           subtotal: Number(subtotal),
           taxAmount: Number(taxAmount || 0),
           totalAmount: Number(totalAmount),
+          sisaBudget: Number(totalAmount),
           lines: {
             create: lines.map(line => ({
               productId: line.productId,
@@ -347,6 +360,10 @@ export const createPO = async (req, res) => {
           SPK: true
         }
       });
+
+      if (result.purchaseRequestId) {
+        await updatePRRemainingBudget(result.purchaseRequestId, tx);
+      }
 
       return po;
     });
@@ -404,7 +421,8 @@ export const createPOFromPR = async (prId, userId, tx) => {
           totalAmount: 0,
           prDetailId: item.id
         }))
-      }
+      },
+      sisaBudget: 0
     }
   });
 };
@@ -667,10 +685,17 @@ export const updatePO = async (req, res) => {
       // Note: 'notes' field doesn't exist in PurchaseOrder schema
 
       // 5. Update Header (status tetap tidak berubah saat edit)
-      return await tx.purchaseOrder.update({
+      const updatedPo = await tx.purchaseOrder.update({
         where: { id },
         data: updateData
       });
+
+      // Update PR Sisa Budget
+      if (updatedPo.purchaseRequestId) {
+        await updatePRRemainingBudget(updatedPo.purchaseRequestId, tx);
+      }
+
+      return updatedPo;
     });
 
     // ✅ NOTIFIKASI KE TEAM JIKA ADA PENUGASAN BARU

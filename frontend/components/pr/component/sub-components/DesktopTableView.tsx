@@ -55,7 +55,7 @@ const CustomEmptyState = ({
 
   return (
     <TableRow>
-      <TableCell colSpan={11} className="h-72 text-center">
+      <TableCell colSpan={10} className="h-72 text-center">
         <motion.div
           initial="initial"
           animate="animate"
@@ -160,26 +160,62 @@ export function DesktopTableView({
   showSkeleton = false,
   skeletonRows = 10,
   enableTabFilter = false,
+  activeTab: controlledActiveTab,
+  onTabChange,
+  onPrNumberSearch,
+  counts: serverCounts,
+  onSettleBudget,
 }: DesktopTableViewProps) {
 
   const searchParams = useSearchParams();
   const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
   const highlightId = searchParams.get("highlightId") || "";
-  const [activeTab, setActiveTab] = useState<"all" | "umum" | "project">("all");
+  const [internalActiveTab, setInternalActiveTab] = useState<"all" | "umum" | "project">("umum");
 
-  // Filter PR berdasarkan tab aktif
+  const activeTab = controlledActiveTab || internalActiveTab;
+  const setActiveTab = (tab: "all" | "umum" | "project") => {
+    if (onTabChange) {
+      onTabChange(tab);
+    } else {
+      setInternalActiveTab(tab);
+    }
+  };
+  const [localSearch, setLocalSearch] = useState("");
+
+  // Filter PR berdasarkan local search (tab filter dilakukan di server jika dikontrol)
   const filteredPRs = purchaseRequests.filter((pr) => {
-    if (activeTab === "all") return true;
-    if (activeTab === "umum") return !pr.spkId;
-    if (activeTab === "project") return !!pr.spkId;
+    const matchesSearch = !localSearch || pr.nomorPr.toLowerCase().includes(localSearch.toLowerCase());
+    if (!matchesSearch) return false;
+
+    // Jika tidak dikontrol prop, filter manual di client
+    if (!controlledActiveTab) {
+      if (activeTab === "all") return true;
+      if (activeTab === "umum") return !pr.spkId;
+      if (activeTab === "project") return !!pr.spkId;
+    }
+
     return true;
   });
 
+  const handlePrNumberClick = (pr: any) => {
+    // Lebih robust: cek spkId atau keberadaan objek spk
+    const hasSpk = pr.spkId || (pr.spk && Object.keys(pr.spk).length > 0);
+    const targetTab = hasSpk ? "project" : "umum";
+
+    if (onPrNumberSearch) {
+      onPrNumberSearch(targetTab, pr.nomorPr);
+    } else {
+      setActiveTab(targetTab);
+      setLocalSearch(pr.nomorPr);
+    }
+  };
+
   // Count untuk setiap kategori
+  // Count untuk setiap kategori - prioritaskan serverCounts jika ada
   const counts = {
-    all: purchaseRequests.length,
-    project: purchaseRequests.filter(pr => pr.spkId).length,
-    umum: purchaseRequests.filter(pr => !pr.spkId).length,
+    all: serverCounts?.all ?? purchaseRequests.length,
+    project: serverCounts?.project ?? purchaseRequests.filter(pr => pr.spkId).length,
+    umum: serverCounts?.umum ?? purchaseRequests.filter(pr => !pr.spkId).length,
   };
 
   // Effect untuk highlight
@@ -242,6 +278,8 @@ export function DesktopTableView({
             onCreateLpp={() => onCreateLpp(pr.id)}
             onEdit={() => onEdit(pr)}
             onDelete={() => onDelete(pr.id)}
+            onPrClick={handlePrNumberClick}
+            onSettleBudget={onSettleBudget}
             highlightId={highlightId}
           />
         ))}
@@ -252,15 +290,15 @@ export function DesktopTableView({
   // Tab configuration dengan style premium
   const tabs = [
     {
-      id: "all",
-      label: "Semua PR",
-      count: counts.all,
-      gradient: "from-gray-600 via-gray-500 to-gray-400",
-      activeGradient: "from-gray-900 via-gray-800 to-gray-700",
-      lightGradient: "from-gray-100 via-gray-50 to-white",
+      id: "umum",
+      label: "PR Umum",
+      count: counts.umum,
+      gradient: "from-emerald-600 via-green-500 to-emerald-500",
+      activeGradient: "from-emerald-700 via-green-600 to-emerald-600",
+      lightGradient: "from-emerald-50 via-green-50 to-emerald-100",
       icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
         </svg>
       )
     },
@@ -278,15 +316,15 @@ export function DesktopTableView({
       )
     },
     {
-      id: "umum",
-      label: "PR Umum",
-      count: counts.umum,
-      gradient: "from-emerald-600 via-green-500 to-emerald-500",
-      activeGradient: "from-emerald-700 via-green-600 to-emerald-600",
-      lightGradient: "from-emerald-50 via-green-50 to-emerald-100",
+      id: "all",
+      label: "Semua PR",
+      count: counts.all,
+      gradient: "from-gray-600 via-gray-500 to-gray-400",
+      activeGradient: "from-gray-900 via-gray-800 to-gray-700",
+      lightGradient: "from-gray-100 via-gray-50 to-white",
       icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
         </svg>
       )
     },
@@ -304,10 +342,9 @@ export function DesktopTableView({
               <TableHead className="w-20 font-semibold text-gray-700 dark:text-gray-300">Project</TableHead>
               <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Admin & Request</TableHead>
               <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Total Amount</TableHead>
-              <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Status</TableHead>
-              <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Acc Finance</TableHead>
-              <TableHead className="font-semibold text-gray-700 dark:text-gray-300 text-center">%</TableHead>
-              <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Status Finance</TableHead>
+              <TableHead className="font-semibold text-gray-700 dark:text-gray-300 text-right">Acc Finance (%)</TableHead>
+              <TableHead className="font-semibold text-gray-700 dark:text-gray-300 text-right">Sisa Budget</TableHead>
+              <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Status (PR & FNC)</TableHead>
               <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Rincian LPP</TableHead>
               <TableHead className="font-semibold text-gray-700 dark:text-gray-300 text-right">Actions</TableHead>
             </TableRow>
@@ -337,7 +374,10 @@ export function DesktopTableView({
                 return (
                   <motion.button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id as any)}
+                    onClick={() => {
+                      setActiveTab(tab.id as any);
+                      setLocalSearch("");
+                    }}
                     className={cn(
                       "relative px-5 py-3 rounded-xl text-sm font-semibold transition-all duration-300",
                       "flex items-center gap-3 outline-none focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
@@ -414,22 +454,37 @@ export function DesktopTableView({
             </div>
 
             {/* Active Tab Indicator & Info */}
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="hidden lg:flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border border-gray-200/50 dark:border-gray-700/50"
-            >
-              <div className={cn(
-                "w-2 h-2 rounded-full animate-pulse",
-                activeTab === "all" ? "bg-gray-500" :
-                  activeTab === "project" ? "bg-blue-500" :
-                    "bg-emerald-500"
-              )} />
-              <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                Menampilkan <span className="font-bold text-gray-900 dark:text-gray-100">{counts[activeTab as keyof typeof counts]}</span> data
-              </span>
-            </motion.div>
+            <div className="hidden lg:flex items-center gap-4">
+              {localSearch && (
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  onClick={() => setLocalSearch("")}
+                  className="px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 text-amber-700 dark:text-amber-300 text-xs font-semibold flex items-center gap-2 hover:bg-amber-100 transition-colors"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Clear Filter: {localSearch}
+                </motion.button>
+              )}
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 border border-gray-200/50 dark:border-gray-700/50"
+              >
+                <div className={cn(
+                  "w-2 h-2 rounded-full animate-pulse",
+                  activeTab === "all" ? "bg-gray-500" :
+                    activeTab === "project" ? "bg-blue-500" :
+                      "bg-emerald-500"
+                )} />
+                <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                  Menampilkan <span className="font-bold text-gray-900 dark:text-gray-100">{counts[activeTab as keyof typeof counts]}</span> data
+                </span>
+              </motion.div>
+            </div>
           </div>
         </div>
 
@@ -468,10 +523,9 @@ export function DesktopTableView({
                 <TableHead className="w-20 font-bold text-gray-700 dark:text-gray-300 py-4">Project</TableHead>
                 <TableHead className="font-bold text-gray-700 dark:text-gray-300 py-4">Admin & Request</TableHead>
                 <TableHead className="font-bold text-gray-700 dark:text-gray-300 py-4">Total Amount</TableHead>
-                <TableHead className="font-bold text-gray-700 dark:text-gray-300 py-4">Status</TableHead>
-                <TableHead className="font-bold text-gray-700 dark:text-gray-300 py-4">Acc Finance</TableHead>
-                <TableHead className="font-bold text-gray-700 dark:text-gray-300 text-center py-4">%</TableHead>
-                <TableHead className="font-bold text-gray-700 dark:text-gray-300 py-4">Status Finance</TableHead>
+                <TableHead className="font-bold text-gray-700 dark:text-gray-300 text-right py-4">Acc Finance (%)</TableHead>
+                <TableHead className="font-bold text-gray-700 dark:text-gray-300 text-right py-4">Sisa Budget</TableHead>
+                <TableHead className="font-bold text-gray-700 dark:text-gray-300 py-4">Status (PR & FNC)</TableHead>
                 <TableHead className="font-bold text-gray-700 dark:text-gray-300 py-4">Rincian LPP</TableHead>
                 <TableHead className="font-bold text-gray-700 dark:text-gray-300 text-right py-4">Actions</TableHead>
               </TableRow>

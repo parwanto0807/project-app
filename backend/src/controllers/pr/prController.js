@@ -20,7 +20,7 @@ export class PurchaseRequestController {
     try {
       const query = queryParamsSchema.parse(req.query);
 
-      const { page, limit, status, projectId, startDate, endDate, search } =
+      const { page, limit, status, projectId, startDate, endDate, search, type } =
         query;
       const skip = (page - 1) * limit;
 
@@ -28,6 +28,13 @@ export class PurchaseRequestController {
 
       if (status) where.status = status;
       if (projectId) where.projectId = projectId;
+
+      // Filter berdasarkan type
+      if (type === "umum") {
+        where.spkId = null;
+      } else if (type === "project") {
+        where.spkId = { not: null };
+      }
       if (search) {
         where.OR = [
           { nomorPr: { contains: search, mode: "insensitive" } },
@@ -41,26 +48,21 @@ export class PurchaseRequestController {
         if (endDate) where.tanggalPr.lte = new Date(endDate);
       }
 
-      const [purchaseRequests, totalCount] = await Promise.all([
+      const baseWhere = { ...where };
+      delete baseWhere.spkId;
+
+      const [purchaseRequests, responseCount, totalAll, totalUmum, totalProject] = await Promise.all([
         prisma.purchaseRequest.findMany({
           where,
           include: {
-            project: {
-              select: { id: true, name: true },
-            },
-            karyawan: {
-              select: { id: true, namaLengkap: true, jabatan: true },
-            },
-            requestedBy: {
-              select: { id: true, namaLengkap: true, jabatan: true },
-            },
+            project: { select: { id: true, name: true } },
+            karyawan: { select: { id: true, namaLengkap: true, jabatan: true } },
+            requestedBy: { select: { id: true, namaLengkap: true, jabatan: true } },
             spk: {
               select: {
                 id: true,
                 spkNumber: true,
-                salesOrder: {
-                  select: { soNumber: true },
-                },
+                salesOrder: { select: { soNumber: true } },
               },
             },
             parentPr: {
@@ -68,9 +70,8 @@ export class PurchaseRequestController {
                 id: true,
                 nomorPr: true,
                 status: true,
-                details: {
-                  select: { estimasiTotalHarga: true }
-                }
+                sisaBudget: true,
+                details: { select: { estimasiTotalHarga: true } }
               },
             },
             childPrs: {
@@ -78,31 +79,29 @@ export class PurchaseRequestController {
                 id: true,
                 nomorPr: true,
                 status: true,
-                details: {
+                details: { select: { estimasiTotalHarga: true, sourceProduct: true } },
+                purchaseOrders: {
                   select: { 
-                    estimasiTotalHarga: true,
-                    sourceProduct: true
+                    id: true, 
+                    poNumber: true, 
+                    status: true, 
+                    totalAmount: true,
+                    lines: {
+                      select: {
+                        quantity: true,
+                        qtyActual: true,
+                        unitPrice: true,
+                        unitPriceActual: true
+                      }
+                    }
                   }
                 }
               },
             },
             details: {
               include: {
-                product: {
-                  select: {
-                    id: true,
-                    name: true,
-                    code: true,
-                    purchaseUnit: true,
-                    storageUnit: true,
-                    usageUnit: true,
-                    conversionToStorage: true,
-                    conversionToUsage: true,
-                  },
-                },
-                projectBudget: {
-                  select: { id: true, description: true, amount: true },
-                },
+                product: { select: { id: true, name: true, code: true, purchaseUnit: true, storageUnit: true, usageUnit: true, conversionToStorage: true, conversionToUsage: true } },
+                projectBudget: { select: { id: true, description: true, amount: true } },
               },
             },
             uangMuka: {
@@ -111,9 +110,7 @@ export class PurchaseRequestController {
                   include: {
                     details: {
                       include: {
-                        product: {
-                          select: { id: true, name: true, code: true },
-                        },
+                        product: { select: { id: true, name: true, code: true } },
                         fotoBukti: true,
                       },
                     },
@@ -121,20 +118,22 @@ export class PurchaseRequestController {
                 },
               },
             },
-            // Include existing POs if requested
             ...(req.query.includeExistingPOs === 'true' && {
               purchaseOrders: {
-                select: {
-                  id: true,
-                  poNumber: true,
-                  status: true,
-                  totalAmount: true,
-                  supplier: {
+                select: { 
+                  id: true, 
+                  poNumber: true, 
+                  status: true, 
+                  totalAmount: true, 
+                  supplier: { select: { id: true, name: true } },
+                  lines: {
                     select: {
-                      id: true,
-                      name: true,
-                    },
-                  },
+                      quantity: true,
+                      qtyActual: true,
+                      unitPrice: true,
+                      unitPriceActual: true
+                    }
+                  }
                 },
               },
             }),
@@ -144,6 +143,9 @@ export class PurchaseRequestController {
           take: limit,
         }),
         prisma.purchaseRequest.count({ where }),
+        prisma.purchaseRequest.count({ where: baseWhere }),
+        prisma.purchaseRequest.count({ where: { ...baseWhere, spkId: null } }),
+        prisma.purchaseRequest.count({ where: { ...baseWhere, spkId: { not: null } } }),
       ]);
 
       res.json({
@@ -152,8 +154,13 @@ export class PurchaseRequestController {
         pagination: {
           page,
           limit,
-          totalPages: Math.ceil(totalCount / limit),
-          totalCount,
+          totalPages: Math.ceil(responseCount / limit),
+          totalCount: responseCount,
+          counts: {
+            all: totalAll,
+            umum: totalUmum,
+            project: totalProject,
+          }
         },
       });
     } catch (error) {
@@ -350,6 +357,12 @@ export class PurchaseRequestController {
       hasSPK,
     });
 
+    // Hitung total sisaBudget awal jika ini PR Parent (UM)
+    let initialSisaBudget = 0;
+    if (!hasSPK) {
+      initialSisaBudget = calculatePRBudget(detailsWithTotal);
+    }
+
     const prData = {
       ...validatedData,
       nomorPr,
@@ -359,6 +372,8 @@ export class PurchaseRequestController {
       parentPrId: validatedData.parentPrId || null,
       // Default requestedById to karyawanId if not provided
       requestedById: validatedData.requestedById || validatedData.karyawanId,
+      // Set initial sisaBudget
+      sisaBudget: initialSisaBudget,
       details: {
         create: detailsWithTotal,
       },
@@ -406,6 +421,23 @@ export class PurchaseRequestController {
         },
       },
     });
+
+    // ✅ UPDATE SISA BUDGET PARENT JIKA INI PR CHILD (SPK)
+    if (hasSPK && validatedData.parentPrId) {
+      const { updateParentRemainingBudget } = await import("../../utils/prParentChildHelpers.js");
+      await updateParentRemainingBudget(validatedData.parentPrId);
+    }
+
+      // Update Sisa Budget
+      const { updatePRRemainingBudget } = await import("../../utils/prParentChildHelpers.js");
+      
+      // Update sisaBudget untuk PR ini
+      await updatePRRemainingBudget(purchaseRequest.id);
+      
+      // Jika ini child PR, update juga sisaBudget untuk parent-nya
+      if (purchaseRequest.parentPrId) {
+        await updatePRRemainingBudget(purchaseRequest.parentPrId);
+      }
 
       // ✅ TAMBAHKAN: BROADCAST NOTIFICATION KE ADMIN & PIC
       try {
@@ -767,6 +799,13 @@ export class PurchaseRequestController {
         }
       } catch (notificationError) {
         console.error("Error sending update notification:", notificationError);
+      }
+
+      // ✅ Update Sisa Budget
+      const { updatePRRemainingBudget } = await import("../../utils/prParentChildHelpers.js");
+      await updatePRRemainingBudget(id);
+      if (existingPR.parentPrId) {
+        await updatePRRemainingBudget(existingPR.parentPrId);
       }
 
       res.json({
@@ -1333,7 +1372,7 @@ export class PurchaseRequestController {
             }
           }
 
-          // 2d. Reverse StaffLedger entries for OPERATIONAL items (if PR has SPK)
+          /* DISABLED: StaffBalance & StaffLedger update logic
           if (existingPR.spkId) {
             // Find StaffLedger entries created for this PR
             const relatedLedgerEntries = await tx.staffLedger.findMany({
@@ -1416,6 +1455,7 @@ export class PurchaseRequestController {
               }
             }
           }
+          */
         }
 
         // 3. Save Warehouse Allocations if provided
@@ -1937,7 +1977,7 @@ export class PurchaseRequestController {
           }
         }
 
-        // 6. Create StaffLedger entries for OPERATIONAL items (only if PR has SPK)
+        /* DISABLED: StaffLedger entries for OPERATIONAL items
         if (status === 'APPROVED' && pr.spkId) {
           // Get all OPERATIONAL items from this PR
           const operationalItems = await tx.purchaseRequestDetail.findMany({
@@ -2062,6 +2102,7 @@ export class PurchaseRequestController {
             }
           }
         }
+        */
 
         return pr;
       }, { timeout: 20000 });
@@ -2108,6 +2149,17 @@ export class PurchaseRequestController {
             error: poError.message
           };
         }
+      }
+
+      // ✅ Update Sisa Budget after status update
+      try {
+        const { updatePRRemainingBudget } = await import("../../utils/prParentChildHelpers.js");
+        await updatePRRemainingBudget(id);
+        if (existingPR.parentPrId) {
+          await updatePRRemainingBudget(existingPR.parentPrId);
+        }
+      } catch (budgetError) {
+        console.error("❌ Failed to update budget after status change:", budgetError);
       }
 
       res.json({
@@ -2160,9 +2212,19 @@ export class PurchaseRequestController {
         });
       }
 
+      // Update Sisa Budget Parent sebelum atau sesudah delete? 
+      // Sebaiknya sesudah, tapi jika record terhapus PR SPK hilang, parent budget harus direcalculate.
+      const parentPrId = existingPR.parentPrId;
+
       await prisma.purchaseRequest.delete({
         where: { id },
       });
+
+      // Update Parent Budget jika ada
+      if (parentPrId) {
+        const { updatePRRemainingBudget } = await import("../../utils/prParentChildHelpers.js");
+        await updatePRRemainingBudget(parentPrId);
+      }
 
       res.json({
         success: true,

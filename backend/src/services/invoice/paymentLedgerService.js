@@ -46,22 +46,32 @@ async function getActivePeriod(transactionDate) {
  */
 async function generatePaymentLedgerNumber(paymentDate) {
   const dateStr = paymentDate.toISOString().slice(0, 10).replace(/-/g, '');
+  const prefix = `JV-PAY-${dateStr}`;
   
-  // Count payments today
-  const startOfDay = new Date(paymentDate);
-  startOfDay.setHours(0, 0, 0, 0);
-  const endOfDay = new Date(paymentDate);
-  endOfDay.setHours(23, 59, 59, 999);
-
-  const count = await prisma.ledger.count({
+  const latestLedger = await prisma.ledger.findFirst({
     where: {
-      ledgerNumber: { startsWith: `JV-PAY-${dateStr}` },
-      transactionDate: { gte: startOfDay, lte: endOfDay }
+      ledgerNumber: { startsWith: prefix }
+    },
+    orderBy: {
+      ledgerNumber: 'desc'
+    },
+    select: {
+      ledgerNumber: true
     }
   });
 
-  const sequence = String(count + 1).padStart(4, '0');
-  return `JV-PAY-${dateStr}-${sequence}`;
+  let nextSequence = 1;
+  if (latestLedger) {
+    const parts = latestLedger.ledgerNumber.split('-');
+    const lastSequenceStr = parts[parts.length - 1];
+    const lastSequence = parseInt(lastSequenceStr);
+    if (!isNaN(lastSequence)) {
+      nextSequence = lastSequence + 1;
+    }
+  }
+
+  const sequence = String(nextSequence).padStart(4, '0');
+  return `${prefix}-${sequence}`;
 }
 
 /**

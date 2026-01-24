@@ -186,3 +186,39 @@ export async function validateMRForApproval(
         };
     }
 }
+
+/**
+ * Post MR Journal - Create journal entry for ISSUED MR (WIP warehouse only)
+ */
+export async function postMRJournal(
+    mrId: string
+): Promise<ApiResponse<any>> {
+    try {
+        const response = await fetch(`${API_URL}/api/mr/post-journal`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ mrId })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            return {
+                success: false,
+                error: result.error || "Gagal posting journal",
+                details: result.details
+            };
+        }
+
+        return result;
+    } catch (error: any) {
+        console.error("Post Journal Error:", error);
+        return {
+            success: false,
+            error: "Koneksi ke server terputus",
+            details: error.message
+        };
+    }
+}

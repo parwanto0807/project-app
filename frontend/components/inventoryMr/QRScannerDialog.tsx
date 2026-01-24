@@ -127,7 +127,8 @@ export const QRScannerDialog: React.FC<QRScannerDialogProps> = ({
 
                 cleanupTimeoutRef.current = setTimeout(() => {
                     onScanSuccess(data)
-                    handleClose()
+                    // Don't auto-close - let parent component handle it
+                    // handleClose()
                 }, 1500)
             } else {
                 setError("QR Code tidak sesuai dengan MR yang dipilih!")
@@ -141,7 +142,8 @@ export const QRScannerDialog: React.FC<QRScannerDialogProps> = ({
 
             cleanupTimeoutRef.current = setTimeout(() => {
                 onScanSuccess(data)
-                handleClose()
+                // Don't auto-close - let parent component handle it
+                // handleClose()
             }, 1000)
         }
     }

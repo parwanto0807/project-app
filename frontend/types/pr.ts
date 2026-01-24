@@ -40,6 +40,7 @@ export interface PurchaseRequest {
   tanggalPr: Date;
   keterangan?: string;
   status: PRStatus;
+  sisaBudget?: number;
 
   // Relasi opsional
   project?: {
@@ -110,6 +111,12 @@ export interface PurchaseRequest {
       id: string;
       name: string;
     };
+    lines?: {
+      quantity: number;
+      qtyActual: number;
+      unitPrice: number;
+      unitPriceActual: number;
+    }[];
   }[];
 
   createdAt: Date;
@@ -197,6 +204,7 @@ export interface PurchaseRequestFilters {
   totalPages?: number;
   search?: string;
   includeWithoutSPK?: boolean; // ✅ Tambahkan filter khusus
+  type?: "umum" | "project";
 }
 
 export interface PaginationInfo {
@@ -204,6 +212,11 @@ export interface PaginationInfo {
   limit: number;
   totalCount: number;
   totalPages: number;
+  counts?: {
+    all: number;
+    umum: number;
+    project: number;
+  };
 }
 
 export interface PurchaseRequestResponse {
@@ -265,6 +278,18 @@ export interface PurchaseRequestWithRelations extends PurchaseRequest {
     details?: {
       estimasiTotalHarga: number;
       sourceProduct?: SourceProductType | null;
+    }[];
+    purchaseOrders?: {
+      id: string;
+      poNumber: string;
+      status: string;
+      totalAmount: number;
+      lines?: {
+        quantity: number;
+        qtyActual: number;
+        unitPrice: number;
+        unitPriceActual: number;
+      }[];
     }[];
   }[];
   uangMuka?: UangMukaWithRelations[];

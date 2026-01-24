@@ -38,9 +38,11 @@ import {
     FileCheck,
     ArrowLeft,
     X,
-    BanknoteArrowUp
+    BanknoteArrowUp,
+    RefreshCw
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import {
     Popover,
@@ -56,11 +58,14 @@ import { uploadFoto } from '@/lib/action/lpp/action-lpp';
 import { useRouter } from 'next/navigation';
 import { FieldPath } from 'react-hook-form';
 
+import { getAllPurchaseOrders, getPurchaseOrderById } from '@/lib/action/po/po';
+
 // Types untuk state file upload
 interface FileWithPreview {
-    file: File;
+    file?: File; // Optional untuk support existing files
     previewUrl: string;
     keterangan?: string;
+    isExisting?: boolean; // Flag untuk file yang sudah ada di server
 }
 
 export interface FotoBuktiMap {
@@ -141,6 +146,20 @@ export async function uploadFotoAfterCreate(
 
         const fotoResults = await Promise.all(
             files.map(async (fileWithPreview, fileIndex) => {
+                // SKIP upload jika file sudah ada di server (isExisting)
+                if (fileWithPreview.isExisting) {
+                    return {
+                        url: fileWithPreview.previewUrl,
+                        keterangan: fileWithPreview.keterangan || "Eksisting",
+                    };
+                }
+
+                // Pastikan file objek ada sebelum upload
+                if (!fileWithPreview.file) {
+                    console.warn(`⚠️ File objek tidak ditemukan untuk detail ${detail.id} index ${fileIndex}`);
+                    return null;
+                }
+
                 try {
                     console.log(
                         `📤 Uploading file ${fileIndex + 1} untuk detail ${detail.id}:`,
@@ -231,7 +250,7 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
         }
     }, [serverErrors, form]);
 
-    const { fields, append, remove } = useFieldArray({
+    const { fields, append, remove, replace } = useFieldArray({
         control: form.control,
         name: 'details',
     });
@@ -244,7 +263,134 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
         ? purchaseRequest.uangMuka[0]
         : null;
 
-    const sisaUangDikembalikan = (uangMuka?.jumlah || 0) - totalBiaya;
+    // Filter PR details with source 'OPERATIONAL'
+    const operationalPRDetails = purchaseRequest.details.filter(
+        (d) => d.sourceProduct === 'OPERATIONAL'
+    );
+
+    // Nilai-nilai untuk ringkasan (Summary)
+    // Jika ada item Operational, kita gunakan nilainya
+    const totalPrOperational = operationalPRDetails.reduce(
+        (sum, d) => sum + Number(d.estimasiTotalHarga || 0),
+        0
+    );
+
+    // Approval Request Total: Ambil dari Uang Muka atau Total PR Operational
+    const approvalRequestTotal = uangMuka?.jumlah ? Number(uangMuka.jumlah) : totalPrOperational;
+
+    // Available Budget: Sama dengan Total PR dari item Operational
+    const availableBudget = totalPrOperational;
+
+    // Sisa Uang Dikembalikan: Selisih antara Approval Request Total dan Total Pengeluaran
+    const sisaUangDikembalikan = approvalRequestTotal - totalBiaya;
+
+    // Function untuk menarik data dari rincian PR langsung (sebagai fallback atau jika manual)
+    const pullFromPrDetails = React.useCallback(() => {
+        const prItems = purchaseRequest.details.map(detail => ({
+            tanggalTransaksi: new Date(),
+            keterangan: detail.catatanItem || detail.product?.name || `Tagihan: ${detail.product?.name || 'Item'}`,
+            jumlah: Number(detail.estimasiTotalHarga || 0),
+            nomorBukti: '',
+            jenisPembayaran: 'CASH' as const,
+            productId: detail.productId,
+            purchaseRequestDetailId: detail.id || '',
+        }));
+
+        if (prItems.length > 0) {
+            console.log(`⭐ [LPP-PULL] Pulling ${prItems.length} items directly from PR details`);
+            replace(prItems);
+            setFotoBuktiMap({});
+            toast.success(`Berhasil menarik ${prItems.length} data dari rincian PR`);
+        } else {
+            toast.warning("Rincian PR tidak ditemukan");
+        }
+    }, [purchaseRequest.details, replace]);
+
+    // Function untuk menarik data (bisa dipanggil otomatis atau manual)
+    const handlePullData = React.useCallback(async () => {
+        // Analisa Bro: Jika ini PR Child, PO mungkin terhubung ke PR Parent
+        const searchNomorPr = purchaseRequest.parentPr?.nomorPr || purchaseRequest.nomorPr;
+
+        if (!searchNomorPr) {
+            console.log("⚠️ [LPP-PULL] nomorPr is empty, pulling from PR details");
+            pullFromPrDetails();
+            return;
+        }
+
+        try {
+            console.log(`🔍 [LPP-PULL] Searching PO for: ${searchNomorPr}`);
+
+            // 1. Cari semua PO yang terhubung (bisa PR asli atau Parent-nya)
+            const { data: pos } = await getAllPurchaseOrders({ search: searchNomorPr });
+            console.log(`📊 [LPP-PULL] Found ${pos?.length || 0} PO candidates`);
+
+            if (pos && pos.length > 0) {
+                const allReceiptItems: any[] = [];
+                const initialFotoMap: FotoBuktiMap = {};
+                let currentItemIndex = 0;
+
+                // 2. Untuk setiap PO, ambil detail lengkapnya
+                for (const poShort of pos) {
+                    console.log(`📦 [LPP-PULL] Checking PO: ${poShort.poNumber} (ID: ${poShort.id})`);
+
+                    const fullPo = await getPurchaseOrderById(poShort.id);
+                    console.log(`📄 [LPP-PULL] Full PO loaded, Executions: ${fullPo.PurchaseExecution?.length || 0}`);
+
+                    // 3. Iterasi melalui PurchaseExecution -> PurchaseReceipt
+                    fullPo.PurchaseExecution?.forEach((execution) => {
+                        execution.receipts?.forEach((receipt) => {
+                            receipt.items?.forEach(item => {
+                                const poLine = fullPo.lines.find(l => l.id === item.poLineId);
+
+                                allReceiptItems.push({
+                                    tanggalTransaksi: receipt.receiptDate ? new Date(receipt.receiptDate) : new Date(),
+                                    keterangan: item.productName || `Pembelian dari PO ${fullPo.poNumber}`,
+                                    jumlah: Number(item.totalPrice || 0),
+                                    nomorBukti: receipt.receiptNumber || '',
+                                    jenisPembayaran: (receipt.paymentMethod as any) || 'CASH',
+                                    productId: poLine?.productId || '',
+                                    purchaseRequestDetailId: poLine?.prDetailId || '',
+                                });
+
+                                if (receipt.photos && receipt.photos.length > 0) {
+                                    initialFotoMap[currentItemIndex] = receipt.photos.map(p => ({
+                                        previewUrl: p.photoUrl,
+                                        keterangan: p.photoType === 'BON' ? 'Foto Bon' : 'Foto Produk',
+                                        isExisting: true
+                                    }));
+                                }
+
+                                currentItemIndex++;
+                            });
+                        });
+                    });
+                }
+
+                // 5. Update form jika ditemukan data - Gunakan replace agar sinkron
+                if (allReceiptItems.length > 0) {
+                    replace(allReceiptItems);
+                    setFotoBuktiMap(initialFotoMap);
+                    toast.success(`Berhasil menarik ${allReceiptItems.length} data belanja dari PO (${searchNomorPr})`);
+                } else {
+                    console.log("ℹ️ [LPP-PULL] No executed receipts found in these POs. Falling back to PR details.");
+                    pullFromPrDetails();
+                }
+            } else {
+                console.log("ℹ️ [LPP-PULL] No PO found matching this PR number. Falling back to PR details.");
+                pullFromPrDetails();
+            }
+        } catch (error) {
+            console.warn("⚠️ [LPP-PULL] Error pulling data from PO:", error);
+            pullFromPrDetails();
+        }
+    }, [purchaseRequest.nomorPr, purchaseRequest.parentPr, replace, pullFromPrDetails]);
+
+    // Effect untuk menarik data saat render pertama jika nomorPr ada
+    React.useEffect(() => {
+        if (purchaseRequest.nomorPr) {
+            handlePullData();
+        }
+    }, [purchaseRequest.nomorPr, handlePullData]);
 
     const totalBudget = purchaseRequest.details.reduce(
         (sum, detail) => sum + Number(detail.estimasiTotalHarga || 0),
@@ -599,6 +745,30 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
                                                     Tambahkan detail pengeluaran untuk setiap transaksi
                                                 </p>
                                             </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={handlePullData}
+                                                    className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+                                                    title="Tarik data belanja/kuitansi dari Purchasing (PO)"
+                                                >
+                                                    <RefreshCw className="h-4 w-4" />
+                                                    Sync PO
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={pullFromPrDetails}
+                                                    className="flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200"
+                                                    title="Tarik item dari rincian PR sebagai template"
+                                                >
+                                                    <FileText className="h-4 w-4" />
+                                                    Sync PR
+                                                </Button>
+                                            </div>
                                         </div>
 
                                         {fields.map((field, index) => (
@@ -685,8 +855,8 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
                                                                         onValueChange={(value) => {
                                                                             field.onChange(value);
                                                                             const selectedProduct = getAvailableProducts().find(p => p.id === value);
-                                                                            if (selectedProduct) {
-                                                                                form.setValue(`details.${index}.purchaseRequestDetailId`, selectedProduct.prDetailId);
+                                                                            if (selectedProduct && selectedProduct.prDetailIds.length > 0) {
+                                                                                form.setValue(`details.${index}.purchaseRequestDetailId`, selectedProduct.prDetailIds[0]);
                                                                             }
                                                                         }}
                                                                         defaultValue={field.value}
@@ -886,10 +1056,10 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
                                                                                 <div className="flex items-start justify-between mb-2">
                                                                                     <div className="flex-1 min-w-0">
                                                                                         <p className="text-sm font-medium text-slate-900 dark:text-white truncate">
-                                                                                            {fileWithPreview.file.name}
+                                                                                            {fileWithPreview.file ? fileWithPreview.file.name : 'File Eksisting'}
                                                                                         </p>
                                                                                         <p className="text-xs text-slate-500 dark:text-slate-400">
-                                                                                            {(fileWithPreview.file.size / 1024).toFixed(1)} KB
+                                                                                            {fileWithPreview.file ? `${(fileWithPreview.file.size / 1024).toFixed(1)} KB` : 'Tersimpan di server'}
                                                                                         </p>
                                                                                     </div>
                                                                                     <Button
@@ -993,22 +1163,62 @@ const CreateLppFormInput: React.FC<CreateLppFormInputProps> = ({
                                             </div>
                                         </div>
 
-                                        {/* Informasi Uang Muka */}
-                                        <div className="mt-6 p-4 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                                        {/* Informasi Detail Operational PR */}
+                                        <div className="mt-6 p-4 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 space-y-4">
+                                            <div className="flex items-center justify-between border-b pb-2">
+                                                <h4 className="font-medium text-slate-800 dark:text-slate-200">Info Dana Operational</h4>
+                                                <Badge variant="outline" className="text-[10px] uppercase font-bold tracking-wider">
+                                                    Summary
+                                                </Badge>
+                                            </div>
+
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                                                <div className="flex justify-between">
-                                                    <span className="text-slate-600 dark:text-slate-400">Approval Request Total :</span>
-                                                    <span className="font-semibold text-slate-800 dark:text-slate-200">
-                                                        Rp {Number(uangMuka?.jumlah).toLocaleString("id-ID") || '0'}
-                                                    </span>
+                                                <div className="space-y-2">
+                                                    <div className="flex justify-between">
+                                                        <span className="text-slate-600 dark:text-slate-400">Total PR Operational:</span>
+                                                        <span className="font-semibold text-slate-800 dark:text-slate-200">
+                                                            Rp {totalPrOperational.toLocaleString()}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="text-slate-600 dark:text-slate-400">Available Budget:</span>
+                                                        <span className="font-semibold text-blue-600">
+                                                            Rp {availableBudget.toLocaleString()}
+                                                        </span>
+                                                    </div>
                                                 </div>
-                                                <div className="flex justify-between">
-                                                    <span className="text-slate-600 dark:text-slate-400">Total Pengeluaran:</span>
-                                                    <span className="font-semibold text-slate-800 dark:text-slate-200">
-                                                        Rp {totalBiaya.toLocaleString()}
-                                                    </span>
+                                                <div className="space-y-2">
+                                                    <div className="flex justify-between">
+                                                        <span className="text-slate-600 dark:text-slate-400">Approval Request Total:</span>
+                                                        <span className="font-semibold text-slate-800 dark:text-slate-200">
+                                                            Rp {approvalRequestTotal.toLocaleString()}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="text-slate-600 dark:text-slate-400">Total Pengeluaran:</span>
+                                                        <span className="font-semibold text-slate-800 dark:text-slate-200">
+                                                            Rp {totalBiaya.toLocaleString()}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </div>
+
+                                            {operationalPRDetails.length > 2 ? (
+                                                <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/10 rounded border border-blue-100 dark:border-blue-900/30">
+                                                    <p className="text-xs text-blue-700 dark:text-blue-300 italic">
+                                                        * Terdapat {operationalPRDetails.length} item pengajuan operasional. Ringkasan biaya ditampilkan di atas.
+                                                    </p>
+                                                </div>
+                                            ) : (
+                                                <div className="mt-2 space-y-1">
+                                                    {operationalPRDetails.map((detail, idx) => (
+                                                        <div key={idx} className="flex justify-between text-[11px] text-slate-500 italic">
+                                                            <span>- {detail.product?.name || 'Item'}</span>
+                                                            <span>Rp {Number(detail.estimasiTotalHarga).toLocaleString()}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 

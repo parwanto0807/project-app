@@ -10,6 +10,8 @@ import { MobileCardView } from "./sub-components/MobileCardView";
 import { Pagination } from "./sub-components/Pagination";
 import SimplePurchaseRequestPdfDialog from "../prPdfDialog";
 import { PurchaseRequestDetailSheet } from "../detailSheetPr";
+import { ActionButtons } from "./sub-components/actionButtons";
+import { SettleBudgetDialog } from "./sub-components/SettleBudgetDialog";
 import { ShoppingBagIcon } from "lucide-react";
 import { deletePurchaseRequest, updatePurchaseRequestStatus } from "@/lib/action/pr/pr";
 import { PRStatus, PurchaseRequestWithRelations } from "@/types/pr";
@@ -60,6 +62,7 @@ export function PurchaseRequestTable(props: PurchaseRequestTableProps) {
         currentProjectId,
         currentDateFrom,
         currentDateTo,
+        currentTab = "umum",
     } = props;
 
     // State untuk dialogs
@@ -71,6 +74,8 @@ export function PurchaseRequestTable(props: PurchaseRequestTableProps) {
     const [isDeleting, setIsDeleting] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
     const [isChangingPage, setIsChangingPage] = useState(false);
+    const [settleDialogOpen, setSettleDialogOpen] = useState(false);
+    const [settlePr, setSettlePr] = useState<PurchaseRequestWithRelations | null>(null);
     const { user, isLoading: userLoading } = useSession();
 
     const urlPage = Number(searchParams.get("page")) || 1;
@@ -137,6 +142,14 @@ export function PurchaseRequestTable(props: PurchaseRequestTableProps) {
 
     const handleSearchSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+    };
+
+    const handleTabChange = (tab: "all" | "umum" | "project") => {
+        updateURL({ tab, page: "1", search: "" });
+    };
+
+    const handlePrNumberSearch = (tab: "umum" | "project", search: string) => {
+        updateURL({ tab, search, page: "1" });
     };
 
     const handleStatusFilterChange = (status: PRStatus | undefined) => {
@@ -218,6 +231,14 @@ export function PurchaseRequestTable(props: PurchaseRequestTableProps) {
     const handleViewPdf = (pr: PurchaseRequestWithRelations) => {
         setSelectedPurchaseRequest(pr);
         setPdfDialogOpen(true);
+    };
+
+    const handleSettleBudget = (prId: string) => {
+        const pr = purchaseRequests.find(p => p.id === prId);
+        if (pr) {
+            setSettlePr(pr);
+            setSettleDialogOpen(true);
+        }
     };
 
     const handleRefresh = () => {
@@ -515,6 +536,9 @@ export function PurchaseRequestTable(props: PurchaseRequestTableProps) {
                             onViewPdf={handleViewPdf}
                             onCreateLpp={handleCreateLpp}
                             enableTabFilter={true} // Aktifkan tab filter
+                            activeTab={currentTab} // Sinkronkan dengan URL
+                            onTabChange={handleTabChange} // Update URL saat tab berubah
+                            onPrNumberSearch={handlePrNumberSearch} // Update URL saat PR Number diklik
                             onEdit={(pr) => {
                                 const query = new URLSearchParams({
                                     page: String(urlPage),
@@ -523,6 +547,7 @@ export function PurchaseRequestTable(props: PurchaseRequestTableProps) {
                                     filter: urlFilter,
                                     status: urlStatus,
                                     projectId: urlProject,
+                                    tab: currentTab,
                                 }).toString();
                                 const basePath = getBaseEditPrPath(role);
                                 router.push(`${basePath}${pr.id}?highlightId=${pr.id}&${query}`);
@@ -531,6 +556,8 @@ export function PurchaseRequestTable(props: PurchaseRequestTableProps) {
                             getSerialNumber={getSerialNumber}
                             showSkeleton={showSkeleton} // ✅ Biarkan DesktopTableView handle
                             skeletonRows={pagination.limit}
+                            counts={pagination.counts}
+                            onSettleBudget={handleSettleBudget}
                         />
                     </div>
 
@@ -594,6 +621,13 @@ export function PurchaseRequestTable(props: PurchaseRequestTableProps) {
                 onOpenChange={setDetailOpen}
                 data={selectedPR}
                 onStatusUpdate={handleStatusUpdate}
+            />
+
+            <SettleBudgetDialog
+                open={settleDialogOpen}
+                onOpenChange={setSettleDialogOpen}
+                pr={settlePr}
+                onSuccess={handleRefresh}
             />
         </>
     );

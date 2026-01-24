@@ -51,21 +51,32 @@ async function getActivePeriod(transactionDate, tx) {
 async function generateInvoiceLedgerNumber(date, tx) {
   const prismaClient = tx || prisma;
   const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
+  const prefix = `JV-INV-${dateStr}`;
   
-  const startOfDay = new Date(date);
-  startOfDay.setHours(0, 0, 0, 0);
-  const endOfDay = new Date(date);
-  endOfDay.setHours(23, 59, 59, 999);
-
-  const count = await prismaClient.ledger.count({
+  const latestLedger = await prismaClient.ledger.findFirst({
     where: {
-      ledgerNumber: { startsWith: `JV-INV-${dateStr}` },
-      transactionDate: { gte: startOfDay, lte: endOfDay }
+      ledgerNumber: { startsWith: prefix }
+    },
+    orderBy: {
+      ledgerNumber: 'desc'
+    },
+    select: {
+      ledgerNumber: true
     }
   });
 
-  const sequence = String(count + 1).padStart(4, '0');
-  return `JV-INV-${dateStr}-${sequence}`;
+  let nextSequence = 1;
+  if (latestLedger) {
+    const parts = latestLedger.ledgerNumber.split('-');
+    const lastSequenceStr = parts[parts.length - 1];
+    const lastSequence = parseInt(lastSequenceStr);
+    if (!isNaN(lastSequence)) {
+      nextSequence = lastSequence + 1;
+    }
+  }
+
+  const sequence = String(nextSequence).padStart(4, '0');
+  return `${prefix}-${sequence}`;
 }
 
 

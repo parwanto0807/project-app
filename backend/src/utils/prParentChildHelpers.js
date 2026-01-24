@@ -8,7 +8,15 @@ import { prisma } from "../config/db.js";
 export const calculatePRBudget = (details) => {
   if (!details || details.length === 0) return 0;
   
+  // Define types that consume money (cash-consuming)
+  const cashConsumingTypes = ['PEMBELIAN_BARANG', 'OPERATIONAL', 'JASA_PEMBELIAN'];
+  
   return details.reduce((total, detail) => {
+    // If sourceProduct is specified and it's NOT a cash-consuming type, exclude it from budget
+    if (detail.sourceProduct && !cashConsumingTypes.includes(detail.sourceProduct)) {
+      return total;
+    }
+
     const qty = parseFloat(detail.jumlah) || 0;
     const price = parseFloat(detail.estimasiHargaSatuan) || 0;
     return total + (qty * price);
@@ -26,6 +34,7 @@ export const calculateChildrenBudget = async (parentPrId, excludePrId = null) =>
     const childPRs = await prisma.purchaseRequest.findMany({
       where: {
         parentPrId,
+        status: { not: 'REJECTED' },
         ...(excludePrId && { id: { not: excludePrId } }),
       },
       include: {
@@ -170,3 +179,55 @@ export const validateChildBudget = async (parentPrId, childBudget, excludePrId =
 
   return true;
 };
+
+/**
+ * Update the sisaBudget field of a PR (usually a Parent PR UM)
+ * Logic: totalAmount - (totalPO + totalPrSpkOperational)
+ * @param {string} prId - PR ID to update
+ * @param {Object} transaction - Optional Prisma transaction
+ */
+export const updatePRRemainingBudget = async (prId, transaction = null) => {
+  const db = transaction || prisma;
+  
+  // Get PR with its own POs and its child PRs
+  const pr = await db.purchaseRequest.findUnique({
+    where: { id: prId },
+    include: { 
+      details: true,
+      purchaseOrders: {
+        where: { status: { notIn: ['CANCELLED', 'REJECTED'] } }
+      },
+      childPrs: {
+        where: { status: { notIn: ['REJECTED'] } },
+        include: { details: true }
+      }
+    }
+  });
+
+  if (!pr) return;
+
+  const totalPR = calculatePRBudget(pr.details);
+  
+  // 1. Total dari PO yang sudah dibuat untuk PR ini
+  const totalPO = pr.purchaseOrders.reduce((sum, po) => sum + (Number(po.totalAmount) || 0), 0);
+  
+  // 2. Total dari PR Child (PR SPK) yang merujuk ke PR ini
+  let totalPrSpkOperational = 0;
+  for (const child of pr.childPrs) {
+    totalPrSpkOperational += calculatePRBudget(child.details);
+  }
+
+  const newSisaBudget = totalPR - (totalPO + totalPrSpkOperational);
+
+  await db.purchaseRequest.update({
+    where: { id: prId },
+    data: { sisaBudget: newSisaBudget }
+  });
+
+  console.log(`📊 Updated PR ${pr.nomorPr} sisaBudget: ${newSisaBudget}`);
+};
+
+/**
+ * Legacy alias for updatePRRemainingBudget
+ */
+export const updateParentRemainingBudget = updatePRRemainingBudget;

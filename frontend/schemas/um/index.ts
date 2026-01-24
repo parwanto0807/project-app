@@ -209,6 +209,7 @@ export const createUangMukaSchema = z
     tanggalPengajuan: z.date(),
     tanggalPencairan: z.date().nullable().optional(),
     buktiPencairanUrl: z.string().optional(),
+    accountPencairanId: z.string().optional(),
   })
   .superRefine(validatePaymentMethod);
 

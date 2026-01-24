@@ -23,6 +23,7 @@ interface SearchParams {
     projectId?: string;
     dateFrom?: string;
     dateTo?: string;
+    tab?: string; // "all", "umum", "project"
 }
 
 interface PurchaseRequestPageAdminProps {
@@ -41,10 +42,10 @@ function parseNumber(value: string | undefined, defaultValue: number): number {
 
 export default async function PurchaseRequestPageAdmin({ searchParams }: PurchaseRequestPageAdminProps) {
     const resolvedSearchParams = await searchParams;
-    
+
     // Check authentication and role on server
-    const userRole = "admin"; 
-    
+    const userRole = "admin";
+
     if (userRole !== "admin") {
         redirect("/unauthorized");
     }
@@ -53,20 +54,21 @@ export default async function PurchaseRequestPageAdmin({ searchParams }: Purchas
     const page = parseNumber(resolvedSearchParams.page, 1);
     const limit = parseNumber(resolvedSearchParams.limit, 10);
     const search = resolvedSearchParams.search || "";
-    
-    const status = resolvedSearchParams.status && isValidPRStatus(resolvedSearchParams.status) 
-        ? resolvedSearchParams.status 
+
+    const status = resolvedSearchParams.status && isValidPRStatus(resolvedSearchParams.status)
+        ? resolvedSearchParams.status
         : undefined;
-        
+
     const projectId = resolvedSearchParams.projectId || undefined;
-    
+    const tab = (resolvedSearchParams.tab as "all" | "umum" | "project") || "umum";
+
     let dateFrom: Date | undefined;
     let dateTo: Date | undefined;
-    
+
     try {
         dateFrom = resolvedSearchParams.dateFrom ? new Date(resolvedSearchParams.dateFrom) : undefined;
         dateTo = resolvedSearchParams.dateTo ? new Date(resolvedSearchParams.dateTo) : undefined;
-        
+
         if (dateFrom && isNaN(dateFrom.getTime())) dateFrom = undefined;
         if (dateTo && isNaN(dateTo.getTime())) dateTo = undefined;
     } catch (error) {
@@ -81,11 +83,12 @@ export default async function PurchaseRequestPageAdmin({ searchParams }: Purchas
         page,
         limit,
         search,
+        type: tab === "all" ? undefined : (tab as "umum" | "project"),
     };
 
     try {
         const result = await getAllPurchaseRequests(filters);
-        
+
         if (!result) {
             throw new Error("Failed to fetch purchase requests");
         }
@@ -97,6 +100,7 @@ export default async function PurchaseRequestPageAdmin({ searchParams }: Purchas
             limit: pagination?.limit || limit,
             totalCount: pagination?.totalCount || 0,
             totalPages: pagination?.totalPages || 1,
+            counts: pagination?.counts,
         };
 
         const initialData = {
@@ -107,6 +111,7 @@ export default async function PurchaseRequestPageAdmin({ searchParams }: Purchas
             currentProjectId: projectId,
             currentDateFrom: dateFrom,
             currentDateTo: dateTo,
+            currentTab: tab || "umum",
         };
 
         // Gunakan nested children pattern
@@ -148,7 +153,7 @@ export default async function PurchaseRequestPageAdmin({ searchParams }: Purchas
 
     } catch (error) {
         console.error("Error loading purchase requests:", error);
-        
+
         // Error case juga gunakan nested children
         return (
             <AdminLayout title="Purchase Request Management - Error" role="admin">
@@ -186,8 +191,8 @@ export default async function PurchaseRequestPageAdmin({ searchParams }: Purchas
                         <p className="text-gray-600 mb-4">
                             There was an error loading the purchase requests. Please try again.
                         </p>
-                        <Link 
-                            href="/admin-area/logistic/pr" 
+                        <Link
+                            href="/admin-area/logistic/pr"
                             className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                         >
                             Try Again

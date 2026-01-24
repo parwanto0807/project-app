@@ -252,3 +252,37 @@ export async function processStaffRefundAction(data: {
     }
 }
 
+/**
+ * Settle PR Budget (Refund or Reimburse)
+ */
+export async function settlePRBudgetAction(prId: string) {
+    try {
+        const cookieStore = await cookies();
+        const sessionCookie = cookieStore.get("connect.sid");
+
+        const response = await fetch(
+            `${API_BASE_URL}/api/staff-balance/settle-pr`,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Cookie: sessionCookie ? `${sessionCookie.name}=${sessionCookie.value}` : "",
+                },
+                credentials: "include",
+                body: JSON.stringify({ prId }),
+            }
+        );
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.message || "Gagal memproses settlement budget");
+        }
+
+        return result;
+    } catch (error) {
+        console.error("Error settling PR budget action:", error);
+        throw error;
+    }
+}
+

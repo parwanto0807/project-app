@@ -3,6 +3,7 @@ import { prisma } from "../../config/db.js";
 import path from "path";
 import fs from "fs/promises";
 import { generateNomorLpp } from "../../utils/lppGenerateNumber.js";
+import { createLedgerEntry } from "../../utils/journalHelper.js";
 import {
   createLppValidation,
   updateLppValidation,
@@ -1138,9 +1139,31 @@ export const lppController = {
         req.body
       );
 
-      // Cek apakah LPP exists
+      // 1. Ambil data existing dengan relasi mendalam untuk kebutuhan jurnal
       const existingLpp = await prisma.pertanggungjawaban.findUnique({
         where: { id },
+        include: {
+          uangMuka: {
+            include: {
+              purchaseRequest: {
+                include: {
+                  project: true,
+                  spk: true,
+                },
+              },
+              karyawan: {
+                include: {
+                  balances: true,
+                },
+              },
+            },
+          },
+          details: {
+            include: {
+              purchaseRequestDetail: true,
+            },
+          },
+        },
       });
 
       if (!existingLpp) {
@@ -1150,29 +1173,143 @@ export const lppController = {
         });
       }
 
-      const updatedLpp = await prisma.pertanggungjawaban.update({
-        where: { id },
-        data: {
-          status,
-          keterangan: catatan
-            ? `${existingLpp.keterangan || ""}\nCatatan: ${catatan}`.trim()
-            : existingLpp.keterangan,
-        },
-        include: {
-          uangMuka: true,
-          details: {
-            include: {
-              product: true,
-              fotoBukti: true,
+      const result = await prisma.$transaction(async (tx) => {
+        // 2. Update status LPP
+        const updatedLpp = await tx.pertanggungjawaban.update({
+          where: { id },
+          data: {
+            status,
+            keterangan: catatan
+              ? `${existingLpp.keterangan || ""}\nCatatan: ${catatan}`.trim()
+              : existingLpp.keterangan,
+          },
+          include: {
+            uangMuka: true,
+            details: {
+              include: {
+                product: true,
+                fotoBukti: true,
+              },
             },
           },
-        },
+        });
+
+        // 3. LOGIKA AKUNTANSI: Generate Jurnal Otomatis saat APPROVED
+        // Hanya jika status berubah menjadi APPROVED (hindari double journal)
+        if (status === "APPROVED" && existingLpp.status !== "APPROVED") {
+          const pr = existingLpp.uangMuka?.purchaseRequest;
+          const details = existingLpp.details;
+
+          // Cek kriteria Proyek Operasional (spkId ada & ada item OPERATIONAL)
+          const isProjectOperational =
+            pr?.spkId &&
+            details.some(
+              (d) => d.purchaseRequestDetail?.sourceProduct === "OPERATIONAL"
+            );
+
+          if (isProjectOperational) {
+            console.log(`📋 [LPP-ACCOUNTING] Generating Project Mobilization Journal for LPP: ${existingLpp.nomor}`);
+
+            const targetKaryawanId = pr?.requestedById || existingLpp.uangMuka.karyawanId;
+
+            // A. Hitung Total Biaya Operasional (hanya yang sourceProduct: OPERATIONAL)
+            const operationalTotal = details.reduce((sum, d) => {
+              if (d.purchaseRequestDetail?.sourceProduct === "OPERATIONAL") {
+                return sum + Number(d.jumlah);
+              }
+              return sum;
+            }, 0);
+
+            if (operationalTotal > 0) {
+              // B. Buat Ledger Entry (Memanfaatkan journalHelper)
+              // Debit: PROJECT_MOBILIZATION (5-10102)
+              // Credit: STAFF_ADVANCE (1-10302)
+              await createLedgerEntry({
+                referenceType: "JOURNAL",
+                referenceId: existingLpp.id,
+                referenceNumber: existingLpp.nomor,
+                tanggal: new Date(),
+                keterangan: `LPP UM ${pr.nomorPr} - Bensin, Tol, Makan Proyek ${
+                  pr.project?.name || pr.spk?.spkNumber || ""
+                }`.trim(),
+                entries: [
+                  {
+                    systemAccountKey: "PROJECT_MOBILIZATION",
+                    debit: operationalTotal,
+                    projectId: pr.projectId,
+                    spkId: pr.spkId,
+                  },
+                  {
+                    systemAccountKey: "STAFF_ADVANCE",
+                    credit: operationalTotal,
+                    karyawanId: targetKaryawanId,
+                  },
+                ],
+                createdById: req.user?.id || "SYSTEM",
+                tx,
+              });
+
+              // C. UPDATE STAFF BALANCE (Mengurangi Tanggungan Staff)
+              const balanceRecord = await tx.staffBalance.findUnique({
+                where: {
+                  karyawanId_category: {
+                    karyawanId: targetKaryawanId,
+                    category: "OPERASIONAL_PROYEK",
+                  },
+                },
+              });
+
+              const currentBalance = balanceRecord ? Number(balanceRecord.amount) : 0;
+              const newBalance = currentBalance - operationalTotal;
+
+              await tx.staffBalance.upsert({
+                where: {
+                  karyawanId_category: {
+                    karyawanId: targetKaryawanId,
+                    category: "OPERASIONAL_PROYEK",
+                  },
+                },
+                update: {
+                  amount: newBalance,
+                  totalOut: { increment: operationalTotal },
+                },
+                create: {
+                  karyawanId: targetKaryawanId,
+                  category: "OPERASIONAL_PROYEK",
+                  amount: -operationalTotal,
+                  totalIn: 0,
+                  totalOut: operationalTotal,
+                },
+              });
+
+              // D. CATAT DI STAFF LEDGER
+              await tx.staffLedger.create({
+                data: {
+                  karyawanId: targetKaryawanId,
+                  tanggal: new Date(),
+                  keterangan: `LPP APPROVED: Pertanggungjawaban ${existingLpp.nomor} (${pr.nomorPr})`,
+                  saldoAwal: currentBalance,
+                  debit: 0,
+                  kredit: operationalTotal, // Uang berkurang di tanggungan karyawan
+                  saldo: newBalance,
+                  category: "OPERASIONAL_PROYEK",
+                  type: "EXPENSE_REPORT",
+                  purchaseRequestId: pr.id,
+                  refId: existingLpp.id,
+                  createdBy: req.user?.id || "SYSTEM",
+                },
+              });
+            }
+          }
+        }
+
+        return updatedLpp;
       });
 
       res.json({
         success: true,
         message: `Status LPP berhasil diupdate menjadi ${status}`,
-        data: updatedLpp,
+        data: result,
       });
     } catch (error) {
       handleError(error, res);

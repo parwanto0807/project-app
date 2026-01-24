@@ -1,4 +1,5 @@
 import { prisma } from "../../config/db.js";
+import { createLedgerEntry, getWarehouseInventoryAccountKey } from "../../utils/journalHelper.js";
 
 export const mrController = {
   // 1. Create MR (Setelah PR Approved - Source Internal)
@@ -268,10 +269,13 @@ export const mrController = {
             }
           });
 
-          // E. Update qtyIssued di MR Item
+          // E. Update qtyIssued and priceUnit di MR Item
           await tx.materialRequisitionItem.update({
             where: { id: item.id },
-            data: { qtyIssued: item.qtyRequested }
+            data: { 
+              qtyIssued: item.qtyRequested,
+              priceUnit: avgPrice // ✅ Store the calculated FIFO average price
+            }
           });
 
           // F. Update PurchaseRequestDetail if linked (Robust Recalculation)
@@ -353,19 +357,322 @@ export const mrController = {
           }
         }
 
-        // 3. Update Status MR Header
-        return await tx.materialRequisition.update({
+        // 3. Update Status MR Header and fetch warehouse info + PR info
+        const updatedMR = await tx.materialRequisition.update({
           where: { id: mr.id },
           data: { 
             status: 'ISSUED', 
             issuedById, 
             updatedAt: new Date() 
+          },
+          include: {
+            items: {
+              include: {
+                product: {
+                  select: {
+                    name: true,
+                    code: true
+                  }
+                },
+                purchaseRequestDetail: {
+                  include: {
+                    purchaseRequest: {
+                      select: {
+                        nomorPr: true
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            Warehouse: {
+              include: {
+                inventoryAccount: true
+              }
+            }
           }
         });
+
+        // ===== JOURNAL CREATION MOVED TO SEPARATE POSTING ENDPOINT =====
+        // Journal will be created when user clicks "Posting" button
+        // This allows for better control and review before posting to ledger
+        
+        console.log(`ℹ️ MR ${updatedMR.mrNumber} issued successfully. Journal can be posted separately.`);
+        
+        /* COMMENTED OUT - Auto journal creation
+        // ===== AUTO-CREATE JOURNAL FOR WIP WAREHOUSE ONLY =====
+        // IMPORTANT: Journal creation ONLY happens if warehouse.isWip === true
+        console.log(`🔍 Checking warehouse for journal creation:`, {
+          warehouseName: updatedMR.Warehouse?.name,
+          isWip: updatedMR.Warehouse?.isWip,
+          mrNumber: updatedMR.mrNumber
+        });
+
+        // Explicit check: ONLY process if isWip is explicitly true
+        if (updatedMR.Warehouse && updatedMR.Warehouse.isWip === true) {
+          console.log(`✅ WIP Warehouse detected (isWip=true). Creating journal entry for: ${updatedMR.mrNumber}`);
+          
+          // Calculate total material cost from issued items
+          const totalMaterialCost = updatedMR.items.reduce((sum, item) => {
+            return sum + (Number(item.qtyIssued) * Number(item.priceUnit || 0));
+          }, 0);
+
+          console.log(`💰 Total material cost calculated: ${totalMaterialCost}`);
+
+          if (totalMaterialCost > 0) {
+            try {
+              const inventoryAccountKey = getWarehouseInventoryAccountKey(updatedMR.Warehouse);
+              
+              // Extract unique PR numbers from items
+              const prNumbers = [...new Set(
+                updatedMR.items
+                  .map(item => item.purchaseRequestDetail?.purchaseRequest?.nomorPr)
+                  .filter(Boolean)
+              )];
+              
+              const prNumbersText = prNumbers.length > 0 
+                ? ` | PR: ${prNumbers.join(', ')}` 
+                : '';
+              
+              console.log(`📝 Creating journal with accounts:`, {
+                debitAccount: 'PURCHASE_EXPENSE',
+                creditAccount: inventoryAccountKey,
+                amount: totalMaterialCost,
+                prNumbers: prNumbers.length > 0 ? prNumbers : 'No PR linked'
+              });
+
+              await createJournalEntry({
+                type: 'MAT-USAGE',
+                referenceId: updatedMR.id,
+                referenceNumber: updatedMR.mrNumber,
+                tanggal: new Date(),
+                keterangan: `Pemakaian Material Proyek - ${updatedMR.mrNumber}${updatedMR.projectId ? ` (Project ID: ${updatedMR.projectId})` : ''}${prNumbersText}`,
+                entries: [
+                  {
+                    systemAccountKey: 'PURCHASE_EXPENSE', // 5-10101 Biaya Material Proyek (HPP)
+                    debit: totalMaterialCost,
+                    credit: 0,
+                    keterangan: `Material usage - ${updatedMR.mrNumber}${prNumbersText}`
+                  },
+                  {
+                    systemAccountKey: inventoryAccountKey, // PROJECT_WIP (1-10205 Persediaan On WIP)
+                    debit: 0,
+                    credit: totalMaterialCost,
+                    keterangan: `Stock reduction from ${updatedMR.Warehouse.name}${prNumbersText}`
+                  }
+                ],
+                tx // Pass transaction context
+              });
+
+              console.log(`✅ Journal entry created successfully for WIP material usage: ${updatedMR.mrNumber} | Amount: ${totalMaterialCost}`);
+            } catch (journalError) {
+              console.error(`❌ Failed to create journal entry for ${updatedMR.mrNumber}:`, journalError);
+              throw new Error(`Failed to create journal entry: ${journalError.message}`);
+            }
+          } else {
+            console.log(`⚠️ No journal created for ${updatedMR.mrNumber} - Total cost is 0 (no material cost calculated)`);
+          }
+        } else {
+          // Log reason why journal was NOT created
+          const reason = !updatedMR.Warehouse 
+            ? 'Warehouse data not found' 
+            : updatedMR.Warehouse.isWip === false 
+              ? 'Warehouse isWip=false (not a WIP warehouse)'
+              : 'Warehouse isWip is null/undefined';
+          
+          console.log(`ℹ️ No journal created for ${updatedMR.mrNumber} - Reason: ${reason}`);
+        }
+        */
+
+        return updatedMR;
       });
 
       res.json({ success: true, data: result, message: "Barang berhasil dikeluarkan (Stok terpotong)" });
     } catch (error) {
+      res.status(400).json({ success: false, error: error.message });
+    }
+  },
+
+  // 2.5. Post MR Journal (Create journal for ISSUED MR)
+  postMRJournal: async (req, res) => {
+    const { mrId } = req.body;
+
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        // 1. Get MR with all required data
+        const mr = await tx.materialRequisition.findUnique({
+          where: { id: mrId },
+          include: {
+            items: {
+              include: {
+                product: {
+                  select: {
+                    name: true,
+                    code: true
+                  }
+                },
+                purchaseRequestDetail: {
+                  include: {
+                    purchaseRequest: {
+                      select: {
+                        nomorPr: true
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            Warehouse: {
+              include: {
+                inventoryAccount: true
+              }
+            }
+          }
+        });
+
+        if (!mr) {
+          throw new Error('Material Requisition not found');
+        }
+
+        // 1.1 Fetch Project name manually if exists
+        let projectName = '';
+        if (mr.projectId) {
+          const project = await tx.project.findUnique({
+            where: { id: mr.projectId },
+            select: { name: true }
+          });
+          if (project) projectName = project.name;
+        }
+
+        // 2. Validate status
+        if (mr.status !== 'ISSUED') {
+          throw new Error(`Cannot post journal for MR with status ${mr.status}. MR must be ISSUED first.`);
+        }
+
+        // 3. Check if ledger already exists
+        const existingLedger = await tx.ledger.findFirst({
+          where: {
+            referenceNumber: mr.mrNumber,
+            referenceType: 'JOURNAL'
+          }
+        });
+
+        if (existingLedger) {
+          throw new Error(`Ledger already posted for ${mr.mrNumber} (${existingLedger.ledgerNumber})`);
+        }
+
+        // 4. Validate WIP warehouse
+        if (!mr.Warehouse || !mr.Warehouse.isWip) {
+          throw new Error('Journal posting only allowed for WIP warehouses');
+        }
+
+        console.log(`📝 Posting journal for ${mr.mrNumber} (WIP Warehouse: ${mr.Warehouse.name})`);
+
+        // 5. Calculate total material cost
+        let totalMaterialCost = 0;
+        console.log(`🔍 Calculating costs for MR: ${mr.mrNumber}`);
+
+        for (const item of mr.items) {
+          let itemPrice = Number(item.priceUnit || 0);
+          const qty = Number(item.qtyIssued || 0);
+
+          // FALLBACK: If priceUnit is 0, try to calculate from stockAllocations
+          if (itemPrice === 0 && qty > 0) {
+            console.log(`  ⚠️ Item ${item.productId} has 0 priceUnit, checking allocations...`);
+            const allocations = await tx.stockAllocation.findMany({
+              where: { mrItemId: item.id },
+              include: {
+                stockDetail: {
+                  select: { pricePerUnit: true }
+                }
+              }
+            });
+
+            if (allocations.length > 0) {
+              let allocationTotalCost = 0;
+              let allocationTotalQty = 0;
+              for (const alloc of allocations) {
+                allocationTotalCost += Number(alloc.qtyTaken) * Number(alloc.stockDetail.pricePerUnit || 0);
+                allocationTotalQty += Number(alloc.qtyTaken);
+              }
+              itemPrice = allocationTotalQty > 0 ? (allocationTotalCost / allocationTotalQty) : 0;
+              
+              // Update the item so next time it has the price
+              await tx.materialRequisitionItem.update({
+                where: { id: item.id },
+                data: { priceUnit: itemPrice }
+              });
+              console.log(`    ✅ Found price from allocations: ${itemPrice}`);
+            }
+          }
+
+          const itemTotal = qty * itemPrice;
+          totalMaterialCost += itemTotal;
+          console.log(`  - Item: ${item.product?.name || item.productId}, Qty: ${qty}, Price: ${itemPrice}, Subtotal: ${itemTotal}`);
+        }
+
+        console.log(`💰 Total material cost: ${totalMaterialCost}`);
+
+        if (totalMaterialCost <= 0) {
+          throw new Error('Cannot post journal with zero or negative cost. Please check if product prices (FIFO batches) are properly set.');
+        }
+
+        // 6. Extract PR numbers
+        const prNumbers = [...new Set(
+          mr.items
+            .map(item => item.purchaseRequestDetail?.purchaseRequest?.nomorPr)
+            .filter(Boolean)
+        )];
+
+        const prNumbersText = prNumbers.length > 0 
+          ? ` | PR: ${prNumbers.join(', ')}` 
+          : '';
+
+        // 7. Get inventory account key
+        const inventoryAccountKey = getWarehouseInventoryAccountKey(mr.Warehouse);
+
+        // 8. Create ledger entry
+        const ledger = await createLedgerEntry({
+          referenceType: 'JOURNAL',
+          referenceId: mr.id,
+          referenceNumber: mr.mrNumber,
+          tanggal: new Date(),
+          keterangan: `Pemakaian Material Proyek - ${mr.mrNumber}${projectName ? ` (Proyek: ${projectName})` : ''}${prNumbersText}`,
+          entries: [
+            {
+              systemAccountKey: 'PURCHASE_EXPENSE', // 5-10101 Biaya Material Proyek (HPP)
+              debit: totalMaterialCost,
+              credit: 0,
+              keterangan: `Material usage - ${mr.mrNumber}${prNumbersText}`,
+              projectId: mr.projectId
+            },
+            {
+              systemAccountKey: inventoryAccountKey, // PROJECT_WIP (1-10205 Persediaan On WIP)
+              debit: 0,
+              credit: totalMaterialCost,
+              keterangan: `Stock reduction from ${mr.Warehouse.name}${prNumbersText}`,
+              projectId: mr.projectId
+            }
+          ],
+          createdById: mr.issuedById || 'SYSTEM',
+          tx
+        });
+
+        console.log(`✅ Ledger posted successfully: ${ledger.ledgerNumber} | Amount: ${totalMaterialCost}`);
+
+        return {
+          mr,
+          ledger
+        };
+      });
+
+      res.json({ 
+        success: true, 
+        data: result,
+        message: `Ledger ${result.ledger.ledgerNumber} berhasil diposting untuk ${result.mr.mrNumber}` 
+      });
+    } catch (error) {
+      console.error('❌ Error posting MR journal:', error);
       res.status(400).json({ success: false, error: error.message });
     }
   },
@@ -385,7 +692,8 @@ export const mrController = {
           include: {
             Warehouse: {
               select: {
-                name: true
+                name: true,
+                isWip: true  // ✅ Added for posting button
               }
             },
             items: {

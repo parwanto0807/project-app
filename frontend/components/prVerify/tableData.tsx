@@ -21,6 +21,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import {
     FileText,
     Search,
@@ -614,10 +615,9 @@ export function PurchaseRequestVerifyTable({
                                     <TableHead className="font-semibold">Project</TableHead>
                                     <TableHead className="font-semibold">Admin & Request</TableHead>
                                     <TableHead className="font-semibold">Total PR</TableHead>
-                                    <TableHead className="font-semibold">Status PR</TableHead>
                                     <TableHead className="font-semibold">Acc Finance</TableHead>
                                     <TableHead className="font-semibold text-center"> % </TableHead>
-                                    <TableHead className="font-semibold">Status Finance</TableHead>
+                                    <TableHead className="font-semibold">Status (PR & FNC)</TableHead>
                                     <TableHead className="font-semibold">Realisasi Biaya</TableHead>
                                     <TableHead className="font-semibold">Sisa Biaya</TableHead>
                                     <TableHead className="font-semibold">Rincian LPP</TableHead>
@@ -659,7 +659,7 @@ export function PurchaseRequestVerifyTable({
                                     ))
                                 ) : purchaseRequests.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={13} className="text-center py-8">
+                                        <TableCell colSpan={11} className="text-center py-8">
                                             <div className="flex flex-col items-center justify-center text-muted-foreground">
                                                 <FileText className="h-12 w-12 mb-4 text-gray-300" />
                                                 <p className="text-lg font-medium">No purchase requests found</p>
@@ -949,11 +949,58 @@ export function PurchaseRequestVerifyTable({
                                                     <div className="bg-gradient-to-r from-green-50/50 to-emerald-50/50 dark:from-green-900/10 dark:to-emerald-900/10 border border-green-400/60 dark:border-green-800/60 rounded-lg px-3 py-2">
                                                         <div className="flex flex-col gap-1.5 text-[12px] font-bold">
                                                             {(() => {
-                                                                const totalPO = pr.purchaseOrders?.reduce((sum, po) => sum + cleanNumber(po.totalAmount), 0) ?? 0;
+                                                                // 🟢 Helper to calculate PO amount based on lines (Actual vs Estimate)
+                                                                const calculatePoAmount = (po: any) => {
+                                                                    if (po.status === 'CANCELLED' || po.status === 'REJECTED') return 0;
+
+                                                                    if (po.lines && po.lines.length > 0) {
+                                                                        return po.lines.reduce((lSum: number, line: any) => {
+                                                                            const upActual = cleanNumber(line.unitPriceActual);
+                                                                            const qActual = cleanNumber(line.qtyActual);
+                                                                            const upEstimate = cleanNumber(line.unitPrice);
+                                                                            const qEstimate = cleanNumber(line.quantity);
+
+                                                                            if (upActual !== 0) {
+                                                                                return lSum + (upActual * qActual);
+                                                                            } else {
+                                                                                return lSum + (upEstimate * qEstimate);
+                                                                            }
+                                                                        }, 0);
+                                                                    }
+                                                                    return cleanNumber(po.totalAmount);
+                                                                };
+
+                                                                // 🟢 Calculate Total PO (Own + Child PRs)
+                                                                const ownPoTotal = pr.purchaseOrders?.reduce((sum, po) => sum + calculatePoAmount(po), 0) ?? 0;
+                                                                const childPoTotal = pr.childPrs?.reduce((sum, child) => {
+                                                                    const poSum = (child as any).purchaseOrders?.reduce((s: number, po: any) => s + calculatePoAmount(po), 0) ?? 0;
+                                                                    return sum + poSum;
+                                                                }, 0) ?? 0;
+
+                                                                const totalPO = ownPoTotal + childPoTotal;
+
                                                                 const totalPrSpk = pr.childPrs?.reduce((sum, child) => {
                                                                     const childTotal = (child as any).details?.reduce((s: number, d: any) => s + cleanNumber(d.estimasiTotalHarga), 0) ?? 0;
                                                                     return sum + childTotal;
                                                                 }, 0) ?? 0;
+
+                                                                // 1. Summary from Child PRs (for PR-UM view -> breakdown of PR SPK)
+                                                                const childSourceProductSummaries = pr.childPrs?.reduce((acc, child) => {
+                                                                    (child as any).details?.forEach((detail: any) => {
+                                                                        if (detail.sourceProduct) {
+                                                                            acc[detail.sourceProduct] = (acc[detail.sourceProduct] || 0) + cleanNumber(detail.estimasiTotalHarga);
+                                                                        }
+                                                                    });
+                                                                    return acc;
+                                                                }, {} as Record<string, number>);
+
+                                                                // 2. Summary from OWN details (for PR-SPK view -> breakdown of itself)
+                                                                const ownSourceProductSummaries = pr.details?.reduce((acc, detail) => {
+                                                                    if (detail.sourceProduct) {
+                                                                        acc[detail.sourceProduct] = (acc[detail.sourceProduct] || 0) + cleanNumber(detail.estimasiTotalHarga);
+                                                                    }
+                                                                    return acc;
+                                                                }, {} as Record<string, number>);
 
                                                                 const prLabel = !pr.spkId ? "PR-UM" : "PR-SPK";
 
@@ -966,6 +1013,23 @@ export function PurchaseRequestVerifyTable({
                                                                                 {formatCurrency(totalAmount)}
                                                                             </span>
                                                                         </div>
+
+                                                                        {/* Breakdown for PR SPK (Own Details) - Only if it IS an SPK based PR */}
+                                                                        {pr.spkId && ownSourceProductSummaries && Object.entries(ownSourceProductSummaries).map(([source, amount]) => (
+                                                                            amount > 0 && (
+                                                                                <div
+                                                                                    key={source}
+                                                                                    className="group flex justify-between items-center gap-4 pt-1 border-dotted border-t border-emerald-200 dark:border-emerald-800/40 transition-all cursor-default w-full pl-2"
+                                                                                >
+                                                                                    <span className="text-emerald-600 dark:text-emerald-400 font-bold shrink-0 text-[10px] uppercase">
+                                                                                        - {source.replace(/_/g, " ")}
+                                                                                    </span>
+                                                                                    <span className="text-emerald-600 dark:text-emerald-400 font-bold text-right tabular-nums text-[11px]">
+                                                                                        {formatCurrency(amount)}
+                                                                                    </span>
+                                                                                </div>
+                                                                            )
+                                                                        ))}
 
                                                                         {/* PO Amount */}
                                                                         {totalPO > 0 && (
@@ -982,15 +1046,34 @@ export function PurchaseRequestVerifyTable({
 
                                                                         {/* Child PR Amount */}
                                                                         {totalPrSpk > 0 && (
-                                                                            <Link
-                                                                                href={`${role === 'admin' ? '/admin-area' : '/pic-area'}/logistic/pr?search=${encodeURIComponent(pr.nomorPr)}&page=1`}
-                                                                                className="group flex justify-between items-center gap-4 pt-1 border-t border-green-400/40 dark:border-green-800/40 transition-all cursor-pointer w-full text-right"
-                                                                            >
-                                                                                <span className="text-indigo-600 dark:text-indigo-400 font-bold shrink-0">PR SPK </span>
-                                                                                <span className="text-indigo-600 dark:text-indigo-400 font-bold text-right tabular-nums group-hover:underline underline-offset-4 decoration-indigo-600">
-                                                                                    {formatCurrency(totalPrSpk)}
-                                                                                </span>
-                                                                            </Link>
+                                                                            <>
+                                                                                <Link
+                                                                                    href={`${role === 'admin' ? '/admin-area' : '/pic-area'}/logistic/pr?search=${encodeURIComponent(pr.nomorPr)}&page=1`}
+                                                                                    className="group flex justify-between items-center gap-4 pt-1 border-t border-green-400/40 dark:border-green-800/40 transition-all cursor-pointer w-full text-right"
+                                                                                >
+                                                                                    <span className="text-indigo-600 dark:text-indigo-400 font-bold shrink-0">PR SPK </span>
+                                                                                    <span className="text-indigo-600 dark:text-indigo-400 font-bold text-right tabular-nums group-hover:underline underline-offset-4 decoration-indigo-600">
+                                                                                        {formatCurrency(totalPrSpk)}
+                                                                                    </span>
+                                                                                </Link>
+
+                                                                                {/* Source Product Breakdown for PR SPK children (when viewing PR-UM) */}
+                                                                                {!pr.spkId && childSourceProductSummaries && Object.entries(childSourceProductSummaries).map(([source, amount]) => (
+                                                                                    amount > 0 && (
+                                                                                        <div
+                                                                                            key={source}
+                                                                                            className="group flex justify-between items-center gap-4 pt-1 border-dotted border-t border-indigo-200 dark:border-indigo-800/40 transition-all cursor-default w-full pl-2"
+                                                                                        >
+                                                                                            <span className="text-indigo-600 dark:text-indigo-400 font-bold shrink-0 text-[10px] uppercase">
+                                                                                                - {source.replace(/_/g, " ")}
+                                                                                            </span>
+                                                                                            <span className="text-indigo-600 dark:text-indigo-400 font-bold text-right tabular-nums text-[11px]">
+                                                                                                {formatCurrency(amount)}
+                                                                                            </span>
+                                                                                        </div>
+                                                                                    )
+                                                                                ))}
+                                                                            </>
                                                                         )}
                                                                     </>
                                                                 );
@@ -998,15 +1081,7 @@ export function PurchaseRequestVerifyTable({
                                                         </div>
                                                     </div>
                                                 </TableCell>
-                                                <TableCell>
-                                                    <Badge
-                                                        variant="outline"
-                                                        className={`${statusColors[pr.status]} border font-medium text-xs flex items-center gap-1`}
-                                                    >
-                                                        <StatusIcon className="h-3 w-3" />
-                                                        {statusLabels[pr.status]}
-                                                    </Badge>
-                                                </TableCell>
+
                                                 <TableCell className="font-bold text-right">
                                                     {pr.uangMuka?.[0]?.jumlah && pr.uangMuka[0].jumlah > 0
                                                         ? formatCurrency(pr.uangMuka[0].jumlah)
@@ -1059,18 +1134,29 @@ export function PurchaseRequestVerifyTable({
                                                     })()}
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Badge
-                                                        variant="outline"
-                                                        className={`${statusApproveColors[
-                                                            (pr.uangMuka?.[0]?.status as keyof typeof statusApproveColors) || "DEFAULT"
-                                                        ]
-                                                            } border font-medium text-xs flex items-center gap-1`}
-                                                    >
-                                                        <StatusIcon className="h-3 w-3" />
-                                                        {statusApproveLabels[
-                                                            (pr.uangMuka?.[0]?.status as keyof typeof statusApproveLabels) || "DEFAULT"
-                                                        ]}
-                                                    </Badge>
+                                                    <div className="flex flex-col gap-1.5">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 w-8">PR:</span>
+                                                            <Badge
+                                                                variant="outline"
+                                                                className={cn(statusColors[pr.status], "border font-medium text-[11px] px-2 py-0.5 whitespace-nowrap")}
+                                                            >
+                                                                {statusLabels[pr.status]}
+                                                            </Badge>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 w-8">FNC:</span>
+                                                            <Badge
+                                                                variant="outline"
+                                                                className={cn(
+                                                                    statusApproveColors[(pr.uangMuka?.[0]?.status as keyof typeof statusApproveColors) || "DEFAULT"],
+                                                                    "border font-medium text-[11px] px-2 py-0.5 whitespace-nowrap"
+                                                                )}
+                                                            >
+                                                                {statusApproveLabels[(pr.uangMuka?.[0]?.status as keyof typeof statusApproveLabels) || "DEFAULT"]}
+                                                            </Badge>
+                                                        </div>
+                                                    </div>
                                                 </TableCell>
                                                 <TableCell className="font-bold text-right text-green-400">
                                                     {pr.uangMuka?.[0]?.pertanggungjawaban?.[0]?.totalBiaya

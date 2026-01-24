@@ -16,6 +16,7 @@ interface PurchaseRequestClientWrapperProps {
         currentProjectId?: string;
         currentDateFrom?: Date;
         currentDateTo?: Date;
+        currentTab?: "all" | "umum" | "project";
     };
 }
 
@@ -31,7 +32,7 @@ export function PurchaseRequestClientWrapper({ initialData }: PurchaseRequestCli
             const timer = setTimeout(() => {
                 setIsInitialLoad(false);
             }, 800);
-            
+
             return () => clearTimeout(timer);
         } else {
             // Jika tidak ada data, langsung hide loading
@@ -81,6 +82,7 @@ export function PurchaseRequestClientWrapper({ initialData }: PurchaseRequestCli
             currentProjectId={data.currentProjectId}
             currentDateFrom={data.currentDateFrom}
             currentDateTo={data.currentDateTo}
+            currentTab={data.currentTab}
         />
     );
 }

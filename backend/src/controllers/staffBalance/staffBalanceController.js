@@ -582,6 +582,193 @@ export const staffBalanceController = {
         error: error.message
       });
     }
+  },
+
+  /**
+   * Settle PR Budget (Refund or Reimburse)
+   * Logic: Resets sisaBudget to 0 and creates accounting entries
+   */
+  async settlePRBudget(req, res, next) {
+    try {
+      const { prId } = req.body;
+
+      if (!prId) {
+        return res.status(400).json({ success: false, message: "PR ID diperlukan" });
+      }
+
+      const now = new Date();
+
+      const result = await prisma.$transaction(async (tx) => {
+        // 1. Get PR Data
+        const pr = await tx.purchaseRequest.findUnique({
+          where: { id: prId },
+          include: { 
+            karyawan: true,
+            details: true,
+            purchaseOrders: { where: { status: { notIn: ['CANCELLED', 'REJECTED'] } } },
+            childPrs: { where: { status: { notIn: ['REJECTED'] } }, include: { details: true } }
+          }
+        });
+
+        if (!pr) throw new Error("PR tidak ditemukan");
+        if (pr.status !== "COMPLETED") throw new Error("Hanya PR berstatus COMPLETED yang dapat di-settle");
+        
+        const sisaBudget = Number(pr.sisaBudget || 0);
+        if (sisaBudget === 0) {
+          throw new Error("Budget sudah lunas (0)");
+        }
+
+        const isRefund = sisaBudget > 0; // Staff returns money
+        const amount = Math.abs(sisaBudget);
+        const karyawanId = pr.requestedById || pr.karyawanId;
+        const category = "OPERASIONAL_PROYEK";
+
+        // 2. Get Accounting Config
+        const staffAdvanceCoa = await getSystemAccount('STAFF_ADVANCE', tx);
+        const pettyCashCoa = await getSystemAccount('PETTY_CASH', tx);
+
+        if (!staffAdvanceCoa || !pettyCashCoa) {
+          throw new Error("Konfigurasi akun STAFF_ADVANCE atau PETTY_CASH tidak ditemukan di System Accounts");
+        }
+
+        // 3. Update Staff Balance
+        const existingBalance = await tx.staffBalance.findUnique({
+          where: { karyawanId_category: { karyawanId, category } }
+        });
+
+        const currentBalance = existingBalance ? Number(existingBalance.amount) : 0;
+        const newBalance = isRefund ? currentBalance - amount : currentBalance + amount;
+
+        await tx.staffBalance.upsert({
+          where: { karyawanId_category: { karyawanId, category } },
+          update: {
+            amount: newBalance,
+            ...(isRefund ? { totalOut: { increment: amount } } : { totalIn: { increment: amount } })
+          },
+          create: {
+            karyawanId,
+            category,
+            amount: newBalance,
+            totalIn: isRefund ? 0 : amount,
+            totalOut: isRefund ? amount : 0
+          }
+        });
+
+        // 4. Create Staff Ledger
+        await tx.staffLedger.create({
+          data: {
+            karyawanId,
+            category,
+            type: isRefund ? 'SETTLEMENT_REFUND' : 'CASH_ADVANCE',
+            tanggal: now,
+            keterangan: isRefund 
+              ? `Refund Sisa Budget PR: ${pr.nomorPr} (Kembali ke Kas)` 
+              : `Penambahan Budget PR: ${pr.nomorPr} (Kurang Bayar)`,
+            saldoAwal: currentBalance,
+            debit: isRefund ? 0 : amount,
+            kredit: isRefund ? amount : 0,
+            saldo: newBalance,
+            refId: pr.id,
+            purchaseRequestId: pr.id,
+            createdBy: req.user?.id || 'SYSTEM'
+          }
+        });
+
+        // 5. General Ledger Entry
+        const period = await getActivePeriod(now, tx);
+        const prefix = isRefund ? 'RV-SETTLE' : 'PV-SETTLE';
+        const ledgerNumber = `${prefix}-${pr.nomorPr.replace(/\//g, '-')}`;
+
+        const ledger = await tx.ledger.create({
+          data: {
+            ledgerNumber,
+            referenceNumber: pr.nomorPr,
+            referenceType: isRefund ? 'RECEIPT' : 'PAYMENT',
+            transactionDate: now,
+            postingDate: now,
+            description: isRefund 
+              ? `Settlement Refund Sisa Budget PR: ${pr.nomorPr}` 
+              : `Settlement Reimbursement PR: ${pr.nomorPr}`,
+            periodId: period.id,
+            status: 'POSTED',
+            createdBy: req.user?.id || 'SYSTEM',
+            postedBy: req.user?.id || 'SYSTEM',
+            postedAt: now
+          }
+        });
+
+        // Lines
+        // If Refund: DR Petty Cash, CR Staff Advance
+        // If Reimburse: DR Staff Advance, CR Petty Cash
+        const debitCoaId = isRefund ? pettyCashCoa.id : staffAdvanceCoa.id;
+        const creditCoaId = isRefund ? staffAdvanceCoa.id : pettyCashCoa.id;
+
+        const ledgerLines = [
+          {
+            ledgerId: ledger.id,
+            coaId: debitCoaId,
+            debitAmount: amount,
+            creditAmount: 0,
+            localAmount: amount,
+            description: isRefund ? `Penerimaan Refund PR ${pr.nomorPr}` : `Penggantian Kurang Bayar PR ${pr.nomorPr}`,
+            lineNumber: 1
+          },
+          {
+            ledgerId: ledger.id,
+            coaId: creditCoaId,
+            debitAmount: 0,
+            creditAmount: amount,
+            localAmount: amount,
+            description: isRefund ? `Settlement Sisa Uang Muka ${pr.nomorPr}` : `Pencairan Dana Tambahan PR ${pr.nomorPr}`,
+            lineNumber: 2
+          }
+        ];
+
+        await tx.ledgerLine.createMany({ data: ledgerLines });
+
+        // Update Summaries
+        const { updateTrialBalance, updateGeneralLedgerSummary } = await import('../../services/accounting/financialSummaryService.js');
+        
+        for (const line of ledgerLines) {
+          await updateTrialBalance({
+            periodId: period.id,
+            coaId: line.coaId,
+            debitAmount: line.debitAmount,
+            creditAmount: line.creditAmount,
+            tx: tx
+          });
+          await updateGeneralLedgerSummary({
+            coaId: line.coaId,
+            periodId: period.id,
+            date: now,
+            debitAmount: line.debitAmount,
+            creditAmount: line.creditAmount,
+            tx: tx
+          });
+        }
+
+        // 6. Reset PR sisaBudget to 0
+        await tx.purchaseRequest.update({
+          where: { id: prId },
+          data: { sisaBudget: 0 }
+        });
+
+        return { ledgerNumber, amount, isRefund };
+      });
+
+      res.status(200).json({
+        success: true,
+        message: result.isRefund ? "Refund sisa budget berhasil" : "Reimbursement budget berhasil",
+        data: result
+      });
+
+    } catch (error) {
+      console.error("Error in settlePRBudget:", error);
+      res.status(500).json({
+        success: false,
+        message: error.message || "Gagal memproses settlement budget",
+      });
+    }
   }
 };
 
@@ -623,19 +810,30 @@ async function getActivePeriod(transactionDate, tx) {
 async function generateRefundLedgerNumber(date, tx) {
   const prismaClient = tx || prisma;
   const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
+  const prefix = `RV-STF-${dateStr}`;
   
-  const startOfDay = new Date(date);
-  startOfDay.setHours(0, 0, 0, 0);
-  const endOfDay = new Date(date);
-  endOfDay.setHours(23, 59, 59, 999);
-
-  const count = await prismaClient.ledger.count({
+  const latestLedger = await prismaClient.ledger.findFirst({
     where: {
-      ledgerNumber: { startsWith: `RV-STF-${dateStr}` },
-      transactionDate: { gte: startOfDay, lte: endOfDay }
+      ledgerNumber: { startsWith: prefix }
+    },
+    orderBy: {
+      ledgerNumber: 'desc'
+    },
+    select: {
+      ledgerNumber: true
     }
   });
 
-  const sequence = String(count + 1).padStart(4, '0');
-  return `RV-STF-${dateStr}-${sequence}`;
+  let nextSequence = 1;
+  if (latestLedger) {
+    const parts = latestLedger.ledgerNumber.split('-');
+    const lastSequenceStr = parts[parts.length - 1];
+    const lastSequence = parseInt(lastSequenceStr);
+    if (!isNaN(lastSequence)) {
+      nextSequence = lastSequence + 1;
+    }
+  }
+
+  const sequence = String(nextSequence).padStart(4, '0');
+  return `${prefix}-${sequence}`;
 }

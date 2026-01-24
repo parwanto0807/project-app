@@ -24,6 +24,16 @@ import { toast } from "sonner";
 import { createUangMukaSchema } from "@/schemas/um";
 import { useState, useMemo, useRef, useEffect } from "react";
 import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
     Loader2,
     ChevronDown,
     FileText,
@@ -42,6 +52,8 @@ import Image from "next/image";
 import { CreateUangMukaInput } from "@/types/typesUm";
 import { useRouter } from "next/navigation";
 import { SourceProductType } from "@/schemas/pr";
+import { getSystemAccounts } from "@/lib/action/systemAccount";
+import { SystemAccount } from "@/types/accounting";
 
 interface BackendValidationError {
     field?: string;    // Backend mungkin menggunakan 'field'
@@ -68,6 +80,7 @@ type UangMukaFormData = {
     tanggalPengajuan: Date; // Pastikan ini required
     tanggalPencairan?: Date | null;
     buktiPencairanUrl?: string;
+    accountPencairanId?: string;
 };
 
 
@@ -98,7 +111,11 @@ export function PrCreateFormFrVerify({
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+    const [formValues, setFormValues] = useState<UangMukaFormData | null>(null);
     const [backendErrors, setBackendErrors] = useState<Record<string, string>>({});
+    const [systemAccounts, setSystemAccounts] = useState<SystemAccount[]>([]);
+    const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
     const router = useRouter();
 
     const form = useForm<CreateUangMukaInput>({
@@ -116,8 +133,31 @@ export function PrCreateFormFrVerify({
             karyawanId: "",
             spkId: "",
             buktiPencairanUrl: "",
+            accountPencairanId: "",
         },
     });
+
+    // 0️⃣ Load System Accounts for Kas/Bank selection
+    useEffect(() => {
+        const fetchAccounts = async () => {
+            setIsLoadingAccounts(true);
+            try {
+                const response = await getSystemAccounts();
+                if (response.success && Array.isArray(response.data)) {
+                    // Filter hanya untuk Kas/Bank keys
+                    const filtered = response.data.filter((sa: SystemAccount) =>
+                        sa.key === "PETTY_CASH" || sa.key.startsWith("BANK_")
+                    );
+                    setSystemAccounts(filtered);
+                }
+            } catch (error) {
+                console.error("Failed to fetch System Accounts:", error);
+            } finally {
+                setIsLoadingAccounts(false);
+            }
+        };
+        fetchAccounts();
+    }, []);
 
     // 1️⃣ Set selectedPurchaseRequest saat mount atau ketika data PR sudah loaded
     useEffect(() => {
@@ -134,19 +174,22 @@ export function PrCreateFormFrVerify({
                 form.setValue("karyawanId", selectedPR.requestedBy?.id || "");
                 form.setValue("jumlah", totalAmount);
 
+                const isProjectOperational = selectedPR.spkId && selectedPR.details?.some(d => d.sourceProduct === "OPERATIONAL");
                 const currentKeterangan = form.getValues("keterangan") || "";
                 if (!currentKeterangan || currentKeterangan === "") {
-                    form.setValue(
-                        "keterangan",
-                        `Uang muka untuk ${selectedPR.nomorPr} - ${selectedPR.keterangan || ""}`
-                    );
+                    let text = `Uang muka untuk ${selectedPR.nomorPr} - ${selectedPR.keterangan || ""}`;
+                    if (isProjectOperational) {
+                        text = `Uang Muka Kerja - Bensin, Tol, Makan Proyek ${selectedPR.project?.name || selectedPR.spk?.spkNumber || ''} (${selectedPR.nomorPr})`;
+                    }
+                    form.setValue("keterangan", text);
                 }
 
                 console.log("✅ Form values set:", {
                     prId: idFromUrl,
                     spkId: selectedPR.spk?.id || "null",
                     totalAmount,
-                    karyawanId: selectedPR.requestedBy?.id
+                    karyawanId: selectedPR.requestedBy?.id,
+                    isProjectOperational
                 });
             } else {
                 console.warn("⚠️ PR not found in approvedPurchaseRequests:", idFromUrl);
@@ -159,24 +202,38 @@ export function PrCreateFormFrVerify({
         return approvedPurchaseRequests.find(pr => pr.id === selectedPurchaseRequest);
     }, [selectedPurchaseRequest, approvedPurchaseRequests]);
 
+    // ✅ Detect if this is a mobilization PR (SPK + OPERATIONAL)
+    const isMobilizationPR = useMemo(() => {
+        if (!selectedPRData || !selectedPRData.spkId) return false;
+        return selectedPRData.details?.some(d => d.sourceProduct === "OPERATIONAL") || false;
+    }, [selectedPRData]);
+
     // Calculate total amount helper function
     const calculateTotalAmount = (pr: PurchaseRequest) => {
         if (!pr.details) return {
             totalBiaya: 0,
             totalHPP: 0,
             grandTotal: 0,
+            operationalOnly: 0,
         };
 
-        // Untuk Uang Muka, kita hitung SEMUA item termasuk PENGAMBILAN_STOK
-        // karena uang muka diperlukan untuk semua biaya project
         let totalBiaya = 0;
         let totalHPP = 0;
+        let operationalOnly = 0;
 
         for (const detail of pr.details) {
             const estimasiTotalHarga = Number(detail.estimasiTotalHarga || 0);
 
-            // Semua item dihitung sebagai biaya yang perlu uang muka
-            totalBiaya += estimasiTotalHarga;
+            // ✅ Jika PR memiliki SPK, HANYA hitung OPERATIONAL items (Mobilisasi)
+            // PENGAMBILAN_STOK, PEMBELIAN, dll tidak termasuk dalam uang muka mobilisasi
+            if (pr.spkId && detail.sourceProduct === SourceProductType.OPERATIONAL) {
+                operationalOnly += estimasiTotalHarga;
+            }
+
+            // Untuk PR tanpa SPK, hitung semua item
+            if (!pr.spkId) {
+                totalBiaya += estimasiTotalHarga;
+            }
 
             // Untuk tracking, tetap pisahkan HPP items
             if (detail.sourceProduct &&
@@ -186,10 +243,15 @@ export function PrCreateFormFrVerify({
             }
         }
 
+        // ✅ Jika ada SPK, gunakan operationalOnly sebagai total
+        // Jika tidak ada SPK, gunakan totalBiaya
+        const finalTotal = pr.spkId ? operationalOnly : totalBiaya;
+
         return {
-            totalBiaya, // Total semua item untuk uang muka
-            totalHPP,   // Total HPP untuk tracking
-            grandTotal: totalBiaya,
+            totalBiaya: finalTotal,     // Total untuk uang muka
+            totalHPP,                    // Total HPP untuk tracking
+            grandTotal: finalTotal,      // Grand total
+            operationalOnly,             // Khusus operational items
         };
     };
 
@@ -311,6 +373,16 @@ export function PrCreateFormFrVerify({
 
 
     const onSubmitForm: SubmitHandler<UangMukaFormData> = async (values) => {
+        // Jika ada SPK, tampilkan warning karena akan langsung menjurnal
+        if (values.spkId) {
+            setFormValues(values);
+            setShowConfirmDialog(true);
+        } else {
+            await executeSubmit(values);
+        }
+    };
+
+    const executeSubmit = async (values: UangMukaFormData) => {
         try {
             setBackendErrors({});
             setIsUploading(true);
@@ -332,6 +404,7 @@ export function PrCreateFormFrVerify({
                 tanggalPengajuan: tanggalPengajuan,
                 tanggalPencairan: values.tanggalPencairan || null,
                 buktiPencairanUrl: values.buktiPencairanUrl || undefined,
+                accountPencairanId: values.accountPencairanId,
             };
 
             if (onSubmit) {
@@ -555,12 +628,39 @@ export function PrCreateFormFrVerify({
                                         <span className="font-medium text-gray-600">Diajukan Oleh:</span>
                                         <span>{selectedPRData.requestedBy?.namaLengkap || 'N/A'}</span>
                                     </div>
-                                    <div className="flex items-center justify-between pt-1 border-t border-blue-200">
-                                        <span className="font-bold ">Total Amount:</span>
-                                        <span className="font-bold">
-                                            {formatCurrency(calculateTotalAmount(selectedPRData).totalBiaya)}
-                                        </span>
-                                    </div>
+
+                                    {/* ✅ Breakdown untuk SPK PR */}
+                                    {selectedPRData.spkId && isMobilizationPR && (
+                                        <>
+                                            <div className="flex items-center justify-between pt-1 border-t border-blue-200">
+                                                <span className="text-gray-600">Total PR (Semua Item):</span>
+                                                <span className="line-through text-gray-400">
+                                                    {formatCurrency(
+                                                        selectedPRData.details?.reduce((sum, d) => sum + Number(d.estimasiTotalHarga || 0), 0) || 0
+                                                    )}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center justify-between">
+                                                <span className="font-bold text-green-700">Mobilisasi (OPERATIONAL):</span>
+                                                <span className="font-bold text-green-700">
+                                                    {formatCurrency(calculateTotalAmount(selectedPRData).operationalOnly)}
+                                                </span>
+                                            </div>
+                                            <div className="text-[10px] text-amber-600 bg-amber-50 p-2 rounded">
+                                                ℹ️ Hanya item OPERATIONAL (Bensin, Tol, Makan) yang dihitung untuk uang muka mobilisasi
+                                            </div>
+                                        </>
+                                    )}
+
+                                    {/* ✅ Total normal untuk non-SPK PR */}
+                                    {!selectedPRData.spkId && (
+                                        <div className="flex items-center justify-between pt-1 border-t border-blue-200">
+                                            <span className="font-bold ">Total Amount:</span>
+                                            <span className="font-bold">
+                                                {formatCurrency(calculateTotalAmount(selectedPRData).totalBiaya)}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -653,6 +753,72 @@ export function PrCreateFormFrVerify({
                                 }}
                             />
 
+                            {/* Pilih Akun Sumber (Kas/Bank) - Conditional */}
+                            {!isMobilizationPR ? (
+                                <FormField
+                                    control={form.control}
+                                    name="accountPencairanId"
+                                    render={({ field }) => (
+                                        <FormItem className="col-span-2">
+                                            <FormLabel className="text-sm font-medium flex items-center space-x-2">
+                                                <Banknote className="h-4 w-4" />
+                                                <span>Akun Sumber (Kas/Bank)</span>
+                                            </FormLabel>
+                                            <Select
+                                                onValueChange={field.onChange}
+                                                value={field.value}
+                                            >
+                                                <FormControl>
+                                                    <SelectTrigger className="h-12 text-base md:text-sm bg-amber-50 dark:bg-amber-900/10 border-amber-200">
+                                                        <SelectValue placeholder={isLoadingAccounts ? "Loading accounts..." : "Pilih Sumber Dana (Kas/Bank)"} />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    {systemAccounts.map((account) => (
+                                                        <SelectItem key={account.id} value={account.coaId}>
+                                                            <div className="flex flex-col">
+                                                                <span className="font-medium">
+                                                                    {account.coa?.name || account.key.replace(/_/g, ' ')}
+                                                                </span>
+                                                                <span className="text-[10px] text-muted-foreground">
+                                                                    {account.description || account.coa?.code}
+                                                                </span>
+                                                            </div>
+                                                        </SelectItem>
+                                                    ))}
+                                                    {systemAccounts.length === 0 && !isLoadingAccounts && (
+                                                        <div className="p-2 text-center text-xs text-muted-foreground">
+                                                            Tidak ada akun Kas/Bank ditemukan.
+                                                        </div>
+                                                    )}
+                                                </SelectContent>
+                                            </Select>
+                                            <div className="text-[10px] text-amber-600 font-medium">
+                                                *Accounting: Wajib pilih akun sumber untuk pencatatan Jurnal & Ledger Proyek otomatis.
+                                            </div>
+                                            <FormMessage className="text-xs" />
+                                        </FormItem>
+                                    )}
+                                />
+                            ) : (
+                                <div className="col-span-2 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                                    <div className="flex items-start space-x-3">
+                                        <div className="flex-shrink-0 mt-0.5">
+                                            <svg className="h-5 w-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                            </svg>
+                                        </div>
+                                        <div className="flex-1">
+                                            <h4 className="text-sm font-semibold text-green-900 dark:text-green-100">
+                                                Akun Otomatis Dipilih
+                                            </h4>
+                                            <p className="text-xs text-green-700 dark:text-green-200 mt-1">
+                                                Untuk <strong>Mobilisasi Proyek</strong> (Bensin, Tol, Makan, dll), sistem akan otomatis menggunakan akun <strong>Petty Cash</strong> untuk pencatatan. Anda tidak perlu memilih akun secara manual.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Bank Transfer Fields */}
@@ -993,6 +1159,39 @@ export function PrCreateFormFrVerify({
                     </form>
                 </Form>
             </div>
+
+            {/* AlertDialog Peringatan */}
+            <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+                <AlertDialogContent className="bg-white dark:bg-gray-900 border-amber-200">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="text-amber-600 flex items-center gap-2">
+                            ⚠️ Konfirmasi Approval Proyek
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="text-gray-600 dark:text-gray-400 py-3">
+                            <span className="font-bold text-red-600 block mb-2 underline">PERINGATAN ACCOUNTING:</span>
+                            Karena PR ini terkait dengan <strong>SPK Proyek</strong>, sistem akan secara otomatis membuat
+                            <strong> Jurnal Beban Mobilisasi</strong> dan memotong margin proyek secara real-time tepat
+                            saat Anda klik Setuju.
+                            <br /><br />
+                            Data jurnal yang sudah terbentuk <strong>TIDAK DAPAT DIBATALKAN</strong> secara otomatis.
+                            Mohon koreksi kembali nilai nominal dan akun kas jika masih ragu.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="gap-2">
+                        <AlertDialogCancel className="h-10 text-sm">Kembali Koreksi</AlertDialogCancel>
+                        <AlertDialogAction
+                            className="bg-blue-600 hover:bg-blue-700 text-white h-10 text-sm"
+                            onClick={() => {
+                                if (formValues) {
+                                    executeSubmit(formValues);
+                                }
+                            }}
+                        >
+                            Ya, Saya Sudah Koreksi
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             {/* Bottom spacing untuk mobile */}
             <div className="h-20 md:h-0"></div>
