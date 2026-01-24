@@ -8,7 +8,7 @@ import { getMenuList } from "@/lib/menu-list";
 import { getMyPermissions } from "@/lib/action/permission/userPermission";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Tooltip,
   TooltipTrigger,
@@ -30,6 +30,7 @@ interface MenuProps {
 interface MenuItemProps {
   href: string;
   label: string;
+  tooltip?: string;
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   active: boolean;
   disabled?: boolean;
@@ -50,6 +51,7 @@ interface Permission {
 const MenuItem = ({
   href,
   label,
+  tooltip,
   icon: Icon,
   active,
   disabled,
@@ -144,7 +146,7 @@ const MenuItem = ({
           )}
         >
           <div className="flex items-center gap-1.5">
-            <span>{label}</span>
+            <span>{tooltip || label}</span>
             {hasSubmenu && <ChevronDown size={10} strokeWidth={3} />}
           </div>
         </TooltipContent>
@@ -156,6 +158,7 @@ const MenuItem = ({
 const SubmenuItem = ({
   href,
   label,
+  tooltip,
   icon: Icon,
   active,
   isOpen,
@@ -163,6 +166,7 @@ const SubmenuItem = ({
 }: {
   href: string;
   label: string;
+  tooltip?: string;
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   active: boolean;
   isOpen?: boolean;
@@ -231,7 +235,7 @@ const SubmenuItem = ({
             : "bg-cyan-500 text-white"
         )}
       >
-        {label}
+        {tooltip || label}
       </TooltipContent>
     </Tooltip>
   </TooltipProvider>
@@ -349,6 +353,7 @@ export function Menu({ isOpen, role, theme = 'dark' }: MenuProps) {
                 const {
                   href,
                   label,
+                  tooltip,
                   icon: Icon,
                   active,
                   submenus = [],
@@ -363,6 +368,7 @@ export function Menu({ isOpen, role, theme = 'dark' }: MenuProps) {
                     <MenuItem
                       href={href}
                       label={label}
+                      tooltip={tooltip}
                       icon={Icon}
                       active={active}
                       disabled={disabled}
@@ -462,15 +468,25 @@ export function Menu({ isOpen, role, theme = 'dark' }: MenuProps) {
                                 </div>
                                 <div className="flex flex-col gap-1.5">
                                   {submenus.map((submenu, subIndex) => (
-                                    <SubmenuItem
-                                      key={`submenu-${groupIndex}-${menuIndex}-${subIndex}`}
-                                      href={submenu.href}
-                                      label={submenu.label}
-                                      icon={submenu.icon}
-                                      active={submenu.active || false}
-                                      isOpen={true} // Force list style in popover
-                                      theme={theme}
-                                    />
+                                    <React.Fragment key={`submenu-popover-${groupIndex}-${menuIndex}-${subIndex}`}>
+                                      <SubmenuItem
+                                        href={submenu.href}
+                                        label={submenu.label}
+                                        tooltip={(submenu as any).tooltip}
+                                        icon={submenu.icon}
+                                        active={submenu.active || false}
+                                        isOpen={true} // Force list style in popover
+                                        theme={theme}
+                                      />
+                                      {submenu.hasSeparator && (
+                                        <div
+                                          className={cn(
+                                            "h-[2px] w-full my-2 transition-all duration-300 rounded-full",
+                                            theme === 'dark' ? "bg-cyan-400" : "bg-cyan-600"
+                                          )}
+                                        />
+                                      )}
+                                    </React.Fragment>
                                   ))}
                                 </div>
                               </div>
@@ -489,15 +505,25 @@ export function Menu({ isOpen, role, theme = 'dark' }: MenuProps) {
                         )}
                       >
                         {submenus.map((submenu, subIndex) => (
-                          <SubmenuItem
-                            key={`submenu-${groupIndex}-${menuIndex}-${subIndex}`}
-                            href={submenu.href}
-                            label={submenu.label}
-                            icon={submenu.icon}
-                            active={submenu.active || false}
-                            isOpen={isOpen}
-                            theme={theme}
-                          />
+                          <React.Fragment key={`submenu-list-${groupIndex}-${menuIndex}-${subIndex}`}>
+                            <SubmenuItem
+                              href={submenu.href}
+                              label={submenu.label}
+                              tooltip={(submenu as any).tooltip}
+                              icon={submenu.icon}
+                              active={submenu.active || false}
+                              isOpen={isOpen}
+                              theme={theme}
+                            />
+                            {submenu.hasSeparator && (
+                              <div
+                                className={cn(
+                                  "h-[3px] w-[95%] mx-auto my-3 rounded-full shadow-[0_0_12px_rgba(34,211,238,0.8)]",
+                                  theme === 'dark' ? "bg-cyan-400" : "bg-cyan-500"
+                                )}
+                              />
+                            )}
+                          </React.Fragment>
                         ))}
                       </div>
                     )}

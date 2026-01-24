@@ -2372,7 +2372,15 @@ export const submitPOToAccounting = async (req, res) => {
             // 1. Fetch PO with lines
             const po = await tx.purchaseOrder.findUnique({
                 where: { id },
-                include: { lines: true, supplier: true, warehouse: true }
+                include: { 
+                    lines: {
+                        include: {
+                            product: true
+                        }
+                    }, 
+                    supplier: true, 
+                    warehouse: true 
+                }
             });
 
             if (!po) throw new Error("PO Not Found");
@@ -2401,7 +2409,7 @@ export const submitPOToAccounting = async (req, res) => {
 
                 return {
                     productId: line.productId,
-                    productName: line.description || "Product",
+                    productName: line.description || line.product?.name || "Product",
                     quantity: line.quantity,
                     unitPrice: effectiveUnitPrice,
                     totalPrice: lineTotal,

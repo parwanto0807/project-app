@@ -1,6 +1,4 @@
-// ===================================================
-// SUPPLIER INVOICE TYPES
-// ===================================================
+import { Product } from './poType';
 
 export type SupplierInvoiceStatus =
     | 'DRAFT'
@@ -71,6 +69,7 @@ export interface SupplierInvoiceItem {
     supplierInvoice?: SupplierInvoice;
 
     productId: string;
+    product?: Product;
     productName: string;
     productCode?: string;
 

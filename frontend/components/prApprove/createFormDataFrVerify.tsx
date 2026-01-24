@@ -77,6 +77,7 @@ type UangMukaFormData = {
     purchaseRequestId?: string | null;
     karyawanId?: string | null;
     spkId?: string | null;
+    salesOrderId?: string | null;
     tanggalPengajuan: Date; // Pastikan ini required
     tanggalPencairan?: Date | null;
     buktiPencairanUrl?: string;
@@ -132,6 +133,7 @@ export function PrCreateFormFrVerify({
             purchaseRequestId: "",
             karyawanId: "",
             spkId: "",
+            salesOrderId: "",
             buktiPencairanUrl: "",
             accountPencairanId: "",
         },
@@ -173,6 +175,7 @@ export function PrCreateFormFrVerify({
                 form.setValue("spkId", selectedPR.spk?.id || "");
                 form.setValue("karyawanId", selectedPR.requestedBy?.id || "");
                 form.setValue("jumlah", totalAmount);
+                form.setValue("salesOrderId", selectedPR.spk?.salesOrder?.id || "");
 
                 const isProjectOperational = selectedPR.spkId && selectedPR.details?.some(d => d.sourceProduct === "OPERATIONAL");
                 const currentKeterangan = form.getValues("keterangan") || "";
@@ -265,6 +268,7 @@ export function PrCreateFormFrVerify({
             form.setValue("spkId", selectedPR.spk?.id || "");
             form.setValue("karyawanId", selectedPR.requestedBy?.id || "");
             form.setValue("jumlah", calculateTotalAmount(selectedPR).totalBiaya || 0);
+            form.setValue("salesOrderId", selectedPR.spk?.salesOrder?.id || "");
 
             const currentKeterangan = form.getValues("keterangan") || "";
             if (!currentKeterangan || currentKeterangan === "") {
@@ -401,6 +405,7 @@ export function PrCreateFormFrVerify({
                 purchaseRequestId: values.purchaseRequestId || null,
                 karyawanId: values.karyawanId || "",
                 spkId: values.spkId || "",
+                salesOrderId: values.salesOrderId || null,
                 tanggalPengajuan: tanggalPengajuan,
                 tanggalPencairan: values.tanggalPencairan || null,
                 buktiPencairanUrl: values.buktiPencairanUrl || undefined,

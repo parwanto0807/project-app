@@ -51,6 +51,7 @@ export interface PurchaseRequest {
     id: string;
     spkNumber: string;
     salesOrder?: {
+      id: string;
       soNumber: string;
       customer?: {
         name: string;
@@ -244,6 +245,7 @@ export interface PurchaseRequestWithRelations extends PurchaseRequest {
     id: string;
     spkNumber: string;
     salesOrder?: {
+      id: string;
       soNumber: string;
       customer?: {
         name: string;

@@ -496,7 +496,7 @@ export function TabelInputPR({
                                 if (value === SourceProductType.PEMBELIAN_BARANG) {
                                     updatedItem.satuan = selectedProduct.purchaseUnit || selectedProduct.usageUnit || "pcs";
                                 } else if (value === SourceProductType.PENGAMBILAN_STOK) {
-                                    updatedItem.satuan = selectedProduct.storageUnit || selectedProduct.usageUnit || "pcs";
+                                    updatedItem.satuan = selectedProduct.usageUnit || selectedProduct.storageUnit || "pcs";
                                 } else {
                                     updatedItem.satuan = selectedProduct.usageUnit || "pcs";
                                 }
@@ -546,7 +546,7 @@ export function TabelInputPR({
                             if (currentSourceProduct === SourceProductType.PEMBELIAN_BARANG) {
                                 updatedItem.satuan = selectedProduct.purchaseUnit || selectedProduct.usageUnit || "pcs";
                             } else if (currentSourceProduct === SourceProductType.PENGAMBILAN_STOK) {
-                                updatedItem.satuan = selectedProduct.storageUnit || selectedProduct.usageUnit || "pcs";
+                                updatedItem.satuan = selectedProduct.usageUnit || selectedProduct.storageUnit || "pcs";
                             } else {
                                 updatedItem.satuan = selectedProduct.usageUnit || "pcs";
                             }

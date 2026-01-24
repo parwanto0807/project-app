@@ -245,6 +245,14 @@ export const getAllSupplierInvoices = async (req, res) => {
                     items: {
                         select: {
                             id: true,
+                            productId: true,
+                            product: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    code: true
+                                }
+                            },
                             productName: true,
                             quantity: true,
                             unitPrice: true,
@@ -300,6 +308,9 @@ export const getSupplierInvoiceById = async (req, res) => {
                     },
                 },
                 items: {
+                    include: {
+                        product: true
+                    },
                     orderBy: { createdAt: 'asc' },
                 },
                 paymentAllocations: {
@@ -513,6 +524,7 @@ export const updateSupplierInvoiceStatus = async (req, res) => {
                         purchaseOrder: {
                             include: {
                                 orderedBy: true,
+                                SPK: true,
                                 PurchaseRequest: {
                                     include: {
                                         requestedBy: true
@@ -612,7 +624,8 @@ export const updateSupplierInvoiceStatus = async (req, res) => {
                         currency: 'IDR',
                         localAmount: totalAmount,
                         description: `Clearing Unbilled Receipt: ${invoice.invoiceNumber}`,
-                        lineNumber: 1
+                        lineNumber: 1,
+                        salesOrderId: invoice.purchaseOrder?.SPK?.salesOrderId || null
                     },
                     {
                         ledgerId: ledger.id,
@@ -622,7 +635,8 @@ export const updateSupplierInvoiceStatus = async (req, res) => {
                         currency: 'IDR',
                         localAmount: totalAmount,
                         description: isCash ? `Settlement via Staff Advance: ${invoice.invoiceNumber}` : `Accounts Payable: ${invoice.invoiceNumber}`,
-                        lineNumber: 2
+                        lineNumber: 2,
+                        salesOrderId: invoice.purchaseOrder?.SPK?.salesOrderId || null
                     }
                 ];
 

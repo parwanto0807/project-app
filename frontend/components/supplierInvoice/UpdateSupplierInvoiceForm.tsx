@@ -396,7 +396,7 @@ export default function UpdateSupplierInvoiceForm({ invoice, role = "admin" }: U
                                             <TableRow key={item.id}>
                                                 <TableCell className="font-medium">
                                                     <div className="space-y-1">
-                                                        <p>{item.productName}</p>
+                                                        <p>{item.productName === "Product" ? (item.product?.name || item.productName) : item.productName}</p>
                                                         {item.productCode && (
                                                             <p className="text-xs text-gray-500">{item.productCode}</p>
                                                         )}

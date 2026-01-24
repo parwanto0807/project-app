@@ -401,6 +401,7 @@ model Product {
   StockOpnameItem           StockOpnameItem[]
   stockTransferItems        StockTransferItem[]
   GoodsReceiptItem          GoodsReceiptItem[]
+  SupplierInvoiceItem       SupplierInvoiceItem[]
 }
 
 enum OpnameType {
@@ -1141,12 +1142,14 @@ model SalesOrder {
   project  Project  @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade) // <-- Restrict karena FK wajib
   user     User     @relation("UserSalesOrders", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
-  items     SalesOrderItem[]
-  documents SalesOrderDocument[]
-  invoices  Invoice[]
-  spk       SPK[]
-  bap       BAP[]
-  quotation Quotation[]
+  items      SalesOrderItem[]
+  documents  SalesOrderDocument[]
+  invoices   Invoice[]
+  spk        SPK[]
+  bap        BAP[]
+  quotation  Quotation[]
+  LedgerLine LedgerLine[]
+  uangMuka   UangMuka[]
 
   @@index([customerId, soDate])
   @@index([status])
@@ -1803,6 +1806,10 @@ model UangMuka {
   // Relasi ke SPK untuk tracking per proyek
   spkId String?
   spk   SPK?    @relation(fields: [spkId], references: [id])
+
+  // Relasi ke Sales Order (Pondasi P&L)
+  salesOrderId String?
+  salesOrder   SalesOrder? @relation(fields: [salesOrderId], references: [id])
 
   // Relasi ke COA (Kas/Bank) sumber pencairan
   accountPencairanId String?
@@ -2492,6 +2499,7 @@ model SupplierInvoiceItem {
   supplierInvoice   SupplierInvoice @relation(fields: [supplierInvoiceId], references: [id], onDelete: Cascade)
 
   productId   String
+  product     Product @relation(fields: [productId], references: [id])
   productName String // Nama saat transaksi
 
   // Link ke PO dan Penerimaan Barang (GR)
@@ -2711,14 +2719,16 @@ model LedgerLine {
   exchangeRate    Float   @default(1.0)
 
   // Analytical Accounting
-  projectId  String?
-  project    Project?  @relation(fields: [projectId], references: [id])
-  customerId String?
-  customer   Customer? @relation(fields: [customerId], references: [id])
-  supplierId String?
-  supplier   Supplier? @relation(fields: [supplierId], references: [id])
-  karyawanId String?
-  karyawan   Karyawan? @relation(fields: [karyawanId], references: [id])
+  projectId    String?
+  project      Project?    @relation(fields: [projectId], references: [id])
+  customerId   String?
+  customer     Customer?   @relation(fields: [customerId], references: [id])
+  supplierId   String?
+  supplier     Supplier?   @relation(fields: [supplierId], references: [id])
+  karyawanId   String?
+  karyawan     Karyawan?   @relation(fields: [karyawanId], references: [id])
+  salesOrderId String?
+  salesOrder   SalesOrder? @relation(fields: [salesOrderId], references: [id])
 
   // Additional details
   description String?

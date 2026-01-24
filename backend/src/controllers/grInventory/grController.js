@@ -2198,7 +2198,11 @@ export const approveGR = async (req, res) => {
           }
         },
         Warehouse: true,
-        PurchaseOrder: true
+        PurchaseOrder: {
+          include: {
+            SPK: true
+          }
+        }
       }
     });
 
@@ -2540,7 +2544,8 @@ export const approveGR = async (req, res) => {
               currency: 'IDR',
               localAmount: totalInventoryValue,
               description: `Stock In: ${existingGR.grNumber}`,
-              lineNumber: 1
+              lineNumber: 1,
+              salesOrderId: existingGR.PurchaseOrder?.SPK?.salesOrderId || null
             },
             {
               ledgerId: ledger.id,
@@ -2550,7 +2555,8 @@ export const approveGR = async (req, res) => {
               currency: 'IDR',
               localAmount: totalInventoryValue,
               description: `Unbilled Receipt: ${existingGR.grNumber}`,
-              lineNumber: 2
+              lineNumber: 2,
+              salesOrderId: existingGR.PurchaseOrder?.SPK?.salesOrderId || null
             }
           ];
 

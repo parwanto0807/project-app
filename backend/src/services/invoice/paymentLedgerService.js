@@ -252,7 +252,8 @@ export async function processInvoicePayment(paymentData) {
           reference: reference,
           lineNumber: 1,
           projectId: invoice.salesOrder?.projectId || null,
-          customerId: invoice.salesOrder?.customerId || null
+          customerId: invoice.salesOrder?.customerId || null,
+          salesOrderId: invoice.salesOrderId
         });
 
         // Line 2: DEBIT Beban Admin Bank (jika ada)
@@ -268,7 +269,8 @@ export async function processInvoicePayment(paymentData) {
             reference: reference,
             lineNumber: 2,
             projectId: invoice.salesOrder?.projectId || null,
-            customerId: invoice.salesOrder?.customerId || null
+            customerId: invoice.salesOrder?.customerId || null,
+            salesOrderId: invoice.salesOrderId
           });
         }
 
@@ -284,7 +286,8 @@ export async function processInvoicePayment(paymentData) {
           reference: invoice.invoiceNumber,
           lineNumber: adminFee > 0 ? 3 : 2,
           projectId: invoice.salesOrder?.projectId || null,
-          customerId: invoice.salesOrder?.customerId || null
+          customerId: invoice.salesOrder?.customerId || null,
+          salesOrderId: invoice.salesOrderId
         });
 
         // Create all ledger lines

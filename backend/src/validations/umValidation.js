@@ -33,6 +33,7 @@ export const createUangMukaValidation = z
     namaEwalletTujuan: z.string().optional(),
     buktiPencairanUrl: z.string().optional(),
     accountPencairanId: z.string().optional(),
+    salesOrderId: z.string().optional().nullable(),
   })
   .superRefine((data, ctx) => {
     // Validasi metode pembayaran
@@ -72,6 +73,7 @@ export const updateUangMukaValidation = z
     nomorRekeningTujuan: z.string().optional(),
     namaEwalletTujuan: z.string().optional(),
     accountPencairanId: z.string().optional(),
+    salesOrderId: z.string().optional().nullable(),
   })
   .superRefine((data, ctx) => {
     // Validasi metode pembayaran

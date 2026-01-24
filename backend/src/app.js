@@ -47,6 +47,7 @@ import openingBalanceRoutes from './routes/accounting/openingBalanceRoutes.js';
 import glSummaryRoutes from './routes/accounting/glSummaryRoutes.js';
 import fundTransferRoutes from './routes/finance/fundTransferRoutes.js';
 import permissionRoutes from './routes/permission/permissionRoutes.js';
+import financialReportRoutes from './routes/accounting/financialReportRoutes.js';
 
 
 
@@ -182,6 +183,7 @@ app.use('/api/accounting/opening-balance', openingBalanceRoutes);
 app.use('/api/accounting/gl-summary', glSummaryRoutes);
 app.use('/api/finance/fund-transfer', fundTransferRoutes);
 app.use('/api/permissions', permissionRoutes);
+app.use('/api/accounting/reports', financialReportRoutes);
 
 
 

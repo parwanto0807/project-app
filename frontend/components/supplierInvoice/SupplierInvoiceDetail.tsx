@@ -378,7 +378,7 @@ export default function SupplierInvoiceDetail({ invoice, role = "admin" }: Suppl
                                         <TableRow key={item.id} className={index % 2 === 0 ? "bg-white" : "bg-gray-50/30"}>
                                             <TableCell className="font-medium">
                                                 <div className="space-y-1">
-                                                    <p>{item.productName}</p>
+                                                    <p>{item.productName === "Product" ? (item.product?.name || item.productName) : item.productName}</p>
                                                     {item.productCode && (
                                                         <p className="text-sm text-muted-foreground">{item.productCode}</p>
                                                     )}

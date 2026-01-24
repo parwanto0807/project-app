@@ -303,7 +303,8 @@ export async function createLedgerEntry({
         projectId: entry.projectId || null,
         customerId: entry.customerId || null,
         supplierId: entry.supplierId || null,
-        karyawanId: entry.karyawanId || null
+        karyawanId: entry.karyawanId || null,
+        salesOrderId: entry.salesOrderId || null
       };
     }));
 
@@ -345,7 +346,8 @@ export async function createLedgerEntry({
             projectId: line.projectId,
             customerId: line.customerId,
             supplierId: line.supplierId,
-            karyawanId: line.karyawanId
+            karyawanId: line.karyawanId,
+            salesOrderId: line.salesOrderId
           }))
         }
       },

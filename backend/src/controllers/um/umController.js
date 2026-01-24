@@ -326,6 +326,7 @@ export const uangMukaController = {
         nomorRekeningTujuan,
         namaEwalletTujuan,
         accountPencairanId: accountPencairanIdInput,
+        salesOrderId,
       } = validationResult.data;
 
       // Initialize accountPencairanId (will be auto-selected later if needed)
@@ -450,6 +451,7 @@ export const uangMukaController = {
             nomorRekeningTujuan,
             namaEwalletTujuan,
             accountPencairanId: accountPencairanId || null,
+            salesOrderId: salesOrderId || null,
           },
           include: {
             karyawan: { select: { id: true, namaLengkap: true } },
@@ -524,10 +526,12 @@ export const uangMukaController = {
                   systemAccountKey: "STAFF_ADVANCE",
                   debit: jumlah,
                   karyawanId: karyawanId,
+                  salesOrderId: salesOrderId || (spkId ? spk?.salesOrderId : null),
                 },
                 {
                   coaId: accountPencairanId,
                   credit: jumlah,
+                  salesOrderId: salesOrderId || (spkId ? spk?.salesOrderId : null),
                 },
               ],
               createdById: req.user?.id || "SYSTEM",
@@ -563,11 +567,13 @@ export const uangMukaController = {
                   debit: jumlah,
                   projectId: existingPR?.projectId || null,
                   spkId: spkId,
+                  salesOrderId: salesOrderId || (spkId ? spk?.salesOrderId : null),
                 },
                 {
                   systemAccountKey: "STAFF_ADVANCE",
                   credit: jumlah,
                   karyawanId: karyawanId,
+                  salesOrderId: salesOrderId || (spkId ? spk?.salesOrderId : null),
                 },
               ],
               createdById: req.user?.id || "SYSTEM",
@@ -878,6 +884,7 @@ export const uangMukaController = {
         where: { id },
         include: {
           purchaseRequest: { select: { id: true, status: true } },
+          spk: { select: { salesOrderId: true } },
         },
       });
 
@@ -1106,7 +1113,8 @@ export const uangMukaController = {
               debitAmount: amount,
               creditAmount: 0,
               localAmount: amount,
-              karyawanId: existingUangMuka.karyawanId
+              karyawanId: existingUangMuka.karyawanId,
+              salesOrderId: existingUangMuka.salesOrderId || existingUangMuka.spk?.salesOrderId || null
             }
           });
 
@@ -1120,6 +1128,7 @@ export const uangMukaController = {
               debitAmount: 0,
               creditAmount: amount,
               localAmount: -amount,
+              salesOrderId: existingUangMuka.salesOrderId || existingUangMuka.spk?.salesOrderId || null
             }
           });
 

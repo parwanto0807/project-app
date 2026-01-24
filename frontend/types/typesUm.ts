@@ -25,6 +25,7 @@ export interface UangMuka {
   purchaseRequestId?: string | null;
   karyawanId: string;
   spkId: string;
+  salesOrderId?: string | null;
 
   createdAt: Date;
   updatedAt: Date;
@@ -104,6 +105,7 @@ export interface CreateUangMukaInput {
   purchaseRequestId?: string | null;
   karyawanId?: string | null;
   spkId?: string | null;
+  salesOrderId?: string | null;
   status?: UangMukaStatus;
   accountPencairanId?: string;
 }

@@ -1881,7 +1881,8 @@ class InvoiceController {
             localAmount: invoice.grandTotal * invoice.exchangeRate,
             currency: invoice.currency,
             exchangeRate: invoice.exchangeRate,
-            customerId: invoice.salesOrder?.customer?.id
+            customerId: invoice.salesOrder?.customer?.id,
+            salesOrderId: invoice.salesOrderId
           }
         });
         console.log(`[POSTING] AR Line Created: ID=${arLine.id}, Debit=${arLine.debitAmount}`);
@@ -1951,6 +1952,7 @@ class InvoiceController {
                localAmount: -(itemAmount * parseFloat(invoice.exchangeRate)),
                currency: invoice.currency,
                exchangeRate: parseFloat(invoice.exchangeRate),
+               salesOrderId: invoice.salesOrderId
              }
            });
            
@@ -1978,7 +1980,8 @@ class InvoiceController {
                 // localAmount untuk credit = negatif (credit side)
                 localAmount: -(taxAmount * parseFloat(invoice.exchangeRate)),
                 currency: invoice.currency,
-                exchangeRate: parseFloat(invoice.exchangeRate)
+                exchangeRate: parseFloat(invoice.exchangeRate),
+                salesOrderId: invoice.salesOrderId
              }
            });
            console.log(`[POSTING] Tax Line Created: ID=${taxLine.id}, Credit=${taxLine.creditAmount}`);

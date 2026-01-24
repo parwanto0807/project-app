@@ -515,7 +515,10 @@ export const mrController = {
                   include: {
                     purchaseRequest: {
                       select: {
-                        nomorPr: true
+                        nomorPr: true,
+                        spk: {
+                            select: { salesOrderId: true }
+                        }
                       }
                     }
                   }
@@ -624,6 +627,11 @@ export const mrController = {
             .filter(Boolean)
         )];
 
+        // 6.1 Extract salesOrderId (take the first found)
+        const salesOrderId = mr.items
+            .map(item => item.purchaseRequestDetail?.purchaseRequest?.spk?.salesOrderId)
+            .find(id => id) || null;
+
         const prNumbersText = prNumbers.length > 0 
           ? ` | PR: ${prNumbers.join(', ')}` 
           : '';
@@ -644,14 +652,16 @@ export const mrController = {
               debit: totalMaterialCost,
               credit: 0,
               keterangan: `Material usage - ${mr.mrNumber}${prNumbersText}`,
-              projectId: mr.projectId
+              projectId: mr.projectId,
+              salesOrderId: salesOrderId
             },
             {
               systemAccountKey: inventoryAccountKey, // PROJECT_WIP (1-10205 Persediaan On WIP)
               debit: 0,
               credit: totalMaterialCost,
               keterangan: `Stock reduction from ${mr.Warehouse.name}${prNumbersText}`,
-              projectId: mr.projectId
+              projectId: mr.projectId,
+              salesOrderId: salesOrderId
             }
           ],
           createdById: mr.issuedById || 'SYSTEM',
