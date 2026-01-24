@@ -212,12 +212,12 @@ export const updatePRRemainingBudget = async (prId, transaction = null) => {
   const totalPO = pr.purchaseOrders.reduce((sum, po) => sum + (Number(po.totalAmount) || 0), 0);
   
   // 2. Total dari PR Child (PR SPK) yang merujuk ke PR ini
-  let totalPrSpkOperational = 0;
+  let totalPrSpk = 0;
   for (const child of pr.childPrs) {
-    totalPrSpkOperational += calculatePRBudget(child.details);
+    totalPrSpk += calculatePRBudget(child.details);
   }
 
-  const newSisaBudget = totalPR - (totalPO + totalPrSpkOperational);
+  const newSisaBudget = totalPR - (totalPO + totalPrSpk);
 
   await db.purchaseRequest.update({
     where: { id: prId },

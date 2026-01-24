@@ -2301,6 +2301,33 @@ export class PurchaseRequestController {
       });
     }
   }
+
+  async recalculateSisaBudget(req, res) {
+    try {
+      const { id } = idParamSchema.parse(req.params);
+
+      const { updatePRRemainingBudget } = await import("../../utils/prParentChildHelpers.js");
+      await updatePRRemainingBudget(id);
+
+      const updatedPR = await prisma.purchaseRequest.findUnique({
+        where: { id },
+        select: { sisaBudget: true, nomorPr: true }
+      });
+
+      res.json({
+        success: true,
+        message: `Sisa budget untuk PR ${updatedPR.nomorPr} berhasil dihitung ulang`,
+        data: { sisaBudget: updatedPR.sisaBudget }
+      });
+    } catch (error) {
+      console.error("Recalculate PR budget error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to recalculate Purchase Request budget",
+        error: error.message,
+      });
+    }
+  }
 }
 
 export default new PurchaseRequestController();

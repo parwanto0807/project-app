@@ -521,7 +521,7 @@ export const ExpandableRow = forwardRef<HTMLTableRowElement, ExpandableRowProps>
                                 >
                                     {formatCurrency(pr.sisaBudget ?? 0)}
                                 </Badge>
-                                {pr.status === 'COMPLETED' && cleanNumber(pr.sisaBudget) !== 0 && (
+                                {pr.status === 'COMPLETED' && (
                                     <button
                                         className="h-6 px-2 text-[10px] font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-md transition-colors shadow-sm whitespace-nowrap"
                                         onClick={(e) => {

@@ -39,6 +39,11 @@ router.put(
   PurchaseRequestController.updatePurchaseRequestStatus
 );
 
+router.put(
+  "/recalculateSisaBudget/:id",
+  PurchaseRequestController.recalculateSisaBudget
+);
+
 // DELETE routes
 router.delete(
   "/deletePurchaseRequest/:id",

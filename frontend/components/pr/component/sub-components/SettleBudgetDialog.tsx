@@ -132,33 +132,81 @@ export function SettleBudgetDialog({
                     </div>
                 </div>
 
-                <DialogFooter className="gap-2 sm:gap-0">
-                    <Button
-                        variant="ghost"
-                        onClick={() => onOpenChange(false)}
-                        disabled={isSubmitting}
-                    >
-                        Batal
-                    </Button>
-                    <Button
-                        className={cn(
-                            "font-bold px-8",
-                            isRefund
-                                ? "bg-blue-600 hover:bg-blue-700"
-                                : "bg-rose-600 hover:bg-rose-700"
+                <DialogFooter className="flex flex-col sm:flex-row gap-2">
+                    <div className="flex-1 flex justify-start">
+                        {!pr.spkId && Number(pr.sisaBudget || 0) === 0 && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-indigo-600 border-indigo-200 hover:bg-indigo-50 font-bold"
+                                onClick={async () => {
+                                    setIsSubmitting(true);
+                                    try {
+                                        const res = await fetch(`/api/pr/recalculateSisaBudget/${pr.id}`, {
+                                            method: 'PUT'
+                                        });
+                                        const result = await res.json();
+                                        if (result.success) {
+                                            toast.success("Recalculate Berhasil", {
+                                                description: result.message
+                                            });
+                                            router.refresh();
+                                            // Close and reopen or just tell user to refresh? 
+                                            // router.refresh() should update server components, 
+                                            // but since this dialog handles its own 'pr' prop, 
+                                            // we might need to tell user to close/reopen or update local state if possible.
+                                            // However, router.refresh() is usually enough for data consistency.
+                                            onOpenChange(false);
+                                        } else {
+                                            throw new Error(result.message);
+                                        }
+                                    } catch (err: any) {
+                                        toast.error("Recalculate Gagal", {
+                                            description: err.message
+                                        });
+                                    } finally {
+                                        setIsSubmitting(false);
+                                    }
+                                }}
+                                disabled={isSubmitting}
+                            >
+                                {isSubmitting ? (
+                                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                ) : (
+                                    <Info className="h-3 w-3 mr-1" />
+                                )}
+                                re-Calculate
+                            </Button>
                         )}
-                        onClick={handleSettle}
-                        disabled={isSubmitting}
-                    >
-                        {isSubmitting ? (
-                            <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Memproses...
-                            </>
-                        ) : (
-                            isRefund ? "Proses Refund" : "Proses Reimbursment"
-                        )}
-                    </Button>
+                    </div>
+                    <div className="flex gap-2">
+                        <Button
+                            variant="ghost"
+                            onClick={() => onOpenChange(false)}
+                            disabled={isSubmitting}
+                        >
+                            Batal
+                        </Button>
+                        <Button
+                            className={cn(
+                                "font-bold px-8",
+                                isRefund
+                                    ? "bg-blue-600 hover:bg-blue-700"
+                                    : "bg-rose-600 hover:bg-rose-700"
+                            )}
+                            onClick={handleSettle}
+                            disabled={isSubmitting || (Number(pr.sisaBudget || 0) === 0)}
+                        >
+                            {isSubmitting ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Memproses...
+                                </>
+                            ) : (
+                                isRefund ? "Proses Refund" : "Proses Reimbursment"
+                            )}
+                        </Button>
+                    </div>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
