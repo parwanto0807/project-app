@@ -67,5 +67,39 @@ export const financialReportController = {
         details: error.message 
       });
     }
+  },
+
+  getCashFlowReport: async (req, res) => {
+    try {
+      const { startDate, endDate } = req.query;
+
+      if (!startDate || !endDate) {
+        return res.status(400).json({ 
+          success: false, 
+          error: "Start Date and End Date are required" 
+        });
+      }
+
+      const report = await financialReportService.getCashFlowReport({
+        startDate: new Date(startDate),
+        endDate: new Date(endDate)
+      });
+
+      res.json({
+        success: true,
+        data: report,
+        period: {
+          startDate: new Date(startDate),
+          endDate: new Date(endDate)
+        }
+      });
+    } catch (error) {
+      console.error("Error generating Cash Flow Statement:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: "Failed to generate report",
+        details: error.message 
+      });
+    }
   }
 };

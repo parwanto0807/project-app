@@ -10,5 +10,6 @@ const router = express.Router();
  */
 router.get('/income-statement', financialReportController.getIncomeStatement);
 router.get('/balance-sheet', financialReportController.getBalanceSheet);
+router.get('/cash-flow', financialReportController.getCashFlowReport);
 
 export default router;

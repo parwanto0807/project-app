@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
   output   = "./generated/prisma"
@@ -16,16 +10,16 @@ datasource db {
 
 model AuditLog {
   id         String   @id @default(uuid())
-  model      String // Nama model yang diubah (contoh: "User", "Product")
-  action     String // Aksi: "create", "update", "delete"
-  data       String // Data yang dikirim (JSON string)
-  before     Json? // Data sebelum perubahan
-  after      Json? // Data setelah perubahan
-  durationMs Int? // Durasi operasi dalam milliseconds
-  userId     String // ID user yang melakukan aksi
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  timestamp  DateTime @default(now())
+  model      String
+  action     String
+  data       String
+  before     Json?
+  after      Json?
+  durationMs Int?
+  userId     String
   createdAt  DateTime @default(now())
+  timestamp  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("audit_logs")
 }
@@ -37,87 +31,72 @@ model AccountEmail {
   updatedAt DateTime @updatedAt
 }
 
-enum AuthProvider {
-  credentials
-  google
-  // Add others as needed
-}
-
-enum UserRole {
-  super
-  admin
-  pic
-  user
-}
-
 model TrustedDevice {
   id         String   @id @default(uuid())
   userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  deviceId   String?
-  deviceName String? // User-defined name
-  deviceType String? // "mobile", "desktop", etc.
-  os         String?
+  createdAt  DateTime @default(now())
   browser    String?
+  deviceId   String?
+  deviceName String?
+  deviceType String?
   ipAddress  String?
   isRevoked  Boolean  @default(false)
-  createdAt  DateTime @default(now())
   lastUsedAt DateTime @updatedAt
+  os         String?
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, deviceId])
 }
 
-// Authentication Models
 model User {
-  id             String       @id @default(uuid())
-  email          String       @unique
-  password       String?
-  name           String?
-  mfaSecret      String?
-  mfaEnabled     Boolean      @default(false)
-  mfaBackupCodes String[]
-  avatar         String?
-  googleId       String?      @unique
-  provider       AuthProvider @default(credentials)
-  role           UserRole     @default(user)
-  tokenVersion   Int          @default(0)
-  lastLoginAt    DateTime?
-  failedAttempts Int          @default(0)
-  lockedUntil    DateTime?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  active         Boolean      @default(true)
-
-  trustedDevices        TrustedDevice[]
-  sessions              UserSession[]
-  loginAttempts         LoginAttempt[]
-  salesOrders           SalesOrder[]     @relation("UserSalesOrders")
-  karyawan              Karyawan?
-  createdBAP            BAP[]            @relation("BAPCreatedBy") // semua BAP yang dibuat user ini
+  id                    String           @id @default(uuid())
+  email                 String           @unique
+  name                  String?
+  password              String?
+  createdAt             DateTime         @default(now())
+  avatar                String?
+  googleId              String?          @unique
+  updatedAt             DateTime         @updatedAt
+  mfaSecret             String?
+  failedAttempts        Int              @default(0)
+  lastLoginAt           DateTime?
+  lockedUntil           DateTime?
+  mfaBackupCodes        String[]
+  mfaEnabled            Boolean          @default(false)
+  tokenVersion          Int              @default(0)
+  provider              AuthProvider     @default(credentials)
+  role                  UserRole         @default(user)
+  active                Boolean          @default(true)
+  createdBAP            BAP[]            @relation("BAPCreatedBy")
+  approvedFundTransfers FundTransfer[]   @relation("FundTransferApprover")
+  createdFundTransfers  FundTransfer[]   @relation("FundTransferCreator")
+  voidedFundTransfers   FundTransfer[]   @relation("FundTransferVoider")
+  receivedGoodsReceipts GoodsReceipt[]   @relation("GoodsReceiptReceivedBy")
   createdInvoices       Invoice[]        @relation("InvoiceCreatedBy")
+  karyawan              Karyawan?
+  loginAttempts         LoginAttempt[]
+  notifications         Notification[]
   verifiedPayments      Payment[]
   rab                   RAB[]
-  auditLogs             AuditLog[]
-  notifications         Notification[]
+  salesOrders           SalesOrder[]     @relation("UserSalesOrders")
   stockOpnames          StockOpname[]    @relation("OpnamePetugas")
-  receivedGoodsReceipts GoodsReceipt[]   @relation("GoodsReceiptReceivedBy")
-  createdFundTransfers  FundTransfer[]   @relation("FundTransferCreator")
-  approvedFundTransfers FundTransfer[]   @relation("FundTransferApprover")
-  voidedFundTransfers   FundTransfer[]   @relation("FundTransferVoider")
+  trustedDevices        TrustedDevice[]
   userPermissions       UserPermission[]
+  sessions              UserSession[]
+  auditLogs             AuditLog[]
 }
 
 model LoginAttempt {
   id        String   @id @default(uuid())
   userId    String?
-  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
   email     String
-  status    String // "SUCCESS", "FAILED", "MFA_REQUIRED"
+  status    String
   ipAddress String
   userAgent String?
-  deviceId  String? // Device fingerprint
-  reason    String? // "WRONG_PASSWORD", "ACCOUNT_LOCKED"
+  deviceId  String?
+  reason    String?
   createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([email])
   @@index([ipAddress])
@@ -126,45 +105,40 @@ model LoginAttempt {
 model UserSession {
   id           String    @id @default(uuid())
   userId       String
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   sessionToken String?   @unique
   refreshToken String?   @unique
-  fcmToken     String?   @db.Text
-  deviceId     String? // Link to TrustedDevice if recognized
+  deviceId     String?
   ipAddress    String
   userAgent    String
-  origin       String?
-  country      String? // Geolocation data
+  country      String?
   city         String?
   isRevoked    Boolean   @default(false)
-  revokedAt    DateTime?
-  lastActiveAt DateTime?
   createdAt    DateTime  @default(now())
   expiresAt    DateTime
+  revokedAt    DateTime?
+  fcmToken     String?
+  origin       String?
+  lastActiveAt DateTime?
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([expiresAt])
 }
 
 model Notification {
-  id     String @id @default(uuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  title String @db.VarChar(255)
-  body  String
-  type  String @default("general") @db.VarChar(50)
-
-  imageUrl  String? @db.VarChar(500)
-  actionUrl String? @db.VarChar(500)
-
-  data Json? @default("{}")
-
-  read Boolean @default(false)
-
+  id        String    @id @default(uuid())
+  userId    String
+  title     String    @db.VarChar(255)
+  body      String
+  type      String    @default("general") @db.VarChar(50)
+  imageUrl  String?   @db.VarChar(500)
+  actionUrl String?   @db.VarChar(500)
+  data      Json?     @default("{}")
+  read      Boolean   @default(false)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   expiresAt DateTime?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([userId, read])
@@ -172,19 +146,15 @@ model Notification {
   @@index([expiresAt])
 }
 
-// ==========================================
-// RBAC: Permission Management System
-// ==========================================
 model Permission {
-  id          String   @id @default(uuid())
-  code        String   @unique // Contoh: "pr.view", "po.create", "inventory.manage"
-  name        String // Contoh: "View Purchase Request"
-  module      String // Contoh: "purchasing", "inventory", "finance"
-  description String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
+  id              String           @id @default(uuid())
+  code            String           @unique
+  name            String
+  module          String
+  description     String?
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
   rolePermissions RolePermission[]
   userPermissions UserPermission[]
 
@@ -192,36 +162,34 @@ model Permission {
   @@index([code])
 }
 
-// Mapping Role ke Permission dengan CRUD granularity
 model RolePermission {
   id           String     @id @default(uuid())
-  role         UserRole // super, admin, pic, user
+  role         UserRole
   permissionId String
-  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
   canCreate    Boolean    @default(false)
   canRead      Boolean    @default(true)
   canUpdate    Boolean    @default(false)
   canDelete    Boolean    @default(false)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
   @@unique([role, permissionId])
   @@index([role])
 }
 
-// User-specific permission overrides (per username)
 model UserPermission {
   id           String     @id @default(uuid())
   userId       String
-  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   permissionId String
-  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
   canCreate    Boolean    @default(false)
   canRead      Boolean    @default(true)
   canUpdate    Boolean    @default(false)
   canDelete    Boolean    @default(false)
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, permissionId])
   @@index([userId])
@@ -235,399 +203,1809 @@ model Counter {
 }
 
 model Karyawan {
-  id            String    @id @default(cuid())
-  nik           String    @unique // Nomor Induk Karyawan
-  namaLengkap   String
-  tanggalLahir  DateTime?
-  alamat        String?
-  nomorTelepon  String?
-  email         String?   @unique
-  jabatan       String?
-  departemen    String?
-  tanggalMasuk  DateTime?
-  tanggalKeluar DateTime? // jika resign atau kontrak selesai
-  statusKerja   String // "aktif", "non-aktif", "cuti", dll
-  foto          String?
-  // Data kontrak / HR
-  tipeKontrak   String? // "kontrak", "tetap", "magang"
-  gajiPokok     Float?
-  tunjangan     Float?
-  potongan      Float?
-  isActive      Boolean   @default(true)
-
-  // Relasi ke User untuk login ERP
-  user      User?    @relation(fields: [userId], references: [id])
-  userId    String?  @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relasi ke Team
-  teamKaryawan TeamKaryawan[]
-
-  // Relasi ke penggajian
+  id                String              @id @default(cuid())
+  nik               String              @unique
+  namaLengkap       String
+  tanggalLahir      DateTime?
+  alamat            String?
+  nomorTelepon      String?
+  email             String?             @unique
+  jabatan           String?
+  departemen        String?
+  tanggalMasuk      DateTime?
+  tanggalKeluar     DateTime?
+  statusKerja       String
+  tipeKontrak       String?
+  gajiPokok         Float?
+  tunjangan         Float?
+  potongan          Float?
+  userId            String?             @unique
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  foto              String?
+  isActive          Boolean             @default(true)
+  approvedBAP       BAP[]               @relation("BAPApprovedBy")
   gaji              Gaji[]
-  spkDetail         SPKDetail[]
-  spk               SPK[]               @relation("SPKCreatedBy")
-  spkFieldReport    SPKFieldReport[]
-  approvedBAP       BAP[]               @relation("BAPApprovedBy") // semua BAP yang di-approve user ini
   approvedInvoices  Invoice[]           @relation("InvoiceApprovedBy")
+  user              User?               @relation(fields: [userId], references: [id])
+  LedgerLine        LedgerLine[]
+  PurchaseExecution PurchaseExecution[]
   purchaseOrder     PurchaseOrder[]
   purchaseRequest   PurchaseRequest[]   @relation("PRCreatedBy")
   requestedPRs      PurchaseRequest[]   @relation("PRRequestedBy")
-  uangMuka          UangMuka[]
-  sentTransfers     StockTransfer[]     @relation("Sender")
-  receivedTransfers StockTransfer[]     @relation("Receiver")
-  PurchaseExecution PurchaseExecution[]
-  // Relasi ke Saldo Saat Ini (Summary)
+  spk               SPK[]               @relation("SPKCreatedBy")
+  spkDetail         SPKDetail[]
+  spkFieldReport    SPKFieldReport[]
   balances          StaffBalance[]
-  // Relasi ke Histori Transaksi (Ledger)
   ledgerEntries     StaffLedger[]
-  LedgerLine        LedgerLine[]
+  receivedTransfers StockTransfer[]     @relation("Receiver")
+  sentTransfers     StockTransfer[]     @relation("Sender")
+  teamKaryawan      TeamKaryawan[]
+  uangMuka          UangMuka[]
 }
 
 model Gaji {
   id         String   @id @default(cuid())
-  karyawan   Karyawan @relation(fields: [karyawanId], references: [id])
   karyawanId String
-  periode    DateTime // misal: awal bulan
+  periode    DateTime
   gajiPokok  Float
   tunjangan  Float?
   potongan   Float?
-  total      Float // otomatis hitung: gajiPokok + tunjangan - potongan
+  total      Float
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  karyawan   Karyawan @relation(fields: [karyawanId], references: [id])
 }
 
 model Customer {
-  id            String  @id @default(uuid())
-  code          String  @unique // kode unik customer, misal: CUST-001
-  name          String // nama customer
-  email         String? @unique // kontak email utama
-  phone         String? // nomor telepon utama
-  address       String? // alamat lengkap
-  branch        String? // cabang jika ada
-  city          String? // kota
-  province      String? // provinsi
-  postalCode    String? // kode pos
-  taxNumber     String? // NPWP / Tax ID
-  companyType   String? // tipe perusahaan: PT, CV, dll
-  contactPerson String? // nama PIC utama
-  picPhone      String? // kontak PIC
-  picEmail      String? // email PIC
-  notes         String? // catatan tambahan
-
-  isActive  Boolean  @default(true) // aktif/nonaktif
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  projects    Project[]
-  salesOrders SalesOrder[]
-  quotations  Quotation[]
-  LedgerLine  LedgerLine[]
+  id            String       @id @default(uuid())
+  code          String       @unique
+  name          String
+  email         String?      @unique
+  phone         String?
+  address       String?
+  branch        String?
+  city          String?
+  province      String?
+  postalCode    String?
+  taxNumber     String?
+  companyType   String?
+  contactPerson String?
+  picPhone      String?
+  picEmail      String?
+  notes         String?
+  isActive      Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  LedgerLine    LedgerLine[]
+  projects      Project[]
+  quotations    Quotation[]
+  salesOrders   SalesOrder[]
 }
 
 model Project {
-  id         String   @id @default(uuid())
-  customerId String
-  name       String
-  location   String?
-  createdAt  DateTime @default(now())
-
+  id              String            @id @default(uuid())
+  customerId      String
+  name            String
+  location        String?
+  createdAt       DateTime          @default(now())
+  LedgerLine      LedgerLine[]
   customer        Customer          @relation(fields: [customerId], references: [id])
-  salesOrders     SalesOrder[]
-  rab             RAB[]
-  // --- Relasi Tambahan Sesuai Pembahasan Kita ---
-  spks            SPK[] // <-- Proyek ini memiliki banyak SPK
-  budgets         ProjectBudget[] // <-- Anggaran untuk proyek ini
-  expenses        ProjectExpense[] // <-- Semua biaya tercatat di proyek ini
+  budgets         ProjectBudget[]
+  expenses        ProjectExpense[]
   purchaseOrder   PurchaseOrder[]
   purchaseRequest PurchaseRequest[]
-  LedgerLine      LedgerLine[]
+  rab             RAB[]
+  spks            SPK[]
+  salesOrders     SalesOrder[]
 }
 
 model Product {
-  id          String      @id @default(uuid())
-  code        String      @unique // Kode produk/SKU
-  name        String // Nama produk
-  description String? // Deskripsi produk
-  type        ProductType // Material, Jasa, Alat, dll
-
-  purchaseUnit String // Satuan pembelian (misal: roll)
-  storageUnit  String // Satuan penyimpanan (misal: roll)
-  usageUnit    String // Satuan penggunaan (misal: meter)
-
-  conversionToStorage Decimal // Dari pembelian → penyimpanan (contoh: 1 karton = 10 roll → 10)
-  conversionToUsage   Decimal // Dari penyimpanan → penggunaan (contoh: 1 roll = 100 meter → 100)
-
-  isConsumable Boolean @default(true) // True jika habis pakai
-  isActive     Boolean @default(true)
-  image        String? // URL gambar produk
-  barcode      String? // Optional barcode / QR
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Optional kategori
-  categoryId String?
-  category   ProductCategory? @relation(fields: [categoryId], references: [id])
-
-  // =============================================================
-  // RELASI KE COA DITAMBAHKAN DI SINI
-  // =============================================================
-
-  // Akun untuk mencatat PENDAPATAN saat produk ini dijual
-  revenueAccountId String?
-  revenueAccount   ChartOfAccounts? @relation("ProductRevenue", fields: [revenueAccountId], references: [id])
-
-  // Akun untuk mencatat HARGA POKOK (HPP) saat produk ini dijual
-  cogsAccountId String? // COGS = Cost of Goods Sold
-  cogsAccount   ChartOfAccounts? @relation("ProductCogs", fields: [cogsAccountId], references: [id])
-
-  // Akun untuk mencatat nilai PERSEDIAAN (ASET) saat produk ini dibeli
-  inventoryAccountId String?
-  inventoryAccount   ChartOfAccounts? @relation("ProductInventory", fields: [inventoryAccountId], references: [id])
-
-  // Relasi
-  salesOrderItems           SalesOrderItem[]
+  id                        String                      @id @default(uuid())
+  code                      String                      @unique
+  name                      String
+  description               String?
+  purchaseUnit              String
+  storageUnit               String
+  usageUnit                 String
+  conversionToStorage       Decimal
+  conversionToUsage         Decimal
+  isConsumable              Boolean                     @default(true)
+  isActive                  Boolean                     @default(true)
+  image                     String?
+  barcode                   String?
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime                    @updatedAt
+  categoryId                String?
+  type                      ProductType
+  cogsAccountId             String?
+  inventoryAccountId        String?
+  revenueAccountId          String?
+  GoodsReceiptItem          GoodsReceiptItem[]
+  MaterialRequisitionItem   MaterialRequisitionItem[]
+  category                  ProductCategory?            @relation(fields: [categoryId], references: [id])
+  cogsAccount               ChartOfAccounts?            @relation("ProductCogs", fields: [cogsAccountId], references: [id])
+  inventoryAccount          ChartOfAccounts?            @relation("ProductInventory", fields: [inventoryAccountId], references: [id])
+  revenueAccount            ChartOfAccounts?            @relation("ProductRevenue", fields: [revenueAccountId], references: [id])
+  PurchaseOrderLine         PurchaseOrderLine[]
+  purchaseRequestDetail     PurchaseRequestDetail[]
   QuotationLines            QuotationLine[]
   rabDetail                 RABDetail[]
-  purchaseRequestDetail     PurchaseRequestDetail[]
   rincianPertanggungJawaban RincianPertanggungjawaban[]
+  salesOrderItems           SalesOrderItem[]
   stockBalances             StockBalance[]
   stockDetails              StockDetail[]
-  MaterialRequisitionItem   MaterialRequisitionItem[]
-  PurchaseOrderLine         PurchaseOrderLine[]
   StockOpnameItem           StockOpnameItem[]
   stockTransferItems        StockTransferItem[]
-  GoodsReceiptItem          GoodsReceiptItem[]
   SupplierInvoiceItem       SupplierInvoiceItem[]
 }
 
-enum OpnameType {
-  INITIAL // Untuk input saldo awal pertama kali
-  PERIODIC // Untuk pemeriksaan rutin (bulanan/tahunan)
-  AD_HOC // Untuk pengecekan mendadak/insidentil
-}
-
-enum OpnameStatus {
-  DRAFT // Masih input data, belum memotong stok
-  COMPLETED // Sudah dilock/disetujui, siap untuk di-adjust
-  ADJUSTED // Sudah selesai, angka stok di sistem sudah berubah
-  CANCELLED // Dibatalkan
-}
-
 model StockOpname {
-  id            String       @id @default(uuid())
-  nomorOpname   String       @unique // Contoh: SO-202501-001
-  tanggalOpname DateTime     @default(now())
-  type          OpnameType   @default(PERIODIC)
-  status        OpnameStatus @default(DRAFT)
-  keterangan    String? // Contoh: "Opname awal tahun 2025"
-
-  // Personil yang bertanggung jawab
-  petugasId String
-  petugas   User   @relation("OpnamePetugas", fields: [petugasId], references: [id])
-
-  // Lokasi Gudang (Jika ada multiple warehouse)
-  warehouseId String
-  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
-
-  items StockOpnameItem[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String            @id @default(uuid())
+  nomorOpname   String            @unique
+  tanggalOpname DateTime          @default(now())
+  type          OpnameType        @default(PERIODIC)
+  status        OpnameStatus      @default(DRAFT)
+  keterangan    String?
+  petugasId     String
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  warehouseId   String
+  petugas       User              @relation("OpnamePetugas", fields: [petugasId], references: [id])
+  warehouse     Warehouse         @relation(fields: [warehouseId], references: [id])
+  items         StockOpnameItem[]
 }
 
 model StockOpnameItem {
   id            String      @id @default(uuid())
   stockOpnameId String
+  productId     String
+  stokSistem    Decimal     @default(0) @db.Decimal(18, 4)
+  stokFisik     Decimal     @db.Decimal(18, 4)
+  selisih       Decimal     @db.Decimal(18, 4)
+  hargaSatuan   Decimal     @db.Decimal(19, 2)
+  totalNilai    Decimal     @db.Decimal(19, 2)
+  catatanItem   String?
+  createdAt     DateTime    @default(now())
+  product       Product     @relation(fields: [productId], references: [id])
   stockOpname   StockOpname @relation(fields: [stockOpnameId], references: [id], onDelete: Cascade)
-
-  productId String
-  product   Product @relation(fields: [productId], references: [id])
-
-  // Data Perhitungan
-  stokSistem Decimal @default(0) @db.Decimal(18, 4) // Angka di komputer saat ini
-  stokFisik  Decimal @db.Decimal(18, 4) // Angka hasil hitung di gudang
-  selisih    Decimal @db.Decimal(18, 4) // Otomatis: stokFisik - stokSistem
-
-  // Valuasi (Penting untuk saldo awal & audit keuangan)
-  hargaSatuan Decimal @db.Decimal(19, 2) // Harga modal per unit
-  totalNilai  Decimal @db.Decimal(19, 2) // hargaSatuan * stokFisik
-
-  catatanItem String? // Alasan selisih (misal: barang rusak/patah)
-
-  createdAt DateTime @default(now())
 }
 
 model Warehouse {
-  id       String  @id @default(uuid())
-  code     String  @unique // Contoh: WH-JKT-01
-  name     String // Contoh: Gudang Utama, Gudang Proyek A
-  address  String?
-  isMain   Boolean @default(false) // Penanda gudang utama
-  isActive Boolean @default(true)
-  isWip    Boolean @default(false) // Penanda gudang WIP  
-
-  // Integrasi Accounting: Akun Persediaan untuk gudang ini
-  inventoryAccountId String?
-  inventoryAccount   ChartOfAccounts? @relation("WarehouseInventory", fields: [inventoryAccountId], references: [id])
-
-  // --- Relasi Balik ---
+  id                   String                @id @default(uuid())
+  code                 String                @unique
+  name                 String
+  address              String?
+  isMain               Boolean               @default(false)
+  isActive             Boolean               @default(true)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  isWip                Boolean               @default(false)
+  inventoryAccountId   String?
+  goodsReceipts        GoodsReceipt[]
+  materialRequisitions MaterialRequisition[]
+  PurchaseOrder        PurchaseOrder[]
   stockBalances        StockBalance[]
   stockDetails         StockDetail[]
   stockOpnames         StockOpname[]
-  materialRequisitions MaterialRequisition[]
-  goodsReceipts        GoodsReceipt[]
   transfersFrom        StockTransfer[]       @relation("FromWarehouse")
   transfersTo          StockTransfer[]       @relation("ToWarehouse")
-
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  PurchaseOrder PurchaseOrder[]
+  inventoryAccount     ChartOfAccounts?      @relation("WarehouseInventory", fields: [inventoryAccountId], references: [id])
 }
 
-// ==========================================
-// 2. STOCK BALANCE (Monthly Snapshot)
-// ==========================================
 model StockBalance {
-  id        String  @id @default(uuid())
-  productId String
-  product   Product @relation(fields: [productId], references: [id])
-
-  period DateTime
-
-  stockAwal Decimal @default(0) @db.Decimal(18, 4)
-  stockIn   Decimal @default(0) @db.Decimal(18, 4)
-  stockOut  Decimal @default(0) @db.Decimal(18, 4)
-
-  justIn  Decimal @default(0) @db.Decimal(18, 4)
-  justOut Decimal @default(0) @db.Decimal(18, 4)
-
-  // =============================================================
-  // PERBAIKAN UNTUK AVAILABLE STOCK
-  // =============================================================
-
-  // onPR: Permintaan yang masuk tapi belum tentu disetujui
-  onPR Decimal @default(0) @db.Decimal(18, 4)
-
-  // bookedStock: Barang yang sudah di-APPROVE di PR/MR tapi belum keluar gudang
-  // Inilah yang mengurangi "Available Stock" Anda secara riil
-  bookedStock Decimal @default(0) @db.Decimal(18, 4)
-
-  // stockAkhir: JUMLAH FISIK yang ada di rak gudang saat ini
-  stockAkhir Decimal @default(0) @db.Decimal(18, 4)
-
-  // availableStock: Secara teknis adalah (stockAkhir - bookedStock)
-  // Anda bisa menyimpannya di sini (denormalisasi) atau menghitungnya via logic
-  availableStock Decimal @default(0) @db.Decimal(18, 4)
-
-  // =============================================================
-
+  id             String    @id @default(uuid())
+  productId      String
+  period         DateTime
+  stockAwal      Decimal   @default(0) @db.Decimal(18, 4)
+  stockIn        Decimal   @default(0) @db.Decimal(18, 4)
+  stockOut       Decimal   @default(0) @db.Decimal(18, 4)
+  justIn         Decimal   @default(0) @db.Decimal(18, 4)
+  justOut        Decimal   @default(0) @db.Decimal(18, 4)
+  onPR           Decimal   @default(0) @db.Decimal(18, 4)
+  bookedStock    Decimal   @default(0) @db.Decimal(18, 4)
+  stockAkhir     Decimal   @default(0) @db.Decimal(18, 4)
+  availableStock Decimal   @default(0) @db.Decimal(18, 4)
   inventoryValue Decimal   @default(0) @db.Decimal(18, 2)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
   warehouseId    String
+  product        Product   @relation(fields: [productId], references: [id])
   warehouse      Warehouse @relation(fields: [warehouseId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
   @@unique([productId, warehouseId, period])
 }
 
-// ==========================================
-// 3. STOCK DETAIL (Transaction & FIFO Ledger)
-// ==========================================
 model StockDetail {
-  id        String  @id @default(uuid())
-  productId String
-  product   Product @relation(fields: [productId], references: [id])
-
-  // Audit Trail: Running Balance
-  stockAwalSnapshot  Decimal @db.Decimal(18, 4)
-  stockAkhirSnapshot Decimal @db.Decimal(18, 4)
-
-  // Data Transaksi
-  transQty  Decimal @db.Decimal(18, 4) // Qty Nota
-  transUnit String // Satuan Nota
-  baseQty   Decimal @db.Decimal(18, 4) // Qty Satuan Terkecil
-
-  // FIFO LOGIC FIELDS
-  // Untuk transaksi IN: menyimpan berapa sisa barang dari batch ini yang belum keluar
-  residualQty     Decimal @default(0) @db.Decimal(18, 4)
-  isFullyConsumed Boolean @default(false) // True jika residualQty = 0
-
-  type   TransactionType
-  source SourceType
-
-  pricePerUnit Decimal @db.Decimal(18, 2)
-  referenceNo  String?
-  notes        String?
-
-  // Relasi Return (Tracing kembali ke pemakaian awal)
-  originalTransactionId String?
-  originalTransaction   StockDetail?  @relation("ReturnReference", fields: [originalTransactionId], references: [id])
-  returns               StockDetail[] @relation("ReturnReference")
-  warehouseId           String
-  warehouse             Warehouse     @relation(fields: [warehouseId], references: [id])
-
+  id                        String                   @id @default(uuid())
+  productId                 String
+  stockAwalSnapshot         Decimal                  @db.Decimal(18, 4)
+  stockAkhirSnapshot        Decimal                  @db.Decimal(18, 4)
+  transQty                  Decimal                  @db.Decimal(18, 4)
+  transUnit                 String
+  baseQty                   Decimal                  @db.Decimal(18, 4)
+  residualQty               Decimal                  @default(0) @db.Decimal(18, 4)
+  isFullyConsumed           Boolean                  @default(false)
+  type                      TransactionType
+  source                    SourceType
+  pricePerUnit              Decimal                  @db.Decimal(18, 2)
+  referenceNo               String?
+  notes                     String?
+  originalTransactionId     String?
   createdAt                 DateTime                 @default(now())
-  GoodsReceiptItem          GoodsReceiptItem?
-  MaterialRequisitionItem   MaterialRequisitionItem? @relation(fields: [materialRequisitionItemId], references: [id])
   materialRequisitionItemId String?
+  warehouseId               String
+  GoodsReceiptItem          GoodsReceiptItem?
   StockAllocation           StockAllocation[]
-}
-
-enum TransferStatus {
-  DRAFT
-  PENDING // Barang disiapkan di gudang asal
-  IN_TRANSIT // Barang dalam perjalanan
-  RECEIVED // Sudah sampai dan dikonfirmasi gudang tujuan
-  CANCELLED
+  MaterialRequisitionItem   MaterialRequisitionItem? @relation(fields: [materialRequisitionItemId], references: [id])
+  originalTransaction       StockDetail?             @relation("ReturnReference", fields: [originalTransactionId], references: [id])
+  returns                   StockDetail[]            @relation("ReturnReference")
+  product                   Product                  @relation(fields: [productId], references: [id])
+  warehouse                 Warehouse                @relation(fields: [warehouseId], references: [id])
 }
 
 model StockTransfer {
-  id             String         @id @default(uuid())
-  transferNumber String         @unique // Contoh: TR-202512-001
-  transferDate   DateTime       @default(now())
-  status         TransferStatus @default(DRAFT)
-  notes          String?
-
-  // Gudang Asal
+  id              String              @id @default(uuid())
+  transferNumber  String              @unique
+  transferDate    DateTime            @default(now())
+  status          TransferStatus      @default(DRAFT)
+  notes           String?
   fromWarehouseId String
-  fromWarehouse   Warehouse @relation("FromWarehouse", fields: [fromWarehouseId], references: [id])
-
-  // Gudang Tujuan
-  toWarehouseId String
-  toWarehouse   Warehouse @relation("ToWarehouse", fields: [toWarehouseId], references: [id])
-
-  // Personil
-  senderId   String // Yang mengirim
-  sender     Karyawan  @relation("Sender", fields: [senderId], references: [id])
-  receiverId String? // Yang menerima (diisi saat status RECEIVED)
-  receiver   Karyawan? @relation("Receiver", fields: [receiverId], references: [id])
-
-  items StockTransferItem[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  toWarehouseId   String
+  senderId        String
+  receiverId      String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  fromWarehouse   Warehouse           @relation("FromWarehouse", fields: [fromWarehouseId], references: [id])
+  receiver        Karyawan?           @relation("Receiver", fields: [receiverId], references: [id])
+  sender          Karyawan            @relation("Sender", fields: [senderId], references: [id])
+  toWarehouse     Warehouse           @relation("ToWarehouse", fields: [toWarehouseId], references: [id])
+  items           StockTransferItem[]
 }
 
 model StockTransferItem {
   id         String        @id @default(uuid())
   transferId String
+  productId  String
+  quantity   Decimal       @db.Decimal(18, 4)
+  unit       String
+  cogs       Decimal       @default(0) @db.Decimal(18, 2)
+  product    Product       @relation(fields: [productId], references: [id])
   transfer   StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+}
 
-  productId String
-  product   Product @relation(fields: [productId], references: [id])
+model GoodsReceipt {
+  id                 String             @id @default(uuid())
+  grNumber           String             @unique
+  receivedDate       DateTime?
+  vendorDeliveryNote String
+  vehicleNumber      String?
+  driverName         String?
+  purchaseOrderId    String?
+  receivedById       String
+  status             DocumentStatus     @default(COMPLETED)
+  notes              String?
+  warehouseId        String?
+  createdAt          DateTime           @default(now())
+  expectedDate       DateTime?
+  sourceType         SourceType         @default(PO)
+  PurchaseOrder      PurchaseOrder?     @relation(fields: [purchaseOrderId], references: [id])
+  receivedBy         User               @relation("GoodsReceiptReceivedBy", fields: [receivedById], references: [id])
+  Warehouse          Warehouse?         @relation(fields: [warehouseId], references: [id])
+  items              GoodsReceiptItem[]
+}
 
-  quantity Decimal @db.Decimal(18, 4)
-  unit     String // Satuan barang (Meter, Sak, dll)
+model GoodsReceiptItem {
+  id                      String                 @id @default(uuid())
+  goodsReceiptId          String
+  productId               String
+  qtyReceived             Decimal                @db.Decimal(18, 4)
+  unit                    String
+  stockDetailId           String?                @unique
+  purchaseRequestDetailId String?
+  purchaseOrderLineId     String?
+  qcNotes                 String?
+  qcStatus                QCStatus               @default(PENDING)
+  qtyPassed               Decimal                @db.Decimal(18, 4)
+  qtyPlanReceived         Decimal                @default(0) @db.Decimal(18, 4)
+  qtyRejected             Decimal                @default(0) @db.Decimal(18, 4)
+  status                  ItemStatus             @default(RECEIVED)
+  unitPrice               Decimal                @default(0) @db.Decimal(18, 2)
+  goodsReceipt            GoodsReceipt           @relation(fields: [goodsReceiptId], references: [id])
+  product                 Product                @relation(fields: [productId], references: [id])
+  purchaseOrderLine       PurchaseOrderLine?     @relation(fields: [purchaseOrderLineId], references: [id])
+  purchaseRequestDetail   PurchaseRequestDetail? @relation(fields: [purchaseRequestDetailId], references: [id])
+  stockDetail             StockDetail?           @relation(fields: [stockDetailId], references: [id])
+}
 
-  cogs Decimal @default(0) @db.Decimal(18, 2)
+model MaterialRequisition {
+  id              String                    @id @default(uuid())
+  mrNumber        String                    @unique
+  issuedDate      DateTime                  @default(now())
+  projectId       String?
+  requestedById   String
+  status          MRStatus                  @default(PENDING)
+  notes           String?
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+  warehouseId     String?
+  issuedById      String?
+  preparedById    String?
+  purchaseOrderId String?
+  qrToken         String                    @unique @default(cuid())
+  sourceType      SourceType                @default(PO)
+  PurchaseOrder   PurchaseOrder?            @relation(fields: [purchaseOrderId], references: [id])
+  Warehouse       Warehouse?                @relation(fields: [warehouseId], references: [id])
+  items           MaterialRequisitionItem[]
+}
 
-  // Opsi: Jika ingin melacak batch mana yang dipindahkan (FIFO)
-  // stockDetailId String?
+model MaterialRequisitionItem {
+  id                      String                 @id @default(uuid())
+  materialRequisitionId   String
+  purchaseRequestDetailId String?
+  productId               String
+  qtyIssued               Decimal                @db.Decimal(18, 4)
+  unit                    String
+  priceUnit               Decimal                @default(0) @db.Decimal(18, 2)
+  qtyRequested            Decimal                @db.Decimal(18, 4)
+  materialRequisition     MaterialRequisition    @relation(fields: [materialRequisitionId], references: [id], onDelete: Cascade)
+  product                 Product                @relation(fields: [productId], references: [id])
+  purchaseRequestDetail   PurchaseRequestDetail? @relation(fields: [purchaseRequestDetailId], references: [id])
+  stockAllocations        StockAllocation[]
+  StockDetail             StockDetail[]
+}
+
+model StockAllocation {
+  id            String                  @id @default(uuid())
+  mrItemId      String
+  stockDetailId String
+  qtyTaken      Decimal                 @db.Decimal(18, 4)
+  mrItem        MaterialRequisitionItem @relation(fields: [mrItemId], references: [id])
+  stockDetail   StockDetail             @relation(fields: [stockDetailId], references: [id])
+}
+
+model RAB {
+  id          String      @id @default(uuid())
+  projectId   String
+  name        String
+  description String?
+  total       Decimal     @default(0)
+  status      RABStatus   @default(DRAFT)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  createdById String?
+  createdBy   User?       @relation(fields: [createdById], references: [id])
+  project     Project     @relation(fields: [projectId], references: [id])
+  rabDetails  RABDetail[]
+}
+
+model RABDetail {
+  id          String      @id @default(uuid())
+  rabId       String
+  productId   String?
+  description String
+  qty         Decimal
+  unit        String
+  price       Decimal
+  subtotal    Decimal
+  costType    CostType    @default(MATERIAL)
+  notes       String?
+  categoryRab CategoryRAB @default(STRUCTURE)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  product     Product?    @relation(fields: [productId], references: [id])
+  rab         RAB         @relation(fields: [rabId], references: [id], onDelete: Cascade)
+
+  @@index([rabId])
+  @@index([categoryRab])
+  @@index([costType])
+}
+
+model ProductCategory {
+  id       String    @id @default(uuid())
+  name     String    @unique
+  products Product[]
+}
+
+model Quotation {
+  id              String                @id @default(uuid())
+  quotationNumber String                @unique
+  version         Int                   @default(1)
+  customerId      String
+  currency        String                @default("IDR")
+  exchangeRate    Decimal               @default(1.0)
+  status          QuotationStatus       @default(DRAFT)
+  validFrom       DateTime?
+  validUntil      DateTime?
+  paymentTermId   String?
+  subtotal        Decimal               @default(0)
+  discountType    DiscountType          @default(PERCENT)
+  discountValue   Decimal               @default(0)
+  taxInclusive    Boolean               @default(false)
+  taxTotal        Decimal               @default(0)
+  otherCharges    Decimal               @default(0)
+  total           Decimal               @default(0)
+  notes           String?
+  preparedBy      String?
+  approvedBy      String?
+  approvedAt      DateTime?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  salesOrderId    String?
+  quotationDate   DateTime              @default(now())
+  customer        Customer              @relation(fields: [customerId], references: [id])
+  paymentTerm     PaymentTerm?          @relation(fields: [paymentTermId], references: [id])
+  salesOrder      SalesOrder?           @relation(fields: [salesOrderId], references: [id])
+  approvals       QuotationApproval[]
+  attachments     QuotationAttachment[]
+  comments        QuotationComment[]
+  histories       QuotationHistory[]
+  lines           QuotationLine[]
+}
+
+model QuotationLine {
+  id                String       @id @default(uuid())
+  quotationId       String
+  lineNo            Int
+  lineType          LineType     @default(PRODUCT)
+  productId         String?
+  description       String?
+  qty               Decimal      @default(1)
+  uom               String?
+  unitPrice         Decimal      @default(0)
+  lineDiscountType  DiscountType @default(PERCENT)
+  lineDiscountValue Decimal      @default(0)
+  lineSubtotal      Decimal      @default(0)
+  taxId             String?
+  taxAmount         Decimal      @default(0)
+  lineTotal         Decimal      @default(0)
+  createdAt         DateTime     @default(now())
+  product           Product?     @relation(fields: [productId], references: [id])
+  quotation         Quotation    @relation(fields: [quotationId], references: [id])
+  tax               Tax?         @relation(fields: [taxId], references: [id])
+}
+
+model QuotationHistory {
+  id          String    @id @default(uuid())
+  quotationId String
+  version     Int
+  changedBy   String?
+  changeAt    DateTime  @default(now())
+  changeNote  String?
+  payload     Json
+  quotation   Quotation @relation(fields: [quotationId], references: [id])
+}
+
+model QuotationApproval {
+  id          String          @id @default(uuid())
+  quotationId String
+  approverId  String?
+  sequence    Int             @default(1)
+  status      QuotationStatus @default(REVIEW)
+  notes       String?
+  actedAt     DateTime?
+  quotation   Quotation       @relation(fields: [quotationId], references: [id])
+}
+
+model QuotationAttachment {
+  id          String    @id @default(uuid())
+  quotationId String
+  fileName    String
+  filePath    String
+  fileSize    Int?
+  uploadedBy  String?
+  uploadedAt  DateTime  @default(now())
+  quotation   Quotation @relation(fields: [quotationId], references: [id])
+}
+
+model QuotationComment {
+  id          String    @id @default(uuid())
+  quotationId String
+  commentedBy String?
+  comment     String
+  createdAt   DateTime  @default(now())
+  quotation   Quotation @relation(fields: [quotationId], references: [id])
+}
+
+model Tax {
+  id             String          @id @default(uuid())
+  code           String          @unique
+  name           String
+  description    String?
+  rate           Decimal
+  isInclusive    Boolean         @default(false)
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  quotationItems QuotationLine[]
+}
+
+model PaymentTerm {
+  id          String      @id @default(uuid())
+  code        String      @unique
+  name        String
+  description String?
+  dueDays     Int
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  quotations  Quotation[]
+}
+
+model SalesOrder {
+  id             String               @id @default(uuid())
+  soNumber       String               @unique
+  soDate         DateTime
+  customerId     String
+  projectId      String
+  userId         String
+  createdAt      DateTime             @default(now())
+  currency       String               @default("IDR")
+  discountTotal  Decimal              @default(0) @db.Decimal(18, 2)
+  grandTotal     Decimal              @default(0) @db.Decimal(18, 2)
+  notes          String?
+  status         OrderStatus          @default(DRAFT)
+  subtotal       Decimal              @default(0) @db.Decimal(18, 2)
+  taxTotal       Decimal              @default(0) @db.Decimal(18, 2)
+  updatedAt      DateTime             @updatedAt
+  type           OrderType
+  isTaxInclusive Boolean              @default(false)
+  bap            BAP[]
+  invoices       Invoice[]
+  LedgerLine     LedgerLine[]
+  quotation      Quotation[]
+  spk            SPK[]
+  customer       Customer             @relation(fields: [customerId], references: [id])
+  project        Project              @relation(fields: [projectId], references: [id])
+  user           User                 @relation("UserSalesOrders", fields: [userId], references: [id])
+  documents      SalesOrderDocument[]
+  items          SalesOrderItem[]
+  uangMuka       UangMuka[]
+
+  @@index([customerId, soDate])
+  @@index([status])
+  @@index([projectId])
+}
+
+model SalesOrderItem {
+  id           String           @id @default(uuid())
+  salesOrderId String
+  productId    String?
+  description  String?
+  qty          Decimal          @db.Decimal(18, 4)
+  unitPrice    Decimal          @db.Decimal(18, 2)
+  discount     Decimal          @default(0) @db.Decimal(18, 2)
+  itemType     ItemType         @default(PRODUCT)
+  lineTotal    Decimal          @default(0) @db.Decimal(18, 2)
+  name         String
+  taxRate      Decimal          @default(0) @db.Decimal(5, 2)
+  lineNo       Int
+  uom          String?
+  spkDetail    SPKDetail[]
+  fieldReports SPKFieldReport[] @relation("SPKDetailToFieldReport")
+  product      Product?         @relation(fields: [productId], references: [id], onDelete: Restrict)
+  salesOrder   SalesOrder       @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+
+  @@index([salesOrderId])
+  @@index([productId])
+}
+
+model SalesOrderDocument {
+  id           String     @id @default(uuid())
+  salesOrderId String
+  createdAt    DateTime   @default(now())
+  docDate      DateTime?
+  docNumber    String?
+  docType      DocType
+  fileUrl      String?
+  meta         Json?
+  salesOrder   SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+
+  @@index([salesOrderId, docType])
+}
+
+model TeamKaryawan {
+  id         String   @id @default(cuid())
+  teamId     String
+  karyawanId String
+  karyawan   Karyawan @relation(fields: [karyawanId], references: [id])
+  team       Team     @relation(fields: [teamId], references: [id])
+}
+
+model Team {
+  id            String          @id @default(cuid())
+  namaTeam      String
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  deskripsi     String?
+  purchaseOrder PurchaseOrder[]
+  spk           SPK[]
+  karyawan      TeamKaryawan[]
+}
+
+model SPK {
+  id              String            @id @default(uuid())
+  spkNumber       String            @unique
+  spkDate         DateTime          @default(now())
+  createdById     String
+  salesOrderId    String
+  teamId          String?
+  notes           String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  progress        Int?              @default(0)
+  spkStatus       Boolean           @default(false)
+  spkStatusClose  Boolean           @default(false)
+  projectId       String?
+  budget          ProjectBudget[]
+  expense         ProjectExpense[]
+  purchaseOrder   PurchaseOrder[]
+  purchaseRequest PurchaseRequest[]
+  createdBy       Karyawan          @relation("SPKCreatedBy", fields: [createdById], references: [id])
+  project         Project?          @relation(fields: [projectId], references: [id])
+  salesOrder      SalesOrder        @relation(fields: [salesOrderId], references: [id])
+  team            Team?             @relation(fields: [teamId], references: [id])
+  details         SPKDetail[]
+  spkFieldReport  SPKFieldReport[]
+  uangMuka        UangMuka[]
+}
+
+model SPKDetail {
+  id               String          @id @default(uuid())
+  spkId            String
+  karyawanId       String?
+  salesOrderItemId String?
+  lokasiUnit       String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  karyawan         Karyawan?       @relation(fields: [karyawanId], references: [id])
+  salesOrderItem   SalesOrderItem? @relation(fields: [salesOrderItemId], references: [id], onDelete: Restrict)
+  spk              SPK             @relation(fields: [spkId], references: [id], onDelete: Cascade)
+}
+
+model SPKFieldReport {
+  id         String                @id @default(uuid())
+  spkId      String
+  karyawanId String
+  type       ReportType            @default(PROGRESS)
+  note       String?
+  reportedAt DateTime              @default(now())
+  status     ReportStatus          @default(PENDING)
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+  progress   Int?                  @default(0)
+  soDetailId String?
+  karyawan   Karyawan              @relation(fields: [karyawanId], references: [id])
+  soDetail   SalesOrderItem?       @relation("SPKDetailToFieldReport", fields: [soDetailId], references: [id], onDelete: Restrict)
+  spk        SPK                   @relation(fields: [spkId], references: [id], onDelete: Cascade)
+  photos     SPKFieldReportPhoto[]
+}
+
+model SPKFieldReportPhoto {
+  id         String         @id @default(uuid())
+  reportId   String
+  imageUrl   String
+  caption    String?
+  uploadedBy String
+  uploadedAt DateTime       @default(now())
+  latitude   Float?
+  longitude  Float?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  report     SPKFieldReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+}
+
+model BAP {
+  id              String     @id @default(uuid())
+  bapNumber       String     @unique
+  bapDate         DateTime
+  salesOrderId    String
+  projectId       String
+  userId          String
+  workDescription String?
+  location        String?
+  status          BAPStatus  @default(DRAFT)
+  isApproved      Boolean    @default(false)
+  approvedAt      DateTime?
+  notes           String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  createdById     String
+  createdBy       User       @relation("BAPCreatedBy", fields: [createdById], references: [id])
+  salesOrder      SalesOrder @relation(fields: [salesOrderId], references: [id])
+  user            Karyawan   @relation("BAPApprovedBy", fields: [userId], references: [id])
+  photos          BAPPhoto[]
+
+  @@index([salesOrderId])
+  @@index([bapNumber])
+  @@index([status])
+}
+
+model BAPPhoto {
+  id        String        @id @default(uuid())
+  bapId     String
+  photoUrl  String
+  caption   String?
+  createdAt DateTime      @default(now())
+  category  PhotoCategory
+  source    String?
+  bap       BAP           @relation(fields: [bapId], references: [id], onDelete: Cascade)
+
+  @@index([bapId])
+  @@index([category])
+}
+
+model BankAccount {
+  id            String           @id @default(uuid())
+  bankName      String
+  accountNumber String           @unique
+  accountHolder String
+  branch        String?
+  isActive      Boolean          @default(true)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  accountCOAId  String?
+  accountCOA    ChartOfAccounts? @relation(fields: [accountCOAId], references: [id], onDelete: Cascade)
+  invoice       Invoice[]
+  payment       Payment[]
+}
+
+model Invoice {
+  id              String         @id @default(uuid())
+  invoiceNumber   String         @unique
+  invoiceDate     DateTime
+  salesOrderId    String?
+  currency        String         @default("IDR")
+  subtotal        Decimal        @default(0) @db.Decimal(18, 2)
+  discountTotal   Decimal        @default(0) @db.Decimal(18, 2)
+  taxTotal        Decimal        @default(0) @db.Decimal(18, 2)
+  grandTotal      Decimal        @default(0) @db.Decimal(18, 2)
+  notes           String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  approvalStatus  ApprovalStatus @default(PENDING)
+  approvedAt      DateTime?
+  approvedById    String?
+  balanceDue      Decimal        @default(0) @db.Decimal(18, 2)
+  createdById     String
+  dueDate         DateTime
+  exchangeRate    Decimal        @default(1) @db.Decimal(18, 6)
+  installmentType String         @default("FULL")
+  internalNotes   String?
+  paidTotal       Decimal        @default(0) @db.Decimal(18, 2)
+  paymentTerm     String?
+  rejectedById    String?
+  rejectedReason  String?
+  termsConditions String?
+  totalAmount     Decimal        @default(0) @db.Decimal(18, 2)
+  status          InvoiceStatus  @default(WAITING_APPROVAL)
+  bankAccountId   String?
+  installments    Installment[]
+  approvedBy      Karyawan?      @relation("InvoiceApprovedBy", fields: [approvedById], references: [id])
+  bankAccount     BankAccount?   @relation(fields: [bankAccountId], references: [id])
+  createdBy       User           @relation("InvoiceCreatedBy", fields: [createdById], references: [id])
+  salesOrder      SalesOrder?    @relation(fields: [salesOrderId], references: [id])
+  items           InvoiceItem[]
+  invoiceTax      InvoiceTax[]
+  payments        Payment[]
+
+  @@index([salesOrderId])
+  @@index([createdById])
+  @@index([status])
+  @@index([dueDate])
+  @@index([invoiceDate])
+}
+
+model InvoiceItem {
+  id              String  @id @default(uuid())
+  invoiceId       String
+  soItemId        String?
+  name            String
+  description     String?
+  uom             String?
+  qty             Decimal @db.Decimal(18, 4)
+  unitPrice       Decimal @db.Decimal(18, 2)
+  discount        Decimal @default(0) @db.Decimal(18, 2)
+  taxRate         Decimal @default(0) @db.Decimal(5, 2)
+  lineTotal       Decimal @default(0) @db.Decimal(18, 2)
+  discountPercent Decimal @default(0) @db.Decimal(5, 2)
+  itemCode        String?
+  netAmount       Decimal @default(0) @db.Decimal(18, 2)
+  taxAmount       Decimal @default(0) @db.Decimal(18, 2)
+  taxCode         String?
+  taxable         Boolean @default(true)
+  invoice         Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@index([itemCode])
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  invoiceId     String
+  payDate       DateTime
+  amount        Decimal       @db.Decimal(18, 2)
+  reference     String?
+  notes         String?
+  createdAt     DateTime      @default(now())
+  attachment    String?
+  currency      String        @default("IDR")
+  exchangeRate  Decimal       @default(1) @db.Decimal(18, 6)
+  installmentId String?
+  status        PaymentStatus @default(PENDING)
+  updatedAt     DateTime      @updatedAt
+  verified      Boolean       @default(false)
+  verifiedAt    DateTime?
+  verifiedById  String?
+  method        PaymentMethod
+  bankAccountId String?
+  bankAccount   BankAccount?  @relation(fields: [bankAccountId], references: [id])
+  installment   Installment?  @relation(fields: [installmentId], references: [id])
+  invoice       Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  verifiedBy    User?         @relation(fields: [verifiedById], references: [id])
+
+  @@index([invoiceId, payDate])
+  @@index([status])
+  @@index([reference])
+}
+
+model Installment {
+  id                String            @id @default(uuid())
+  invoiceId         String
+  installmentNumber Int
+  name              String
+  amount            Decimal           @db.Decimal(18, 2)
+  percentage        Decimal?          @db.Decimal(5, 2)
+  dueDate           DateTime
+  status            InstallmentStatus @default(PENDING)
+  paidAmount        Decimal           @default(0) @db.Decimal(18, 2)
+  balance           Decimal           @default(0) @db.Decimal(18, 2)
+  description       String?
+  conditions        String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  paidAt            DateTime?
+  invoice           Invoice           @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  payments          Payment[]
+
+  @@index([invoiceId])
+  @@index([dueDate])
+  @@index([status])
+}
+
+model InvoiceTax {
+  id            String  @id @default(uuid())
+  invoiceId     String
+  taxCode       String
+  taxRate       Decimal @db.Decimal(5, 2)
+  taxableAmount Decimal @db.Decimal(18, 2)
+  taxAmount     Decimal @db.Decimal(18, 2)
+  invoice       Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@index([taxCode])
+}
+
+model PurchaseRequest {
+  id                 String                  @id @default(uuid())
+  nomorPr            String                  @unique
+  tanggalPr          DateTime                @default(now())
+  keterangan         String?
+  status             PurchaseRequestStatus   @default(DRAFT)
+  projectId          String?
+  karyawanId         String
+  spkId              String?
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+  requestedById      String?
+  accountPencairanId String?
+  parentPrId         String?
+  sisaBudget         Decimal                 @default(0) @db.Decimal(19, 2)
+  purchaseOrders     PurchaseOrder[]
+  accountPencairan   ChartOfAccounts?        @relation(fields: [accountPencairanId], references: [id])
+  karyawan           Karyawan                @relation("PRCreatedBy", fields: [karyawanId], references: [id])
+  parentPr           PurchaseRequest?        @relation("PRParentChild", fields: [parentPrId], references: [id], onDelete: Restrict)
+  childPrs           PurchaseRequest[]       @relation("PRParentChild")
+  project            Project?                @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  requestedBy        Karyawan?               @relation("PRRequestedBy", fields: [requestedById], references: [id])
+  spk                SPK?                    @relation(fields: [spkId], references: [id])
+  details            PurchaseRequestDetail[]
+  staffLedgers       StaffLedger[]
+  uangMuka           UangMuka[]
+}
+
+model PurchaseRequestDetail {
+  id                        String                      @id @default(uuid())
+  purchaseRequestId         String
+  productId                 String
+  projectBudgetId           String?
+  jumlah                    Decimal                     @db.Decimal(10, 2)
+  satuan                    String
+  estimasiHargaSatuan       Decimal                     @db.Decimal(19, 2)
+  estimasiTotalHarga        Decimal                     @db.Decimal(19, 2)
+  catatanItem               String?
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime                    @updatedAt
+  sourceProduct             SourceProductType?
+  jumlahDipesan             Decimal?                    @default(0) @db.Decimal(18, 4)
+  jumlahTerpenuhi           Decimal?                    @default(0) @db.Decimal(18, 4)
+  stokTersediaSaatIni       Decimal?                    @default(0) @db.Decimal(18, 4)
+  warehouseAllocation       Json?
+  goodsReceiptItems         GoodsReceiptItem[]
+  MaterialRequisitionItem   MaterialRequisitionItem[]
+  PurchaseOrderLine         PurchaseOrderLine[]
+  product                   Product                     @relation(fields: [productId], references: [id])
+  projectBudget             ProjectBudget?              @relation(fields: [projectBudgetId], references: [id])
+  purchaseRequest           PurchaseRequest             @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
+  rincianPertanggungjawaban RincianPertanggungjawaban[]
+}
+
+model UangMuka {
+  id                  String               @id @default(uuid())
+  nomor               String               @unique
+  tanggalPengajuan    DateTime             @default(now())
+  tanggalPencairan    DateTime?
+  jumlah              Decimal              @db.Decimal(19, 2)
+  keterangan          String?
+  status              UangMukaStatus       @default(PENDING)
+  purchaseRequestId   String?
+  karyawanId          String
+  spkId               String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  buktiPencairanUrl   String?
+  metodePencairan     MetodePembayaran?
+  namaBankTujuan      String?
+  namaEwalletTujuan   String?
+  nomorRekeningTujuan String?
+  accountPencairanId  String?
+  salesOrderId        String?
+  pertanggungjawaban  Pertanggungjawaban[]
+  accountPencairan    ChartOfAccounts?     @relation(fields: [accountPencairanId], references: [id])
+  karyawan            Karyawan             @relation(fields: [karyawanId], references: [id])
+  purchaseRequest     PurchaseRequest?     @relation(fields: [purchaseRequestId], references: [id])
+  salesOrder          SalesOrder?          @relation(fields: [salesOrderId], references: [id])
+  spk                 SPK?                 @relation(fields: [spkId], references: [id])
+}
+
+model Pertanggungjawaban {
+  id                   String                      @id @default(uuid())
+  nomor                String                      @unique
+  tanggal              DateTime                    @default(now())
+  totalBiaya           Decimal                     @db.Decimal(19, 2)
+  sisaUangDikembalikan Decimal                     @db.Decimal(19, 2)
+  keterangan           String?
+  uangMukaId           String
+  createdAt            DateTime                    @default(now())
+  updatedAt            DateTime                    @updatedAt
+  status               StatusRincianPj             @default(PENDING)
+  uangMuka             UangMuka                    @relation(fields: [uangMukaId], references: [id])
+  details              RincianPertanggungjawaban[]
+}
+
+model RincianPertanggungjawaban {
+  id                      String                        @id @default(uuid())
+  pertanggungjawabanId    String
+  tanggalTransaksi        DateTime
+  keterangan              String
+  jumlah                  Decimal                       @db.Decimal(19, 2)
+  nomorBukti              String?
+  purchaseRequestDetailId String?
+  productId               String
+  createdAt               DateTime                      @default(now())
+  updatedAt               DateTime                      @updatedAt
+  jenisPembayaran         JenisPembayaran               @default(CASH)
+  fotoBukti               FotoBuktiPertanggungjawaban[]
+  pertanggungjawaban      Pertanggungjawaban            @relation(fields: [pertanggungjawabanId], references: [id], onDelete: Cascade)
+  product                 Product                       @relation(fields: [productId], references: [id])
+  purchaseRequestDetail   PurchaseRequestDetail?        @relation(fields: [purchaseRequestDetailId], references: [id])
+}
+
+model FotoBuktiPertanggungjawaban {
+  id          String                    @id @default(uuid())
+  rincianPjId String
+  url         String
+  keterangan  String?
+  createdAt   DateTime                  @default(now())
+  rincianPj   RincianPertanggungjawaban @relation(fields: [rincianPjId], references: [id], onDelete: Cascade)
+}
+
+model ProjectBudget {
+  id          String                  @id @default(uuid())
+  description String
+  amount      Decimal                 @db.Decimal(18, 2)
+  issueDate   DateTime
+  projectId   String
+  spkId       String?
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  status      BudgetStatus            @default(DRAFT)
+  project     Project                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  spk         SPK?                    @relation(fields: [spkId], references: [id])
+  prDetails   PurchaseRequestDetail[]
+
+  @@index([projectId])
+}
+
+model ProjectExpense {
+  id                String          @id @default(uuid())
+  expenseDate       DateTime
+  description       String
+  amount            Decimal         @db.Decimal(18, 2)
+  receiptUrl        String?
+  projectId         String
+  spkId             String?
+  paidFromAccountId String
+  expenseAccountId  String
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  journalEntryId    String?         @unique
+  status            ExpenseStatus   @default(DRAFT)
+  supplierId        String?
+  expenseAccount    ChartOfAccounts @relation("ExpenseCOA", fields: [expenseAccountId], references: [id])
+  journalEntry      JournalEntry?   @relation(fields: [journalEntryId], references: [id])
+  paidFromAccount   ChartOfAccounts @relation("PaidFromCOA", fields: [paidFromAccountId], references: [id])
+  project           Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  spk               SPK?            @relation(fields: [spkId], references: [id])
+  supplier          Supplier?       @relation(fields: [supplierId], references: [id])
+
+  @@index([projectId])
+  @@index([expenseDate])
+  @@index([spkId])
+}
+
+model TaxRate {
+  id          String            @id @default(uuid())
+  name        String            @unique
+  rate        Decimal
+  isActive    Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  coaAccounts ChartOfAccounts[]
+  LedgerLine  LedgerLine[]
+}
+
+model ChartOfAccounts {
+  id                   String                 @id @default(uuid())
+  code                 String                 @unique
+  name                 String
+  description          String?
+  type                 CoaType
+  normalBalance        CoaNormalBalance
+  postingType          CoaPostingType         @default(POSTING)
+  cashflowType         CoaCashflowType        @default(NONE)
+  status               CoaStatus              @default(ACTIVE)
+  isReconcilable       Boolean                @default(false)
+  defaultCurrency      String                 @default("IDR")
+  parentId             String?
+  taxRateId            String?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  bankAccount          BankAccount[]
+  parent               ChartOfAccounts?       @relation("CoaHierarchy", fields: [parentId], references: [id])
+  children             ChartOfAccounts[]      @relation("CoaHierarchy")
+  taxRate              TaxRate?               @relation(fields: [taxRateId], references: [id])
+  fundTransferFee      FundTransfer[]         @relation("FundTransferFee")
+  fundTransferSource   FundTransfer[]         @relation("FundTransferSource")
+  fundTransferDest     FundTransfer[]         @relation("FundTransferDestination")
+  GeneralLedgerSummary GeneralLedgerSummary[]
+  journalLines         JournalEntryLine[]
+  LedgerLine           LedgerLine[]
+  openingBalanceDetail OpeningBalanceDetail[]
+  paymentVoucher       PaymentVoucher[]
+  productsAsCogs       Product[]              @relation("ProductCogs")
+  productsAsInventory  Product[]              @relation("ProductInventory")
+  productsAsRevenue    Product[]              @relation("ProductRevenue")
+  expenseAccount       ProjectExpense[]       @relation("ExpenseCOA")
+  paidFromAccount      ProjectExpense[]       @relation("PaidFromCOA")
+  purchaseRequests     PurchaseRequest[]
+  Reconciliation       Reconciliation[]
+  systemAccounts       SystemAccount[]
+  TrialBalance         TrialBalance[]
+  uangMuka             UangMuka[]
+  warehouses           Warehouse[]            @relation("WarehouseInventory")
+}
+
+model JournalEntry {
+  id               String             @id @default(uuid())
+  transactionDate  DateTime
+  description      String
+  sourceDocument   String?
+  sourceDocumentId String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  lines            JournalEntryLine[]
+  Ledger           Ledger[]
+  paymentVoucher   PaymentVoucher?
+  projectExpense   ProjectExpense?
+  sipplierInvoice  SupplierInvoice?
+  supplierInvoice  Supplier[]         @relation("JournalEntryToSupplier")
+
+  @@index([transactionDate])
+  @@index([sourceDocument, sourceDocumentId])
+}
+
+model JournalEntryLine {
+  id             String          @id @default(uuid())
+  journalEntryId String
+  coaId          String
+  debit          Decimal         @default(0) @db.Decimal(18, 2)
+  credit         Decimal         @default(0) @db.Decimal(18, 2)
+  description    String?
+  account        ChartOfAccounts @relation(fields: [coaId], references: [id])
+  parent         JournalEntry    @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+
+  @@index([journalEntryId])
+  @@index([coaId])
+}
+
+model Supplier {
+  id                 String                @id @default(uuid())
+  code               String                @unique
+  name               String
+  status             SupplierStatus        @default(ACTIVE)
+  email              String?               @unique
+  phone              String?
+  website            String?
+  billingAddress     String?
+  shippingAddress    String?
+  npwp               String?               @unique
+  isTaxable          Boolean               @default(false)
+  termOfPaymentId    String?
+  supplierCategoryId String?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  onWip              Boolean               @default(false)
+  LedgerLine         LedgerLine[]
+  payments           PaymentVoucher[]
+  projectExpenses    ProjectExpense[]
+  purchaseOrders     PurchaseOrder[]
+  supplierCategory   SupplierCategory?     @relation(fields: [supplierCategoryId], references: [id])
+  termOfPayment      TermOfPayment?        @relation(fields: [termOfPaymentId], references: [id])
+  bankAccounts       SupplierBankAccount[]
+  contacts           SupplierContact[]
+  supplierInvoices   SupplierInvoice[]
+  journalEntry       JournalEntry[]        @relation("JournalEntryToSupplier")
+
+  @@index([name])
+  @@index([status])
+}
+
+model SupplierContact {
+  id         String   @id @default(uuid())
+  name       String
+  position   String?
+  email      String?
+  phone      String?
+  isPrimary  Boolean  @default(false)
+  supplierId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@index([supplierId])
+}
+
+model SupplierBankAccount {
+  id                String   @id @default(uuid())
+  bankName          String
+  accountHolderName String
+  accountNumber     String
+  branch            String?
+  isPrimary         Boolean  @default(false)
+  supplierId        String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  supplier          Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@index([supplierId])
+}
+
+model SupplierCategory {
+  id          String     @id @default(uuid())
+  name        String     @unique
+  description String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  suppliers   Supplier[]
+}
+
+model TermOfPayment {
+  id          String     @id @default(uuid())
+  name        String     @unique
+  days        Int        @default(0)
+  description String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  suppliers   Supplier[]
+}
+
+model PurchaseOrder {
+  id                   String                   @id @default(uuid())
+  poNumber             String                   @unique
+  orderDate            DateTime
+  expectedDeliveryDate DateTime?
+  status               PurchaseOrderStatus      @default(DRAFT)
+  supplierId           String
+  projectId            String?
+  orderedById          String
+  subtotal             Decimal                  @default(0) @db.Decimal(18, 2)
+  taxAmount            Decimal                  @default(0) @db.Decimal(18, 2)
+  totalAmount          Decimal                  @default(0) @db.Decimal(18, 2)
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+  paymentTerm          PaymentTermPurchaseOrder @default(COD)
+  purchaseRequestId    String?
+  requestRevisi        Int                      @default(0)
+  sPKId                String?
+  teamId               String?
+  warehouseId          String
+  sisaBudget           Decimal                  @default(0) @db.Decimal(19, 2)
+  goodsReceipts        GoodsReceipt[]
+  materialRequisitions MaterialRequisition[]
+  PurchaseExecution    PurchaseExecution[]
+  orderedBy            Karyawan                 @relation(fields: [orderedById], references: [id])
+  project              Project?                 @relation(fields: [projectId], references: [id])
+  PurchaseRequest      PurchaseRequest?         @relation(fields: [purchaseRequestId], references: [id])
+  SPK                  SPK?                     @relation(fields: [sPKId], references: [id])
+  supplier             Supplier                 @relation(fields: [supplierId], references: [id])
+  team                 Team?                    @relation(fields: [teamId], references: [id])
+  warehouse            Warehouse                @relation(fields: [warehouseId], references: [id])
+  lines                PurchaseOrderLine[]
+  supplierInvoices     SupplierInvoice[]
+}
+
+model PurchaseOrderLine {
+  id                     String                 @id @default(uuid())
+  description            String
+  quantity               Decimal                @default(0) @db.Decimal(18, 4)
+  unitPrice              Decimal                @default(0) @db.Decimal(18, 2)
+  totalAmount            Decimal                @default(0) @db.Decimal(18, 2)
+  poId                   String
+  prDetailId             String?
+  productId              String
+  receivedQuantity       Decimal                @default(0) @db.Decimal(18, 4)
+  checkMatch             Boolean                @default(false)
+  checkPurchaseExecution Boolean                @default(false)
+  purchasedQuantity      Decimal                @default(0) @db.Decimal(18, 4)
+  qtyActual              Decimal                @default(0) @db.Decimal(18, 4)
+  remainingQuantity      Decimal                @default(0) @db.Decimal(18, 4)
+  unitPriceActual        Decimal                @default(0) @db.Decimal(18, 2)
+  notGr                  Boolean                @default(false)
+  grItems                GoodsReceiptItem[]
+  purchaseOrder          PurchaseOrder          @relation(fields: [poId], references: [id], onDelete: Cascade)
+  prDetail               PurchaseRequestDetail? @relation(fields: [prDetailId], references: [id])
+  product                Product                @relation(fields: [productId], references: [id])
+  receiptItems           ReceiptItem[]
+}
+
+model PurchaseExecution {
+  id            String                  @id @default(uuid())
+  poId          String
+  executorId    String
+  executionDate DateTime                @default(now())
+  status        PurchaseExecutionStatus @default(IN_PROGRESS)
+  totalSpent    Decimal                 @default(0) @db.Decimal(18, 2)
+  notes         String?
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+  executor      Karyawan                @relation(fields: [executorId], references: [id])
+  purchaseOrder PurchaseOrder           @relation(fields: [poId], references: [id])
+  receipts      PurchaseReceipt[]
+}
+
+model PurchaseReceipt {
+  id            String            @id @default(uuid())
+  receiptNumber String?
+  storeName     String?
+  receiptDate   DateTime
+  totalAmount   Decimal           @db.Decimal(18, 2)
+  paymentMethod PaymentMethod     @default(CASH)
+  executionId   String
+  ledgerId      String?
+  createdAt     DateTime          @default(now())
+  execution     PurchaseExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  ledger        Ledger?           @relation(fields: [ledgerId], references: [id])
+  items         ReceiptItem[]
+  photos        ReceiptPhoto[]
+}
+
+model ReceiptPhoto {
+  id            String           @id @default(uuid())
+  receiptId     String
+  receiptItemId String?
+  photoUrl      String
+  photoType     ReceiptPhotoType @default(BON)
+  createdAt     DateTime         @default(now())
+  receipt       PurchaseReceipt  @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  receiptItem   ReceiptItem?     @relation(fields: [receiptItemId], references: [id])
+}
+
+model ReceiptItem {
+  id           String             @id @default(uuid())
+  receiptId    String
+  poLineId     String?
+  isAdditional Boolean            @default(false)
+  productName  String
+  quantity     Decimal            @db.Decimal(18, 4)
+  unit         String
+  unitPrice    Decimal            @db.Decimal(18, 2)
+  totalPrice   Decimal            @db.Decimal(18, 2)
+  storeName    String?
+  notes        String?
+  createdAt    DateTime           @default(now())
+  poLine       PurchaseOrderLine? @relation(fields: [poLineId], references: [id])
+  receipt      PurchaseReceipt    @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  photos       ReceiptPhoto[]
+}
+
+model SupplierInvoice {
+  id                 String                @id @default(uuid())
+  invoiceNumber      String
+  invoiceDate        DateTime
+  dueDate            DateTime
+  status             SupplierInvoiceStatus @default(DRAFT)
+  supplierId         String
+  purchaseOrderId    String?
+  subtotal           Decimal               @db.Decimal(18, 2)
+  taxAmount          Decimal               @default(0) @db.Decimal(18, 2)
+  totalAmount        Decimal               @db.Decimal(18, 2)
+  amountPaid         Decimal               @default(0) @db.Decimal(18, 2)
+  journalEntryId     String?               @unique
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  notes              String?
+  paymentAllocations PaymentAllocation[]
+  journalEntry       JournalEntry?         @relation(fields: [journalEntryId], references: [id])
+  purchaseOrder      PurchaseOrder?        @relation(fields: [purchaseOrderId], references: [id])
+  supplier           Supplier              @relation(fields: [supplierId], references: [id])
+  items              SupplierInvoiceItem[]
+
+  @@unique([supplierId, invoiceNumber])
+}
+
+model SupplierInvoiceItem {
+  id                  String          @id @default(uuid())
+  supplierInvoiceId   String
+  productId           String
+  productName         String
+  poLineId            String?
+  goodsReceivedItemId String?
+  quantity            Decimal         @db.Decimal(18, 4)
+  unitPrice           Decimal         @db.Decimal(18, 2)
+  totalPrice          Decimal         @db.Decimal(18, 2)
+  priceVariance       Decimal         @default(0) @db.Decimal(18, 2)
+  createdAt           DateTime        @default(now())
+  product             Product         @relation(fields: [productId], references: [id])
+  supplierInvoice     SupplierInvoice @relation(fields: [supplierInvoiceId], references: [id], onDelete: Cascade)
+}
+
+model SupplierPayment {
+  id            String              @id @default(uuid())
+  paymentNumber String              @unique
+  paymentDate   DateTime            @default(now())
+  amount        Decimal             @db.Decimal(18, 2)
+  paymentMethod PaymentMethod
+  bankAccountId String?
+  notes         String?
+  createdAt     DateTime            @default(now())
+  allocations   PaymentAllocation[]
+}
+
+model PaymentAllocation {
+  id                String          @id @default(uuid())
+  paymentVoucherId  String
+  supplierInvoiceId String
+  amount            Decimal         @db.Decimal(18, 2)
+  supplierPaymentId String
+  paymentVoucher    PaymentVoucher  @relation(fields: [paymentVoucherId], references: [id])
+  supplierInvoice   SupplierInvoice @relation(fields: [supplierInvoiceId], references: [id])
+  supplierPayment   SupplierPayment @relation(fields: [supplierPaymentId], references: [id])
+
+  @@unique([paymentVoucherId, supplierInvoiceId, supplierPaymentId])
+}
+
+model PaymentVoucher {
+  id                String                @id @default(uuid())
+  voucherNumber     String                @unique
+  paymentDate       DateTime
+  paymentMethod     SupplierPaymentMethod
+  amount            Decimal               @db.Decimal(18, 2)
+  notes             String?
+  supplierId        String
+  paidFromAccountId String
+  journalEntryId    String?               @unique
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  Ledger            Ledger[]
+  allocations       PaymentAllocation[]
+  journalEntry      JournalEntry?         @relation(fields: [journalEntryId], references: [id])
+  paidFromAccount   ChartOfAccounts       @relation(fields: [paidFromAccountId], references: [id])
+  supplier          Supplier              @relation(fields: [supplierId], references: [id])
+}
+
+model StaffBalance {
+  id         String         @id @default(uuid())
+  karyawanId String
+  category   LedgerCategory
+  totalIn    Decimal        @default(0) @db.Decimal(15, 2)
+  totalOut   Decimal        @default(0) @db.Decimal(15, 2)
+  amount     Decimal        @default(0) @db.Decimal(15, 2)
+  updatedAt  DateTime       @updatedAt
+  karyawan   Karyawan       @relation(fields: [karyawanId], references: [id])
+
+  @@unique([karyawanId, category])
+}
+
+model StaffLedger {
+  id                String                     @id @default(uuid())
+  karyawanId        String
+  tanggal           DateTime                   @default(now())
+  keterangan        String
+  saldoAwal         Decimal                    @default(0) @db.Decimal(15, 2)
+  debit             Decimal                    @default(0) @db.Decimal(15, 2)
+  kredit            Decimal                    @default(0) @db.Decimal(15, 2)
+  saldo             Decimal                    @db.Decimal(15, 2)
+  category          LedgerCategory
+  type              TransactionStafBalanceType
+  purchaseRequestId String?
+  refId             String?
+  createdBy         String?
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @default(now()) @updatedAt
+  karyawan          Karyawan                   @relation(fields: [karyawanId], references: [id])
+  purchaseRequest   PurchaseRequest?           @relation(fields: [purchaseRequestId], references: [id])
+}
+
+model Ledger {
+  id               String            @id @default(uuid())
+  ledgerNumber     String            @unique
+  referenceNumber  String?
+  referenceType    LedgerEntryType
+  transactionDate  DateTime
+  postingDate      DateTime
+  description      String
+  notes            String?
+  periodId         String
+  status           LedgerStatus      @default(DRAFT)
+  currency         String            @default("IDR")
+  exchangeRate     Float             @default(1.0)
+  createdBy        String
+  postedBy         String?
+  postedAt         DateTime?
+  voidBy           String?
+  voidAt           DateTime?
+  voidReason       String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  journalEntryId   String?
+  paymentVoucherId String?
+  fundTransfer     FundTransfer?
+  journalEntry     JournalEntry?     @relation(fields: [journalEntryId], references: [id])
+  paymentVoucher   PaymentVoucher?   @relation(fields: [paymentVoucherId], references: [id])
+  period           AccountingPeriod  @relation(fields: [periodId], references: [id])
+  ledgerLines      LedgerLine[]
+  receipts         PurchaseReceipt[]
+
+  @@index([transactionDate])
+  @@index([postingDate])
+  @@index([periodId])
+  @@index([status])
+}
+
+model LedgerLine {
+  id                   String               @id @default(uuid())
+  ledgerId             String
+  coaId                String
+  debitAmount          Float                @default(0)
+  creditAmount         Float                @default(0)
+  currency             String               @default("IDR")
+  localAmount          Float
+  foreignCurrency      String?
+  foreignAmount        Float?
+  exchangeRate         Float                @default(1.0)
+  projectId            String?
+  customerId           String?
+  supplierId           String?
+  karyawanId           String?
+  description          String?
+  reference            String?
+  lineNumber           Int
+  reconciliationStatus ReconciliationStatus @default(UNRECONCILED)
+  reconciledDate       DateTime?
+  reconciledBy         String?
+  bankStatementRef     String?
+  taxAmount            Float                @default(0)
+  taxRateId            String?
+  taxInclusive         Boolean              @default(false)
+  isAllocated          Boolean              @default(false)
+  allocationId         String?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  salesOrderId         String?
+  coa                  ChartOfAccounts      @relation(fields: [coaId], references: [id])
+  customer             Customer?            @relation(fields: [customerId], references: [id])
+  karyawan             Karyawan?            @relation(fields: [karyawanId], references: [id])
+  ledger               Ledger               @relation(fields: [ledgerId], references: [id], onDelete: Cascade)
+  project              Project?             @relation(fields: [projectId], references: [id])
+  salesOrder           SalesOrder?          @relation(fields: [salesOrderId], references: [id])
+  supplier             Supplier?            @relation(fields: [supplierId], references: [id])
+  taxRate              TaxRate?             @relation(fields: [taxRateId], references: [id])
+  ReconciliationItem   ReconciliationItem[]
+
+  @@unique([ledgerId, lineNumber])
+  @@index([ledgerId])
+  @@index([coaId])
+  @@index([reconciliationStatus])
+  @@index([projectId])
+  @@index([customerId])
+  @@index([supplierId])
+}
+
+model AccountingPeriod {
+  id                   String                 @id @default(uuid())
+  periodCode           String                 @unique
+  periodName           String
+  startDate            DateTime
+  endDate              DateTime
+  fiscalYear           Int
+  quarter              Int
+  isClosed             Boolean                @default(false)
+  closedAt             DateTime?
+  closedBy             String?
+  reopenAt             DateTime?
+  reopenBy             String?
+  reopenReason         String?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  financialReports     FinancialReport[]
+  fundTransfers        FundTransfer[]
+  GeneralLedgerSummary GeneralLedgerSummary[]
+  ledgers              Ledger[]
+  Reconciliation       Reconciliation[]
+  TrialBalance         TrialBalance[]
+
+  @@index([fiscalYear])
+  @@index([startDate, endDate])
+}
+
+model TrialBalance {
+  id            String           @id @default(uuid())
+  periodId      String
+  coaId         String
+  openingDebit  Float            @default(0)
+  openingCredit Float            @default(0)
+  periodDebit   Float            @default(0)
+  periodCredit  Float            @default(0)
+  endingDebit   Float            @default(0)
+  endingCredit  Float            @default(0)
+  ytdDebit      Float            @default(0)
+  ytdCredit     Float            @default(0)
+  currency      String           @default("IDR")
+  calculatedAt  DateTime
+  coa           ChartOfAccounts  @relation(fields: [coaId], references: [id])
+  period        AccountingPeriod @relation(fields: [periodId], references: [id])
+
+  @@unique([periodId, coaId])
+  @@index([periodId])
+  @@index([coaId])
+}
+
+model GeneralLedgerSummary {
+  id               String           @id @default(uuid())
+  coaId            String
+  periodId         String
+  date             DateTime
+  openingBalance   Float            @default(0)
+  debitTotal       Float            @default(0)
+  creditTotal      Float            @default(0)
+  closingBalance   Float            @default(0)
+  transactionCount Int              @default(0)
+  currency         String           @default("IDR")
+  coa              ChartOfAccounts  @relation(fields: [coaId], references: [id])
+  period           AccountingPeriod @relation(fields: [periodId], references: [id])
+
+  @@unique([coaId, periodId, date])
+  @@index([coaId, date])
+}
+
+model Reconciliation {
+  id                   String               @id @default(uuid())
+  reconciliationNumber String               @unique
+  coaId                String
+  periodId             String
+  startDate            DateTime
+  endDate              DateTime
+  bookBalance          Float
+  bookCurrency         String               @default("IDR")
+  statementBalance     Float
+  statementDate        DateTime
+  statementRef         String
+  reconciledBalance    Float
+  difference           Float
+  status               ReconciliationStatus @default(PENDING)
+  description          String?
+  notes                String?
+  preparedBy           String
+  preparedAt           DateTime
+  reviewedBy           String?
+  reviewedAt           DateTime?
+  approvedBy           String?
+  approvedAt           DateTime?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  coa                  ChartOfAccounts      @relation(fields: [coaId], references: [id])
+  period               AccountingPeriod     @relation(fields: [periodId], references: [id])
+  reconciliationItems  ReconciliationItem[]
+
+  @@index([coaId])
+  @@index([periodId])
+  @@index([status])
+}
+
+model ReconciliationItem {
+  id                String         @id @default(uuid())
+  reconciliationId  String
+  ledgerLineId      String
+  transactionAmount Float
+  transactionDate   DateTime
+  statementAmount   Float?
+  statementDate     DateTime?
+  isCleared         Boolean        @default(false)
+  clearedDate       DateTime?
+  description       String?
+  notes             String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  ledgerLine        LedgerLine     @relation(fields: [ledgerLineId], references: [id])
+  reconciliation    Reconciliation @relation(fields: [reconciliationId], references: [id], onDelete: Cascade)
+
+  @@unique([reconciliationId, ledgerLineId])
+  @@index([reconciliationId])
+  @@index([ledgerLineId])
+}
+
+model FinancialReport {
+  id                  String                   @id @default(uuid())
+  reportNumber        String                   @unique
+  reportTypeFinancial ReportTypeFinancial
+  periodId            String
+  title               String
+  generatedAt         DateTime
+  generatedBy         String
+  currency            String                   @default("IDR")
+  filePath            String?
+  fileFormat          String?
+  templateId          String?
+  parameters          Json?
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+  period              AccountingPeriod         @relation(fields: [periodId], references: [id])
+  reportSections      FinancialReportSection[]
+
+  @@index([periodId])
+  @@index([reportTypeFinancial])
+}
+
+model FinancialReportSection {
+  id              String                   @id @default(uuid())
+  reportId        String
+  sectionCode     String
+  sectionName     String
+  sequence        Int
+  level           Int                      @default(0)
+  amount          Float                    @default(0)
+  calculationType CalculationType
+  formula         String?
+  parentId        String?
+  parent          FinancialReportSection?  @relation("ReportSectionHierarchy", fields: [parentId], references: [id])
+  children        FinancialReportSection[] @relation("ReportSectionHierarchy")
+  report          FinancialReport          @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId])
+  @@index([sectionCode])
+}
+
+model SystemAccount {
+  id          String          @id @default(uuid())
+  key         String          @unique
+  description String?
+  coaId       String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  coa         ChartOfAccounts @relation(fields: [coaId], references: [id])
+}
+
+model OpeningBalance {
+  id          String                 @id @default(uuid())
+  asOfDate    DateTime
+  description String
+  isPosted    Boolean                @default(false)
+  postedAt    DateTime?
+  createdAt   DateTime               @default(now())
+  details     OpeningBalanceDetail[]
+}
+
+model OpeningBalanceDetail {
+  id               String          @id @default(uuid())
+  openingBalanceId String
+  accountId        String
+  debit            Decimal         @default(0)
+  credit           Decimal         @default(0)
+  account          ChartOfAccounts @relation(fields: [accountId], references: [id])
+  openingBalance   OpeningBalance  @relation(fields: [openingBalanceId], references: [id])
+}
+
+model FundTransfer {
+  id            String             @id @default(uuid())
+  transferNo    String             @unique
+  transferDate  DateTime           @default(now())
+  amount        Decimal            @db.Decimal(20, 2)
+  feeAmount     Decimal            @default(0) @db.Decimal(20, 2)
+  totalAmount   Decimal            @db.Decimal(20, 2)
+  fromAccountId String
+  toAccountId   String
+  feeAccountId  String?
+  referenceNo   String?
+  notes         String?
+  status        FundTransferStatus @default(POSTED)
+  ledgerId      String?            @unique
+  periodId      String?
+  createdById   String
+  approvedById  String?
+  approvedAt    DateTime?
+  voidedById    String?
+  voidedAt      DateTime?
+  voidReason    String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  approvedBy    User?              @relation("FundTransferApprover", fields: [approvedById], references: [id])
+  createdBy     User               @relation("FundTransferCreator", fields: [createdById], references: [id])
+  feeAccount    ChartOfAccounts?   @relation("FundTransferFee", fields: [feeAccountId], references: [id])
+  fromAccount   ChartOfAccounts    @relation("FundTransferSource", fields: [fromAccountId], references: [id])
+  ledger        Ledger?            @relation(fields: [ledgerId], references: [id])
+  period        AccountingPeriod?  @relation(fields: [periodId], references: [id])
+  toAccount     ChartOfAccounts    @relation("FundTransferDestination", fields: [toAccountId], references: [id])
+  voidedBy      User?              @relation("FundTransferVoider", fields: [voidedById], references: [id])
+
+  @@index([transferDate])
+  @@index([status])
+  @@index([fromAccountId])
+  @@index([toAccountId])
+  @@index([createdById])
+}
+
+enum AuthProvider {
+  credentials
+  google
+}
+
+enum UserRole {
+  super
+  admin
+  pic
+  user
+}
+
+enum OpnameType {
+  INITIAL
+  PERIODIC
+  AD_HOC
+}
+
+enum OpnameStatus {
+  DRAFT
+  ADJUSTED
+  CANCELLED
+  COMPLETED
+}
+
+enum TransferStatus {
+  DRAFT
+  PENDING
+  IN_TRANSIT
+  RECEIVED
+  CANCELLED
 }
 
 enum TransactionType {
@@ -647,77 +2025,12 @@ enum SourceType {
   TRANSFER
 }
 
-// 1. HEADER: Dokumen Penerimaan Barang
-model GoodsReceipt {
-  id           String    @id @default(uuid())
-  grNumber     String    @unique // Contoh: GRN/2025/12/001
-  receivedDate DateTime?
-  expectedDate DateTime?
-
-  // Referensi Dokumen Fisik
-  vendorDeliveryNote String // Nomor Surat Jalan Vendor
-  vehicleNumber      String? // No Polisi Kendaraan
-  driverName         String?
-
-  // Hubungan ke Purchase Order (PO)
-  purchaseOrderId String?
-  // purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
-
-  sourceType SourceType @default(PO)
-
-  items GoodsReceiptItem[]
-
-  receivedById  String // User ID yang menerima
-  receivedBy    User           @relation("GoodsReceiptReceivedBy", fields: [receivedById], references: [id])
-  status        DocumentStatus @default(COMPLETED)
-  notes         String?
-  Warehouse     Warehouse?     @relation(fields: [warehouseId], references: [id])
-  warehouseId   String?
-  PurchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
-  createdAt     DateTime       @default(now())
-}
-
-// 2. DETAIL: Item yang diterima
-model GoodsReceiptItem {
-  id             String       @id @default(uuid())
-  goodsReceiptId String
-  goodsReceipt   GoodsReceipt @relation(fields: [goodsReceiptId], references: [id])
-
-  productId String
-  product   Product    @relation(fields: [productId], references: [id])
-  status    ItemStatus @default(RECEIVED)
-
-  qtyPlanReceived Decimal @default(0) @db.Decimal(18, 4) // Planned qty from PO
-  qtyReceived     Decimal @db.Decimal(18, 4) // Actual qty received
-  unit            String // Satuan saat diterima (misal: Roll)
-
-  // HASIL QC CHECK
-  qtyPassed   Decimal @db.Decimal(18, 4) // Jumlah yang masuk stok
-  qtyRejected Decimal @default(0) @db.Decimal(18, 4) // Jumlah yang dikembalikan/rusak
-  unitPrice   Decimal @default(0) @db.Decimal(18, 2) // Unit price at time of receipt
-
-  qcStatus QCStatus @default(PENDING)
-  qcNotes  String? // Alasan reject (misal: besi berkarat, semen membatu)
-
-  // Link ke StockDetail untuk mencatat mutasi stok
-  stockDetailId String?      @unique
-  stockDetail   StockDetail? @relation(fields: [stockDetailId], references: [id])
-
-  // Relasi ke Purchase Request Detail (jika dari PR)
-  purchaseRequestDetailId String?
-  purchaseRequestDetail   PurchaseRequestDetail? @relation(fields: [purchaseRequestDetailId], references: [id])
-
-  // Relasi ke Purchase Order Line (jika dari PO)
-  purchaseOrderLineId String?
-  purchaseOrderLine   PurchaseOrderLine? @relation(fields: [purchaseOrderLineId], references: [id])
-}
-
 enum QCStatus {
-  PENDING // Belum diperiksa
-  ARRIVED // Sudah sampai
-  PASSED // Lulus semua
-  REJECTED // Ditolak semua
-  PARTIAL // Sebagian lulus, sebagian reject
+  PENDING
+  ARRIVED
+  PASSED
+  REJECTED
+  PARTIAL
 }
 
 enum ItemStatus {
@@ -728,150 +2041,41 @@ enum ItemStatus {
 
 enum DocumentStatus {
   DRAFT
-  ARRIVED
-  PASSED
   COMPLETED
   CANCELLED
-}
-
-// HEADER: Dokumen Pengeluaran Barang
-model MaterialRequisition {
-  id         String   @id @default(uuid())
-  mrNumber   String   @unique
-  qrToken    String   @unique @default(cuid()) // Token untuk Scan QRCode
-  issuedDate DateTime @default(now())
-
-  projectId     String?
-  requestedById String
-
-  // Status yang lebih detail untuk workflow gudang
-  status MRStatus @default(PENDING)
-  notes  String?  @db.Text
-
-  items       MaterialRequisitionItem[]
-  warehouseId String?
-  Warehouse   Warehouse?                @relation(fields: [warehouseId], references: [id])
-
-  // Tracking siapa yang scan/verifikasi
-  preparedById String? // Petugas Gudang yang nyiapin
-  issuedById   String? // Petugas yang scan saat serah terima
-
-  purchaseOrderId String?
-  PurchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
-
-  sourceType SourceType @default(PO)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model MaterialRequisitionItem {
-  id                    String              @id @default(uuid())
-  materialRequisitionId String
-  materialRequisition   MaterialRequisition @relation(fields: [materialRequisitionId], references: [id], onDelete: Cascade)
-
-  productId String
-  product   Product @relation(fields: [productId], references: [id])
-
-  qtyRequested Decimal @db.Decimal(18, 4) // Jumlah yang diminta di dokumen
-  qtyIssued    Decimal @db.Decimal(18, 4) // Jumlah yang benar-benar keluar saat scan
-  unit         String
-  priceUnit    Decimal @default(0) @db.Decimal(18, 2) // Unit price from FIFO stock
-
-  // Tabel perantara untuk mencatat pemotongan Batch FIFO secara detail
-  stockAllocations StockAllocation[]
-
-  purchaseRequestDetailId String?
-  purchaseRequestDetail   PurchaseRequestDetail? @relation(fields: [purchaseRequestDetailId], references: [id])
-  StockDetail             StockDetail[]
-}
-
-// TABEL BARU: Mencatat batch mana saja yang dipakai oleh MR ini
-model StockAllocation {
-  id       String                  @id @default(uuid())
-  mrItemId String
-  mrItem   MaterialRequisitionItem @relation(fields: [mrItemId], references: [id])
-
-  stockDetailId String
-  stockDetail   StockDetail @relation(fields: [stockDetailId], references: [id])
-
-  qtyTaken Decimal @db.Decimal(18, 4) // Berapa yang diambil dari batch ini
+  ARRIVED
+  PASSED
 }
 
 enum MRStatus {
   PENDING
   APPROVED
-  READY_TO_PICKUP // Barang sudah disiapkan petugas gudang
-  ISSUED // Sudah discan dan dibawa pengambil
+  ISSUED
   CANCELLED
-}
-
-model RAB {
-  id          String    @id @default(uuid())
-  projectId   String
-  name        String // Nama RAB atau judul dokumen
-  description String? // Deskripsi tambahan
-  total       Decimal   @default(0) // Total RAB, bisa dihitung dari detail
-  status      RABStatus @default(DRAFT)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  // Relasi
-  project    Project     @relation(fields: [projectId], references: [id])
-  rabDetails RABDetail[]
-
-  // Optional user pembuat
-  createdById String?
-  createdBy   User?   @relation(fields: [createdById], references: [id])
-}
-
-model RABDetail {
-  id          String      @id @default(uuid())
-  rabId       String
-  productId   String? // Bisa null jika item custom/jasa
-  description String // Nama item, misal "Upah Tukang", "Semen", dll.
-  categoryRab CategoryRAB @default(STRUCTURE) // Kategori pekerjaan
-  qty         Decimal
-  unit        String // Contoh: hari, jam, pcs, m2, m3
-  price       Decimal
-  subtotal    Decimal // qty * price
-  costType    CostType    @default(MATERIAL) // Jenis biaya
-  notes       String?
-
-  // Metadata
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relasi
-  rab     RAB      @relation(fields: [rabId], references: [id], onDelete: Cascade)
-  product Product? @relation(fields: [productId], references: [id])
-
-  @@index([rabId])
-  @@index([categoryRab])
-  @@index([costType])
+  READY_TO_PICKUP
 }
 
 enum CategoryRAB {
-  PRELIMINARY // Pekerjaan Pendahuluan
-  SITEPREP // Pekerjaan Persiapan
-  STRUCTURE // Pekerjaan Struktur
-  ARCHITECTURE // Pekerjaan Arsitektur
-  MEP // Mechanical, Electrical, Plumbing
-  FINISHING // Pekerjaan Finishing
-  LANDSCAPE // Pekerjaan Landscaping
-  EQUIPMENT // Peralatan dan Perlengkapan
-  OVERHEAD // Biaya Overhead & Profit
-  OTHER // Lain-lain
+  PRELIMINARY
+  SITEPREP
+  STRUCTURE
+  ARCHITECTURE
+  MEP
+  FINISHING
+  LANDSCAPE
+  EQUIPMENT
+  OVERHEAD
+  OTHER
 }
 
 enum CostType {
-  MATERIAL // Produk / bahan
-  LABOR // Tukang / pekerja / jasa
-  EQUIPMENT // Peralatan / sewa alat
-  SUBCON // Pekerjaan oleh subkontraktor
-  TRANSPORT // Transportasi / mobilisasi
-  OVERHEAD // Biaya overhead kantor, site, dll
-  OTHER // Biaya lain-lain, transport, dll
+  MATERIAL
+  LABOR
+  OTHER
+  EQUIPMENT
+  SUBCON
+  TRANSPORT
+  OVERHEAD
 }
 
 enum RABStatus {
@@ -881,31 +2085,22 @@ enum RABStatus {
 }
 
 enum ProductType {
-  Material // tetap
-  Jasa // tetap
-  Alat // tetap
-
-  FinishedGoods // Barang Jadi
-  SparePart // Suku Cadang
-  Consumable // Bahan Habis Pakai
-  Asset // Aset tetap
-  Rental // Penyewaan
-  Software // Produk digital
-  Packaging // Kemasan
-  MRO // Maintenance, Repair, Operation
-
-  Scrap // Barang bekas sisa produksi / customer
-  Refurbished // Barang bekas diperbaiki agar bisa dipakai
-  Return // Barang retur dari customer
+  Material
+  Jasa
+  Alat
+  FinishedGoods
+  SparePart
+  Consumable
+  Asset
+  Rental
+  Software
+  Packaging
+  MRO
+  Scrap
+  Refurbished
+  Return
 }
 
-model ProductCategory {
-  id       String    @id @default(uuid())
-  name     String    @unique
-  products Product[]
-}
-
-// ENUM
 enum QuotationStatus {
   DRAFT
   SENT
@@ -928,161 +2123,6 @@ enum DiscountType {
   AMOUNT
 }
 
-// MODEL
-model Quotation {
-  id              String   @id @default(uuid())
-  quotationNumber String   @unique // Nomor penawaran
-  quotationDate   DateTime @default(now())
-  version         Int      @default(1)
-
-  // Relasi ke customer
-  customerId String
-  customer   Customer @relation(fields: [customerId], references: [id])
-
-  currency     String  @default("IDR")
-  exchangeRate Decimal @default(1.0)
-
-  status QuotationStatus @default(DRAFT)
-
-  validFrom  DateTime?
-  validUntil DateTime?
-
-  paymentTermId String?
-  paymentTerm   PaymentTerm? @relation(fields: [paymentTermId], references: [id])
-
-  // Nilai perhitungan
-  subtotal      Decimal      @default(0)
-  discountType  DiscountType @default(PERCENT)
-  discountValue Decimal      @default(0) // bisa % atau amount
-  taxInclusive  Boolean      @default(false)
-  taxTotal      Decimal      @default(0)
-  otherCharges  Decimal      @default(0)
-  total         Decimal      @default(0)
-
-  notes        String?
-  preparedBy   String? // user id
-  approvedBy   String?
-  approvedAt   DateTime?
-  salesOrderId String?
-  salesOrder   SalesOrder? @relation(fields: [salesOrderId], references: [id])
-
-  // Relasi ke item
-  lines QuotationLine[]
-
-  // Relasi ke history/approval/attachment
-  histories   QuotationHistory[]
-  approvals   QuotationApproval[]
-  attachments QuotationAttachment[]
-  comments    QuotationComment[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model QuotationLine {
-  id          String    @id @default(uuid())
-  quotationId String
-  quotation   Quotation @relation(fields: [quotationId], references: [id])
-
-  lineNo   Int
-  lineType LineType @default(PRODUCT)
-
-  productId String?
-  product   Product? @relation(fields: [productId], references: [id])
-
-  description String?
-  qty         Decimal @default(1)
-  uom         String?
-  unitPrice   Decimal @default(0)
-
-  lineDiscountType  DiscountType @default(PERCENT)
-  lineDiscountValue Decimal      @default(0)
-
-  lineSubtotal Decimal @default(0)
-  taxId        String?
-  tax          Tax?    @relation(fields: [taxId], references: [id])
-  taxAmount    Decimal @default(0)
-  lineTotal    Decimal @default(0)
-
-  createdAt DateTime @default(now())
-}
-
-model QuotationHistory {
-  id          String    @id @default(uuid())
-  quotationId String
-  quotation   Quotation @relation(fields: [quotationId], references: [id])
-  version     Int
-  changedBy   String?
-  changeAt    DateTime  @default(now())
-  changeNote  String?
-  payload     Json
-}
-
-model QuotationApproval {
-  id          String          @id @default(uuid())
-  quotationId String
-  quotation   Quotation       @relation(fields: [quotationId], references: [id])
-  approverId  String?
-  sequence    Int             @default(1)
-  status      QuotationStatus @default(REVIEW)
-  notes       String?
-  actedAt     DateTime?
-}
-
-model QuotationAttachment {
-  id          String    @id @default(uuid())
-  quotationId String
-  quotation   Quotation @relation(fields: [quotationId], references: [id])
-  fileName    String
-  filePath    String
-  fileSize    Int?
-  uploadedBy  String?
-  uploadedAt  DateTime  @default(now())
-}
-
-model QuotationComment {
-  id          String    @id @default(uuid())
-  quotationId String
-  quotation   Quotation @relation(fields: [quotationId], references: [id])
-  commentedBy String?
-  comment     String
-  createdAt   DateTime  @default(now())
-}
-
-model Tax {
-  id          String  @id @default(uuid())
-  code        String  @unique // Misal: PPN, VAT10, PPh23
-  name        String // Nama pajak (misal: "PPN 11%", "PPh Pasal 23")
-  description String? // Penjelasan tambahan
-
-  rate        Decimal // Persentase (contoh: 11.00 untuk 11%)
-  isInclusive Boolean @default(false) // true = harga sudah termasuk pajak, false = harga belum termasuk pajak
-  isActive    Boolean @default(true)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relasi ke transaksi
-  quotationItems QuotationLine[] // Pajak di Penawaran Harga
-}
-
-model PaymentTerm {
-  id          String  @id @default(uuid())
-  code        String  @unique // Kode unik (misal: NET30, COD)
-  name        String // Nama syarat pembayaran (misal: "Net 30 Hari", "Cash On Delivery")
-  description String? // Penjelasan tambahan
-
-  dueDays  Int // Jangka waktu pembayaran (contoh: 30 → berarti jatuh tempo 30 hari setelah invoice)
-  isActive Boolean @default(true)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relasi ke transaksi
-  quotations Quotation[] // Bisa dipakai di Penawaran Harga
-}
-
-// ================== ENUMS ==================
 enum OrderType {
   REGULAR
   SUPPORT
@@ -1110,165 +2150,10 @@ enum ItemType {
 enum DocType {
   QUOTATION
   PO
-  SPK
   BAP
   INVOICE
   PAYMENT_RECEIPT
-}
-
-// ================== MODELS ==================
-model SalesOrder {
-  id             String      @id @default(uuid())
-  soNumber       String      @unique
-  soDate         DateTime
-  customerId     String
-  projectId      String // <-- wajib
-  userId         String
-  type           OrderType
-  status         OrderStatus @default(DRAFT)
-  isTaxInclusive Boolean     @default(false)
-
-  currency      String  @default("IDR")
-  subtotal      Decimal @default(0) @db.Decimal(18, 2)
-  discountTotal Decimal @default(0) @db.Decimal(18, 2)
-  taxTotal      Decimal @default(0) @db.Decimal(18, 2)
-  grandTotal    Decimal @default(0) @db.Decimal(18, 2)
-
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  customer Customer @relation(fields: [customerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  project  Project  @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Cascade) // <-- Restrict karena FK wajib
-  user     User     @relation("UserSalesOrders", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-
-  items      SalesOrderItem[]
-  documents  SalesOrderDocument[]
-  invoices   Invoice[]
-  spk        SPK[]
-  bap        BAP[]
-  quotation  Quotation[]
-  LedgerLine LedgerLine[]
-  uangMuka   UangMuka[]
-
-  @@index([customerId, soDate])
-  @@index([status])
-  @@index([projectId])
-}
-
-model SalesOrderItem {
-  id           String   @id @default(uuid())
-  salesOrderId String
-  lineNo       Int
-  itemType     ItemType @default(PRODUCT)
-
-  productId   String?
-  name        String
-  description String?
-  uom         String?
-  qty         Decimal @db.Decimal(18, 4)
-  unitPrice   Decimal @db.Decimal(18, 2)
-  discount    Decimal @default(0) @db.Decimal(18, 2)
-  taxRate     Decimal @default(0) @db.Decimal(5, 2)
-  lineTotal   Decimal @default(0) @db.Decimal(18, 2)
-
-  salesOrder   SalesOrder       @relation(fields: [salesOrderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  product      Product?         @relation(fields: [productId], references: [id], onDelete: Restrict, onUpdate: Cascade) // ← nullable
-  spkDetail    SPKDetail[]
-  fieldReports SPKFieldReport[] @relation("SPKDetailToFieldReport")
-
-  @@index([salesOrderId])
-  @@index([productId])
-}
-
-model SalesOrderDocument {
-  id           String    @id @default(uuid())
-  salesOrderId String
-  docType      DocType
-  docNumber    String?
-  docDate      DateTime?
-  fileUrl      String?
-  meta         Json?
-  createdAt    DateTime  @default(now())
-
-  salesOrder SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-
-  @@index([salesOrderId, docType])
-}
-
-model TeamKaryawan {
-  id         String   @id @default(cuid())
-  team       Team     @relation(fields: [teamId], references: [id])
-  teamId     String
-  karyawan   Karyawan @relation(fields: [karyawanId], references: [id])
-  karyawanId String
-}
-
-model Team {
-  id        String         @id @default(cuid())
-  namaTeam  String
-  deskripsi String?
-  karyawan  TeamKaryawan[]
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
-
-  spk           SPK[]
-  purchaseOrder PurchaseOrder[]
-}
-
-model SPK {
-  id        String   @id @default(uuid())
-  spkNumber String   @unique // Nomor SPK
-  spkDate   DateTime @default(now())
-  progress  Int?     @default(0)
-
-  // Yang memberi perintah
-  createdById String
-  createdBy   Karyawan @relation("SPKCreatedBy", fields: [createdById], references: [id])
-
-  // Relasi ke Sales Order
-  salesOrderId String
-  salesOrder   SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-
-  // Tim yang menerima perintah (optional, bisa juga langsung ke karyawan)
-  teamId String?
-  team   Team?   @relation(fields: [teamId], references: [id])
-
-  // --- Relasi Langsung ke Project Ditambahkan ---
-  projectId String? // <-- Kunci utama, agar SPK tahu 'payung'-nya
-  project   Project? @relation(fields: [projectId], references: [id])
-
-  // Detail SPK
-  details         SPKDetail[]
-  spkFieldReport  SPKFieldReport[]
-  budget          ProjectBudget[]
-  expense         ProjectExpense[]
-  purchaseOrder   PurchaseOrder[]
-  purchaseRequest PurchaseRequest[]
-  uangMuka        UangMuka[]
-
-  spkStatus      Boolean  @default(false)
-  spkStatusClose Boolean  @default(false)
-  notes          String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-}
-
-model SPKDetail {
-  id    String @id @default(uuid())
-  spkId String
-  spk   SPK    @relation(fields: [spkId], references: [id], onDelete: Cascade)
-
-  karyawanId String?
-  karyawan   Karyawan? @relation(fields: [karyawanId], references: [id])
-
-  salesOrderItemId String?
-  salesOrderItem   SalesOrderItem? @relation(fields: [salesOrderItemId], references: [id], onDelete: Restrict)
-
-  lokasiUnit String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  SPK
 }
 
 enum ReportType {
@@ -1280,91 +2165,6 @@ enum ReportStatus {
   PENDING
   APPROVED
   REJECTED
-}
-
-model SPKFieldReport {
-  id         String                @id @default(uuid())
-  spkId      String
-  spk        SPK                   @relation(fields: [spkId], references: [id], onDelete: Cascade)
-  karyawanId String
-  karyawan   Karyawan              @relation(fields: [karyawanId], references: [id])
-  type       ReportType            @default(PROGRESS)
-  note       String?
-  reportedAt DateTime              @default(now())
-  progress   Int?                  @default(0)
-  status     ReportStatus          @default(PENDING)
-  photos     SPKFieldReportPhoto[]
-  createdAt  DateTime              @default(now())
-  updatedAt  DateTime              @updatedAt
-
-  soDetailId String?
-  soDetail   SalesOrderItem? @relation("SPKDetailToFieldReport", fields: [soDetailId], references: [id], onDelete: Restrict)
-}
-
-model SPKFieldReportPhoto {
-  id         String         @id @default(uuid())
-  reportId   String
-  report     SPKFieldReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  imageUrl   String
-  caption    String?
-  uploadedBy String
-  uploadedAt DateTime       @default(now())
-  latitude   Float?
-  longitude  Float?
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
-}
-
-model BAP {
-  id           String   @id @default(uuid())
-  bapNumber    String   @unique
-  bapDate      DateTime
-  salesOrderId String
-  projectId    String
-
-  // Pembuat dokumen
-  createdById String
-  createdBy   User   @relation("BAPCreatedBy", fields: [createdById], references: [id], onDelete: Restrict, onUpdate: Cascade)
-
-  // Penanggung jawab / approver
-  userId String
-  user   Karyawan @relation("BAPApprovedBy", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-
-  // Informasi pekerjaan
-  workDescription String?
-  location        String?
-
-  // Status
-  status     BAPStatus @default(DRAFT)
-  isApproved Boolean   @default(false)
-  approvedAt DateTime?
-
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  salesOrder SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  photos     BAPPhoto[]
-
-  @@index([salesOrderId])
-  @@index([bapNumber])
-  @@index([status])
-}
-
-model BAPPhoto {
-  id        String        @id @default(uuid())
-  bapId     String
-  photoUrl  String
-  caption   String?
-  category  PhotoCategory // tambahan ini
-  createdAt DateTime      @default(now())
-  source    String? // "SPK" atau "MANUAL"
-
-  bap BAP @relation(fields: [bapId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-
-  @@index([bapId])
-  @@index([category])
 }
 
 enum PhotoCategory {
@@ -1380,18 +2180,17 @@ enum BAPStatus {
   APPROVED
 }
 
-// ENUM Definitions
 enum InvoiceStatus {
   DRAFT
   WAITING_APPROVAL
   APPROVED
-  POSTED // Invoice sudah di-posting ke General Ledger, siap terima pembayaran
   REJECTED
   UNPAID
   PARTIALLY_PAID
   PAID
   OVERDUE
   CANCELLED
+  POSTED
 }
 
 enum ApprovalStatus {
@@ -1427,349 +2226,46 @@ enum InstallmentStatus {
   PAID
 }
 
-// ================== (Opsional tapi direkomendasikan) ==================
-model BankAccount {
-  id            String  @id @default(uuid())
-  bankName      String
-  accountNumber String  @unique
-  accountHolder String
-  branch        String?
-  isActive      Boolean @default(true)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  accountCOAId String?
-  accountCOA   ChartOfAccounts? @relation(fields: [accountCOAId], references: [id], onDelete: Cascade)
-
-  invoice Invoice[]
-  payment Payment[]
-}
-
-model Invoice {
-  id            String   @id @default(uuid())
-  invoiceNumber String   @unique
-  invoiceDate   DateTime
-  dueDate       DateTime // Tanggal jatuh tempo
-  salesOrderId  String?
-  currency      String   @default("IDR")
-  exchangeRate  Decimal  @default(1) @db.Decimal(18, 6) // Untuk multi-currency
-  bankAccountId String?
-
-  // Termin informasi
-  paymentTerm     String? // NET_30, NET_60, dll
-  installmentType String  @default("FULL") // FULL, INSTALLMENT
-  totalAmount     Decimal @default(0) @db.Decimal(18, 2) // Total amount sebelum termin
-
-  // Breakdown amounts
-  subtotal      Decimal @default(0) @db.Decimal(18, 2)
-  discountTotal Decimal @default(0) @db.Decimal(18, 2)
-  taxTotal      Decimal @default(0) @db.Decimal(18, 2)
-  grandTotal    Decimal @default(0) @db.Decimal(18, 2)
-  paidTotal     Decimal @default(0) @db.Decimal(18, 2) // Total yang sudah dibayar
-  balanceDue    Decimal @default(0) @db.Decimal(18, 2) // Sisa yang harus dibayar
-
-  // Status workflow
-  status         InvoiceStatus  @default(WAITING_APPROVAL)
-  approvalStatus ApprovalStatus @default(PENDING)
-
-  // Tracking informasi
-  notes           String?
-  internalNotes   String? // Catatan internal untuk tim finance
-  termsConditions String? // Syarat dan ketentuan invoice
-
-  // User tracking
-  createdById    String
-  approvedById   String?
-  rejectedById   String?
-  rejectedReason String?
-
-  // Timestamps
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  approvedAt DateTime?
-
-  // Relations
-  salesOrder   SalesOrder?   @relation(fields: [salesOrderId], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  items        InvoiceItem[]
-  payments     Payment[]
-  installments Installment[] // Termin pembayaran
-  createdBy    User          @relation("InvoiceCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
-  approvedBy   Karyawan?     @relation("InvoiceApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
-  invoiceTax   InvoiceTax[]
-  bankAccount  BankAccount?  @relation(fields: [bankAccountId], references: [id])
-
-  @@index([salesOrderId])
-  @@index([createdById])
-  @@index([status])
-  @@index([dueDate])
-  @@index([invoiceDate])
-}
-
-model InvoiceItem {
-  id        String  @id @default(uuid())
-  invoiceId String
-  soItemId  String?
-
-  // Item details
-  itemCode    String? // Kode item dari master data
-  name        String
-  description String?
-  uom         String?
-
-  // Quantity dan harga
-  qty             Decimal @db.Decimal(18, 4)
-  unitPrice       Decimal @db.Decimal(18, 2)
-  discount        Decimal @default(0) @db.Decimal(18, 2)
-  discountPercent Decimal @default(0) @db.Decimal(5, 2)
-
-  // Tax information
-  taxRate Decimal @default(0) @db.Decimal(5, 2)
-  taxCode String? // PPN, PPH23, dll
-  taxable Boolean @default(true)
-
-  // Calculated fields
-  lineTotal Decimal @default(0) @db.Decimal(18, 2)
-  taxAmount Decimal @default(0) @db.Decimal(18, 2)
-  netAmount Decimal @default(0) @db.Decimal(18, 2)
-
-  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-
-  @@index([invoiceId])
-  @@index([itemCode])
-}
-
-model Payment {
-  id            String  @id @default(uuid())
-  invoiceId     String
-  installmentId String? // Link ke installment jika bayar termin
-
-  // Payment details
-  payDate      DateTime
-  amount       Decimal  @db.Decimal(18, 2)
-  currency     String   @default("IDR")
-  exchangeRate Decimal  @default(1) @db.Decimal(18, 6)
-
-  // Payment method
-  method        PaymentMethod // TRANSFER, CASH, CREDIT_CARD, VA, E_WALLET
-  bankAccountId String? // Rekening tujuan
-  reference     String? // No. bukti, VA number, settlement id
-
-  // Status
-  status       PaymentStatus @default(PENDING) // PENDING, COMPLETED, FAILED, CANCELLED
-  verified     Boolean       @default(false)
-  verifiedById String?
-  verifiedAt   DateTime?
-
-  // Additional info
-  notes      String?
-  attachment String? // URL bukti pembayaran
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  invoice     Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  installment Installment? @relation(fields: [installmentId], references: [id], onDelete: SetNull)
-  verifiedBy  User?        @relation(fields: [verifiedById], references: [id], onDelete: SetNull)
-  bankAccount BankAccount? @relation(fields: [bankAccountId], references: [id])
-
-  @@index([invoiceId, payDate])
-  @@index([status])
-  @@index([reference])
-}
-
-model Installment {
-  id                String @id @default(uuid())
-  invoiceId         String
-  installmentNumber Int // 1, 2, 3, ...
-  name              String // DP, After Installation, Final, dll
-
-  // Amount details
-  amount     Decimal  @db.Decimal(18, 2)
-  percentage Decimal? @db.Decimal(5, 2) // Persentase dari total
-
-  // Due date dan status
-  dueDate DateTime
-  status  InstallmentStatus @default(PENDING) // PENDING, DUE_SOON, OVERDUE, PARTIALLY_PAID, PAID
-
-  // Tracking pembayaran
-  paidAmount Decimal   @default(0) @db.Decimal(18, 2)
-  balance    Decimal   @default(0) @db.Decimal(18, 2)
-  paidAt     DateTime?
-
-  // Description
-  description String?
-  conditions  String? // Kondisi yang harus dipenuhi sebelum bayar
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  invoice  Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  payments Payment[]
-
-  @@index([invoiceId])
-  @@index([dueDate])
-  @@index([status])
-}
-
-// Tabel terpisah untuk tax summary jika diperlukan reporting detail
-model InvoiceTax {
-  id            String  @id @default(uuid())
-  invoiceId     String
-  taxCode       String // PPN, PPH23, dll
-  taxRate       Decimal @db.Decimal(5, 2)
-  taxableAmount Decimal @db.Decimal(18, 2)
-  taxAmount     Decimal @db.Decimal(18, 2)
-
-  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-
-  @@index([invoiceId])
-  @@index([taxCode])
-}
-
-///   AKUNTANSI MODEL ////
-
 enum ExpenseStatus {
-  DRAFT // Baru dibuat oleh tim, belum final
-  PENDING_APPROVAL // Sudah diajukan dan menunggu persetujuan manajer
-  APPROVED // Disetujui, siap untuk diproses pembayaran oleh tim keuangan
-  REJECTED // Ditolak, perlu ada revisi atau dibatalkan
-  PAID // Sudah dibayarkan/diganti oleh tim keuangan
-  CANCELLED // Dibatalkan oleh pengaju sebelum diproses
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  PAID
+  CANCELLED
 }
 
 enum BudgetStatus {
-  DRAFT // Masih dalam tahap perencanaan, belum diajukan
-  PROPOSED // Diajukan untuk persetujuan
-  APPROVED // Disetujui, dana siap dialokasikan
-  ACTIVE // Anggaran aktif dan dana sudah bisa digunakan untuk pengeluaran
-  CLOSED // Anggaran sudah selesai digunakan atau ditutup secara manual
-  CANCELLED // Dibatalkan
+  DRAFT
+  PROPOSED
+  APPROVED
+  ACTIVE
+  CLOSED
+  CANCELLED
 }
 
 enum PurchaseRequestStatus {
   DRAFT
-  REVISION_NEEDED
   SUBMITTED
   APPROVED
   REJECTED
   COMPLETED
-}
-
-// Model Inti 1: Purchase Request (Header)
-model PurchaseRequest {
-  id         String                @id @default(uuid())
-  nomorPr    String                @unique
-  tanggalPr  DateTime              @default(now())
-  keterangan String?
-  status     PurchaseRequestStatus @default(DRAFT)
-  sisaBudget Decimal               @default(0) @db.Decimal(19, 2)
-
-  projectId String?
-  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
-
-  // Relasi ke Karyawan yang input Data (admin/staff)
-  karyawanId String
-  karyawan   Karyawan @relation("PRCreatedBy", fields: [karyawanId], references: [id])
-
-  // Relasi ke Karyawan yang Request (requester/pemohon)
-  requestedById String?
-  requestedBy   Karyawan? @relation("PRRequestedBy", fields: [requestedById], references: [id])
-
-  // Relasi ke SPK tujuan
-  spkId String?
-  spk   SPK?    @relation(fields: [spkId], references: [id])
-
-  // Self-relation untuk Parent-Child PR
-  // PR SPK (spkId != null) WAJIB memiliki parentPrId yang merujuk ke PR UM (spkId = null)
-  parentPrId String?
-  parentPr   PurchaseRequest?  @relation("PRParentChild", fields: [parentPrId], references: [id], onDelete: Restrict)
-  childPrs   PurchaseRequest[] @relation("PRParentChild")
-
-  // Relasi ke detail permintaan
-  details            PurchaseRequestDetail[]
-  uangMuka           UangMuka[]
-  purchaseOrders     PurchaseOrder[]
-  // Memungkinkan satu PR menghasilkan satu atau lebih catatan ledger (misal: belanja bertahap)
-  staffLedgers       StaffLedger[]
-  accountPencairanId String?
-  accountPencairan   ChartOfAccounts?        @relation(fields: [accountPencairanId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  REVISION_NEEDED
 }
 
 enum SourceProductType {
-  PEMBELIAN_BARANG // Barang baru yang dibeli dari vendor
-  PENGAMBILAN_STOK // Barang yang diambil dari gudang
-  OPERATIONAL // Operasional
-  JASA_PEMBELIAN // Jasa eksternal (dari vendor)
-  JASA_INTERNAL // Jasa internal (tanpa biaya tambahan)
+  PEMBELIAN_BARANG
+  PENGAMBILAN_STOK
+  OPERATIONAL
+  JASA_PEMBELIAN
+  JASA_INTERNAL
 }
 
-// Model Inti 2: Purchase Request Detail (Line Items)
-model PurchaseRequestDetail {
-  id String @id @default(uuid())
-
-  // Relasi ke header PR
-  purchaseRequestId String
-  purchaseRequest   PurchaseRequest @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
-
-  // Relasi ke produk yang diminta
-  productId     String
-  product       Product            @relation(fields: [productId], references: [id])
-  sourceProduct SourceProductType? // Opsional: sumber produk jika dari vendor tertentu
-
-  // Relasi ke budget yang akan dipakai
-  projectBudgetId String?
-  projectBudget   ProjectBudget? @relation(fields: [projectBudgetId], references: [id])
-
-  jumlah                    Decimal                     @db.Decimal(10, 2)
-  satuan                    String
-  estimasiHargaSatuan       Decimal                     @db.Decimal(19, 2)
-  estimasiTotalHarga        Decimal                     @db.Decimal(19, 2)
-  catatanItem               String?
-  rincianPertanggungjawaban RincianPertanggungjawaban[]
-
-  // =============================================================
-  // PERBAIKAN: FIELD INTEGRASI STOK & TRACKING (ADD-ONS)
-  // =============================================================
-
-  // 1. Snapshot untuk Cek Stok (Audit Trail)
-  stokTersediaSaatIni Decimal? @default(0) @db.Decimal(18, 4)
-
-  // 2. Tracking Realisasi (Integrasi PO & Gudang)
-  jumlahDipesan   Decimal? @default(0) @db.Decimal(18, 4) // Qty di Purchase Order
-  jumlahTerpenuhi Decimal? @default(0) @db.Decimal(18, 4) // Qty di Goods Receipt / Mat. Requisition
-
-  // 3. Relasi Balik ke Dokumen Eksekusi (Virtual/Relation)
-  // Relasi ini tidak menambah kolom di tabel DB, jadi aman bagi data lama
-  // purchaseOrderItems       PurchaseOrderItem[]       // Link ke Pembelian
-  // materialRequisitionItems MaterialRequisitionItem[] // Link ke Pengambilan Gudang
-  goodsReceiptItems GoodsReceiptItem[] // Link ke Penerimaan Barang
-
-  // 4. Warehouse Allocation (Untuk PENGAMBILAN_STOK)
-  // Menyimpan JSON: [{ warehouseId, warehouseName, stock: number }]
-  warehouseAllocation Json?
-
-  // =============================================================
-
-  createdAt               DateTime                  @default(now())
-  updatedAt               DateTime                  @updatedAt
-  MaterialRequisitionItem MaterialRequisitionItem[]
-  PurchaseOrderLine       PurchaseOrderLine[]
-}
-
-// File: schema.prisma
-
-// ENUM untuk status Uang Muka
 enum UangMukaStatus {
-  PENDING // Pengajuan baru, menunggu pencairan
-  DISBURSED // Dana sudah dicairkan/diberikan
-  SETTLED // Sudah dipertanggungjawabkan
-  REJECTED // Pengajuan ditolak
+  PENDING
+  DISBURSED
+  SETTLED
+  REJECTED
 }
 
 enum MetodePembayaran {
@@ -1778,59 +2274,13 @@ enum MetodePembayaran {
   E_WALLET
 }
 
-// 1. MODEL POKOK: UANG MUKA / CASH ADVANCE
-model UangMuka {
-  id                String         @id @default(uuid())
-  nomor             String         @unique
-  tanggalPengajuan  DateTime       @default(now())
-  tanggalPencairan  DateTime?
-  jumlah            Decimal        @db.Decimal(19, 2)
-  keterangan        String?
-  status            UangMukaStatus @default(PENDING)
-  buktiPencairanUrl String?
-
-  // -- FIELD TAMBAHAN YANG DIUSULKAN --
-  metodePencairan     MetodePembayaran? // Nullable, karena baru diisi saat pencairan
-  namaBankTujuan      String? // e.g., "BCA"
-  nomorRekeningTujuan String? // e.g., "8812345678"
-  namaEwalletTujuan   String? // e.g., "GoPay" atau "OVO"
-
-  // Relasi ke PR sebagai justifikasi
-  purchaseRequestId String?
-  purchaseRequest   PurchaseRequest? @relation(fields: [purchaseRequestId], references: [id])
-
-  // Relasi ke Karyawan yang menerima dana
-  karyawanId String
-  karyawan   Karyawan @relation(fields: [karyawanId], references: [id])
-
-  // Relasi ke SPK untuk tracking per proyek
-  spkId String?
-  spk   SPK?    @relation(fields: [spkId], references: [id])
-
-  // Relasi ke Sales Order (Pondasi P&L)
-  salesOrderId String?
-  salesOrder   SalesOrder? @relation(fields: [salesOrderId], references: [id])
-
-  // Relasi ke COA (Kas/Bank) sumber pencairan
-  accountPencairanId String?
-  accountPencairan   ChartOfAccounts? @relation(fields: [accountPencairanId], references: [id])
-
-  // Relasi ke dokumen pertanggungjawaban yang menutup uang muka ini
-  pertanggungjawaban Pertanggungjawaban[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-// Enum untuk mendefinisikan status setiap item rincian
 enum StatusRincianPj {
-  PENDING // Menunggu verifikasi
-  APPROVED // Disetujui
-  REJECTED // Ditolak
-  REVISION // Perlu direvisi
+  PENDING
+  APPROVED
+  REJECTED
+  REVISION
 }
 
-// Enum untuk jenis pembayaran (opsional tapi sangat berguna)
 enum JenisPembayaran {
   CASH
   TRANSFER
@@ -1839,131 +2289,13 @@ enum JenisPembayaran {
   QRIS
 }
 
-// Dokumen untuk melaporkan penggunaan Uang Muka
-model Pertanggungjawaban {
-  id                   String          @id @default(uuid())
-  nomor                String          @unique // e.g., "PJ-2025-001"
-  tanggal              DateTime        @default(now())
-  totalBiaya           Decimal         @db.Decimal(19, 2)
-  sisaUangDikembalikan Decimal         @db.Decimal(19, 2)
-  keterangan           String?
-  status               StatusRincianPj @default(PENDING)
-
-  // Relasi one-to-one ke Uang Muka yang ditutup
-  uangMukaId String
-  uangMuka   UangMuka @relation(fields: [uangMukaId], references: [id])
-
-  // Relasi ke detail-detail biayanya
-  details RincianPertanggungjawaban[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-// 3. MODEL RINCIAN PERTANGGUNGJAWABAN (SETTLEMENT DETAIL)
-// Setiap baris/nota/kuitansi dari pengeluaran
-model RincianPertanggungjawaban {
-  id String @id @default(uuid())
-
-  // Relasi ke dokumen header pertanggungjawaban
-  pertanggungjawabanId String
-  pertanggungjawaban   Pertanggungjawaban @relation(fields: [pertanggungjawabanId], references: [id], onDelete: Cascade)
-
-  tanggalTransaksi DateTime
-  keterangan       String // e.g., "Pembelian ATK di Toko ABC"
-  jumlah           Decimal         @db.Decimal(19, 2)
-  nomorBukti       String? // Nomor nota/kuitansi
-  jenisPembayaran  JenisPembayaran @default(CASH)
-
-  // Opsional tapi sangat direkomendasikan:
-  // Relasi ke item PR asli untuk audit trail
-  purchaseRequestDetailId String?
-  purchaseRequestDetail   PurchaseRequestDetail? @relation(fields: [purchaseRequestDetailId], references: [id], onDelete: SetNull)
-
-  // Relasi ke produk/jasa untuk kategorisasi biaya
-  productId String
-  product   Product @relation(fields: [productId], references: [id])
-
-  fotoBukti FotoBuktiPertanggungjawaban[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model FotoBuktiPertanggungjawaban {
-  id String @id @default(uuid())
-
-  // Relasi ke rincian pertanggungjawaban
-  rincianPjId String
-  rincianPj   RincianPertanggungjawaban @relation(fields: [rincianPjId], references: [id], onDelete: Cascade)
-
-  url        String // URL atau path ke file gambar
-  keterangan String? // Keterangan opsional untuk setiap foto
-
-  createdAt DateTime @default(now())
-}
-
-// 1. MODEL UNTUK ANGGARAN / DANA PROYEK
-model ProjectBudget {
-  id          String       @id @default(uuid())
-  description String // Contoh: "Dana Talangan Tahap 1", "Anggaran Material"
-  amount      Decimal      @db.Decimal(18, 2) // Jumlah dana yang disetujui
-  issueDate   DateTime // Tanggal dana diberikan/dialokasikan
-  status      BudgetStatus @default(DRAFT)
-  projectId   String
-  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-
-  spkId     String?
-  spk       SPK?                    @relation(fields: [spkId], references: [id], onUpdate: Cascade, onDelete: SetNull)
-  prDetails PurchaseRequestDetail[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([projectId])
-}
-
-// 2. MODEL PROJECT EXPENSE (DIPERBARUI)
-model ProjectExpense {
-  id          String        @id @default(uuid())
-  expenseDate DateTime
-  description String
-  amount      Decimal       @db.Decimal(18, 2)
-  receiptUrl  String?
-  status      ExpenseStatus @default(DRAFT)
-
-  projectId         String
-  project           Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  spkId             String?
-  spk               SPK?    @relation(fields: [spkId], references: [id], onUpdate: Cascade, onDelete: SetNull)
-  paidFromAccountId String
-  expenseAccountId  String
-
-  journalEntryId String?       @unique
-  journalEntry   JournalEntry? @relation(fields: [journalEntryId], references: [id])
-
-  supplierId String?
-  supplier   Supplier? @relation(fields: [supplierId], references: [id])
-
-  paidFromAccount ChartOfAccounts @relation("PaidFromCOA", fields: [paidFromAccountId], references: [id])
-  expenseAccount  ChartOfAccounts @relation("ExpenseCOA", fields: [expenseAccountId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([projectId])
-  @@index([expenseDate])
-  @@index([spkId])
-}
-
-// ENUM BARU UNTUK KONTROL AKUNTANSI
 enum CoaType {
-  ASET // Aset
-  LIABILITAS // Liabilitas
-  EKUITAS // Ekuitas
-  PENDAPATAN // Pendapatan
-  HPP // HPP (Harga Pokok Penjualan / Cost of Goods Sold)
-  BEBAN // Beban
+  ASET
+  LIABILITAS
+  EKUITAS
+  PENDAPATAN
+  HPP
+  BEBAN
 }
 
 enum CoaNormalBalance {
@@ -1972,293 +2304,66 @@ enum CoaNormalBalance {
 }
 
 enum CoaPostingType {
-  HEADER // Akun induk untuk grouping, tidak bisa untuk transaksi
-  POSTING // Akun detail yang bisa menerima transaksi/jurnal
+  HEADER
+  POSTING
 }
 
 enum CoaCashflowType {
-  OPERATING // Aktivitas Operasi
-  INVESTING // Aktivitas Investasi
-  FINANCING // Aktivitas Pendanaan
-  NONE // Tidak masuk laporan arus kas
+  OPERATING
+  INVESTING
+  FINANCING
+  NONE
 }
 
 enum CoaStatus {
   ACTIVE
   INACTIVE
-  LOCKED // Dikunci, tidak bisa digunakan sementara (misal: saat audit)
+  LOCKED
 }
 
-// MODEL BARU UNTUK PAJAK
-model TaxRate {
-  id          String            @id @default(uuid())
-  name        String            @unique // misal: PPN, PPh 23
-  rate        Decimal // Tarif dalam persen, misal: 11 untuk 11%
-  isActive    Boolean           @default(true)
-  coaAccounts ChartOfAccounts[]
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  LedgerLine  LedgerLine[]
-}
-
-// MODEL COA YANG DIPERBARUI DAN LENGKAP
-model ChartOfAccounts {
-  id              String            @id @default(uuid())
-  code            String            @unique
-  name            String
-  description     String?
-  type            CoaType
-  normalBalance   CoaNormalBalance // Saldo normal akun (Debit/Kredit)
-  postingType     CoaPostingType    @default(POSTING) // Tipe akun (Header/Posting)
-  cashflowType    CoaCashflowType   @default(NONE) // Kategori Laporan Arus Kas
-  status          CoaStatus         @default(ACTIVE)
-  isReconcilable  Boolean           @default(false) // True jika akun ini perlu direkonsiliasi (misal: Bank)
-  defaultCurrency String            @default("IDR")
-  parentId        String?
-  parent          ChartOfAccounts?  @relation("CoaHierarchy", fields: [parentId], references: [id])
-  children        ChartOfAccounts[] @relation("CoaHierarchy")
-
-  taxRateId String? // Relasi ke tarif pajak default
-  taxRate   TaxRate? @relation(fields: [taxRateId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  productsAsRevenue    Product[]              @relation("ProductRevenue")
-  productsAsCogs       Product[]              @relation("ProductCogs")
-  productsAsInventory  Product[]              @relation("ProductInventory")
-  journalLines         JournalEntryLine[]
-  paidFromAccount      ProjectExpense[]       @relation("PaidFromCOA")
-  expenseAccount       ProjectExpense[]       @relation("ExpenseCOA")
-  paymentVoucher       PaymentVoucher[]
-  LedgerLine           LedgerLine[]
-  TrialBalance         TrialBalance[]
-  GeneralLedgerSummary GeneralLedgerSummary[]
-  Reconciliation       Reconciliation[]
-  systemAccounts       SystemAccount[]
-  purchaseRequests     PurchaseRequest[]
-  bankAccount          BankAccount[]
-  uangMuka             UangMuka[]
-  openingBalanceDetail OpeningBalanceDetail[]
-  fundTransferSource   FundTransfer[]         @relation("FundTransferSource")
-  fundTransferDest     FundTransfer[]         @relation("FundTransferDestination")
-  fundTransferFee      FundTransfer[]         @relation("FundTransferFee")
-  warehouses           Warehouse[]            @relation("WarehouseInventory")
-}
-
-// 2. BUKU JURNAL / BUKU BESAR (MODEL BARU YANG PENTING)
-model JournalEntry {
-  id               String             @id @default(uuid())
-  transactionDate  DateTime // Tanggal transaksi
-  description      String // "Penjualan dari Invoice #INV-001", "Biaya material Proyek A"
-  sourceDocument   String? // Misal: "Invoice" atau "ProjectExpense"
-  sourceDocumentId String? // ID dari Invoice atau ProjectExpense tersebut
-  lines            JournalEntryLine[]
-  supplierInvoice  Supplier[]
-  paymentVoucher   PaymentVoucher[]
-  sipplierInvoice  SupplierInvoice[]
-
-  projectExpense ProjectExpense?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  Ledger         Ledger[]
-
-  @@index([transactionDate])
-  @@index([sourceDocument, sourceDocumentId])
-}
-
-// 3. DETAIL JURNAL (DEBIT & KREDIT)
-model JournalEntryLine {
-  id             String  @id @default(uuid())
-  journalEntryId String
-  coaId          String // ID Akun dari ChartOfAccounts
-  debit          Decimal @default(0) @db.Decimal(18, 2)
-  credit         Decimal @default(0) @db.Decimal(18, 2)
-  description    String?
-
-  account ChartOfAccounts @relation(fields: [coaId], references: [id])
-  parent  JournalEntry    @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
-
-  @@index([journalEntryId])
-  @@index([coaId])
-}
-
-// ==========================================================
-//               MODUL MANAJEMEN SUPPLIER (VENDOR)
-// ==========================================================
-
-// ENUM untuk status Supplier
 enum SupplierStatus {
-  ACTIVE // Supplier aktif dan bisa digunakan untuk transaksi
-  INACTIVE // Supplier tidak aktif, tidak muncul di pilihan transaksi baru
-  BLACKLISTED // Diblokir, tidak bisa digunakan sama sekali
+  ACTIVE
+  INACTIVE
+  BLACKLISTED
 }
-
-// Model Utama Supplier
-model Supplier {
-  id     String         @id @default(uuid())
-  code   String         @unique // Kode unik internal untuk supplier, misal: SUP-0001
-  name   String // Nama resmi perusahaan supplier
-  status SupplierStatus @default(ACTIVE)
-  onWip  Boolean        @default(false)
-
-  // --- Informasi Kontak & Alamat ---
-  email           String? @unique
-  phone           String?
-  website         String?
-  // Catatan: Alamat idealnya dibuat model terpisah jika butuh struktur detail (jalan, kota, dll)
-  // Untuk kesederhanaan, di sini menggunakan Text
-  billingAddress  String?
-  shippingAddress String?
-
-  // --- Informasi Keuangan & Pajak ---
-  npwp      String? @unique // Nomor Pokok Wajib Pajak
-  isTaxable Boolean @default(false) // Apakah supplier ini PKP (Pengusaha Kena Pajak)
-
-  // Relasi ke Termin Pembayaran Default
-  termOfPaymentId String?
-  termOfPayment   TermOfPayment? @relation(fields: [termOfPaymentId], references: [id])
-
-  // --- Relasi ke Model Lain ---
-  // One-to-Many: Satu supplier bisa punya banyak kontak dan rekening bank
-  contacts     SupplierContact[]
-  bankAccounts SupplierBankAccount[]
-
-  // Relasi ke Kategori Supplier
-  supplierCategoryId String?
-  supplierCategory   SupplierCategory? @relation(fields: [supplierCategoryId], references: [id])
-
-  // --- Relasi ke Modul Transaksional (Akan dibuat nanti) ---
-  // Menunjukkan integrasi ke modul lain
-  projectExpenses  ProjectExpense[] // Pengeluaran Proyek yang dibayarkan ke vendor ini
-  purchaseOrders   PurchaseOrder[] // Semua Purchase Order untuk supplier ini
-  supplierInvoices SupplierInvoice[] // Semua tagihan dari supplier ini
-  payments         PaymentVoucher[] // Semua pembayaran ke supplier ini
-  journalEntry     JournalEntry[]
-
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
-  LedgerLine LedgerLine[]
-
-  @@index([name])
-  @@index([status])
-}
-
-// Model untuk menyimpan multiple kontak per supplier
-model SupplierContact {
-  id        String  @id @default(uuid())
-  name      String
-  position  String? // Jabatan, misal: "Sales Manager"
-  email     String?
-  phone     String?
-  isPrimary Boolean @default(false) // Menandakan kontak utama
-
-  supplierId String
-  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([supplierId])
-}
-
-// Model untuk menyimpan multiple rekening bank per supplier
-model SupplierBankAccount {
-  id                String  @id @default(uuid())
-  bankName          String // Nama Bank (BCA, Mandiri, dll)
-  accountHolderName String // Nama Pemilik Rekening
-  accountNumber     String // Nomor Rekening
-  branch            String? // Cabang Bank
-  isPrimary         Boolean @default(false)
-
-  supplierId String
-  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([supplierId])
-}
-
-// ==========================================================
-//               MASTER DATA PENDUKUNG
-// ==========================================================
-
-// Master Data untuk Kategori Supplier
-model SupplierCategory {
-  id          String     @id @default(uuid())
-  name        String     @unique // Contoh: "Supplier Material", "Subkontraktor", "Jasa"
-  description String?
-  suppliers   Supplier[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-// Master Data untuk Termin Pembayaran (Term of Payment)
-model TermOfPayment {
-  id          String     @id @default(uuid())
-  name        String     @unique // Contoh: "Cash On Delivery", "Net 30", "Net 60"
-  days        Int        @default(0) // Jumlah hari jatuh tempo. 0 untuk COD.
-  description String?
-  suppliers   Supplier[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-// ==========================================================
-//               ENUMS UNTUK MODUL PENGADAAN & UTANG
-// ==========================================================
 
 enum PurchaseOrderStatus {
-  DRAFT // Masih dalam persiapan, belum diajukan
-  PENDING_APPROVAL // Diajukan dan menunggu persetujuan
-  REVISION_NEEDED // Perlu revisi/perbaikan
-  APPROVED // Disetujui, siap dikirim ke supplier
-  REJECTED // Ditolak
-  SENT // Sudah dikirim ke supplier
-  REQUEST_REVISION // Permintaan revisi
-  PARTIALLY_RECEIVED // Sebagian barang/jasa sudah diterima
-  FULLY_RECEIVED // Semua barang/jasa sudah diterima, PO selesai
-  CANCELLED // Dibatalkan
-
-  INVOICE_RECEIVED // Invoice sudah diterima
-
-  // Tahap Verifikasi & Validasi
-  UNVERIFIED_ACCOUNTING // Sudah disubmit tapi belum dicek kelengkapan dokumennya
-  VERIFIED_ACCOUNTING // Dokumen (PO, Surat Jalan, Invoice Fisik) sudah cocok (3-way match)
-
-  APPROVED_ACCOUNTING // Disetujui akuntansi
-  POSTED // Sudah masuk ke Buku Besar/General Ledger (Hutang diakui)
-  AWAITING_PAYMENT // Antrian pembayaran (Schedule Payment)
-  PARTIALLY_PAID // Dibayar sebagian
-  FULLY_PAID // Lunas
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  SENT
+  PARTIALLY_RECEIVED
+  FULLY_RECEIVED
+  CANCELLED
+  REVISION_NEEDED
+  REQUEST_REVISION
+  INVOICE_RECEIVED
+  UNVERIFIED_ACCOUNTING
+  VERIFIED_ACCOUNTING
+  APPROVED_ACCOUNTING
+  POSTED
+  AWAITING_PAYMENT
+  PARTIALLY_PAID
+  FULLY_PAID
 }
 
 enum SupplierInvoiceStatus {
-  DRAFT // Draft awal oleh admin/purchasing
-  REVISION_NEEDED // Dikembalikan untuk diperbaiki
-
-  // Tahap Verifikasi & Validasi
-  UNVERIFIED // Sudah disubmit tapi belum dicek kelengkapan dokumennya
-  VERIFIED // Dokumen (PO, Surat Jalan, Invoice Fisik) sudah cocok (3-way match)
-
-  // Tahap Approval & Akuntansi
-  PENDING_APPROVAL // Menunggu persetujuan manajer/keuangan
-  APPROVED // Sudah disetujui, siap untuk di-posting ke Jurnal
-  POSTED // Sudah masuk ke Buku Besar/General Ledger (Hutang diakui)
-
-  // Tahap Pembayaran
-  AWAITING_PAYMENT // Antrian pembayaran (Schedule Payment)
-  PARTIALLY_PAID // Dibayar sebagian
-  FULLY_PAID // Lunas
-
-  // Tahap Pengecualian & Penutupan
-  VOIDED // Dibatalkan setelah diposting (biasanya melalui Jurnal Balik)
-  CANCELLED // Dibatalkan saat masih status Draft/Pending
-  OVERDUE // Melewati tanggal jatuh tempo (Sistem Auto-update)
-  DISPUTED // Terjadi perselisihan harga/barang dengan supplier
-  WRITTEN_OFF // Hutang dianggap hangus atau diputihkan karena alasan tertentu
+  DRAFT
+  PENDING_APPROVAL
+  AWAITING_PAYMENT
+  PARTIALLY_PAID
+  FULLY_PAID
+  OVERDUE
+  CANCELLED
+  REVISION_NEEDED
+  UNVERIFIED
+  VERIFIED
+  APPROVED
+  POSTED
+  VOIDED
+  DISPUTED
+  WRITTEN_OFF
 }
 
 enum SupplierPaymentMethod {
@@ -2268,179 +2373,15 @@ enum SupplierPaymentMethod {
   VIRTUAL_ACCOUNT
 }
 
-// ==========================================================
-//               1. MODUL PEMBELIAN (PURCHASE ORDER)
-// ==========================================================
-
 enum PaymentTermPurchaseOrder {
   CASH
-  COD // Cash on Delivery
-  NET_7 // 7 Hari setelah invoice
+  COD
+  NET_7
   NET_14
   NET_30
-  DP_PERCENTAGE // Down Payment (misal 50% di awal)
+  DP_PERCENTAGE
 }
 
-model PurchaseOrder {
-  id                   String              @id @default(uuid())
-  poNumber             String              @unique
-  orderDate            DateTime
-  expectedDeliveryDate DateTime?
-  status               PurchaseOrderStatus @default(DRAFT)
-  sisaBudget           Decimal             @default(0) @db.Decimal(19, 2)
-
-  // Penambahan: Gudang Tujuan
-  warehouseId String
-  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
-
-  supplierId String
-  supplier   Supplier @relation(fields: [supplierId], references: [id])
-  projectId  String?
-  project    Project? @relation(fields: [projectId], references: [id])
-
-  orderedById   String
-  orderedBy     Karyawan @relation(fields: [orderedById], references: [id])
-  requestRevisi Int      @default(0)
-
-  // Finansial
-  paymentTerm PaymentTermPurchaseOrder @default(COD)
-  subtotal    Decimal                  @default(0) @db.Decimal(18, 2)
-  taxAmount   Decimal                  @default(0) @db.Decimal(18, 2)
-  totalAmount Decimal                  @default(0) @db.Decimal(18, 2)
-
-  lines            PurchaseOrderLine[]
-  goodsReceipts    GoodsReceipt[] // Relasi ke penerimaan
-  supplierInvoices SupplierInvoice[]
-
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
-  SPK                  SPK?                  @relation(fields: [sPKId], references: [id])
-  sPKId                String?
-  PurchaseRequest      PurchaseRequest?      @relation(fields: [purchaseRequestId], references: [id])
-  purchaseRequestId    String?
-  teamId               String?
-  team                 Team?                 @relation(fields: [teamId], references: [id])
-  // Relasi pemakaian material yang bersumber dari PO ini
-  materialRequisitions MaterialRequisition[]
-  PurchaseExecution    PurchaseExecution[]
-}
-
-model PurchaseOrderLine {
-  id              String  @id @default(uuid())
-  productId       String
-  product         Product @relation(fields: [productId], references: [id])
-  description     String
-  quantity        Decimal @default(0) @db.Decimal(18, 4)
-  qtyActual       Decimal @default(0) @db.Decimal(18, 4)
-  unitPrice       Decimal @default(0) @db.Decimal(18, 2)
-  unitPriceActual Decimal @default(0) @db.Decimal(18, 2)
-  totalAmount     Decimal @default(0) @db.Decimal(18, 2)
-
-  // Tracking Progress
-  receivedQuantity       Decimal @default(0) @db.Decimal(18, 4) // Jumlah yang sudah diterima
-  checkMatch             Boolean @default(false)
-  checkPurchaseExecution Boolean @default(false)
-  notGr                  Boolean @default(false)
-
-  prDetailId String?
-  prDetail   PurchaseRequestDetail? @relation(fields: [prDetailId], references: [id])
-
-  poId          String
-  purchaseOrder PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
-
-  // Auto-calculated fields
-  purchasedQuantity Decimal @default(0) @db.Decimal(18, 4)
-  remainingQuantity Decimal @default(0) @db.Decimal(18, 4)
-
-  grItems GoodsReceiptItem[]
-
-  // Tracking penerimaan dari berbagai bon
-  receiptItems ReceiptItem[] // Relasi ke items yang linked
-}
-
-model PurchaseExecution {
-  id            String                  @id @default(uuid())
-  poId          String
-  purchaseOrder PurchaseOrder           @relation(fields: [poId], references: [id])
-  executorId    String
-  executor      Karyawan                @relation(fields: [executorId], references: [id])
-  executionDate DateTime                @default(now())
-  status        PurchaseExecutionStatus @default(IN_PROGRESS)
-  totalSpent    Decimal                 @default(0) @db.Decimal(18, 2)
-  notes         String?
-
-  receipts  PurchaseReceipt[]
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
-}
-
-model PurchaseReceipt {
-  id            String        @id @default(uuid())
-  receiptNumber String? // Opsional, bisa kosong
-  storeName     String?
-  receiptDate   DateTime
-  totalAmount   Decimal       @db.Decimal(18, 2)
-  paymentMethod PaymentMethod @default(CASH)
-
-  // Multiple foto: bon + produk dalam 1 array
-  photos ReceiptPhoto[]
-
-  executionId String
-  execution   PurchaseExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
-
-  ledgerId String?
-  ledger   Ledger? @relation(fields: [ledgerId], references: [id])
-
-  // Items: bisa detail atau summary
-  items ReceiptItem[]
-
-  createdAt DateTime @default(now())
-}
-
-model ReceiptPhoto {
-  id        String          @id @default(uuid())
-  receiptId String
-  receipt   PurchaseReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
-
-  // New: Link to specific item (optional for backward compatibility)
-  receiptItemId String?
-  receiptItem   ReceiptItem? @relation(fields: [receiptItemId], references: [id])
-
-  photoUrl  String
-  photoType ReceiptPhotoType @default(BON) // BON, PRODUCT, OTHER
-  createdAt DateTime         @default(now())
-}
-
-model ReceiptItem {
-  id        String          @id @default(uuid())
-  receiptId String
-  receipt   PurchaseReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
-
-  // OPSI A: Link ke PO Item (jika sesuai)
-  poLineId String?
-  poLine   PurchaseOrderLine? @relation(fields: [poLineId], references: [id])
-
-  // OPSI B: Item tambahan di luar PO
-  isAdditional Boolean @default(false)
-
-  // Data item (untuk semua opsi)
-  productName String
-  quantity    Decimal @db.Decimal(18, 4)
-  unit        String
-  unitPrice   Decimal @db.Decimal(18, 2)
-  totalPrice  Decimal @db.Decimal(18, 2)
-
-  // Untuk kasus multi-toko: tambahkan store info di sini
-  storeName String? // Jika berbeda dari receipt.storeName
-  notes     String? // Catatan khusus
-
-  // Relasi ke foto spesifik item ini
-  photos ReceiptPhoto[]
-
-  createdAt DateTime @default(now())
-}
-
-// ENUM Sederhana
 enum PurchaseExecutionStatus {
   IN_PROGRESS
   COMPLETED
@@ -2448,189 +2389,24 @@ enum PurchaseExecutionStatus {
 }
 
 enum ReceiptPhotoType {
-  BON // Foto bon/kwitansi
-  PRODUCT // Foto barang
-  OTHER // Foto lain-lain
-}
-
-// ==========================================================
-//               2. MODUL TAGIHAN SUPPLIER (ACCOUNTS PAYABLE)
-// ==========================================================
-
-model SupplierInvoice {
-  id            String                @id @default(uuid())
-  invoiceNumber String // No nota dari supplier
-  invoiceDate   DateTime
-  dueDate       DateTime // Tanggal jatuh tempo
-  status        SupplierInvoiceStatus @default(DRAFT)
-
-  // Relasi
-  supplierId      String
-  supplier        Supplier       @relation(fields: [supplierId], references: [id])
-  purchaseOrderId String?
-  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
-
-  // Finansial
-  subtotal    Decimal @db.Decimal(18, 2)
-  taxAmount   Decimal @default(0) @db.Decimal(18, 2)
-  totalAmount Decimal @db.Decimal(18, 2)
-  amountPaid  Decimal @default(0) @db.Decimal(18, 2) // Terbayar
-
-  // Items & Pembayaran
-  items              SupplierInvoiceItem[]
-  paymentAllocations PaymentAllocation[]
-
-  // Integrasi Accounting
-  journalEntryId String?       @unique
-  journalEntry   JournalEntry? @relation(fields: [journalEntryId], references: [id])
-
-  // Additional Information
-  notes String? @db.Text
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([supplierId, invoiceNumber])
-}
-
-model SupplierInvoiceItem {
-  id                String          @id @default(uuid())
-  supplierInvoiceId String
-  supplierInvoice   SupplierInvoice @relation(fields: [supplierInvoiceId], references: [id], onDelete: Cascade)
-
-  productId   String
-  product     Product @relation(fields: [productId], references: [id])
-  productName String // Nama saat transaksi
-
-  // Link ke PO dan Penerimaan Barang (GR)
-  poLineId            String?
-  goodsReceivedItemId String? // Link ke item yang masuk gudang
-
-  quantity   Decimal @db.Decimal(18, 4)
-  unitPrice  Decimal @db.Decimal(18, 2) // Ini harga 90rb
-  totalPrice Decimal @db.Decimal(18, 2) // qty * 90rb
-
-  // Tracking Selisih
-  priceVariance Decimal @default(0) @db.Decimal(18, 2) // (PO_Price - 90rb)
-
-  createdAt DateTime @default(now())
-}
-
-model SupplierPayment {
-  id            String        @id @default(uuid())
-  paymentNumber String        @unique // PYMT/2024/0001
-  paymentDate   DateTime      @default(now())
-  amount        Decimal       @db.Decimal(18, 2)
-  paymentMethod PaymentMethod // CASH, TRANSFER, dll
-  bankAccountId String? // COA Bank/Kas mana yang berkurang
-
-  notes       String?
-  allocations PaymentAllocation[]
-
-  createdAt DateTime @default(now())
-}
-
-model PaymentAllocation {
-  id     String  @id @default(uuid())
-  amount Decimal @db.Decimal(18, 2) // Jumlah yang dialokasikan ke invoice ini
-
-  supplierInvoiceId String
-  supplierInvoice   SupplierInvoice @relation(fields: [supplierInvoiceId], references: [id])
-
-  supplierPaymentId String
-  supplierPayment   SupplierPayment @relation(fields: [supplierPaymentId], references: [id])
-
-  paymentVoucherId String
-  paymentVoucher   PaymentVoucher @relation(fields: [paymentVoucherId], references: [id])
-
-  @@unique([paymentVoucherId, supplierInvoiceId, supplierPaymentId])
-}
-
-// ==========================================================
-//               3. MODUL PEMBAYARAN UTANG
-// ==========================================================
-
-model PaymentVoucher {
-  id            String                @id @default(uuid())
-  voucherNumber String                @unique // Nomor voucher pembayaran internal
-  paymentDate   DateTime
-  paymentMethod SupplierPaymentMethod
-  amount        Decimal               @db.Decimal(18, 2)
-  notes         String?
-
-  // --- Relasi ---
-  supplierId String
-  supplier   Supplier @relation(fields: [supplierId], references: [id])
-
-  // --- Integrasi Akuntansi ---
-  paidFromAccountId String // Akun Kas/Bank yang digunakan untuk membayar
-  paidFromAccount   ChartOfAccounts @relation(fields: [paidFromAccountId], references: [id])
-  journalEntryId    String?         @unique
-  journalEntry      JournalEntry?   @relation(fields: [journalEntryId], references: [id])
-
-  // --- Relasi Balik ---
-  allocations PaymentAllocation[] // Pembayaran ini bisa dialokasikan ke beberapa tagihan
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-  Ledger      Ledger[]
-}
-
-model StaffBalance {
-  id         String   @id @default(uuid())
-  karyawanId String
-  karyawan   Karyawan @relation(fields: [karyawanId], references: [id])
-
-  category LedgerCategory // Membedakan saldo Operasional vs Pinjaman
-  // Field Tambahan
-  totalIn  Decimal        @default(0) @db.Decimal(15, 2) // Total dana yang diterima/dicairkan
-  totalOut Decimal        @default(0) @db.Decimal(15, 2) // Total dana yang dilaporkan/dipakai
-  amount   Decimal        @default(0) @db.Decimal(15, 2)
-
-  updatedAt DateTime @updatedAt
-
-  @@unique([karyawanId, category]) // Satu karyawan hanya punya satu record per kategori
-}
-
-model StaffLedger {
-  id         String   @id @default(uuid())
-  karyawanId String
-  karyawan   Karyawan @relation(fields: [karyawanId], references: [id])
-
-  tanggal    DateTime @default(now())
-  keterangan String   @db.Text
-
-  // Akuntansi Dasar dengan Audit Trail
-  saldoAwal Decimal @default(0) @db.Decimal(15, 2) // Saldo sebelum transaksi
-  debit     Decimal @default(0) @db.Decimal(15, 2) // Uang bertambah bagi karyawan
-  kredit    Decimal @default(0) @db.Decimal(15, 2) // Uang berkurang bagi karyawan
-  saldo     Decimal @db.Decimal(15, 2) // Running balance setelah transaksi (saldoAwal + debit - kredit)
-
-  category LedgerCategory
-  type     TransactionStafBalanceType
-
-  // Audit Trail & Relasi Proyek
-  purchaseRequestId String? // Link ke PR
-  purchaseRequest   PurchaseRequest? @relation(fields: [purchaseRequestId], references: [id])
-
-  refId     String? // ID dokumen referensi (e.g., Nomor Voucher, ID Invoice)
-  createdBy String? // Nama/ID user yang melakukan input
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now()) @updatedAt
+  BON
+  PRODUCT
+  OTHER
 }
 
 enum LedgerCategory {
-  OPERASIONAL_PROYEK // Uang untuk belanja material/lapangan
-  PINJAMAN_PRIBADI // Hutang karyawan yang akan dipotong gaji
+  OPERASIONAL_PROYEK
+  PINJAMAN_PRIBADI
 }
 
 enum TransactionStafBalanceType {
-  OPENING_BALANCE // Saldo awal periode
-  CASH_ADVANCE // Pemberian dana di awal (Kasbon)
-  EXPENSE_REPORT // Pelaporan nota/kuitansi (Settlement)
-  LOAN_DISBURSEMENT // Pencairan pinjaman pribadi
-  LOAN_REPAYMENT // Pembayaran pinjaman (Potong gaji/Transfer balik)
-  REIMBURSEMENT // Penggantian uang pribadi karyawan
-  SETTLEMENT_REFUND // Pengembalian sisa dana ke perusahaan
+  OPENING_BALANCE
+  CASH_ADVANCE
+  EXPENSE_REPORT
+  LOAN_DISBURSEMENT
+  LOAN_REPAYMENT
+  REIMBURSEMENT
+  SETTLEMENT_REFUND
 }
 
 enum LedgerEntryType {
@@ -2639,8 +2415,8 @@ enum LedgerEntryType {
   RECEIPT
   ADJUSTMENT
   CLOSING
-  GOODS_RECEIPT
   REVERSAL
+  GOODS_RECEIPT
 }
 
 enum LedgerStatus {
@@ -2659,322 +2435,6 @@ enum ReconciliationStatus {
   DISPUTED
 }
 
-model Ledger {
-  id              String           @id @default(uuid())
-  ledgerNumber    String           @unique
-  referenceNumber String? // Nomor referensi dari dokumen sumber (Invoice, Payment, dll)
-  referenceType   LedgerEntryType
-  transactionDate DateTime // Tanggal transaksi
-  postingDate     DateTime // Tanggal posting ke buku besar
-  description     String
-  notes           String?
-  periodId        String // Periode akuntansi (AccountingPeriod)
-  period          AccountingPeriod @relation(fields: [periodId], references: [id])
-  status          LedgerStatus     @default(DRAFT)
-  currency        String           @default("IDR")
-  exchangeRate    Float            @default(1.0)
-
-  // Tracking
-  createdBy  String
-  postedBy   String?
-  postedAt   DateTime?
-  voidBy     String?
-  voidAt     DateTime?
-  voidReason String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  ledgerLines      LedgerLine[]
-  journalEntry     JournalEntry?     @relation(fields: [journalEntryId], references: [id])
-  journalEntryId   String?
-  paymentVoucher   PaymentVoucher?   @relation(fields: [paymentVoucherId], references: [id])
-  paymentVoucherId String?
-  receipts         PurchaseReceipt[]
-  fundTransfer     FundTransfer?
-
-  @@index([transactionDate])
-  @@index([postingDate])
-  @@index([periodId])
-  @@index([status])
-}
-
-model LedgerLine {
-  id       String          @id @default(uuid())
-  ledgerId String
-  ledger   Ledger          @relation(fields: [ledgerId], references: [id], onDelete: Cascade)
-  coaId    String
-  coa      ChartOfAccounts @relation(fields: [coaId], references: [id])
-
-  // Debit/Credit
-  debitAmount  Float  @default(0)
-  creditAmount Float  @default(0)
-  currency     String @default("IDR")
-  localAmount  Float // Amount dalam currency default system
-
-  // Foreign currency
-  foreignCurrency String?
-  foreignAmount   Float?
-  exchangeRate    Float   @default(1.0)
-
-  // Analytical Accounting
-  projectId    String?
-  project      Project?    @relation(fields: [projectId], references: [id])
-  customerId   String?
-  customer     Customer?   @relation(fields: [customerId], references: [id])
-  supplierId   String?
-  supplier     Supplier?   @relation(fields: [supplierId], references: [id])
-  karyawanId   String?
-  karyawan     Karyawan?   @relation(fields: [karyawanId], references: [id])
-  salesOrderId String?
-  salesOrder   SalesOrder? @relation(fields: [salesOrderId], references: [id])
-
-  // Additional details
-  description String?
-  reference   String? // Nomor dokumen referensi spesifik untuk line ini
-  lineNumber  Int // Urutan line
-
-  // Reconciliation (untuk akun Bank/Cash)
-  reconciliationStatus ReconciliationStatus @default(UNRECONCILED)
-  reconciledDate       DateTime?
-  reconciledBy         String?
-  bankStatementRef     String? // Referensi statement bank
-
-  // Tax
-  taxAmount    Float    @default(0)
-  taxRateId    String?
-  taxRate      TaxRate? @relation(fields: [taxRateId], references: [id])
-  taxInclusive Boolean  @default(false)
-
-  // Tracking
-  isAllocated  Boolean @default(false)
-  allocationId String? // Untuk cost allocation
-
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
-  ReconciliationItem ReconciliationItem[]
-
-  @@unique([ledgerId, lineNumber])
-  @@index([ledgerId])
-  @@index([coaId])
-  @@index([reconciliationStatus])
-  @@index([projectId])
-  @@index([customerId])
-  @@index([supplierId])
-}
-
-model AccountingPeriod {
-  id           String    @id @default(uuid())
-  periodCode   String    @unique
-  periodName   String
-  startDate    DateTime
-  endDate      DateTime
-  fiscalYear   Int
-  quarter      Int
-  isClosed     Boolean   @default(false)
-  closedAt     DateTime?
-  closedBy     String?
-  reopenAt     DateTime?
-  reopenBy     String?
-  reopenReason String?
-
-  // Relations
-  ledgers          Ledger[]
-  financialReports FinancialReport[]
-
-  createdAt            DateTime               @default(now())
-  updatedAt            DateTime               @updatedAt
-  TrialBalance         TrialBalance[]
-  GeneralLedgerSummary GeneralLedgerSummary[]
-  Reconciliation       Reconciliation[]
-  fundTransfers        FundTransfer[]
-
-  @@index([fiscalYear])
-  @@index([startDate, endDate])
-}
-
-model TrialBalance {
-  id       String           @id @default(uuid())
-  periodId String
-  period   AccountingPeriod @relation(fields: [periodId], references: [id])
-  coaId    String
-  coa      ChartOfAccounts  @relation(fields: [coaId], references: [id])
-
-  // Saldo awal periode
-  openingDebit  Float @default(0)
-  openingCredit Float @default(0)
-
-  // Mutasi periode berjalan
-  periodDebit  Float @default(0)
-  periodCredit Float @default(0)
-
-  // Saldo akhir periode
-  endingDebit  Float @default(0)
-  endingCredit Float @default(0)
-
-  // Saldo YTD (Year-to-Date)
-  ytdDebit  Float @default(0)
-  ytdCredit Float @default(0)
-
-  currency     String   @default("IDR")
-  calculatedAt DateTime
-
-  @@unique([periodId, coaId])
-  @@index([periodId])
-  @@index([coaId])
-}
-
-model GeneralLedgerSummary {
-  id       String           @id @default(uuid())
-  coaId    String
-  coa      ChartOfAccounts  @relation(fields: [coaId], references: [id])
-  periodId String
-  period   AccountingPeriod @relation(fields: [periodId], references: [id])
-  date     DateTime // Harian
-
-  openingBalance   Float @default(0)
-  debitTotal       Float @default(0)
-  creditTotal      Float @default(0)
-  closingBalance   Float @default(0)
-  transactionCount Int   @default(0)
-
-  currency String @default("IDR")
-
-  @@unique([coaId, periodId, date])
-  @@index([coaId, date])
-}
-
-model Reconciliation {
-  id                   String           @id @default(uuid())
-  reconciliationNumber String           @unique
-  coaId                String
-  coa                  ChartOfAccounts  @relation(fields: [coaId], references: [id])
-  periodId             String
-  period               AccountingPeriod @relation(fields: [periodId], references: [id])
-
-  startDate DateTime
-  endDate   DateTime
-
-  // Saldo buku
-  bookBalance  Float
-  bookCurrency String @default("IDR")
-
-  // Saldo statement (bank/eksternal)
-  statementBalance Float
-  statementDate    DateTime
-  statementRef     String
-
-  // Hasil rekonsiliasi
-  reconciledBalance Float
-  difference        Float
-  status            ReconciliationStatus @default(PENDING)
-
-  // Notes
-  description String?
-  notes       String?
-
-  // Audit trail
-  preparedBy String
-  preparedAt DateTime
-  reviewedBy String?
-  reviewedAt DateTime?
-  approvedBy String?
-  approvedAt DateTime?
-
-  // Relations
-  reconciliationItems ReconciliationItem[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([coaId])
-  @@index([periodId])
-  @@index([status])
-}
-
-model ReconciliationItem {
-  id               String         @id @default(uuid())
-  reconciliationId String
-  reconciliation   Reconciliation @relation(fields: [reconciliationId], references: [id], onDelete: Cascade)
-  ledgerLineId     String
-  ledgerLine       LedgerLine     @relation(fields: [ledgerLineId], references: [id])
-
-  // Amount details
-  transactionAmount Float
-  transactionDate   DateTime
-  statementAmount   Float?
-  statementDate     DateTime?
-
-  // Status
-  isCleared   Boolean   @default(false)
-  clearedDate DateTime?
-
-  // Notes
-  description String?
-  notes       String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([reconciliationId, ledgerLineId])
-  @@index([reconciliationId])
-  @@index([ledgerLineId])
-}
-
-model FinancialReport {
-  id                  String              @id @default(uuid())
-  reportNumber        String              @unique
-  reportTypeFinancial ReportTypeFinancial // BALANCE_SHEET, INCOME_STATEMENT, CASHFLOW, etc.
-  periodId            String
-  period              AccountingPeriod    @relation(fields: [periodId], references: [id])
-  title               String
-  generatedAt         DateTime
-  generatedBy         String
-  currency            String              @default("IDR")
-
-  // File storage
-  filePath   String? // Path ke file generated report
-  fileFormat String? // PDF, XLSX, etc.
-
-  // Configuration
-  templateId String? // Template laporan
-  parameters Json? // Parameter yang digunakan
-
-  // Relations
-  reportSections FinancialReportSection[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([periodId])
-  @@index([reportTypeFinancial])
-}
-
-model FinancialReportSection {
-  id          String          @id @default(uuid())
-  reportId    String
-  report      FinancialReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  sectionCode String
-  sectionName String
-  sequence    Int
-  level       Int             @default(0) // Untuk hierarchy
-
-  // Amounts
-  amount          Float           @default(0)
-  calculationType CalculationType // HEADER, SUM, FORMULA, etc.
-  formula         String? // Formula kalkulasi jika ada
-
-  // Relations
-  parentId String?
-  parent   FinancialReportSection?  @relation("ReportSectionHierarchy", fields: [parentId], references: [id])
-  children FinancialReportSection[] @relation("ReportSectionHierarchy")
-
-  @@index([reportId])
-  @@index([sectionCode])
-}
-
-// Supporting enums
 enum ReportTypeFinancial {
   BALANCE_SHEET
   INCOME_STATEMENT
@@ -2995,105 +2455,8 @@ enum CalculationType {
   PERCENTAGE
 }
 
-model SystemAccount {
-  id          String          @id @default(uuid())
-  key         String          @unique // e.g. "ACCOUNTS_RECEIVABLE", "SALES_REVENUE", "VAT_OUT"
-  description String?
-  coaId       String
-  coa         ChartOfAccounts @relation(fields: [coaId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model OpeningBalance {
-  id          String   @id @default(uuid())
-  asOfDate    DateTime // Biasanya 1 Januari atau awal bulan Go-Live
-  description String
-
-  // Relasi ke detail saldo per akun
-  details OpeningBalanceDetail[]
-
-  // Track status (apakah sudah diposting ke Ledger atau belum)
-  isPosted Boolean   @default(false)
-  postedAt DateTime?
-
-  createdAt DateTime @default(now())
-}
-
-model OpeningBalanceDetail {
-  id               String         @id @default(uuid())
-  openingBalanceId String
-  openingBalance   OpeningBalance @relation(fields: [openingBalanceId], references: [id])
-
-  accountId String
-  account   ChartOfAccounts @relation(fields: [accountId], references: [id])
-
-  debit  Decimal @default(0)
-  credit Decimal @default(0)
-}
-
-// Enum for Fund Transfer Status
 enum FundTransferStatus {
   DRAFT
   POSTED
   VOIDED
-}
-
-// Fund Transfer Transaction Model
-model FundTransfer {
-  id           String   @id @default(uuid())
-  transferNo   String   @unique // e.g., TRF/2026/01/0001
-  transferDate DateTime @default(now())
-
-  // Amount Details
-  amount      Decimal @db.Decimal(20, 2)
-  feeAmount   Decimal @default(0) @db.Decimal(20, 2)
-  totalAmount Decimal @db.Decimal(20, 2) // amount + feeAmount
-
-  // Account Relations (COA)
-  fromAccountId String
-  fromAccount   ChartOfAccounts @relation("FundTransferSource", fields: [fromAccountId], references: [id])
-
-  toAccountId String
-  toAccount   ChartOfAccounts @relation("FundTransferDestination", fields: [toAccountId], references: [id])
-
-  // Fee Account (if applicable)
-  feeAccountId String?
-  feeAccount   ChartOfAccounts? @relation("FundTransferFee", fields: [feeAccountId], references: [id])
-
-  // Reference & Audit
-  referenceNo String?
-  notes       String?
-  status      FundTransferStatus @default(POSTED)
-
-  // Link to Journal (Audit Trail)
-  ledgerId String? @unique
-  ledger   Ledger? @relation(fields: [ledgerId], references: [id])
-
-  // Period
-  periodId String?
-  period   AccountingPeriod? @relation(fields: [periodId], references: [id])
-
-  // User Tracking
-  createdById String
-  createdBy   User   @relation("FundTransferCreator", fields: [createdById], references: [id])
-
-  approvedById String?
-  approvedBy   User?     @relation("FundTransferApprover", fields: [approvedById], references: [id])
-  approvedAt   DateTime?
-
-  voidedById String?
-  voidedBy   User?     @relation("FundTransferVoider", fields: [voidedById], references: [id])
-  voidedAt   DateTime?
-  voidReason String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([transferDate])
-  @@index([status])
-  @@index([fromAccountId])
-  @@index([toAccountId])
-  @@index([createdById])
 }

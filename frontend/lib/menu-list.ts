@@ -434,6 +434,15 @@ export function getMenuList(pathname: string, role: string, permissions: Permiss
               active: isActive(`${basePath}/accounting/financial-reports/balance-sheet`, pathname),
               disabled: role === "user" || role === "pic",
               requiredPermission: "accounting.manage",
+            },
+            {
+              href: `${basePath}/accounting/financial-reports/cash-flow`,
+              label: "Cash Flow",
+              tooltip: "Laporan Arus Kas (Cash Flow Statement)",
+              icon: Activity,
+              active: isActive(`${basePath}/accounting/financial-reports/cash-flow`, pathname),
+              disabled: role === "user" || role === "pic",
+              requiredPermission: "accounting.manage",
               hasSeparator: true,
             },
             {

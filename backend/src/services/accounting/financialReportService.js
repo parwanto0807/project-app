@@ -346,5 +346,246 @@ export const financialReportService = {
     reportData.equity.accounts.sort((a, b) => a.code.localeCompare(b.code));
 
     return reportData;
+  },
+
+  /**
+   * Get Cash Flow Report (Direct Method)
+   * @param {Object} params
+   * @param {Date} params.startDate
+   * @param {Date} params.endDate
+   * @returns {Promise<Object>} Formatted Cash Flow Statement
+   */
+  getCashFlowReport: async ({ startDate, endDate }) => {
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
+    // 1. Identify Cash & Bank accounts (Assets that are reconcilable or marked as cash/bank)
+    const cashAccounts = await prisma.chartOfAccounts.findMany({
+      where: {
+        type: 'ASET',
+        OR: [
+          { isReconcilable: true },
+          { code: { startsWith: '1-11' } }, // Typical code for Cash & Bank
+          { name: { contains: 'Kas', mode: 'insensitive' } },
+          { name: { contains: 'Bank', mode: 'insensitive' } },
+          { name: { contains: 'Petty', mode: 'insensitive' } }
+        ]
+      },
+      select: { id: true, code: true, name: true }
+    });
+
+    const cashAccountIds = cashAccounts.map(a => a.id);
+
+    // 2. Calculate Beginning Balance (Sum of all posted ledger lines before startDate)
+    const beginningBalanceAgg = await prisma.ledgerLine.aggregate({
+      where: {
+        coaId: { in: cashAccountIds },
+        ledger: {
+          transactionDate: { lt: start },
+          status: 'POSTED'
+        }
+      },
+      _sum: {
+        debitAmount: true,
+        creditAmount: true
+      }
+    });
+
+    const beginningBalance = Number(beginningBalanceAgg._sum.debitAmount || 0) - Number(beginningBalanceAgg._sum.creditAmount || 0);
+
+    // 3. Get all Ledger IDs involving cash/bank within range
+    const cashLedgerLines = await prisma.ledgerLine.findMany({
+      where: {
+        coaId: { in: cashAccountIds },
+        ledger: {
+          transactionDate: { gte: start, lte: end },
+          status: 'POSTED'
+        }
+      },
+      include: {
+        ledger: {
+          include: {
+            ledgerLines: {
+              include: {
+                coa: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // 4. Categorize Transactions
+    const reportData = {
+      operating: {
+        in: { accounts: [], total: 0 },
+        out: { accounts: [], total: 0 },
+        net: 0,
+        total: 0 // Keep total for backward compatibility if needed, but net is preferred
+      },
+      investing: { accounts: [], total: 0 },
+      financing: { accounts: [], total: 0 },
+      beginningBalance,
+      netChange: 0,
+      endingBalance: 0
+    };
+
+    const addToCategory = (category, amount, coa, isReceipt) => {
+      // For Operating, we split into IN and OUT
+      if (category === 'operating') {
+        const target = isReceipt ? reportData.operating.in : reportData.operating.out;
+        const existing = target.accounts.find(a => a.id === coa.id);
+        if (existing) {
+          existing.amount += amount;
+        } else {
+          target.accounts.push({
+            id: coa.id,
+            code: coa.code,
+            name: coa.name,
+            amount: amount,
+            isReceipt // helpful tag
+          });
+        }
+        target.total += amount;
+        // Also update the main total for net calc
+        // Receipts are positive, Payments are negative in net calc
+        // But here 'amount' is absolute.
+        // We will calc net later.
+      } else {
+        // Investing and Financing remain flat as requested/simplified
+        const existing = reportData[category].accounts.find(a => a.id === coa.id);
+        const taggedAmount = isReceipt ? amount : -amount;
+        
+        if (existing) {
+          existing.amount += taggedAmount;
+        } else {
+          reportData[category].accounts.push({
+            id: coa.id,
+            code: coa.code,
+            name: coa.name,
+            amount: taggedAmount
+          });
+        }
+        reportData[category].total += taggedAmount;
+      }
+    };
+
+    // Track processed ledgers to avoid double counting if a single ledger has multiple cash lines
+    const processedLedgerIds = new Set();
+
+    for (const cashLine of cashLedgerLines) {
+      const ledger = cashLine.ledger;
+      if (processedLedgerIds.has(ledger.id)) continue;
+      processedLedgerIds.add(ledger.id);
+
+      // Check if this is an internal transfer (Cash to Cash)
+      const allLines = ledger.ledgerLines;
+      const allAccountIds = allLines.map(l => l.coaId);
+      const areAllCash = allAccountIds.every(id => cashAccountIds.includes(id));
+      
+      if (areAllCash) {
+        // This is a transfer between Cash/Bank accounts. 
+        // Net effect on total cash is 0. Ignore for Direct Method Cash Flow.
+        continue;
+      }
+
+      // Calculate the net cash impact of this whole ledger
+      let netCashImpact = 0;
+      allLines.filter(l => cashAccountIds.includes(l.coaId)).forEach(cl => {
+        netCashImpact += (Number(cl.debitAmount) - Number(cl.creditAmount));
+      });
+
+      if (netCashImpact === 0) continue;
+
+      // CRITICAL FIX: Check if this is an Opening Balance transaction (Saldo Awal)
+      // If so, it should be treated as Beginning Balance, NOT a flow in the period.
+      const desc = ledger.description ? ledger.description.toLowerCase() : '';
+      const isOpeningBalance = desc.includes('saldo awal') || desc.includes('opening balance') || desc.includes('saldo opening');
+      
+      if (isOpeningBalance) {
+        reportData.beginningBalance += netCashImpact;
+        continue; 
+      }
+
+      const isReceipt = netCashImpact > 0;
+      const absoluteAmount = Math.abs(netCashImpact);
+
+      // Identify major counterparty (non-cash)
+      let counterparties = allLines.filter(l => !cashAccountIds.includes(l.coaId));
+      if (counterparties.length === 0) continue;
+
+      // IMPROVED LOGIC: Prioritize lines on the OPPOSITE side
+      // If Cash Inflow (Dr), look for Credits.
+      // If Cash Outflow (Cr), look for Debits.
+      const primaryCounterparties = counterparties.filter(l => {
+          if (isReceipt) {
+              return Number(l.creditAmount) > 0;
+          } else {
+              return Number(l.debitAmount) > 0;
+          }
+      });
+
+      // If matches found on opposite side, use them. Otherwise fallback to any non-cash (rare adjustment cases)
+      const candidates = primaryCounterparties.length > 0 ? primaryCounterparties : counterparties;
+
+      // Pick expected candidate with largest value
+      candidates.sort((a,b) => {
+          const valA = isReceipt ? Number(a.creditAmount) : Number(a.debitAmount);
+          const valB = isReceipt ? Number(b.creditAmount) : Number(b.debitAmount);
+          return valB - valA;
+      });
+
+      const mainCP = candidates[0].coa;
+      let cfCategory = 'operating';
+
+      // Advanced Fallback Logic
+      if (mainCP.cashflowType === 'INVESTING') {
+        cfCategory = 'investing';
+      } else if (mainCP.cashflowType === 'FINANCING') {
+        cfCategory = 'financing';
+      } else if (mainCP.cashflowType === 'OPERATING') {
+        cfCategory = 'operating';
+      } else {
+        // Automatic mapping based on Account Type
+        if (mainCP.type === 'EKUITAS') {
+          cfCategory = 'financing';
+        } else if (mainCP.type === 'LIABILITAS') {
+          // Typically long term liabilities are financing, short term are operating
+          // For simplicity, if it's explicitly Liabilitas but no CF type, check code
+          if (mainCP.code.startsWith('2-2')) { // Typically Long Term
+            cfCategory = 'financing';
+          } else {
+            cfCategory = 'operating';
+          }
+        } else if (mainCP.type === 'ASET') {
+          // Non-cash Asset. If code starts with 1-2 (typically Fixed Assets)
+          if (mainCP.code.startsWith('1-2')) {
+            cfCategory = 'investing';
+          } else {
+            cfCategory = 'operating';
+          }
+        }
+      }
+
+      addToCategory(cfCategory, absoluteAmount, mainCP, isReceipt);
+    }
+
+    // 5. Final Calculations
+    reportData.operating.net = reportData.operating.in.total - reportData.operating.out.total;
+    // For flat categories (investing/financing), total is already net (signed sum)
+    
+    reportData.netChange = reportData.operating.net + reportData.investing.total + reportData.financing.total;
+    reportData.endingBalance = reportData.beginningBalance + reportData.netChange;
+
+    // Sort accounts within categories
+    const sortFn = (a, b) => a.code.localeCompare(b.code);
+    reportData.operating.in.accounts.sort(sortFn);
+    reportData.operating.out.accounts.sort(sortFn);
+    reportData.investing.accounts.sort(sortFn);
+    reportData.financing.accounts.sort(sortFn);
+
+    return reportData;
   }
 };
