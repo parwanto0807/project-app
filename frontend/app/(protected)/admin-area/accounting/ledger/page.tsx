@@ -273,6 +273,8 @@ export default function LedgerPage() {
                         data={ledgers}
                         isLoading={isDataFetching}
                         globalStats={globalStats}
+                        periodId={selectedPeriodId}
+                        search={search}
                     />
 
                     {!isDataFetching && totalPages > 1 && (

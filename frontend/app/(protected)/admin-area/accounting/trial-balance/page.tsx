@@ -208,14 +208,14 @@ export default function TrialBalancePage() {
                                 <RotateCcw className="h-4 w-4 mr-2" />
                                 Recalculate
                             </Button>
-                            <Button
+                            {/* <Button
                                 variant="secondary"
                                 size="sm"
                                 className="bg-white/10 hover:bg-white/20 text-white border-white/20"
                             >
                                 <Download className="h-4 w-4 mr-2" />
                                 Export
-                            </Button>
+                            </Button> */}
                         </div>
                     }
                 />

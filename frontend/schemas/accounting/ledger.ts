@@ -69,3 +69,28 @@ export interface GeneralLedgerResponse {
         balancedCount: number;
     };
 }
+
+
+export interface TrialBalanceData {
+    coa?: {
+        id: string;
+        code: string;
+        name: string;
+        type: string;
+    };
+    openingDebit: number;
+    openingCredit: number;
+    movementDebit: number;
+    movementCredit: number;
+    endingDebit: number;
+    endingCredit: number;
+}
+
+export interface TrialBalanceTotals {
+    openingDebit: number;
+    openingCredit: number;
+    movementDebit: number;
+    movementCredit: number;
+    endingDebit: number;
+    endingCredit: number;
+}

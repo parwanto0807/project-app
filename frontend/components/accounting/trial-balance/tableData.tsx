@@ -44,6 +44,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
+import TrialBalancePDFGenerator from "./TrialBalancePDFGenerator";
 
 interface TrialBalanceDataTableProps {
     data: TrialBalance[];
@@ -270,6 +271,16 @@ export function TrialBalanceDataTable({ data, totals, isLoading }: TrialBalanceD
 
     return (
         <div className="space-y-4 p-1">
+            <div className="flex items-center justify-end gap-4 mb-2">
+                <div className="flex gap-2">
+                    <TrialBalancePDFGenerator
+                        data={data}
+                        totals={totals}
+                        period="January 2026"
+                        date={new Date().toISOString().split('T')[0]}
+                    />
+                </div>
+            </div>
             {/* Balance Status Summary */}
             <div className="grid grid-cols-3 gap-2">
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 md:p-3 shadow-xs">

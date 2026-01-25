@@ -40,6 +40,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { TransactionDetailSheet } from "./TransactionDetailSheet";
+import GeneralLedgerSummaryPDFGenerator from "./trial-balance/GeneralLedgerSummaryPDFGenerator";
 
 interface TabelGeneralLedgerSummaryProps {
     data: GeneralLedgerSummary[];
@@ -66,6 +67,51 @@ export const TabelGeneralLedgerSummary = ({ data, isLoading }: TabelGeneralLedge
             date: item.date,
             periodId: item.periodId
         });
+    };
+
+    const handleExportCSV = () => {
+        if (!data.length) return;
+
+        // Headers
+        const headers = [
+            "Date",
+            "Account Code",
+            "Account Name",
+            "Account Type",
+            "Opening Balance",
+            "Debit",
+            "Credit",
+            "Closing Balance",
+            "Transactions"
+        ];
+
+        // Rows
+        const rows = data.map(item => [
+            format(new Date(item.date), "yyyy-MM-dd"),
+            `"${item.coa.code}"`,
+            `"${item.coa.name.replace(/"/g, '""')}"`,
+            `"${item.coa.type}"`,
+            item.openingBalance,
+            item.debitTotal,
+            item.creditTotal,
+            item.closingBalance,
+            item.transactionCount
+        ]);
+
+        const csvContent = [
+            headers.join(","),
+            ...rows.map(row => row.join(","))
+        ].join("\n");
+
+        const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `GL-Summary-${format(new Date(), "yyyy-MM-dd")}.csv`);
+        link.style.visibility = "hidden";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     // Calculations for Totals
@@ -233,18 +279,17 @@ export const TabelGeneralLedgerSummary = ({ data, isLoading }: TabelGeneralLedge
                                 variant="outline"
                                 size="sm"
                                 className="h-8 px-3 rounded-lg text-xs border-slate-200 hover:bg-white"
+                                onClick={handleExportCSV}
+                                disabled={data.length === 0}
                             >
                                 <FileSpreadsheet className="h-3.5 w-3.5 mr-1.5" />
-                                Excel
+                                Export CSV
                             </Button>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-8 px-3 rounded-lg text-xs border-slate-200 hover:bg-white"
-                            >
-                                <Download className="h-3.5 w-3.5 mr-1.5" />
-                                PDF
-                            </Button>
+                            <GeneralLedgerSummaryPDFGenerator
+                                data={data}
+                                period="January 2026" // Anda bisa ambil dari props atau state
+                                date={data[0]?.date} // Tanggal dari data pertama
+                            />
                             <Tooltip>
                                 <TooltipTrigger asChild>
                                     <Button
@@ -310,7 +355,7 @@ export const TabelGeneralLedgerSummary = ({ data, isLoading }: TabelGeneralLedge
                                 <TableBody>
                                     {data.map((item) => (
                                         <TableRow
-                                            key={item.id}
+                                            key={`${item.coaId}-${item.date}`}
                                             className="group hover:bg-gradient-to-r hover:from-blue-50/20 hover:to-indigo-50/10 transition-all duration-200 border-b border-slate-100 last:border-b-0"
                                         >
                                             <TableCell className="py-4 px-6">
@@ -437,7 +482,7 @@ export const TabelGeneralLedgerSummary = ({ data, isLoading }: TabelGeneralLedge
                 <div className="lg:hidden space-y-4">
                     {data.map((item) => (
                         <Card
-                            key={item.id}
+                            key={`${item.coaId}-${item.date}`}
                             className="border border-slate-200 rounded-xl p-4 bg-white shadow-sm hover:shadow-md transition-shadow duration-300"
                         >
                             <div className="flex justify-between items-start mb-4">

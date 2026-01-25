@@ -39,13 +39,7 @@ import { Ledger, LedgerLine } from "@/schemas/accounting/ledger";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import GeneralLedgerPDFGenerator from "./GeneralLedgerPDFGenerator";
 import {
     Tooltip,
     TooltipContent,
@@ -62,6 +56,8 @@ interface LedgerTableProps {
         totalCredit: number;
         balancedCount: number;
     };
+    periodId?: string;
+    search?: string;
 }
 
 interface LedgerGroup {
@@ -74,7 +70,7 @@ interface LedgerGroup {
     totalCredit: number;
 }
 
-export function LedgerTable({ data, isLoading, globalStats }: LedgerTableProps) {
+export function LedgerTable({ data, isLoading, globalStats, periodId, search }: LedgerTableProps) {
     const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
     const [searchQuery, setSearchQuery] = useState("");
     const [groupedData, setGroupedData] = useState<LedgerGroup[]>([]);
@@ -114,25 +110,13 @@ export function LedgerTable({ data, isLoading, globalStats }: LedgerTableProps) 
     }, [data]);
 
     const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat("id-ID", {
+        const formatted = new Intl.NumberFormat("id-ID", {
             style: "currency",
             currency: "IDR",
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
         }).format(amount);
-    };
-
-    const formatCurrencyCompact = (amount: number) => {
-        if (amount >= 1000000000) {
-            return `Rp${(amount / 1000000000).toFixed(1)}M`;
-        }
-        if (amount >= 1000000) {
-            return `Rp${(amount / 1000000).toFixed(1)}JT`;
-        }
-        if (amount >= 1000) {
-            return `Rp${(amount / 1000).toFixed(0)}RB`;
-        }
-        return `Rp${amount}`;
+        return formatted.replace(/Rp\s?/, 'Rp.');
     };
 
     const getReferenceIcon = (type: string) => {
@@ -214,6 +198,82 @@ export function LedgerTable({ data, isLoading, globalStats }: LedgerTableProps) 
         }
     };
 
+    const handleExportCSV = async () => {
+        let exportData = data;
+        let isFetchingAll = false;
+
+        // Jika ada periodId, coba ambil semua data (bukan cuma page aktif)
+        if (periodId) {
+            isFetchingAll = true;
+            try {
+                // Import dinamis untuk menghindari circular dependency jika ada, 
+                // atau cukup panggil jika sudah diimport
+                const { getGeneralLedgerLines } = await import("@/lib/action/accounting/ledger");
+                const result = await getGeneralLedgerLines({
+                    periodId,
+                    search: search || undefined,
+                    page: 1,
+                    limit: 5000 // Limit besar untuk ambil semua
+                });
+
+                if (result.success && result.data.length > 0) {
+                    exportData = result.data;
+                }
+            } catch (error) {
+                console.error("Failed to fetch all data for export:", error);
+                // Fallback ke data yang ada di page jika gagal
+            }
+        }
+
+        if (!exportData.length) return;
+
+        // Headers
+        const headers = [
+            "Date",
+            "Ledger Number",
+            "Reference Type",
+            "Header Description",
+            "Account Code",
+            "Account Name",
+            "Line Description",
+            "Line Reference",
+            "Debit",
+            "Credit"
+        ];
+
+        // Rows
+        const rows = exportData.flatMap(ledger => {
+            const lines = ledger.ledgerLines || [];
+            return lines.map(line => [
+                format(new Date(ledger.transactionDate), "yyyy-MM-dd"),
+                `"${ledger.ledgerNumber}"`,
+                `"${ledger.referenceType}"`,
+                `"${ledger.description.replace(/"/g, '""')}"`,
+                `"${line.coa?.code || ""}"`,
+                `"${line.coa?.name || ""}"`,
+                `"${(line.description || ledger.description).replace(/"/g, '""')}"`,
+                `"${line.reference || ""}"`,
+                line.debitAmount,
+                line.creditAmount
+            ]);
+        });
+
+        const csvContent = [
+            headers.join(","),
+            ...rows.map(row => row.join(","))
+        ].join("\n");
+
+        const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `General-Ledger-${format(new Date(), "yyyy-MM-dd")}.csv`);
+        link.style.visibility = "hidden";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     const filteredGroups = searchQuery
         ? groupedData.filter(group =>
             group.ledgerNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -276,13 +336,13 @@ export function LedgerTable({ data, isLoading, globalStats }: LedgerTableProps) 
                                 <div className="text-center p-1.5 bg-emerald-50 rounded">
                                     <div className="text-[10px] text-emerald-700 font-medium">Debit</div>
                                     <div className="font-mono text-xs font-bold text-emerald-800">
-                                        {formatCurrencyCompact(group.totalDebit)}
+                                        {formatCurrency(group.totalDebit)}
                                     </div>
                                 </div>
                                 <div className="text-center p-1.5 bg-rose-50 rounded">
                                     <div className="text-[10px] text-rose-700 font-medium">Credit</div>
                                     <div className="font-mono text-xs font-bold text-rose-800">
-                                        {formatCurrencyCompact(group.totalCredit)}
+                                        {formatCurrency(group.totalCredit)}
                                     </div>
                                 </div>
                             </div>
@@ -320,14 +380,14 @@ export function LedgerTable({ data, isLoading, globalStats }: LedgerTableProps) 
                                                     <div className="text-center p-1 bg-emerald-50 rounded">
                                                         <div className="text-[10px] text-emerald-700">Debit</div>
                                                         <div className="font-mono text-xs font-bold text-emerald-800">
-                                                            {formatCurrencyCompact(line.debitAmount)}
+                                                            {formatCurrency(line.debitAmount)}
                                                         </div>
                                                     </div>
                                                 ) : (
                                                     <div className="text-center p-1 bg-rose-50 rounded">
                                                         <div className="text-[10px] text-rose-700">Credit</div>
                                                         <div className="font-mono text-xs font-bold text-rose-800">
-                                                            {formatCurrencyCompact(line.creditAmount)}
+                                                            {formatCurrency(line.creditAmount)}
                                                         </div>
                                                     </div>
                                                 )}
@@ -350,7 +410,7 @@ export function LedgerTable({ data, isLoading, globalStats }: LedgerTableProps) 
                                         Balance: {(() => {
                                             const balance = Math.abs(group.totalDebit - group.totalCredit);
                                             const roundedBalance = Math.round(balance * 100) / 100;
-                                            return roundedBalance < 0.01 ? 'Rp 0' : formatCurrencyCompact(roundedBalance);
+                                            return roundedBalance < 0.01 ? 'Rp.0,00' : formatCurrency(roundedBalance);
                                         })()}
                                     </div>
                                 </div>
@@ -455,10 +515,23 @@ export function LedgerTable({ data, isLoading, globalStats }: LedgerTableProps) 
                         </Tooltip>
                     </TooltipProvider>
 
-                    <Button variant="outline" size="sm" className="gap-2 text-xs whitespace-nowrap">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2 text-xs whitespace-nowrap"
+                        onClick={handleExportCSV}
+                        disabled={data.length === 0}
+                    >
                         <Download className="h-3.5 w-3.5" />
-                        Export
+                        Export CSV
                     </Button>
+                    <GeneralLedgerPDFGenerator
+                        data={data}
+                        period="January 2026 (01-2026)"
+                        globalStats={globalStats}
+                        periodId={periodId}
+                        search={search}
+                    />
 
                     <Button variant="outline" size="sm" className="text-xs whitespace-nowrap">
                         <Calendar className="h-3.5 w-3.5 mr-1" />
@@ -519,12 +592,7 @@ export function LedgerTable({ data, isLoading, globalStats }: LedgerTableProps) 
                         <div className="flex-1">
                             <p className="text-xs font-medium text-emerald-800">Total Debit</p>
                             <p className="text-xl font-bold text-emerald-900 mt-1">
-                                <span className="lg:hidden">
-                                    {formatCurrencyCompact(
-                                        globalStats ? globalStats.totalDebit : groupedData.reduce((sum, g) => sum + g.totalDebit, 0)
-                                    )}
-                                </span>
-                                <span className="hidden lg:inline text-lg">
+                                <span className="text-lg">
                                     {formatCurrency(
                                         globalStats ? globalStats.totalDebit : groupedData.reduce((sum, g) => sum + g.totalDebit, 0)
                                     )}
@@ -534,7 +602,7 @@ export function LedgerTable({ data, isLoading, globalStats }: LedgerTableProps) 
                                 <div className="mt-1 pt-1 border-t border-emerald-200">
                                     <p className="text-[10px] text-emerald-600 font-medium">
                                         This Page: <span className="font-bold">
-                                            {formatCurrencyCompact(groupedData.reduce((sum, g) => sum + g.totalDebit, 0))}
+                                            {formatCurrency(groupedData.reduce((sum, g) => sum + g.totalDebit, 0))}
                                         </span>
                                     </p>
                                 </div>
@@ -552,12 +620,7 @@ export function LedgerTable({ data, isLoading, globalStats }: LedgerTableProps) 
                         <div className="flex-1">
                             <p className="text-xs font-medium text-rose-800">Total Credit</p>
                             <p className="text-xl font-bold text-rose-900 mt-1">
-                                <span className="lg:hidden">
-                                    {formatCurrencyCompact(
-                                        globalStats ? globalStats.totalCredit : groupedData.reduce((sum, g) => sum + g.totalCredit, 0)
-                                    )}
-                                </span>
-                                <span className="hidden lg:inline text-lg">
+                                <span className="text-lg">
                                     {formatCurrency(
                                         globalStats ? globalStats.totalCredit : groupedData.reduce((sum, g) => sum + g.totalCredit, 0)
                                     )}
@@ -567,7 +630,7 @@ export function LedgerTable({ data, isLoading, globalStats }: LedgerTableProps) 
                                 <div className="mt-1 pt-1 border-t border-rose-200">
                                     <p className="text-[10px] text-rose-600 font-medium">
                                         This Page: <span className="font-bold">
-                                            {formatCurrencyCompact(groupedData.reduce((sum, g) => sum + g.totalCredit, 0))}
+                                            {formatCurrency(groupedData.reduce((sum, g) => sum + g.totalCredit, 0))}
                                         </span>
                                     </p>
                                 </div>
@@ -853,11 +916,11 @@ export function LedgerTable({ data, isLoading, globalStats }: LedgerTableProps) 
                                 <div className="flex items-center gap-4 text-sm text-gray-600">
                                     <div className="flex items-center gap-2">
                                         <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                                        <span>Debit: {formatCurrencyCompact(groupedData.reduce((sum, g) => sum + g.totalDebit, 0))}</span>
+                                        <span>Debit: {formatCurrency(groupedData.reduce((sum, g) => sum + g.totalDebit, 0))}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <div className="w-2 h-2 rounded-full bg-rose-500"></div>
-                                        <span>Credit: {formatCurrencyCompact(groupedData.reduce((sum, g) => sum + g.totalCredit, 0))}</span>
+                                        <span>Credit: {formatCurrency(groupedData.reduce((sum, g) => sum + g.totalCredit, 0))}</span>
                                     </div>
                                     <div className="font-bold text-gray-900">
                                         Balance: {(() => {
@@ -866,7 +929,7 @@ export function LedgerTable({ data, isLoading, globalStats }: LedgerTableProps) 
                                             const balance = Math.abs(totalDebit - totalCredit);
                                             // Round to 2 decimal places to avoid floating point errors
                                             const roundedBalance = Math.round(balance * 100) / 100;
-                                            return roundedBalance < 0.01 ? 'Rp 0' : formatCurrencyCompact(roundedBalance);
+                                            return roundedBalance < 0.01 ? 'Rp.0,00' : formatCurrency(roundedBalance);
                                         })()}
                                     </div>
                                 </div>
