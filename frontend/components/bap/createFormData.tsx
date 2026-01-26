@@ -188,6 +188,7 @@ interface EnrichedSpkPhoto extends SpkPhoto {
     productCode?: string;
     reportType?: string;
     karyawanName?: string;
+    reportNote?: string;
     isSelected?: boolean;
 }
 
@@ -438,6 +439,7 @@ export function CreateBAPForm({
                                 productCode: photo.productInfo?.code,
                                 reportType: photo.reportInfo?.type,
                                 karyawanName: photo.reportInfo?.karyawanName,
+                                reportNote: photo.reportInfo?.note,
                                 // 🎯 Tambahkan data tambahan untuk filter
                                 _reportId: photo.reportId,
                                 _productId: photo.productInfo?.id,
@@ -569,10 +571,12 @@ export function CreateBAPForm({
             return {
                 photoUrl: imageUrl,
                 category: "PROCESS" as const,
-                caption: spkPhoto.caption ||
-                    (spkPhoto.productName
-                        ? `Foto ${spkPhoto.productName} - ${new Date(spkPhoto.createdAt).toLocaleDateString("id-ID")}`
-                        : `Foto dari SPK - ${new Date(spkPhoto.createdAt).toLocaleDateString("id-ID")}`),
+                caption: [
+                    spkPhoto.productName,
+                    spkPhoto.reportType,
+                    spkPhoto.reportNote,
+                    spkPhoto.caption
+                ].filter(Boolean).join(" - "),
                 source: "spk",
                 tempId: `spk-${spkPhoto.id}`
             };

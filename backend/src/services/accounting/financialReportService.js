@@ -1,4 +1,5 @@
 import { prisma } from '../../config/db.js';
+import { getJakartaStartOfDay, getJakartaEndOfDay } from '../../utils/dateUtils.js';
 
 export const financialReportService = {
   /**
@@ -20,8 +21,8 @@ export const financialReportService = {
     const whereCondition = {
       ledger: {
         transactionDate: {
-          gte: startDate,
-          lte: endDate
+          gte: getJakartaStartOfDay(startDate),
+          lte: getJakartaEndOfDay(endDate)
         },
         status: 'POSTED' // Only Processed/Posted transactions
       },
@@ -137,11 +138,10 @@ export const financialReportService = {
    * @returns {Promise<Object>} Formatted Balance Sheet
    */
   getBalanceSheet: async ({ endDate }) => {
-    const snapshotDate = new Date(endDate);
-    snapshotDate.setHours(23, 59, 59, 999);
+    const snapshotDate = getJakartaEndOfDay(endDate);
 
-    const startOfYear = new Date(snapshotDate.getFullYear(), 0, 1);
-    const endOfPrevYear = new Date(snapshotDate.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
+    const startOfYear = getJakartaStartOfDay(new Date(snapshotDate.getFullYear(), 0, 1));
+    const endOfPrevYear = getJakartaEndOfDay(new Date(snapshotDate.getFullYear() - 1, 11, 31));
 
     const ASSET_TYPES = ['ASET'];
     const LIABILITY_TYPES = ['LIABILITAS'];
@@ -356,10 +356,8 @@ export const financialReportService = {
    * @returns {Promise<Object>} Formatted Cash Flow Statement
    */
   getCashFlowReport: async ({ startDate, endDate }) => {
-    const start = new Date(startDate);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999);
+    const start = getJakartaStartOfDay(startDate);
+    const end = getJakartaEndOfDay(endDate);
 
     // 1. Identify Cash & Bank accounts (Assets that are reconcilable or marked as cash/bank)
     const cashAccounts = await prisma.chartOfAccounts.findMany({

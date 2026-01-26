@@ -1,6 +1,7 @@
 import { prisma } from '../../config/db.js';
 import { ApiResponse, ListResponse } from '../../validations/api.js';
 import { updateTrialBalance, updateGeneralLedgerSummary } from '../../services/accounting/financialSummaryService.js';
+import TransferJournalService from '../../services/inventory/transferJournalService.js';
 
 /**
  * Helper: Get System Account by Key
@@ -2436,72 +2437,44 @@ export const approveGR = async (req, res) => {
       // ACCOUNTING LEDGER INTEGRATION
       // ========================================
       if (totalInventoryValue > 0) {
-        const period = await getActivePeriod(now, tx);
-        const ledgerNumber = await generateGRLedgerNumber(now, tx);
-
-        // Get Accounts
-        // Debit Account (Inventory)
-        let debitAccount = null;
-        // Priority 1: Warehouse specific inventory account
-        if (existingGR.Warehouse?.inventoryAccountId) {
-          debitAccount = await tx.chartOfAccounts.findUnique({
-            where: { id: existingGR.Warehouse.inventoryAccountId }
-          });
-        }
-        
-        // Priority 2: System Account Mapping
-        if (!debitAccount) {
-          debitAccount = await getSystemAccount('INVENTORY_WIP', tx);
-        }
-
-        // Priority 3: Fallback by Code
-        if (!debitAccount) {
-          debitAccount = await getCOAByCode('1-10205', tx);
-        }
-
-        // Credit Account (Unbilled or Source Warehouse)
-        let creditAccount = null;
-
         if (existingGR.sourceType === 'TRANSFER') {
-          // Internal Transfer: Credit the SOURCE warehouse inventory account
-          let fromWarehouseId = null;
-          const transferNumber = existingGR.vendorDeliveryNote;
-
-          if (transferNumber) {
-            // Priority 1: Check StockTransfer model
-            const stockTransfer = await tx.stockTransfer.findFirst({
-              where: { transferNumber: transferNumber }
-            });
-            
-            if (stockTransfer) {
-              fromWarehouseId = stockTransfer.fromWarehouseId;
-            } else {
-              // Priority 2: Check MaterialRequisition (often used for MR-based transfers)
-              const mr = await tx.materialRequisition.findFirst({
-                where: { notes: { contains: `[${transferNumber}]` } }
-              });
-              if (mr) fromWarehouseId = mr.warehouseId;
-            }
-          }
-
-          if (fromWarehouseId) {
-            const fromWarehouse = await tx.warehouse.findUnique({
-              where: { id: fromWarehouseId }
-            });
-            
-            if (fromWarehouse?.inventoryAccountId) {
-              creditAccount = await tx.chartOfAccounts.findUnique({
-                where: { id: fromWarehouse.inventoryAccountId }
-              });
-            }
-          }
-
-          // Fallback for Transfer: System Mapping (INVENTORY_WIP)
-          if (!creditAccount) {
-            creditAccount = await getSystemAccount('INVENTORY_WIP', tx) || await getCOAByCode('1-10205', tx);
+          // Use the dedicated service for stock transfer journaling
+          const journalResult = await TransferJournalService.createMutationJournal(id, tx);
+          if (!journalResult.success) {
+            console.error(`⚠️ Transfer Journal failed for GR ${existingGR.grNumber}: ${journalResult.error}`);
+            // We don't throw here to avoid rolling back the stock update, 
+            // but we log it via the service's internal audit trail.
+          } else {
+            console.log(`✅ Transfer Mutation Ledger created for GR ${existingGR.grNumber}`);
           }
         } else {
-          // Regular Purchase: Credit Unbilled Receipt System Account
+          // Original logic for PO-based Goods Receipt
+          const period = await getActivePeriod(now, tx);
+          const ledgerNumber = await generateGRLedgerNumber(now, tx);
+
+          // Get Accounts
+          // Debit Account (Inventory)
+          let debitAccount = null;
+          // Priority 1: Warehouse specific inventory account
+          if (existingGR.Warehouse?.inventoryAccountId) {
+            debitAccount = await tx.chartOfAccounts.findUnique({
+              where: { id: existingGR.Warehouse.inventoryAccountId }
+            });
+          }
+          
+          // Priority 2: System Account Mapping
+          if (!debitAccount) {
+            debitAccount = await getSystemAccount('INVENTORY_WIP', tx);
+          }
+
+          // Priority 3: Fallback by Code
+          if (!debitAccount) {
+            debitAccount = await getCOAByCode('1-10205', tx);
+          }
+
+          // Credit Account (Unbilled Receipt)
+          let creditAccount = null;
+
           // Priority 1: System Account Mapping
           creditAccount = await getSystemAccount('UNBILLED_RECEIPT', tx);
 
@@ -2509,81 +2482,81 @@ export const approveGR = async (req, res) => {
           if (!creditAccount) {
             creditAccount = await getCOAByCode('2-10102', tx);
           }
-        }
 
-        if (!debitAccount || !creditAccount) {
-          console.warn('Accounting accounts for GR not found. Ledger entry skipped.');
-        } else {
-          // Create Ledger
-          const ledger = await tx.ledger.create({
-            data: {
-              ledgerNumber: ledgerNumber,
-              referenceNumber: existingGR.grNumber,
-              referenceType: 'GOODS_RECEIPT',
-              transactionDate: now,
-              postingDate: new Date(),
-              description: `Inventory Receipt: ${existingGR.grNumber} at ${existingGR.Warehouse?.name || 'Warehouse'}`,
-              notes: notes || existingGR.notes,
-              periodId: period.id,
-              status: 'POSTED',
-              currency: 'IDR',
-              exchangeRate: 1.0,
-              createdBy: existingGR.receivedById,
-              postedBy: existingGR.receivedById,
-              postedAt: new Date()
-            }
-          });
-
-          // Create Ledger Lines
-          const ledgerLines = [
-            {
-              ledgerId: ledger.id,
-              coaId: debitAccount.id,
-              debitAmount: totalInventoryValue,
-              creditAmount: 0,
-              currency: 'IDR',
-              localAmount: totalInventoryValue,
-              description: `Stock In: ${existingGR.grNumber}`,
-              lineNumber: 1,
-              salesOrderId: existingGR.PurchaseOrder?.SPK?.salesOrderId || null
-            },
-            {
-              ledgerId: ledger.id,
-              coaId: creditAccount.id,
-              debitAmount: 0,
-              creditAmount: totalInventoryValue,
-              currency: 'IDR',
-              localAmount: totalInventoryValue,
-              description: `Unbilled Receipt: ${existingGR.grNumber}`,
-              lineNumber: 2,
-              salesOrderId: existingGR.PurchaseOrder?.SPK?.salesOrderId || null
-            }
-          ];
-
-          await tx.ledgerLine.createMany({
-            data: ledgerLines
-          });
-
-          // Update Financial Summaries
-          for (const line of ledgerLines) {
-            await updateTrialBalance({
-              periodId: period.id,
-              coaId: line.coaId,
-              debitAmount: line.debitAmount,
-              creditAmount: line.creditAmount,
-              tx
+          if (!debitAccount || !creditAccount) {
+            console.warn('Accounting accounts for GR not found. Ledger entry skipped.');
+          } else {
+            // Create Ledger
+            const ledger = await tx.ledger.create({
+              data: {
+                ledgerNumber: ledgerNumber,
+                referenceNumber: existingGR.grNumber,
+                referenceType: 'GOODS_RECEIPT',
+                transactionDate: now,
+                postingDate: new Date(),
+                description: `Inventory Receipt: ${existingGR.grNumber} at ${existingGR.Warehouse?.name || 'Warehouse'}`,
+                notes: notes || existingGR.notes,
+                periodId: period.id,
+                status: 'POSTED',
+                currency: 'IDR',
+                exchangeRate: 1.0,
+                createdBy: existingGR.receivedById,
+                postedBy: existingGR.receivedById,
+                postedAt: new Date()
+              }
             });
 
-            await updateGeneralLedgerSummary({
-              coaId: line.coaId,
-              periodId: period.id,
-              date: now,
-              debitAmount: line.debitAmount,
-              creditAmount: line.creditAmount,
-              tx
+            // Create Ledger Lines
+            const ledgerLines = [
+              {
+                ledgerId: ledger.id,
+                coaId: debitAccount.id,
+                debitAmount: totalInventoryValue,
+                creditAmount: 0,
+                currency: 'IDR',
+                localAmount: totalInventoryValue,
+                description: `Stock In: ${existingGR.grNumber}`,
+                lineNumber: 1,
+                salesOrderId: existingGR.PurchaseOrder?.SPK?.salesOrderId || null
+              },
+              {
+                ledgerId: ledger.id,
+                coaId: creditAccount.id,
+                debitAmount: 0,
+                creditAmount: totalInventoryValue,
+                currency: 'IDR',
+                localAmount: totalInventoryValue,
+                description: `Unbilled Receipt: ${existingGR.grNumber}`,
+                lineNumber: 2,
+                salesOrderId: existingGR.PurchaseOrder?.SPK?.salesOrderId || null
+              }
+            ];
+
+            await tx.ledgerLine.createMany({
+              data: ledgerLines
             });
+
+            // Update Financial Summaries
+            for (const line of ledgerLines) {
+              await updateTrialBalance({
+                periodId: period.id,
+                coaId: line.coaId,
+                debitAmount: line.debitAmount,
+                creditAmount: line.creditAmount,
+                tx
+              });
+
+              await updateGeneralLedgerSummary({
+                coaId: line.coaId,
+                periodId: period.id,
+                date: now,
+                debitAmount: line.debitAmount,
+                creditAmount: line.creditAmount,
+                tx
+              });
+            }
+            console.log(`✅ Accounting entry created for GR ${existingGR.grNumber}. Total: ${totalInventoryValue}`);
           }
-          console.log(`✅ Accounting entry created for GR ${existingGR.grNumber}. Total: ${totalInventoryValue}`);
         }
       }
 

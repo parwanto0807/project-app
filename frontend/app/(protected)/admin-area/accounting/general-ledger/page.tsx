@@ -79,9 +79,16 @@ export default function GeneralLedgerSummaryPage() {
         }
     }, []);
 
+    // Use useEffect with debounce for search
     useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+        const timer = setTimeout(() => {
+            let query = `?search=${encodeURIComponent(searchTerm)}`;
+            // Add period filter logic if needed, for now focusing on search
+            fetchData(query);
+        }, 500); // 500ms debounce
+
+        return () => clearTimeout(timer);
+    }, [searchTerm, fetchData]);
 
     const handleRefresh = () => {
         fetchData();
@@ -90,7 +97,6 @@ export default function GeneralLedgerSummaryPage() {
 
     const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
         setSearchTerm(e.target.value);
-        // Implement search logic here
     };
 
     const handleExport = () => {

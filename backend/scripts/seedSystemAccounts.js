@@ -59,6 +59,12 @@ async function main() {
       searchNames: ['Beban Gaji Karyawan']
     },
     {
+      key: 'CASH_BANK',
+      description: 'Akun default untuk transaksi Kas dan Bank. Digunakan untuk mencatat mutasi dana tunai atau transfer bank yang bersifat umum.',
+      fallbackCode: '1-10001',
+      searchNames: ['Kas Peti Cash', 'Bank BRI KC. CIKARANG', 'Bank']
+    },
+    {
       key: 'PETTY_CASH',
       description: 'Digunakan sebagai sumber dana tunai untuk operasional harian di kantor atau lapangan. Saldo akan berkurang di Kredit saat dana diserahkan kepada staf atau digunakan untuk belanja langsung',
       fallbackCode: '1-10001',

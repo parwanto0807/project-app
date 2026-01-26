@@ -1,4 +1,5 @@
 import { prisma } from "../../config/db.js";
+import { getJakartaStartOfDay, getJakartaEndOfDay } from "../../utils/dateUtils.js";
 
 class LedgerController {
   // Get main ledger entries with filters
@@ -23,12 +24,8 @@ class LedgerController {
       if (status) where.status = status;
 
       if (startDate && endDate) {
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        
-        if (startDate === endDate) {
-          end.setHours(23, 59, 59, 999);
-        }
+        const start = getJakartaStartOfDay(startDate);
+        const end = getJakartaEndOfDay(endDate);
 
         where.transactionDate = {
           gte: start,
@@ -320,14 +317,9 @@ class LedgerController {
       if (periodId) where.ledger = { periodId };
       
       if (startDate && endDate) {
-        const start = new Date(startDate);
-        const end = new Date(endDate);
+        const start = getJakartaStartOfDay(startDate);
+        const end = getJakartaEndOfDay(endDate);
         
-        if (startDate === endDate) {
-          // Robust 24-hour window from the exact start moment
-          end.setTime(start.getTime() + 24 * 60 * 60 * 1000 - 1);
-        }
-
         where.ledger = {
           ...where.ledger,
           transactionDate: {

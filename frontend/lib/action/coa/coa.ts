@@ -7,7 +7,7 @@ import {
   CoaDeletionStatus,
 } from "@/types/coa";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 // Custom error class untuk COA-specific errors
 class CoaApiError extends Error {
@@ -20,20 +20,15 @@ class CoaApiError extends Error {
 // Helper function untuk handle fetch response
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
-    // Try to get error message from response
     let errorMessage = `HTTP error! status: ${response.status}`;
-
     try {
       const errorData = await response.json();
       errorMessage = errorData.message || errorData.error || errorMessage;
     } catch {
-      // If response is not JSON, use status text
       errorMessage = response.statusText || errorMessage;
     }
-
     throw new CoaApiError(errorMessage, response.status);
   }
-
   return response.json();
 }
 
@@ -41,51 +36,34 @@ export const coaApi = {
   async getCOAs(filters: CoaFilter = {}): Promise<CoaListResponse> {
     try {
       const params = new URLSearchParams();
-
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== "") {
           params.append(key, value.toString());
         }
       });
-
       const response = await fetch(`${API_BASE}/api/coa/getAllCOA?${params}`, {
         method: "GET",
         credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        // Tambahkan cache configuration jika diperlukan
-        // next: { revalidate: 60 } // untuk Next.js
+        headers: { "Content-Type": "application/json" },
       });
-
       return await handleResponse<CoaListResponse>(response);
     } catch (error) {
-      if (error instanceof CoaApiError) {
-        throw error;
-      }
+      if (error instanceof CoaApiError) throw error;
       throw new CoaApiError("Failed to fetch COA list");
     }
   },
 
   async getCOAById(id: string): Promise<CoaResponse> {
     try {
-      if (!id) {
-        throw new CoaApiError("COA ID is required");
-      }
-
+      if (!id) throw new CoaApiError("COA ID is required");
       const response = await fetch(`${API_BASE}/api/coa/getCOAById${id}`, {
         method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         credentials: "include",
       });
-
       return await handleResponse<CoaResponse>(response);
     } catch (error) {
-      if (error instanceof CoaApiError) {
-        throw error;
-      }
+      if (error instanceof CoaApiError) throw error;
       throw new CoaApiError("Failed to fetch COA details");
     }
   },
@@ -95,19 +73,15 @@ export const coaApi = {
       const params = new URLSearchParams();
       if (type) params.append("type", type);
 
-      const response = await fetch(`${API_BASE}/hierarchy?${params}`, {
+      const response = await fetch(`${API_BASE}/api/coa/hierarchy?${params}`, {
         method: "GET",
         credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
       });
 
       return await handleResponse<CoaHierarchyResponse>(response);
     } catch (error) {
-      if (error instanceof CoaApiError) {
-        throw error;
-      }
+      if (error instanceof CoaApiError) throw error;
       throw new CoaApiError("Failed to fetch COA hierarchy");
     }
   },

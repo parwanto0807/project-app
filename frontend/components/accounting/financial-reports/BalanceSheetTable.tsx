@@ -10,10 +10,17 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { formatCurrency } from "@/lib/utils";
-import { Scale, Calendar, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { formatCurrency, cn } from "@/lib/utils";
+import { Scale, Calendar, AlertCircle, CheckCircle2, Search } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { cn } from "@/lib/utils";
+import { TransactionDetailSheet } from "../TransactionDetailSheet";
+import { Button } from "@/components/ui/button";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface AccountData {
     id: string;
@@ -63,6 +70,32 @@ interface BalanceSheetTableProps {
 }
 
 export default function BalanceSheetTable({ data, isLoading, snapshotDate }: BalanceSheetTableProps) {
+    const [detailConfig, setDetailConfig] = React.useState<{
+        open: boolean;
+        coaId?: string;
+        coaName?: string;
+        coaCode?: string;
+        startDate?: string;
+        endDate?: string;
+    }>({ open: false });
+
+    // Function to handle showing details
+    const handleShowDetails = (account: AccountData) => {
+        if (!snapshotDate) return;
+
+        const dateObj = new Date(snapshotDate);
+        const firstDayOfMonth = new Date(dateObj.getFullYear(), dateObj.getMonth(), 1);
+
+        setDetailConfig({
+            open: true,
+            coaId: account.id,
+            coaName: account.name,
+            coaCode: account.code,
+            startDate: firstDayOfMonth.toISOString(),
+            endDate: snapshotDate
+        });
+    };
+
     if (isLoading) {
         return (
             <Card className="w-full shadow-sm border-slate-200">
@@ -130,12 +163,12 @@ export default function BalanceSheetTable({ data, isLoading, snapshotDate }: Bal
                 type === 'main-total' ? "hover:bg-primary/90" : "hover:bg-slate-50 dark:hover:bg-slate-800/50",
                 className
             )}>
-                <TableCell className={cn(getRowClasses(), "py-3")} colSpan={2}>
+                <TableCell className={cn(getRowClasses(), "py-3")} colSpan={3}>
                     <div className={cn(type === 'sub-category' ? "pl-8" : "pl-6")}>
                         {title}
                     </div>
                 </TableCell>
-                <TableCell className={cn("text-right py-3 pr-6", getRowClasses())}>
+                <TableCell className={cn("text-right py-3 pr-6", getRowClasses())} colSpan={2}>
                     {total !== undefined && (
                         <span className="tabular-nums tracking-tight">
                             {formatCurrency(total)}
@@ -151,7 +184,7 @@ export default function BalanceSheetTable({ data, isLoading, snapshotDate }: Bal
             <>
                 {accounts.length === 0 ? (
                     <TableRow>
-                        <TableCell colSpan={3} className="text-center py-4 text-slate-400 text-xs italic">
+                        <TableCell colSpan={4} className="text-center py-4 text-slate-400 text-xs italic">
                             Tidak ada akun dalam kategori ini
                         </TableCell>
                     </TableRow>
@@ -171,6 +204,23 @@ export default function BalanceSheetTable({ data, isLoading, snapshotDate }: Bal
                                 <span className="tabular-nums font-medium text-slate-900 dark:text-slate-200 text-sm">
                                     {formatCurrency(account.amount)}
                                 </span>
+                            </TableCell>
+                            <TableCell className="text-center w-[60px]">
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                            onClick={() => handleShowDetails(account)}
+                                        >
+                                            <Search className="h-4 w-4" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p className="text-xs">Lihat Rincian Transaksi</p>
+                                    </TooltipContent>
+                                </Tooltip>
                             </TableCell>
                         </TableRow>
                     ))
@@ -237,7 +287,8 @@ export default function BalanceSheetTable({ data, isLoading, snapshotDate }: Bal
                             <TableRow>
                                 <TableHead className="pl-6 w-[150px]">Kode Akun</TableHead>
                                 <TableHead>Nama Akun</TableHead>
-                                <TableHead className="text-right pr-6">Saldo (IDR)</TableHead>
+                                <TableHead className="text-right">Saldo (IDR)</TableHead>
+                                <TableHead className="text-center w-[80px]">Aksi</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -278,7 +329,7 @@ export default function BalanceSheetTable({ data, isLoading, snapshotDate }: Bal
                                 className="mt-4"
                             />
 
-                            <TableRow className="h-6 bg-slate-50/30 dark:bg-slate-900/10"><TableCell colSpan={3}></TableCell></TableRow>
+                            <TableRow className="h-6 bg-slate-50/30 dark:bg-slate-900/10"><TableCell colSpan={4}></TableCell></TableRow>
 
                             {/* LIABILITIES SECTION */}
                             <SectionRow
@@ -317,7 +368,7 @@ export default function BalanceSheetTable({ data, isLoading, snapshotDate }: Bal
                                 className="mt-4"
                             />
 
-                            <TableRow className="h-4"><TableCell colSpan={3}></TableCell></TableRow>
+                            <TableRow className="h-4"><TableCell colSpan={4}></TableCell></TableRow>
 
                             {/* EQUITY SECTION */}
                             <SectionRow
@@ -337,6 +388,7 @@ export default function BalanceSheetTable({ data, isLoading, snapshotDate }: Bal
                                         {formatCurrency(data.equity.retainedEarnings)}
                                     </span>
                                 </TableCell>
+                                <TableCell></TableCell>
                             </TableRow>
                             <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                                 <TableCell className="w-[120px] text-slate-500 dark:text-slate-400 pl-12 font-medium text-xs">-</TableCell>
@@ -348,6 +400,7 @@ export default function BalanceSheetTable({ data, isLoading, snapshotDate }: Bal
                                         {formatCurrency(data.equity.currentYearEarnings)}
                                     </span>
                                 </TableCell>
+                                <TableCell></TableCell>
                             </TableRow>
 
                             <SectionRow
@@ -356,7 +409,7 @@ export default function BalanceSheetTable({ data, isLoading, snapshotDate }: Bal
                                 type="subtotal"
                             />
 
-                            <TableRow className="h-1 bg-slate-100/50 dark:bg-slate-900/30"><TableCell colSpan={3}></TableCell></TableRow>
+                            <TableRow className="h-1 bg-slate-100/50 dark:bg-slate-900/30"><TableCell colSpan={4}></TableCell></TableRow>
 
                             {/* PASIVA TOTAL */}
                             <SectionRow
@@ -376,6 +429,18 @@ export default function BalanceSheetTable({ data, isLoading, snapshotDate }: Bal
                     </Table>
                 </CardContent>
             </Card>
+
+            <TooltipProvider>
+                <TransactionDetailSheet
+                    open={detailConfig.open}
+                    onOpenChange={(open) => setDetailConfig(prev => ({ ...prev, open }))}
+                    coaId={detailConfig.coaId}
+                    coaName={detailConfig.coaName}
+                    coaCode={detailConfig.coaCode}
+                    startDate={detailConfig.startDate}
+                    endDate={detailConfig.endDate}
+                />
+            </TooltipProvider>
         </div>
     );
 }

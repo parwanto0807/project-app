@@ -1304,6 +1304,10 @@ model ChartOfAccounts {
   TrialBalance         TrialBalance[]
   uangMuka             UangMuka[]
   warehouses           Warehouse[]            @relation("WarehouseInventory")
+
+  assetCategoriesAsAsset   AssetCategory[] @relation("AssetAccount")
+  assetCategoriesAsAccum   AssetCategory[] @relation("AccumDeprecAccount")
+  assetCategoriesAsExpense AssetCategory[] @relation("DeprecExpenseAccount")
 }
 
 model JournalEntry {
@@ -1366,6 +1370,7 @@ model Supplier {
   contacts           SupplierContact[]
   supplierInvoices   SupplierInvoice[]
   journalEntry       JournalEntry[]        @relation("JournalEntryToSupplier")
+  assetMaintenances  AssetMaintenance[]
 
   @@index([name])
   @@index([status])
@@ -2417,6 +2422,8 @@ enum LedgerEntryType {
   CLOSING
   REVERSAL
   GOODS_RECEIPT
+  ASSET_MAINTENANCE
+  ASSET_DEPRECIATION
 }
 
 enum LedgerStatus {
@@ -2459,4 +2466,90 @@ enum FundTransferStatus {
   DRAFT
   POSTED
   VOIDED
+}
+
+model AssetCategory {
+  id                     String             @id @default(uuid())
+  name                   String             @unique
+  description            String?
+  usefulLife             Int // in years
+  depreciationMethod     DepreciationMethod @default(STRAIGHT_LINE)
+  assetAccountId         String
+  accumDeprecAccountId   String
+  deprecExpenseAccountId String
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  assetAccount         ChartOfAccounts @relation("AssetAccount", fields: [assetAccountId], references: [id])
+  accumDeprecAccount   ChartOfAccounts @relation("AccumDeprecAccount", fields: [accumDeprecAccountId], references: [id])
+  deprecExpenseAccount ChartOfAccounts @relation("DeprecExpenseAccount", fields: [deprecExpenseAccountId], references: [id])
+  assets               FixedAsset[]
+}
+
+model FixedAsset {
+  id                   String      @id @default(uuid())
+  assetCode            String      @unique
+  name                 String
+  description          String?
+  categoryId           String
+  acquisitionDate      DateTime
+  acquisitionCost      Decimal     @db.Decimal(19, 2)
+  salvageValue         Decimal     @default(0) @db.Decimal(19, 2)
+  usefulLife           Int // in years (overrides category if set)
+  location             String?
+  department           String?
+  status               AssetStatus @default(ACTIVE)
+  lastDepreciationDate DateTime?
+  totalDepreciation    Decimal     @default(0) @db.Decimal(19, 2)
+  bookValue            Decimal     @db.Decimal(19, 2)
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  category      AssetCategory       @relation(fields: [categoryId], references: [id])
+  depreciations AssetDepreciation[]
+  maintenances  AssetMaintenance[]
+}
+
+model AssetMaintenance {
+  id              String    @id @default(uuid())
+  assetId         String
+  maintenanceDate DateTime
+  type            String // 'ROUTINE', 'REPAIR', 'UPGRADE'
+  description     String
+  cost            Decimal   @db.Decimal(19, 2)
+  performedBy     String?
+  supplierId      String?
+  nextSchedule    DateTime?
+  status          String    @default("COMPLETED") // 'SCHEDULED', 'IN_PROGRESS', 'COMPLETED'
+  ledgerId        String?   @unique
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  asset    FixedAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  supplier Supplier?  @relation(fields: [supplierId], references: [id])
+}
+
+model AssetDepreciation {
+  id               String   @id @default(uuid())
+  assetId          String
+  depreciationDate DateTime
+  amount           Decimal  @db.Decimal(19, 2)
+  periodId         String
+  ledgerId         String?  @unique
+  createdAt        DateTime @default(now())
+
+  asset FixedAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+}
+
+enum DepreciationMethod {
+  STRAIGHT_LINE
+  DOUBLE_DECLINING
+  NONE
+}
+
+enum AssetStatus {
+  ACTIVE
+  DISPOSED
+  SOLD
+  WRITTEN_OFF
 }

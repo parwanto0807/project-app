@@ -1,4 +1,5 @@
 import { prisma } from "../../config/db.js";
+import { getJakartaStartOfDay, getJakartaEndOfDay } from "../../utils/dateUtils.js";
 
 class GLSummaryController {
   /**
@@ -11,6 +12,7 @@ class GLSummaryController {
         periodId, 
         startDate, 
         endDate, 
+        search,
         page = 1, 
         limit = 10 
       } = req.query;
@@ -25,8 +27,15 @@ class GLSummaryController {
       
       if (startDate || endDate) {
         where.date = {};
-        if (startDate) where.date.gte = new Date(startDate);
-        if (endDate) where.date.lte = new Date(endDate);
+        if (startDate) where.date.gte = getJakartaStartOfDay(startDate);
+        if (endDate) where.date.lte = getJakartaEndOfDay(endDate);
+      }
+
+      if (search) {
+        where.OR = [
+          { coa: { name: { contains: search, mode: "insensitive" } } },
+          { coa: { code: { contains: search, mode: "insensitive" } } },
+        ];
       }
 
       const [data, total] = await Promise.all([
@@ -83,8 +92,8 @@ class GLSummaryController {
       const where = { coaId };
       if (startDate || endDate) {
         where.date = {};
-        if (startDate) where.date.gte = new Date(startDate);
-        if (endDate) where.date.lte = new Date(endDate);
+        if (startDate) where.date.gte = getJakartaStartOfDay(startDate);
+        if (endDate) where.date.lte = getJakartaEndOfDay(endDate);
       }
 
       const data = await prisma.generalLedgerSummary.findMany({
@@ -113,11 +122,10 @@ class GLSummaryController {
     try {
       const { periodId, startDate, endDate } = req.query;
 
-      // Build date filter
       const dateFilter = {};
       if (startDate || endDate) {
-        if (startDate) dateFilter.gte = new Date(startDate);
-        if (endDate) dateFilter.lte = new Date(endDate);
+        if (startDate) dateFilter.gte = getJakartaStartOfDay(startDate);
+        if (endDate) dateFilter.lte = getJakartaEndOfDay(endDate);
       }
 
       // Build where clause for GL Summary

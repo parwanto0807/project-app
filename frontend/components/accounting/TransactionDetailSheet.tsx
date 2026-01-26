@@ -32,7 +32,9 @@ interface TransactionDetailSheetProps {
     coaId?: string;
     coaName?: string;
     coaCode?: string;
-    date?: string; // ISO String from summary
+    startDate?: string;
+    endDate?: string; // Replace 'date' with 'endDate' for clarity, but keep 'date' for backward compatibility
+    date?: string;
     periodId?: string;
 }
 
@@ -42,7 +44,9 @@ export const TransactionDetailSheet = ({
     coaId,
     coaName,
     coaCode,
+    startDate: propStartDate,
     date,
+    endDate: propEndDate,
     periodId
 }: TransactionDetailSheetProps) => {
     const [lines, setLines] = useState<LedgerLine[]>([]);
@@ -50,17 +54,21 @@ export const TransactionDetailSheet = ({
     const [search, setSearch] = useState("");
     const [expandedJournals, setExpandedJournals] = useState<Record<string, boolean>>({});
 
+    // Normalize dates
+    const finalEndDate = propEndDate || date;
+    const finalStartDate = propStartDate || finalEndDate;
+
     useEffect(() => {
         const fetchLines = async () => {
-            if (!open || !coaId || !date) return;
+            if (!open || !coaId || !finalEndDate) return;
 
             setIsLoading(true);
             try {
                 // IMPORTANT: Pass the raw ISO date string to match exactly with the summary's daily grouping
                 const response = await getGeneralLedgerPostings({
                     coaId,
-                    startDate: date, // Raw ISO string from DB (normalized day start)
-                    endDate: date,
+                    startDate: finalStartDate, // Use start date if provided
+                    endDate: finalEndDate,
                     periodId,
                     limit: 300
                 });
@@ -80,7 +88,7 @@ export const TransactionDetailSheet = ({
             setSearch("");
             setExpandedJournals({});
         }
-    }, [open, coaId, date, periodId]);
+    }, [open, coaId, finalStartDate, finalEndDate, periodId]);
 
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('id-ID', {
@@ -122,10 +130,18 @@ export const TransactionDetailSheet = ({
                                 <span className="font-medium text-slate-700">{coaName}</span>
                             </p>
                         </div>
-                        {date && (
+                        {finalEndDate && (
                             <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-slate-200 text-sm font-medium text-slate-700 shadow-sm">
                                 <Calendar className="h-4 w-4 text-blue-500" />
-                                {format(new Date(date), "dd MMMM yyyy", { locale: id })}
+                                {finalStartDate === finalEndDate ? (
+                                    format(new Date(finalEndDate!), "dd MMMM yyyy", { locale: id })
+                                ) : (
+                                    <>
+                                        {format(new Date(finalStartDate!), "dd MMM", { locale: id })}
+                                        <span className="text-slate-400 mx-1">-</span>
+                                        {format(new Date(finalEndDate!), "dd MMM yyyy", { locale: id })}
+                                    </>
+                                )}
                             </div>
                         )}
                     </div>

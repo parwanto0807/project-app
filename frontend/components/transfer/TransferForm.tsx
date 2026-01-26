@@ -9,7 +9,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from '@/components/ui/command';
 import { Card, CardContent } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import {
     Plus,
     Trash2,
@@ -20,7 +30,9 @@ import {
     Package,
     FileText,
     ArrowRightLeft,
-    Warehouse
+    Warehouse,
+    Check,
+    ChevronsUpDown
 } from 'lucide-react';
 import { useCreateTransfer } from '@/hooks/use-tf';
 import { createTransferSchema, type CreateTransferInput } from '@/schemas/tf';
@@ -467,39 +479,62 @@ export function TransferForm({ onSuccess, onCancel }: TransferFormProps) {
                                                     name={`items.${index}.productId`}
                                                     control={control}
                                                     render={({ field }) => (
-                                                        <Select
-                                                            onValueChange={(value) => {
-                                                                field.onChange(value);
-                                                                // Cari produk yang sesuai dengan warehouse yang dipilih
-                                                                const product = products.find(p => p.id === value && p.warehouseId === fromWarehouseId);
-                                                                if (product) {
-                                                                    console.log('🔄 Selected Product:', product.code, 'Unit:', product.unit);
-                                                                    setValue(`items.${index}.unit`, product.unit);
-                                                                }
-                                                            }}
-                                                            value={field.value}
-                                                            disabled={!fromWarehouseId}
-                                                        >
-                                                            <SelectTrigger className="mt-1.5 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 shadow-sm">
-                                                                <SelectValue placeholder="Pilih produk" />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                {availableProducts.map((product) => (
-                                                                    <SelectItem key={product.id} value={product.id}>
-                                                                        <div className="flex flex-col">
-                                                                            <div className="flex items-center gap-2">
-                                                                                <span className="font-medium">{product.code}</span>
-                                                                                <span>-</span>
-                                                                                <span>{product.name}</span>
-                                                                            </div>
-                                                                            <span className="text-xs text-slate-500">
-                                                                                Stok: {product.availableStock} {product.unit}
-                                                                            </span>
-                                                                        </div>
-                                                                    </SelectItem>
-                                                                ))}
-                                                            </SelectContent>
-                                                        </Select>
+                                                        <Popover>
+                                                            <PopoverTrigger asChild>
+                                                                <Button
+                                                                    variant="outline"
+                                                                    role="combobox"
+                                                                    className={cn(
+                                                                        "w-full justify-between mt-1.5 h-10 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600 shadow-sm font-normal",
+                                                                        !field.value && "text-muted-foreground"
+                                                                    )}
+                                                                    disabled={!fromWarehouseId}
+                                                                >
+                                                                    {field.value
+                                                                        ? availableProducts.find((p) => p.id === field.value)?.code + " - " + availableProducts.find((p) => p.id === field.value)?.name
+                                                                        : "Pilih produk..."}
+                                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                                </Button>
+                                                            </PopoverTrigger>
+                                                            <PopoverContent className="w-[400px] p-0" align="start">
+                                                                <Command>
+                                                                    <CommandInput placeholder="Cari kode atau nama produk..." />
+                                                                    <CommandList>
+                                                                        <CommandEmpty>Produk tidak ditemukan.</CommandEmpty>
+                                                                        <CommandGroup>
+                                                                            {availableProducts.map((product) => (
+                                                                                <CommandItem
+                                                                                    key={product.id}
+                                                                                    value={`${product.code} ${product.name}`}
+                                                                                    onSelect={() => {
+                                                                                        field.onChange(product.id);
+                                                                                        console.log('🔄 Selected Product:', product.code, 'Unit:', product.unit);
+                                                                                        setValue(`items.${index}.unit`, product.unit);
+                                                                                    }}
+                                                                                >
+                                                                                    <Check
+                                                                                        className={cn(
+                                                                                            "mr-2 h-4 w-4",
+                                                                                            product.id === field.value ? "opacity-100" : "opacity-0"
+                                                                                        )}
+                                                                                    />
+                                                                                    <div className="flex flex-col">
+                                                                                        <div className="flex items-center gap-2">
+                                                                                            <span className="font-bold text-indigo-600 dark:text-indigo-400">{product.code}</span>
+                                                                                            <span className="text-slate-400 font-light">|</span>
+                                                                                            <span className="font-medium text-slate-700 dark:text-slate-200">{product.name}</span>
+                                                                                        </div>
+                                                                                        <span className="text-[10px] text-slate-500 mt-0.5">
+                                                                                            Stok Tersedia: <span className="font-bold text-emerald-600 dark:text-emerald-400">{product.availableStock} {product.unit}</span>
+                                                                                        </span>
+                                                                                    </div>
+                                                                                </CommandItem>
+                                                                            ))}
+                                                                        </CommandGroup>
+                                                                    </CommandList>
+                                                                </Command>
+                                                            </PopoverContent>
+                                                        </Popover>
                                                     )}
                                                 />
                                                 {errors.items?.[index]?.productId && (

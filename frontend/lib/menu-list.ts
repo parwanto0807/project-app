@@ -57,6 +57,7 @@ import {
   LayoutDashboard,
   ShieldCheck,
   History,
+  Layers,
 } from "lucide-react";
 
 interface Permission {
@@ -478,6 +479,15 @@ export function getMenuList(pathname: string, role: string, permissions: Permiss
               tooltip: "Saldo Awal",
               icon: Activity,
               active: isActive(`${basePath}/accounting/opening-balance`, pathname),
+              disabled: role === "user" || role === "pic",
+              requiredPermission: "accounting.manage",
+            },
+            {
+              href: `${basePath}/accounting/fixed-asset`,
+              label: "Fixed Assets",
+              tooltip: "Manajemen Aset Tetap",
+              icon: Layers,
+              active: isActive(`${basePath}/accounting/fixed-asset`, pathname),
               disabled: role === "user" || role === "pic",
               requiredPermission: "accounting.manage",
             },

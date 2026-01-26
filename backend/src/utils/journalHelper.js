@@ -1,4 +1,5 @@
 import { prisma } from '../config/db.js';
+import { normalizeToJakartaStartOfDay } from './dateUtils.js';
 
 /**
  * Get System Account by key
@@ -88,9 +89,8 @@ async function getOrCreateAccountingPeriod(date, tx) {
 async function updateGeneralLedgerSummary(coaId, periodId, date, debit, credit, tx) {
   const prismaClient = tx || prisma;
   
-  // Normalize date to start of day
-  const normalizedDate = new Date(date);
-  normalizedDate.setHours(0, 0, 0, 0);
+  // Normalize date to start of day in Jakarta
+  const normalizedDate = normalizeToJakartaStartOfDay(date);
 
   // Get or create summary record
   let summary = await prismaClient.generalLedgerSummary.findUnique({
