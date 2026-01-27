@@ -86,6 +86,24 @@ export const coaApi = {
     }
   },
 
+  async getCOAsWithBalance(type?: string): Promise<CoaListResponse> {
+    try {
+      const params = new URLSearchParams();
+      if (type) params.append("type", type);
+
+      const response = await fetch(`${API_BASE}/api/coa/with-balance?${params}`, {
+        method: "GET",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      return await handleResponse<CoaListResponse>(response);
+    } catch (error) {
+      if (error instanceof CoaApiError) throw error;
+      throw new CoaApiError("Failed to fetch COA with balance");
+    }
+  },
+
   async createCOA(data: CoaFormData): Promise<CoaResponse> {
     console.log("DATA DITERIMA", data);
     try {

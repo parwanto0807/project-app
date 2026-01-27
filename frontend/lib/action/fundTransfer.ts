@@ -99,6 +99,58 @@ export async function createFundTransfer(data: FundTransferRequest): Promise<{
     return result;
 }
 
+export async function updateFundTransfer(id: string, data: FundTransferRequest): Promise<{
+    success: boolean;
+    message: string;
+    data: FundTransfer;
+}> {
+    const authHeaders = await getAuthHeaders();
+    const cookieHeader = await getCookieHeader();
+
+    const response = await fetch(`${API_BASE}/finance/fund-transfer/${id}`, {
+        method: "PUT",
+        headers: {
+            ...authHeaders,
+            "Content-Type": "application/json",
+            "Cookie": cookieHeader
+        },
+        body: JSON.stringify(data),
+    });
+
+    const result = await handleResponse<{
+        success: boolean;
+        message: string;
+        data: FundTransfer;
+    }>(response);
+
+    revalidatePath("/admin-area/finance/fund-transfer");
+    return result;
+}
+
+export async function deleteFundTransfer(id: string): Promise<{
+    success: boolean;
+    message: string;
+}> {
+    const authHeaders = await getAuthHeaders();
+    const cookieHeader = await getCookieHeader();
+
+    const response = await fetch(`${API_BASE}/finance/fund-transfer/${id}`, {
+        method: "DELETE",
+        headers: {
+            ...authHeaders,
+            "Cookie": cookieHeader
+        },
+    });
+
+    const result = await handleResponse<{
+        success: boolean;
+        message: string;
+    }>(response);
+
+    revalidatePath("/admin-area/finance/fund-transfer");
+    return result;
+}
+
 export async function voidFundTransfer(id: string, reason: string): Promise<{
     success: boolean;
     message: string;
@@ -114,6 +166,32 @@ export async function voidFundTransfer(id: string, reason: string): Promise<{
             "Cookie": cookieHeader
         },
         body: JSON.stringify({ reason }),
+    });
+
+    const result = await handleResponse<{
+        success: boolean;
+        message: string;
+        data: FundTransfer;
+    }>(response);
+
+    revalidatePath("/admin-area/finance/fund-transfer");
+    return result;
+}
+
+export async function postFundTransfer(id: string): Promise<{
+    success: boolean;
+    message: string;
+    data: FundTransfer;
+}> {
+    const authHeaders = await getAuthHeaders();
+    const cookieHeader = await getCookieHeader();
+
+    const response = await fetch(`${API_BASE}/finance/fund-transfer/${id}/post`, {
+        method: "POST",
+        headers: {
+            ...authHeaders,
+            "Cookie": cookieHeader
+        },
     });
 
     const result = await handleResponse<{

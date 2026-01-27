@@ -74,7 +74,51 @@ class FundTransferController {
             const result = await fundTransferService.createTransfer(req.body, req.user.id);
             res.status(201).json({
                 success: true,
-                message: "Fund transfer processed and posted to ledger",
+                message: "Fund transfer saved as DRAFT",
+                data: result
+            });
+        } catch (error) {
+            res.status(400).json({ success: false, message: error.message });
+        }
+    }
+
+    // Update Transfer
+    async updateTransfer(req, res) {
+        try {
+            const { id } = req.params;
+            const result = await fundTransferService.updateTransfer(id, req.body, req.user.id);
+            res.json({
+                success: true,
+                message: "Fund transfer updated successfully",
+                data: result
+            });
+        } catch (error) {
+            res.status(400).json({ success: false, message: error.message });
+        }
+    }
+
+    // Delete Transfer
+    async deleteTransfer(req, res) {
+        try {
+            const { id } = req.params;
+            await fundTransferService.deleteTransfer(id);
+            res.json({
+                success: true,
+                message: "Fund transfer deleted successfully"
+            });
+        } catch (error) {
+            res.status(400).json({ success: false, message: error.message });
+        }
+    }
+
+    // Post Transfer
+    async postTransfer(req, res) {
+        try {
+            const { id } = req.params;
+            const result = await fundTransferService.postTransfer(id, req.user.id);
+            res.json({
+                success: true,
+                message: "Fund transfer posted to ledger successfully",
                 data: result
             });
         } catch (error) {

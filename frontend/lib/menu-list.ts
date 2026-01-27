@@ -544,6 +544,15 @@ export function getMenuList(pathname: string, role: string, permissions: Permiss
               requiredPermission: "finance.manage",
             },
             {
+              href: `${basePath}/finance/operational-expenses`,
+              label: "Biaya Operasional",
+              tooltip: "Manajemen Biaya Operasional (Non-Proyek)",
+              icon: Banknote,
+              active: isActive(`${basePath}/finance/operational-expenses`, pathname),
+              disabled: role === "user",
+              requiredPermission: "finance.view",
+            },
+            {
               href: `${basePath}/accounting/supplier-payment`,
               label: "Supplier payment",
               tooltip: "Pembayaran Pemasok (Supplier Payment)",

@@ -14,6 +14,10 @@ router.get(
   coaController.getCOAHierarchy
 );
 
+// GET ACCOUNTS WITH BALANCE
+router.get("/with-balance", coaValidation.validateGetCOA, coaController.getAccountsWithBalance);
+
+
 // GET COA BY ID
 router.get("/getCOAById:id", coaValidation.validateGetCOAById, coaController.getCOAById);
 

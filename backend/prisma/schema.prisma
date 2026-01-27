@@ -49,41 +49,43 @@ model TrustedDevice {
 }
 
 model User {
-  id                    String           @id @default(uuid())
-  email                 String           @unique
+  id                    String               @id @default(uuid())
+  email                 String               @unique
   name                  String?
   password              String?
-  createdAt             DateTime         @default(now())
+  createdAt             DateTime             @default(now())
   avatar                String?
-  googleId              String?          @unique
-  updatedAt             DateTime         @updatedAt
+  googleId              String?              @unique
+  updatedAt             DateTime             @updatedAt
   mfaSecret             String?
-  failedAttempts        Int              @default(0)
+  failedAttempts        Int                  @default(0)
   lastLoginAt           DateTime?
   lockedUntil           DateTime?
   mfaBackupCodes        String[]
-  mfaEnabled            Boolean          @default(false)
-  tokenVersion          Int              @default(0)
-  provider              AuthProvider     @default(credentials)
-  role                  UserRole         @default(user)
-  active                Boolean          @default(true)
-  createdBAP            BAP[]            @relation("BAPCreatedBy")
-  approvedFundTransfers FundTransfer[]   @relation("FundTransferApprover")
-  createdFundTransfers  FundTransfer[]   @relation("FundTransferCreator")
-  voidedFundTransfers   FundTransfer[]   @relation("FundTransferVoider")
-  receivedGoodsReceipts GoodsReceipt[]   @relation("GoodsReceiptReceivedBy")
-  createdInvoices       Invoice[]        @relation("InvoiceCreatedBy")
+  mfaEnabled            Boolean              @default(false)
+  tokenVersion          Int                  @default(0)
+  provider              AuthProvider         @default(credentials)
+  role                  UserRole             @default(user)
+  active                Boolean              @default(true)
+  createdBAP            BAP[]                @relation("BAPCreatedBy")
+  approvedFundTransfers FundTransfer[]       @relation("FundTransferApprover")
+  createdFundTransfers  FundTransfer[]       @relation("FundTransferCreator")
+  voidedFundTransfers   FundTransfer[]       @relation("FundTransferVoider")
+  receivedGoodsReceipts GoodsReceipt[]       @relation("GoodsReceiptReceivedBy")
+  createdInvoices       Invoice[]            @relation("InvoiceCreatedBy")
   karyawan              Karyawan?
   loginAttempts         LoginAttempt[]
   notifications         Notification[]
   verifiedPayments      Payment[]
   rab                   RAB[]
-  salesOrders           SalesOrder[]     @relation("UserSalesOrders")
-  stockOpnames          StockOpname[]    @relation("OpnamePetugas")
+  salesOrders           SalesOrder[]         @relation("UserSalesOrders")
+  stockOpnames          StockOpname[]        @relation("OpnamePetugas")
   trustedDevices        TrustedDevice[]
   userPermissions       UserPermission[]
   sessions              UserSession[]
   auditLogs             AuditLog[]
+  createdOpEx           OperationalExpense[] @relation("OpExpCreatedBy")
+  approvedOpEx          OperationalExpense[] @relation("OpExpApprovedBy")
 }
 
 model LoginAttempt {
@@ -1227,6 +1229,39 @@ model ProjectBudget {
   @@index([projectId])
 }
 
+model OperationalExpense {
+  id            String        @id @default(uuid())
+  expenseNumber String        @unique
+  date          DateTime      @default(now())
+  description   String
+  amount        Decimal       @db.Decimal(18, 2)
+  receiptUrl    String?
+  status        ExpenseStatus @default(DRAFT)
+
+  // Relations
+  createdById String
+  createdBy   User   @relation("OpExpCreatedBy", fields: [createdById], references: [id])
+
+  approvedById String?
+  approvedBy   User?   @relation("OpExpApprovedBy", fields: [approvedById], references: [id])
+
+  // Accounting mapping
+  expenseAccountId String
+  expenseAccount   ChartOfAccounts @relation("OpExpAccount", fields: [expenseAccountId], references: [id])
+
+  paidFromAccountId String?
+  paidFromAccount   ChartOfAccounts? @relation("OpExpPaidFrom", fields: [paidFromAccountId], references: [id])
+
+  journalEntryId String?       @unique
+  journalEntry   JournalEntry? @relation(fields: [journalEntryId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+  @@index([status])
+}
+
 model ProjectExpense {
   id                String          @id @default(uuid())
   expenseDate       DateTime
@@ -1305,25 +1340,28 @@ model ChartOfAccounts {
   uangMuka             UangMuka[]
   warehouses           Warehouse[]            @relation("WarehouseInventory")
 
-  assetCategoriesAsAsset   AssetCategory[] @relation("AssetAccount")
-  assetCategoriesAsAccum   AssetCategory[] @relation("AccumDeprecAccount")
-  assetCategoriesAsExpense AssetCategory[] @relation("DeprecExpenseAccount")
+  assetCategoriesAsAsset   AssetCategory[]      @relation("AssetAccount")
+  assetCategoriesAsAccum   AssetCategory[]      @relation("AccumDeprecAccount")
+  assetCategoriesAsExpense AssetCategory[]      @relation("DeprecExpenseAccount")
+  operationalExpenses      OperationalExpense[] @relation("OpExpAccount")
+  operationalPaidFrom      OperationalExpense[] @relation("OpExpPaidFrom")
 }
 
 model JournalEntry {
-  id               String             @id @default(uuid())
-  transactionDate  DateTime
-  description      String
-  sourceDocument   String?
-  sourceDocumentId String?
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
-  lines            JournalEntryLine[]
-  Ledger           Ledger[]
-  paymentVoucher   PaymentVoucher?
-  projectExpense   ProjectExpense?
-  sipplierInvoice  SupplierInvoice?
-  supplierInvoice  Supplier[]         @relation("JournalEntryToSupplier")
+  id                 String              @id @default(uuid())
+  transactionDate    DateTime
+  description        String
+  sourceDocument     String?
+  sourceDocumentId   String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  lines              JournalEntryLine[]
+  Ledger             Ledger[]
+  paymentVoucher     PaymentVoucher?
+  projectExpense     ProjectExpense?
+  operationalExpense OperationalExpense?
+  sipplierInvoice    SupplierInvoice?
+  supplierInvoice    Supplier[]          @relation("JournalEntryToSupplier")
 
   @@index([transactionDate])
   @@index([sourceDocument, sourceDocumentId])
@@ -1953,7 +1991,7 @@ model FundTransfer {
   feeAccountId  String?
   referenceNo   String?
   notes         String?
-  status        FundTransferStatus @default(POSTED)
+  status        FundTransferStatus @default(DRAFT)
   ledgerId      String?            @unique
   periodId      String?
   createdById   String

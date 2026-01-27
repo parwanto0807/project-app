@@ -230,6 +230,7 @@ const FundTransferPage = () => {
                                 isLoading={isLoading}
                                 onView={handleView}
                                 onVoid={handleVoid}
+                                onRefresh={() => fetchData(pagination.page, searchTerm)}
                             />
 
                             {/* Pagination (Simple) */}

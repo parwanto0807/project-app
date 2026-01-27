@@ -7,6 +7,9 @@ const router = express.Router();
 router.get('/', authenticateToken, FundTransferController.getTransfers);
 router.get('/:id', authenticateToken, FundTransferController.getTransferById);
 router.post('/', authenticateToken, FundTransferController.createTransfer);
+router.post('/:id/post', authenticateToken, FundTransferController.postTransfer);
 router.post('/:id/void', authenticateToken, FundTransferController.voidTransfer);
+router.put('/:id', authenticateToken, FundTransferController.updateTransfer);
+router.delete('/:id', authenticateToken, FundTransferController.deleteTransfer);
 
 export default router;

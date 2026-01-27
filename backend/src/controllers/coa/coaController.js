@@ -77,7 +77,22 @@ export const coaController = {
       const [coas, total] = await Promise.all([
         prisma.chartOfAccounts.findMany({
           where,
-          include: {
+          select: { // Explicitly select fields to include postingType
+            id: true,
+            code: true,
+            name: true,
+            description: true,
+            type: true,
+            normalBalance: true,
+            postingType: true, // Added postingType here
+            cashflowType: true,
+            status: true,
+            isReconcilable: true,
+            defaultCurrency: true,
+            parentId: true,
+            taxRateId: true,
+            createdAt: true,
+            updatedAt: true,
             parent: {
               select: {
                 id: true,
@@ -584,6 +599,92 @@ export const coaController = {
       });
     } catch (error) {
       console.error("Get COA Hierarchy Error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Internal server error",
+        error: error.message,
+      });
+    }
+  },
+
+  // GET ACCOUNTS WITH BALANCE
+  async getAccountsWithBalance(req, res) {
+    try {
+      const { type } = req.query;
+      
+      const where = {
+        status: "ACTIVE",
+        postingType: "POSTING" // Only fetch postable accounts
+      };
+
+      // Filter by type if provided
+      if (type) {
+          // If type is comma separated, split it
+          if (type.includes(',')) {
+              where.type = { in: type.split(',') };
+          } else if (Object.values(CoaType).includes(type)) {
+              where.type = type;
+          }
+      }
+
+      const accounts = await prisma.chartOfAccounts.findMany({
+        where,
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          normalBalance: true,
+          type: true,
+          postingType: true,
+        },
+        orderBy: { code: 'asc' }
+      });
+
+      if (accounts.length === 0) {
+        return res.json({
+            success: true,
+            data: []
+        });
+      }
+
+      // Calculate balance for each account using groupBy on LedgerLine
+      const balances = await prisma.ledgerLine.groupBy({
+        by: ['coaId'],
+        where: {
+          coaId: { in: accounts.map(a => a.id) }
+        },
+        _sum: {
+          debitAmount: true,
+          creditAmount: true
+        }
+      });
+
+      // Map balances to accounts
+      const accountsWithBalance = accounts.map(account => {
+        const balanceData = balances.find(b => b.coaId === account.id);
+        const debit = balanceData?._sum.debitAmount || 0;
+        const credit = balanceData?._sum.creditAmount || 0;
+        
+        let balance = 0;
+        if (account.normalBalance === 'DEBIT') {
+            balance = debit - credit;
+        } else {
+            balance = credit - debit;
+        }
+
+        return {
+          ...account,
+          balance
+        };
+      });
+
+      res.json({
+        success: true,
+        data: accountsWithBalance
+      });
+
+    } catch (error) {
+      console.error("Get Accounts With Balance Error:", error);
       res.status(500).json({
         success: false,
         message: "Internal server error",

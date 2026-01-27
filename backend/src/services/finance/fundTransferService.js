@@ -27,33 +27,66 @@ export const fundTransferService = {
         return `${prefix}${String(nextNum).padStart(4, '0')}`;
     },
 
-    // 2. Create Fund Transfer & Post to Ledger (Atomic)
+    // 2. Create Fund Transfer (DRAFT)
     async createTransfer(data, userId) {
+        // Generate No
+        const transferNo = await this.generateTransferNo();
+        const totalAmount = Number(data.amount) + Number(data.feeAmount || 0);
+
+        return await prisma.fundTransfer.create({
+            data: {
+                transferNo,
+                transferDate: new Date(data.transferDate),
+                amount: data.amount,
+                feeAmount: data.feeAmount || 0,
+                totalAmount: totalAmount,
+                fromAccountId: data.fromAccountId,
+                toAccountId: data.toAccountId,
+                feeAccountId: data.feeAccountId || null,
+                referenceNo: data.referenceNo,
+                notes: data.notes,
+                status: 'DRAFT',
+                createdById: userId
+            }
+        });
+    },
+
+    // 3. Post Transfer to Ledger (Atomic)
+    async postTransfer(id, userId) {
         return await prisma.$transaction(async (tx) => {
-            // A. Get Active Period
+            // A. Get Data
+            const transfer = await tx.fundTransfer.findUnique({
+                where: { id },
+                include: {
+                    fromAccount: true,
+                    toAccount: true,
+                    feeAccount: true
+                }
+            });
+
+            if (!transfer) throw new Error("Transfer not found");
+            if (transfer.status !== 'DRAFT') throw new Error("Only DRAFT transfers can be posted");
+
+            // B. Get Active Period
             const period = await tx.accountingPeriod.findFirst({
                 where: {
-                    startDate: { lte: new Date(data.transferDate) },
-                    endDate: { gte: new Date(data.transferDate) },
+                    startDate: { lte: transfer.transferDate },
+                    endDate: { gte: transfer.transferDate },
                     isClosed: false
                 }
             });
 
             if (!period) throw new Error("No active accounting period found for this date.");
 
-            // B. Generate No
-            const transferNo = await this.generateTransferNo();
-            const totalAmount = Number(data.amount) + Number(data.feeAmount || 0);
-
             // C. Create Jurnal (Ledger Header)
             const ledger = await tx.ledger.create({
                 data: {
-                    ledgerNumber: `JV-TRF-${transferNo.replace(/\//g, '-')}`,
-                    referenceNumber: transferNo,
+                    ledgerNumber: `JV-TRF-${transfer.transferNo.replace(/\//g, '-')}`,
+                    referenceNumber: transfer.transferNo,
                     referenceType: 'JOURNAL',
-                    transactionDate: new Date(data.transferDate),
+                    transactionDate: transfer.transferDate,
                     postingDate: new Date(),
-                    description: `Fund Transfer: ${data.notes || 'Internal Transfer'}`,
+                    description: `Fund Transfer: ${transfer.notes || 'Internal Transfer'}`,
                     periodId: period.id,
                     status: 'POSTED',
                     createdBy: userId,
@@ -62,66 +95,58 @@ export const fundTransferService = {
                 }
             });
 
-            // D. Create Ledger Lines (Accounting Rules)
+            // D. Create Ledger Lines
             const ledgerLines = [
                 // 1. Debit Akun Tujuan (Uang Masuk)
                 {
                     ledgerId: ledger.id,
-                    coaId: data.toAccountId,
+                    coaId: transfer.toAccountId,
                     lineNumber: 1,
-                    description: `Transfer in from ${data.fromAccountName}`,
-                    debitAmount: Number(data.amount),
+                    description: `Transfer in from ${transfer.fromAccount.name}`,
+                    debitAmount: Number(transfer.amount),
                     creditAmount: 0,
-                    localAmount: Number(data.amount)
+                    localAmount: Number(transfer.amount)
                 },
                 // 2. Credit Akun Sumber (Uang Keluar)
                 {
                     ledgerId: ledger.id,
-                    coaId: data.fromAccountId,
+                    coaId: transfer.fromAccountId,
                     lineNumber: 2,
-                    description: `Transfer out to ${data.toAccountName}`,
+                    description: `Transfer out to ${transfer.toAccount.name}`,
                     debitAmount: 0,
-                    creditAmount: totalAmount,
-                    localAmount: -totalAmount
+                    creditAmount: Number(transfer.totalAmount),
+                    localAmount: -Number(transfer.totalAmount)
                 }
             ];
 
             // 3. Optional: Debit Akun Biaya Admin (Jika ada fee)
-            if (Number(data.feeAmount) > 0 && data.feeAccountId) {
+            if (Number(transfer.feeAmount) > 0 && transfer.feeAccountId) {
                 ledgerLines.push({
                     ledgerId: ledger.id,
-                    coaId: data.feeAccountId,
+                    coaId: transfer.feeAccountId,
                     lineNumber: 3,
-                    description: `Bank admin fee for ${transferNo}`,
-                    debitAmount: Number(data.feeAmount),
+                    description: `Bank admin fee for ${transfer.transferNo}`,
+                    debitAmount: Number(transfer.feeAmount),
                     creditAmount: 0,
-                    localAmount: Number(data.feeAmount)
+                    localAmount: Number(transfer.feeAmount)
                 });
             }
 
             await tx.ledgerLine.createMany({ data: ledgerLines });
 
-            // E. Create Fund Transfer Record
-            const fundTransfer = await tx.fundTransfer.create({
+            // E. Update Fund Transfer Record
+            const updatedTransfer = await tx.fundTransfer.update({
+                where: { id },
                 data: {
-                    transferNo,
-                    transferDate: new Date(data.transferDate),
-                    amount: data.amount,
-                    feeAmount: data.feeAmount || 0,
-                    totalAmount: totalAmount,
-                    fromAccountId: data.fromAccountId,
-                    toAccountId: data.toAccountId,
-                    feeAccountId: data.feeAccountId || null,
-                    referenceNo: data.referenceNo,
-                    notes: data.notes,
                     status: 'POSTED',
                     ledgerId: ledger.id,
                     periodId: period.id,
-                    createdById: userId
+                    approvedById: userId,
+                    approvedAt: new Date()
                 }
             });
 
-            // F. Update Financial Summaries (Trial Balance & GL Summary)
+            // F. Update Financial Summaries
             for (const line of ledgerLines) {
                 await updateTrialBalance({
                     periodId: period.id,
@@ -134,14 +159,48 @@ export const fundTransferService = {
                 await updateGeneralLedgerSummary({
                     coaId: line.coaId,
                     periodId: period.id,
-                    date: new Date(data.transferDate),
+                    date: transfer.transferDate,
                     debitAmount: line.debitAmount,
                     creditAmount: line.creditAmount,
                     tx
                 });
             }
 
-            return fundTransfer;
+            return updatedTransfer;
         });
+    },
+
+    // 4. Update Fund Transfer (Only if DRAFT)
+    async updateTransfer(id, data, userId) {
+        const transfer = await prisma.fundTransfer.findUnique({ where: { id } });
+        if (!transfer) throw new Error("Transfer not found");
+        if (transfer.status !== 'DRAFT') throw new Error("Only DRAFT transfers can be updated");
+
+        const totalAmount = Number(data.amount) + Number(data.feeAmount || 0);
+
+        return await prisma.fundTransfer.update({
+            where: { id },
+            data: {
+                transferDate: new Date(data.transferDate),
+                amount: data.amount,
+                feeAmount: data.feeAmount || 0,
+                totalAmount: totalAmount,
+                fromAccountId: data.fromAccountId,
+                toAccountId: data.toAccountId,
+                feeAccountId: data.feeAccountId || null,
+                referenceNo: data.referenceNo,
+                notes: data.notes,
+                // createdById remains the same, but we could track updatedBy if needed
+            }
+        });
+    },
+
+    // 5. Delete Fund Transfer (Only if DRAFT)
+    async deleteTransfer(id) {
+        const transfer = await prisma.fundTransfer.findUnique({ where: { id } });
+        if (!transfer) throw new Error("Transfer not found");
+        if (transfer.status !== 'DRAFT') throw new Error("Only DRAFT transfers can be deleted");
+
+        return await prisma.fundTransfer.delete({ where: { id } });
     }
 };

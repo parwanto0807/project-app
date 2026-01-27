@@ -591,32 +591,39 @@ export function PrApprovalTable({
                                                     </Badge>
                                                 </td>
                                                 <td className="p-3">
-                                                    <div className="flex justify-end gap-1">
+                                                    <div className="flex flex-col gap-1 items-end">
                                                         <Button
                                                             onClick={() => handlePreviewPdf(item)}
-                                                            variant="outline"
+                                                            variant="default"
                                                             size="sm"
-                                                            className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 border-blue-200 hover:bg-blue-50 dark:border-blue-800 dark:hover:bg-blue-900/20 dark:hover:border-blue-400 transition-colors cursor-pointer"
+                                                            disabled={isActionDisabled(item.status)}
+                                                            className={`flex items-center gap-1 transition-colors cursor-pointer w-44 h-8 justify-start px-2 rounded-xl shadow-sm ${isActionDisabled(item.status)
+                                                                    ? "bg-slate-300 text-slate-500 cursor-not-allowed border-none shadow-none"
+                                                                    : "bg-blue-600 text-white hover:bg-blue-700 border-none"
+                                                                }`}
                                                         >
-                                                            <Eye className="h-3 w-3" />
+                                                            <Eye className="h-4 w-4" />
+                                                            Approve Pencairan
                                                         </Button>
                                                         <Button
                                                             onClick={() => handleEdit(item)}
                                                             variant="outline"
                                                             size="sm"
                                                             disabled={isActionDisabled(item.status)}
-                                                            className="h-8 w-8 p-0 text-orange-600 hover:text-orange-700 border-orange-200 hover:bg-orange-50 dark:border-orange-800 dark:hover:bg-orange-900/20 dark:hover:border-orange-400 transition-colors disabled:opacity-50 cursor-pointer"
+                                                            className="flex items-center gap-1 text-orange-600 hover:text-orange-700 border-orange-200 hover:bg-orange-50 dark:border-orange-800 dark:hover:bg-orange-900/20 dark:hover:border-orange-400 transition-colors disabled:opacity-50 cursor-pointer w-44 h-8 justify-start px-2 rounded-xl"
                                                             hidden>
-                                                            <Edit className="h-3 w-3" />
+                                                            <Edit className="h-4 w-4" />
+                                                            Edit
                                                         </Button>
                                                         <Button
                                                             onClick={() => handleDeleteClick(item.id)}
                                                             variant="outline"
                                                             size="sm"
                                                             disabled={isDeleting || isActionDisabled(item.status)}
-                                                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20 dark:hover:border-red-400 transition-colors disabled:opacity-50 cursor-pointer"
+                                                            className="flex items-center gap-1 text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20 dark:hover:border-red-400 transition-colors disabled:opacity-50 cursor-pointer w-44 h-8 justify-start px-2 rounded-xl"
                                                         >
-                                                            <Trash2 className="h-3 w-3" />
+                                                            <Trash2 className="h-4 w-4" />
+                                                            Delete
                                                         </Button>
                                                     </div>
                                                 </td>
@@ -675,32 +682,39 @@ export function PrApprovalTable({
                                     <div className="font-semibold text-sm text-gray-900">
                                         {formatCurrency(item.jumlah)}
                                     </div>
-                                    <div className="flex items-center gap-1">
+                                    <div className="flex flex-col gap-1">
                                         <Button
                                             onClick={() => handlePreviewPdf(item)}
-                                            variant="outline"
+                                            variant="default"
                                             size="sm"
-                                            className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 border-blue-200 hover:bg-blue-50 dark:border-blue-800 dark:hover:bg-blue-900/20 dark:hover:border-blue-400 transition-colors cursor-pointer"
+                                            disabled={isActionDisabled(item.status)}
+                                            className={`flex items-center gap-1 transition-colors cursor-pointer w-full h-8 justify-start px-2 rounded-xl shadow-sm ${isActionDisabled(item.status)
+                                                    ? "bg-slate-300 text-slate-500 cursor-not-allowed border-none shadow-none"
+                                                    : "bg-blue-600 text-white hover:bg-blue-700 border-none"
+                                                }`}
                                         >
-                                            <Eye className="h-3 w-3" />
+                                            <Eye className="h-4 w-4" />
+                                            Approve Pencairan
                                         </Button>
                                         <Button
                                             onClick={() => handleEdit(item)}
                                             variant="outline"
                                             size="sm"
                                             disabled={isActionDisabled(item.status)}
-                                            className="h-8 w-8 p-0 text-orange-600 hover:text-orange-700 border-orange-200 hover:bg-orange-50 dark:border-orange-800 dark:hover:bg-orange-900/20 dark:hover:border-orange-400 transition-colors disabled:opacity-50 cursor-pointer"
+                                            className="flex items-center gap-1 text-orange-600 hover:text-orange-700 border-orange-200 hover:bg-orange-50 dark:border-orange-800 dark:hover:bg-orange-900/20 dark:hover:border-orange-400 transition-colors disabled:opacity-50 cursor-pointer w-full h-8 justify-start px-2 rounded-xl"
                                             hidden >
-                                            <Edit className="h-3 w-3" />
+                                            <Edit className="h-4 w-4" />
+                                            Edit
                                         </Button>
                                         <Button
                                             onClick={() => handleDeleteClick(item.id)}
                                             variant="outline"
                                             size="sm"
                                             disabled={isDeleting || isActionDisabled(item.status)}
-                                            className="h-8 w-8 p-0 text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20 dark:hover:border-red-400 transition-colors disabled:opacity-50 cursor-pointer"
+                                            className="flex items-center gap-1 text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20 dark:hover:border-red-400 transition-colors disabled:opacity-50 cursor-pointer w-full h-8 justify-start px-2 rounded-xl"
                                         >
-                                            <Trash2 className="h-3 w-3" />
+                                            <Trash2 className="h-4 w-4" />
+                                            Delete
                                         </Button>
                                     </div>
                                 </div>

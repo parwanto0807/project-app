@@ -21,7 +21,7 @@ import { AdminLoading } from "@/components/admin-loading";
 export default function COAPageAdmin() {
     const [filters, setFilters] = useState({
         page: 1,
-        limit: 50,
+        limit: 250,
         search: "",
     });
 

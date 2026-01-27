@@ -26,25 +26,26 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { CalendarIcon, Loader2, Landmark, Wallet, AlertCircle, Info } from "lucide-react";
+import { CalendarIcon, Loader2, Landmark, Wallet, AlertCircle, Info, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fundTransferSchema, FundTransferFormValues } from "@/lib/validations/fundTransfer";
 import { coaApi } from "@/lib/action/coa/coa";
 import { CoaType, CoaPostingType } from "@/types/coa";
 import { toast } from "sonner";
-import { createFundTransfer } from "@/lib/action/fundTransfer";
+import { updateFundTransfer } from "@/lib/action/fundTransfer";
 import { getBankAccounts } from "@/lib/action/master/bank/bank";
 import { BankAccount } from "@/schemas/bank/index";
 import { formatCurrencyNumber } from "@/lib/utils";
-import { getSystemAccounts } from "@/lib/action/systemAccount";
+import { FundTransfer } from "@/types/finance/fundTransfer";
 
-interface CreateFundTransferDialogProps {
+interface EditFundTransferDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onSuccess: () => void;
+    data: FundTransfer | null;
 }
 
-const CreateFundTransferDialog = ({ open, onOpenChange, onSuccess }: CreateFundTransferDialogProps) => {
+const EditFundTransferDialog = ({ open, onOpenChange, onSuccess, data }: EditFundTransferDialogProps) => {
     const [loading, setLoading] = useState(false);
     const [banks, setBanks] = useState<BankAccount[]>([]);
     const [expenseAccounts, setExpenseAccounts] = useState<any[]>([]);
@@ -66,48 +67,46 @@ const CreateFundTransferDialog = ({ open, onOpenChange, onSuccess }: CreateFundT
     useEffect(() => {
         const fetchAccounts = async () => {
             try {
-                // Fetch from BankAccount model for Source & Destination
                 const bankAccounts = await getBankAccounts();
-                setBanks(bankAccounts.filter(b => b.isActive));
+                const filteredBanks = bankAccounts.filter(b => b.isActive);
+                setBanks(filteredBanks);
 
-                // Fetch from COA for Admin Fee (Expense)
                 const coaResponse = await coaApi.getCOAs({ limit: 1000 });
                 if (coaResponse.success) {
                     const expAccts = coaResponse.data.filter(coa =>
                         coa.type === CoaType.BEBAN && coa.postingType === CoaPostingType.POSTING
                     );
                     setExpenseAccounts(expAccts);
+                }
 
-                    // Auto-fill from SystemAccount mapping
-                    const sysResponse = await getSystemAccounts();
-                    if (sysResponse.success) {
-                        const adminFeeMapping = sysResponse.data.find((sa: any) => sa.key === "PAYMENT_BANK_CHARGE_EXPENSE");
-                        if (adminFeeMapping) {
-                            form.setValue("feeAccountId", adminFeeMapping.coaId);
-                        }
-                    }
+                if (data) {
+                    // Map back COA ID to BankAccount ID for the dropdown
+                    const fromBank = filteredBanks.find(b => b.accountCOAId === data.fromAccountId);
+                    const toBank = filteredBanks.find(b => b.accountCOAId === data.toAccountId);
+
+                    form.reset({
+                        transferDate: new Date(data.transferDate),
+                        amount: Number(data.amount),
+                        feeAmount: Number(data.feeAmount),
+                        fromAccountId: fromBank?.id || "",
+                        toAccountId: toBank?.id || "",
+                        feeAccountId: data.feeAccountId || "",
+                        referenceNo: data.referenceNo || "",
+                        notes: data.notes || "",
+                    });
                 }
             } catch (error) {
                 console.error("Failed to fetch accounts", error);
             }
         };
 
-        if (open) {
+        if (open && data) {
             fetchAccounts();
-            form.reset({
-                transferDate: new Date(),
-                amount: 0,
-                feeAmount: 0,
-                fromAccountId: "",
-                toAccountId: "",
-                feeAccountId: "",
-                referenceNo: "",
-                notes: "",
-            });
         }
-    }, [open, form]);
+    }, [open, data, form]);
 
     const onSubmit = async (values: FundTransferFormValues) => {
+        if (!data) return;
         setLoading(true);
         try {
             const fromBank = banks.find(b => b.id === values.fromAccountId);
@@ -119,21 +118,21 @@ const CreateFundTransferDialog = ({ open, onOpenChange, onSuccess }: CreateFundT
                 return;
             }
 
-            const result = await createFundTransfer({
+            const result = await updateFundTransfer(data.id, {
                 ...values,
-                fromAccountId: fromBank.accountCOAId, // Kirim COA ID ke backend
-                toAccountId: toBank.accountCOAId,     // Kirim COA ID ke backend
+                fromAccountId: fromBank.accountCOAId,
+                toAccountId: toBank.accountCOAId,
                 transferDate: values.transferDate.toISOString(),
                 fromAccountName: `${fromBank.bankName} (${fromBank.accountNumber})`,
                 toAccountName: `${toBank.bankName} (${toBank.accountNumber})`,
             });
 
             if (result.success) {
-                toast.success("Draft transfer berhasil disimpan");
+                toast.success("Fund transfer berhasil diperbarui");
                 onSuccess();
                 onOpenChange(false);
             } else {
-                toast.error(result.message || "Gagal memproses transfer");
+                toast.error(result.message || "Gagal memperbarui transfer");
             }
         } catch (error: any) {
             toast.error(error.message || "Terjadi kesalahan sistem");
@@ -144,33 +143,23 @@ const CreateFundTransferDialog = ({ open, onOpenChange, onSuccess }: CreateFundT
 
     const amount = form.watch("amount") || 0;
     const feeAmount = form.watch("feeAmount") || 0;
-    const referenceNo = form.watch("referenceNo");
     const fromAccountId = form.watch("fromAccountId");
     const toAccountId = form.watch("toAccountId");
 
     const totalAmount = Number(amount) + Number(feeAmount);
 
-    // Validation for button disable
-    const isFormInvalid =
-        Number(amount) <= 0 ||
-        !referenceNo ||
-        referenceNo.trim() === "" ||
-        !fromAccountId ||
-        !toAccountId ||
-        fromAccountId === toAccountId;
-
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden rounded-2xl border-none shadow-2xl">
-                <DialogHeader className="bg-gradient-to-br from-indigo-600 to-indigo-700 p-6 text-white">
+                <DialogHeader className="bg-gradient-to-br from-amber-500 to-orange-600 p-6 text-white">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-white/20 rounded-xl">
-                            <Landmark className="h-6 w-6" />
+                            <Pencil className="h-6 w-6" />
                         </div>
                         <div>
-                            <DialogTitle className="text-xl font-bold">New Fund Transfer</DialogTitle>
-                            <DialogDescription className="text-indigo-100/80">
-                                Kirim dana antar akun internal (Kas/Bank)
+                            <DialogTitle className="text-xl font-bold">Edit Fund Transfer</DialogTitle>
+                            <DialogDescription className="text-amber-100/80">
+                                Perbarui rincian draft transfer dana
                             </DialogDescription>
                         </div>
                     </div>
@@ -179,7 +168,6 @@ const CreateFundTransferDialog = ({ open, onOpenChange, onSuccess }: CreateFundT
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="p-6 space-y-6 bg-slate-50/50">
                         <div className="grid grid-cols-2 gap-6">
-                            {/* Row 1: Date & Ref */}
                             <FormField
                                 control={form.control}
                                 name="transferDate"
@@ -223,14 +211,13 @@ const CreateFundTransferDialog = ({ open, onOpenChange, onSuccess }: CreateFundT
                                     <FormItem>
                                         <FormLabel className="text-xs font-semibold text-slate-500 uppercase tracking-wider">No. Referensi (Opsional)</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="e.g. TR-2024-X" {...field} className="h-11 rounded-xl border-slate-200 bg-white focus:ring-indigo-500" />
+                                            <Input placeholder="e.g. TR-2024-X" {...field} className="h-11 rounded-xl border-slate-200 bg-white focus:ring-amber-500" />
                                         </FormControl>
                                         <FormMessage className="text-[10px]" />
                                     </FormItem>
                                 )}
                             />
 
-                            {/* Row 2: Accounts */}
                             <FormField
                                 control={form.control}
                                 name="fromAccountId"
@@ -240,11 +227,7 @@ const CreateFundTransferDialog = ({ open, onOpenChange, onSuccess }: CreateFundT
                                         <Select
                                             onValueChange={(val) => {
                                                 if (val === form.getValues("toAccountId")) {
-                                                    toast.error("Akun sumber tidak boleh sama dengan akun tujuan", {
-                                                        position: "top-center",
-                                                        style: { background: "#ef4444", color: "#fff", border: "none" }
-                                                    });
-                                                    form.setValue("fromAccountId", "");
+                                                    toast.error("Akun sumber tidak boleh sama dengan akun tujuan");
                                                     return;
                                                 }
                                                 field.onChange(val);
@@ -252,7 +235,7 @@ const CreateFundTransferDialog = ({ open, onOpenChange, onSuccess }: CreateFundT
                                             value={field.value}
                                         >
                                             <FormControl>
-                                                <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white focus:ring-indigo-500">
+                                                <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white">
                                                     <SelectValue placeholder="Pilih akun asal" />
                                                 </SelectTrigger>
                                             </FormControl>
@@ -261,7 +244,7 @@ const CreateFundTransferDialog = ({ open, onOpenChange, onSuccess }: CreateFundT
                                                     <SelectItem key={bank.id} value={bank.id} className="py-3">
                                                         <div className="flex flex-col">
                                                             <span className="font-bold text-slate-900">{bank.bankName}</span>
-                                                            <span className="text-xs text-slate-500">{bank.accountNumber} - {bank.branch}</span>
+                                                            <span className="text-xs text-slate-500">{bank.accountNumber}</span>
                                                             <span className="text-[10px] font-bold text-emerald-600 mt-1">
                                                                 Saldo: {formatCurrencyNumber(bank.currentBalance)}
                                                             </span>
@@ -284,11 +267,7 @@ const CreateFundTransferDialog = ({ open, onOpenChange, onSuccess }: CreateFundT
                                         <Select
                                             onValueChange={(val) => {
                                                 if (val === form.getValues("fromAccountId")) {
-                                                    toast.error("Akun tujuan tidak boleh sama dengan akun sumber", {
-                                                        position: "top-center",
-                                                        style: { background: "#ef4444", color: "#fff", border: "none" }
-                                                    });
-                                                    form.setValue("toAccountId", "");
+                                                    toast.error("Akun tujuan tidak boleh sama dengan akun sumber");
                                                     return;
                                                 }
                                                 field.onChange(val);
@@ -296,7 +275,7 @@ const CreateFundTransferDialog = ({ open, onOpenChange, onSuccess }: CreateFundT
                                             value={field.value}
                                         >
                                             <FormControl>
-                                                <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white focus:ring-indigo-500">
+                                                <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-white">
                                                     <SelectValue placeholder="Pilih akun tujuan" />
                                                 </SelectTrigger>
                                             </FormControl>
@@ -305,10 +284,7 @@ const CreateFundTransferDialog = ({ open, onOpenChange, onSuccess }: CreateFundT
                                                     <SelectItem key={bank.id} value={bank.id} className="py-3">
                                                         <div className="flex flex-col">
                                                             <span className="font-bold text-slate-900">{bank.bankName}</span>
-                                                            <span className="text-xs text-slate-500">{bank.accountNumber} - {bank.branch}</span>
-                                                            <span className="text-[10px] font-bold text-emerald-600 mt-1">
-                                                                Saldo: {formatCurrencyNumber(bank.currentBalance)}
-                                                            </span>
+                                                            <span className="text-xs text-slate-500">{bank.accountNumber}</span>
                                                         </div>
                                                     </SelectItem>
                                                 ))}
@@ -319,7 +295,6 @@ const CreateFundTransferDialog = ({ open, onOpenChange, onSuccess }: CreateFundT
                                 )}
                             />
 
-                            {/* Row 3: Amount & Fee */}
                             <FormField
                                 control={form.control}
                                 name="amount"
@@ -351,19 +326,16 @@ const CreateFundTransferDialog = ({ open, onOpenChange, onSuccess }: CreateFundT
                                 )}
                             />
 
-                            {/* Row 4: Fee Account (Conditional) */}
                             {feeAmount > 0 && (
                                 <FormField
                                     control={form.control}
                                     name="feeAccountId"
                                     render={({ field }) => (
                                         <FormItem className="col-span-2">
-                                            <FormLabel className="text-xs font-semibold text-rose-500 uppercase tracking-wider flex items-center gap-1">
-                                                <AlertCircle className="h-3 w-3" /> Akun Biaya Admin
-                                            </FormLabel>
-                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormLabel className="text-xs font-semibold text-rose-500 uppercase tracking-wider">Akun Biaya Admin</FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value}>
                                                 <FormControl>
-                                                    <SelectTrigger className="h-11 rounded-xl border-rose-200 bg-rose-50/30 focus:ring-rose-500">
+                                                    <SelectTrigger className="h-11 rounded-xl border-rose-200 bg-rose-50/30">
                                                         <SelectValue placeholder="Pilih akun beban admin" />
                                                     </SelectTrigger>
                                                 </FormControl>
@@ -375,8 +347,6 @@ const CreateFundTransferDialog = ({ open, onOpenChange, onSuccess }: CreateFundT
                                                     ))}
                                                 </SelectContent>
                                             </Select>
-                                            <FormMessage className="text-[10px]" />
-                                            <p className="text-[10px] text-slate-500 italic mt-1">Akun ini akan didebit untuk mencatat beban biaya admin bank.</p>
                                         </FormItem>
                                     )}
                                 />
@@ -402,16 +372,16 @@ const CreateFundTransferDialog = ({ open, onOpenChange, onSuccess }: CreateFundT
                         </div>
 
                         {/* Summary Section */}
-                        <div className="bg-indigo-50/50 rounded-2xl p-4 border border-indigo-100/50">
-                            <div className="flex justify-between items-center text-sm font-medium text-indigo-900/60 mb-2">
+                        <div className="bg-amber-50/50 rounded-2xl p-4 border border-amber-100/50">
+                            <div className="flex justify-between items-center text-sm font-medium text-amber-900/60 mb-2">
                                 <span>Total yang didebit dari akun asal:</span>
                             </div>
                             <div className="flex justify-between items-end">
-                                <div className="flex items-center gap-2 text-indigo-700">
+                                <div className="flex items-center gap-2 text-amber-700">
                                     <Info className="h-4 w-4" />
                                     <span className="text-xs italic leading-tight">Mencakup nominal transfer + biaya admin.</span>
                                 </div>
-                                <span className="text-2xl font-black text-indigo-600">
+                                <span className="text-2xl font-black text-amber-600">
                                     {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(totalAmount)}
                                 </span>
                             </div>
@@ -428,11 +398,11 @@ const CreateFundTransferDialog = ({ open, onOpenChange, onSuccess }: CreateFundT
                             </Button>
                             <Button
                                 type="submit"
-                                disabled={loading || isFormInvalid}
-                                className="rounded-xl h-12 px-8 bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all font-bold group"
+                                disabled={loading}
+                                className="rounded-xl h-12 px-8 bg-amber-600 hover:bg-amber-700 shadow-lg shadow-amber-200 transition-all font-bold group"
                             >
                                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Simpan sebagai Draft
+                                Simpan Perubahan
                             </Button>
                         </DialogFooter>
                     </form>
@@ -442,4 +412,4 @@ const CreateFundTransferDialog = ({ open, onOpenChange, onSuccess }: CreateFundT
     );
 };
 
-export default CreateFundTransferDialog;
+export default EditFundTransferDialog;

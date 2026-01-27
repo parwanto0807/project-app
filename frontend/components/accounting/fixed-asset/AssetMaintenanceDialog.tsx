@@ -9,6 +9,7 @@ import {
     DialogDescription,
     DialogFooter
 } from "@/components/ui/dialog";
+
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,7 @@ import { toast } from "sonner";
 import { getMaintenances, createMaintenance } from "@/lib/action/accounting/asset";
 import { getPeriods } from "@/lib/action/accounting/period";
 import { fetchSuppliers } from "@/lib/action/supplier/supplierAction";
+import { getCoaByType } from "@/lib/action/accounting/coa";
 import { format } from "date-fns";
 import {
     Table,
@@ -32,9 +34,12 @@ import {
     TableCell,
     TableHead,
     TableHeader,
-    TableRow
+    TableRow,
+    TableFooter
 } from "@/components/ui/table";
-import { Wrench, Plus, History } from "lucide-react";
+import { Wrench, Plus, History, CheckCircle2, Printer } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface AssetMaintenanceDialogProps {
     asset: any;
@@ -47,6 +52,7 @@ export function AssetMaintenanceDialog({ asset, isOpen, onClose }: AssetMaintena
     const [history, setHistory] = useState<any[]>([]);
     const [periods, setPeriods] = useState<any[]>([]);
     const [suppliers, setSuppliers] = useState<any[]>([]);
+    const [expenseAccounts, setExpenseAccounts] = useState<any[]>([]);
     const [isAdding, setIsAdding] = useState(false);
 
     const [formData, setFormData] = useState({
@@ -59,16 +65,11 @@ export function AssetMaintenanceDialog({ asset, isOpen, onClose }: AssetMaintena
         nextSchedule: "",
         status: "COMPLETED",
         isJournaled: false,
-        periodId: ""
+        periodId: "",
+        expenseAccountId: ""
     });
 
-    useEffect(() => {
-        if (isOpen && asset) {
-            fetchHistory();
-            fetchPeriods();
-            fetchSuppliersList();
-        }
-    }, [isOpen, asset]);
+
 
     const fetchHistory = async () => {
         try {
@@ -101,8 +102,48 @@ export function AssetMaintenanceDialog({ asset, isOpen, onClose }: AssetMaintena
         }
     };
 
+    const fetchExpenseAccounts = async () => {
+        try {
+            const res = await getCoaByType('BEBAN', 'POSTING', 200); // Fetch up to 200 accounts
+            setExpenseAccounts(res.data || []);
+        } catch (error) {
+            console.error("Failed to fetch expense accounts");
+        }
+    };
+
+    useEffect(() => {
+        if (isOpen && asset) {
+            fetchHistory();
+            fetchPeriods();
+            fetchSuppliersList();
+            fetchExpenseAccounts();
+        }
+    }, [isOpen, asset]);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (formData.isJournaled) {
+            if (parseFloat(formData.cost) <= 0) {
+                toast.error("Biaya harus lebih dari 0 untuk pencatatan jurnal");
+                return;
+            }
+
+            const costFormatted = parseFloat(formData.cost).toLocaleString('id-ID');
+            const confirmed = window.confirm(
+                `Konfirmasi Pencatatan Jurnal\n\n` +
+                `Total Biaya: Rp ${costFormatted}\n\n` +
+                `Transaksi ini akan dicatat otomatis ke jurnal akuntansi.\n` +
+                `Lanjutkan penyimpanan?`
+            );
+
+            if (!confirmed) return;
+        }
+
+        await handleSave();
+    };
+
+    const handleSave = async () => {
         setIsLoading(true);
         try {
             await createMaintenance({
@@ -119,6 +160,43 @@ export function AssetMaintenanceDialog({ asset, isOpen, onClose }: AssetMaintena
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const handlePrint = () => {
+        const doc = new jsPDF();
+
+        // Header
+        doc.setFontSize(18);
+        doc.text("Riwayat Pemeliharaan Aset", 14, 20);
+
+        doc.setFontSize(10);
+        doc.text(`Kode Aset: ${asset.assetCode}`, 14, 30);
+        doc.text(`Nama Aset: ${asset.name}`, 14, 35);
+        doc.text(`Kategori: ${asset.category?.name || '-'}`, 14, 40);
+        doc.text(`Dicetak pada: ${format(new Date(), "dd/MM/yyyy HH:mm")}`, 14, 45);
+
+        // Table
+        const tableBody = history.map(h => [
+            format(new Date(h.maintenanceDate), "dd/MM/yyyy"),
+            h.type,
+            h.description,
+            h.supplier?.name || h.performedBy || "-",
+            `Rp ${parseFloat(h.cost).toLocaleString('id-ID')}`
+        ]);
+
+        autoTable(doc, {
+            startY: 50,
+            head: [['Tanggal', 'Jenis', 'Deskripsi', 'Pelaksana', 'Biaya']],
+            body: tableBody,
+            foot: [[
+                '', '', '', 'Total Biaya',
+                `Rp ${history.reduce((a, b) => a + parseFloat(b.cost), 0).toLocaleString('id-ID')}`
+            ]],
+            headStyles: { fillColor: [79, 70, 229] }, // Indigo-600
+            footStyles: { fillColor: [241, 245, 249], textColor: [0, 0, 0], fontStyle: 'bold' }
+        });
+
+        doc.save(`Maintenance_History_${asset.assetCode}.pdf`);
     };
 
     if (!asset) return null;
@@ -139,9 +217,12 @@ export function AssetMaintenanceDialog({ asset, isOpen, onClose }: AssetMaintena
                 <div className="flex-1 overflow-auto py-4 space-y-6">
                     {isAdding ? (
                         <form onSubmit={handleSubmit} className="space-y-4 p-4 border rounded-lg bg-slate-50">
+                            {/* Form content omitted for brevity, logic remains same */}
                             <h3 className="text-sm font-bold flex items-center gap-2">
                                 <Plus className="h-4 w-4" /> Tambah Catatan Baru
                             </h3>
+                            {/* ... rest of form ... */}
+
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label>Tanggal</Label>
@@ -217,16 +298,44 @@ export function AssetMaintenanceDialog({ asset, isOpen, onClose }: AssetMaintena
                             </div>
 
                             {formData.isJournaled && (
-                                <div className="space-y-2">
-                                    <Label className="text-xs">Periode Akuntansi</Label>
-                                    <Select value={formData.periodId} onValueChange={(v) => setFormData(p => ({ ...p, periodId: v }))}>
-                                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                            {periods.map(p => (
-                                                <SelectItem key={p.id} value={p.id} disabled={p.isClosed}>{p.periodName}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                <div className="space-y-4 pt-2 border-t mt-2">
+                                    <h4 className="text-xs font-semibold text-slate-700">Detail Jurnal Akuntansi</h4>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label className="text-xs">Periode Akuntansi</Label>
+                                            <Select value={formData.periodId} onValueChange={(v) => setFormData(p => ({ ...p, periodId: v }))}>
+                                                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    {periods.map(p => (
+                                                        <SelectItem key={p.id} value={p.id} disabled={p.isClosed}>{p.periodName}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label className="text-xs">Akun Beban (Expense Account)</Label>
+                                            <Select
+                                                value={formData.expenseAccountId}
+                                                onValueChange={(v) => setFormData(p => ({ ...p, expenseAccountId: v }))}
+                                            >
+                                                <SelectTrigger className="h-8 text-xs">
+                                                    <SelectValue placeholder="Pilih Akun Beban..." />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {expenseAccounts.map((acc: any) => (
+                                                        <SelectItem key={acc.id} value={acc.id} className="text-xs">
+                                                            {acc.code} - {acc.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <p className="text-[10px] text-slate-500">
+                                                *Default: {asset.category?.name} Expense (jika kosong)
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
 
@@ -240,9 +349,14 @@ export function AssetMaintenanceDialog({ asset, isOpen, onClose }: AssetMaintena
                             <h3 className="text-sm font-bold flex items-center gap-2">
                                 <History className="h-4 w-4" /> Riwayat Pemeliharaan
                             </h3>
-                            <Button size="sm" variant="outline" className="h-8" onClick={() => setIsAdding(true)}>
-                                <Plus className="h-3.5 w-3.5 mr-1" /> Catat Pemeliharaan
-                            </Button>
+                            <div className="flex gap-2">
+                                <Button size="sm" variant="outline" className="h-8 gap-2" onClick={handlePrint}>
+                                    <Printer className="h-3.5 w-3.5" /> Print PDF
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-8" onClick={() => setIsAdding(true)}>
+                                    <Plus className="h-3.5 w-3.5 mr-1" /> Catat Pemeliharaan
+                                </Button>
+                            </div>
                         </div>
                     )}
 
@@ -275,12 +389,25 @@ export function AssetMaintenanceDialog({ asset, isOpen, onClose }: AssetMaintena
                                             </TableCell>
                                             <TableCell className="max-w-[200px] truncate py-2">{h.description}</TableCell>
                                             <TableCell className="text-right font-medium text-rose-600 py-2">
-                                                Rp{parseFloat(h.cost).toLocaleString('id-ID')}
+                                                <div className="flex items-center justify-end gap-2">
+                                                    <span>Rp{parseFloat(h.cost).toLocaleString('id-ID')}</span>
+                                                    {h.ledgerId && (
+                                                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                                    )}
+                                                </div>
                                             </TableCell>
                                         </TableRow>
                                     ))
                                 )}
                             </TableBody>
+                            <TableFooter>
+                                <TableRow className="bg-slate-100 font-bold">
+                                    <TableCell colSpan={3} className="text-right">Total Biaya</TableCell>
+                                    <TableCell className="text-right text-rose-600">
+                                        Rp{history.reduce((a, b) => a + parseFloat(b.cost), 0).toLocaleString('id-ID')}
+                                    </TableCell>
+                                </TableRow>
+                            </TableFooter>
                         </Table>
                     </div>
                 </div>
@@ -289,6 +416,7 @@ export function AssetMaintenanceDialog({ asset, isOpen, onClose }: AssetMaintena
                     <Button variant="secondary" onClick={onClose}>Close</Button>
                 </DialogFooter>
             </DialogContent>
+
         </Dialog>
     );
 }

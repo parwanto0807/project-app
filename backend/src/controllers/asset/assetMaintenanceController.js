@@ -56,6 +56,14 @@ export const assetMaintenanceController = {
             include: { category: true }
           });
 
+          // Deterine expense account: Use selected expenseAccountId OR fallback to category default
+          let expenseCoaId;
+          if (req.body.expenseAccountId) {
+             expenseCoaId = req.body.expenseAccountId;
+          } else {
+             expenseCoaId = asset.category.deprecExpenseAccountId;
+          }
+
           const ledger = await createLedgerEntry({
             referenceType: 'ASSET_MAINTENANCE',
             referenceId: maintenance.id,
@@ -64,7 +72,7 @@ export const assetMaintenanceController = {
             keterangan: `Pemeliharaan Aset: ${asset.name} - ${description}`,
             entries: [
               {
-                coaId: asset.category.deprecExpenseAccountId, // Usually maintenance expense, using dep expense as proxy or system account
+                coaId: expenseCoaId,
                 debit: parseFloat(cost),
                 credit: 0
               },

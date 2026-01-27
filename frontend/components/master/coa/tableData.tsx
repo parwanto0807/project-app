@@ -45,11 +45,15 @@ import {
     ChevronDown,
     CheckCircle2,
     XCircle,
+    FileSpreadsheet,
+    Printer,
 } from "lucide-react";
+import { format } from "date-fns";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ChartOfAccountsWithRelations, CoaCashflowType } from "@/types/coa";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import ChartOfAccountsPDFGenerator from "./ChartOfAccountsPDFGenerator";
 
 // Types berdasarkan enum yang Anda berikan
 enum CoaType {
@@ -214,15 +218,30 @@ export function CoaTable({
         let level = 0;
         let currentParentId = coa.parentId;
 
+        // Trace levels through the list
         while (currentParentId) {
             level++;
-            // Safety break
             if (level > 10) break;
 
             const parent = allCoas.find(c => c.id === currentParentId);
             if (parent) {
                 currentParentId = parent.parentId;
             } else {
+                // If parent not in list (e.g. search/pagination), 
+                // try to see if the coa itself has parent info from backend
+                if (coa.parent && coa.parent.id === currentParentId) {
+                    // Estimate parent's level based on its code
+                    const parentParts = coa.parent.code.split('-');
+                    if (parentParts.length > 1) {
+                        const pNum = parentParts[1];
+                        if (pNum.endsWith('0000')) level += 1;
+                        else if (pNum.endsWith('000')) level += 2;
+                        else if (pNum.endsWith('00')) level += 3;
+                        else level += 1; // Default fallback
+                    }
+                } else {
+                    level += 1; // Minimum indentation if we have a parentId
+                }
                 break;
             }
         }
@@ -265,6 +284,55 @@ export function CoaTable({
 
     const handleAddCOA = () => {
         router.push("/admin-area/master/coa/create");
+    };
+
+    const handleExportCSV = () => {
+        if (!coas.length) return;
+
+        // Headers
+        const headers = [
+            "ID",
+            "Account Code",
+            "Account Name",
+            "Account Type",
+            "Parent Code",
+            "Status",
+            "Normal Balance",
+            "Posting Type",
+            "Cashflow Type",
+            "Is Reconcilable",
+            "Description"
+        ];
+
+        // Rows
+        const rows = coas.map(coa => [
+            `"${coa.id}"`,
+            `"${coa.code}"`,
+            `"${coa.name.replace(/"/g, '""')}"`,
+            `"${coa.type}"`,
+            `"${coa.parent?.code || ''}"`,
+            `"${coa.status}"`,
+            `"${coa.normalBalance}"`,
+            `"${coa.postingType}"`,
+            `"${coa.cashflowType}"`,
+            `"${coa.isReconcilable ? 'Yes' : 'No'}"`,
+            `"${(coa.description || '').replace(/"/g, '""')}"`
+        ]);
+
+        const csvContent = [
+            headers.join(","),
+            ...rows.map(row => row.join(","))
+        ].join("\n");
+
+        const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `Chart-of-Accounts-${format(new Date(), "yyyy-MM-dd")}.csv`);
+        link.style.visibility = "hidden";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     // Generate pagination numbers
@@ -386,6 +454,20 @@ export function CoaTable({
                         <Filter className="h-3.5 w-3.5 md:mr-2" />
                         <span className="hidden md:inline text-xs md:text-sm">Filter</span>
                     </Button>
+
+                    {/* Export Options */}
+                    <div className="flex items-center gap-1.5 border-l pl-2 border-gray-100 h-9">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-9 px-3 text-gray-600 border-gray-300 hover:bg-gray-50 flex items-center gap-2"
+                            onClick={handleExportCSV}
+                        >
+                            <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-500" />
+                            <span className="hidden md:inline text-xs md:text-sm font-medium">Export CSV</span>
+                        </Button>
+                        <ChartOfAccountsPDFGenerator data={coas} />
+                    </div>
 
                     {/* Add Button */}
                     <Button
@@ -550,35 +632,70 @@ export function CoaTable({
                                     coas.map((coa) => {
                                         const indentLevel = getIndentLevel(coa, coas);
                                         return (
-                                            <tr key={coa.id} className="group hover:bg-gray-50/50 dark:hover:bg-slate-800/50 transition-colors">
-                                                <td className="py-4 px-6">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="flex items-center gap-3" style={{ paddingLeft: `${indentLevel * 32}px` }}>
-                                                            <div className="flex-shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
+                                            <tr
+                                                key={coa.id}
+                                                className={`group hover:bg-gray-50/90 transition-all border-b border-gray-100 
+                                                    ${coa.postingType === CoaPostingType.HEADER
+                                                        ? indentLevel === 0
+                                                            ? "bg-blue-100/40 font-bold"
+                                                            : "bg-blue-50/30 font-semibold"
+                                                        : "bg-white"
+                                                    }`}
+                                            >
+                                                <td className="py-0 px-6 relative">
+                                                    <div className="flex items-stretch h-full min-h-[64px]">
+                                                        {/* Advanced Tree Visualizer - Multi-level vertical lines */}
+                                                        <div className="flex" style={{ width: `${indentLevel * 40}px` }}>
+                                                            {Array.from({ length: indentLevel }).map((_, i) => (
+                                                                <div
+                                                                    key={i}
+                                                                    className="w-10 border-r border-gray-300 h-full relative"
+                                                                >
+                                                                    {i === indentLevel - 1 && (
+                                                                        <div className="absolute top-1/2 right-0 w-5 border-t border-gray-300"></div>
+                                                                    )}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+
+                                                        <div className="flex items-center py-3 gap-3 pl-5">
+                                                            <div className="flex-shrink-0 opacity-90 group-hover:opacity-100 transition-opacity">
                                                                 {getCoaTypeIcon(coa.type)}
                                                             </div>
-                                                            <div className="flex flex-col">
-                                                                <div className="font-medium text-gray-900 flex items-center gap-2">
-                                                                    <span className="font-mono text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded border border-gray-200">
-                                                                        {coa.code}
-                                                                    </span>
-                                                                    {coa.parentId && (
-                                                                        <ChevronRight className="h-3 w-3 text-gray-400" />
-                                                                    )}
-                                                                    <span className="text-sm font-semibold text-gray-800">
+                                                            <div className="flex items-center gap-2">
+                                                                <Badge
+                                                                    variant={coa.postingType === CoaPostingType.HEADER ? "default" : "outline"}
+                                                                    className={`font-mono text-[10px] h-5 px-1.5 ${coa.postingType === CoaPostingType.HEADER ? "bg-blue-600 hover:bg-blue-700 shadow-sm border-0" : "text-gray-500 bg-gray-50/50"}`}
+                                                                >
+                                                                    {coa.code}
+                                                                </Badge>
+
+                                                                {indentLevel > 0 && (
+                                                                    <ChevronRight className="w-3.5 h-3.5 text-black/30 flex-shrink-0" />
+                                                                )}
+
+                                                                <div className="flex flex-col">
+                                                                    <span className={`text-sm tracking-tight leading-none ${coa.postingType === CoaPostingType.HEADER
+                                                                        ? indentLevel === 0 ? "text-blue-900 font-bold text-base" : "text-blue-800 font-bold"
+                                                                        : "text-gray-700 font-semibold"
+                                                                        }`}>
                                                                         {coa.name}
                                                                     </span>
+                                                                    {coa.description && (
+                                                                        <p className="text-[10px] text-gray-400 mt-1 max-w-[450px] leading-tight line-clamp-1 italic font-normal">
+                                                                            {coa.description}
+                                                                        </p>
+                                                                    )}
                                                                 </div>
-                                                                {coa.description && (
-                                                                    <p className="text-xs text-gray-500 mt-1 max-w-[700px] leading-relaxed">
-                                                                        {coa.description}
-                                                                    </p>
-                                                                )}
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="py-4 px-6">
+                                                <td className="py-4 px-6 relative">
+                                                    {/* Background overlay for smooth gradient effect on headers */}
+                                                    {coa.postingType === CoaPostingType.HEADER && (
+                                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent to-blue-50/10 pointer-events-none" />
+                                                    )}
                                                     <Badge variant="secondary" className={`font-normal ${getCoaTypeColor(coa.type)} border-0 bg-opacity-15`}>
                                                         {getCoaTypeIcon(coa.type)}
                                                         <span className="ml-1.5 text-xs font-semibold">{coa.type}</span>
@@ -686,45 +803,53 @@ export function CoaTable({
                                 <AccordionItem
                                     key={coa.id}
                                     value={coa.id}
-                                    className={`border rounded-xl shadow-sm overflow-hidden ${coa.postingType === CoaPostingType.HEADER
-                                        ? "bg-blue-50/50 border-blue-200"
-                                        : "bg-white"
+                                    className={`border rounded-xl shadow-sm overflow-hidden transition-all duration-200 ${coa.postingType === CoaPostingType.HEADER
+                                        ? indentLevel === 0
+                                            ? "bg-blue-100/40 border-blue-200"
+                                            : "bg-blue-50/30 border-blue-100"
+                                        : "bg-white border-gray-100"
                                         }`}
                                 >
-                                    <AccordionTrigger className="px-4 py-3 hover:bg-black/5 hover:no-underline transition-all">
-                                        <div className="flex items-center gap-3 w-full text-left pr-2" style={{ paddingLeft: `${indentLevel * 12}px` }}>
-                                            {/* Visual Hierarchy Indicator */}
-                                            {coa.parentId && (
-                                                <div className="flex-shrink-0 w-1 h-8 bg-gray-300 rounded-full mr-1 opacity-50"></div>
-                                            )}
+                                    <AccordionTrigger className="px-4 py-3 hover:bg-black/5 hover:no-underline transition-all group">
+                                        <div className="flex items-stretch w-full text-left">
+                                            {/* Mobile Hierarchy Tree Guide */}
+                                            <div className="flex" style={{ width: `${indentLevel * 24}px` }}>
+                                                {Array.from({ length: indentLevel }).map((_, i) => (
+                                                    <div
+                                                        key={i}
+                                                        className="w-6 border-r border-gray-300 h-full relative"
+                                                    >
+                                                        {i === indentLevel - 1 && (
+                                                            <div className="absolute top-1/2 right-0 w-3 border-t border-gray-300"></div>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
 
-                                            <div className={`flex flex-col gap-1 flex-1 ${coa.parentId ? "opacity-90" : ""}`}>
-                                                <div className="flex items-center gap-2 flex-wrap">
-                                                    <Badge variant="outline" className="font-mono text-[10px] px-1.5 h-5 border-gray-300 text-gray-500 bg-white/50">
+                                            <div className={`flex flex-col gap-1 flex-1 py-1 ${indentLevel > 0 ? "pl-4" : ""}`}>
+                                                <div className="flex items-center gap-2 flex-wrap text-left">
+                                                    <Badge
+                                                        variant={coa.postingType === CoaPostingType.HEADER ? "default" : "outline"}
+                                                        className={`font-mono text-[9px] px-1 h-4 ${coa.postingType === CoaPostingType.HEADER ? "bg-blue-600 border-0" : "text-gray-500 bg-white/50"}`}
+                                                    >
                                                         {coa.code}
                                                     </Badge>
-                                                    {/* Posting Type Badge */}
-                                                    <Badge variant="secondary" className={`text-[10px] h-5 px-1.5 font-normal ${coa.postingType === CoaPostingType.HEADER
-                                                        ? "bg-blue-100 text-blue-700"
-                                                        : "bg-gray-100 text-gray-600"
-                                                        }`}>
-                                                        {coa.postingType}
-                                                    </Badge>
+
+                                                    {indentLevel > 0 && (
+                                                        <ChevronRight className="w-3 h-3 text-gray-400" />
+                                                    )}
 
                                                     {coa.isReconcilable && (
-                                                        <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-sm" title="Reconcilable"></div>
+                                                        <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-sm ml-auto sm:ml-0"></div>
                                                     )}
                                                 </div>
-                                                <span className={`text-sm font-semibold ${coa.postingType === CoaPostingType.HEADER ? "text-blue-900" : "text-gray-900"
+                                                <span className={`text-sm tracking-tight ${coa.postingType === CoaPostingType.HEADER
+                                                    ? indentLevel === 0 ? "text-blue-900 font-bold" : "text-blue-800 font-semibold"
+                                                    : "text-gray-700 font-semibold"
                                                     } line-clamp-1`}>
                                                     {coa.name}
                                                 </span>
                                             </div>
-
-                                            {/* Minimal Status Indicator on Header */}
-                                            <Badge variant="secondary" className={`hidden sm:inline-flex text-[10px] px-2 h-6 ${getStatusColor(coa.status)} bg-opacity-10 border-0`}>
-                                                {coa.status === CoaStatus.ACTIVE ? 'Aktif' : 'Non'}
-                                            </Badge>
                                         </div>
                                     </AccordionTrigger>
 

@@ -135,6 +135,42 @@ async function main() {
       description: 'Akun sementara untuk mencatat penerimaan barang yang belum ditagih oleh supplier. Akan diimbangi saat Invoice Supplier (Bill) dicatat.',
       fallbackCode: '2-10102',
       searchNames: ['Penerimaan Barang Belum Ditagih']
+    },
+    {
+      key: 'EXPENSE_SALARY',
+      description: 'Digunakan untuk mencatat beban gaji, honorarium, dan kompensasi karyawan kantor.',
+      fallbackCode: '6-10101',
+      searchNames: ['Beban Gaji & Honorarium']
+    },
+    {
+      key: 'EXPENSE_UTILITIES',
+      description: 'Digunakan untuk mencatat beban listrik, internet, dan telepon kantor.',
+      fallbackCode: '6-10202',
+      searchNames: ['Beban Listrik']
+    },
+    {
+      key: 'EXPENSE_WATER',
+      description: 'Digunakan untuk mencatat beban air (PDAM) kantor.',
+      fallbackCode: '6-10206',
+      searchNames: ['Beban Air']
+    },
+    {
+      key: 'EXPENSE_OFFICE_SUPPLIES',
+      description: 'Digunakan untuk mencatat beban alat tulis kantor (ATK) dan perlengkapan administrasi.',
+      fallbackCode: '6-10202',
+      searchNames: ['Beban Alat Tulis & Perlengkapan Kantor']
+    },
+    {
+      key: 'EXPENSE_SOFTWARE_SAAS',
+      description: 'Digunakan untuk mencatat biaya langganan software, hosting, dan layanan SaaS.',
+      fallbackCode: '6-10301',
+      searchNames: ['Beban Maintenance Software/SaaS']
+    },
+    {
+      key: 'EXPENSE_RENT',
+      description: 'Digunakan untuk mencatat beban sewa gedung, kantor, atau gudang operasional.',
+      fallbackCode: '6-10201',
+      searchNames: ['Beban Sewa Gedung/Kantor']
     }
   ];
 
