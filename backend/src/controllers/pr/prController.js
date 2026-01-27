@@ -2104,52 +2104,47 @@ export class PurchaseRequestController {
         }
         */
 
+        // 5. Auto-create Purchase Order if PR contains purchase items
+        if (status === 'APPROVED') {
+          try {
+            // Import PO controller function
+            const { createPOFromApprovedPR } = await import('../po/poController.js');
+            
+            // Create PO (will return null if no purchase items found)
+            // Pass tx to make it part of the same transaction
+            const createdPO = await createPOFromApprovedPR(id, tx);
+            
+            if (createdPO) {
+              // Check if multiple POs were created
+              if (createdPO.multiple && createdPO.pos) {
+                // Multiple POs created
+                pr.autoCreatedPO = {
+                  multiple: true,
+                  pos: createdPO.pos.map(po => ({
+                    id: po.id,
+                    poNumber: po.poNumber
+                  })),
+                  summary: createdPO.summary,
+                  message: `${createdPO.pos.length} Purchase Orders created automatically`
+                };
+              } else {
+                // Single PO created
+                pr.autoCreatedPO = {
+                  id: createdPO.id,
+                  poNumber: createdPO.poNumber,
+                  message: 'Purchase Order created automatically for purchase items'
+                };
+              }
+            }
+          } catch (poError) {
+            // Log error and THROW to roll back the PR status update
+            console.error('❌ Failed to auto-create PO from approved PR. Rolling back PR approval:', poError);
+            throw new Error(`PR approved successfully, but PO creation failed: ${poError.message}`);
+          }
+        }
+
         return pr;
       }, { timeout: 20000 });
-
-      // 5. Auto-create Purchase Order if PR contains purchase items
-      // This happens AFTER the transaction completes successfully
-      if (status === 'APPROVED') {
-        try {
-          // Import PO controller function
-          const { createPOFromApprovedPR } = await import('../po/poController.js');
-          
-          // Create PO (will return null if no purchase items found)
-          const createdPO = await createPOFromApprovedPR(id);
-          
-          if (createdPO) {
-            // Check if multiple POs were created
-            if (createdPO.multiple && createdPO.pos) {
-              // Multiple POs created
-              updatedPR.autoCreatedPO = {
-                multiple: true,
-                pos: createdPO.pos.map(po => ({
-                  id: po.id,
-                  poNumber: po.poNumber
-                })),
-                summary: createdPO.summary,
-                message: `${createdPO.pos.length} Purchase Orders created automatically`
-              };
-            } else {
-              // Single PO created
-              updatedPR.autoCreatedPO = {
-                id: createdPO.id,
-                poNumber: createdPO.poNumber,
-                message: 'Purchase Order created automatically for purchase items'
-              };
-            }
-          }
-        } catch (poError) {
-          // Log error but don't fail the PR approval
-          console.error('❌ Failed to auto-create PO from approved PR:', poError);
-          
-          // Add warning to response
-          updatedPR.poCreationWarning = {
-            message: 'PR approved successfully, but PO creation failed',
-            error: poError.message
-          };
-        }
-      }
 
       // ✅ Update Sisa Budget after status update
       try {
@@ -2204,11 +2199,11 @@ export class PurchaseRequestController {
         });
       }
 
-      // Hanya PR dengan status DRAFT yang bisa dihapus
-      if (existingPR.status !== "DRAFT") {
+      // Hanya PR dengan status DRAFT atau REVISION_NEEDED yang bisa dihapus
+      if (existingPR.status !== "DRAFT" && existingPR.status !== "REVISION_NEEDED") {
         return res.status(400).json({
           success: false,
-          message: "Only DRAFT Purchase Request can be deleted",
+          message: "Only DRAFT or REVISION_NEEDED Purchase Request can be deleted",
         });
       }
 

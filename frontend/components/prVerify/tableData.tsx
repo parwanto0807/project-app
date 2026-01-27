@@ -621,7 +621,7 @@ export function PurchaseRequestVerifyTable({
                                     <TableHead className="font-semibold">Realisasi Biaya</TableHead>
                                     <TableHead className="font-semibold">Sisa Biaya</TableHead>
                                     <TableHead className="font-semibold">Rincian LPP</TableHead>
-                                    <TableHead className="font-semibold text-right">Actions</TableHead>
+                                    <TableHead className="font-semibold text-center">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -1180,7 +1180,7 @@ export function PurchaseRequestVerifyTable({
                                                     }
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div className="flex justify-end gap-2">
+                                                    <div className="flex flex-col gap-1 items-end">
                                                         <Button
                                                             variant="outline"
                                                             size="sm"
@@ -1188,21 +1188,21 @@ export function PurchaseRequestVerifyTable({
                                                                 setSelectedPR(pr);
                                                                 setDetailOpen(true);
                                                             }}
-                                                            className="flex items-center gap-1 text-red-600 hover:text-red-800 border px-2 py-1 cursor-pointer rounded text-sm bg-slate-300 dark:bg-slate-300 hover:bg-white dark:hover:bg-white"
+                                                            className="flex items-center gap-1 text-red-600 hover:text-red-800 border px-2 py-1 cursor-pointer rounded-xl text-sm bg-slate-300 dark:bg-slate-300 hover:bg-white dark:hover:bg-white w-32 h-8 justify-start"
                                                         >
                                                             <Eye className="w-5 h-5" />
                                                             Detail
                                                         </Button>
                                                         <Button
                                                             onClick={() => handleViewPdf(pr)}
-                                                            className="flex items-center gap-1 text-red-600 hover:text-red-800 border px-2 py-1 cursor-pointer rounded text-sm bg-slate-300 hover:bg-white"
+                                                            className="flex items-center gap-1 text-red-600 hover:text-red-800 border px-2 py-1 cursor-pointer rounded-xl text-sm bg-slate-300 hover:bg-white w-32 h-8 justify-start"
                                                         >
                                                             <PdfIcon className="w-4 h-4" />
                                                             Preview PDF
                                                         </Button>
                                                         <Button
                                                             onClick={() => handleViewDetail(pr)}
-                                                            className="flex items-center gap-1 bg-blue-600 text-white hover:bg-blue-700 border px-2 py-1 cursor-pointer rounded text-sm"
+                                                            className="flex items-center gap-1 bg-blue-600 text-white hover:bg-blue-900 border px-2 py-1 cursor-pointer rounded-xl text-sm w-32 h-8 justify-start"
                                                         >
                                                             <CheckCircle className="w-4 h-4" />
                                                             Verify

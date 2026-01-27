@@ -23,16 +23,12 @@ const generatePONumber = async (db) => {
   const month = now.getMonth() + 1; // 1-12
   const romanMonth = monthToRoman(month);
 
-  // Get the start and end of the current year
-  const startOfYear = new Date(year, 0, 1); // January 1st
-  const endOfYear = new Date(year, 11, 31, 23, 59, 59); // December 31st
-
-  // Cari PO terakhir di tahun ini untuk menentukan sequence
+  // Cari PO terakhir yang memiliki tahun yang sama di nomor PO-nya
+  // Format: 000001/PO-RYLIF/XII/2025
   const lastPO = await db.purchaseOrder.findFirst({
     where: {
-      orderDate: {
-        gte: startOfYear,
-        lte: endOfYear,
+      poNumber: {
+        endsWith: `/${year}`,
       },
     },
     orderBy: {

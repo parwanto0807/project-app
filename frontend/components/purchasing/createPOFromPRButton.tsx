@@ -71,6 +71,7 @@ interface ApprovedPR {
     }>;
     createdAt: Date;
     approvedDate?: Date;
+    spkId?: string | null;
 }
 
 export default function CreatePOFromPRButton({
@@ -184,13 +185,16 @@ export default function CreatePOFromPRButton({
             console.log('Fetched PRs:', prs); // Debug: Check if data includes purchaseOrders
             console.log('First PR purchaseOrders:', prs[0]?.purchaseOrders); // Debug: Check first PR
 
-            // Map purchaseOrders to existingPOs for component use
+            // Map purchaseOrders to existingPOs for component use and include spkId
             const mappedPRs = prs.map(pr => ({
                 ...pr,
                 existingPOs: pr.purchaseOrders || []
             }));
 
-            setApprovedPRs(mappedPRs as ApprovedPR[]);
+            // Filter PRs that have NO spkId (General PRs)
+            const filteredPRs = mappedPRs.filter((pr: any) => pr.spkId === null || pr.spkId === undefined);
+
+            setApprovedPRs(filteredPRs as ApprovedPR[]);
         } catch (error) {
             console.error("Error fetching approved PRs:", error);
             toast.error("Gagal memuat Purchase Request yang sudah disetujui");

@@ -346,14 +346,7 @@ export async function deletePurchaseRequest(id: string): Promise<void> {
       }
     );
 
-    if (!response.ok) {
-      const errorData = await response
-        .json()
-        .catch(() => ({ error: "Unknown error" }));
-      throw new Error(
-        errorData.error || `HTTP error! status: ${response.status}`
-      );
-    }
+    await handleResponse(response);
   } catch (error) {
     console.error(`Error deleting purchase request ${id}:`, error);
     throw error;
@@ -419,20 +412,43 @@ export async function getPurchaseRequestsByKaryawan(
  */
 export async function getApprovedPRsForPO(): Promise<PurchaseRequest[]> {
   try {
-    const response = await fetch(
-      `${API_BASE_URL}/api/pr/getAllPurchaseRequests?status=APPROVED&limit=100&includeExistingPOs=true`,
-      {
-        method: "GET",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        cache: "no-store",
-      }
-    );
+    // We fetch both APPROVED and COMPLETED PRs
+    const [approvedRes, completedRes] = await Promise.all([
+      fetch(
+        `${API_BASE_URL}/api/pr/getAllPurchaseRequests?status=APPROVED&limit=100&includeExistingPOs=true`,
+        {
+          method: "GET",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          cache: "no-store",
+        }
+      ),
+      fetch(
+        `${API_BASE_URL}/api/pr/getAllPurchaseRequests?status=COMPLETED&limit=100&includeExistingPOs=true`,
+        {
+          method: "GET",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          cache: "no-store",
+        }
+      )
+    ]);
 
-    const result: PurchaseRequestResponse = await handleResponse(response);
-    const allPRs = Array.isArray(result.data) ? result.data : [result.data];
+    const approvedResult: PurchaseRequestResponse = await handleResponse(approvedRes);
+    const completedResult: PurchaseRequestResponse = await handleResponse(completedRes);
+
+    const approvedData = Array.isArray(approvedResult.data) ? approvedResult.data : approvedResult.data ? [approvedResult.data] : [];
+    const completedData = Array.isArray(completedResult.data) ? completedResult.data : completedResult.data ? [completedResult.data] : [];
+
+    // Combine and remove any potential duplicates
+    const allPRs = [...approvedData, ...completedData];
+
+    // Sort by tanggalPr (newest first)
+    allPRs.sort((a, b) => {
+      const dateA = new Date(a.tanggalPr).getTime();
+      const dateB = new Date(b.tanggalPr).getTime();
+      return dateB - dateA;
+    });
 
     // Filter PRs that have at least one purchase item (PEMBELIAN_BARANG or JASA_PEMBELIAN)
     const prsWithPurchaseItems = allPRs.filter(pr =>
@@ -443,7 +459,7 @@ export async function getApprovedPRsForPO(): Promise<PurchaseRequest[]> {
 
     return prsWithPurchaseItems;
   } catch (error) {
-    console.error("Error fetching approved PRs for PO:", error);
+    console.error("Error fetching approved/completed PRs for PO:", error);
     throw error;
   }
 }

@@ -1382,15 +1382,15 @@ class InvoiceController {
         skipLedger = false
       } = req.body;
 
-      console.log('📝 Payment Request Data:', {
-        invoiceId: id,
-        amount,
-        adminFee,
-        method,
-        bankAccountId,
-        reference,
-        paymentType
-      });
+      // console.log('📝 Payment Request Data:', {
+      //   invoiceId: id,
+      //   amount,
+      //   adminFee,
+      //   method,
+      //   bankAccountId,
+      //   reference,
+      //   paymentType
+      // });
 
       // Validasi input
       if (!payDate || !amount || !method || !bankAccountId || !reference) {
@@ -1614,18 +1614,18 @@ class InvoiceController {
       const totalAllInvoices = paidInvoices + pendingInvoices;
       const collectionRate = totalAllInvoices > 0 ? paidInvoices / totalAllInvoices : 0;
 
-      // Debug log untuk memastikan data benar
-      console.log("DEBUG Invoice Stats:", {
-        today,
-        mtd,
-        ytd,
-        lastMonth: lastMonthTotal,
-        yearSummary,
-        pendingInvoices,
-        paidInvoices,
-        totalAllInvoices,
-        collectionRate: (collectionRate * 100).toFixed(2) + '%',
-      });
+      // // Debug log untuk memastikan data benar
+      // console.log("DEBUG Invoice Stats:", {
+      //   today,
+      //   mtd,
+      //   ytd,
+      //   lastMonth: lastMonthTotal,
+      //   yearSummary,
+      //   pendingInvoices,
+      //   paidInvoices,
+      //   totalAllInvoices,
+      //   collectionRate: (collectionRate * 100).toFixed(2) + '%',
+      // });
 
       res.json({
         today,

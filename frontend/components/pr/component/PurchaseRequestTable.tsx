@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import CreateButtonPR from "./sub-components/createButtonPr";
 import HeaderCard from "@/components/ui/header-card";
 import { useSession } from "@/components/clientSessionProvider";
+import { toast } from "sonner";
 
 function getBaseEditPath(role?: string) {
     const paths: Record<string, string> = {
@@ -198,9 +199,12 @@ export function PurchaseRequestTable(props: PurchaseRequestTableProps) {
             setIsDeleting(true);
             try {
                 await deletePurchaseRequest(id);
+                toast.success("Purchase Request deleted successfully");
                 router.refresh();
             } catch (error) {
                 console.error("Failed to delete purchase request:", error);
+                const message = error instanceof Error ? error.message : "Failed to delete Purchase Request";
+                toast.error(message);
             } finally {
                 setIsDeleting(false);
             }
