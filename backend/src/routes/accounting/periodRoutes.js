@@ -16,6 +16,7 @@ router.get('/', PeriodController.getPeriods);
 router.get('/:id', [param('id').isUUID()], PeriodController.getPeriodById);
 router.post('/', createValidation, PeriodController.createPeriod);
 router.put('/:id', PeriodController.updatePeriod);
+router.get('/:id/validate-closing', PeriodController.getClosingValidation);
 router.post('/:id/close', PeriodController.closePeriod);
 router.post('/:id/reopen', PeriodController.reopenPeriod);
 

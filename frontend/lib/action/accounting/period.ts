@@ -118,10 +118,11 @@ export async function updatePeriod(id: string, data: UpdatePeriodFormValues) {
     return result;
 }
 
-export async function closePeriod(id: string) {
+export async function closePeriod(id: string, autoCreateNext: boolean = false) {
     const result = await fetchWithLog(`${API_BASE_URL}/api/accounting/periods/${id}/close`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ autoCreateNext })
     });
     revalidatePath("/admin-area/accounting/accounting-period");
     return result;
@@ -135,4 +136,12 @@ export async function reopenPeriod(id: string, reason: string) {
     });
     revalidatePath("/admin-area/accounting/accounting-period");
     return result;
+}
+
+export async function getClosingValidation(id: string) {
+    return fetchWithLog(`${API_BASE_URL}/api/accounting/periods/${id}/validate-closing`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store"
+    });
 }

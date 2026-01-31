@@ -857,7 +857,7 @@ class InvoiceController {
       } = req.query;
 
       const pageNum = Math.max(1, parseInt(page, 10) || 1);
-      const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 10));
+      const limitNum = Math.min(1000, Math.max(1, parseInt(limit, 10) || 10));
       const skip = (pageNum - 1) * limitNum;
 
       const where = {};
@@ -973,9 +973,13 @@ class InvoiceController {
       }
 
       // Filter by customer
-      if (customerId) {
+      if (customerId || (req.query.branch && req.query.branch !== "all")) {
         where.salesOrder = {
-          customerId: customerId,
+          customer: {
+            ...(customerId && { id: customerId }),
+            ...(req.query.branch &&
+              req.query.branch !== "all" && { branch: req.query.branch }),
+          },
         };
       }
 

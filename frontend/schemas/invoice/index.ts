@@ -88,6 +88,7 @@ export interface Invoice {
     bankName: string;
     accountNumber: string;
     accountHolder: string;
+    branch?: string;
   };
 }
 
@@ -201,6 +202,8 @@ export interface InvoiceFilters {
   status?: string;
   startDate?: string;
   endDate?: string;
+  customerName?: string;
+  branch?: string;
 }
 
 export interface InvoiceStats {

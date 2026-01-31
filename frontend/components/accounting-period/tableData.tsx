@@ -7,7 +7,6 @@ import { format } from "date-fns";
 import {
     Plus,
     Search,
-    MoreHorizontal,
     Lock,
     Unlock,
     Edit,
@@ -28,14 +27,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -69,8 +60,9 @@ import {
     AccordionTrigger,
 } from "@/components/ui/accordion";
 
-import { getPeriods, closePeriod, reopenPeriod } from "@/lib/action/accounting/period";
+import { getPeriods, reopenPeriod } from "@/lib/action/accounting/period";
 import { AccountingPeriod } from "@/schemas/accounting/period";
+import { ClosingWizard } from "./ClosingWizard";
 
 export function PeriodTable() {
     const [periods, setPeriods] = useState<AccountingPeriod[]>([]);
@@ -112,20 +104,6 @@ export function PeriodTable() {
         setSelectedPeriod(period);
         if (action === 'close') setIsCloseDialogOpen(true);
         else setIsReopenDialogOpen(true);
-    };
-
-    const handleConfirmClose = async () => {
-        if (!selectedPeriod) return;
-        try {
-            const res = await closePeriod(selectedPeriod.id);
-            if (res.success) {
-                toast.success(`Period ${selectedPeriod.periodCode} closed`);
-                setIsCloseDialogOpen(false);
-                fetchPeriods();
-            }
-        } catch (error: any) {
-            toast.error(error.message);
-        }
     };
 
     const handleConfirmReopen = async () => {
@@ -267,28 +245,38 @@ export function PeriodTable() {
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="py-2.5 text-right">
-                                            <div className="flex items-center justify-end gap-1">
-                                                <Link href={`/admin-area/accounting/accounting-period/update/${period.id}`}>
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg text-blue-500 hover:bg-blue-50">
-                                                        <Edit className="h-3.5 w-3.5" />
-                                                    </Button>
-                                                </Link>
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg text-gray-400 hover:bg-gray-50">
-                                                            <MoreHorizontal className="h-4 w-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end" className="rounded-xl border-gray-100 shadow-xl overflow-hidden">
-                                                        <DropdownMenuItem onClick={() => handleAction(period.isClosed ? 'reopen' : 'close', period)} className="text-xs font-bold p-2.5 cursor-pointer">
-                                                            {period.isClosed ? (
-                                                                <span className="text-emerald-600 flex items-center gap-2"><Unlock className="h-3.5 w-3.5" /> Reopen Period</span>
-                                                            ) : (
-                                                                <span className="text-amber-600 flex items-center gap-2"><Lock className="h-3.5 w-3.5" /> Close Period</span>
-                                                            )}
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
+                                            <div className="flex items-center justify-end gap-2">
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Link href={`/admin-area/accounting/accounting-period/update/${period.id}`}>
+                                                                <Button variant="secondary" size="icon" className="h-8 w-8 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-100 border-blue-100/50 border transition-all">
+                                                                    <Edit className="h-3.5 w-3.5" />
+                                                                </Button>
+                                                            </Link>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent className="bg-slate-800 text-white border-0 font-bold text-[10px]">Edit Period</TooltipContent>
+                                                    </Tooltip>
+
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant="secondary"
+                                                                size="icon"
+                                                                onClick={() => handleAction(period.isClosed ? 'reopen' : 'close', period)}
+                                                                className={`h-8 w-8 rounded-xl border transition-all ${period.isClosed
+                                                                    ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-100/50'
+                                                                    : 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-100/50'
+                                                                    }`}
+                                                            >
+                                                                {period.isClosed ? <Unlock className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+                                                            </Button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent className="bg-slate-800 text-white border-0 font-bold text-[10px]">
+                                                            {period.isClosed ? 'Reopen Period' : 'Close Period'}
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
                                             </div>
                                         </TableCell>
                                     </TableRow>
@@ -339,18 +327,21 @@ export function PeriodTable() {
                                             </div>
                                             <div className="flex justify-end items-end gap-2">
                                                 <Link href={`/admin-area/accounting/accounting-period/update/${period.id}`} className="flex-1">
-                                                    <Button size="sm" variant="outline" className="w-full text-[10px] font-bold h-8 rounded-lg border-blue-100 text-blue-600 hover:bg-blue-50">
-                                                        <Edit className="h-3 w-3 mr-1" /> Edit
+                                                    <Button size="sm" variant="secondary" className="w-full text-[10px] font-black h-8 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-100 border-blue-100/50 border shadow-none">
+                                                        <Edit className="h-3 w-3 mr-1.5" /> EDIT
                                                     </Button>
                                                 </Link>
                                                 <Button
                                                     size="sm"
-                                                    variant="outline"
-                                                    className={`flex-1 text-[10px] font-bold h-8 rounded-lg ${period.isClosed ? 'border-emerald-100 text-emerald-600 hover:bg-emerald-50' : 'border-amber-100 text-amber-600 hover:bg-amber-50'}`}
+                                                    variant="secondary"
+                                                    className={`flex-1 text-[10px] font-black h-8 rounded-xl border shadow-none ${period.isClosed
+                                                        ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-100/50'
+                                                        : 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-100/50'
+                                                        }`}
                                                     onClick={() => handleAction(period.isClosed ? 'reopen' : 'close', period)}
                                                 >
-                                                    {period.isClosed ? <Unlock className="h-3 w-3 mr-1" /> : <Lock className="h-3 w-3 mr-1" />}
-                                                    {period.isClosed ? 'Reopen' : 'Close'}
+                                                    {period.isClosed ? <Unlock className="h-3 w-3 mr-1.5" /> : <Lock className="h-3 w-3 mr-1.5" />}
+                                                    {period.isClosed ? 'REOPEN' : 'CLOSE'}
                                                 </Button>
                                             </div>
                                         </div>
@@ -364,21 +355,16 @@ export function PeriodTable() {
 
             {/* Dialogs - Kept clean as before */}
             <AlertDialog open={isCloseDialogOpen} onOpenChange={setIsCloseDialogOpen}>
-                <AlertDialogContent className="rounded-2xl max-w-[90vw] md:max-w-md">
-                    <div className="flex flex-col items-center text-center">
-                        <div className="h-12 w-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mb-3">
-                            <AlertTriangle className="h-6 w-6" />
-                        </div>
-                        <AlertDialogTitle className="text-xl font-bold">Close Period?</AlertDialogTitle>
-                        <AlertDialogDescription className="text-xs text-gray-500 mt-1">
-                            Closing <strong>{selectedPeriod?.periodCode}</strong> will lock all related transactions.
-                        </AlertDialogDescription>
-                    </div>
-                    <AlertDialogFooter className="mt-4 gap-2">
-                        <AlertDialogCancel className="rounded-xl h-10 border-gray-100 font-bold text-xs flex-1">Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleConfirmClose} className="rounded-xl h-10 bg-amber-600 hover:bg-amber-700 font-bold text-xs flex-1">Confirm</AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
+                {selectedPeriod && (
+                    <ClosingWizard
+                        period={selectedPeriod}
+                        onClose={() => setIsCloseDialogOpen(false)}
+                        onSuccess={() => {
+                            setIsCloseDialogOpen(false);
+                            fetchPeriods();
+                        }}
+                    />
+                )}
             </AlertDialog>
 
             <AlertDialog open={isReopenDialogOpen} onOpenChange={setIsReopenDialogOpen}>

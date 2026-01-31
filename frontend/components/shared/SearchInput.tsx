@@ -31,7 +31,7 @@ const SearchInput = ({
     onSearch,
     placeholder = "Search...",
     disabled = false,
-    className = "",
+    className = "w-full",
     initialValue = "",
     minLength = 1,
     variant = "filled",
@@ -211,7 +211,7 @@ const SearchInput = ({
     return (
         <form
             onSubmit={handleSubmit}
-            className={`relative w-full ${className}`}
+            className={`relative ${className}`}
             role="search"
             data-testid={testId}
         >

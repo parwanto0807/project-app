@@ -31,6 +31,7 @@ import { BankAccount } from "@/schemas/bank";
 import CreateButtonInvoice from "@/components/invoice/createButtonInvoice";
 import { InvoiceStatusFilter } from "@/components/invoice/invoiceFilter";
 import { DateFilter } from "@/components/invoice/dateFilter";
+import { BranchFilter } from "@/components/invoice/BranchFilter";
 
 interface PaginationMeta {
     page: number;
@@ -61,6 +62,7 @@ export default function InvoicePageAdmin() {
     const urlSearch = searchParams.get("search") || "";
     const urlStatusFilter = searchParams.get("status") || "all";
     const urlDateFilter = searchParams.get("date") || "all";
+    const urlBranchFilter = searchParams.get("branch") || "all";
 
     // ===============================
     //    FETCH INVOICE DATA - DENGAN FILTER
@@ -90,7 +92,9 @@ export default function InvoicePageAdmin() {
                     urlStatusFilter !== "all" ? urlStatusFilter : undefined,
                     "createdAt",
                     "desc",
-                    urlDateFilter !== "all" ? urlDateFilter : undefined // Parameter ke-8 untuk date
+                    urlDateFilter !== "all" ? urlDateFilter : undefined, // Parameter ke-8 untuk date
+                    undefined, // customId removed
+                    urlBranchFilter !== "all" ? urlBranchFilter : undefined
                 ),
                 getBankAccounts()
             ]);
@@ -141,7 +145,7 @@ export default function InvoicePageAdmin() {
 
         // Fetch data
         fetchData();
-    }, [user, userLoading, fetchData, router, urlPage, urlPageSize, urlSearch, urlStatusFilter, urlDateFilter]);
+    }, [user, userLoading, fetchData, router, urlPage, urlPageSize, urlSearch, urlStatusFilter, urlDateFilter, urlBranchFilter]);
 
     // ===============================
     //    HANDLERS
@@ -159,10 +163,11 @@ export default function InvoicePageAdmin() {
 
         if (urlSearch) params.set("search", urlSearch);
         if (urlDateFilter !== "all") params.set("date", urlDateFilter);
+        if (urlBranchFilter !== "all") params.set("branch", urlBranchFilter);
         if (urlPageSize !== 10) params.set("pageSize", urlPageSize.toString());
 
         router.push(`?${params.toString()}`);
-    }, [searchParams, router, urlSearch, urlDateFilter, urlPageSize]);
+    }, [searchParams, router, urlSearch, urlDateFilter, urlBranchFilter, urlPageSize]);
 
     const handleDateFilterChange = useCallback((newDate: string) => {
         const params = new URLSearchParams(searchParams);
@@ -177,10 +182,30 @@ export default function InvoicePageAdmin() {
 
         if (urlSearch) params.set("search", urlSearch);
         if (urlStatusFilter !== "all") params.set("status", urlStatusFilter);
+        if (urlBranchFilter !== "all") params.set("branch", urlBranchFilter);
         if (urlPageSize !== 10) params.set("pageSize", urlPageSize.toString());
 
         router.push(`?${params.toString()}`);
-    }, [searchParams, router, urlSearch, urlStatusFilter, urlPageSize]);
+    }, [searchParams, router, urlSearch, urlStatusFilter, urlBranchFilter, urlPageSize]);
+
+    const handleBranchFilterChange = useCallback((newBranch: string) => {
+        const params = new URLSearchParams(searchParams);
+
+        if (newBranch && newBranch !== "all") {
+            params.set("branch", newBranch);
+        } else {
+            params.delete("branch");
+        }
+
+        params.set("page", "1");
+
+        if (urlSearch) params.set("search", urlSearch);
+        if (urlStatusFilter !== "all") params.set("status", urlStatusFilter);
+        if (urlDateFilter !== "all") params.set("date", urlDateFilter);
+        if (urlPageSize !== 10) params.set("pageSize", urlPageSize.toString());
+
+        router.push(`?${params.toString()}`);
+    }, [searchParams, router, urlSearch, urlStatusFilter, urlDateFilter, urlPageSize]);
 
     const handleSearch = useCallback((term: string) => {
         const params = new URLSearchParams(searchParams);
@@ -195,10 +220,11 @@ export default function InvoicePageAdmin() {
 
         if (urlStatusFilter !== "all") params.set("status", urlStatusFilter);
         if (urlDateFilter !== "all") params.set("date", urlDateFilter);
+        if (urlBranchFilter !== "all") params.set("branch", urlBranchFilter);
         if (urlPageSize !== 10) params.set("pageSize", urlPageSize.toString());
 
         router.push(`?${params.toString()}`);
-    }, [searchParams, router, urlStatusFilter, urlDateFilter, urlPageSize]);
+    }, [searchParams, router, urlStatusFilter, urlDateFilter, urlBranchFilter, urlPageSize]);
 
     const handleItemsPerPageChange = useCallback((newItemsPerPage: number) => {
         const params = new URLSearchParams(searchParams);
@@ -209,9 +235,10 @@ export default function InvoicePageAdmin() {
         if (urlSearch) params.set("search", urlSearch);
         if (urlStatusFilter !== "all") params.set("status", urlStatusFilter);
         if (urlDateFilter !== "all") params.set("date", urlDateFilter);
+        if (urlBranchFilter !== "all") params.set("branch", urlBranchFilter);
 
         router.push(`?${params.toString()}`);
-    }, [searchParams, router, urlSearch, urlStatusFilter, urlDateFilter]);
+    }, [searchParams, router, urlSearch, urlStatusFilter, urlDateFilter, urlBranchFilter]);
 
     // ===============================
     //    GET AVAILABLE STATUS FOR FILTER
@@ -296,6 +323,7 @@ export default function InvoicePageAdmin() {
                         <span>
                             {urlStatusFilter !== "all" && ` (status: ${urlStatusFilter})`}
                             {urlDateFilter !== "all" && ` (date: ${urlDateFilter})`}
+                            {urlBranchFilter !== "all" && ` (branch: ${urlBranchFilter})`}
                         </span>
                     )}
                 </div>
@@ -397,11 +425,11 @@ export default function InvoicePageAdmin() {
                             gradientTo="to-purple-600"
                             showActionArea={true}
                             actionArea={
-                                <div className="hidden lg:flex items-center gap-3">
+                                <div className="hidden lg:flex flex-wrap items-center justify-end gap-2">
                                     <SearchInput
                                         onSearch={handleSearch}
                                         placeholder="Search invoice..."
-                                        className="w-64"
+                                        className="w-72"
                                         disabled={userLoading || isDataFetching}
                                         initialValue={urlSearch}
                                     />
@@ -409,16 +437,21 @@ export default function InvoicePageAdmin() {
                                         statusFilter={urlStatusFilter}
                                         onStatusFilterChange={handleStatusFilterChange}
                                         availableStatus={availableStatus}
-                                        className="w-48"
+                                        className="w-36"
                                     />
                                     <DateFilter
                                         dateFilter={urlDateFilter}
                                         onDateFilterChange={handleDateFilterChange}
-                                        className="w-48"
+                                        className="w-36"
+                                    />
+                                    <BranchFilter
+                                        branchFilter={urlBranchFilter}
+                                        onBranchFilterChange={handleBranchFilterChange}
+                                        className="w-36"
                                     />
                                     <ItemsPerPageDropdown
                                         itemsPerPage={urlPageSize}
-                                        itemsPerPageOptions={[10, 20, 50, 100]}
+                                        itemsPerPageOptions={[10, 20, 50, 100, 200, 300, 400, 500]}
                                         onItemsPerPageChange={handleItemsPerPageChange}
                                         disabled={isDataFetching}
                                     />
@@ -456,9 +489,14 @@ export default function InvoicePageAdmin() {
                                 />
                                 <ItemsPerPageDropdown
                                     itemsPerPage={urlPageSize}
-                                    itemsPerPageOptions={[10, 20, 50, 100]}
+                                    itemsPerPageOptions={[10, 20, 50, 100, 200, 300, 400, 500]}
                                     onItemsPerPageChange={handleItemsPerPageChange}
                                     disabled={isDataFetching}
+                                />
+                                <BranchFilter
+                                    branchFilter={urlBranchFilter}
+                                    onBranchFilterChange={handleBranchFilterChange}
+                                    className="w-full"
                                 />
                                 <CreateButtonInvoice
                                     role={user?.role || "admin"}
@@ -511,7 +549,7 @@ export default function InvoicePageAdmin() {
                                 <p className="text-sm text-muted-foreground mt-1">
                                     {urlSearch
                                         ? `No invoices found for "${urlSearch}"`
-                                        : urlStatusFilter !== "all" || urlDateFilter !== "all"
+                                        : urlStatusFilter !== "all" || urlDateFilter !== "all" || urlBranchFilter !== "all"
                                             ? `No invoices found with current filters`
                                             : "No invoice data available"
                                     }

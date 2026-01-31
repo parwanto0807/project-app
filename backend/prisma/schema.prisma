@@ -1792,6 +1792,7 @@ model AccountingPeriod {
   startDate            DateTime
   endDate              DateTime
   fiscalYear           Int
+  periodMonth          Int
   quarter              Int
   isClosed             Boolean                @default(false)
   closedAt             DateTime?
@@ -1808,6 +1809,7 @@ model AccountingPeriod {
   Reconciliation       Reconciliation[]
   TrialBalance         TrialBalance[]
 
+  @@unique([fiscalYear, periodMonth])
   @@index([fiscalYear])
   @@index([startDate, endDate])
 }

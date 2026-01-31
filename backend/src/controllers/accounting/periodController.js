@@ -1,6 +1,7 @@
 
 import { prisma } from "../../config/db.js";
 import { validationResult } from "express-validator";
+import ClosingService from "../../services/accounting/closingService.js";
 
 class PeriodController {
   constructor() {
@@ -78,7 +79,7 @@ class PeriodController {
         const { periodCode, periodName, startDate, endDate } = req.body;
 
         const start = new Date(startDate);
-        const end = new Date(endDate);
+        const end = new Date(new Date(endDate).setHours(23, 59, 59, 999));
 
         // Simple validation
         if (start > end) return res.status(400).json({ success: false, message: "Start Date must be before End Date" });
@@ -95,6 +96,7 @@ class PeriodController {
                 startDate: start,
                 endDate: end,
                 fiscalYear,
+                periodMonth: month,
                 quarter,
                 isClosed: false
             }
@@ -103,7 +105,13 @@ class PeriodController {
         res.status(201).json({ success: true, message: "Accounting Period created", data: period });
 
     } catch (error) {
-        if (error.code === 'P2002') return res.status(400).json({ success: false, message: "Period Code already exists" });
+        if (error.code === 'P2002') {
+            const target = error.meta?.target || [];
+            if (target.includes('periodMonth')) {
+                return res.status(400).json({ success: false, message: "Accounting period for this month and year already exists across any codes." });
+            }
+            return res.status(400).json({ success: false, message: "Period Code already exists" });
+        }
         console.error("Create Period Error:", error);
         res.status(500).json({ success: false, message: error.message });
     }
@@ -116,7 +124,7 @@ class PeriodController {
         const { periodName, startDate, endDate } = req.body;
 
         const start = startDate ? new Date(startDate) : undefined;
-        const end = endDate ? new Date(endDate) : undefined;
+        const end = endDate ? new Date(new Date(endDate).setHours(23, 59, 59, 999)) : undefined;
         
         // Prepare update data
         const data = {};
@@ -129,6 +137,7 @@ class PeriodController {
         // If dates changed, update fiscal year? Assuming yes.
         if (start) {
             data.fiscalYear = start.getFullYear();
+            data.periodMonth = start.getMonth() + 1;
             data.quarter = Math.ceil((start.getMonth() + 1) / 3);
         }
 
@@ -145,25 +154,29 @@ class PeriodController {
       }
   }
 
+  // Get Closing Validation
+  async getClosingValidation(req, res) {
+      try {
+          const { id } = req.params;
+          const result = await ClosingService.validatePreClosing(id);
+          res.status(200).json(result);
+      } catch (error) {
+          res.status(500).json({ success: false, message: error.message });
+      }
+  }
+
   // Close Period
   async closePeriod(req, res) {
       try {
           const { id } = req.params;
+          const { autoCreateNext } = req.body;
           const userId = req.user?.id;
           
-          // Logic: Check if all transactions are posted? (Optional, based on requirement)
-          // For now just toggle status.
+          const period = await ClosingService.performClosing(id, userId, autoCreateNext);
 
-          const period = await prisma.accountingPeriod.update({
-              where: { id },
-              data: {
-                  isClosed: true,
-                  closedAt: new Date(),
-                  closedBy: userId || 'System'
-              }
-          });
-           res.status(200).json({ success: true, message: "Accounting Period closed", data: period });
+          res.status(200).json({ success: true, message: "Accounting Period closed successfully and balances rolled over.", data: period });
       } catch (error) {
+          console.error("Close Period Error:", error);
           res.status(500).json({ success: false, message: error.message });
       }
   }

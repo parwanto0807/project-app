@@ -28,6 +28,7 @@ export interface AccountingPeriod {
     startDate: string;
     endDate: string;
     fiscalYear: number;
+    periodMonth: number;
     quarter: number;
     isClosed: boolean;
     closedAt?: string;

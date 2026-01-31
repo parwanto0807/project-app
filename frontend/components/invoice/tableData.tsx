@@ -68,6 +68,7 @@ import { deleteInvoice, postInvoiceToJournal } from "@/lib/action/invoice/invoic
 import { toast } from "sonner";
 import InvoicePdfDocumentOld from "./invoicePdfPreviewOld";
 import { FaToolbox } from "react-icons/fa";
+import InvoiceSummaryPDF from "./InvoiceSummaryPDF";
 
 
 
@@ -87,6 +88,7 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser, o
     const [isNewPdfPreviewOpen, setIsNewPdfPreviewOpen] = useState(false);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [isPostJournalOpen, setIsPostJournalOpen] = useState(false); // Added
+    const [isSummaryPdfOpen, setIsSummaryPdfOpen] = useState(false);
 
     const handlePostJournalClick = (invoice: Invoice) => {
         setSelectedInvoice(invoice);
@@ -255,6 +257,16 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser, o
         <div className="w-full border rounded-lg md:p-0">
             <Card className="border-none shadow-none m-0">
                 <CardContent>
+                    <div className="flex justify-end mb-4">
+                        <Button
+                            variant="outline"
+                            className="gap-2"
+                            onClick={() => setIsSummaryPdfOpen(true)}
+                        >
+                            <Printer className="h-4 w-4" />
+                            Print Summary (A4 Landscape)
+                        </Button>
+                    </div>
                     {/* Desktop View */}
                     <div className="hidden md:block rounded-md border m-0">
                         <Table className="min-w-full">
@@ -718,6 +730,46 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser, o
                             </div>
                         </div>
                     )}
+                </DialogContent>
+            </Dialog>
+
+            {/* Modal Preview PDF - Summary Report */}
+            <Dialog open={isSummaryPdfOpen} onOpenChange={setIsSummaryPdfOpen}>
+                <DialogContent className="max-w-4xl max-h-screen overflow-auto">
+                    <DialogHeader>
+                        <DialogTitle>
+                            Preview PDF Summary Report
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <PDFDownloadLink
+                            document={<InvoiceSummaryPDF data={invoiceData} />}
+                            fileName={`Invoice-Summary-${new Date().toISOString().split('T')[0]}.pdf`}
+                        >
+                            {({ loading }) =>
+                                loading ? (
+                                    <Button disabled>
+                                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                        Memuat PDF...
+                                    </Button>
+                                ) : (
+                                    <Button>
+                                        <Download className="h-4 w-4 mr-2" />
+                                        Unduh Laporan PDF
+                                    </Button>
+                                )
+                            }
+                        </PDFDownloadLink>
+
+                        <div className="mt-6 border-t pt-4">
+                            <h3 className="text-lg font-medium mb-4">Preview Dokumen</h3>
+                            <div className="bg-white rounded shadow" style={{ height: "600px" }}>
+                                <PDFViewer width="100%" height="100%">
+                                    <InvoiceSummaryPDF data={invoiceData} />
+                                </PDFViewer>
+                            </div>
+                        </div>
+                    </div>
                 </DialogContent>
             </Dialog>
 

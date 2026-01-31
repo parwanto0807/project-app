@@ -36,7 +36,9 @@ export async function getInvoices(
   status?: string,
   sortBy: string = "createdAt",
   sortOrder: string = "desc",
-  date?: string
+  date?: string,
+  customerId?: string,
+  branch?: string
 ): Promise<PaginatedInvoices> {
   const params = new URLSearchParams();
 
@@ -57,6 +59,16 @@ export async function getInvoices(
   // Date filter
   if (date && date !== "all") {
     params.append("date", date);
+  }
+
+  // Customer filter
+  if (customerId && customerId !== "all") {
+    params.append("customerId", customerId);
+  }
+
+  // Branch filter
+  if (branch && branch !== "all") {
+    params.append("branch", branch);
   }
 
   // Sorting parameters
