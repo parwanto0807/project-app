@@ -40,6 +40,7 @@ import {
     BanknoteArrowDown,
     BookCheck,
     AlertTriangle,
+    FileSpreadsheet,
 } from "lucide-react";
 import {
     Tooltip,
@@ -125,6 +126,60 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser, o
                 toast.error("Failed to delete invoice");
             }
         }
+    };
+
+    const handleExportCSV = () => {
+        if (!invoiceData.length) {
+            toast.error("Tidak ada data untuk diekspor");
+            return;
+        }
+
+        const headers = [
+            "Invoice #",
+            "SO #",
+            "Customer",
+            "Branch",
+            "Project",
+            "Invoice Date",
+            "Due Date",
+            "Currency",
+            "Total Amount",
+            "Balance Due",
+            "Status",
+            "Approval Status"
+        ];
+
+        const rows = invoiceData.map(inv => [
+            `"${inv.invoiceNumber}"`,
+            `"${inv.salesOrder.soNumber}"`,
+            `"${inv.salesOrder.customer.name.replace(/"/g, '""')}"`,
+            `"${(inv.salesOrder.customer.branch || "").replace(/"/g, '""')}"`,
+            `"${(inv.salesOrder.project?.name || "").replace(/"/g, '""')}"`,
+            inv.invoiceDate,
+            inv.dueDate,
+            "IDR",
+            inv.totalAmount,
+            inv.balanceDue,
+            inv.status,
+            inv.approvalStatus
+        ]);
+
+        const csvContent = [
+            headers.join(","),
+            ...rows.map(row => row.join(","))
+        ].join("\n");
+
+        const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `Invoices-${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = "hidden";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        toast.success("Data Invoice berhasil diekspor ke CSV");
     };
 
     const handlePaymentClick = (invoice: Invoice) => {
@@ -257,7 +312,15 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser, o
         <div className="w-full border rounded-lg md:p-0">
             <Card className="border-none shadow-none m-0">
                 <CardContent>
-                    <div className="flex justify-end mb-4">
+                    <div className="flex justify-end mb-4 gap-2">
+                        <Button
+                            variant="outline"
+                            className="gap-2"
+                            onClick={handleExportCSV}
+                        >
+                            <FileSpreadsheet className="h-4 w-4" />
+                            Export CSV
+                        </Button>
                         <Button
                             variant="outline"
                             className="gap-2"
