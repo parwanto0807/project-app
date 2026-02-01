@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -155,6 +155,171 @@ const StatusBadge = ({ status }: { status: PurchaseOrderStatus }) => {
     );
 };
 
+// Memoized Row Component for better performance
+const POItemRow = React.memo(({
+    index,
+    item,
+    errors,
+    control,
+    allProducts,
+    selectedProductIds,
+    onProductSelect,
+    onQuantityChange,
+    onPriceChange,
+    onRemove
+}: {
+    index: number;
+    item: any;
+    errors: any;
+    control: any;
+    allProducts: Product[];
+    selectedProductIds: string[];
+    onProductSelect: (index: number, productId: string) => void;
+    onQuantityChange: (index: number, quantity: number) => void;
+    onPriceChange: (index: number, price: number) => void;
+    onRemove: (index: number) => void;
+}) => {
+    // Local filtering for products to improve dropdown performance
+    const availableProducts = React.useMemo(() => {
+        const currentProductId = item.productId;
+        return allProducts.filter(product => {
+            const isCurrentProduct = product.id.toString() === currentProductId;
+            const isAlreadySelected = selectedProductIds.includes(product.id.toString()) &&
+                product.id.toString() !== currentProductId;
+            return isCurrentProduct || !isAlreadySelected;
+        });
+    }, [allProducts, selectedProductIds, item.productId]);
+    return (
+        <TableRow className="hover:bg-gray-50/30 group">
+            <TableCell>
+                <Controller
+                    control={control}
+                    name={`items.${index}.productId`}
+                    render={({ field }) => (
+                        <Select
+                            value={field.value}
+                            onValueChange={(value) => {
+                                field.onChange(value);
+                                onProductSelect(index, value);
+                            }}
+                        >
+                            <SelectTrigger className={cn(
+                                "w-full h-11 border-gray-300/80 dark:border-gray-700 bg-white dark:bg-gray-900 group-hover:border-gray-300 dark:group-hover:border-gray-600 rounded-lg",
+                                errors.items?.[index]?.productId && "border-red-500"
+                            )}>
+                                <SelectValue placeholder="Pilih produk" />
+                                <ChevronDown className="h-4 w-4 ml-auto opacity-50" />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-[300px] rounded-xl">
+                                {availableProducts.map((product) => (
+                                    <SelectItem
+                                        key={product.id}
+                                        value={product.id.toString()}
+                                        className="rounded-lg"
+                                    >
+                                        <div className="flex flex-col py-1">
+                                            <span className="font-medium">{product.name}</span>
+                                            {product.code && (
+                                                <span className="text-xs text-muted-foreground">
+                                                    SKU: {product.code}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
+                />
+                {errors.items?.[index]?.productId && (
+                    <p className="text-sm text-red-500 mt-1">
+                        {errors.items[index]?.productId?.message}
+                    </p>
+                )}
+            </TableCell>
+            <TableCell>
+                <Input
+                    type="number"
+                    min="1"
+                    defaultValue={item.quantity}
+                    onBlur={(e) => onQuantityChange(index, Number(e.target.value))}
+                    className={cn(
+                        "w-24 h-11 border-gray-300/80 rounded-lg",
+                        errors.items?.[index]?.quantity && "border-red-500"
+                    )}
+                />
+                {errors.items?.[index]?.quantity && (
+                    <p className="text-sm text-red-500 mt-1">
+                        {errors.items[index]?.quantity?.message}
+                    </p>
+                )}
+            </TableCell>
+            <TableCell>
+                <div className="relative">
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+                        Rp
+                    </span>
+                    <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        defaultValue={item.price}
+                        onBlur={(e) => onPriceChange(index, Number(e.target.value))}
+                        className={cn(
+                            "w-32 h-11 pl-8 border-gray-300/80 rounded-lg",
+                            errors.items?.[index]?.price && "border-red-500"
+                        )}
+                    />
+                </div>
+                {errors.items?.[index]?.price && (
+                    <p className="text-sm text-red-500 mt-1">
+                        {errors.items[index]?.price?.message}
+                    </p>
+                )}
+            </TableCell>
+            <TableCell>
+                <Controller
+                    control={control}
+                    name={`items.${index}.unit`}
+                    render={({ field }) => (
+                        <Input
+                            {...field}
+                            className={cn(
+                                "w-24 h-11 border-gray-300/80 rounded-lg bg-gray-50",
+                                errors.items?.[index]?.unit && "border-red-500"
+                            )}
+                            readOnly={true}
+                        />
+                    )}
+                />
+                {errors.items?.[index]?.unit && (
+                    <p className="text-sm text-red-500 mt-1">
+                        {errors.items[index]?.unit?.message}
+                    </p>
+                )}
+            </TableCell>
+            <TableCell>
+                <div className="font-semibold text-gray-900 dark:text-gray-100 bg-gradient-to-r from-gray-50 to-gray-100/50 dark:from-gray-800 dark:to-gray-900/50 py-2 px-3 rounded-lg">
+                    Rp {(item.total || 0).toLocaleString("id-ID")}
+                </div>
+            </TableCell>
+            <TableCell>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onRemove(index)}
+                    className="h-10 w-10 text-gray-500 hover:text-red-600 hover:bg-red-50/50 rounded-lg transition-all duration-300"
+                >
+                    <Trash2 className="h-4 w-4" />
+                </Button>
+            </TableCell>
+        </TableRow>
+    );
+});
+
+POItemRow.displayName = "POItemRow";
+
 export default function UpdateFormPO({
     purchaseOrderId,
     initialData,
@@ -204,13 +369,32 @@ export default function UpdateFormPO({
         },
     });
 
-    const items = watch("items");
-    const supplierId = watch("supplierId");
+    const { fields, append, remove, update } = useFieldArray({
+        control,
+        name: "items",
+    });
 
-    // Calculate totals
-    const subtotal = items.reduce((sum, item) => sum + item.total, 0);
-    const tax = subtotal * 0.11; // 11% PPN
-    const grandTotal = subtotal + tax;
+    // Watch items for total calculation
+    const watchItems = useWatch({
+        control,
+        name: "items",
+    });
+
+    // Memoize total calculation
+    const { subtotal, tax, grandTotal } = React.useMemo(() => {
+        const sub = (watchItems || []).reduce((sum, item) => sum + (item.total || 0), 0);
+        const t = sub * 0.11;
+        return {
+            subtotal: sub,
+            tax: t,
+            grandTotal: sub + t
+        };
+    }, [watchItems]);
+
+    // Memoize selected product IDs to stabilize props
+    const selectedProductIds = React.useMemo(() => {
+        return (watchItems || []).map(item => item.productId).filter(id => id !== "");
+    }, [watchItems]);
 
     // Initialize with products from initial data
     useEffect(() => {
@@ -268,90 +452,67 @@ export default function UpdateFormPO({
     }, [initialData.sPKId, initialData.SPK, initialData.projectId, initialData.project, spkList, setValue]);
 
     // Add new item
-    const addItem = () => {
-        const currentItems = items;
-        setValue("items", [
-            ...currentItems,
-            { productId: "", quantity: 1, price: 0, unit: "", total: 0 },
-        ]);
-    };
+    const addItem = React.useCallback(() => {
+        append({ productId: "", quantity: 1, price: 0, unit: "", total: 0 });
+    }, [append]);
 
     // Remove item
-    const removeItem = (index: number) => {
-        const currentItems = [...items];
-        currentItems.splice(index, 1);
-        setValue("items", currentItems);
+    const removeItem = React.useCallback((index: number) => {
+        const productIdToRemove = fields[index]?.productId;
+        remove(index);
 
         // Also remove from selected products
-        const productIdToRemove = items[index]?.productId;
         if (productIdToRemove) {
             setSelectedProducts(prev =>
                 prev.filter(p => p.id.toString() !== productIdToRemove)
             );
         }
-    };
+    }, [fields, remove]);
 
     // Handle product selection
-    const handleProductSelect = (index: number, productId: string) => {
+    const handleProductSelect = React.useCallback((index: number, productId: string) => {
         const product = products.find(p => p.id.toString() === productId);
         if (product) {
-            const currentItems = [...items];
             const unit = product.purchaseUnit || product.uom || "pcs";
             const price = Number(product.price) || 0;
+            const quantity = Number(watchItems?.[index]?.quantity) || 1;
 
-            currentItems[index] = {
-                ...currentItems[index],
+            update(index, {
+                ...watchItems[index],
                 productId: product.id.toString(),
                 price: price,
                 unit: unit,
-                quantity: Number(currentItems[index]?.quantity) || 1,
-                total: (Number(currentItems[index]?.quantity) || 1) * price,
-            };
-            setValue("items", currentItems);
+                quantity: quantity,
+                total: quantity * price,
+            });
 
             // Add to selected products if not already selected
             if (!selectedProducts.some(p => p.id.toString() === productId)) {
                 setSelectedProducts(prev => [...prev, product]);
             }
         }
-    };
+    }, [products, watchItems, update, selectedProducts]);
 
     // Handle quantity change
-    const handleQuantityChange = (index: number, quantity: number) => {
-        const currentItems = [...items];
-        const price = currentItems[index].price || 0;
-        currentItems[index] = {
-            ...currentItems[index],
+    const handleQuantityChange = React.useCallback((index: number, quantity: number) => {
+        const price = watchItems[index].price || 0;
+        update(index, {
+            ...watchItems[index],
             quantity,
             total: quantity * price,
-        };
-        setValue("items", currentItems);
-    };
+        });
+    }, [watchItems, update]);
 
     // Handle price change
-    const handlePriceChange = (index: number, price: number) => {
-        const currentItems = [...items];
-        const quantity = currentItems[index].quantity || 1;
-        currentItems[index] = {
-            ...currentItems[index],
+    const handlePriceChange = React.useCallback((index: number, price: number) => {
+        const quantity = watchItems[index].quantity || 1;
+        update(index, {
+            ...watchItems[index],
             price,
             total: quantity * price,
-        };
-        setValue("items", currentItems);
-    };
-
-    // Get available products (not already selected)
-    const getAvailableProducts = (currentIndex: number) => {
-        const currentProductId = items[currentIndex]?.productId;
-        return products.filter(product => {
-            const isCurrentProduct = product.id.toString() === currentProductId;
-            const isAlreadySelected = selectedProducts.some(
-                p => p.id.toString() === product.id.toString() &&
-                    product.id.toString() !== currentProductId
-            );
-            return isCurrentProduct || !isAlreadySelected;
         });
-    };
+    }, [watchItems, update]);
+
 
     // Handle form submission
     const onSubmit = async (data: FormData) => {
@@ -857,7 +1018,7 @@ export default function UpdateFormPO({
                             </div>
                         </CardHeader>
                         <CardContent className="pt-6">
-                            {items.length > 0 ? (
+                            {fields.length > 0 ? (
                                 <div className="overflow-hidden border border-gray-200/50 rounded-xl">
                                     <Table>
                                         <TableHeader className="bg-gradient-to-r from-gray-50 to-gray-100/50 dark:from-gray-800 dark:to-gray-900">
@@ -871,132 +1032,20 @@ export default function UpdateFormPO({
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            {items.map((item, index) => (
-                                                <TableRow key={index} className="hover:bg-gray-50/30 group">
-                                                    <TableCell>
-                                                        <Controller
-                                                            control={control}
-                                                            name={`items.${index}.productId`}
-                                                            render={({ field }) => (
-                                                                <Select
-                                                                    value={field.value}
-                                                                    onValueChange={(value) => {
-                                                                        field.onChange(value);
-                                                                        handleProductSelect(index, value);
-                                                                    }}
-                                                                >
-                                                                    <SelectTrigger className={cn(
-                                                                        "w-full h-11 border-gray-300/80 dark:border-gray-700 bg-white dark:bg-gray-900 group-hover:border-gray-300 dark:group-hover:border-gray-600 rounded-lg",
-                                                                        errors.items?.[index]?.productId && "border-red-500"
-                                                                    )}>
-                                                                        <SelectValue placeholder="Pilih produk" />
-                                                                        <ChevronDown className="h-4 w-4 ml-auto opacity-50" />
-                                                                    </SelectTrigger>
-                                                                    <SelectContent className="max-h-[300px] rounded-xl">
-                                                                        {getAvailableProducts(index).map((product) => (
-                                                                            <SelectItem
-                                                                                key={product.id}
-                                                                                value={product.id.toString()}
-                                                                                className="rounded-lg"
-                                                                            >
-                                                                                <div className="flex flex-col py-1">
-                                                                                    <span className="font-medium">{product.name}</span>
-                                                                                    {product.code && (
-                                                                                        <span className="text-xs text-muted-foreground">
-                                                                                            SKU: {product.code}
-                                                                                        </span>
-                                                                                    )}
-                                                                                </div>
-                                                                            </SelectItem>
-                                                                        ))}
-                                                                    </SelectContent>
-                                                                </Select>
-                                                            )}
-                                                        />
-                                                        {errors.items?.[index]?.productId && (
-                                                            <p className="text-sm text-red-500 mt-1">
-                                                                {errors.items[index]?.productId?.message}
-                                                            </p>
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Input
-                                                            type="number"
-                                                            min="1"
-                                                            value={item.quantity}
-                                                            onChange={(e) => handleQuantityChange(index, Number(e.target.value))}
-                                                            className={cn(
-                                                                "w-24 h-11 border-gray-300/80 rounded-lg",
-                                                                errors.items?.[index]?.quantity && "border-red-500"
-                                                            )}
-                                                        />
-                                                        {errors.items?.[index]?.quantity && (
-                                                            <p className="text-sm text-red-500 mt-1">
-                                                                {errors.items[index]?.quantity?.message}
-                                                            </p>
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className="relative">
-                                                            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
-                                                                Rp
-                                                            </span>
-                                                            <Input
-                                                                type="number"
-                                                                min="0"
-                                                                step="0.01"
-                                                                value={item.price}
-                                                                onChange={(e) => handlePriceChange(index, Number(e.target.value))}
-                                                                className={cn(
-                                                                    "w-32 h-11 pl-8 border-gray-300/80 rounded-lg",
-                                                                    errors.items?.[index]?.price && "border-red-500"
-                                                                )}
-                                                            />
-                                                        </div>
-                                                        {errors.items?.[index]?.price && (
-                                                            <p className="text-sm text-red-500 mt-1">
-                                                                {errors.items[index]?.price?.message}
-                                                            </p>
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Controller
-                                                            control={control}
-                                                            name={`items.${index}.unit`}
-                                                            render={({ field }) => (
-                                                                <Input
-                                                                    {...field}
-                                                                    className={cn(
-                                                                        "w-24 h-11 border-gray-300/80 rounded-lg bg-gray-50",
-                                                                        errors.items?.[index]?.unit && "border-red-500"
-                                                                    )}
-                                                                    readOnly={true}
-                                                                />
-                                                            )}
-                                                        />
-                                                        {errors.items?.[index]?.unit && (
-                                                            <p className="text-sm text-red-500 mt-1">
-                                                                {errors.items[index]?.unit?.message}
-                                                            </p>
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className="font-semibold text-gray-900 dark:text-gray-100 bg-gradient-to-r from-gray-50 to-gray-100/50 dark:from-gray-800 dark:to-gray-900/50 py-2 px-3 rounded-lg">
-                                                            Rp {item.total.toLocaleString("id-ID")}
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Button
-                                                            type="button"
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            onClick={() => removeItem(index)}
-                                                            className="h-10 w-10 text-gray-500 hover:text-red-600 hover:bg-red-50/50 rounded-lg transition-all duration-300"
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
-                                                    </TableCell>
-                                                </TableRow>
+                                            {fields.map((field, index) => (
+                                                <POItemRow
+                                                    key={field.id}
+                                                    index={index}
+                                                    item={field}
+                                                    errors={errors}
+                                                    control={control}
+                                                    allProducts={products}
+                                                    selectedProductIds={selectedProductIds}
+                                                    onProductSelect={handleProductSelect}
+                                                    onQuantityChange={handleQuantityChange}
+                                                    onPriceChange={handlePriceChange}
+                                                    onRemove={removeItem}
+                                                />
                                             ))}
                                         </TableBody>
                                     </Table>
@@ -1026,7 +1075,7 @@ export default function UpdateFormPO({
                                 </Card>
                             )}
 
-                            {errors.items && items.length === 0 && (
+                            {errors.items && fields.length === 0 && (
                                 <div className="mt-4 p-4 bg-gradient-to-r from-red-50/50 to-red-100/30 border border-red-200/50 rounded-xl">
                                     <p className="text-sm text-red-600 flex items-center gap-2">
                                         <AlertCircle className="h-4 w-4" />
@@ -1084,7 +1133,7 @@ export default function UpdateFormPO({
                             <div className="space-y-5">
                                 <div className="flex justify-between items-center">
                                     <span className="text-gray-600">Total Item:</span>
-                                    <span className="font-semibold text-lg">{items.length}</span>
+                                    <span className="font-semibold text-lg">{fields.length}</span>
                                 </div>
                                 <div className="space-y-4">
                                     <div className="flex justify-between items-center pb-3 border-b border-gray-200/50 dark:border-gray-800">
