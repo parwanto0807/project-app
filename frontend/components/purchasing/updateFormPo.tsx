@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useForm, Controller, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -10,7 +10,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { CalendarIcon, Plus, Trash2, RefreshCw, ChevronDown, Package, Building, FileText, ClipboardList, Truck, Info, CheckCircle, AlertCircle, Calculator } from "lucide-react";
+import {
+    CalendarIcon, Plus, Trash2, RefreshCw, ChevronDown,
+    Package, Building, FileText, ClipboardList, Truck,
+    Info, CheckCircle, AlertCircle, Calculator, Check
+} from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { Calendar } from "@/components/ui/calendar";
@@ -19,6 +23,14 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from "@/components/ui/command";
 import {
     Select,
     SelectContent,
@@ -155,22 +167,71 @@ const StatusBadge = ({ status }: { status: PurchaseOrderStatus }) => {
     );
 };
 
+// Isolated component for totals to prevent parent re-renders
+const TotalsSummary = ({ control, fieldsCount }: { control: any; fieldsCount: number }) => {
+    const watchItems = useWatch({
+        control,
+        name: "items",
+    });
+
+    const { subtotal, tax, grandTotal } = useMemo(() => {
+        const sub = (watchItems || []).reduce((sum: any, item: any) => sum + (item.total || 0), 0);
+        const t = sub * 0.11;
+        return {
+            subtotal: sub,
+            tax: t,
+            grandTotal: sub + t,
+        };
+    }, [watchItems]);
+
+    return (
+        <div className="space-y-5">
+            <div className="flex justify-between items-center">
+                <span className="text-gray-600">Total Item:</span>
+                <span className="font-semibold text-lg">{fieldsCount}</span>
+            </div>
+            <div className="space-y-4">
+                <div className="flex justify-between items-center pb-3 border-b border-gray-200/50 dark:border-gray-800">
+                    <span className="text-gray-600 dark:text-gray-400">Subtotal:</span>
+                    <span className="font-medium text-gray-800 dark:text-gray-200">
+                        Rp {subtotal.toLocaleString("id-ID")}
+                    </span>
+                </div>
+                <div className="flex justify-between items-center pb-3 border-b border-gray-200/50">
+                    <span className="text-gray-600">PPN (11%):</span>
+                    <span className="font-medium text-gray-800">
+                        Rp {tax.toLocaleString("id-ID")}
+                    </span>
+                </div>
+                <div className="pt-4">
+                    <div className="flex justify-between items-center">
+                        <span className="text-lg font-semibold">Total:</span>
+                        <span className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
+                            Rp {grandTotal.toLocaleString("id-ID")}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // Memoized Row Component for better performance
 const POItemRow = React.memo(({
     index,
     item,
-    errors,
+    error,
     control,
     allProducts,
     selectedProductIds,
     onProductSelect,
     onQuantityChange,
     onPriceChange,
-    onRemove
+    onRemove,
 }: {
     index: number;
     item: any;
-    errors: any;
+    error: any;
     control: any;
     allProducts: Product[];
     selectedProductIds: string[];
@@ -179,8 +240,10 @@ const POItemRow = React.memo(({
     onPriceChange: (index: number, price: number) => void;
     onRemove: (index: number) => void;
 }) => {
+    const [open, setOpen] = useState(false);
+
     // Local filtering for products to improve dropdown performance
-    const availableProducts = React.useMemo(() => {
+    const availableProducts = useMemo(() => {
         const currentProductId = item.productId;
         return allProducts.filter(product => {
             const isCurrentProduct = product.id.toString() === currentProductId;
@@ -189,6 +252,11 @@ const POItemRow = React.memo(({
             return isCurrentProduct || !isAlreadySelected;
         });
     }, [allProducts, selectedProductIds, item.productId]);
+
+    const selectedProduct = useMemo(() =>
+        allProducts.find(p => p.id.toString() === item.productId),
+        [allProducts, item.productId]);
+
     return (
         <TableRow className="hover:bg-gray-50/30 group">
             <TableCell>
@@ -196,44 +264,72 @@ const POItemRow = React.memo(({
                     control={control}
                     name={`items.${index}.productId`}
                     render={({ field }) => (
-                        <Select
-                            value={field.value}
-                            onValueChange={(value) => {
-                                field.onChange(value);
-                                onProductSelect(index, value);
-                            }}
-                        >
-                            <SelectTrigger className={cn(
-                                "w-full h-11 border-gray-300/80 dark:border-gray-700 bg-white dark:bg-gray-900 group-hover:border-gray-300 dark:group-hover:border-gray-600 rounded-lg",
-                                errors.items?.[index]?.productId && "border-red-500"
-                            )}>
-                                <SelectValue placeholder="Pilih produk" />
-                                <ChevronDown className="h-4 w-4 ml-auto opacity-50" />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-[300px] rounded-xl">
-                                {availableProducts.map((product) => (
-                                    <SelectItem
-                                        key={product.id}
-                                        value={product.id.toString()}
-                                        className="rounded-lg"
-                                    >
-                                        <div className="flex flex-col py-1">
-                                            <span className="font-medium">{product.name}</span>
-                                            {product.code && (
-                                                <span className="text-xs text-muted-foreground">
-                                                    SKU: {product.code}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <Popover open={open} onOpenChange={setOpen}>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    aria-expanded={open}
+                                    className={cn(
+                                        "w-full h-11 justify-between border-gray-300/80 dark:border-gray-700 bg-white dark:bg-gray-900 font-normal rounded-lg",
+                                        !field.value && "text-muted-foreground",
+                                        error && "border-red-500"
+                                    )}
+                                >
+                                    <span className="truncate">
+                                        {field.value
+                                            ? selectedProduct?.name || "Produk terpilih"
+                                            : "Pilih produk..."}
+                                    </span>
+                                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[300px] p-0 rounded-xl" align="start">
+                                <Command className="rounded-xl">
+                                    <CommandInput placeholder="Cari produk..." />
+                                    <CommandList className="max-h-[300px]">
+                                        <CommandEmpty>Produk tidak ditemukan.</CommandEmpty>
+                                        <CommandGroup>
+                                            {availableProducts.map((product) => (
+                                                <CommandItem
+                                                    key={product.id}
+                                                    value={`${product.name} ${product.code}`}
+                                                    onSelect={() => {
+                                                        const val = product.id.toString();
+                                                        field.onChange(val);
+                                                        onProductSelect(index, val);
+                                                        setOpen(false);
+                                                    }}
+                                                    className="rounded-lg"
+                                                >
+                                                    <Check
+                                                        className={cn(
+                                                            "mr-2 h-4 w-4",
+                                                            field.value === product.id.toString()
+                                                                ? "opacity-100"
+                                                                : "opacity-0"
+                                                        )}
+                                                    />
+                                                    <div className="flex flex-col">
+                                                        <span>{product.name}</span>
+                                                        {product.code && (
+                                                            <span className="text-xs text-muted-foreground">
+                                                                SKU: {product.code}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </CommandItem>
+                                            ))}
+                                        </CommandGroup>
+                                    </CommandList>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
                     )}
                 />
-                {errors.items?.[index]?.productId && (
+                {error?.productId && (
                     <p className="text-sm text-red-500 mt-1">
-                        {errors.items[index]?.productId?.message}
+                        {error.productId.message}
                     </p>
                 )}
             </TableCell>
@@ -245,12 +341,12 @@ const POItemRow = React.memo(({
                     onBlur={(e) => onQuantityChange(index, Number(e.target.value))}
                     className={cn(
                         "w-24 h-11 border-gray-300/80 rounded-lg",
-                        errors.items?.[index]?.quantity && "border-red-500"
+                        error?.quantity && "border-red-500"
                     )}
                 />
-                {errors.items?.[index]?.quantity && (
+                {error?.quantity && (
                     <p className="text-sm text-red-500 mt-1">
-                        {errors.items[index]?.quantity?.message}
+                        {error.quantity.message}
                     </p>
                 )}
             </TableCell>
@@ -267,13 +363,13 @@ const POItemRow = React.memo(({
                         onBlur={(e) => onPriceChange(index, Number(e.target.value))}
                         className={cn(
                             "w-32 h-11 pl-8 border-gray-300/80 rounded-lg",
-                            errors.items?.[index]?.price && "border-red-500"
+                            error?.price && "border-red-500"
                         )}
                     />
                 </div>
-                {errors.items?.[index]?.price && (
+                {error?.price && (
                     <p className="text-sm text-red-500 mt-1">
-                        {errors.items[index]?.price?.message}
+                        {error.price.message}
                     </p>
                 )}
             </TableCell>
@@ -286,15 +382,15 @@ const POItemRow = React.memo(({
                             {...field}
                             className={cn(
                                 "w-24 h-11 border-gray-300/80 rounded-lg bg-gray-50",
-                                errors.items?.[index]?.unit && "border-red-500"
+                                error?.unit && "border-red-500"
                             )}
                             readOnly={true}
                         />
                     )}
                 />
-                {errors.items?.[index]?.unit && (
+                {error?.unit && (
                     <p className="text-sm text-red-500 mt-1">
-                        {errors.items[index]?.unit?.message}
+                        {error.unit.message}
                     </p>
                 )}
             </TableCell>
@@ -333,7 +429,6 @@ export default function UpdateFormPO({
     onCancel,
 }: UpdateFormPOProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [selectedProducts, setSelectedProducts] = useState<Product[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedProjectName, setSelectedProjectName] = useState<string>(
         initialData.project?.name || ""
@@ -346,6 +441,7 @@ export default function UpdateFormPO({
         setValue,
         watch,
         reset,
+        getValues,
     } = useForm<FormData>({
         resolver: zodResolver(formSchema),
         defaultValues: {
@@ -374,39 +470,21 @@ export default function UpdateFormPO({
         name: "items",
     });
 
-    // Watch items for total calculation
-    const watchItems = useWatch({
+    // Watch items ONLY for selectedProductIds calculation at this level
+    const watchItemsForProducts = useWatch({
         control,
         name: "items",
     });
 
-    // Memoize total calculation
-    const { subtotal, tax, grandTotal } = React.useMemo(() => {
-        const sub = (watchItems || []).reduce((sum, item) => sum + (item.total || 0), 0);
-        const t = sub * 0.11;
-        return {
-            subtotal: sub,
-            tax: t,
-            grandTotal: sub + t
-        };
-    }, [watchItems]);
-
     // Memoize selected product IDs to stabilize props
-    const selectedProductIds = React.useMemo(() => {
-        return (watchItems || []).map(item => item.productId).filter(id => id !== "");
-    }, [watchItems]);
+    const selectedProductIds = useMemo(() => {
+        return (watchItemsForProducts || []).map((item: any) => item.productId).filter(Boolean);
+    }, [JSON.stringify((watchItemsForProducts || []).map((item: any) => item.productId))]);
 
-    // Initialize with products from initial data
+    // Initialize loading state
     useEffect(() => {
-        if (initialData.lines && products.length > 0) {
-            const productIds = initialData.lines.map(item => item.productId);
-            const selectedProds = products.filter(product =>
-                productIds.includes(product.id.toString())
-            );
-            setSelectedProducts(selectedProds);
-        }
         setIsLoading(false);
-    }, [initialData.lines, products]);
+    }, []);
 
     // Initialize SPK and Project from initial data
     useEffect(() => {
@@ -458,60 +536,57 @@ export default function UpdateFormPO({
 
     // Remove item
     const removeItem = React.useCallback((index: number) => {
-        const productIdToRemove = fields[index]?.productId;
+        const currentItems = getValues("items");
+        const productIdToRemove = currentItems[index]?.productId;
         remove(index);
 
-        // Also remove from selected products
-        if (productIdToRemove) {
-            setSelectedProducts(prev =>
-                prev.filter(p => p.id.toString() !== productIdToRemove)
-            );
-        }
-    }, [fields, remove]);
+        // No longer using selectedProducts state for filtering, using selectedProductIds from useWatch
+    }, [remove, getValues]);
 
     // Handle product selection
     const handleProductSelect = React.useCallback((index: number, productId: string) => {
         const product = products.find(p => p.id.toString() === productId);
         if (product) {
+            const currentItems = getValues("items");
+            const currentItem = currentItems[index];
             const unit = product.purchaseUnit || product.uom || "pcs";
             const price = Number(product.price) || 0;
-            const quantity = Number(watchItems?.[index]?.quantity) || 1;
+            const quantity = Number(currentItem?.quantity) || 1;
 
             update(index, {
-                ...watchItems[index],
+                ...currentItem,
                 productId: product.id.toString(),
                 price: price,
                 unit: unit,
                 quantity: quantity,
                 total: quantity * price,
             });
-
-            // Add to selected products if not already selected
-            if (!selectedProducts.some(p => p.id.toString() === productId)) {
-                setSelectedProducts(prev => [...prev, product]);
-            }
         }
-    }, [products, watchItems, update, selectedProducts]);
+    }, [products, update, getValues]);
 
     // Handle quantity change
     const handleQuantityChange = React.useCallback((index: number, quantity: number) => {
-        const price = watchItems[index].price || 0;
+        const currentItems = getValues("items");
+        const currentItem = currentItems[index];
+        const price = currentItem?.price || 0;
         update(index, {
-            ...watchItems[index],
+            ...currentItem,
             quantity,
             total: quantity * price,
         });
-    }, [watchItems, update]);
+    }, [update, getValues]);
 
     // Handle price change
     const handlePriceChange = React.useCallback((index: number, price: number) => {
-        const quantity = watchItems[index].quantity || 1;
+        const currentItems = getValues("items");
+        const currentItem = currentItems[index];
+        const quantity = currentItem?.quantity || 1;
         update(index, {
-            ...watchItems[index],
+            ...currentItem,
             price,
             total: quantity * price,
         });
-    }, [watchItems, update]);
+    }, [update, getValues]);
 
 
     // Handle form submission
@@ -536,13 +611,18 @@ export default function UpdateFormPO({
                 description: "",
             }));
 
+            const currentItems = getValues("items");
+            const sub = (currentItems || []).reduce((sum, item) => sum + (item.total || 0), 0);
+            const taxActual = sub * 0.11;
+            const grandTotalActual = sub + taxActual;
+
             const formattedData = {
                 ...data,
                 orderDate: data.poDate.toISOString(),
                 expectedDeliveryDate: data.deliveryDate?.toISOString() || null,
-                subtotal,
-                tax,
-                totalAmount: grandTotal,
+                subtotal: sub,
+                tax: taxActual,
+                totalAmount: grandTotalActual,
                 status: initialData.status,
                 lines,
             };
@@ -1037,7 +1117,7 @@ export default function UpdateFormPO({
                                                     key={field.id}
                                                     index={index}
                                                     item={field}
-                                                    errors={errors}
+                                                    error={errors.items?.[index]}
                                                     control={control}
                                                     allProducts={products}
                                                     selectedProductIds={selectedProductIds}
@@ -1130,34 +1210,7 @@ export default function UpdateFormPO({
                             </div>
                         </CardHeader>
                         <CardContent className="pt-6">
-                            <div className="space-y-5">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-gray-600">Total Item:</span>
-                                    <span className="font-semibold text-lg">{fields.length}</span>
-                                </div>
-                                <div className="space-y-4">
-                                    <div className="flex justify-between items-center pb-3 border-b border-gray-200/50 dark:border-gray-800">
-                                        <span className="text-gray-600 dark:text-gray-400">Subtotal:</span>
-                                        <span className="font-medium text-gray-800 dark:text-gray-200">
-                                            Rp {subtotal.toLocaleString("id-ID")}
-                                        </span>
-                                    </div>
-                                    <div className="flex justify-between items-center pb-3 border-b border-gray-200/50">
-                                        <span className="text-gray-600">PPN (11%):</span>
-                                        <span className="font-medium text-gray-800">
-                                            Rp {tax.toLocaleString("id-ID")}
-                                        </span>
-                                    </div>
-                                    <div className="pt-4">
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-lg font-semibold">Total:</span>
-                                            <span className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
-                                                Rp {grandTotal.toLocaleString("id-ID")}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            <TotalsSummary control={control} fieldsCount={fields.length} />
                         </CardContent>
                     </Card>
 
