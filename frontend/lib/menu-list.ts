@@ -465,6 +465,15 @@ export function getMenuList(pathname: string, role: string, permissions: Permiss
               requiredPermission: "accounting.manage",
             },
             {
+              href: `${basePath}/accounting/cash-opname`,
+              label: "Cash Opname",
+              tooltip: "Opname Kas Fisik",
+              icon: Banknote,
+              active: isActive(`${basePath}/accounting/cash-opname`, pathname),
+              disabled: role === "user" || role === "pic",
+              requiredPermission: "accounting.manage",
+            },
+            {
               href: `${basePath}/master/bank-account`,
               label: "Bank Account",
               tooltip: "Rekening Bank",

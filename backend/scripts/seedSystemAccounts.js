@@ -177,6 +177,18 @@ async function main() {
       description: 'Akun penyeimbang untuk rekonsiliasi nilai persediaan antara Sub-ledger (stok fisik) dan General Ledger (Neraca). Digunakan saat penutupan buku untuk menyesuaikan selisih nilai.',
       fallbackCode: '6-10501',
       searchNames: ['Beban Selisih Inventaris', 'Penyesuaian Persediaan', 'Selisih Stok']
+    },
+    {
+      key: 'CASH_SHORTAGE_ACCOUNT',
+      description: 'Digunakan untuk mencatat selisih kurang (shortage) saat Cash Opname. Dialihkan ke Ekuitas (3-10101) untuk menjaga Laba Rugi.',
+      fallbackCode: '3-10101', 
+      searchNames: ['Saldo Awal Ekuitas']
+    },
+    {
+      key: 'CASH_OVERAGE_ACCOUNT',
+      description: 'Digunakan untuk mencatat selisih lebih (overage) saat Cash Opname. Dialihkan ke Ekuitas (3-10101) untuk menjaga Laba Rugi.',
+      fallbackCode: '3-10101',
+      searchNames: ['Saldo Awal Ekuitas']
     }
   ];
 

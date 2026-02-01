@@ -50,6 +50,7 @@ import operationalExpenseRoutes from './routes/finance/operationalExpenseRoutes.
 import permissionRoutes from './routes/permission/permissionRoutes.js';
 import financialReportRoutes from './routes/accounting/financialReportRoutes.js';
 import assetRoutes from './routes/asset/assetRoutes.js';
+import cashOpnameRoutes from './routes/accounting/cashOpnameRoutes.js';
 
 
 
@@ -188,6 +189,7 @@ app.use('/api/finance/operational-expenses', operationalExpenseRoutes);
 app.use('/api/permissions', permissionRoutes);
 app.use('/api/accounting/reports', financialReportRoutes);
 app.use('/api/assets', assetRoutes);
+app.use('/api/accounting/cash-opname', cashOpnameRoutes);
 
 
 
