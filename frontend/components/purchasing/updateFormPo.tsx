@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import {
     CalendarIcon, Plus, Trash2, RefreshCw, ChevronDown,
     Package, Building, FileText, ClipboardList, Truck,
-    Info, CheckCircle, AlertCircle, Calculator, Check
+    Info, CheckCircle, AlertCircle, Calculator, Check, Loader2
 } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
@@ -657,15 +657,6 @@ export default function UpdateFormPO({
                 total: item.totalAmount,
             })) || [],
         });
-
-        if (initialData.lines && products.length > 0) {
-            const productIds = initialData.lines.map(item => item.productId);
-            const selectedProds = products.filter(product =>
-                productIds.includes(product.id.toString())
-            );
-            setSelectedProducts(selectedProds);
-        }
-
         toast.info("Data telah direset ke nilai asli");
     };
 
@@ -1242,8 +1233,8 @@ export default function UpdateFormPO({
                                     >
                                         {isSubmitting ? (
                                             <div className="flex items-center gap-2">
-                                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                                                Memproses...
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                Menyimpan...
                                             </div>
                                         ) : (
                                             "Simpan Perubahan"
