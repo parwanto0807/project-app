@@ -36,7 +36,8 @@ import {
     Save,
     RotateCcw,
     Eye,
-    History
+    History,
+    Loader2
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchSuppliers } from "@/lib/action/supplier/supplierAction";
@@ -448,8 +449,16 @@ export default function UpdatePurchaseOrderPage() {
                                         type="submit"
                                         form="update-po-form"
                                         disabled={isSubmitting}
+                                        className="min-w-[140px]"
                                     >
-                                        {isSubmitting ? "Menyimpan..." : "Simpan Perubahan"}
+                                        {isSubmitting ? (
+                                            <div className="flex items-center gap-2">
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                Menyimpan...
+                                            </div>
+                                        ) : (
+                                            "Simpan Perubahan"
+                                        )}
                                     </Button>
                                 </div>
                             </div>
