@@ -1036,7 +1036,7 @@ export const uangMukaController = {
           });
 
           if (!period) {
-            throw new Error(`Tidak ada periode akuntansi terbuka untuk tanggal ${effectiveDate.toISOString().split('T')[0]}`);
+            throw new Error(`Tidak ada periode akuntansi terbuka untuk tanggal ${effectiveDate.toISOString().split('T')[0]}. Silakan buat periode baru untuk bulan berjalan atau gunakan tanggal transaksi yang sesuai dengan periode aktif.`);
           }
 
           // B. Dapatkan Akun STAFF_ADVANCE (Uang Muka Kerja Staff) dari System Account
@@ -1061,7 +1061,8 @@ export const uangMukaController = {
             where: { id: targetCoaId },
             include: {
               TrialBalance: {
-                where: { periodId: period.id }
+                orderBy: { period: { startDate: 'desc' } },
+                take: 1
               }
             }
           });
@@ -1073,11 +1074,12 @@ export const uangMukaController = {
             if (currentBalance < disbursementAmount) {
               const formattedBalance = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(currentBalance);
               const formattedAmount = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(disbursementAmount);
-              throw new Error(`Saldo tidak mencukupi pada akun ${sourceAccount.name}. Saldo saat ini: ${formattedBalance}, Jumlah pencairan: ${formattedAmount}`);
+              throw new Error(`Saldo tidak mencukupi pada akun ${sourceAccount.name}. Saldo terakhir: ${formattedBalance}, Jumlah pencairan: ${formattedAmount}`);
             }
           } else {
-            // Jika belum ada TrialBalance, berarti saldo masih 0
-            throw new Error(`Tidak dapat mencairkan dana. Akun ${sourceAccount?.name || 'Kas/Bank'} belum memiliki saldo awal atau transaksi di periode ini.`);
+            // Jika belum ada TrialBalance di periode manapun
+            console.warn(`⚠️ [UM-BALANCE] No TrialBalance found for account ${sourceAccount?.name || targetCoaId}. Assuming zero balance.`);
+            throw new Error(`Tidak dapat mencairkan dana. Akun ${sourceAccount?.name || 'Kas/Bank'} belum memiliki saldo atau transaksi sama sekali.`);
           }
 
           // D. Buat Ledger Header

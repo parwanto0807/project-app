@@ -31,6 +31,7 @@ export const createPurchaseRequestSchema = z
     spkId: z.string().optional().nullable(), // Sementara string dulu
     parentPrId: z.string().uuid().optional().nullable(), // ✅ Parent PR reference
     keterangan: z.string().max(500).optional().nullable(),
+    tanggalPr: z.coerce.date().optional(),
     details: z
       .array(
         z.object({
@@ -91,6 +92,7 @@ export const updatePurchaseRequestSchema = z
     parentPrId: uuidSchema.optional().nullable(), // ✅ Parent PR reference
     requestedById: z.string().optional().nullable(), // ✅ Add requester field for update
     keterangan: z.string().max(500).optional().nullable(),
+    tanggalPr: z.coerce.date().optional(),
     status: z
       .enum([
         "DRAFT",

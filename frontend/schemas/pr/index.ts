@@ -59,6 +59,7 @@ export const UpdatePurchaseRequestSchema = z.object({
   parentPrId: z.string().optional().nullable(),
   requestedById: z.string().optional().nullable(), // ✅ Add requester field for update
   keterangan: z.string().max(1000, "Keterangan too long").optional(),
+  tanggalPr: z.date().optional(),
   status: z
     .enum([
       "DRAFT",

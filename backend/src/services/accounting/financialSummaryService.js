@@ -50,19 +50,49 @@ export async function updateTrialBalance({ periodId, coaId, debitAmount, creditA
     });
   } else {
     // Create new record
-    // Get opening balance from previous period or set to 0
-    const period = await prismaClient.accountingPeriod.findUnique({
-      where: { id: periodId }
+    // Get opening balance from previous period
+    let openingDebit = 0;
+    let openingCredit = 0;
+
+    const previousPeriod = await prismaClient.accountingPeriod.findFirst({
+        where: { endDate: { lt: new Date() }, isClosed: true }, // Find closed period before this one
+        orderBy: { endDate: 'desc' },
+        take: 1
     });
 
-    const coa = await prismaClient.chartOfAccounts.findUnique({
-      where: { id: coaId }
-    });
+    if (previousPeriod) {
+        const prevTB = await prismaClient.trialBalance.findUnique({
+             where: { periodId_coaId: { periodId: previousPeriod.id, coaId } }
+        });
+        if (prevTB) {
+            openingDebit = Number(prevTB.endingDebit);
+            openingCredit = Number(prevTB.endingCredit);
+        }
+    }
 
-    // For simplicity, opening balance = 0 for new records
-    // In production, you should calculate from previous period
-    const openingDebit = 0;
-    const openingCredit = 0;
+    const endingDebit = openingDebit + debitAmount;
+    const endingCredit = openingCredit + creditAmount;
+
+    let finalEndingDebit = 0;
+    let finalEndingCredit = 0;
+    
+    // Normal Balance Logic for Ending
+    const coa = await prismaClient.chartOfAccounts.findUnique({ where: { id: coaId } });
+    const netDebit = endingDebit - endingCredit;
+
+    if (coa && coa.normalBalance === 'DEBIT') {
+         if (netDebit >= 0) {
+             finalEndingDebit = netDebit;
+         } else {
+             finalEndingCredit = Math.abs(netDebit);
+         }
+    } else {
+         if (netDebit <= 0) {
+             finalEndingCredit = Math.abs(netDebit);
+         } else {
+             finalEndingDebit = netDebit;
+         }
+    }
 
     await prismaClient.trialBalance.create({
       data: {
@@ -72,9 +102,9 @@ export async function updateTrialBalance({ periodId, coaId, debitAmount, creditA
         openingCredit,
         periodDebit: debitAmount,
         periodCredit: creditAmount,
-        endingDebit: openingDebit + debitAmount,
-        endingCredit: openingCredit + creditAmount,
-        ytdDebit: debitAmount,
+        endingDebit: finalEndingDebit || endingDebit, // Fallback if simple logic preferred
+        endingCredit: finalEndingCredit || endingCredit,
+        ytdDebit: debitAmount, // Note: YTD should ideally include YTD from prev, but keeping simple for now
         ytdCredit: creditAmount,
         currency: 'IDR',
         calculatedAt: new Date()
@@ -82,7 +112,6 @@ export async function updateTrialBalance({ periodId, coaId, debitAmount, creditA
     });
   }
 }
-
 /**
  * Update General Ledger Summary (daily summary)
  * Dipanggil setelah posting ledger

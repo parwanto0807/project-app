@@ -1,0 +1,83 @@
+{
+  "janPeriod": {
+    "id": "e14167d7-6e0e-4d6b-9964-79b2128370dc",
+    "periodCode": "012026",
+    "periodName": "JAN-2026",
+    "startDate": "2025-12-31T17:00:00.000Z",
+    "endDate": "2026-01-31T16:59:59.999Z",
+    "fiscalYear": 2026,
+    "periodMonth": 1,
+    "quarter": 1,
+    "isClosed": true,
+    "closedAt": "2026-02-01T12:25:39.721Z",
+    "closedBy": "System",
+    "reopenAt": null,
+    "reopenBy": null,
+    "reopenReason": null,
+    "createdAt": "2026-01-20T10:11:52.388Z",
+    "updatedAt": "2026-02-01T13:18:53.374Z"
+  },
+  "adjMapping": {
+    "id": "efe9946d-5051-44b7-9df0-ddb33602c1dc",
+    "key": "INVENTORY_ADJUSTMENT_ACCOUNT",
+    "description": "Akun penyeimbang untuk rekonsiliasi nilai persediaan.",
+    "coaId": "92e49d83-36b8-446a-97b1-19003ab127aa",
+    "createdAt": "2026-02-01T12:20:09.520Z",
+    "updatedAt": "2026-02-01T12:20:09.520Z",
+    "coa": {
+      "id": "92e49d83-36b8-446a-97b1-19003ab127aa",
+      "code": "5-30001",
+      "name": "Selisih Penyesuaian Stok",
+      "description": "Akun untuk menampung selisih nilai inventaris saat rekonsiliasi stok opname atau tutup buku.",
+      "type": "HPP",
+      "normalBalance": "DEBIT",
+      "postingType": "POSTING",
+      "cashflowType": "NONE",
+      "status": "ACTIVE",
+      "isReconcilable": false,
+      "defaultCurrency": "IDR",
+      "parentId": null,
+      "taxRateId": null,
+      "createdAt": "2026-02-01T12:20:09.511Z",
+      "updatedAt": "2026-02-01T12:20:09.511Z"
+    }
+  },
+  "results": [
+    {
+      "warehouse": "GUDANG BENGKEL",
+      "account": "1-10202",
+      "subLedger": 0,
+      "glOpening": 0,
+      "glPeriod": 0,
+      "glEnding": 0,
+      "diff": 0
+    },
+    {
+      "warehouse": "GUDANG KEBON",
+      "account": "1-10203",
+      "subLedger": 0,
+      "glOpening": 0,
+      "glPeriod": 0,
+      "glEnding": 0,
+      "diff": 0
+    },
+    {
+      "warehouse": "GUDANG B ZHAENAL",
+      "account": "1-10204",
+      "subLedger": 0,
+      "glOpening": 0,
+      "glPeriod": 0,
+      "glEnding": 0,
+      "diff": 0
+    },
+    {
+      "warehouse": "GUDANG WIP PROJECT ",
+      "account": "1-10205",
+      "subLedger": 0,
+      "glOpening": 0,
+      "glPeriod": 0,
+      "glEnding": 0,
+      "diff": 0
+    }
+  ]
+}

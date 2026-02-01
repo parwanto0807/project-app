@@ -1,0 +1,20 @@
+[
+  {
+    "type": "PENDAPATAN"
+  },
+  {
+    "type": "HPP"
+  },
+  {
+    "type": "ASET"
+  },
+  {
+    "type": "LIABILITAS"
+  },
+  {
+    "type": "BEBAN"
+  },
+  {
+    "type": "EKUITAS"
+  }
+]

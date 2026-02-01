@@ -1,0 +1,13 @@
+Found 3 lines.
+- COA: 4-10101 (Pendapatan Jasa Konstruksi)
+  Date: 2026-01-13T04:14:55.395Z
+  Amount: 1250000
+  Ref: 00029/INV-RYLIF/I/2026
+- COA: 1-10101 (Piutang Usaha)
+  Date: 2026-01-21T14:27:26.733Z
+  Amount: 1250000
+  Ref: 00048/INV-RYLIF/I/2026
+- COA: 1-10101 (Piutang Usaha)
+  Date: 2026-01-31T07:44:55.111Z
+  Amount: 1250000
+  Ref: 00063/INV-RYLIF/I/2026

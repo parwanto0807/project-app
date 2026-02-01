@@ -1,0 +1,13 @@
+{
+  "account": "1-10205",
+  "january": {
+    "opening": 0,
+    "period": 33291200,
+    "ending": 33291200
+  },
+  "february": {
+    "opening": 33291200,
+    "period": 18927000,
+    "ending": 52218200
+  }
+}

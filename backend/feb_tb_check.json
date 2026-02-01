@@ -1,0 +1,30 @@
+[
+  {
+    "warehouse": "GUDANG BENGKEL",
+    "account": "1-10202",
+    "opening": 0,
+    "period": 24010600,
+    "ending": 24010600
+  },
+  {
+    "warehouse": "GUDANG KEBON",
+    "account": "1-10203",
+    "opening": 0,
+    "period": 0,
+    "ending": 0
+  },
+  {
+    "warehouse": "GUDANG B ZHAENAL",
+    "account": "1-10204",
+    "opening": 0,
+    "period": 0,
+    "ending": 0
+  },
+  {
+    "warehouse": "GUDANG WIP PROJECT ",
+    "account": "1-10205",
+    "opening": 33291200,
+    "period": 18927000,
+    "ending": 52218200
+  }
+]

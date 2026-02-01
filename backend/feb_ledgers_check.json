@@ -1,0 +1,34 @@
+[
+  {
+    "number": "JV-ADJ-STK-20260201-0001",
+    "description": "Inventory Value Reconciliation - GUDANG BENGKEL (Sub-ledger: 24,010,600, GL: 0)",
+    "lines": [
+      {
+        "account": "1-10202",
+        "debit": 24010600,
+        "credit": 0
+      },
+      {
+        "account": "5-30001",
+        "debit": 0,
+        "credit": 24010600
+      }
+    ]
+  },
+  {
+    "number": "JV-ADJ-STK-20260201-0002",
+    "description": "Inventory Value Reconciliation - GUDANG WIP PROJECT  (Sub-ledger: 52,218,200, GL: 0)",
+    "lines": [
+      {
+        "account": "1-10205",
+        "debit": 52218200,
+        "credit": 0
+      },
+      {
+        "account": "5-30001",
+        "debit": 0,
+        "credit": 52218200
+      }
+    ]
+  }
+]

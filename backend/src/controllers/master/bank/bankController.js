@@ -49,7 +49,7 @@ export const bankController = {
     try {
       const now = new Date();
       // Cari periode akuntansi yang aktif saat ini
-      const currentPeriod = await prisma.accountingPeriod.findFirst({
+      let currentPeriod = await prisma.accountingPeriod.findFirst({
         where: {
           startDate: { lte: now },
           endDate: { gte: now },
@@ -57,12 +57,23 @@ export const bankController = {
         },
       });
 
+      // Jika tidak ada periode aktif hari ini (misal ganti bulan tapi belum buat periode baru),
+      // ambil periode terakhir yang masih terbuka.
+      if (!currentPeriod) {
+        currentPeriod = await prisma.accountingPeriod.findFirst({
+          where: { isClosed: false },
+          orderBy: { startDate: 'desc' },
+        });
+      }
+
       const accounts = await prisma.bankAccount.findMany({
         include: {
           accountCOA: {
             include: {
               TrialBalance: {
-                where: currentPeriod ? { periodId: currentPeriod.id } : { id: 'none' }, // Jika tidak ada periode, jangan ambil TB
+                where: currentPeriod ? { periodId: currentPeriod.id } : undefined,
+                orderBy: { period: { startDate: 'desc' } },
+                take: 1,
               },
             },
           },

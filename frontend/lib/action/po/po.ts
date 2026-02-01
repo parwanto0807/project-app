@@ -14,6 +14,7 @@ import {
 } from '@/types/poType';
 import { ApiResponse, ListResponse } from "@/types/api";
 import { purchaseSchemas } from '@/schemas/po/poSchema';
+import { format } from 'date-fns';
 
 // Base URL untuk API (sesuaikan dengan environment)
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
@@ -171,8 +172,8 @@ export async function createPurchaseOrder(data: {
 
         const payload = {
             poNumber: data.poNumber,
-            orderDate: data.orderDate.toISOString(),
-            expectedDeliveryDate: data.deliveryDate?.toISOString() || null,
+            orderDate: format(data.orderDate, 'yyyy-MM-dd'),
+            expectedDeliveryDate: data.deliveryDate ? format(data.deliveryDate, 'yyyy-MM-dd') : null,
             warehouseId: data.warehouseId,
             supplierId: data.supplierId,
             projectId: data.projectId || null,

@@ -1,0 +1,38 @@
+[
+  {
+    "id": "e14167d7-6e0e-4d6b-9964-79b2128370dc",
+    "periodCode": "012026",
+    "periodName": "JAN-2026",
+    "startDate": "2025-12-31T17:00:00.000Z",
+    "endDate": "2026-01-31T16:59:59.999Z",
+    "fiscalYear": 2025,
+    "periodMonth": 12,
+    "quarter": 4,
+    "isClosed": true,
+    "closedAt": "2026-02-01T13:49:15.805Z",
+    "closedBy": "System",
+    "reopenAt": null,
+    "reopenBy": null,
+    "reopenReason": null,
+    "createdAt": "2026-01-20T10:11:52.388Z",
+    "updatedAt": "2026-02-01T13:49:15.806Z"
+  },
+  {
+    "id": "20cbd16c-bee0-4150-9cc6-dceb275a1890",
+    "periodCode": "022026",
+    "periodName": "FEB-2026",
+    "startDate": "2026-01-31T17:00:00.000Z",
+    "endDate": "2026-02-28T16:59:59.999Z",
+    "fiscalYear": 2026,
+    "periodMonth": 2,
+    "quarter": 1,
+    "isClosed": false,
+    "closedAt": null,
+    "closedBy": null,
+    "reopenAt": null,
+    "reopenBy": null,
+    "reopenReason": null,
+    "createdAt": "2026-02-01T13:49:14.863Z",
+    "updatedAt": "2026-02-01T13:49:14.863Z"
+  }
+]

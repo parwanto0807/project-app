@@ -178,9 +178,13 @@ export interface CreatePurchaseRequestData {
 }
 
 export interface UpdatePurchaseRequestData {
-  spkId?: string | null; // ✅ Tambahkan field ini
+  projectId?: string | null;
+  spkId?: string | null;
+  parentPrId?: string | null;
+  requestedById?: string | null;
   tanggalPr?: Date;
   keterangan?: string;
+  status?: PRStatus;
   details?: Omit<PurchaseRequestDetail, "id" | "estimasiTotalHarga">[];
 }
 

@@ -1,6 +1,17 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import {
+    startOfDay,
+    endOfDay,
+    startOfWeek,
+    endOfWeek,
+    startOfMonth,
+    endOfMonth,
+    startOfYear,
+    endOfYear,
+    format
+} from "date-fns";
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import HeaderCard from "@/components/ui/header-card";
 import {
@@ -31,11 +42,13 @@ import {
     AlertCircle
 } from "lucide-react";
 import { getGLSummaries } from "@/lib/action/accounting/glSummary";
+import { getPeriods } from "@/lib/action/accounting/period";
 import { GeneralLedgerSummary } from "@/types/glSummary";
+import { AccountingPeriod } from "@/schemas/accounting/period";
 import { TabelGeneralLedgerSummary } from "@/components/accounting/TabelGeneralLedgerSummary";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel, SelectSeparator } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -44,6 +57,7 @@ export default function GeneralLedgerSummaryPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [period, setPeriod] = useState<string>("this-month");
+    const [accountingPeriods, setAccountingPeriods] = useState<AccountingPeriod[]>([]);
     const [viewMode, setViewMode] = useState<"table" | "summary">("table");
 
     // Grand Total state (from backend calculation)
@@ -52,15 +66,30 @@ export default function GeneralLedgerSummaryPage() {
     const [isBalanced, setIsBalanced] = useState(true);
     const [balanceDifference, setBalanceDifference] = useState(0);
 
+    // Load Accounting Periods
+    useEffect(() => {
+        const loadPeriods = async () => {
+            try {
+                const result = await getPeriods({ limit: 12 });
+                if (result.success) {
+                    setAccountingPeriods(result.data);
+                }
+            } catch (err) {
+                console.error("Failed to load periods:", err);
+            }
+        };
+        loadPeriods();
+    }, []);
+
     const fetchData = useCallback(async (query: string = "") => {
         setIsLoading(true);
         try {
-            // Fetch ALL GL Summaries (no pagination - set high limit)
-            const queryString = query ? `${query}&limit=1000` : `?limit=1000`;
-            const result = await getGLSummaries(queryString);
+            // Fetch ALL GL Summaries with high limit
+            const fullQuery = query.includes('?') ? `${query}&limit=1000` : `?limit=1000`;
+            const result = await getGLSummaries(fullQuery);
             setData(result.data);
 
-            // Calculate totals from displayed data (same as Grand Total Summary)
+            // Calculate totals from displayed data
             const calculatedTotalDebit = result.data.reduce((sum: number, item: any) =>
                 sum + (Number(item.debitTotal) || 0), 0);
             const calculatedTotalCredit = result.data.reduce((sum: number, item: any) =>
@@ -79,19 +108,55 @@ export default function GeneralLedgerSummaryPage() {
         }
     }, []);
 
-    // Use useEffect with debounce for search
+    const getQuery = useCallback(() => {
+        let queryParams = new URLSearchParams();
+        if (searchTerm) queryParams.append("search", searchTerm);
+
+        const isRelative = ["today", "this-week", "this-month", "this-year"].includes(period);
+
+        if (isRelative) {
+            const now = new Date();
+            let start: Date | null = null;
+            let end: Date | null = null;
+
+            switch (period) {
+                case "today":
+                    start = startOfDay(now);
+                    end = endOfDay(now);
+                    break;
+                case "this-week":
+                    start = startOfWeek(now, { weekStartsOn: 1 });
+                    end = endOfWeek(now, { weekStartsOn: 1 });
+                    break;
+                case "this-month":
+                    start = startOfMonth(now);
+                    end = endOfMonth(now);
+                    break;
+                case "this-year":
+                    start = startOfYear(now);
+                    end = endOfYear(now);
+                    break;
+            }
+            if (start) queryParams.append("startDate", format(start, "yyyy-MM-dd"));
+            if (end) queryParams.append("endDate", format(end, "yyyy-MM-dd"));
+        } else {
+            queryParams.append("periodId", period);
+        }
+
+        return `?${queryParams.toString()}`;
+    }, [searchTerm, period]);
+
+    // Effect for fetching data when period OR search changes
     useEffect(() => {
         const timer = setTimeout(() => {
-            let query = `?search=${encodeURIComponent(searchTerm)}`;
-            // Add period filter logic if needed, for now focusing on search
-            fetchData(query);
-        }, 500); // 500ms debounce
+            fetchData(getQuery());
+        }, 500);
 
         return () => clearTimeout(timer);
-    }, [searchTerm, fetchData]);
+    }, [fetchData, getQuery]);
 
     const handleRefresh = () => {
-        fetchData();
+        fetchData(getQuery());
         toast.success("Data diperbarui");
     };
 
@@ -313,10 +378,26 @@ export default function GeneralLedgerSummaryPage() {
                                             <SelectValue placeholder="Pilih Periode" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="today" className="text-xs">Hari Ini</SelectItem>
-                                            <SelectItem value="this-week" className="text-xs">Minggu Ini</SelectItem>
-                                            <SelectItem value="this-month" className="text-xs">Bulan Ini</SelectItem>
-                                            <SelectItem value="this-year" className="text-xs">Tahun Ini</SelectItem>
+                                            <SelectGroup>
+                                                <SelectLabel className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Waktu Relatif</SelectLabel>
+                                                <SelectItem value="today" className="text-xs">Hari Ini</SelectItem>
+                                                <SelectItem value="this-week" className="text-xs">Minggu Ini</SelectItem>
+                                                <SelectItem value="this-month" className="text-xs">Bulan Ini</SelectItem>
+                                                <SelectItem value="this-year" className="text-xs">Tahun Ini</SelectItem>
+                                            </SelectGroup>
+                                            {accountingPeriods.length > 0 && (
+                                                <>
+                                                    <SelectSeparator />
+                                                    <SelectGroup>
+                                                        <SelectLabel className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Accounting Period</SelectLabel>
+                                                        {accountingPeriods.map(ap => (
+                                                            <SelectItem key={ap.id} value={ap.id} className="text-xs">
+                                                                {ap.periodName} ({ap.periodCode}) {ap.isClosed ? '🔒' : '🔓'}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectGroup>
+                                                </>
+                                            )}
                                         </SelectContent>
                                     </Select>
                                 </div>

@@ -171,6 +171,12 @@ async function main() {
       description: 'Digunakan untuk mencatat beban sewa gedung, kantor, atau gudang operasional.',
       fallbackCode: '6-10201',
       searchNames: ['Beban Sewa Gedung/Kantor']
+    },
+    {
+      key: 'INVENTORY_ADJUSTMENT_ACCOUNT',
+      description: 'Akun penyeimbang untuk rekonsiliasi nilai persediaan antara Sub-ledger (stok fisik) dan General Ledger (Neraca). Digunakan saat penutupan buku untuk menyesuaikan selisih nilai.',
+      fallbackCode: '6-10501',
+      searchNames: ['Beban Selisih Inventaris', 'Penyesuaian Persediaan', 'Selisih Stok']
     }
   ];
 

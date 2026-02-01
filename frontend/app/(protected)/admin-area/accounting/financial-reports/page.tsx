@@ -103,8 +103,8 @@ export default function FinancialReportsPage() {
         setLoading(true);
         try {
             const params = new URLSearchParams({
-                startDate: startDate.toISOString(),
-                endDate: endDate.toISOString(),
+                startDate: format(startDate, 'yyyy-MM-dd'),
+                endDate: format(endDate, 'yyyy-MM-dd'),
             });
 
             if (salesOrderId && salesOrderId !== "all") {
@@ -130,8 +130,8 @@ export default function FinancialReportsPage() {
     // Apply Filter (Push to URL)
     const applyFilter = () => {
         const params = new URLSearchParams();
-        if (startDate) params.set("startDate", startDate.toISOString());
-        if (endDate) params.set("endDate", endDate.toISOString());
+        if (startDate) params.set("startDate", format(startDate, 'yyyy-MM-dd'));
+        if (endDate) params.set("endDate", format(endDate, 'yyyy-MM-dd'));
         if (salesOrderId && salesOrderId !== "all") params.set("salesOrderId", salesOrderId);
 
         router.push(`${pathname}?${params.toString()}`);

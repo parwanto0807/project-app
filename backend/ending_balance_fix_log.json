@@ -1,0 +1,52 @@
+[
+  {
+    "account": "1-10003",
+    "oldEnding": "0/0",
+    "newEnding": "63369000/0"
+  },
+  {
+    "account": "1-10101",
+    "oldEnding": "0/0",
+    "newEnding": "399085500/0"
+  },
+  {
+    "account": "1-10005",
+    "oldEnding": "0/0",
+    "newEnding": "147685000/0"
+  },
+  {
+    "account": "3-10101",
+    "oldEnding": "0/0",
+    "newEnding": "0/50886000"
+  },
+  {
+    "account": "1-10302",
+    "oldEnding": "0/0",
+    "newEnding": "25349800/0"
+  },
+  {
+    "account": "1-10205",
+    "oldEnding": "18927000/0",
+    "newEnding": "52218200/0"
+  },
+  {
+    "account": "4-10101",
+    "oldEnding": "0/0",
+    "newEnding": "0/770289500"
+  },
+  {
+    "account": "6-10102",
+    "oldEnding": "0/0",
+    "newEnding": "150000/0"
+  },
+  {
+    "account": "2-10102",
+    "oldEnding": "0/0",
+    "newEnding": "0/31461000"
+  },
+  {
+    "account": "1-10001",
+    "oldEnding": "0/0",
+    "newEnding": "183706000/0"
+  }
+]

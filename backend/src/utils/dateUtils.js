@@ -15,26 +15,18 @@ const JAKARTA_OFFSET = 7;
  */
 export const getJakartaStartOfDay = (dateInput) => {
   const date = new Date(dateInput);
-  // If we just do new Date("2026-01-26"), it's 2026-01-26 00:00 UTC.
-  // In Jakarta this is 07:00 WIB.
-  // We want it to be 2026-01-26 00:00 WIB, which is 2026-01-25 17:00 UTC.
   
-  // Set to local midnight (system timezone)
-  const local = startOfDay(date);
+  // Shift to Jakarta time point
+  const shifted = addHours(date, JAKARTA_OFFSET);
   
-  // If the input was a string like "2026-01-26" and we are on a UTC server:
-  // We need to shift it to 17:00 UTC of the previous day.
-  // But usually, dateInput comes from frontend as ISO string.
+  // Extract components in Jakarta's view (which is now UTC view of 'shifted')
+  const y = shifted.getUTCFullYear();
+  const m = shifted.getUTCMonth();
+  const d = shifted.getUTCDate();
   
-  // Robust way: Treat the date portion as Jakarta date.
-  const y = date.getUTCFullYear();
-  const m = date.getUTCMonth();
-  const d = date.getUTCDate();
-  
-  // Create a date that is y-m-d 00:00:00 in Jakarta
-  // 00:00 WIB = 17:00 UTC of the previous day
-  const jakartaStart = new Date(Date.UTC(y, m, d, 0, 0, 0, 0));
-  return subHours(jakartaStart, JAKARTA_OFFSET);
+  // 00:00:00 Jakarta is 17:00:00 UTC of previous day (relative to y-m-d)
+  const utcDayStart = new Date(Date.UTC(y, m, d, 0, 0, 0, 0));
+  return subHours(utcDayStart, JAKARTA_OFFSET);
 };
 
 /**
@@ -45,7 +37,8 @@ export const getJakartaStartOfDay = (dateInput) => {
  */
 export const getJakartaEndOfDay = (dateInput) => {
   const start = getJakartaStartOfDay(dateInput);
-  return endOfDay(addHours(start, JAKARTA_OFFSET));
+  // End of day is 24 hours - 1ms later
+  return new Date(start.getTime() + (24 * 60 * 60 * 1000) - 1);
 };
 
 /**

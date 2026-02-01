@@ -8,6 +8,7 @@ import {
     UpdateSupplierPaymentInput,
     SupplierPaymentQueryInput,
 } from "@/types/supplierInvoice";
+import { format } from "date-fns";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -24,8 +25,8 @@ export async function getSupplierPayments(
         if (query.limit) params.append("limit", query.limit.toString());
         if (query.search) params.append("search", query.search);
         if (query.paymentMethod) params.append("paymentMethod", query.paymentMethod);
-        if (query.startDate) params.append("startDate", query.startDate.toISOString());
-        if (query.endDate) params.append("endDate", query.endDate.toISOString());
+        if (query.startDate) params.append("startDate", format(query.startDate, 'yyyy-MM-dd'));
+        if (query.endDate) params.append("endDate", format(query.endDate, 'yyyy-MM-dd'));
 
         const response = await fetch(`${API_URL}/api/supplier-payments?${params}`, {
             method: "GET",
@@ -179,8 +180,8 @@ export async function generatePaymentNumber(): Promise<{ success: boolean; data:
 export async function getPaymentSummary(startDate?: Date, endDate?: Date) {
     try {
         const params = new URLSearchParams();
-        if (startDate) params.append("startDate", startDate.toISOString());
-        if (endDate) params.append("endDate", endDate.toISOString());
+        if (startDate) params.append("startDate", format(startDate, 'yyyy-MM-dd'));
+        if (endDate) params.append("endDate", format(endDate, 'yyyy-MM-dd'));
 
         const response = await fetch(`${API_URL}/api/supplier-payments/summary?${params}`, {
             method: "GET",

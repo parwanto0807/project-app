@@ -194,8 +194,8 @@ export default function CashFlowPage() {
                                     <CashFlowPDFButton
                                         data={reportData}
                                         period={{
-                                            startDate: startDate?.toISOString() || "",
-                                            endDate: endDate?.toISOString() || ""
+                                            startDate: startDate ? format(startDate, "yyyy-MM-dd") : "",
+                                            endDate: endDate ? format(endDate, "yyyy-MM-dd") : ""
                                         }}
                                     />
                                 )}
@@ -212,8 +212,8 @@ export default function CashFlowPage() {
                     data={reportData}
                     isLoading={loading}
                     period={startDate && endDate ? {
-                        startDate: startDate.toISOString(),
-                        endDate: endDate.toISOString()
+                        startDate: format(startDate, "yyyy-MM-dd"),
+                        endDate: format(endDate, "yyyy-MM-dd")
                     } : null}
                 />
             </div>

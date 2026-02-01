@@ -8,6 +8,7 @@ import {
     UpdateSupplierInvoiceInput,
     SupplierInvoiceQueryInput,
 } from "@/types/supplierInvoice";
+import { format } from "date-fns";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -49,8 +50,8 @@ export async function getSupplierInvoices(
         if (query.search) params.append("search", query.search);
         if (query.status) params.append("status", query.status);
         if (query.supplierId) params.append("supplierId", query.supplierId);
-        if (query.startDate) params.append("startDate", query.startDate.toISOString());
-        if (query.endDate) params.append("endDate", query.endDate.toISOString());
+        if (query.startDate) params.append("startDate", format(query.startDate, 'yyyy-MM-dd'));
+        if (query.endDate) params.append("endDate", format(query.endDate, 'yyyy-MM-dd'));
 
         const response = await fetch(`${API_URL}/api/supplier-invoices?${params}`, {
             method: "GET",

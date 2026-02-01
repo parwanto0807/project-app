@@ -21,6 +21,7 @@ import {
 import { ApiResponse } from '@/types/api';
 import { GoodsReceipt } from '@/types/poType';
 import { getPurchaseOrderById } from '@/lib/action/po/po';
+import { format } from 'date-fns';
 
 // Base API URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
@@ -161,7 +162,7 @@ export async function getGoodsReceiptsAction(
         Object.entries(validatedFilters).forEach(([key, value]) => {
             if (value !== undefined && value !== null) {
                 if (value instanceof Date) {
-                    queryParams.append(key, value.toISOString());
+                    queryParams.append(key, format(value, 'yyyy-MM-dd'));
                 } else {
                     queryParams.append(key, String(value));
                 }
@@ -497,7 +498,7 @@ export async function getGoodsReceiptSummaryAction(
         Object.entries(filters).forEach(([key, value]) => {
             if (value !== undefined && value !== null) {
                 if (value instanceof Date) {
-                    queryParams.append(key, value.toISOString());
+                    queryParams.append(key, format(value, 'yyyy-MM-dd'));
                 } else {
                     queryParams.append(key, String(value));
                 }

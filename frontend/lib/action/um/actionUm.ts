@@ -7,6 +7,7 @@ import {
   UangMukaResponse,
   CairkanUangMukaData,
 } from "@/types/typesUm";
+import { format as formatDate } from "date-fns";
 interface SubmitDataWithFile {
   data: CreateUangMukaInput;
   file?: File;
@@ -46,7 +47,7 @@ export async function getAllUangMuka(
     Object.entries(filters).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== "") {
         if (value instanceof Date) {
-          queryParams.append(key, value.toISOString());
+          queryParams.append(key, formatDate(value, 'yyyy-MM-dd'));
         } else {
           queryParams.append(key, value.toString());
         }
@@ -118,9 +119,9 @@ export async function createUangMuka(
     if (data.karyawanId) formData.append("karyawanId", data.karyawanId);
     if (data.spkId) formData.append("spkId", data.spkId);
 
-    formData.append("tanggalPengajuan", data.tanggalPengajuan.toISOString());
+    formData.append("tanggalPengajuan", formatDate(data.tanggalPengajuan, 'yyyy-MM-dd'));
     if (data.tanggalPencairan) {
-      formData.append("tanggalPencairan", data.tanggalPencairan.toISOString());
+      formData.append("tanggalPencairan", formatDate(data.tanggalPencairan, 'yyyy-MM-dd'));
     }
 
     // ⬇️ UPDATED: sekarang array JSON
@@ -218,8 +219,8 @@ export async function updateUangMukaStatus(
     formData.append(
       "tanggalPencairan",
       data.tanggalPencairan
-        ? data.tanggalPencairan.toISOString()
-        : new Date().toISOString()
+        ? formatDate(data.tanggalPencairan, 'yyyy-MM-dd')
+        : formatDate(new Date(), 'yyyy-MM-dd')
     );
 
     // console.log("🟡 3a. Processing files:", {
@@ -333,7 +334,7 @@ export async function getUangMukaByKaryawan(
     Object.entries(filters).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== "") {
         if (value instanceof Date) {
-          queryParams.append(key, value.toISOString());
+          queryParams.append(key, formatDate(value, 'yyyy-MM-dd'));
         } else {
           queryParams.append(key, value.toString());
         }
@@ -447,11 +448,11 @@ export async function downloadBuktiPencairan(fileUrl: string): Promise<Blob> {
  */
 export async function exportUangMuka(
   filters: UangMukaQueryInput = {},
-  format: "excel" | "pdf" = "excel"
+  exportFormat: "excel" | "pdf" = "excel"
 ): Promise<Blob> {
   try {
     // Build query parameters manually
-    const params: Record<string, string> = { format };
+    const params: Record<string, string> = { format: exportFormat };
 
     // Convert filters to string values
     if (filters.page) params.page = filters.page.toString();
@@ -460,8 +461,8 @@ export async function exportUangMuka(
     if (filters.status) params.status = filters.status;
     if (filters.karyawanId) params.karyawanId = filters.karyawanId;
     if (filters.spkId) params.spkId = filters.spkId;
-    if (filters.startDate) params.startDate = filters.startDate.toISOString();
-    if (filters.endDate) params.endDate = filters.endDate.toISOString();
+    if (filters.startDate) params.startDate = formatDate(filters.startDate, 'yyyy-MM-dd');
+    if (filters.endDate) params.endDate = formatDate(filters.endDate, 'yyyy-MM-dd');
 
     const queryParams = new URLSearchParams(params);
 

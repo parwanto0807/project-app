@@ -158,7 +158,7 @@ export default function BalanceSheetPage() {
                                 {reportData && endDate && (
                                     <BalanceSheetPDFButton
                                         data={reportData}
-                                        snapshotDate={endDate.toISOString()}
+                                        snapshotDate={format(endDate, "yyyy-MM-dd")}
                                     />
                                 )}
                                 <Button variant="outline" className="border-slate-300 gap-2" disabled={!reportData}>
@@ -173,7 +173,7 @@ export default function BalanceSheetPage() {
                 <BalanceSheetTable
                     data={reportData}
                     isLoading={loading}
-                    snapshotDate={endDate ? endDate.toISOString() : null}
+                    snapshotDate={endDate ? format(endDate, "yyyy-MM-dd") : null}
                 />
             </div>
         </AdminLayout>
