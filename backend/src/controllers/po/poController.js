@@ -357,8 +357,8 @@ export const createPO = async (req, res) => {
         }
       });
 
-      if (result.purchaseRequestId) {
-        await updatePRRemainingBudget(result.purchaseRequestId, tx);
+      if (po.purchaseRequestId) {
+        await updatePRRemainingBudget(po.purchaseRequestId, tx);
       }
 
       return po;
@@ -895,6 +895,57 @@ export const updatePOStatus = async (req, res) => {
         return res.status(400).json({ 
           success: false, 
           error: "PO tidak bisa dibatalkan karena sudah ada penerimaan barang." 
+        });
+      }
+
+      // Check if PO was in a status that incremented stock
+      const existingPO = await prisma.purchaseOrder.findUnique({
+        where: { id },
+        select: { status: true, warehouseId: true }
+      });
+
+      if (existingPO && ['APPROVED', 'SENT', 'PARTIALLY_RECEIVED'].includes(existingPO.status)) {
+        // Reverse StockBalance updates
+        await prisma.$transaction(async (tx) => {
+          const lines = await tx.purchaseOrderLine.findMany({
+            where: { poId: id, notGr: { not: true } },
+            include: { product: true }
+          });
+
+          const currentPeriod = new Date();
+          currentPeriod.setDate(1);
+          currentPeriod.setHours(0, 0, 0, 0);
+
+          for (const line of lines) {
+            const conversion = parseFloat(line.product?.conversionToStorage) || 1;
+            const qtyToReverse = Number(line.quantity) * conversion;
+
+            const stockBalance = await tx.stockBalance.findFirst({
+              where: {
+                productId: line.productId,
+                warehouseId: existingPO.warehouseId,
+                period: currentPeriod
+              }
+            });
+
+            if (stockBalance) {
+              await tx.stockBalance.update({
+                where: { id: stockBalance.id },
+                data: { onPR: Math.max(0, Number(stockBalance.onPR) - qtyToReverse) }
+              });
+            }
+          }
+
+          // Update PO Status to CANCELLED within the transaction
+          await tx.purchaseOrder.update({
+            where: { id },
+            data: { status: 'CANCELLED' }
+          });
+        });
+
+        return res.status(200).json({
+          success: true,
+          message: "PO berhasil dibatalkan dan buffer stok onPR telah dikembalikan."
         });
       }
     }

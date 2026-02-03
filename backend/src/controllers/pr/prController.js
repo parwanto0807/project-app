@@ -1067,8 +1067,7 @@ export class PurchaseRequestController {
           });
 
           if (approvedPO) {
-            const statusText = approvedPO.status === 'APPROVED' ? 'sudah di-approve' :
-                             approvedPO.status === 'SENT' ? 'sudah dikirim ke supplier' :
+            const statusText = approvedPO.status === 'SENT' ? 'sudah dikirim ke supplier' :
                              approvedPO.status === 'PARTIALLY_RECEIVED' ? 'sudah sebagian diterima' :
                              'sudah selesai diterima';
             throw new Error(`Tidak dapat membatalkan approval. Purchase Order ${approvedPO.poNumber} ${statusText}.`);
@@ -1238,11 +1237,48 @@ export class PurchaseRequestController {
 
           for (const po of relatedPOs) {
             // Check if PO is safe to delete
-            const canDelete = po.status === 'DRAFT' && 
+            // Now allows deleting APPROVED status during PR cancellation
+            const canDelete = (po.status === 'DRAFT' || po.status === 'APPROVED') && 
                              po.goodsReceipts.length === 0 &&
                              po.supplierInvoices.length === 0;
 
             if (canDelete) {
+              // ✅ Handle StockBalance reversal if PO was APPROVED
+              if (po.status === 'APPROVED') {
+                const currentPeriod = new Date();
+                currentPeriod.setDate(1);
+                currentPeriod.setHours(0, 0, 0, 0);
+
+                for (const line of po.lines) {
+                  // Skip services or items without product
+                  if (line.notGr || !line.productId) continue;
+
+                  const product = await tx.product.findUnique({
+                    where: { id: line.productId },
+                    select: { conversionToStorage: true }
+                  });
+
+                  const conversion = parseFloat(product?.conversionToStorage) || 1;
+                  const qtyToReverse = Number(line.quantity) * conversion;
+
+                  const stockBalance = await tx.stockBalance.findFirst({
+                    where: {
+                      productId: line.productId,
+                      warehouseId: po.warehouseId,
+                      period: currentPeriod
+                    }
+                  });
+
+                  if (stockBalance) {
+                    const currentOnPR = Number(stockBalance.onPR);
+                    await tx.stockBalance.update({
+                      where: { id: stockBalance.id },
+                      data: { onPR: Math.max(0, currentOnPR - qtyToReverse) }
+                    });
+                  }
+                }
+              }
+
               // Delete PO lines first (foreign key constraint)
               await tx.purchaseOrderLine.deleteMany({
                 where: { poId: po.id }
