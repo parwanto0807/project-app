@@ -288,6 +288,9 @@ export function BAPPdfDocument({ bap }: { bap: BAPData }) {
                                             <PdfImage style={styles.photoImage} src={imageSource} />
                                         </View>
                                         <Text style={styles.photoCaption}>{getCategoryLabel(photo.category)}</Text>
+                                        {photo.caption && (
+                                            <Text style={styles.photoCaption}>{photo.caption}</Text>
+                                        )}
                                         <Text style={styles.photoCaption}>Foto {(pageIndex * 12) + idx + 1}</Text>
                                     </View>
                                 );
