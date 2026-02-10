@@ -641,47 +641,6 @@ export class PurchaseRequestController {
         updateData.status = "DRAFT";
       }
 
-      // ✅ VALIDASI BISNIS TAMBAHAN untuk update
-      // Jika menghapus SPK (mengubah dari ada ke null)
-      if (updateData.spkId === null && existingPR.spkId) {
-        // Cek apakah ada keterangan yang cukup
-        if (
-          !updateData.keterangan &&
-          (!existingPR.keterangan || existingPR.keterangan.trim().length < 10)
-        ) {
-          return res.status(400).json({
-            success: false,
-            message:
-              "Untuk menghapus referensi SPK, wajib memberikan keterangan minimal 10 karakter",
-            error: "INSUFFICIENT_DESCRIPTION_FOR_SPK_REMOVAL",
-          });
-        }
-
-        // Cek apakah ada item dengan tipe JASA
-        const existingJasaItems = existingPR.details.filter(
-          (detail) =>
-            detail.sourceProduct === "JASA_PEMBELIAN" ||
-            detail.sourceProduct === "JASA_INTERNAL"
-        );
-
-        if (existingJasaItems.length > 0 && validatedData.details) {
-          // Cek jika ada item JASA di update baru
-          const newJasaItems = validatedData.details.filter(
-            (detail) =>
-              detail.sourceProduct === "JASA_PEMBELIAN" ||
-              detail.sourceProduct === "JASA_INTERNAL"
-          );
-
-          if (newJasaItems.length > 0) {
-            return res.status(400).json({
-              success: false,
-              message:
-                "Tidak dapat menghapus SPK karena terdapat item dengan tipe JASA",
-              error: "JASA_ITEMS_REQUIRE_SPK",
-            });
-          }
-        }
-      }
 
       const transaction = await prisma.$transaction(async (tx) => {
         // Update header PR
@@ -709,22 +668,6 @@ export class PurchaseRequestController {
             where: { purchaseRequestId: id },
           });
 
-          // ✅ VALIDASI: Jika tanpa SPK, cek details yang diupdate
-          if (
-            (updateData.spkId === null || existingPR.spkId === null) &&
-            !updateData.keterangan
-          ) {
-            // Cek apakah semua item valid tanpa SPK
-            const invalidDetails = validatedData.details.filter(
-              (detail) =>
-                detail.sourceProduct === "JASA_PEMBELIAN" ||
-                detail.sourceProduct === "JASA_INTERNAL"
-            );
-
-            if (invalidDetails.length > 0) {
-              throw new Error("Item dengan tipe JASA memerlukan referensi SPK");
-            }
-          }
 
           // Buat details baru
           const detailsWithTotal = validatedData.details.map((detail) => ({
