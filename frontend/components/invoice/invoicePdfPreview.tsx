@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     approvalLine: {
-        marginTop: 60,
+        marginTop: 90,
         borderTop: '1pt solid #000000',
         paddingTop: 5,
     },
