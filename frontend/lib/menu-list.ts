@@ -581,7 +581,7 @@ export function getMenuList(pathname: string, role: string, permissions: Permiss
         {
           label: "Master Data",
           tooltip: "Pusat Data Master",
-          href: "/super-admin-area/master",
+          href: "#",
           icon: BriefcaseIcon,
           active: isActive("/super-admin-area/master", pathname),
           submenus: [
@@ -711,7 +711,7 @@ export function getMenuList(pathname: string, role: string, permissions: Permiss
         {
           label: "Master Data",
           tooltip: "Pusat Data Master",
-          href: `${basePath}/master`,
+          href: "#",
           icon: BriefcaseIcon,
           active: isActive("/admin-area/master", pathname),
           submenus: [
