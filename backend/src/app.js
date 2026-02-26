@@ -57,6 +57,7 @@ import cashOpnameRoutes from './routes/accounting/cashOpnameRoutes.js';
 import path from "path";
 
 const app = express();
+app.set("trust proxy", true); // Handle Cloudflare/Apache proxy headers
 import cookieParser from "cookie-parser";
 import { allowedOrigins } from "./config/env.js";
 
