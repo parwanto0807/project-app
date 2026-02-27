@@ -45,6 +45,8 @@ import {
   Shield,
   BookOpen,
   Info,
+  Eye,
+  ExternalLink,
 } from "lucide-react";
 import {
   Tooltip,
@@ -140,6 +142,21 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [data, setData] = useState<Karyawan[]>([]);
   const isMobile = useMediaQuery("(max-width: 768px)");
+
+  // Helper component for expanded row info
+  const InfoItem = ({ icon, label, value, isFullWidth }: { icon: React.ReactNode, label: string, value?: string, isFullWidth?: boolean }) => (
+    <div className={cn(
+      "p-3 bg-gray-50/50 dark:bg-gray-900 rounded-2xl border border-gray-100 flex flex-col gap-1",
+      isFullWidth && "col-span-1"
+    )}>
+      <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+        {icon} {label}
+      </div>
+      <div className="text-sm font-bold text-gray-700 truncate">
+        {value || "-"}
+      </div>
+    </div>
+  );
 
   // const router = useRouter();
 
@@ -406,6 +423,14 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
               <Button
                 variant="outline"
                 size="sm"
+                onClick={() => toggleRowExpansion(employee.id)}
+                className="bg-cyan-50 text-cyan-600 border-cyan-200 hover:bg-cyan-100 h-8 gap-1 px-3 text-xs font-bold transition-all"
+              >
+                <Eye size={14} className="text-cyan-500" /> Detail
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 asChild
                 className="bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100 h-8 gap-1 px-3 text-xs font-bold transition-all"
               >
@@ -581,6 +606,52 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                           </Badge>
                         ))}
                       </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-3 mt-4">
+                <h4 className="font-semibold text-sm flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                  <FileText size={16} className="text-blue-500" />
+                  Dokumen & Prosedur
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {employee.documents && employee.documents.length > 0 ? (
+                    [...employee.documents].sort((a, b) => {
+                      if (a.document.type === "JOB_DESCRIPTION" && b.document.type !== "JOB_DESCRIPTION") return -1;
+                      if (a.document.type !== "JOB_DESCRIPTION" && b.document.type === "JOB_DESCRIPTION") return 1;
+                      return 0;
+                    }).map((dk) => (
+                      <div key={dk.document.id} className="flex items-center justify-between p-2.5 bg-white dark:bg-gray-800 rounded-xl border border-blue-50 shadow-sm">
+                        <div className="flex items-center gap-2">
+                          <div className={cn(
+                            "p-1.5 rounded-lg shrink-0",
+                            dk.document.type === "JOB_DESCRIPTION" ? "bg-cyan-50 text-cyan-600" : "bg-indigo-50 text-indigo-600"
+                          )}>
+                            {dk.document.type === "JOB_DESCRIPTION" ? <Shield size={14} /> : <BookOpen size={14} />}
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-[11px] font-bold text-gray-900 truncate pr-1">{dk.document.title}</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[9px] text-gray-400 capitalize">{dk.document.type === "JOB_DESCRIPTION" ? "JD" : "SOP"}</span>
+                              <span className="text-[9px] text-gray-300">|</span>
+                              <span className="text-[9px] font-mono text-gray-500">v{dk.document.version}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <Link
+                          href={`/admin-area/master/documents/view/${dk.document.id}?employeeId=${employee.id}`}
+                          className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors shrink-0"
+                          title="Buka Dokumen"
+                        >
+                          <ExternalLink size={14} />
+                        </Link>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="col-span-full p-3 text-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                      <span className="text-[11px] text-gray-400 italic">Belum ada dokumen yang tersedia</span>
                     </div>
                   )}
                 </div>
@@ -913,6 +984,17 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                               <Button
                                 variant="outline"
                                 size="sm"
+                                onClick={() => toggleRowExpansion(item.id)}
+                                title="Lihat Detail"
+                                className="bg-cyan-50 text-cyan-600 border-cyan-200 hover:bg-cyan-100 h-8 gap-1 px-2 text-xs font-semibold transition-all"
+                              >
+                                <Eye size={14} className="text-cyan-500" />
+                                <span>Detail</span>
+                              </Button>
+
+                              <Button
+                                variant="outline"
+                                size="sm"
                                 asChild
                                 title="Edit Karyawan"
                                 className="bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100 h-8 gap-1 px-2 text-xs font-semibold transition-all"
@@ -932,7 +1014,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                               >
                                 <Link href={`/admin-area/master/documents?department=${item.departemen || ""}&employeeId=${item.id}&employeeName=${encodeURIComponent(item.namaLengkap)}`}>
                                   <FileText size={14} className="text-orange-500" />
-                                  <span>Daftar</span>
+                                  <span>Daftar JobDesc & SOP</span>
                                 </Link>
                               </Button>
 
@@ -964,7 +1046,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                                     className="bg-gray-50 text-gray-400 border-gray-200 h-8 gap-1 px-2 text-xs font-semibold opacity-50 cursor-not-allowed"
                                   >
                                     <FileDigit size={14} className="text-gray-400" />
-                                    <span>Download</span>
+                                    <span>JobDesc PDF</span>
                                   </Button>
                                 );
                               })()}
@@ -982,6 +1064,140 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                             </div>
                           </TableCell>
                         </TableRow>
+                        {expandedRows.has(item.id) && (
+                          <TableRow className="bg-blue-50/30 dark:bg-blue-900/10 border-b border-gray-100">
+                            <TableCell colSpan={8} className="p-0">
+                              <div className="p-6 transition-all animate-in fade-in slide-in-from-top-2 duration-300">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                  {/* Profile Section */}
+                                  <div className="flex flex-col items-center p-6 bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-blue-100/50">
+                                    <Avatar className="h-28 w-28 border-4 border-white shadow-xl mb-4">
+                                      <AvatarImage
+                                        src={makeImageSrc(item.foto)}
+                                        alt={item.namaLengkap}
+                                        crossOrigin="anonymous"
+                                        className="object-cover"
+                                      />
+                                      <AvatarFallback className="bg-blue-100 text-blue-800 text-2xl font-bold">
+                                        {getInitials(item.namaLengkap)}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <h3 className="font-bold text-xl text-gray-900 mb-1">{item.namaLengkap}</h3>
+                                    <p className="text-sm font-medium text-blue-600 bg-blue-50 px-3 py-1 rounded-full mb-4">{item.jabatan}</p>
+
+                                    <div className="w-full space-y-2 pt-2 border-t border-gray-50">
+                                      <div className="flex items-center justify-between text-xs py-1">
+                                        <span className="text-gray-400">NIK Status</span>
+                                        <span className="font-mono font-bold text-gray-700">{item.nik}</span>
+                                      </div>
+                                      <div className="flex items-center justify-between text-xs py-1">
+                                        <span className="text-gray-400">Status Kerja</span>
+                                        {getStatusBadge(item.statusKerja)}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Personal Info Section */}
+                                  <div className="space-y-4">
+                                    <h4 className="font-bold text-sm flex items-center gap-2 text-gray-800">
+                                      <div className="p-1.5 rounded-lg bg-orange-50 text-orange-600">
+                                        <User size={16} />
+                                      </div>
+                                      Informasi Pribadi
+                                    </h4>
+                                    <div className="grid grid-cols-1 gap-2.5">
+                                      <InfoItem icon={<Mail size={14} />} label="Email" value={item.email} />
+                                      <InfoItem icon={<Phone size={14} />} label="Telepon" value={item.nomorTelepon} />
+                                      <InfoItem icon={<Calendar size={14} />} label="Tgl Lahir" value={formatDate(item.tanggalLahir)} />
+                                      <InfoItem icon={<User size={14} />} label="Gender" value={item.jenisKelamin} />
+                                      <InfoItem icon={<MapPin size={14} />} label="Alamat" value={item.alamat} isFullWidth />
+                                    </div>
+                                  </div>
+
+                                  {/* Work Info Section */}
+                                  <div className="space-y-4">
+                                    <h4 className="font-bold text-sm flex items-center gap-2 text-gray-800">
+                                      <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600">
+                                        <Briefcase size={16} />
+                                      </div>
+                                      Informasi Pekerjaan
+                                    </h4>
+                                    <div className="grid grid-cols-1 gap-2.5">
+                                      <InfoItem icon={<Building size={14} />} label="Departemen" value={item.departemen} />
+                                      <InfoItem icon={<Briefcase size={14} />} label="Jabatan" value={item.jabatan} />
+                                      <InfoItem icon={<Calendar size={14} />} label="Bergabung" value={formatDate(item.tanggalBergabung)} />
+                                      <div className="p-3 bg-gray-50/50 dark:bg-gray-900 rounded-2xl border border-gray-100 flex flex-col gap-2">
+                                        <div className="flex items-center gap-2 text-[11px] font-bold text-gray-400">
+                                          <Users size={14} /> Team
+                                        </div>
+                                        <div className="flex flex-wrap gap-1">
+                                          {item.teamKaryawan.length > 0 ? (
+                                            item.teamKaryawan.map((tk, index) => (
+                                              <Badge key={index} variant="outline" className="text-[10px] bg-white text-blue-700 border-blue-100 font-bold">
+                                                {tk.team.namaTeam}
+                                              </Badge>
+                                            ))
+                                          ) : (
+                                            <span className="text-[10px] text-gray-400 italic">Belum ada team</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Documents Section */}
+                                  <div className="space-y-4">
+                                    <h4 className="font-bold text-sm flex items-center gap-2 text-gray-800">
+                                      <div className="p-1.5 rounded-lg bg-purple-50 text-purple-600">
+                                        <FileText size={16} />
+                                      </div>
+                                      Dokumen & Prosedur
+                                    </h4>
+                                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+                                      {item.documents && item.documents.length > 0 ? (
+                                        [...item.documents].sort((a, b) => {
+                                          if (a.document.type === "JOB_DESCRIPTION" && b.document.type !== "JOB_DESCRIPTION") return -1;
+                                          if (a.document.type !== "JOB_DESCRIPTION" && b.document.type === "JOB_DESCRIPTION") return 1;
+                                          return 0;
+                                        }).map((dk) => (
+                                          <div key={dk.document.id} className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-2xl border border-blue-100/30 shadow-sm hover:shadow-md transition-all duration-300 group">
+                                            <div className="flex items-center gap-3 min-w-0">
+                                              <div className={cn(
+                                                "p-2 rounded-xl shrink-0 transition-transform group-hover:scale-110",
+                                                dk.document.type === "JOB_DESCRIPTION" ? "bg-cyan-50 text-cyan-600" : "bg-indigo-50 text-indigo-600"
+                                              )}>
+                                                {dk.document.type === "JOB_DESCRIPTION" ? <Shield size={16} /> : <BookOpen size={16} />}
+                                              </div>
+                                              <div className="flex flex-col min-w-0">
+                                                <span className="text-xs font-bold text-gray-900 line-clamp-1 group-hover:text-blue-600 duration-200">{dk.document.title}</span>
+                                                <div className="flex items-center gap-1.5">
+                                                  <span className="text-[10px] text-gray-400 capitalize">{dk.document.type === "JOB_DESCRIPTION" ? "JD" : "SOP"}</span>
+                                                  <span className="text-[10px] text-gray-300">|</span>
+                                                  <span className="text-[10px] font-mono text-gray-500">v{dk.document.version}</span>
+                                                </div>
+                                              </div>
+                                            </div>
+                                            <Link
+                                              href={`/admin-area/master/documents/view/${dk.document.id}?employeeId=${item.id}`}
+                                              className="ml-2 h-8 w-8 flex items-center justify-center rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-all duration-300 shrink-0 shadow-sm"
+                                              title="Buka Dokumen"
+                                            >
+                                              <ExternalLink size={14} />
+                                            </Link>
+                                          </div>
+                                        ))
+                                      ) : (
+                                        <div className="col-span-full p-4 text-center bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
+                                          <span className="text-xs text-gray-400 italic">Belum ada dokumen yang tersedia</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
                       </React.Fragment>
                     ))
                     : (
