@@ -378,7 +378,11 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                     <FileText size={14} className="text-blue-500 mt-0.5" />
                     <span className="font-medium">Docs:</span>
                     <div className="flex flex-wrap gap-1">
-                      {employee.documents.map((dk) => (
+                      {[...employee.documents].sort((a, b) => {
+                        if (a.document.type === "JOB_DESCRIPTION" && b.document.type !== "JOB_DESCRIPTION") return -1;
+                        if (a.document.type !== "JOB_DESCRIPTION" && b.document.type === "JOB_DESCRIPTION") return 1;
+                        return 0;
+                      }).map((dk) => (
                         <Badge
                           key={dk.document.id}
                           variant="outline"
@@ -678,9 +682,9 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                   <Users className="h-7 w-7 text-white" />
                 </div>
                 <div>
-                  <CardTitle className="text-xl font-bold">Customer Management</CardTitle>
+                  <CardTitle className="text-xl font-bold">Karyawan Management</CardTitle>
                   <p className="text-sm text-white/90">
-                    Manage all customers
+                    Manage all karyawan
                   </p>
                 </div>
               </div>
@@ -868,7 +872,11 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                           <TableCell>
                             <div className="flex flex-wrap gap-1.5 max-w-[200px]">
                               {item.documents && item.documents.length > 0 ? (
-                                item.documents.map((dk) => (
+                                [...item.documents].sort((a, b) => {
+                                  if (a.document.type === "JOB_DESCRIPTION" && b.document.type !== "JOB_DESCRIPTION") return -1;
+                                  if (a.document.type !== "JOB_DESCRIPTION" && b.document.type === "JOB_DESCRIPTION") return 1;
+                                  return 0;
+                                }).map((dk) => (
                                   <TooltipProvider key={dk.document.id}>
                                     <Tooltip>
                                       <TooltipTrigger asChild>
