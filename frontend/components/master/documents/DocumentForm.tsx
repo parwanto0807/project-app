@@ -30,12 +30,6 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
-import {
-    Accordion,
-    AccordionContent,
-    AccordionItem,
-    AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import {
     Plus,
@@ -50,9 +44,17 @@ import {
     User,
     Users,
     Check,
+    FileCheck,
+    HelpCircle,
+    ChevronDown,
+    Menu,
+    PlusCircle,
+    Settings,
+    Activity,
 } from "lucide-react";
 import { toast } from "sonner";
 import axios from "axios";
+import { cn } from "@/lib/utils";
 
 const itemSchema = z.object({
     content: z.string().min(1, "Konten item wajib diisi"),
@@ -62,7 +64,7 @@ const itemSchema = z.object({
 
 const sectionSchema = z.object({
     title: z.string().min(1, "Judul bagian wajib diisi"),
-    content: z.string().optional(),
+    content: z.string().nullable().optional().or(z.literal("")),
     orderIndex: z.number(),
     items: z.array(itemSchema),
 });
@@ -110,13 +112,22 @@ export default function DocumentForm({
                 isPrimary: d.isPrimary
             })) || [{ code: "", isPrimary: true }],
             employeeIds: initialData?.employees?.map((e: any) => e.karyawanId) || [],
-            sections: (initialData?.sections as any) || [
-                {
-                    title: "Identifikasi Jabatan",
-                    orderIndex: 0,
-                    items: [{ content: "", itemNumber: "•", orderIndex: 0 }],
-                },
-            ],
+            sections: (initialData?.sections as any)?.map((s: any) => ({
+                title: s.title || "",
+                content: s.content || "",
+                orderIndex: s.orderIndex || 0,
+                items: s.items?.map((item: any) => ({
+                    content: item.content || "",
+                    itemNumber: item.itemNumber || "•",
+                    orderIndex: item.orderIndex || 0,
+                })) || []
+            })) || [
+                    {
+                        title: "Identifikasi Jabatan",
+                        orderIndex: 0,
+                        items: [{ content: "", itemNumber: "•", orderIndex: 0 }],
+                    },
+                ],
         } as FormValues,
     });
 
@@ -189,65 +200,90 @@ export default function DocumentForm({
 
     return (
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                <div className="flex items-center justify-between">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => router.back()}
-                        className="flex items-center gap-2"
-                    >
-                        <ArrowLeft size={16} /> Kembali
-                    </Button>
-                    <Button type="submit" disabled={isSubmitting} className="flex items-center gap-2">
-                        <Save size={16} /> {isSubmitting ? "Menyimpan..." : "Simpan Dokumen"}
-                    </Button>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 pb-20">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-100 pb-6">
+                    <div>
+                        <h2 className="text-2xl font-bold tracking-tight text-gray-900">
+                            {initialData ? "Edit Dokumen" : "Buat Dokumen Baru"}
+                        </h2>
+                        <p className="text-sm text-gray-500 mt-1">
+                            Kelola Job Description dan SOP perusahaan secara profesional.
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => router.back()}
+                            className="flex items-center gap-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-xl px-4"
+                        >
+                            <ArrowLeft size={18} /> Kembali
+                        </Button>
+                        <Button
+                            type="submit"
+                            disabled={isSubmitting}
+                            className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg shadow-blue-500/20 border-none px-6 h-11 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
+                        >
+                            {isSubmitting ? (
+                                <Activity className="animate-spin h-5 w-5" />
+                            ) : (
+                                <Save size={18} />
+                            )}
+                            <span className="font-semibold">{isSubmitting ? "Menyimpan..." : "Simpan Dokumen"}</span>
+                        </Button>
+                    </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Main Content */}
-                    <div className="lg:col-span-2 space-y-6">
-                        <Card className="shadow-sm border-t-4 border-t-primary">
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Info size={20} className="text-primary" />
-                                    Informasi Dasar
+                    <div className="lg:col-span-2 space-y-8">
+                        <Card className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white rounded-2xl overflow-hidden">
+                            <CardHeader className="bg-gray-50/50 border-b border-gray-100/80 px-8 py-6">
+                                <CardTitle className="flex items-center gap-3 text-lg font-bold">
+                                    <div className="p-2 bg-blue-100 text-blue-600 rounded-xl">
+                                        <Info size={20} />
+                                    </div>
+                                    Informasi Dasar Dokumen
                                 </CardTitle>
-                                <CardDescription>
-                                    Detail utama dokumen JobDesk atau SOP
+                                <CardDescription className="pl-11">
+                                    Berikan identitas utama untuk dokumen ini.
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent className="space-y-4">
+                            <CardContent className="p-8 space-y-6">
                                 <FormField
                                     control={form.control}
                                     name="title"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Judul Dokumen</FormLabel>
+                                            <FormLabel className="text-xs font-bold uppercase tracking-wider text-gray-500">Judul Dokumen</FormLabel>
                                             <FormControl>
-                                                <Input placeholder="Contoh: Job Description Staf Sales" {...field} />
+                                                <Input
+                                                    placeholder="Contoh: SOP Pengajuan Cuti Karyawan"
+                                                    className="h-12 bg-gray-50/30 border-gray-200 focus-visible:ring-blue-500/30 rounded-xl"
+                                                    {...field}
+                                                />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )}
                                 />
 
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <FormField
                                         control={form.control}
                                         name="type"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>Tipe</FormLabel>
+                                                <FormLabel className="text-xs font-bold uppercase tracking-wider text-gray-500">Tipe Dokumen</FormLabel>
                                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                                                     <FormControl>
-                                                        <SelectTrigger>
+                                                        <SelectTrigger className="h-12 bg-gray-50/30 border-gray-200 focus:ring-blue-500/30 rounded-xl">
                                                             <SelectValue placeholder="Pilih Tipe" />
                                                         </SelectTrigger>
                                                     </FormControl>
-                                                    <SelectContent>
-                                                        <SelectItem value="JOB_DESCRIPTION">Job Description</SelectItem>
-                                                        <SelectItem value="SOP">SOP</SelectItem>
+                                                    <SelectContent className="rounded-xl border-gray-100 shadow-xl">
+                                                        <SelectItem value="JOB_DESCRIPTION" className="py-3 rounded-lg">Job Description</SelectItem>
+                                                        <SelectItem value="SOP" className="py-3 rounded-lg">Standard Operating Procedure (SOP)</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                                 <FormMessage />
@@ -259,9 +295,13 @@ export default function DocumentForm({
                                         name="version"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>Versi</FormLabel>
+                                                <FormLabel className="text-xs font-bold uppercase tracking-wider text-gray-500">Nomor Versi / No. Form</FormLabel>
                                                 <FormControl>
-                                                    <Input placeholder="1.0" {...field} />
+                                                    <Input
+                                                        placeholder="Contoh: v1.0 atau No.001/SOP/HR"
+                                                        className="h-12 bg-gray-50/30 border-gray-200 focus-visible:ring-blue-500/30 rounded-xl"
+                                                        {...field}
+                                                    />
                                                 </FormControl>
                                                 <FormMessage />
                                             </FormItem>
@@ -274,11 +314,11 @@ export default function DocumentForm({
                                     name="content"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Deskripsi Singkat (Opsional)</FormLabel>
+                                            <FormLabel className="text-xs font-bold uppercase tracking-wider text-gray-500">Ringkasan / Tujuan (Opsional)</FormLabel>
                                             <FormControl>
                                                 <Textarea
-                                                    placeholder="Penjelasan ringkas mengenai dokumen ini..."
-                                                    className="min-h-[100px]"
+                                                    placeholder="Jelaskan secara singkat tujuan dari dokumen ini..."
+                                                    className="min-h-[120px] bg-gray-50/30 border-gray-200 focus-visible:ring-blue-500/30 rounded-xl resize-none py-4"
                                                     {...field}
                                                 />
                                             </FormControl>
@@ -289,165 +329,167 @@ export default function DocumentForm({
                             </CardContent>
                         </Card>
 
-                        <Card className="shadow-sm">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                                <div>
-                                    <CardTitle className="flex items-center gap-2">
-                                        <Layout size={20} className="text-primary" />
-                                        Struktur Dokumen (Sections)
-                                    </CardTitle>
-                                    <CardDescription>
-                                        Susun bagian-bagian dokumen Anda
-                                    </CardDescription>
-                                </div>
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between px-2">
+                                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                    <Layout size={20} className="text-blue-500" />
+                                    Struktur & Konten
+                                </h3>
                                 <Button
                                     type="button"
                                     size="sm"
                                     variant="outline"
                                     onClick={() => appendSection({ title: "", orderIndex: sectionFields.length, items: [] })}
-                                    className="flex items-center gap-2"
+                                    className="border-blue-200 text-blue-600 hover:bg-blue-50 rounded-xl px-4 flex items-center gap-2 h-9"
                                 >
-                                    <Plus size={16} /> Tambah Bagian
+                                    <PlusCircle size={16} /> Tambah Bagian Baru
                                 </Button>
-                            </CardHeader>
-                            <CardContent>
-                                <Accordion type="multiple" className="w-full space-y-4">
-                                    {sectionFields.map((section, sectionIndex) => (
-                                        <AccordionItem key={section.id} value={section.id} className="border rounded-lg px-4 bg-gray-50/50">
-                                            <div className="flex items-center justify-between">
-                                                <AccordionTrigger className="hover:no-underline py-4 flex-1">
-                                                    <span className="font-semibold text-left">
-                                                        {form.watch(`sections.${sectionIndex}.title`) || `Bagian ${sectionIndex + 1}`}
-                                                    </span>
-                                                </AccordionTrigger>
-                                                <div className="flex items-center gap-2 pr-4">
-                                                    <Button
-                                                        type="button"
-                                                        size="icon"
-                                                        variant="ghost"
-                                                        onClick={() => moveSection(sectionIndex, sectionIndex - 1)}
-                                                        disabled={sectionIndex === 0}
-                                                    >
-                                                        <MoveUp size={14} />
-                                                    </Button>
-                                                    <Button
-                                                        type="button"
-                                                        size="icon"
-                                                        variant="ghost"
-                                                        onClick={() => moveSection(sectionIndex, sectionIndex + 1)}
-                                                        disabled={sectionIndex === sectionFields.length - 1}
-                                                    >
-                                                        <MoveDown size={14} />
-                                                    </Button>
-                                                    <Button
-                                                        type="button"
-                                                        size="icon"
-                                                        variant="ghost"
-                                                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                                        onClick={() => removeSection(sectionIndex)}
-                                                    >
-                                                        <Trash2 size={14} />
-                                                    </Button>
+                            </div>
+
+                            <div className="space-y-4">
+                                {sectionFields.map((section, sectionIndex) => (
+                                    <Card key={section.id} className="border-none shadow-[0_4px_20px_rgb(0,0,0,0.03)] bg-white rounded-2xl overflow-hidden group/section">
+                                        <div className="bg-gray-50/80 px-6 py-4 flex items-center justify-between border-b border-gray-100">
+                                            <div className="flex items-center gap-3 flex-1">
+                                                <div className="h-8 w-8 bg-white border border-gray-200 rounded-lg flex items-center justify-center font-bold text-gray-400 text-sm">
+                                                    {sectionIndex + 1}
+                                                </div>
+                                                <div className="flex-1 max-w-md">
+                                                    <FormField
+                                                        control={form.control}
+                                                        name={`sections.${sectionIndex}.title`}
+                                                        render={({ field }) => (
+                                                            <Input
+                                                                placeholder="Judul Bagian (Contoh: Kualifikasi Dasar)"
+                                                                className="h-9 bg-transparent border-none focus-visible:ring-0 font-bold p-0 text-gray-900"
+                                                                {...field}
+                                                            />
+                                                        )}
+                                                    />
                                                 </div>
                                             </div>
-                                            <AccordionContent className="pt-2 pb-6 space-y-4">
-                                                <FormField
-                                                    control={form.control}
-                                                    name={`sections.${sectionIndex}.title`}
-                                                    render={({ field }) => (
-                                                        <FormItem>
-                                                            <FormLabel>Judul Bagian</FormLabel>
-                                                            <FormControl>
-                                                                <Input placeholder="Misal: Tanggung Jawab Utama" {...field} />
-                                                            </FormControl>
-                                                            <FormMessage />
-                                                        </FormItem>
-                                                    )}
-                                                />
-
-                                                <div className="space-y-4 mt-6">
-                                                    <div className="flex items-center justify-between border-b pb-2">
-                                                        <h5 className="text-sm font-medium text-gray-700">Poin Utama / Items</h5>
-                                                        <Button
-                                                            type="button"
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            onClick={() => {
-                                                                const currentItems = form.getValues(`sections.${sectionIndex}.items`) || [];
-                                                                form.setValue(`sections.${sectionIndex}.items`, [
-                                                                    ...currentItems,
-                                                                    { content: "", itemNumber: "•", orderIndex: currentItems.length }
-                                                                ]);
-                                                            }}
-                                                            className="text-primary h-8"
-                                                        >
-                                                            <Plus size={14} className="mr-1" /> Tambah Poin
-                                                        </Button>
-                                                    </div>
-
-                                                    <div className="space-y-3">
-                                                        <DocumentItems
-                                                            sectionIndex={sectionIndex}
-                                                            control={form.control}
-                                                        />
-                                                    </div>
+                                            <div className="flex items-center gap-1">
+                                                <Button
+                                                    type="button"
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className="h-8 w-8 rounded-lg"
+                                                    onClick={() => moveSection(sectionIndex, sectionIndex - 1)}
+                                                    disabled={sectionIndex === 0}
+                                                >
+                                                    <MoveUp size={14} className="text-gray-400" />
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className="h-8 w-8 rounded-lg"
+                                                    onClick={() => moveSection(sectionIndex, sectionIndex + 1)}
+                                                    disabled={sectionIndex === sectionFields.length - 1}
+                                                >
+                                                    <MoveDown size={14} className="text-gray-400" />
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className="h-8 w-8 rounded-lg text-rose-400 hover:text-rose-600 hover:bg-rose-50"
+                                                    onClick={() => removeSection(sectionIndex)}
+                                                >
+                                                    <Trash2 size={14} />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                        <CardContent className="p-6">
+                                            <div className="space-y-6">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Poin Utama / Detail Item</span>
+                                                    <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={() => {
+                                                            const currentItems = form.getValues(`sections.${sectionIndex}.items`) || [];
+                                                            form.setValue(`sections.${sectionIndex}.items`, [
+                                                                ...currentItems,
+                                                                { content: "", itemNumber: "•", orderIndex: currentItems.length }
+                                                            ]);
+                                                        }}
+                                                        className="text-blue-500 hover:bg-blue-50 h-8 rounded-lg text-xs"
+                                                    >
+                                                        <Plus size={14} className="mr-1" /> Tambah Poin
+                                                    </Button>
                                                 </div>
-                                            </AccordionContent>
-                                        </AccordionItem>
-                                    ))}
-                                </Accordion>
-                                {sectionFields.length === 0 && (
-                                    <div className="text-center py-12 border-2 border-dashed rounded-lg bg-gray-50">
-                                        <Layout className="mx-auto h-12 w-12 text-gray-300" />
-                                        <p className="mt-2 text-sm text-gray-500 font-medium">Belum ada bagian yang ditambahkan</p>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            className="mt-4"
-                                            onClick={() => appendSection({ title: "", orderIndex: 0, items: [] })}
-                                        >
-                                            Mulai Tambah Bagian
-                                        </Button>
+
+                                                <DocumentItems
+                                                    sectionIndex={sectionIndex}
+                                                    control={form.control}
+                                                />
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                            </div>
+
+                            {sectionFields.length === 0 && (
+                                <div className="text-center py-20 border-2 border-dashed border-gray-200 rounded-3xl bg-gray-50/50">
+                                    <div className="bg-white h-16 w-16 rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-4 border border-gray-100">
+                                        <Layout className="h-8 w-8 text-gray-300" />
                                     </div>
-                                )}
-                            </CardContent>
-                        </Card>
+                                    <p className="text-gray-500 font-bold">Struktur Kosong</p>
+                                    <p className="text-xs text-gray-400 mt-1 mb-6">Mulai tambahkan bagian dokumen Anda untuk memudahkan pembaca.</p>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => appendSection({ title: "", orderIndex: 0, items: [] })}
+                                        className="rounded-xl border-blue-200 text-blue-600 hover:bg-blue-50"
+                                    >
+                                        Tambah Bagian Pertama
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
-                    {/* Sidebar */}
-                    <div className="space-y-6">
-                        <Card className="shadow-sm h-fit">
-                            <CardHeader>
-                                <CardTitle className="text-lg">Pengaturan</CardTitle>
+                    {/* Sidebar Settings */}
+                    <div className="space-y-8">
+                        <Card className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white rounded-2xl overflow-hidden h-fit">
+                            <CardHeader className="bg-gray-50/50 border-b border-gray-100 px-6 py-5">
+                                <CardTitle className="text-base font-bold flex items-center gap-2">
+                                    <Settings size={18} className="text-gray-400" />
+                                    Pengaturan Terbit
+                                </CardTitle>
                             </CardHeader>
-                            <CardContent className="space-y-6">
+                            <CardContent className="p-6 space-y-8">
                                 <FormField
                                     control={form.control}
                                     name="status"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Status Dokumen</FormLabel>
+                                            <FormLabel className="text-xs font-bold uppercase tracking-wider text-gray-500">Status Publikasi</FormLabel>
                                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                                                 <FormControl>
-                                                    <SelectTrigger>
+                                                    <SelectTrigger className="h-11 bg-gray-50/30 border-gray-200 focus:ring-blue-500/30 rounded-xl">
                                                         <SelectValue placeholder="Pilih Status" />
                                                     </SelectTrigger>
                                                 </FormControl>
-                                                <SelectContent>
-                                                    <SelectItem value="DRAFT">
+                                                <SelectContent className="rounded-xl border-gray-100 shadow-xl">
+                                                    <SelectItem value="DRAFT" className="py-2.5">
                                                         <div className="flex items-center gap-2">
-                                                            <Badge variant="outline" className="bg-gray-100">DRAFT</Badge>
+                                                            <div className="h-2 w-2 rounded-full bg-gray-400" />
+                                                            <span className="font-medium">SIMPAN DRAFT</span>
                                                         </div>
                                                     </SelectItem>
-                                                    <SelectItem value="ACTIVE">
+                                                    <SelectItem value="ACTIVE" className="py-2.5">
                                                         <div className="flex items-center gap-2">
-                                                            <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200">ACTIVE</Badge>
+                                                            <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                                                            <span className="font-medium">PUBLIKASIKAN (ACTIVE)</span>
                                                         </div>
                                                     </SelectItem>
-                                                    <SelectItem value="RETIRED">
+                                                    <SelectItem value="RETIRED" className="py-2.5">
                                                         <div className="flex items-center gap-2">
-                                                            <Badge variant="outline" className="bg-red-100 text-red-700 border-red-200">RETIRED</Badge>
+                                                            <div className="h-2 w-2 rounded-full bg-rose-500" />
+                                                            <span className="font-medium">ARSIPKAN (RETIRED)</span>
                                                         </div>
                                                     </SelectItem>
                                                 </SelectContent>
@@ -458,118 +500,155 @@ export default function DocumentForm({
                                 />
 
                                 <div className="space-y-4">
-                                    <div className="flex items-center justify-between">
-                                        <FormLabel>Departemen Terkait</FormLabel>
+                                    <div className="flex items-center justify-between border-b border-gray-50 pb-2">
+                                        <FormLabel className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-2">
+                                            <Users size={14} /> Departemen Terkait
+                                        </FormLabel>
                                         <Button
                                             type="button"
                                             size="sm"
                                             variant="ghost"
                                             onClick={() => appendDept({ code: "", isPrimary: false })}
-                                            className="text-primary h-8"
+                                            className="text-blue-500 hover:bg-blue-50 h-7 rounded-lg text-[10px] font-bold"
                                         >
-                                            <Plus size={14} className="mr-1" /> Tambah
+                                            <Plus size={12} className="mr-1" /> TAMBAH
                                         </Button>
                                     </div>
-                                    {deptFields.map((dept, index) => (
-                                        <div key={dept.id} className="flex gap-2 items-end">
-                                            <FormField
-                                                control={form.control}
-                                                name={`departments.${index}.code`}
-                                                render={({ field }) => (
-                                                    <FormItem className="flex-1">
-                                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                            <FormControl>
-                                                                <SelectTrigger>
-                                                                    <SelectValue placeholder="Pilih Departemen" />
-                                                                </SelectTrigger>
-                                                            </FormControl>
-                                                            <SelectContent>
-                                                                {departments.map((d) => (
-                                                                    <SelectItem key={d.code} value={d.code}>
-                                                                        {d.name} ({d.code})
-                                                                    </SelectItem>
-                                                                ))}
-                                                                {departments.length === 0 && (
-                                                                    <SelectItem value="COMM" disabled>Belum ada data</SelectItem>
-                                                                )}
-                                                            </SelectContent>
-                                                        </Select>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-                                            <Button
-                                                type="button"
-                                                size="icon"
-                                                variant="ghost"
-                                                className="text-red-500 h-10 w-10 shrink-0"
-                                                onClick={() => removeDept(index)}
-                                                disabled={deptFields.length <= 1}
-                                            >
-                                                <Trash2 size={16} />
-                                            </Button>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <div className="space-y-4 pt-4 border-t">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <User size={16} className="text-primary" />
-                                            <FormLabel>Karyawan Spesifik (Opsional)</FormLabel>
-                                        </div>
-                                    </div>
-                                    <CardDescription className="text-xs">
-                                        Pilih jika dokumen ini hanya berlaku untuk orang tertentu
-                                    </CardDescription>
-
-                                    <div className="max-h-[200px] overflow-y-auto space-y-2 p-2 border rounded-md bg-gray-50/30">
-                                        {employees.map((emp) => (
-                                            <div key={emp.id} className="flex items-center space-x-2">
-                                                <input
-                                                    type="checkbox"
-                                                    id={`emp-${emp.id}`}
-                                                    checked={form.watch("employeeIds").includes(emp.id)}
-                                                    onChange={(e) => {
-                                                        const current = form.getValues("employeeIds");
-                                                        if (e.target.checked) {
-                                                            form.setValue("employeeIds", [...current, emp.id]);
-                                                        } else {
-                                                            form.setValue("employeeIds", current.filter((id) => id !== emp.id));
-                                                        }
-                                                    }}
-                                                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                    <div className="space-y-3">
+                                        {deptFields.map((dept, index) => (
+                                            <div key={dept.id} className="flex gap-2 group/dept animate-in fade-in slide-in-from-right-2">
+                                                <FormField
+                                                    control={form.control}
+                                                    name={`departments.${index}.code`}
+                                                    render={({ field }) => (
+                                                        <FormItem className="flex-1">
+                                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                                <FormControl>
+                                                                    <SelectTrigger className="h-10 bg-gray-50/50 border-gray-100 focus:ring-blue-500/30 rounded-lg text-sm">
+                                                                        <SelectValue placeholder="Pilih..." />
+                                                                    </SelectTrigger>
+                                                                </FormControl>
+                                                                <SelectContent className="rounded-xl border-gray-100 shadow-xl max-h-[300px]">
+                                                                    {departments.map((d) => (
+                                                                        <SelectItem key={d.code} value={d.code} className="py-2">
+                                                                            <span className="font-medium">{d.code}</span> - <span className="text-xs text-gray-500">{d.name}</span>
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
                                                 />
-                                                <label
-                                                    htmlFor={`emp-${emp.id}`}
-                                                    className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                                                <Button
+                                                    type="button"
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className="h-10 w-10 shrink-0 text-rose-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg"
+                                                    onClick={() => removeDept(index)}
+                                                    disabled={deptFields.length <= 1}
                                                 >
-                                                    {emp.namaLengkap} <span className="text-gray-400 text-[10px]">({emp.jabatan})</span>
-                                                </label>
+                                                    <Trash2 size={16} />
+                                                </Button>
                                             </div>
                                         ))}
-                                        {employees.length === 0 && (
-                                            <p className="text-center text-xs text-gray-400 py-4">Memuat data karyawan...</p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4 pt-4 border-t border-gray-50">
+                                    <div className="flex items-center justify-between border-b border-gray-50 pb-2">
+                                        <FormLabel className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-2">
+                                            <User size={14} /> Karyawan Spesifik
+                                        </FormLabel>
+                                        <div className="h-4 w-4 rounded-full bg-blue-50 flex items-center justify-center text-[8px] font-bold text-blue-500">
+                                            {form.watch("employeeIds").length}
+                                        </div>
+                                    </div>
+                                    <CardDescription className="text-[10px] leading-relaxed italic">
+                                        Kosongkan jika berlaku untuk seluruh departemen yang dipilih.
+                                    </CardDescription>
+
+                                    <div className="max-h-[250px] overflow-y-auto space-y-1.5 p-3 border border-gray-100 rounded-xl bg-gray-50/50 scrollbar-thin scrollbar-thumb-gray-200">
+                                        {employees.length > 0 ? employees.map((emp) => (
+                                            <label
+                                                key={emp.id}
+                                                className={cn(
+                                                    "flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all",
+                                                    form.watch("employeeIds").includes(emp.id)
+                                                        ? "bg-blue-600 shadow-md shadow-blue-500/20"
+                                                        : "hover:bg-white border border-transparent hover:border-gray-200"
+                                                )}
+                                            >
+                                                <div className="relative flex items-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={form.watch("employeeIds").includes(emp.id)}
+                                                        onChange={(e) => {
+                                                            const current = form.getValues("employeeIds");
+                                                            if (e.target.checked) {
+                                                                form.setValue("employeeIds", [...current, emp.id]);
+                                                            } else {
+                                                                form.setValue("employeeIds", current.filter((id) => id !== emp.id));
+                                                            }
+                                                        }}
+                                                        className="hidden"
+                                                    />
+                                                    <div className={cn(
+                                                        "h-4 w-4 rounded flex items-center justify-center border transition-all",
+                                                        form.watch("employeeIds").includes(emp.id)
+                                                            ? "bg-white border-white"
+                                                            : "bg-white border-gray-200 shadow-inner"
+                                                    )}>
+                                                        {form.watch("employeeIds").includes(emp.id) && <Check size={12} className="text-blue-600" />}
+                                                    </div>
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className={cn(
+                                                        "text-[11px] font-bold transition-colors",
+                                                        form.watch("employeeIds").includes(emp.id) ? "text-white" : "text-gray-900"
+                                                    )}>
+                                                        {emp.namaLengkap}
+                                                    </span>
+                                                    <span className={cn(
+                                                        "text-[9px] uppercase tracking-wider font-semibold opacity-70",
+                                                        form.watch("employeeIds").includes(emp.id) ? "text-blue-50" : "text-gray-400"
+                                                    )}>
+                                                        {emp.jabatan || "Karyawan"}
+                                                    </span>
+                                                </div>
+                                            </label>
+                                        )) : (
+                                            <div className="py-8 text-center animate-pulse">
+                                                <Activity className="h-6 w-6 text-gray-200 mx-auto mb-2" />
+                                                <p className="text-[10px] text-gray-400">Memuat data...</p>
+                                            </div>
                                         )}
                                     </div>
                                 </div>
                             </CardContent>
                         </Card>
 
-                        <Card className="bg-primary/5 border-primary/20 shadow-none">
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-bold flex items-center gap-2 text-primary">
-                                    <Info size={16} /> Tips
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <ul className="text-xs space-y-2 text-muted-foreground list-disc pl-4 italic">
-                                    <li>Gunakan judul yang spesifik untuk memudahkan pencarian.</li>
-                                    <li>SOP biasanya memerlukan langkah-langkah yang lebih detail di bagian konten item.</li>
-                                    <li>Anda dapat mengatur urutan bagian menggunakan tombol panah.</li>
-                                </ul>
-                            </CardContent>
-                        </Card>
+                        <div className="bg-gradient-to-br from-indigo-500/10 to-blue-500/5 border border-indigo-100 p-6 rounded-2xl relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 -mr-6 -mt-6 h-24 w-24 bg-indigo-500/10 rounded-full blur-2xl group-hover:bg-indigo-500/20 transition-all duration-700" />
+                            <h4 className="flex items-center gap-2 text-indigo-700 font-bold text-sm mb-3">
+                                <HelpCircle size={16} />
+                                Panduan Singkat
+                            </h4>
+                            <ul className="space-y-3">
+                                <li className="flex gap-2 text-[11px] text-indigo-600/80 leading-relaxed">
+                                    <div className="h-1.5 w-1.5 rounded-full bg-indigo-400 mt-1 shrink-0" />
+                                    <span>Gunakan <span className="font-bold underline decoration-indigo-200">No. Form</span> yang konsisten untuk sistem pengarsipan.</span>
+                                </li>
+                                <li className="flex gap-2 text-[11px] text-indigo-600/80 leading-relaxed">
+                                    <div className="h-1.5 w-1.5 rounded-full bg-indigo-400 mt-1 shrink-0" />
+                                    <span>Posisikan <span className="font-bold underline decoration-indigo-200">Tujuan Jabatan</span> di bagian paling atas.</span>
+                                </li>
+                                <li className="flex gap-2 text-[11px] text-indigo-600/80 leading-relaxed">
+                                    <div className="h-1.5 w-1.5 rounded-full bg-indigo-400 mt-1 shrink-0" />
+                                    <span>Status <span className="font-bold">ACTIVE</span> akan langsung memberitahukan karyawan terkait.</span>
+                                </li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </form>
@@ -584,10 +663,10 @@ function DocumentItems({ sectionIndex, control }: { sectionIndex: number; contro
     });
 
     return (
-        <div className="space-y-3">
+        <div className="space-y-4">
             {fields.map((item, itemIndex) => (
-                <div key={item.id} className="flex gap-3 group">
-                    <div className="w-12 shrink-0">
+                <div key={item.id} className="flex gap-4 group/item items-start animate-in fade-in slide-in-from-left-2">
+                    <div className="w-14 shrink-0 mt-1">
                         <FormField
                             control={control}
                             name={`sections.${sectionIndex}.items.${itemIndex}.itemNumber`}
@@ -597,7 +676,7 @@ function DocumentItems({ sectionIndex, control }: { sectionIndex: number; contro
                                         <Input
                                             placeholder="•"
                                             {...field}
-                                            className="text-center font-bold bg-white"
+                                            className="h-10 text-center font-bold bg-gray-50/50 border-gray-100 group-hover/item:border-blue-200 focus-visible:ring-blue-500/20 rounded-lg"
                                         />
                                     </FormControl>
                                 </FormItem>
@@ -612,48 +691,54 @@ function DocumentItems({ sectionIndex, control }: { sectionIndex: number; contro
                                 <FormItem>
                                     <FormControl>
                                         <Textarea
-                                            placeholder="Isi poin detail..."
+                                            placeholder="Tulis detail deskripsi pekerjaan atau standar prosedur..."
                                             {...field}
-                                            className="min-h-[60px] resize-none bg-white py-2"
+                                            className="min-h-[80px] bg-white border-gray-200 group-hover/item:border-blue-200 focus-visible:ring-blue-500/20 rounded-xl py-3 px-4 shadow-sm transition-all"
                                         />
                                     </FormControl>
                                 </FormItem>
                             )}
                         />
                     </div>
-                    <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex flex-col gap-1 opacity-0 group-hover/item:opacity-100 transition-all duration-200 translate-x-2 group-hover/item:translate-x-0 pt-2">
                         <Button
                             type="button"
                             size="icon"
                             variant="ghost"
-                            className="h-8 w-8"
+                            className="h-7 w-7 rounded-md hover:bg-gray-100"
                             onClick={() => move(itemIndex, itemIndex - 1)}
                             disabled={itemIndex === 0}
                         >
-                            <MoveUp size={12} />
+                            <MoveUp size={14} className="text-gray-400" />
                         </Button>
                         <Button
                             type="button"
                             size="icon"
                             variant="ghost"
-                            className="h-8 w-8 text-red-500"
+                            className="h-7 w-7 rounded-md hover:bg-rose-50 text-rose-300 hover:text-rose-500"
                             onClick={() => remove(itemIndex)}
                         >
-                            <Trash2 size={12} />
+                            <Trash2 size={14} />
                         </Button>
                         <Button
                             type="button"
                             size="icon"
                             variant="ghost"
-                            className="h-8 w-8"
+                            className="h-7 w-7 rounded-md hover:bg-gray-100"
                             onClick={() => move(itemIndex, itemIndex + 1)}
                             disabled={itemIndex === fields.length - 1}
                         >
-                            <MoveDown size={12} />
+                            <MoveDown size={14} className="text-gray-400" />
                         </Button>
                     </div>
                 </div>
             ))}
+
+            {fields.length === 0 && (
+                <div className="text-center py-4 bg-gray-50/50 rounded-xl border border-dashed border-gray-100">
+                    <p className="text-[10px] text-gray-400 italic">Belum ada poin detail. Klik tambah poin.</p>
+                </div>
+            )}
         </div>
     );
 }

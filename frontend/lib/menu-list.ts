@@ -759,6 +759,15 @@ export function getMenuList(pathname: string, role: string, permissions: Permiss
               active: isActive(`${basePath}/master/team`, pathname),
               disabled: role === "user",
               requiredPermission: "project.manage",
+            },
+            {
+              href: `${basePath}/master/documents`,
+              label: "Data JobDesk & SOP",
+              tooltip: "Dokumen Job Description & SOP",
+              icon: BookOpen,
+              active: isActive(`${basePath}/master/documents`, pathname),
+              disabled: role === "user",
+              requiredPermission: "hr.view",
             }
           ],
         },

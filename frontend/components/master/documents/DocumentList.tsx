@@ -13,27 +13,27 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-    MoreVertical,
-    Plus,
     Search,
+    Plus,
     FileText,
-    FileDigit,
     Trash2,
-    Calendar,
-    AlertTriangle,
     User,
+    Eye,
+    Pencil,
+    Shield,
+    BookOpen,
+    AlertTriangle,
+    Activity,
 } from "lucide-react";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
     Card,
     CardContent,
-    CardHeader,
-    CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { PageLoading } from "@/components/ui/loading";
@@ -50,6 +50,7 @@ import {
 import { toast } from "sonner";
 import axios from "axios";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 export default function DocumentList({ role }: { role: string }) {
     const [documents, setDocuments] = useState<any[]>([]);
@@ -117,73 +118,111 @@ export default function DocumentList({ role }: { role: string }) {
     const getStatusBadge = (status: string) => {
         switch (status) {
             case "ACTIVE":
-                return <Badge variant="outline" className="bg-green-100 text-green-700 border-green-200">ACTIVE</Badge>;
+                return (
+                    <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200/60 font-medium px-2 shadow-sm uppercase tracking-wider text-[10px]">
+                        ACTIVE
+                    </Badge>
+                );
             case "DRAFT":
-                return <Badge variant="outline" className="bg-gray-100 text-gray-700 border-gray-200">DRAFT</Badge>;
+                return (
+                    <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200/60 font-medium px-2 shadow-sm uppercase tracking-wider text-[10px]">
+                        DRAFT
+                    </Badge>
+                );
             case "RETIRED":
-                return <Badge variant="outline" className="bg-red-100 text-red-700 border-red-200">RETIRED</Badge>;
+                return (
+                    <Badge variant="outline" className="bg-rose-50 text-rose-700 border-rose-200/60 font-medium px-2 shadow-sm uppercase tracking-wider text-[10px]">
+                        RETIRED
+                    </Badge>
+                );
             default:
-                return <Badge variant="outline">{status}</Badge>;
+                return <Badge variant="outline" className="text-[10px]">{status}</Badge>;
         }
     };
 
     if (isLoading) return <PageLoading />;
 
+    const createLink = role === "super" ? "/super-admin-area/master/documents/create" : "/admin-area/master/documents/create";
+
     return (
-        <div className="space-y-4">
+        <div className="space-y-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div className="relative w-full md:w-96">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <div className="relative w-full md:w-[450px] group">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Search className="h-4 w-4 text-gray-400 group-focus-within:text-primary transition-colors" />
+                    </div>
                     <Input
-                        placeholder="Cari dokumen..."
-                        className="pl-10"
+                        placeholder="Cari berdasarkan judul dokumen..."
+                        className="pl-10 h-11 bg-white border-gray-200 shadow-sm focus-visible:ring-1 focus-visible:ring-primary/30 transition-all rounded-xl"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
                 </div>
-                <Button asChild className="w-full md:w-auto flex items-center gap-2">
-                    <Link href={role === "super" ? "/super-admin-area/master/documents/create" : "/admin-area/master/documents/create"}>
-                        <Plus size={18} /> Buat Dokumen Baru
+                <Button
+                    asChild
+                    className="w-full md:w-auto h-11 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-indigo-500/20 border-none transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                >
+                    <Link href={createLink} className="flex items-center gap-2">
+                        <Plus size={20} />
+                        <span className="font-semibold">Buat Dokumen Baru</span>
                     </Link>
                 </Button>
             </div>
 
-            <Card className="shadow-sm">
+            <Card className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white/70 backdrop-blur-md overflow-hidden rounded-2xl">
                 <CardContent className="p-0">
                     <div className="overflow-x-auto">
                         <Table>
                             <TableHeader>
-                                <TableRow className="bg-gray-50/50">
-                                    <TableHead className="w-[40%]">Judul Dokumen</TableHead>
-                                    <TableHead>Tipe</TableHead>
-                                    <TableHead>Penerima</TableHead>
-                                    <TableHead>Versi</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Tgl Dibuat</TableHead>
-                                    <TableHead className="text-right">Aksi</TableHead>
+                                <TableRow className="bg-gray-50/80 border-b border-gray-100">
+                                    <TableHead className="w-[35%] py-4 pl-6 text-xs font-bold uppercase tracking-wider text-gray-500">Judul Dokumen</TableHead>
+                                    <TableHead className="py-4 text-xs font-bold uppercase tracking-wider text-gray-500">Tipe</TableHead>
+                                    <TableHead className="py-4 text-xs font-bold uppercase tracking-wider text-gray-500">Penerima</TableHead>
+                                    <TableHead className="py-4 text-xs font-bold uppercase tracking-wider text-gray-500">Versi</TableHead>
+                                    <TableHead className="py-4 text-xs font-bold uppercase tracking-wider text-gray-500">Status</TableHead>
+                                    <TableHead className="py-4 text-xs font-bold uppercase tracking-wider text-gray-500">Timeline</TableHead>
+                                    <TableHead className="pr-6 text-right text-xs font-bold uppercase tracking-wider text-gray-500">Aksi</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {filteredDocuments.length > 0 ? (
                                     filteredDocuments.map((doc) => (
-                                        <TableRow key={doc.id} className="hover:bg-gray-50/50">
-                                            <TableCell className="font-semibold">
-                                                <div className="flex items-center gap-2">
-                                                    <FileText size={18} className="text-primary/70" />
-                                                    {doc.title}
+                                        <TableRow key={doc.id} className="group hover:bg-blue-50/30 transition-colors border-b border-gray-50/50 last:border-0">
+                                            <TableCell className="py-4 pl-6">
+                                                <div className="flex items-start gap-3">
+                                                    <div className={cn(
+                                                        "p-2.5 rounded-xl shadow-sm",
+                                                        doc.type === "JOB_DESCRIPTION" ? "bg-cyan-50 text-cyan-600" : "bg-indigo-50 text-indigo-600"
+                                                    )}>
+                                                        {doc.type === "JOB_DESCRIPTION" ? <Shield size={18} /> : <BookOpen size={18} />}
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <span className="font-bold text-gray-900 group-hover:text-primary transition-colors line-clamp-1">{doc.title}</span>
+                                                        <span className="text-[11px] text-gray-400 capitalize flex items-center gap-1">
+                                                            ID: {doc.id.substring(0, 8)}...
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </TableCell>
-                                            <TableCell>
-                                                <Badge variant="secondary" className="font-normal">
-                                                    {doc.type === "JOB_DESCRIPTION" ? "Job Desk" : "SOP"}
+                                            <TableCell className="py-4">
+                                                <Badge
+                                                    variant="secondary"
+                                                    className={cn(
+                                                        "font-semibold text-[10px] px-2.5 py-0.5 rounded-full border shadow-none",
+                                                        doc.type === "JOB_DESCRIPTION"
+                                                            ? "bg-cyan-50 text-cyan-700 border-cyan-100"
+                                                            : "bg-indigo-50 text-indigo-700 border-indigo-100"
+                                                    )}
+                                                >
+                                                    {doc.type === "JOB_DESCRIPTION" ? "JOB DESK" : "SOP"}
                                                 </Badge>
                                             </TableCell>
-                                            <TableCell>
-                                                <div className="flex flex-col gap-1">
+                                            <TableCell className="py-4">
+                                                <div className="flex flex-col gap-1.5">
                                                     {doc.departments.length > 0 && (
                                                         <div className="flex flex-wrap gap-1">
                                                             {doc.departments.map((d: any) => (
-                                                                <Badge key={d.department.code} variant="outline" className="text-[10px] py-0 bg-blue-50/50">
+                                                                <Badge key={d.department.code} variant="outline" className="text-[10px] py-0 px-1.5 h-5 bg-blue-50/40 text-blue-600 border-blue-100/50">
                                                                     {d.department.code}
                                                                 </Badge>
                                                             ))}
@@ -192,53 +231,94 @@ export default function DocumentList({ role }: { role: string }) {
                                                     {doc.employees?.length > 0 && (
                                                         <div className="flex flex-wrap gap-1">
                                                             {doc.employees.map((e: any) => (
-                                                                <Badge key={e.karyawan.id} variant="secondary" className="text-[10px] py-0 bg-orange-50 text-orange-700">
+                                                                <Badge key={e.karyawan.id} variant="secondary" className="text-[10px] py-0 px-1.5 h-5 bg-orange-50/50 text-orange-600 border-orange-100/50">
                                                                     <User size={10} className="mr-1" />
-                                                                    {e.karyawan.namaLengkap}
+                                                                    {e.karyawan.namaLengkap.split(' ')[0]}
                                                                 </Badge>
                                                             ))}
                                                         </div>
                                                     )}
                                                     {doc.departments.length === 0 && doc.employees?.length === 0 && (
-                                                        <span className="text-gray-400 text-[10px] italic">Public</span>
+                                                        <span className="text-gray-400 text-[11px] font-medium flex items-center gap-1 italic">
+                                                            <Activity size={10} /> Public
+                                                        </span>
                                                     )}
                                                 </div>
                                             </TableCell>
-                                            <TableCell>v{doc.version}</TableCell>
-                                            <TableCell>{getStatusBadge(doc.status)}</TableCell>
-                                            <TableCell className="text-xs text-gray-500">
-                                                {format(new Date(doc.createdAt), "dd MMM yyyy")}
+                                            <TableCell className="py-4">
+                                                <span className="font-mono text-xs text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">v{doc.version}</span>
                                             </TableCell>
-                                            <TableCell className="text-right">
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" className="h-8 w-8 p-0">
-                                                            <MoreVertical size={16} />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem asChild>
-                                                            <Link href={role === "super" ? `/super-admin-area/master/documents/view/${doc.id}` : `/admin-area/master/documents/view/${doc.id}`} className="cursor-pointer">
-                                                                <FileDigit size={16} className="mr-2 text-primary" /> View Details
-                                                            </Link>
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem asChild>
-                                                            <Link href={role === "super" ? `/super-admin-area/master/documents/edit/${doc.id}` : `/admin-area/master/documents/edit/${doc.id}`} className="cursor-pointer">
-                                                                <FileText size={16} className="mr-2 text-blue-500" /> Edit Dokumen
-                                                            </Link>
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleDeleteClick(doc)} className="text-red-600 cursor-pointer">
-                                                            <Trash2 size={16} className="mr-2" /> Hapus
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
+                                            <TableCell className="py-4">{getStatusBadge(doc.status)}</TableCell>
+                                            <TableCell className="py-4">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[11px] font-semibold text-gray-700">{format(new Date(doc.createdAt), "dd MMM yyyy")}</span>
+                                                    <span className="text-[10px] text-gray-400">Created Date</span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="pr-6 text-right py-4">
+                                                <div className="flex items-center justify-end gap-1.5">
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    asChild
+                                                                    className="h-8 w-8 rounded-lg hover:bg-blue-100 hover:text-blue-600 transition-all text-gray-400"
+                                                                >
+                                                                    <Link href={role === "super" ? `/super-admin-area/master/documents/view/${doc.id}` : `/admin-area/master/documents/view/${doc.id}`}>
+                                                                        <Eye size={16} />
+                                                                    </Link>
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent side="top" className="bg-gray-900 border-none text-[10px] font-bold">Lihat Detail</TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    asChild
+                                                                    className="h-8 w-8 rounded-lg hover:bg-amber-100 hover:text-amber-600 transition-all text-gray-400"
+                                                                >
+                                                                    <Link href={role === "super" ? `/super-admin-area/master/documents/edit/${doc.id}` : `/admin-area/master/documents/edit/${doc.id}`}>
+                                                                        <Pencil size={16} />
+                                                                    </Link>
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent side="top" className="bg-gray-900 border-none text-[10px] font-bold">Edit Dokumen</TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    onClick={() => handleDeleteClick(doc)}
+                                                                    className="h-8 w-8 rounded-lg hover:bg-red-100 hover:text-red-600 transition-all text-gray-400"
+                                                                >
+                                                                    <Trash2 size={16} />
+                                                                </Button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent side="top" className="bg-gray-900 border-none text-[10px] font-bold">Hapus Dokumen</TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                </div>
                                             </TableCell>
                                         </TableRow>
                                     ))
                                 ) : (
                                     <TableRow>
-                                        <TableCell colSpan={7} className="text-center py-12 text-gray-500">
-                                            Belum ada dokumen yang tersedia
+                                        <TableCell colSpan={7} className="text-center py-20">
+                                            <div className="flex flex-col items-center justify-center opacity-40 text-gray-400">
+                                                <FileText size={48} className="mb-2" />
+                                                <p className="font-medium">Belum ada dokumen yang tersedia</p>
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 )}
@@ -249,7 +329,7 @@ export default function DocumentList({ role }: { role: string }) {
             </Card>
 
             <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-                <AlertDialogContent>
+                <AlertDialogContent className="rounded-2xl">
                     <AlertDialogHeader>
                         <AlertDialogTitle className="flex items-center gap-2">
                             <AlertTriangle className="h-5 w-5 text-red-500" />
@@ -261,8 +341,8 @@ export default function DocumentList({ role }: { role: string }) {
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Batal</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDeleteConfirm} className="bg-red-600 hover:bg-red-700">
+                        <AlertDialogCancel className="rounded-xl">Batal</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDeleteConfirm} className="bg-red-600 hover:bg-red-700 rounded-xl">
                             Hapus
                         </AlertDialogAction>
                     </AlertDialogFooter>

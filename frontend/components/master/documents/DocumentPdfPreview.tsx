@@ -60,8 +60,9 @@ const styles = StyleSheet.create({
         borderColor: '#e5e7eb',
     },
     metaItem: {
-        width: '33.33%',
+        width: '25%',
         padding: 4,
+        textAlign: 'center',
     },
     metaLabel: {
         fontSize: 8,
@@ -204,7 +205,7 @@ const DocumentPdfPreview = ({ data, employeeName }: DocumentPdfPreviewProps) => 
                 {/* Title Section */}
                 <View style={styles.docTitleSection}>
                     <Text style={styles.docTypeBadge}>
-                        {data.type === 'JOB_DESCRIPTION' ? 'Job Description' : 'Standard Operating Procedure'}
+                        {data.type === 'JOB_DESCRIPTION' ? 'Deskripsi Jabatan' : 'Prosedur Operasi Standar'}
                     </Text>
                     <Text style={styles.docTitle}>{data.title}</Text>
                 </View>
@@ -212,23 +213,25 @@ const DocumentPdfPreview = ({ data, employeeName }: DocumentPdfPreviewProps) => 
                 {/* Metadata Grid */}
                 <View style={styles.metaGrid}>
                     <View style={styles.metaItem}>
-                        <Text style={styles.metaLabel}>Department</Text>
+                        <Text style={styles.metaLabel}>Departemen</Text>
                         <Text style={styles.metaValue}>
                             {data.departments.map((d: any) => d.department.name).join(', ')}
                         </Text>
                     </View>
-                    {employeeName && (
+                    {(employeeName || (data.employees && data.employees.length > 0)) && (
                         <View style={styles.metaItem}>
-                            <Text style={styles.metaLabel}>Assigned To</Text>
-                            <Text style={styles.metaValue}>{employeeName}</Text>
+                            <Text style={styles.metaLabel}>Karyawan Terkait</Text>
+                            <Text style={styles.metaValue}>
+                                {employeeName || data.employees.map((e: any) => e.karyawan.namaLengkap).join(', ')}
+                            </Text>
                         </View>
                     )}
                     <View style={styles.metaItem}>
-                        <Text style={styles.metaLabel}>Version</Text>
+                        <Text style={styles.metaLabel}>NO FORM DOKUMENT</Text>
                         <Text style={styles.metaValue}>{data.version}</Text>
                     </View>
                     <View style={styles.metaItem}>
-                        <Text style={styles.metaLabel}>Effective Date</Text>
+                        <Text style={styles.metaLabel}>Tanggal Berlaku</Text>
                         <Text style={styles.metaValue}>
                             {format(new Date(data.createdAt), 'dd MMM yyyy')}
                         </Text>
@@ -268,7 +271,7 @@ const DocumentPdfPreview = ({ data, employeeName }: DocumentPdfPreviewProps) => 
                 {/* Footer / Approval Section */}
                 <View style={styles.footerContainer} wrap={false}>
                     <View style={styles.approvalBox}>
-                        <Text>Prepared By,</Text>
+                        <Text>Dibuat Oleh,</Text>
                         <View style={styles.signatureSpace} />
                         <View style={styles.signatureLine}>
                             <Text style={styles.signerName}>Human Resources</Text>
@@ -276,7 +279,7 @@ const DocumentPdfPreview = ({ data, employeeName }: DocumentPdfPreviewProps) => 
                         </View>
                     </View>
                     <View style={styles.approvalBox}>
-                        <Text>Approved By,</Text>
+                        <Text>Disetujui Oleh,</Text>
                         <View style={styles.signatureSpace} />
                         <View style={styles.signatureLine}>
                             <Text style={styles.signerName}>General Manager</Text>
@@ -288,10 +291,10 @@ const DocumentPdfPreview = ({ data, employeeName }: DocumentPdfPreviewProps) => 
                 {/* Page Footer */}
                 <View style={styles.pageFooter} fixed>
                     <Text>
-                        Confidential Property of PT. RYLIF MIKRO MANDIRI. Unauthorized reproduction prohibited.
+                        Properti Rahasia PT. RYLIF MIKRO MANDIRI. Dilarang menggandakan tanpa izin.
                     </Text>
                     <Text render={({ pageNumber, totalPages }) => (
-                        `Page ${pageNumber} of ${totalPages}`
+                        `Halaman ${pageNumber} dari ${totalPages}`
                     )} />
                 </View>
             </Page>

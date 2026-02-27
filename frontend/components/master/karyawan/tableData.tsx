@@ -42,7 +42,16 @@ import {
   Hash,
   ChevronsUpDown,
   FileText,
+  Shield,
+  BookOpen,
+  Info,
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -68,6 +77,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { makeImageSrc } from "@/utils/makeImageSrc";
 import { toast } from "sonner";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { cn } from "@/lib/utils";
 
 interface TeamKaryawan {
   id: string;
@@ -82,7 +92,8 @@ interface Document {
 }
 
 interface DocumentKaryawan {
-  id: string;
+  documentId: string;
+  karyawanId: string;
   document: Document;
 }
 
@@ -359,6 +370,29 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                     <Users size={14} className="text-blue-500 mt-0.5" />
                     <span className="font-medium">Team:</span>
                     <span>{employee.teamKaryawan.map(tk => tk.team.namaTeam).join(", ")}</span>
+                  </div>
+                )}
+
+                {employee.documents && employee.documents.length > 0 && (
+                  <div className="flex items-start gap-2">
+                    <FileText size={14} className="text-blue-500 mt-0.5" />
+                    <span className="font-medium">Docs:</span>
+                    <div className="flex flex-wrap gap-1">
+                      {employee.documents.map((dk) => (
+                        <Badge
+                          key={dk.document.id}
+                          variant="outline"
+                          className={cn(
+                            "text-[10px] py-0 px-1.5 h-4",
+                            dk.document.type === "JOB_DESCRIPTION"
+                              ? "bg-cyan-50 text-cyan-700 border-cyan-100"
+                              : "bg-indigo-50 text-indigo-700 border-indigo-100"
+                          )}
+                        >
+                          {dk.document.type === "JOB_DESCRIPTION" ? "JD" : "SOP"} v{dk.document.version}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -755,6 +789,12 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                       {getSortIcon('teamKaryawan')}
                     </div>
                   </TableHead>
+                  <TableHead>
+                    <div className="flex items-center gap-1">
+                      <FileText size={16} className="text-blue-500" />
+                      JobDesc & SOP
+                    </div>
+                  </TableHead>
                   <TableHead className="text-right">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
@@ -824,6 +864,41 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                                 </div>
                               )
                               : "-"}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1.5 max-w-[200px]">
+                              {item.documents && item.documents.length > 0 ? (
+                                item.documents.map((dk) => (
+                                  <TooltipProvider key={dk.document.id}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Badge
+                                          variant="outline"
+                                          className={cn(
+                                            "cursor-help font-bold text-[10px] px-2 py-0.5 rounded-md shadow-none flex items-center gap-1 transition-all hover:scale-105",
+                                            dk.document.type === "JOB_DESCRIPTION"
+                                              ? "bg-cyan-50 text-cyan-700 border-cyan-200/60"
+                                              : "bg-indigo-50 text-indigo-700 border-indigo-200/60"
+                                          )}
+                                        >
+                                          {dk.document.type === "JOB_DESCRIPTION" ? <Shield size={10} /> : <BookOpen size={10} />}
+                                          <span>{dk.document.type === "JOB_DESCRIPTION" ? "JD" : "SOP"}</span>
+                                          <span className="opacity-50 mx-0.5">|</span>
+                                          <span>v{dk.document.version}</span>
+                                        </Badge>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top" className="bg-gray-900 text-white text-[10px] font-bold border-none">
+                                        {dk.document.title}
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                ))
+                              ) : (
+                                <span className="text-[11px] text-gray-400 italic flex items-center gap-1">
+                                  <Info size={12} /> Belum ada data
+                                </span>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-1.5 flex-wrap">
@@ -935,81 +1010,83 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
         </div>
 
         {/* Pagination */}
-        {filteredAndSortedData.length > 0 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
-            <div className="text-sm text-gray-500">
-              Menampilkan {startIndex + 1} - {Math.min(startIndex + itemsPerPage, filteredAndSortedData.length)} dari {filteredAndSortedData.length} hasil
-            </div>
+        {
+          filteredAndSortedData.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+              <div className="text-sm text-gray-500">
+                Menampilkan {startIndex + 1} - {Math.min(startIndex + itemsPerPage, filteredAndSortedData.length)} dari {filteredAndSortedData.length} hasil
+              </div>
 
-            <div className="flex items-center gap-2">
               <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-500">Baris per halaman:</span>
-                <Select
-                  value={itemsPerPage.toString()}
-                  onValueChange={(value) => {
-                    setItemsPerPage(Number(value));
-                    setCurrentPage(1);
-                  }}
-                >
-                  <SelectTrigger className="w-[70px]">
-                    <SelectValue placeholder="10" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="5">5</SelectItem>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="20">20</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-500">Baris per halaman:</span>
+                  <Select
+                    value={itemsPerPage.toString()}
+                    onValueChange={(value) => {
+                      setItemsPerPage(Number(value));
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-[70px]">
+                      <SelectValue placeholder="10" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5</SelectItem>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                >
-                  <ChevronLeft size={16} />
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft size={16} />
+                  </Button>
 
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  let pageNum;
-                  if (totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (currentPage <= 3) {
-                    pageNum = i + 1;
-                  } else if (currentPage >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = currentPage - 2 + i;
-                  }
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
 
-                  return (
-                    <Button
-                      key={pageNum}
-                      variant={currentPage === pageNum ? "default" : "outline"}
-                      size="icon"
-                      onClick={() => setCurrentPage(pageNum)}
-                      className="w-10 h-10 hidden sm:flex"
-                    >
-                      {pageNum}
-                    </Button>
-                  );
-                })}
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={currentPage === pageNum ? "default" : "outline"}
+                        size="icon"
+                        onClick={() => setCurrentPage(pageNum)}
+                        className="w-10 h-10 hidden sm:flex"
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
 
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                >
-                  <ChevronRight size={16} />
-                </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                  >
+                    <ChevronRight size={16} />
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )
+        }
         <div className="text-sm text-gray-500">
           <h4>Role : {role}</h4>
         </div>
@@ -1048,6 +1125,6 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </div >
   );
 };
