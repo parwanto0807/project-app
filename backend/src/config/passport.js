@@ -1,7 +1,7 @@
 import { prisma } from '../config/db.js';
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
-// import { PrismaClient } from '../../prisma/generated/prisma/index.js'; // Adjust the path as necessary
+// import { PrismaClient } from "@prisma/client"; // Adjust the path as necessary
 import {
   GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET,

@@ -1,4 +1,4 @@
-// import { PrismaClient } from "../../../../prisma/generated/prisma/index.js";
+// import { PrismaClient } from "@prisma/client";
 import { prisma } from "../../../config/db.js";
 import { getNextKaryawanCode } from "../../../utils/generateCode.js";
 
@@ -132,6 +132,11 @@ export const getAllKaryawan = async (req, res) => {
         teamKaryawan: { include: { team: true } },
         gaji: true,
         user: true,
+        documents: {
+          include: {
+            document: true,
+          },
+        },
       },
       orderBy: { nik: "asc" },
     });

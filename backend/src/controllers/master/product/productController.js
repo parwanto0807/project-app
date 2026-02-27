@@ -1,8 +1,8 @@
-// import { PrismaClient } from "../../../../prisma/generated/prisma/index.js";
+// import { PrismaClient } from "@prisma/client";
 // const prisma = new PrismaClient();
 
 import { prisma } from "../../../config/db.js";
-import { ProductType } from "../../../../prisma/generated/prisma/index.js";
+import { ProductType } from "@prisma/client";
 import { NotificationService } from "../../../utils/firebase/notificationService.js";
 
 

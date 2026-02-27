@@ -1,5 +1,5 @@
 import { prisma } from "../../config/db.js";
-import { Prisma } from "../../../prisma/generated/prisma/index.js";
+import { Prisma } from "@prisma/client";
 import { toNum } from "../../lib/soUtils.js";
 import { NotificationService } from "../../utils/firebase/notificationService.js";
 

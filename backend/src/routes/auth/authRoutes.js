@@ -24,7 +24,7 @@ import {
   checkMFAStatus,
   // authenticateUser, // ❌ HAPUS INI - gunakan authenticateToken saja
 } from "../../middleware/authMiddleware.js";
-import pkg from "../../../prisma/generated/prisma/index.js";
+import pkg from "@prisma/client";
 const { prisma } = pkg;
 
 const router = Router();

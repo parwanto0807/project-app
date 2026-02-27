@@ -1,4 +1,4 @@
-// import { PrismaClient } from "../../../prisma/generated/prisma/index.js";
+// import { PrismaClient } from "@prisma/client";
 import { prisma } from "../../config/db.js";
 import { getNextSpkCode } from "../../utils/generateCode.js";
 

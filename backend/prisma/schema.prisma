@@ -1,6 +1,5 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "./generated/prisma"
 }
 
 datasource db {
@@ -87,6 +86,7 @@ model User {
   createdOpEx           OperationalExpense[] @relation("OpExpCreatedBy")
   approvedOpEx          OperationalExpense[] @relation("OpExpApprovedBy")
   cashOpnames           CashOpname[]
+  createdDocuments      Document[]           @relation("DocumentCreatedBy")
 }
 
 model LoginAttempt {
@@ -245,6 +245,7 @@ model Karyawan {
   sentTransfers     StockTransfer[]     @relation("Sender")
   teamKaryawan      TeamKaryawan[]
   uangMuka          UangMuka[]
+  documents         DocumentKaryawan[]
 }
 
 model Gaji {
@@ -2619,4 +2620,86 @@ model CashOpname {
 
   @@index([coaId])
   @@index([date])
+}
+
+model Document {
+  id          String                @id @default(uuid())
+  title       String
+  type        ProfessionalDocType
+  status      ProfessionalDocStatus @default(ACTIVE)
+  version     String
+  content     String?
+  createdById String
+  createdBy   User                  @relation("DocumentCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  departments DocumentDepartment[]
+  sections    DocumentSection[]
+  employees   DocumentKaryawan[]
+
+  @@map("documents")
+}
+
+model Department {
+  id        String               @id @default(uuid())
+  code      String               @unique
+  name      String
+  documents DocumentDepartment[]
+
+  @@map("departments")
+}
+
+model DocumentDepartment {
+  documentId   String
+  departmentId String
+  isPrimary    Boolean    @default(false)
+  document     Document   @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@id([documentId, departmentId])
+  @@map("document_departments")
+}
+
+model DocumentSection {
+  id         String         @id @default(uuid())
+  documentId String
+  title      String
+  content    String?
+  orderIndex Int
+  document   Document       @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  items      DocumentItem[]
+
+  @@map("document_sections")
+}
+
+model DocumentItem {
+  id         String          @id @default(uuid())
+  sectionId  String
+  content    String
+  itemNumber String?
+  orderIndex Int
+  section    DocumentSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@map("document_items")
+}
+
+enum ProfessionalDocType {
+  JOB_DESCRIPTION
+  SOP
+}
+
+enum ProfessionalDocStatus {
+  DRAFT
+  ACTIVE
+  RETIRED
+}
+
+model DocumentKaryawan {
+  documentId String
+  karyawanId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  karyawan   Karyawan @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+
+  @@id([documentId, karyawanId])
+  @@map("document_karyawan")
 }

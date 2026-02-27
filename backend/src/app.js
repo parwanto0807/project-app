@@ -51,6 +51,7 @@ import permissionRoutes from './routes/permission/permissionRoutes.js';
 import financialReportRoutes from './routes/accounting/financialReportRoutes.js';
 import assetRoutes from './routes/asset/assetRoutes.js';
 import cashOpnameRoutes from './routes/accounting/cashOpnameRoutes.js';
+import documentRoutes from './routes/master/documentRoutes.js';
 
 
 
@@ -191,6 +192,7 @@ app.use('/api/permissions', permissionRoutes);
 app.use('/api/accounting/reports', financialReportRoutes);
 app.use('/api/assets', assetRoutes);
 app.use('/api/accounting/cash-opname', cashOpnameRoutes);
+app.use('/api/master/documents', documentRoutes);
 
 
 

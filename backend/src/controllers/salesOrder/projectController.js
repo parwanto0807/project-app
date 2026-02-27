@@ -1,5 +1,5 @@
 // src/controllers/master/project/projectController.js
-// import { PrismaClient } from "../../../prisma/generated/prisma/index.js";
+// import { PrismaClient } from "@prisma/client";
 // const prisma = new PrismaClient();
 
 import { prisma } from '../../config/db.js';

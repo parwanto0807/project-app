@@ -41,6 +41,7 @@ import {
   MapPin,
   Hash,
   ChevronsUpDown,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,6 +74,18 @@ interface TeamKaryawan {
   team: { id: string; namaTeam: string };
 }
 
+interface Document {
+  id: string;
+  title: string;
+  type: string;
+  version: number;
+}
+
+interface DocumentKaryawan {
+  id: string;
+  document: Document;
+}
+
 interface Karyawan {
   id: string;
   nik: string;
@@ -81,6 +94,7 @@ interface Karyawan {
   departemen?: string;
   statusKerja: string;
   teamKaryawan: TeamKaryawan[];
+  documents?: DocumentKaryawan[];
   email?: string;
   tanggalBergabung?: string;
   nomorTelepon?: string;
@@ -350,39 +364,45 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
               </div>
             </div>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
-                  <MoreVertical size={16} />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem asChild>
-                  <Link href={`/admin-area/karyawan/edit/${employee.id}`} className="flex items-center gap-2 cursor-pointer">
-                    <Edit2 size={16} className="text-blue-500" /> Edit
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => handleDeleteClick(employee, e)} className="text-red-600 cursor-pointer">
-                  <XCircle size={16} className="mr-2" /> Hapus
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="#" className="flex items-center gap-2 cursor-pointer">
-                    <FileDigit size={16} className="text-green-500" /> Detail
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => toggleRowExpansion(employee.id)} className="flex items-center gap-2 cursor-pointer">
-                  {isExpanded ? (
-                    <>
-                      <ChevronUp size={16} className="text-purple-500" /> Sembunyikan Detail
-                    </>
-                  ) : (
-                    <>
-                      <ChevronDown size={16} className="text-purple-500" /> Lihat Detail
-                    </>
-                  )}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="flex flex-col gap-2 min-w-[100px]">
+              <Button
+                variant="outline"
+                size="sm"
+                asChild
+                className="bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100 h-8 gap-1 px-3 text-xs font-bold transition-all"
+              >
+                <Link href={`/admin-area/karyawan/edit/${employee.id}`}>
+                  <Edit2 size={14} className="text-blue-500" /> Edit
+                </Link>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                asChild
+                className="bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100 h-8 gap-1 px-3 text-xs font-bold transition-all"
+              >
+                <Link href={`/admin-area/master/documents?department=${employee.departemen || ""}&employeeId=${employee.id}`}>
+                  <FileText size={14} className="text-orange-500" /> JobDesk
+                </Link>
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="h-8 w-8 p-0 self-end" onClick={(e) => e.stopPropagation()}>
+                    <MoreVertical size={16} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem asChild>
+                    <Link href="#" className="flex items-center gap-2 cursor-pointer">
+                      <FileDigit size={16} className="text-green-500" /> Detail
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={(e) => handleDeleteClick(employee, e)} className="text-red-600 cursor-pointer">
+                    <XCircle size={16} className="mr-2" /> Hapus
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
 
           <Button
@@ -806,216 +826,79 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                               : "-"}
                           </TableCell>
                           <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
-                                  <MoreVertical size={16} />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem asChild>
-                                  <Link href={`/admin-area/master/karyawan/update/${item.id}`} className="flex items-center gap-2 cursor-pointer">
-                                    <Edit2 size={16} className="text-blue-500" /> Edit
-                                  </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={(e) => handleDeleteClick(item, e)} className="text-red-600 cursor-pointer">
-                                  <XCircle size={16} className="mr-2" /> Hapus
-                                </DropdownMenuItem>
-                                <DropdownMenuItem asChild>
-                                  <Link href="#" className="flex items-center gap-2 cursor-pointer">
-                                    <FileDigit size={16} className="text-green-500" /> Detail
-                                  </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => toggleRowExpansion(item.id)} className="flex items-center gap-2 cursor-pointer">
-                                  {expandedRows.has(item.id) ? (
-                                    <>
-                                      <ChevronUp size={16} className="text-purple-500" /> Sembunyikan Detail
-                                    </>
-                                  ) : (
-                                    <>
-                                      <ChevronDown size={16} className="text-purple-500" /> Lihat Detail
-                                    </>
-                                  )}
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                            <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                asChild
+                                title="Edit Karyawan"
+                                className="bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100 h-8 gap-1 px-2 text-xs font-semibold transition-all"
+                              >
+                                <Link href={`/admin-area/master/karyawan/update/${item.id}`}>
+                                  <Edit2 size={14} className="text-blue-500" />
+                                  <span>Edit</span>
+                                </Link>
+                              </Button>
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                asChild
+                                title="Lihat Daftar Dokumen"
+                                className="bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100 h-8 gap-1 px-2 text-xs font-semibold transition-all"
+                              >
+                                <Link href={`/admin-area/master/documents?department=${item.departemen || ""}&employeeId=${item.id}&employeeName=${encodeURIComponent(item.namaLengkap)}`}>
+                                  <FileText size={14} className="text-orange-500" />
+                                  <span>Daftar</span>
+                                </Link>
+                              </Button>
+
+                              {(() => {
+                                // Find the first JOB_DESCRIPTION document
+                                const jobDescDoc = item.documents?.find((d: DocumentKaryawan) => d.document?.type === 'JOB_DESCRIPTION')?.document;
+                                if (jobDescDoc) {
+                                  return (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      asChild
+                                      title="Download Job Description PDF"
+                                      className="bg-green-50 text-green-600 border-green-200 hover:bg-green-100 h-8 gap-1 px-2 text-xs font-semibold transition-all"
+                                    >
+                                      <Link href={`/admin-area/master/documents/view/${jobDescDoc.id}?employeeId=${item.id}&employeeName=${encodeURIComponent(item.namaLengkap)}`}>
+                                        <FileDigit size={14} className="text-green-500" />
+                                        <span>Job Desc PDF </span>
+                                      </Link>
+                                    </Button>
+                                  );
+                                }
+                                return (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled
+                                    title="Belum ada Job Description"
+                                    className="bg-gray-50 text-gray-400 border-gray-200 h-8 gap-1 px-2 text-xs font-semibold opacity-50 cursor-not-allowed"
+                                  >
+                                    <FileDigit size={14} className="text-gray-400" />
+                                    <span>Download</span>
+                                  </Button>
+                                );
+                              })()}
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => handleDeleteClick(item, e)}
+                                title="Hapus Karyawan"
+                                className="bg-red-50 text-red-600 border-red-200 hover:bg-red-100 h-8 gap-1 px-2 text-xs font-semibold transition-all"
+                              >
+                                <XCircle size={14} className="text-red-500" />
+                                <span>Hapus</span>
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
-                        {expandedRows.has(item.id) && (
-                          <TableRow className="bg-blue-50 dark:bg-gray-900">
-                            <TableCell colSpan={8} className="p-0">
-                              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 p-6">
-                                {/* Profile Section with Larger Image */}
-                                <div className="lg:col-span-1 flex flex-col items-center">
-                                  <Avatar className="h-32 w-32 border-2 border-white shadow-lg mb-4">
-                                    <AvatarImage
-                                      src={makeImageSrc(item.foto)}
-                                      alt={item.namaLengkap}
-                                      crossOrigin="anonymous"
-                                      className="object-cover"
-                                    />
-                                    <AvatarFallback className="bg-blue-100 text-blue-800 text-2xl">
-                                      {getInitials(item.namaLengkap)}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <h3 className="font-bold text-xl text-center mb-1">{item.namaLengkap}</h3>
-                                  <p className="text-gray-600 text-center mb-3">{item.jabatan}</p>
-                                  {getStatusBadge(item.statusKerja)}
-                                </div>
-
-                                {/* Personal Information */}
-                                <div className="lg:col-span-1 space-y-4">
-                                  <h4 className="font-semibold text-lg flex items-center gap-2 text-blue-700 dark:text-blue-300">
-                                    <User size={20} className="text-blue-500" />
-                                    Informasi Pribadi
-                                  </h4>
-                                  <div className="space-y-3">
-                                    <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded-lg">
-                                      <span className="text-gray-500 flex items-center gap-2">
-                                        <Hash size={16} className="text-blue-500" />
-                                        NIK:
-                                      </span>
-                                      <span className="font-medium">{item.nik}</span>
-                                    </div>
-
-                                    {item.tanggalLahir && (
-                                      <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded-lg">
-                                        <span className="text-gray-500 flex items-center gap-2">
-                                          <Calendar size={16} className="text-blue-500" />
-                                          Tanggal Lahir:
-                                        </span>
-                                        <span className="font-medium">{formatDate(item.tanggalLahir)}</span>
-                                      </div>
-                                    )}
-
-                                    {item.jenisKelamin && (
-                                      <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded-lg">
-                                        <span className="text-gray-500 flex items-center gap-2">
-                                          <User size={16} className="text-blue-500" />
-                                          Jenis Kelamin:
-                                        </span>
-                                        <span className="font-medium">{item.jenisKelamin}</span>
-                                      </div>
-                                    )}
-
-                                    <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded-lg">
-                                      <span className="text-gray-500 flex items-center gap-2">
-                                        <Phone size={16} className="text-blue-500" />
-                                        Telepon:
-                                      </span>
-                                      <span className="font-medium">{item.nomorTelepon || "-"}</span>
-                                    </div>
-
-                                    <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded-lg">
-                                      <span className="text-gray-500 flex items-center gap-2">
-                                        <Mail size={16} className="text-blue-500" />
-                                        Email:
-                                      </span>
-                                      <span className="font-medium">{item.email || "-"}</span>
-                                    </div>
-
-                                    {item.alamat && (
-                                      <div className="p-3 bg-white dark:bg-gray-800 rounded-lg">
-                                        <div className="flex items-start gap-2 mb-1">
-                                          <MapPin size={16} className="text-blue-500 mt-0.5" />
-                                          <span className="text-gray-500">Alamat:</span>
-                                        </div>
-                                        <p className="font-medium mt-1">{item.alamat}</p>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-
-                                {/* Work Information */}
-                                <div className="lg:col-span-1 space-y-4">
-                                  <h4 className="font-semibold text-lg flex items-center gap-2 text-blue-700 dark:text-blue-300">
-                                    <Briefcase size={20} className="text-blue-500" />
-                                    Informasi Pekerjaan
-                                  </h4>
-                                  <div className="space-y-3">
-                                    <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded-lg">
-                                      <span className="text-gray-500 flex items-center gap-2">
-                                        <Briefcase size={16} className="text-blue-500" />
-                                        Jabatan:
-                                      </span>
-                                      <span className="font-medium">{item.jabatan}</span>
-                                    </div>
-
-                                    <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded-lg">
-                                      <span className="text-gray-500 flex items-center gap-2">
-                                        <Building size={16} className="text-blue-500" />
-                                        Departemen:
-                                      </span>
-                                      <span className="font-medium">{item.departemen || "-"}</span>
-                                    </div>
-
-                                    <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded-lg">
-                                      <span className="text-gray-500 flex items-center gap-2">
-                                        <Calendar size={16} className="text-blue-500" />
-                                        Bergabung:
-                                      </span>
-                                      <span className="font-medium">{formatDate(item.tanggalBergabung) || "-"}</span>
-                                    </div>
-
-                                    <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded-lg">
-                                      <span className="text-gray-500 flex items-center gap-2">
-                                        <CheckCircle size={16} className="text-blue-500" />
-                                        Status:
-                                      </span>
-                                      {getStatusBadge(item.statusKerja)}
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Team Information */}
-                                <div className="lg:col-span-1 space-y-4">
-                                  <h4 className="font-semibold text-lg flex items-center gap-2 text-blue-700 dark:text-blue-300">
-                                    <Users size={20} className="text-blue-500" />
-                                    Team
-                                  </h4>
-                                  <div className="p-3 bg-white dark:bg-gray-800 rounded-lg">
-                                    {item.teamKaryawan.length > 0 ? (
-                                      <div className="flex flex-wrap gap-2">
-                                        {item.teamKaryawan.map((tk, index) => (
-                                          <Badge key={index} className="bg-blue-100 text-blue-800 hover:bg-blue-200 border-blue-200">
-                                            {tk.team.namaTeam}
-                                          </Badge>
-                                        ))}
-                                      </div>
-                                    ) : (
-                                      <p className="text-gray-500 text-center py-2">Tidak ada team</p>
-                                    )}
-                                  </div>
-
-                                  {/* Action Buttons */}
-                                  <div className="flex flex-col gap-2 mt-6">
-                                    <Button
-                                      asChild
-                                      className="w-full bg-blue-600 hover:bg-blue-700"
-                                    >
-                                      <Link
-                                        href={`/admin-area/master/karyawan/update/${item.id}`}
-                                        className="flex items-center justify-center gap-2"
-                                      >
-                                        <Edit2 size={16} /> Edit Profil
-                                      </Link>
-                                    </Button>
-
-                                    <Button asChild variant="outline" className="w-full">
-                                      <Link
-                                        href="#"
-                                        className="flex items-center justify-center gap-2"
-                                      >
-                                        <FileDigit size={16} /> Lihat Detail Lengkap
-                                      </Link>
-                                    </Button>
-                                  </div>
-
-                                </div>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        )}
                       </React.Fragment>
                     ))
                     : (

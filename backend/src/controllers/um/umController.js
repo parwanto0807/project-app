@@ -1,7 +1,7 @@
-// import { PrismaClient } from "../../../prisma/generated/prisma/index.js";
+// import { PrismaClient } from "@prisma/client";
 import { prisma } from "../../config/db.js";
 import { generateUangMukaNumber } from "../../utils/umGenerateNumber.js";
-import { UangMukaStatus } from "../../../prisma/generated/prisma/client.js";
+import { UangMukaStatus } from "@prisma/client";
 import { createLedgerEntry } from "../../utils/journalHelper.js";
 import {
   createUangMukaValidation,

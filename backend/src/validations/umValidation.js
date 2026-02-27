@@ -3,7 +3,7 @@ import { z } from "zod";
 import {
   UangMukaStatus,
   MetodePembayaran,
-} from "../../prisma/generated/prisma/client.js";
+} from "@prisma/client";
 
 // Helper untuk validasi UUID
 const uuidSchema = z.string().uuid();

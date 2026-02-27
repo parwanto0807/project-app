@@ -1,5 +1,5 @@
 // /backend/controllers/spkReportController.js
-// import { PrismaClient } from "../../../prisma/generated/prisma/index.js";
+// import { PrismaClient } from "@prisma/client";
 import { prisma } from "../../config/db.js";
 import fs from "fs";
 import path from "path";
