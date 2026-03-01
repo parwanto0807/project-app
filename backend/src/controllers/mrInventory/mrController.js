@@ -86,8 +86,13 @@ export const mrController = {
         }
 
         // Get current month period for StockBalance
+        // IMPORTANT: StockBalance.period is stored as UTC midnight anchored to Jakarta date
+        // (e.g., Mar 1 WIB = 2026-03-01T00:00:00.000Z), matching closingService.js logic.
+        // Using local new Date(year, month, 1) on a WIB server produces 2026-02-28T17:00:00Z
+        // which doesn't match → must offset by +7h first.
         const now = new Date();
-        const period = new Date(now.getFullYear(), now.getMonth(), 1);
+        const jakartaNow = new Date(now.getTime() + (7 * 60 * 60 * 1000)); // shift to WIB
+        const period = new Date(Date.UTC(jakartaNow.getUTCFullYear(), jakartaNow.getUTCMonth(), 1));
 
         // 2. Loop setiap item untuk eksekusi FIFO
         for (const item of mr.items) {

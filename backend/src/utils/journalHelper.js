@@ -40,13 +40,17 @@ export async function getSystemAccount(key, tx) {
  */
 async function getOrCreateAccountingPeriod(date, tx) {
   const prismaClient = tx || prisma;
-  
-  const year = date.getFullYear();
-  const month = date.getMonth() + 1; // 1-12
-  const periodCode = `${String(month).padStart(2, '0')}-${year}`; // Changed to MM-YYYY to match user data
-  
-  const startDate = new Date(year, month - 1, 1); // First day of month
-  const endDate = new Date(year, month, 0); // Last day of month
+
+  // Use Jakarta time (UTC+7) to determine the correct month,
+  // consistent with how closingService anchors period dates.
+  const jakartaDate = new Date(date.getTime() + (7 * 60 * 60 * 1000));
+  const year = jakartaDate.getUTCFullYear();
+  const month = jakartaDate.getUTCMonth() + 1; // 1-12
+  const periodCode = `${String(month).padStart(2, '0')}-${year}`; // MM-YYYY
+
+  // Store start/end as UTC midnight (consistent with closingService)
+  const startDate = new Date(Date.UTC(year, month - 1, 1));
+  const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
 
   const monthNames = [
     "Januari", "Februari", "Maret", "April", "Mei", "Juni",
@@ -55,9 +59,18 @@ async function getOrCreateAccountingPeriod(date, tx) {
   const periodName = `${monthNames[month - 1]} ${year}`;
   const quarter = Math.ceil(month / 3);
 
+  // Try by periodCode first, then fallback to fiscalYear+periodMonth
+  // (period may already exist with a different code format e.g. '012026' vs '03-2026')
   let period = await prismaClient.accountingPeriod.findUnique({
     where: { periodCode }
   });
+
+  if (!period) {
+    // Fallback: find by fiscalYear + periodMonth composite
+    period = await prismaClient.accountingPeriod.findFirst({
+      where: { fiscalYear: year, periodMonth: month }
+    });
+  }
 
   if (!period) {
     period = await prismaClient.accountingPeriod.create({
@@ -67,7 +80,8 @@ async function getOrCreateAccountingPeriod(date, tx) {
         startDate,
         endDate,
         fiscalYear: year,
-        quarter: quarter,
+        periodMonth: month,
+        quarter,
         isClosed: false
       }
     });

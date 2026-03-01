@@ -2237,7 +2237,10 @@ export const approveGR = async (req, res) => {
     // Approve and update stock in transaction
     const result = await prisma.$transaction(async (tx) => {
       const now = new Date();
-      const currentPeriod = new Date(now.getFullYear(), now.getMonth(), 1);
+      // Use Jakarta time (UTC+7) to get correct month period
+      // StockBalance.period is stored as UTC midnight anchored to Jakarta date
+      const jakartaNow = new Date(now.getTime() + (7 * 60 * 60 * 1000));
+      const currentPeriod = new Date(Date.UTC(jakartaNow.getUTCFullYear(), jakartaNow.getUTCMonth(), 1));
 
 
       let totalInventoryValue = 0;
@@ -2438,15 +2441,9 @@ export const approveGR = async (req, res) => {
       // ========================================
       if (totalInventoryValue > 0) {
         if (existingGR.sourceType === 'TRANSFER') {
-          // Use the dedicated service for stock transfer journaling
-          const journalResult = await TransferJournalService.createMutationJournal(id, tx);
-          if (!journalResult.success) {
-            console.error(`⚠️ Transfer Journal failed for GR ${existingGR.grNumber}: ${journalResult.error}`);
-            // We don't throw here to avoid rolling back the stock update, 
-            // but we log it via the service's internal audit trail.
-          } else {
-            console.log(`✅ Transfer Mutation Ledger created for GR ${existingGR.grNumber}`);
-          }
+          // Transfer journal is created AFTER this transaction commits (see below)
+          // to avoid P2028 transaction timeout from long-running journal operations.
+          console.log(`📝 Transfer journal for GR ${existingGR.grNumber} will be created after tx commit.`);
         } else {
           // Original logic for PO-based Goods Receipt
           const period = await getActivePeriod(now, tx);
@@ -2671,6 +2668,17 @@ export const approveGR = async (req, res) => {
 
       return { updatedGR, autoCreatedGR };
     });
+
+    // ✅ Create Transfer Journal AFTER main transaction commits
+    // (avoids P2028 timeout from long-running journal ops inside tx)
+    if (existingGR.sourceType === 'TRANSFER') {
+      const journalResult = await TransferJournalService.createMutationJournal(id);
+      if (!journalResult.success) {
+        console.error(`⚠️ Transfer Journal failed for GR ${existingGR.grNumber}: ${journalResult.error}`);
+      } else {
+        console.log(`✅ Transfer Mutation Ledger created for GR ${existingGR.grNumber}`);
+      }
+    }
 
     res.status(200).json({
       success: true,

@@ -1,0 +1,12 @@
+﻿1-10202 | Persediaan - Gudang Pusat | O=0 | D=0 | K=510.000 | CL=-510.000
+1-10204 | Persediaan - Gudang Caban | O=0 | D=51.000.000 | K=0 | CL=51.000.000
+1-10205 | Persediaan On WIP | O=0 | D=510.000 | K=0 | CL=510.000
+1-10205 | Persediaan On WIP | O=0 | D=1.967.000 | K=0 | CL=1.967.000
+1-10302 | Uang Muka Kerja (Staff) | O=0 | D=0 | K=135.000 | CL=-135.000
+1-10302 | Uang Muka Kerja (Staff) | O=0 | D=0 | K=2.919.000 | CL=-2.919.000
+2-10102 | Penerimaan Barang Belum D | O=0 | D=2.919.000 | K=0 | CL=2.919.000
+5-10102 | Beban Mobilisasi | O=0 | D=135.000 | K=0 | CL=135.000
+5-30001 | Selisih Penyesuaian Stok | O=0 | D=0 | K=105.934.000 | CL=-105.934.000
+
+GRAND TOTAL: O=0 D=56.531.000 K=109.498.000
+IsBalanced (D==K)? NO (diff=-52.967.000)

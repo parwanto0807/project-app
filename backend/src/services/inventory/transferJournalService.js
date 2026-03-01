@@ -151,42 +151,50 @@ class TransferJournalService {
         ]
       });
 
-      // 6. Audit Trail
-      await prismaClient.auditLog.create({
-        data: {
-          model: 'Ledger',
-          action: 'CREATE',
-          userId: gr.receivedById,
-          data: JSON.stringify({
-            message: 'Stock Mutation Journal Created',
-            grNumber: gr.grNumber,
-            transferNumber: transferNumber,
-            totalValue: totalValue,
-            ledgerId: ledger.id
-          }),
-          after: { ledgerId: ledger.id, totalValue }
-        }
-      });
+      // 6. Audit Trail — use global prisma (NOT tx) to avoid P2028 when tx expires
+      try {
+        await prisma.auditLog.create({
+          data: {
+            model: 'Ledger',
+            action: 'CREATE',
+            userId: gr.receivedById,
+            data: JSON.stringify({
+              message: 'Stock Mutation Journal Created',
+              grNumber: gr.grNumber,
+              transferNumber: transferNumber,
+              totalValue: totalValue,
+              ledgerId: ledger.id
+            }),
+            after: { ledgerId: ledger.id, totalValue }
+          }
+        });
+      } catch (auditErr) {
+        console.warn(`[TransferJournalService] AuditLog skipped: ${auditErr.message}`);
+      }
 
       return { success: true, ledger };
 
     } catch (error) {
       console.error(`[TransferJournalService] Error creating mutation journal:`, error);
       
-      // Log error to AuditLog for traceability
-      await prismaClient.auditLog.create({
-        data: {
-          model: 'StockTransfer',
-          action: 'JOURNAL_ERROR',
-          userId: 'SYSTEM',
-          data: JSON.stringify({
-            grId: grId,
-            error: error.message,
-            stack: error.stack
-          }),
-          timestamp: new Date()
-        }
-      }).catch(err => console.error('Failed to log archival error:', err));
+      // Log error to AuditLog — use global prisma (NOT tx) to avoid P2028
+      try {
+        await prisma.auditLog.create({
+          data: {
+            model: 'StockTransfer',
+            action: 'JOURNAL_ERROR',
+            userId: gr?.receivedById,
+            data: JSON.stringify({
+              grId: grId,
+              error: error.message,
+              stack: error.stack
+            }),
+            timestamp: new Date()
+          }
+        });
+      } catch (auditErr) {
+        console.warn(`[TransferJournalService] AuditLog error skipped: ${auditErr.message}`);
+      }
 
       return { success: false, error: error.message };
     }

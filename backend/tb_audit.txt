@@ -1,0 +1,11 @@
+﻿Period: MAR-2026 (8a6129d9-d6cc-41c3-8295-25512b9a9856)
+
+=== TRIAL BALANCE vs ACTUAL LEDGERLINES ===
+
+Γ£à Semua TrialBalance cocok dengan LedgerLine actuals!
+
+
+=== TRIAL BALANCE GRAND TOTAL ===
+Total Debit  : 56.531.000
+Total Credit : 56.531.000
+Selisih      : 0

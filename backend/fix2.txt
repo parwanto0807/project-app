@@ -1,0 +1,8 @@
+﻿Fixing GLS for 5-30001 - Selisih Penyesuaian Stok | Period: MAR-2026
+
+Deleted 1 old GLS records for 5-30001 MAR-2026
+Created GLS: 2026-03-01 | D=0 | K=52.967.000 | CL=-52.967.000
+
+=== FINAL VERIFICATION ===
+Grand Total GLS MAR-2026: D=56.531.000 K=56.531.000
+Γ£à BALANCED!

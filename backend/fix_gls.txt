@@ -1,0 +1,20 @@
+﻿COA: 5-30001 - Selisih Penyesuaian Stok
+Period: MAR-2026
+
+LedgerLine actuals untuk 5-30001:
+  Debit : 0
+  Kredit: 52.967.000
+
+GeneralLedgerSummary records (current):
+  Date: 2026-02-28 | O=0 | D=0 | K=105,934,000 | CL=-105,934,000
+
+Actual per tanggal dari LedgerLine:
+  2026-03-01: D=0 K=52,967,000
+
+Memperbaiki GLS records...
+  Γ£à 2026-02-28: D=0 K=0 CL=0
+
+Γ£à GLS diperbaiki! Verifikasi ulang...
+
+Grand Total GLS MAR-2026: D=56.531.000 K=3.564.000
+Γ¥î MASIH IMBALANCE: 52.967.000
