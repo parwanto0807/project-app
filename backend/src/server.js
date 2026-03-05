@@ -3,6 +3,7 @@ import { connectDB } from "./config/db.js";
 import app from "./app.js";
 import http from "http";
 import { prisma } from "../src/config/db.js";
+import { PORT as ENV_PORT, allowedOrigins } from "./config/env.js";
 // import sessionCleanupJob from './config/sessionCleanUp.js';
 
 // Helper function untuk parse cookies
@@ -26,7 +27,7 @@ const server = http.createServer(app);
 
 // Konfigurasi environment
 const isProduction = process.env.NODE_ENV === "production";
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || ENV_PORT;
 
 // Domain configuration
 const APP_DOMAIN = "rylif-app.com";
@@ -40,24 +41,6 @@ const API_URL = isProduction
 console.log(`🌍 Environment: ${isProduction ? "Production" : "Development"}`);
 console.log(`🌐 App URL: ${APP_URL}`);
 console.log(`🔗 API URL: ${API_URL}`);
-
-// Allowed origins untuk production
-const allowedOrigins = isProduction
-  ? [
-      `https://${APP_DOMAIN}`,
-      `https://www.${APP_DOMAIN}`,
-      `https://app.${APP_DOMAIN}`,
-      `https://admin.${APP_DOMAIN}`,
-      "https://rylif-app.com",
-      "https://www.rylif-app.com",
-      "https://app.rylif-app.com",
-      "https://admin.rylif-app.com",
-      "http://localhost:3000", // Untuk development
-    ]
-  : ["http://localhost:3000", "http://localhost:5173"];
-
-// Setup jobs
-// const cleanupJob = sessionCleanupJob();
 
 console.log("ℹ️  Real-time features are currently unavailable");
 console.log("📡 REST API is fully operational");

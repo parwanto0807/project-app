@@ -45,7 +45,7 @@ const nextConfig: NextConfig = {
     // 3. String CSP Bersih (Tanpa komentar di dalam string)
     const cspHeader = `
       default-src 'self';
-      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://www.gstatic.com;
+      script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://www.gstatic.com https://static.cloudflareinsights.com;
       style-src 'self' 'unsafe-inline';
       font-src 'self' data: https:;
       object-src 'self' blob: data:;

@@ -9,7 +9,13 @@ const required = (key) => {
 };
 
 const devOrigins = ["http://localhost:3000"];
-const prodOrigins = ["https://rylif-app.com", "https://www.rylif-app.com"];
+const prodOrigins = [
+  "https://rylif-app.com",
+  "https://www.rylif-app.com",
+  "https://app.rylif-app.com",
+  "https://admin.rylif-app.com",
+  "https://api.rylif-app.com",
+];
 
 export const NODE_ENV = clean(process.env.NODE_ENV) || "development";
 export const PORT = clean(process.env.PORT) || 5000;

@@ -38,7 +38,7 @@ const styles = StyleSheet.create({
     invoiceTitle: {
         fontSize: 20,
         fontWeight: 'bold',
-        color: '#008000',
+        color: '#000000',
         textAlign: 'center',
         marginBottom: 20,
     },
@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 10,
         fontWeight: 'bold',
-        color: '#008000',
+        color: '#000000',
         marginBottom: 2,
         // backgroundColor: '#f5f5f5',
         padding: 0,
@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
     terbilangLabel: {
         fontWeight: 'bold',
         marginBottom: 4,
-        color: '#008000',
+        color: '#000000',
     },
     terbilangText: {
         fontStyle: 'italic',
@@ -141,8 +141,8 @@ const styles = StyleSheet.create({
     grandTotal: {
         fontSize: 14,
         fontWeight: 'bold',
-        color: '#008000',
-        borderTop: '1pt solid #008000',
+        color: '#000000',
+        borderTop: '1pt solid #000000',
         paddingTop: 5,
     },
     notesSection: {
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
         left: '70%',
         transform: 'translate(-50%, -50%) rotate(-35deg)',
         fontSize: 60,
-        color: 'rgba(0, 128, 0, 0.2)',
+        color: 'rgba(0, 0, 0, 0.1)',
         fontWeight: 'bold',
         zIndex: 9999,
         pointerEvents: 'none', // Agar tidak mengganggu interaksi
@@ -294,7 +294,7 @@ const InvoicePdfDocument = ({ invoice }: { invoice: Invoice }) => {
                 <View style={styles.headerContainer}>
                     <PdfImage style={styles.logo} src={logoPath} />
                     <View style={styles.companyInfo}>
-                        <Text style={{ color: '#008000', fontWeight: 'bold', fontSize: 12, marginBottom: 5 }}>
+                        <Text style={{ color: '#000000', fontWeight: 'bold', fontSize: 12, marginBottom: 5 }}>
                             PT. RYLIF MIKRO MANDIRI
                         </Text>
                         <Text>Jln. Arjuna RT. 04/RW. 36, Kampung Pulo Resident 1 No. 6</Text>
