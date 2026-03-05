@@ -66,6 +66,7 @@ import { QRScannerDialog } from "./QRScannerDialog"
 import { MRIssueConfirmDialog } from "./MRIssueConfirmDialog"
 import { issueMR, validateMRForApproval, postMRJournal } from "@/lib/action/inventory/mrInventroyAction"
 import { toast } from "sonner"
+import { cn } from "@/lib/utils"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -76,6 +77,12 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+    TooltipProvider,
+} from "@/components/ui/tooltip"
 
 // Types
 interface MaterialRequisition {
@@ -125,6 +132,32 @@ interface TableMRProps {
     isLoading: boolean
     onRefresh: () => void
 }
+
+const TableButtonWithTooltip: React.FC<{
+    onClick: () => void;
+    icon: React.ElementType;
+    title: string;
+    className?: string;
+    variant?: "default" | "outline" | "ghost" | "secondary" | "destructive" | "link";
+    disabled?: boolean;
+}> = ({ onClick, icon: Icon, title, className, variant = "outline", disabled }) => (
+    <Tooltip>
+        <TooltipTrigger asChild>
+            <Button
+                size="icon"
+                variant={variant}
+                onClick={onClick}
+                className={cn("h-10 w-10 rounded-xl shadow-sm transition-all duration-200 active:scale-95", className)}
+                disabled={disabled}
+            >
+                <Icon className="h-5 w-5" />
+            </Button>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="font-semibold">
+            <p>{title}</p>
+        </TooltipContent>
+    </Tooltip>
+);
 
 const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
     const [search, setSearch] = React.useState("")
@@ -282,8 +315,15 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
     }
 
     const handleScanQRCode = () => {
-        // Implement QR code scanning logic
-        console.log("Scan QR Code untuk:", selectedMR?.mrNumber)
+        if (!selectedMR) return;
+
+        // Close detail sheet first
+        setShowDetailSheet(false);
+
+        // Brief delay before opening scanner to prevent Radix UI collision
+        setTimeout(() => {
+            setShowQRScanner(true);
+        }, 300);
     }
 
     const SkeletonRow = () => (
@@ -392,63 +432,60 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                        {mr.status === "PENDING" && (
-                            <Button
-                                size="sm"
-                                variant="default"
-                                onClick={() => handleApprove(mr)}
-                                className="flex-1 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white font-semibold"
-                            >
-                                <CheckCheck className="h-4 w-4 mr-2" />
-                                Approve
-                            </Button>
-                        )}
+                    <TooltipProvider>
+                        <div className="flex gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                            {mr.status === "PENDING" && (
+                                <TableButtonWithTooltip
+                                    title="Approve Requisition"
+                                    icon={CheckCheck}
+                                    onClick={() => handleApprove(mr)}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 font-semibold"
+                                    variant="default"
+                                />
+                            )}
 
-                        {/* Posting button removed from mobile view - now automated */}
-                        <Sheet open={showDetailSheet && selectedMR?.id === mr.id} onOpenChange={setShowDetailSheet}>
-                            <SheetTrigger asChild>
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleViewDetails(mr)}
-                                    className="flex-1 border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700 font-semibold"
-                                >
-                                    <Eye className="h-4 w-4 mr-2" />
-                                    Detail
-                                </Button>
-                            </SheetTrigger>
-                            <MRDetailSheet
-                                mr={selectedMR}
-                                qrCodeUrl={qrCodeUrl}
-                                onScanQRCode={handleScanQRCode}
+                            <Sheet open={showDetailSheet && selectedMR?.id === mr.id} onOpenChange={setShowDetailSheet}>
+                                <SheetTrigger asChild>
+                                    <TableButtonWithTooltip
+                                        title="Lihat Detail"
+                                        icon={Eye}
+                                        onClick={() => handleViewDetails(mr)}
+                                        className="border-blue-200 text-blue-600 hover:bg-blue-50"
+                                    />
+                                </SheetTrigger>
+                                <MRDetailSheet
+                                    mr={selectedMR}
+                                    qrCodeUrl={qrCodeUrl}
+                                    onScanQRCode={handleScanQRCode}
+                                />
+                            </Sheet>
+
+                            <TableButtonWithTooltip
+                                title="Download PDF"
+                                icon={Download}
+                                onClick={() => { }}
+                                className="border-purple-100 text-purple-600 hover:bg-purple-50"
                             />
-                        </Sheet>
 
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline" size="sm" className="border-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700">
-                                    <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleViewDetails(mr)}>
-                                    <Eye className="h-4 w-4 mr-2" />
-                                    View Details
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                    <Download className="h-4 w-4 mr-2" />
-                                    Download PDF
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                    <Printer className="h-4 w-4 mr-2" />
-                                    Print
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </div>
+                            <TableButtonWithTooltip
+                                title="Print Requisition"
+                                icon={Printer}
+                                onClick={() => { }}
+                                className="border-amber-100 text-amber-600 hover:bg-amber-50"
+                            />
+
+                            {mr.status === "PENDING" && (
+                                <TableButtonWithTooltip
+                                    title="Reject Requisition"
+                                    icon={AlertTriangle}
+                                    onClick={() => { }}
+                                    className="border-red-100 text-red-500 hover:bg-red-50"
+                                />
+                            )}
+                        </div>
+                    </TooltipProvider>
                 </CardContent>
-            </Card >
+            </Card>
         )
     }
 
@@ -984,71 +1021,58 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
 
                                                     {columnVisibility.actions && (
                                                         <TableCell className="py-5 px-6">
-                                                            <div className="flex justify-end gap-2">
-                                                                {mr.status === "PENDING" && (
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="default"
-                                                                        onClick={() => handleApprove(mr)}
-                                                                        className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white font-semibold shadow-md"
-                                                                    >
-                                                                        <CheckCheck className="h-4 w-4 mr-2" />
-                                                                        Approve
-                                                                    </Button>
-                                                                )}
+                                                            <TooltipProvider>
+                                                                <div className="flex justify-end gap-2">
+                                                                    {mr.status === "PENDING" && (
+                                                                        <TableButtonWithTooltip
+                                                                            title="Approve Requisition"
+                                                                            icon={CheckCheck}
+                                                                            onClick={() => handleApprove(mr)}
+                                                                            className="bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 font-semibold"
+                                                                            variant="default"
+                                                                        />
+                                                                    )}
 
-                                                                <Sheet open={showDetailSheet && selectedMR?.id === mr.id} onOpenChange={setShowDetailSheet}>
-                                                                    <SheetTrigger asChild>
-                                                                        <Button
-                                                                            size="sm"
-                                                                            variant="outline"
-                                                                            onClick={() => handleViewDetails(mr)}
-                                                                            className="border-slate-300 font-semibold hover:bg-slate-50"
-                                                                        >
-                                                                            <Eye className="h-4 w-4 mr-2" />
-                                                                            Detail
-                                                                        </Button>
-                                                                    </SheetTrigger>
-                                                                    <MRDetailSheet
-                                                                        mr={selectedMR}
-                                                                        qrCodeUrl={qrCodeUrl}
-                                                                        onScanQRCode={handleScanQRCode}
+                                                                    <Sheet open={showDetailSheet && selectedMR?.id === mr.id} onOpenChange={setShowDetailSheet}>
+                                                                        <SheetTrigger asChild>
+                                                                            <TableButtonWithTooltip
+                                                                                title="Lihat Detail"
+                                                                                icon={Eye}
+                                                                                onClick={() => handleViewDetails(mr)}
+                                                                                className="border-blue-200 text-blue-600 hover:bg-blue-50"
+                                                                            />
+                                                                        </SheetTrigger>
+                                                                        <MRDetailSheet
+                                                                            mr={selectedMR}
+                                                                            qrCodeUrl={qrCodeUrl}
+                                                                            onScanQRCode={handleScanQRCode}
+                                                                        />
+                                                                    </Sheet>
+
+                                                                    <TableButtonWithTooltip
+                                                                        title="Download PDF"
+                                                                        icon={Download}
+                                                                        onClick={() => { }}
+                                                                        className="border-purple-100 text-purple-600 hover:bg-purple-50"
                                                                     />
-                                                                </Sheet>
 
-                                                                <DropdownMenu>
-                                                                    <DropdownMenuTrigger asChild>
-                                                                        <Button
-                                                                            variant="outline"
-                                                                            size="sm"
-                                                                            className="border-slate-300"
-                                                                        >
-                                                                            <MoreHorizontal className="h-4 w-4" />
-                                                                        </Button>
-                                                                    </DropdownMenuTrigger>
-                                                                    <DropdownMenuContent align="end" className="w-48">
-                                                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                                        <DropdownMenuSeparator />
-                                                                        <DropdownMenuItem onClick={() => handleViewDetails(mr)}>
-                                                                            <Eye className="h-4 w-4 mr-2" />
-                                                                            View Details
-                                                                        </DropdownMenuItem>
-                                                                        <DropdownMenuItem>
-                                                                            <Download className="h-4 w-4 mr-2" />
-                                                                            Download PDF
-                                                                        </DropdownMenuItem>
-                                                                        <DropdownMenuItem>
-                                                                            <Printer className="h-4 w-4 mr-2" />
-                                                                            Print
-                                                                        </DropdownMenuItem>
-                                                                        <DropdownMenuSeparator />
-                                                                        <DropdownMenuItem className="text-red-600">
-                                                                            <AlertTriangle className="h-4 w-4 mr-2" />
-                                                                            Reject
-                                                                        </DropdownMenuItem>
-                                                                    </DropdownMenuContent>
-                                                                </DropdownMenu>
-                                                            </div>
+                                                                    <TableButtonWithTooltip
+                                                                        title="Print Requisition"
+                                                                        icon={Printer}
+                                                                        onClick={() => { }}
+                                                                        className="border-amber-100 text-amber-600 hover:bg-amber-50"
+                                                                    />
+
+                                                                    {mr.status === "PENDING" && (
+                                                                        <TableButtonWithTooltip
+                                                                            title="Reject Requisition"
+                                                                            icon={AlertTriangle}
+                                                                            onClick={() => { }}
+                                                                            className="border-red-100 text-red-500 hover:bg-red-50"
+                                                                        />
+                                                                    )}
+                                                                </div>
+                                                            </TooltipProvider>
                                                         </TableCell>
                                                     )}
                                                 </TableRow>
@@ -1072,27 +1096,25 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                 description="Scan QR Code pada Material Requisition untuk memverifikasi dan menyetujui permintaan"
                 onScanSuccess={async (scannedToken) => {
                     console.log("🔍 QR Scanned successfully:", scannedToken)
-                    console.log("🔍 Selected MR:", selectedMR?.id)
-                    console.log("🔍 Selected MR Warehouse:", selectedMR?.Warehouse)
 
-                    // Close QR scanner and show confirmation dialog
+                    // Close QR scanner first
                     console.log("🔍 Closing QR Scanner...")
                     setShowQRScanner(false)
 
-                    if (selectedMR) {
-                        console.log("🔍 Setting pending issue data...")
-                        setPendingIssueData({
-                            scannedToken,
-                            mr: selectedMR
-                        })
-
-                        console.log("🔍 Opening confirmation dialog...")
-                        setShowConfirmDialog(true)
-
-                        console.log("✅ Confirmation dialog should now be visible")
-                    } else {
-                        console.error("❌ No selected MR found!")
-                    }
+                    // Small delay before showing next dialog to prevent UI freeze
+                    setTimeout(() => {
+                        if (selectedMR) {
+                            console.log("🔍 Setting pending issue data and opening confirmation dialog...")
+                            setPendingIssueData({
+                                scannedToken,
+                                mr: selectedMR
+                            })
+                            setShowConfirmDialog(true)
+                        } else {
+                            console.error("❌ No selected MR found!")
+                            toast.error("Data MR tidak ditemukan")
+                        }
+                    }, 300)
                 }}
             />
 
@@ -1156,14 +1178,15 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                         console.log("API Response:", result);
 
                         if (result.success) {
+                            // Close dialog first
+                            setShowConfirmDialog(false);
+
                             // Auto-post journal for WIP warehouse
                             if (pendingIssueData.mr.Warehouse?.isWip) {
                                 console.log("📝 Auto-posting journal for WIP warehouse...");
                                 try {
                                     const postResult = await postMRJournal(pendingIssueData.mr.id);
-                                    if (postResult.success) {
-                                        console.log("✅ Auto-posting success:", postResult.message);
-                                    } else {
+                                    if (!postResult.success) {
                                         console.error("❌ Auto-posting failed:", postResult.error);
                                         toast.error("Material berhasil dikeluarkan, namun gagal posting jurnal", {
                                             description: postResult.error
@@ -1171,7 +1194,6 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                                     }
                                 } catch (postError: any) {
                                     console.error("❌ Auto-posting error:", postError);
-                                    toast.error("Terjadi kesalahan saat posting jurnal otomatis");
                                 }
                             }
 
@@ -1181,8 +1203,7 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                                     : "Stok telah diperbarui dan MR telah diproses."
                             });
 
-                            // Close dialog and refresh data
-                            setShowConfirmDialog(false);
+                            // Clear data and refresh
                             setPendingIssueData(null);
                             onRefresh();
                         } else {

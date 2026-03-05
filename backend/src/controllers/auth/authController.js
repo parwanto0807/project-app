@@ -1115,14 +1115,7 @@ export const adminLogin = async (req, res) => {
     // ✅ STANDARDIZED: GUNAKAN setTokenCookies UNTUK KONSISTENSI
     setTokenCookies(res, accessToken, refreshToken);
 
-    res.header("Access-Control-Allow-Credentials", "true");
-    const allowedOrigin =
-      process.env.NODE_ENV === "production"
-        ? "https://rylif-app.com"
-        : "http://localhost:3000";
-
-    res.header("Access-Control-Allow-Origin", allowedOrigin);
-    res.header("Access-Control-Allow-Credentials", "true");
+    // CORS headers ditangani oleh global middleware di app.js
 
     return res.json({
       success: true,

@@ -89,24 +89,32 @@ app.use(
 // CORS Configuration
 
 app.use(
-  cors({
-    origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-      "x-device-id",
-      "cache-control",
-      "X-Requested-With",
-    ],
-    exposedHeaders: ["set-cookie"],
+  cors((req, callback) => {
+    const origin = req.header("Origin");
+    const isAllowed = !origin || allowedOrigins.includes(origin);
+
+    if (!isAllowed) {
+      console.error(
+        `[CORS REJECTED] Method: ${req.method}, Origin: ${origin}, Allowed: ${JSON.stringify(
+          allowedOrigins
+        )}`
+      );
+    }
+
+    callback(null, {
+      origin: isAllowed,
+      credentials: true,
+      optionsSuccessStatus: 200,
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      allowedHeaders: [
+        "Content-Type",
+        "Authorization",
+        "x-device-id",
+        "cache-control",
+        "X-Requested-With",
+      ],
+      exposedHeaders: ["set-cookie"],
+    });
   })
 );
 

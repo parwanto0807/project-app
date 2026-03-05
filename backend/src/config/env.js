@@ -41,8 +41,7 @@ if (NODE_ENV !== "production") {
     );
   }
 }
-export const allowedOrigins =
-  process.env.NODE_ENV === "production" ? prodOrigins : devOrigins;
+export const allowedOrigins = NODE_ENV === "production" ? prodOrigins : devOrigins;
 
   console.log(NODE_ENV);
   console.log(allowedOrigins);

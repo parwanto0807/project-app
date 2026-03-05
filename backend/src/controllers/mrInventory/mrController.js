@@ -124,43 +124,6 @@ export const mrController = {
             );
           }
 
-          // Log query parameters for debugging
-          console.log(`🔍 Searching for FIFO batches with:`, {
-            productId: item.productId,
-            warehouseId: mr.warehouseId,
-            type: 'IN',
-            residualQty_gt: 0,
-            isFullyConsumed: false
-          });
-
-          // First, check ALL StockDetail records for this product (for debugging)
-          const allBatches = await tx.stockDetail.findMany({
-            where: {
-              productId: item.productId,
-              warehouseId: mr.warehouseId
-            },
-            select: {
-              id: true,
-              type: true,
-              residualQty: true,
-              isFullyConsumed: true,
-              transQty: true,
-              createdAt: true
-            },
-            orderBy: { createdAt: 'asc' }
-          });
-
-          console.log(`📋 ALL StockDetail records for this product:`, 
-            allBatches.map(b => ({
-              id: b.id.substring(0, 8),
-              type: b.type,
-              residualQty: b.residualQty,
-              isFullyConsumed: b.isFullyConsumed,
-              transQty: b.transQty,
-              createdAt: b.createdAt
-            }))
-          );
-
           // Now get only valid FIFO batches
           const batches = await tx.stockDetail.findMany({
             where: {
@@ -172,20 +135,7 @@ export const mrController = {
             },
             orderBy: { createdAt: 'asc' }
           });
-
-          // Log available batches for debugging
-          console.log(`📦 Product ${item.productId} - Available FIFO Batches:`, 
-            batches.map(b => ({
-              id: b.id.substring(0, 8),
-              residualQty: b.residualQty,
-              pricePerUnit: b.pricePerUnit,
-              createdAt: b.createdAt
-            }))
-          );
           
-          const totalAvailableInBatches = batches.reduce((sum, b) => sum + Number(b.residualQty), 0);
-          console.log(`📊 Total available in batches: ${totalAvailableInBatches}, Needed: ${remainingToTake}`);
-
           for (const batch of batches) {
             if (remainingToTake <= 0) break;
 
@@ -215,13 +165,7 @@ export const mrController = {
           }
 
           if (remainingToTake > 0) {
-            throw new Error(
-              `Stok fisik (FIFO batches) untuk produk ${item.productId} tidak mencukupi. ` +
-              `Dibutuhkan: ${item.qtyRequested}, Tersedia di batch: ${totalAvailableInBatches}, ` +
-              `Kurang: ${remainingToTake}. ` +
-              `StockBalance menunjukkan bookedStock: ${stockBalance.bookedStock}, ` +
-              `tapi batch FIFO tidak mencukupi. Mungkin ada inkonsistensi data.`
-            );
+            throw new Error(`Stok fisik (FIFO batches) untuk produk ${item.productId} tidak mencukupi.`);
           }
 
           // C. Update StockBalance for current month
@@ -308,7 +252,6 @@ export const mrController = {
           const match = mr.notes.match(/\[(TF-[^\]]+)\]/);
           if (match && match[1]) {
             const transferNumber = match[1];
-            console.log(`🔄 Updating StockTransfer [${transferNumber}] to IN_TRANSIT`);
             
             await tx.stockTransfer.update({
               where: { transferNumber },
@@ -322,7 +265,6 @@ export const mrController = {
 
         // 5. Populate priceUnit for AUTO-GENERATED-TRANSFER MRs
         if (mr.notes && mr.notes.includes('AUTO-GENERATED-TRANSFER')) {
-          console.log(`💰 Populating priceUnit for MR items from StockDetail`);
           
           for (const mrItem of mr.items) {
             // Fetch all stock allocations for this MR item
@@ -339,25 +281,24 @@ export const mrController = {
 
             if (allocations.length > 0) {
               // Calculate weighted average price
-              let totalCost = 0;
-              let totalQty = 0;
+              let totalCostAlloc = 0;
+              let totalQtyAlloc = 0;
 
               for (const allocation of allocations) {
                 const qty = Number(allocation.qtyTaken);
                 const price = Number(allocation.stockDetail.pricePerUnit || 0);
-                totalCost += qty * price;
-                totalQty += qty;
+                totalCostAlloc += qty * price;
+                totalQtyAlloc += qty;
               }
 
-              const avgPrice = totalQty > 0 ? totalCost / totalQty : 0;
+              const avgPriceAlloc = totalQtyAlloc > 0 ? totalCostAlloc / totalQtyAlloc : 0;
 
               // Update MR item with calculated price
               await tx.materialRequisitionItem.update({
                 where: { id: mrItem.id },
-                data: { priceUnit: avgPrice }
+                data: { priceUnit: avgPriceAlloc }
               });
 
-              console.log(`  ✓ Item ${mrItem.productId}: priceUnit = ${avgPrice.toFixed(2)}`);
             }
           }
         }
@@ -402,7 +343,7 @@ export const mrController = {
         // Journal will be created when user clicks "Posting" button
         // This allows for better control and review before posting to ledger
         
-        console.log(`ℹ️ MR ${updatedMR.mrNumber} issued successfully. Journal can be posted separately.`);
+        console.log(`✅ MR ${updatedMR.mrNumber} issued successfully.`);
         
         /* COMMENTED OUT - Auto journal creation
         // ===== AUTO-CREATE JOURNAL FOR WIP WAREHOUSE ONLY =====
@@ -490,6 +431,9 @@ export const mrController = {
         */
 
         return updatedMR;
+      }, {
+        maxWait: 5000,
+        timeout: 30000
       });
 
       res.json({ success: true, data: result, message: "Barang berhasil dikeluarkan (Stok terpotong)" });
