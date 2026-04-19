@@ -159,6 +159,15 @@ function getBasePath(role?: string) {
     return paths[role ?? "admin"] || "/admin-area/logistic/spk"
 }
 
+function getSalesOrderPath(role?: string) {
+    const paths: Record<string, string> = {
+        super: "/super-admin-area/sales/salesOrder",
+        pic: "/pic-area/sales/salesOrder",
+        admin: "/admin-area/sales/salesOrder",
+    }
+    return paths[role ?? "admin"] || "/admin-area/sales/salesOrder"
+}
+
 export function normalizePdfProps(data: SpkFormValuesPdfProps) {
     return {
         ...data,
@@ -541,12 +550,24 @@ export default function TabelDataSpk({
 
                                             {/* Bagian Bawah */}
                                             <div className="mt-2 text-xs font-semibold uppercase">
-                                                <h3 className="font-bold text-xs text-gray-900 dark:text-white">{spk.spkNumber}</h3>
-                                                {new Date(spk.spkDate).toLocaleDateString("id-ID", {
-                                                    day: "2-digit",
-                                                    month: "short",
-                                                    year: "numeric",
-                                                })}
+                                                <div className="flex flex-col gap-1">
+                                                    <h3 className="font-bold text-xs text-gray-900 dark:text-white">{spk.spkNumber}</h3>
+                                                    <Link href={`${getSalesOrderPath(role)}?search=${encodeURIComponent(spk.salesOrder.soNumber)}`}>
+                                                        <Badge
+                                                            variant="outline"
+                                                            className="text-[10px] bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300 border-green-200 dark:border-green-800 py-0 h-5 cursor-pointer hover:bg-green-100 transition-colors"
+                                                        >
+                                                            {spk.salesOrder.soNumber}
+                                                        </Badge>
+                                                    </Link>
+                                                </div>
+                                                <div className="mt-1">
+                                                    {new Date(spk.spkDate).toLocaleDateString("id-ID", {
+                                                        day: "2-digit",
+                                                        month: "short",
+                                                        year: "numeric",
+                                                    })}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -883,12 +904,14 @@ export default function TabelDataSpk({
                                                     >
                                                         {spk.spkNumber}
                                                     </Badge>
-                                                    <Badge
-                                                        variant="outline"
-                                                        className="font-semibold bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300 border-green-200 dark:border-green-800"
-                                                    >
-                                                        {spk.salesOrder.soNumber}
-                                                    </Badge>
+                                                    <Link href={`${getSalesOrderPath(role)}?search=${encodeURIComponent(spk.salesOrder.soNumber)}`}>
+                                                        <Badge
+                                                            variant="outline"
+                                                            className="font-semibold bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300 border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors cursor-pointer"
+                                                        >
+                                                            {spk.salesOrder.soNumber}
+                                                        </Badge>
+                                                    </Link>
                                                 </div>
                                             </TableCell>
                                             <TableCell className="font-medium text-gray-700 dark:text-gray-300">

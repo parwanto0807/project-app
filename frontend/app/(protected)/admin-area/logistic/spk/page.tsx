@@ -19,13 +19,14 @@ import TabelDataSpk from "@/components/spk/tabelData";
 import { toast } from "sonner";
 import { useSession } from "@/components/clientSessionProvider";
 import HeaderCard from "@/components/ui/header-card";
-import { MessageSquareQuoteIcon } from "lucide-react";
+import { MessageSquareQuoteIcon, ArrowLeft } from "lucide-react";
 import SearchInput from "@/components/shared/SearchInput";
 import ItemsPerPageDropdown from "@/components/shared/itemsPerPageDropdown";
 import { AdminLoading } from "@/components/admin-loading";
 import Pagination from "@/components/ui/paginationNew";
 import SpkFilter from "@/components/spk/spkDropDownFilter";
 import CreateButtonSPK from "@/components/spk/createSpkButton";
+import { Button } from "@/components/ui/button";
 
 type SPK = {
   id: string;
@@ -311,6 +312,15 @@ export default function SpkPageAdmin() {
     return [...new Set(teams)];
   }, [dataSpk]);
 
+  const salesOrderPath = useMemo(() => {
+    const paths: Record<string, string> = {
+      super: "/super-admin-area/sales/salesOrder",
+      pic: "/pic-area/sales/salesOrder",
+      admin: "/admin-area/sales/salesOrder",
+    };
+    return paths[user?.role ?? "admin"] || "/admin-area/sales/salesOrder";
+  }, [user]);
+
 
   // ===============================
   //    REFRESH HANDLER
@@ -505,7 +515,7 @@ export default function SpkPageAdmin() {
                 gradientTo="to-purple-600"
                 showActionArea={true}
                 actionArea={
-                  <div className="hidden lg:flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                  <div className="hidden lg:flex flex-col sm:flex-row gap-3 w-full sm:w-auto items-center">
                     <SearchInput
                       onSearch={handleSearch}
                       placeholder="Search SPK..."
@@ -535,6 +545,12 @@ export default function SpkPageAdmin() {
                       size="default"
                       disabled={isDataFetching}
                     />
+                    <Link href={salesOrderPath}>
+                      <Button variant="outline" className="flex items-center gap-2 border-primary/20 hover:bg-primary/5 text-primary">
+                        <ArrowLeft className="h-4 w-4" />
+                        <span className="font-semibold whitespace-nowrap">Back to Sales Order</span>
+                      </Button>
+                    </Link>
                   </div>
                 }
               />
@@ -581,6 +597,12 @@ export default function SpkPageAdmin() {
                     disabled={isDataFetching}
                     className="w-full"
                   />
+                  <Link href={salesOrderPath} className="w-full">
+                    <Button variant="outline" className="w-full flex items-center justify-center gap-2 border-primary/20 hover:bg-primary/5 text-primary">
+                      <ArrowLeft className="h-4 w-4" />
+                      <span className="font-semibold">Back to Sales Order</span>
+                    </Button>
+                  </Link>
                 </div>
               </div>
             </>
