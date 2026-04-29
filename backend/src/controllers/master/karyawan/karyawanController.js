@@ -42,6 +42,7 @@ export const createKaryawan = async (req, res) => {
       userId,
       teamIds,
       isActive,
+      attendanceLocationId,
     } = req.body;
 
     // ✅ Validasi userId jika diberikan
@@ -94,6 +95,7 @@ export const createKaryawan = async (req, res) => {
         userId: userId || null, // ✅ Set null jika tidak ada
         foto: fotoPath,
         isActive: true,
+        attendanceLocationId: (attendanceLocationId === "none" || !attendanceLocationId) ? null : attendanceLocationId,
         teamKaryawan: {
           create: teamIdsArray?.map((teamId) => ({ teamId })) || [],
         },
@@ -102,6 +104,7 @@ export const createKaryawan = async (req, res) => {
         teamKaryawan: { include: { team: true } },
         gaji: true,
         user: true,
+        attendanceLocation: true,
       },
     });
 
@@ -137,6 +140,7 @@ export const getAllKaryawan = async (req, res) => {
             document: true,
           },
         },
+        attendanceLocation: true,
       },
       orderBy: { nik: "asc" },
     });
@@ -157,6 +161,7 @@ export const getKaryawanById = async (req, res) => {
         teamKaryawan: { include: { team: true } },
         gaji: true,
         user: true,
+        attendanceLocation: true,
       },
     });
 
@@ -193,6 +198,7 @@ export const updateKaryawan = async (req, res) => {
       userId,
       teamIds,
       isActive,
+      attendanceLocationId,
     } = req.body;
 
     // ✅ Validasi userId jika diberikan
@@ -265,6 +271,10 @@ export const updateKaryawan = async (req, res) => {
     // normalisasi userId
     if (userId !== undefined) data.userId = userId || null;
 
+    if (attendanceLocationId !== undefined) {
+      data.attendanceLocationId = (attendanceLocationId === "none" || !attendanceLocationId) ? null : attendanceLocationId;
+    }
+
     // relasi team
     if (teamIds) {
       data.teamKaryawan = {
@@ -280,6 +290,7 @@ export const updateKaryawan = async (req, res) => {
         teamKaryawan: { include: { team: true } },
         gaji: true,
         user: true,
+        attendanceLocation: true,
       },
     });
 

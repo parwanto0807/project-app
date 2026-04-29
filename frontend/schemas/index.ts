@@ -450,6 +450,7 @@ export const employeeFormSchema = z.object({
 
   foto: z.any().optional(),
   teamIds: z.array(z.string()).optional(),
+  attendanceLocationId: z.string().optional().nullable(),
 });
 
 export type EmployeeFormValues = z.infer<typeof employeeFormSchema>;

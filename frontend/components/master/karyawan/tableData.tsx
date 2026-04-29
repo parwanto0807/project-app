@@ -115,6 +115,7 @@ interface Karyawan {
   alamat?: string;
   tanggalLahir?: string;
   jenisKelamin?: string;
+  attendanceLocation?: { id: string; name: string };
 }
 
 interface EmployeeTableProps {
@@ -870,6 +871,12 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                       JobDesc & SOP
                     </div>
                   </TableHead>
+                  <TableHead>
+                    <div className="flex items-center gap-1">
+                      <MapPin size={16} className="text-blue-500" />
+                      Lokasi Absen
+                    </div>
+                  </TableHead>
                   <TableHead className="text-right">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
@@ -978,6 +985,15 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                                 </span>
                               )}
                             </div>
+                          </TableCell>
+                          <TableCell>
+                            {item.attendanceLocation ? (
+                              <Badge variant="outline" className="bg-teal-50 text-teal-700 border-teal-200">
+                                {item.attendanceLocation.name}
+                              </Badge>
+                            ) : (
+                              <span className="text-gray-400 text-xs italic">Global</span>
+                            )}
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-1.5 flex-wrap">

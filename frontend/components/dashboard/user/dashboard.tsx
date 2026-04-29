@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 // 👇 IMPOR FUNGSI API — SESUAIKAN PATHNYA
 import { fetchSPKReports } from "@/lib/action/master/spk/spkReport"; // GANTI DENGAN PATH ANDA
@@ -369,270 +370,246 @@ const DashboardUserSPK = ({ dataSpk, role, userId }: FormMonitoringProgressSpkPr
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50/70 via-indigo-50/70 to-purple-50/70 dark:from-gray-900 dark:via-gray-900 dark:to-gray-850 py-5 px-1 transition-colors duration-500 pb-24 relative overflow-hidden">
+        <div className="min-h-screen bg-slate-50/50 dark:bg-gray-950/50 py-4 px-2 transition-colors duration-500 pb-24 relative overflow-hidden">
 
-            {/* Background decorative elements */}
+            {/* Background decorative elements - Premium Glass Look */}
             <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-                <div className="absolute -top-20 -left-20 w-72 h-72 bg-blue-400/10 rounded-full blur-3xl"></div>
-                <div className="absolute top-1/3 -right-20 w-96 h-96 bg-purple-400/10 rounded-full blur-3xl"></div>
-                <div className="absolute bottom-0 left-1/4 w-80 h-80 bg-indigo-400/10 rounded-full blur-3xl"></div>
+                <div className="absolute -top-40 -left-40 w-96 h-96 bg-indigo-500/10 rounded-full blur-[100px]"></div>
+                <div className="absolute top-1/4 -right-40 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[120px]"></div>
+                <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-[100px]"></div>
             </div>
 
-            {/* Header Dashboard */}
+            {/* Premium Header Section */}
             <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, ease: "easeOut" }}
-                className="text-center mb-6 mt-2 relative z-10"
+                transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                className="mb-8 mt-2 px-2 relative z-10"
             >
-                <h1 className="text-1xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                    Dashboard Monitoring SPK
-                </h1>
-                <p className="mt-3 text-xs md:text-base text-gray-600 dark:text-gray-300 max-w-md mx-auto leading-relaxed">
-                    Kelola dan pantau progress Surat Perintah Kerja Anda secara real-time
-                </p>
+                <div className="flex flex-col gap-1">
+                    <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-slate-900 via-indigo-900 to-slate-900 dark:from-white dark:via-indigo-300 dark:to-white bg-clip-text text-transparent leading-tight">
+                        Pusat Kendali
+                    </h1>
+                    <div className="flex items-center gap-2">
+                        <div className="h-1 w-8 bg-indigo-600 rounded-full"></div>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
+                            Manajemen Operasional
+                        </p>
+                    </div>
+                </div>
             </motion.div>
 
-            {/* Stats Cards */}
+            {/* Stats Section - Floating Glass Cards */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8 max-w-6xl mx-auto relative z-10"
+                transition={{ delay: 0.2, duration: 0.8 }}
+                className="grid grid-cols-2 gap-3 mb-8 max-w-4xl mx-auto relative z-10"
             >
                 {statsData.map((stat, index) => (
-                    <div
+                    <motion.div
                         key={index}
-                        className="bg-white/40 dark:bg-gray-800/40 backdrop-blur-xl rounded-2xl p-4 border border-white/30 dark:border-gray-700/30 shadow-lg"
+                        whileTap={{ scale: 0.98 }}
+                        className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl rounded-[2rem] p-5 border border-white dark:border-gray-800 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group"
                     >
-                        <p className="text-xs text-gray-600 dark:text-gray-300">{stat.label}</p>
-                        <div className="flex items-end justify-between mt-2">
-                            <h3 className="text-2xl font-bold text-gray-800 dark:text-white">{stat.value}</h3>
-                            <span className={`text-xs font-semibold ${stat.change.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
-                                {stat.change}
-                            </span>
+                        <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                            {index === 0 && <FileText size={40} />}
+                            {index === 1 && <BarChart3 size={40} />}
+                            {index === 2 && <Clock size={40} />}
+                            {index === 3 && <CheckCircle size={40} />}
                         </div>
-                    </div>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">{stat.label}</p>
+                        <div className="flex items-baseline gap-2">
+                            <h3 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tighter">{stat.value}</h3>
+                            <div className={cn(
+                                "text-[10px] font-bold px-2 py-0.5 rounded-full",
+                                stat.change.startsWith('+') ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400" : "bg-rose-50 text-rose-600 dark:bg-rose-950/30 dark:text-rose-400"
+                            )}>
+                                {stat.change}
+                            </div>
+                        </div>
+                    </motion.div>
                 ))}
             </motion.div>
 
-            {/* Menu Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-2 gap-6 w-full max-w-6xl mx-auto relative z-10 mb-8">
-                {/* Kartu 1: Buat Progress SPK */}
-                <motion.div
-                    variants={cardVariants}
-                    initial="hidden"
-                    animate="visible"
-                    whileHover="hover"
-                    className="group bg-white/50 dark:bg-gray-800/50 backdrop-blur-xl rounded-3xl p-4 cursor-pointer border border-white/30 dark:border-gray-700/30 shadow-2xl transition-all duration-300 overflow-hidden relative"
-                    onClick={() => router.push("/user-area/spkReport")}
-                >
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-100/40 to-indigo-100/40 dark:from-blue-900/20 dark:to-indigo-900/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-3xl -z-10"></div>
-                    <div className="flex flex-col items-center text-center relative z-10">
-                        <div className="w-16 h-16 bg-gradient-to-r from-blue-500/90 to-blue-600/90 dark:from-blue-600/90 dark:to-blue-700/90 rounded-2xl flex items-center justify-center mb-3 shadow-lg group-hover:scale-110 transition-transform duration-300 backdrop-blur-md border border-white/20">
-                            <Plus className="w-9 h-9 text-white" />
-                        </div>
-                        <h2 className="text-base font-bold text-gray-800 dark:text-white mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                            Buat Progress
-                        </h2>
-                        <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed mb-2">
-                            Update kemajuan pekerjaan SPK secara instan
-                        </p>
-                        <div className="flex items-center text-blue-600 dark:text-blue-400 text-sm font-medium mt-2">
-                            <span>Mulai sekarang</span>
-                            <ChevronRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
-                        </div>
-                    </div>
-                </motion.div>
+            {/* Navigation Grid - Native App Style */}
+            <div className="px-1 space-y-6 relative z-10 max-w-4xl mx-auto">
+                <div className="flex items-center justify-between px-2">
+                    <h2 className="text-sm font-bold uppercase tracking-[0.15em] text-slate-400">Akses Cepat</h2>
+                    <div className="h-[1px] flex-1 bg-slate-200 dark:bg-gray-800 ml-4"></div>
+                </div>
 
-                {/* Kartu 2: Laporan Progress SPK */}
-                <motion.div
-                    variants={cardVariants}
-                    initial="hidden"
-                    animate="visible"
-                    transition={{ delay: 0.1 }}
-                    whileHover="hover"
-                    className="group bg-white/50 dark:bg-gray-800/50 backdrop-blur-xl rounded-3xl p-4 cursor-pointer border border-white/30 dark:border-gray-700/30 shadow-2xl transition-all duration-300 overflow-hidden relative"
-                    onClick={() => router.push("/user-area/spkReportDetail")}
-                >
-                    <div className="absolute inset-0 bg-gradient-to-br from-green-100/40 to-emerald-100/40 dark:from-green-900/20 dark:to-emerald-900/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-3xl -z-10"></div>
-                    <div className="flex flex-col items-center text-center relative z-10">
-                        <div className="w-16 h-16 bg-gradient-to-r from-green-500/90 to-emerald-600/90 dark:from-green-600/90 dark:to-emerald-700/90 rounded-2xl flex items-center justify-center mb-3 shadow-lg group-hover:scale-110 transition-transform duration-300 backdrop-blur-md border border-white/20">
-                            <BarChart3 className="w-9 h-9 text-white" />
+                <div className="grid grid-cols-2 gap-4">
+                    {/* Menu Item: Buat Progress */}
+                    <motion.div
+                        whileHover={{ y: -4 }}
+                        whileTap={{ scale: 0.96 }}
+                        className="bg-indigo-600 rounded-[2.5rem] p-6 shadow-2xl shadow-indigo-200 dark:shadow-none relative overflow-hidden group flex flex-col items-center text-center"
+                        onClick={() => router.push("/user-area/spkReport")}
+                    >
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-8 -mt-8 blur-2xl"></div>
+                        <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mb-4 border border-white/30">
+                            <Plus className="w-6 h-6 text-white" />
                         </div>
-                        <h2 className="text-base font-bold text-gray-800 dark:text-white mb-2 group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
-                            Laporan Progress
-                        </h2>
-                        <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed mb-2">
-                            Pantau, analisis, dan ekspor laporan SPK
-                        </p>
-                        <div className="flex items-center text-green-600 dark:text-green-400 text-sm font-medium mt-2">
-                            <span>Lihat laporan</span>
-                            <ChevronRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
-                        </div>
-                    </div>
-                </motion.div>
+                        <h3 className="text-white font-bold text-lg leading-tight mb-1">Buat<br/>Progress</h3>
+                        <p className="text-indigo-100/60 text-[10px] font-bold uppercase tracking-wider">Update Cepat</p>
+                    </motion.div>
 
-                {/* Kartu 3: Pembelian Material */}
-                <motion.div
-                    variants={cardVariants}
-                    initial="hidden"
-                    animate="visible"
-                    transition={{ delay: 0.2 }}
-                    whileHover="hover"
-                    className="group bg-white/50 dark:bg-gray-800/50 backdrop-blur-xl rounded-3xl p-4 cursor-pointer border border-white/30 dark:border-gray-700/30 shadow-2xl transition-all duration-300 overflow-hidden relative"
-                    onClick={() => router.push("/user-area/purchase-execution")}
-                >
-                    <div className="absolute inset-0 bg-gradient-to-br from-amber-100/40 to-orange-100/40 dark:from-amber-900/20 dark:to-orange-900/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-3xl -z-10"></div>
-                    <div className="flex flex-col items-center text-center relative z-10">
-                        <div className="w-16 h-16 bg-gradient-to-r from-amber-500/90 to-orange-600/90 dark:from-amber-600/90 dark:to-orange-700/90 rounded-2xl flex items-center justify-center mb-3 shadow-lg group-hover:scale-110 transition-transform duration-300 backdrop-blur-md border border-white/20">
-                            <ShoppingCart className="w-9 h-9 text-white" />
-                        </div>
-                        <h2 className="text-base font-bold text-gray-800 dark:text-white mb-2 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
-                            Belanja Material Proyek
-                        </h2>
-                        <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed mb-2">
-                            Kelola dan laporkan pembelian material proyek berdasarkan daftar pesanan yang tersedia.
-                        </p>
-                        <div className="flex items-center text-amber-600 dark:text-amber-400 text-sm font-medium mt-2">
-                            <span>Buat Request</span>
-                            <ChevronRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
-                        </div>
-                    </div>
-                </motion.div>
-
-                {/* Kartu 4: Absensi di Proyek */}
-                <motion.div
-                    variants={cardVariants}
-                    initial="hidden"
-                    animate="visible"
-                    transition={{ delay: 0.3 }}
-                    whileHover="hover"
-                    className="group bg-white/50 dark:bg-gray-800/50 backdrop-blur-xl rounded-3xl p-4 cursor-pointer border border-white/30 dark:border-gray-700/30 shadow-2xl transition-all duration-300 overflow-hidden relative"
-                    onClick={() => router.push("/user-area/attendance")}
-                >
-                    <div className="absolute inset-0 bg-gradient-to-br from-purple-100/40 to-pink-100/40 dark:from-purple-900/20 dark:to-pink-900/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-3xl -z-10"></div>
-                    <div className="flex flex-col items-center text-center relative z-10">
-                        <div className="w-16 h-16 bg-gradient-to-r from-purple-500/90 to-pink-600/90 dark:from-purple-600/90 dark:to-pink-700/90 rounded-2xl flex items-center justify-center mb-3 shadow-lg group-hover:scale-110 transition-transform duration-300 backdrop-blur-md border border-white/20">
-                            <CalendarCheck className="w-9 h-9 text-white" />
-                        </div>
-                        <h2 className="text-base font-bold text-gray-800 dark:text-white mb-2 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
-                            Absensi On-Site
-                        </h2>
-                        <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed mb-2">
-                            Laporkan kehadiran Anda secara Praktis, Digital dan Real time
-                        </p>
-                        <div className="flex items-center text-purple-600 dark:text-purple-400 text-sm font-medium mt-2">
-                            <span>Isi Absensi</span>
-                            <ChevronRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
-                        </div>
-                    </div>
-                </motion.div>
-            </div>
-
-            {/* Recent Activities */}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="bg-white/40 dark:bg-gray-800/40 backdrop-blur-xl rounded-3xl p-4 border border-white/30 dark:border-gray-700/30 shadow-2xl max-w-6xl mx-auto mb-8 relative z-10"
-            >
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-base font-bold text-gray-800 dark:text-white">5 Aktivitas Terbaru</h2>
-                    <button
-                        className="text-sm text-blue-600 dark:text-blue-400 font-medium flex items-center cursor-pointer"
+                    {/* Menu Item: Laporan */}
+                    <motion.div
+                        whileHover={{ y: -4 }}
+                        whileTap={{ scale: 0.96 }}
+                        className="bg-emerald-600 rounded-[2.5rem] p-6 shadow-2xl shadow-emerald-200 dark:shadow-none relative overflow-hidden group flex flex-col items-center text-center"
                         onClick={() => router.push("/user-area/spkReportDetail")}
                     >
-                        Lihat semua <ChevronRight className="w-4 h-4 ml-1 " />
-                    </button>
+                        <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full -ml-8 -mb-8 blur-2xl"></div>
+                        <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mb-4 border border-white/30">
+                            <BarChart3 className="w-6 h-6 text-white" />
+                        </div>
+                        <h3 className="text-white font-bold text-lg leading-tight mb-1">Pantau<br/>Laporan</h3>
+                        <p className="text-emerald-100/60 text-[10px] font-bold uppercase tracking-wider">Data Real-time</p>
+                    </motion.div>
+
+                    {/* Menu Item: Belanja */}
+                    <motion.div
+                        whileHover={{ y: -4 }}
+                        whileTap={{ scale: 0.96 }}
+                        className="bg-amber-500 rounded-[2.5rem] p-6 shadow-2xl shadow-amber-200 dark:shadow-none relative overflow-hidden group flex flex-col items-center text-center"
+                        onClick={() => router.push("/user-area/purchase-execution")}
+                    >
+                        <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mb-4 border border-white/30">
+                            <ShoppingCart className="w-6 h-6 text-white" />
+                        </div>
+                        <h3 className="text-white font-bold text-lg leading-tight mb-1">Belanja<br/>Material</h3>
+                        <p className="text-amber-100/60 text-[10px] font-bold uppercase tracking-wider">Pengadaan</p>
+                    </motion.div>
+
+                    {/* Menu Item: Absensi */}
+                    <motion.div
+                        whileHover={{ y: -4 }}
+                        whileTap={{ scale: 0.96 }}
+                        className="bg-violet-600 rounded-[2.5rem] p-6 shadow-2xl shadow-violet-200 dark:shadow-none relative overflow-hidden group flex flex-col items-center text-center"
+                        onClick={() => router.push("/user-area/attendance")}
+                    >
+                        <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center mb-4 border border-white/10">
+                            <CalendarCheck className="w-6 h-6 text-white" />
+                        </div>
+                        <h3 className="text-white font-bold text-lg leading-tight mb-1">Absensi<br/>Karyawan</h3>
+                        <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Kehadiran Digital</p>
+                    </motion.div>
                 </div>
 
-                <div className="space-y-4">
-                    {recentActivities.length > 0 ? (
-                        recentActivities.map((activity) => (
-                            <div key={activity.id} className="flex items-start p-2 bg-white/50 dark:bg-gray-700/50 rounded-2xl border border-white/30 dark:border-gray-600/30">
-                                <div className={`rounded-full p-2 mr-4 ${activity.status === 'completed' ? 'bg-green-100/50 dark:bg-green-900/30 text-green-600 dark:text-green-400' :
-                                    activity.status === 'pending' ? 'bg-amber-100/50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400' :
-                                        'bg-blue-100/50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                                    }`}>
-                                    {activity.status === 'completed' ? <FileText className="w-4 h-4" /> :
-                                        activity.status === 'pending' ? <Loader2 className="w-4 h-4" /> :
-                                            <BarChart2 className="w-4 h-4" />}
-                                </div>
-                                <div className="flex-1">
-                                    <h3 className="text-xs font-semibold text-gray-800 dark:text-white">{activity.title}</h3>
-                                    <p className="text-xs text-gray-600 dark:text-gray-300">{activity.description}</p>
-                                    <div className="flex flex-col gap-1 mt-1">
-                                        {activity.status === 'pending' ? (
-                                            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></div>
-                                                <span className="text-xs">Progress - {activity.progress}%</span>
-                                            </div>
-                                        ) : activity.status === 'completed' ? (
-                                            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                                                <CheckCircle className="w-3 h-3" />
-                                                <span className="text-xs">Selesai - {activity.progress}% </span>
-                                            </div>
-                                        ) : (
-                                            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
-                                                <Clock className="w-3 h-3" />
-                                                <span className="text-xs">Menunggu Approve Aadmin - {activity.progress}%</span>
-                                            </div>
-                                        )}
-
-                                    </div>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{activity.time}</p>
-                                </div>
-                            </div>
-                        ))
-                    ) : (
-                        <p className="text-center text-gray-500 dark:text-gray-400 py-4">Belum ada aktivitas</p>
-                    )}
-                </div>
-            </motion.div>
-
-            {/* Quick Actions */}
-            {!isQuickActionsEnabled && (
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 }}
-                    // className="bg-white/40 dark:bg-gray-800/40 backdrop-blur-xl rounded-3xl p-6 border border-white/30 dark:border-gray-700/30 shadow-2xl max-w-6xl mx-auto relative z-10"
-                    className={`... ${isQuickActionsEnabled ? '' : 'opacity-60 pointer-events-none select-none'}`}
-                >
-                    {/* <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-6">Aksi Cepat</h2> */}
-                    <h2 className="text-base font-bold text-gray-800 dark:text-white mb-6">Aksi Cepat (Segera Hadir)</h2>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <button className="bg-white/70 dark:bg-gray-700/70 hover:bg-white dark:hover:bg-gray-600/70 backdrop-blur-md rounded-2xl p-4 border border-white/30 dark:border-gray-600/30 shadow-sm transition-all duration-300 group">
-                            <div className="flex items-center">
-                                <div className="w-10 h-10 bg-blue-100/50 dark:bg-blue-900/30 rounded-lg flex items-center justify-center mr-3 group-hover:bg-blue-200/50 dark:group-hover:bg-blue-800/30 transition-colors">
-                                    <Download className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                                </div>
-                                <span className="text-sm font-medium text-gray-800 dark:text-white">Ekspor Laporan</span>
-                            </div>
-                        </button>
-
-                        <button className="bg-white/70 dark:bg-gray-700/70 hover:bg-white dark:hover:bg-gray-600/70 backdrop-blur-md rounded-2xl p-4 border border-white/30 dark:border-gray-600/30 shadow-sm transition-all duration-300 group">
-                            <div className="flex items-center">
-                                <div className="w-10 h-10 bg-green-100/50 dark:bg-green-900/30 rounded-lg flex items-center justify-center mr-3 group-hover:bg-green-200/50 dark:group-hover:bg-green-800/30 transition-colors">
-                                    <FileText className="w-5 h-5 text-green-600 dark:text-green-400" />
-                                </div>
-                                <span className="text-sm font-medium text-gray-800 dark:text-white">Template SPK</span>
-                            </div>
-                        </button>
-
-                        <button className="bg-white/70 dark:bg-gray-700/70 hover:bg-white dark:hover:bg-gray-600/70 backdrop-blur-md rounded-2xl p-4 border border-white/30 dark:border-gray-600/30 shadow-sm transition-all duration-300 group">
-                            <div className="flex items-center">
-                                <div className="w-10 h-10 bg-purple-100/50 dark:bg-purple-900/30 rounded-lg flex items-center justify-center mr-3 group-hover:bg-purple-200/50 dark:group-hover:bg-purple-800/30 transition-colors">
-                                    <BarChart2 className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                                </div>
-                                <span className="text-sm font-medium text-gray-800 dark:text-white">Statistik</span>
-                            </div>
+                {/* Recent Activities - Native List Style */}
+                <div className="pt-4">
+                    <div className="flex items-center justify-between px-2 mb-4">
+                        <h2 className="text-sm font-bold uppercase tracking-[0.15em] text-slate-400">Log Aktivitas</h2>
+                        <button 
+                            className="text-[10px] font-bold uppercase text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full"
+                            onClick={() => router.push("/user-area/spkReportDetail")}
+                        >
+                            Lihat Semua
                         </button>
                     </div>
-                </motion.div>
-            )}
+
+                    <div className="space-y-3">
+                        {recentActivities.length > 0 ? (
+                            recentActivities.map((activity, idx) => (
+                                <motion.div 
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: 0.1 * idx }}
+                                    key={activity.id} 
+                                    className="flex items-center p-4 bg-white dark:bg-gray-900 rounded-[1.5rem] border border-slate-100 dark:border-gray-800 shadow-sm group active:bg-slate-50"
+                                >
+                                    <div className={cn(
+                                        "w-10 h-10 rounded-xl flex items-center justify-center mr-4",
+                                        activity.status === 'completed' ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400" :
+                                        activity.status === 'pending' ? "bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400" :
+                                        "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/30 dark:text-indigo-400"
+                                    )}>
+                                        {activity.status === 'completed' ? <CheckCircle size={18} /> :
+                                         activity.status === 'pending' ? <Clock size={18} /> :
+                                         <BarChart2 size={18} />}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex justify-between items-start">
+                                            <h3 className="text-xs font-bold text-slate-800 dark:text-white truncate uppercase tracking-tight">{activity.title}</h3>
+                                            <span className="text-[9px] font-bold text-slate-400 whitespace-nowrap ml-2">{activity.time}</span>
+                                        </div>
+                                        <p className="text-[10px] text-slate-500 font-medium truncate mb-1">{activity.description}</p>
+                                        <div className="flex items-center gap-2">
+                                            <div className="h-1 flex-1 bg-slate-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                                                <div 
+                                                    className={cn(
+                                                        "h-full rounded-full transition-all duration-1000",
+                                                        activity.status === 'completed' ? "bg-emerald-500" : "bg-indigo-500"
+                                                    )}
+                                                    style={{ width: `${activity.progress}%` }}
+                                                ></div>
+                                            </div>
+                                            <span className="text-[9px] font-bold text-slate-600 dark:text-slate-400">{activity.progress}%</span>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            ))
+                        ) : (
+                            <div className="p-8 text-center bg-white/50 dark:bg-gray-900/50 rounded-3xl border border-dashed border-slate-200 dark:border-gray-800">
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Belum Ada Aktivitas Terbaru</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+                {/* Footer Credits */}
+                <div className="pt-8 pb-4 text-center">
+                    <p className="text-[8px] font-bold uppercase tracking-[0.3em] text-slate-300 dark:text-gray-700">
+                        Sistem Dioptimalkan untuk Pekerja Lapangan
+                    </p>
+                </div>
+
+                {/* Quick Actions */}
+                {!isQuickActionsEnabled && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.4 }}
+                        className={cn(
+                            "mt-8 p-6 bg-white/40 dark:bg-gray-800/40 backdrop-blur-xl rounded-3xl border border-white/30 dark:border-gray-700/30 shadow-2xl",
+                            !isQuickActionsEnabled && "opacity-60 pointer-events-none select-none"
+                        )}
+                    >
+                        <h2 className="text-base font-bold text-gray-800 dark:text-white mb-6">Aksi Cepat (Segera Hadir)</h2>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <button className="bg-white/70 dark:bg-gray-700/70 hover:bg-white dark:hover:bg-gray-600/70 backdrop-blur-md rounded-2xl p-4 border border-white/30 dark:border-gray-600/30 shadow-sm transition-all duration-300 group">
+                                <div className="flex items-center">
+                                    <div className="w-10 h-10 bg-blue-100/50 dark:bg-blue-900/30 rounded-lg flex items-center justify-center mr-3 group-hover:bg-blue-200/50 dark:group-hover:bg-blue-800/30 transition-colors">
+                                        <Download className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                                    </div>
+                                    <span className="text-sm font-medium text-gray-800 dark:text-white">Ekspor Laporan</span>
+                                </div>
+                            </button>
+
+                            <button className="bg-white/70 dark:bg-gray-700/70 hover:bg-white dark:hover:bg-gray-600/70 backdrop-blur-md rounded-2xl p-4 border border-white/30 dark:border-gray-600/30 shadow-sm transition-all duration-300 group">
+                                <div className="flex items-center">
+                                    <div className="w-10 h-10 bg-green-100/50 dark:bg-green-900/30 rounded-lg flex items-center justify-center mr-3 group-hover:bg-green-200/50 dark:group-hover:bg-green-800/30 transition-colors">
+                                        <FileText className="w-5 h-5 text-green-600 dark:text-green-400" />
+                                    </div>
+                                    <span className="text-sm font-medium text-gray-800 dark:text-white">Template SPK</span>
+                                </div>
+                            </button>
+
+                            <button className="bg-white/70 dark:bg-gray-700/70 hover:bg-white dark:hover:bg-gray-600/70 backdrop-blur-md rounded-2xl p-4 border border-white/30 dark:border-gray-600/30 shadow-sm transition-all duration-300 group">
+                                <div className="flex items-center">
+                                    <div className="w-10 h-10 bg-purple-100/50 dark:bg-purple-900/30 rounded-lg flex items-center justify-center mr-3 group-hover:bg-purple-200/50 dark:group-hover:bg-purple-800/30 transition-colors">
+                                        <BarChart2 className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                                    </div>
+                                    <span className="text-sm font-medium text-gray-800 dark:text-white">Statistik</span>
+                                </div>
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+            </div>
         </div>
     );
 };

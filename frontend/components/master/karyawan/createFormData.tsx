@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
@@ -14,6 +14,7 @@ import { employeeFormSchema, type EmployeeFormValues } from '@/schemas';
 import Image from 'next/image';
 import { useRouter } from "next/navigation";
 import { checkAccountEmail, createAccountEmail, fetchUserByEmail } from '@/lib/action/master/karyawan';
+import { fetchLocations } from '@/lib/action/master/location';
 
 function getBasePath(role?: string) {
     return role === "super"
@@ -50,8 +51,19 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
             tanggalKeluar: undefined,
             foto: undefined,
             teamIds: [],
+            attendanceLocationId: "",
         },
     });
+
+    const [locations, setLocations] = useState<{ id: string, name: string }[]>([]);
+
+    useEffect(() => {
+        const getLocations = async () => {
+            const res = await fetchLocations();
+            if (res.success) setLocations(res.data);
+        };
+        getLocations();
+    }, []);
 
     const handleFileChange = (
         e: React.ChangeEvent<HTMLInputElement>,
@@ -454,6 +466,26 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
                                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 mt-4 md:mt-0">
                                         <div className="space-y-0.5"><FormLabel>Akun Aktif</FormLabel><FormDescription>Non-aktifkan jika karyawan belum bisa login.</FormDescription></div>
                                         <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                    </FormItem>
+                                )} />
+                                <FormField name="attendanceLocationId" control={form.control} render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="text-teal-600 font-bold">Koordinat Absensi (Opsional)</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value || "none"}>
+                                            <FormControl>
+                                                <SelectTrigger className="border-teal-200 focus:ring-teal-500">
+                                                    <SelectValue placeholder="Pilih lokasi absensi" />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="none">-- Tanpa Lokasi Khusus --</SelectItem>
+                                                {locations.map(loc => (
+                                                    <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormDescription>Jika dikosongkan, karyawan akan mengikuti pengaturan global.</FormDescription>
+                                        <FormMessage />
                                     </FormItem>
                                 )} />
                             </div>

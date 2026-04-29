@@ -11,10 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { User, Briefcase, ShieldCheck, Loader2, Camera, Upload, X, ArrowLeft } from 'lucide-react';
 import { employeeFormSchema, type EmployeeFormValues } from '@/schemas';
+import { makeImageSrc } from '@/utils/makeImageSrc';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from 'sonner';
 import { fetchKaryawanById } from '@/lib/action/master/karyawan';
+import { fetchLocations } from '@/lib/action/master/location';
 
 function getBasePath(role?: string) {
     return role === "super"
@@ -52,8 +54,19 @@ export default function UpdateEmployeeForm({ employee, role, id }: { employee: s
             tanggalKeluar: undefined,
             foto: undefined,
             teamIds: [],
+            attendanceLocationId: "",
         },
     });
+
+    const [locations, setLocations] = useState<{ id: string, name: string }[]>([]);
+
+    useEffect(() => {
+        const getLocations = async () => {
+            const res = await fetchLocations();
+            if (res.success) setLocations(res.data);
+        };
+        getLocations();
+    }, []);
 
     // Fetch data karyawan saat komponen mount
     useEffect(() => {
@@ -73,8 +86,7 @@ export default function UpdateEmployeeForm({ employee, role, id }: { employee: s
 
                 // kalau ada foto, set ke state
                 if (employeeData.foto) {
-                    // hilangkan leading slash kalau ada
-                    setFilePreview(employeeData.foto.replace(/^\/+/, ""));
+                    setFilePreview(makeImageSrc(employeeData.foto));
                 }
 
             } catch (error) {
@@ -471,6 +483,26 @@ export default function UpdateEmployeeForm({ employee, role, id }: { employee: s
                                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 mt-4 md:mt-0">
                                         <div className="space-y-0.5"><FormLabel>Akun Aktif</FormLabel><FormDescription>Non-aktifkan jika karyawan belum bisa login.</FormDescription></div>
                                         <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                    </FormItem>
+                                )} />
+                                <FormField name="attendanceLocationId" control={form.control} render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="text-teal-600 font-bold">Koordinat Absensi (Opsional)</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value || "none"}>
+                                            <FormControl>
+                                                <SelectTrigger className="border-teal-200 focus:ring-teal-500">
+                                                    <SelectValue placeholder="Pilih lokasi absensi" />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="none">-- Tanpa Lokasi Khusus --</SelectItem>
+                                                {locations.map(loc => (
+                                                    <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <FormDescription>Jika dikosongkan, karyawan akan mengikuti pengaturan global.</FormDescription>
+                                        <FormMessage />
                                     </FormItem>
                                 )} />
                             </div>

@@ -52,6 +52,10 @@ import financialReportRoutes from './routes/accounting/financialReportRoutes.js'
 import assetRoutes from './routes/asset/assetRoutes.js';
 import cashOpnameRoutes from './routes/accounting/cashOpnameRoutes.js';
 import documentRoutes from './routes/master/documentRoutes.js';
+import absensiRoutes from './routes/absensi/absensiRoutes.js';
+import payrollRoutes from './routes/payroll/payrollRoutes.js';
+import loanRoutes from './routes/finance/loanRoutes.js';
+import locationRoutes from './routes/master/location/locationRoutes.js';
 
 
 
@@ -201,6 +205,10 @@ app.use('/api/accounting/reports', financialReportRoutes);
 app.use('/api/assets', assetRoutes);
 app.use('/api/accounting/cash-opname', cashOpnameRoutes);
 app.use('/api/master/documents', documentRoutes);
+app.use('/api/absensi', absensiRoutes);
+app.use('/api/payroll', payrollRoutes);
+app.use('/api/loans', loanRoutes);
+app.use('/api/master/location', locationRoutes);
 
 
 

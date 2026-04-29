@@ -246,19 +246,126 @@ model Karyawan {
   teamKaryawan      TeamKaryawan[]
   uangMuka          UangMuka[]
   documents         DocumentKaryawan[]
+  absensi           Absensi[]
+  kasbonSementara   KasbonSementara[]
+  pinjaman          Pinjaman[]
+  attendanceLocationId String?
+  attendanceLocation   AttendanceLocation? @relation(fields: [attendanceLocationId], references: [id])
 }
 
 model Gaji {
-  id         String   @id @default(cuid())
-  karyawanId String
-  periode    DateTime
-  gajiPokok  Float
-  tunjangan  Float?
-  potongan   Float?
-  total      Float
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  karyawan   Karyawan @relation(fields: [karyawanId], references: [id])
+  id                String   @id @default(cuid())
+  karyawanId        String
+  periode           DateTime
+  periodeMulai      DateTime
+  periodeSelesai    DateTime
+  gajiPokok         Float
+  tunjangan         Float?
+  potongan          Float?
+  totalJamLembur    Float    @default(0)
+  pajak             Float    @default(0)
+  potonganPinjaman  Float    @default(0)
+  potonganKasbon    Float    @default(0)
+  potonganDpGaji    Float    @default(0)
+  total             Float
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  karyawan          Karyawan @relation(fields: [karyawanId], references: [id])
+}
+
+model Absensi {
+  id              String           @id @default(cuid())
+  karyawanId      String
+  tanggal         DateTime
+  jamMasuk        DateTime?
+  jamKeluar       DateTime?
+  fotoMasuk       String?
+  fotoKeluar      String?
+  latMasuk        Float?
+  longMasuk       Float?
+  latKeluar       Float?
+  longKeluar      Float?
+  isMockedMasuk   Boolean          @default(false)
+  isMockedKeluar  Boolean          @default(false)
+  deviceMasuk     String?
+  deviceKeluar    String?
+  jamLembur       Float            @default(0)
+  status          AttendanceStatus @default(HADIR)
+  keterangan      String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  karyawan        Karyawan         @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+
+  @@index([karyawanId])
+  @@index([tanggal])
+}
+
+model KasbonSementara {
+  id                  String            @id @default(cuid())
+  karyawanId          String
+  tanggal             DateTime          @default(now())
+  jumlah              Decimal           @db.Decimal(19, 2)
+  keperluan           String?
+  status              CashAdvanceStatus @default(PENDING)
+  tanggalPenyelesaian DateTime?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  karyawan            Karyawan          @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+
+  @@index([karyawanId])
+}
+
+model Pinjaman {
+  id              String           @id @default(cuid())
+  karyawanId      String
+  tanggalPinjam   DateTime         @default(now())
+  jumlahPinjaman  Decimal          @db.Decimal(19, 2)
+  tenor           Int // Jumlah bulan
+  bunga           Decimal?         @db.Decimal(5, 2)
+  angsuranBulanan Decimal          @db.Decimal(19, 2)
+  sisaPinjaman    Decimal          @db.Decimal(19, 2)
+  status          LoanStatus       @default(ACTIVE)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  karyawan        Karyawan         @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+  details         PinjamanDetail[]
+
+  @@index([karyawanId])
+}
+
+model PinjamanDetail {
+  id                String            @id @default(cuid())
+  pinjamanId        String
+  bulanKe           Int
+  tanggalJatuhTempo DateTime
+  jumlahBayar       Decimal           @db.Decimal(19, 2)
+  status            LoanPaymentStatus @default(PENDING)
+  tanggalBayar      DateTime?
+  pinjaman          Pinjaman          @relation(fields: [pinjamanId], references: [id], onDelete: Cascade)
+
+  @@index([pinjamanId])
+}
+
+model PayrollConfig {
+  id           String   @id @default(cuid())
+  name         String   @unique
+  gajiPerHari  Float
+  lemburPerJam Float
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model AttendanceLocation {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  latitude  Float
+  longitude Float
+  radius    Float    @default(100) // dalam meter
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  karyawan  Karyawan[]
 }
 
 model Customer {
@@ -2702,4 +2809,31 @@ model DocumentKaryawan {
 
   @@id([documentId, karyawanId])
   @@map("document_karyawan")
+}
+
+enum AttendanceStatus {
+  HADIR
+  IZIN
+  SAKIT
+  ALFA
+  TERLAMBAT
+  CUTI
+}
+
+enum CashAdvanceStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SETTLED
+}
+
+enum LoanStatus {
+  ACTIVE
+  PAID
+  CANCELLED
+}
+
+enum LoanPaymentStatus {
+  PENDING
+  PAID
 }
