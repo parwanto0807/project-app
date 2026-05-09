@@ -575,6 +575,49 @@ export function getMenuList(pathname: string, role: string, permissions: Permiss
       ],
     },
     {
+      groupLabel: "HR MANAGEMENT",
+      allowedRoles: ["super", "admin", "pic"],
+      menus: [
+        {
+          label: "HR Management",
+          tooltip: "Manajemen Sumber Daya Manusia",
+          href: "#",
+          icon: Users,
+          active: isActive(`${basePath}/master/karyawan`, pathname) || isActive(`${basePath}/master/team`, pathname) || isActive(`${basePath}/master/documents`, pathname),
+          requiredPermission: "hr.view",
+          submenus: [
+            {
+              href: role === "super" ? "/super-admin-area/master/karyawan" : `${basePath}/master/karyawan`,
+              label: "Data Employee",
+              tooltip: "Data Karyawan",
+              icon: Contact,
+              active: role === "super" ? isActive("/super-admin-area/master/karyawan", pathname) : isActive(`${basePath}/master/karyawan`, pathname),
+              disabled: role === "user" || role === "pic",
+              requiredPermission: "hr.view",
+            },
+            {
+              href: role === "super" ? "/super-admin-area/master/team" : `${basePath}/master/team`,
+              label: "Data Team",
+              tooltip: "Struktur Tim Proyek",
+              icon: Network,
+              active: role === "super" ? isActive("/super-admin-area/master/team", pathname) : isActive(`${basePath}/master/team`, pathname),
+              disabled: role === "user",
+              requiredPermission: "project.manage",
+            },
+            {
+              href: role === "super" ? "/super-admin-area/master/documents" : `${basePath}/master/documents`,
+              label: "Data JobDesk & SOP",
+              tooltip: "Dokumen Job Description & SOP",
+              icon: BookOpen,
+              active: role === "super" ? isActive("/super-admin-area/master/documents", pathname) : isActive(`${basePath}/master/documents`, pathname),
+              disabled: role === "user",
+              requiredPermission: "hr.view",
+            }
+          ],
+        },
+      ],
+    },
+    {
       groupLabel: "PENGATURAN",
       allowedRoles: ["super"],
       menus: [
@@ -599,14 +642,7 @@ export function getMenuList(pathname: string, role: string, permissions: Permiss
               icon: Package,
               active: isActive("/super-admin-area/master/products", pathname),
             },
-            {
-              href: "/super-admin-area/master/karyawan",
-              label: "Data Employee",
-              tooltip: "Data Karyawan",
-              icon: Contact,
-              active: isActive("/super-admin-area/master/karyawan", pathname),
-              disabled: true,
-            },
+
             {
               href: "/super-admin-area/master/supplier",
               label: "Data Supplier",
@@ -763,33 +799,7 @@ export function getMenuList(pathname: string, role: string, permissions: Permiss
               disabled: role === "user",
               requiredPermission: "inventory.view",
             },
-            {
-              href: `${basePath}/master/karyawan`,
-              label: "Data Employee",
-              tooltip: "Data Karyawan",
-              icon: Contact,
-              active: isActive(`${basePath}/master/karyawan`, pathname),
-              disabled: role === "user" || role === "pic",
-              requiredPermission: "hr.view",
-            },
-            {
-              href: `${basePath}/master/team`,
-              label: "Data Team",
-              tooltip: "Struktur Tim Proyek",
-              icon: Network,
-              active: isActive(`${basePath}/master/team`, pathname),
-              disabled: role === "user",
-              requiredPermission: "project.manage",
-            },
-            {
-              href: `${basePath}/master/documents`,
-              label: "Data JobDesk & SOP",
-              tooltip: "Dokumen Job Description & SOP",
-              icon: BookOpen,
-              active: isActive(`${basePath}/master/documents`, pathname),
-              disabled: role === "user",
-              requiredPermission: "hr.view",
-            }
+
           ],
         },
       ],

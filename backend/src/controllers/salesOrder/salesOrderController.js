@@ -270,6 +270,7 @@ export const getById = async (req, res) => {
         user: true,
         items: { include: { product: true } },
         documents: true,
+        spk: true,
       },
     });
     if (!salesOrder) {

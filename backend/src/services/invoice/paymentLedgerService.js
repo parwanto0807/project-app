@@ -384,13 +384,31 @@ export async function processInvoicePayment(paymentData) {
     // Balance can be calculated from GL Summary for the bank account's COA
 
     // ========================================
-    // 13. UPDATE SALES ORDER STATUS (if fully paid)
+    // 13. UPDATE SALES ORDER & SPK STATUS (Based on Invoice Status)
     // ========================================
-    if (newStatus === 'PAID' && invoice.salesOrder) {
-      await tx.salesOrder.update({
-        where: { id: invoice.salesOrder.id },
-        data: { status: 'PAID' }
-      });
+    if (invoice.salesOrder) {
+      if (newStatus === 'PAID') {
+        // Update Sales Order status to PAID
+        await tx.salesOrder.update({
+          where: { id: invoice.salesOrder.id },
+          data: { status: 'PAID' }
+        });
+
+        // Update ALL related SPKs to Closing (spkStatusClose: true)
+        await tx.sPK.updateMany({
+          where: { salesOrderId: invoice.salesOrder.id },
+          data: { 
+            spkStatus: true,
+            spkStatusClose: true 
+          }
+        });
+      } else if (newStatus === 'PARTIALLY_PAID') {
+        // Update Sales Order status to PARTIALLY_PAID
+        await tx.salesOrder.update({
+          where: { id: invoice.salesOrder.id },
+          data: { status: 'PARTIALLY_PAID' }
+        });
+      }
     }
 
     // ========================================

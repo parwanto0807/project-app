@@ -291,6 +291,8 @@ export const getAllSPKAdmin = async (req, res) => {
     }
 
     const filterBy = req.query.filterBy?.trim() || "";
+    const teamQuery = req.query.team?.trim() || "";
+    const statusQuery = req.query.status?.trim() || "";
 
     const skip = (page - 1) * pageSize;
 
@@ -306,60 +308,55 @@ export const getAllSPKAdmin = async (req, res) => {
     // ============================
     let whereClause = {};
 
-    // Filter conditions - DIPISAH dari search
-    if (filterBy) {
-      // console.log("🔍 Applying filter:", filterBy);
+    // 1. Progress Filter (dari statusQuery atau filterBy)
+    let progressStatus = statusQuery || filterBy;
+    
+    // Jika user memilih "all" di dropdown status, pastikan kita mengabaikan filterBy yang mungkin defaultnya "on-progress"
+    if (statusQuery === "all") {
+      progressStatus = "all";
+    }
 
-      switch (filterBy) {
+    if (progressStatus && !progressStatus.startsWith("team-") && progressStatus !== "all") {
+      switch (progressStatus) {
         case "open":
+        case "on-progress":
           whereClause.spkStatusClose = false;
           break;
         case "closed":
           whereClause.spkStatusClose = true;
           break;
-        case "on-progress":
-          // ⬅️ INI TAMBAHAN BARU
-          whereClause.spkStatusClose = false;
-          break;
         case "progress-0":
           whereClause.progress = 0;
           break;
-
         case "progress-1-49":
           whereClause.progress = { gte: 1, lte: 49 };
           break;
-
         case "progress-50-99":
           whereClause.progress = { gte: 50, lte: 99 };
           break;
-
         case "progress-100":
           whereClause.progress = 100;
           break;
-        case "all":
-          // Tampilkan semua data, tidak perlu filter tambahan
-          break;
-        default:
-          // Filter by team name
-          if (filterBy.startsWith("team-")) {
-            const teamName = filterBy.replace("team-", "");
-            whereClause.team = {
-              namaTeam: {
-                equals: teamName,
-                mode: "insensitive",
-              },
-            };
-          } else {
-            // Jika filter bukan team-*, anggap sebagai nama team langsung
-            whereClause.team = {
-              namaTeam: {
-                equals: filterBy,
-                mode: "insensitive",
-              },
-            };
-          }
-          break;
       }
+    }
+
+    // 2. Team Filter (dari teamQuery atau filterBy)
+    let teamName = teamQuery;
+    if (!teamName && filterBy.startsWith("team-")) {
+      teamName = filterBy.replace("team-", "");
+    }
+
+    if (teamName && teamName !== "all" && teamName !== "without-team") {
+      whereClause.team = {
+        namaTeam: {
+          equals: teamName,
+          mode: "insensitive",
+        },
+      };
+    }
+
+    if (teamName === "without-team" || filterBy === "without-team") {
+      whereClause.teamId = null;
     }
 
     // PERBAIKAN: Multi-keyword search dengan AND condition

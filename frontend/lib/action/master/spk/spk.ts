@@ -56,6 +56,8 @@ export async function fetchAllSpkAdmin(
       searchTerm = "",
       statusFilter = "",
       filterBy = "",
+      team = "",
+      status = "",
     } = params || {};
 
     // ===== Build Query Params =====
@@ -64,7 +66,9 @@ export async function fetchAllSpkAdmin(
     queryParams.append("pageSize", String(pageSize));
     if (searchTerm) queryParams.append("search", searchTerm);
     if (statusFilter) queryParams.append("status", statusFilter);
-    if (filterBy) queryParams.append("filterBy", filterBy); // Tambahkan filterBy
+    if (filterBy) queryParams.append("filterBy", filterBy);
+    if (team) queryParams.append("team", team);
+    if (status) queryParams.append("status", status);
 
     // ===== Gunakan endpoint baru =====
     const url = `${API_URL}/api/spk/getAllSPKAdmin?${queryParams.toString()}`;

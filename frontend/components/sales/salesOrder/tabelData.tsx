@@ -1,6 +1,7 @@
 import * as React from "react"
 import { format } from "date-fns"
 import { useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link";
 import { TrendCell } from "./TrendCell";
 import {
     BarChart2,
@@ -901,8 +902,21 @@ export function SalesOrderTable({
                             <div className="flex-1">
                                 <div className="flex items-center gap-2">
                                     <p className="font-medium text-base">{order.soNumber}</p>
-
                                 </div>
+                                {order.spk && order.spk.length > 0 && (
+                                    <div className="mt-1 flex flex-wrap gap-1" onClick={(e) => e.stopPropagation()}>
+                                        {order.spk.map((s) => (
+                                            <Link
+                                                key={s.id}
+                                                href={`${getBasePathSPK(role)}?search=${encodeURIComponent(s.spkNumber)}`}
+                                                className="text-[10px] bg-amber-50 text-amber-700 hover:bg-amber-100 hover:text-amber-800 px-1.5 py-0.5 rounded-md border border-amber-200 font-semibold transition-colors flex items-center gap-1"
+                                            >
+                                                <FaToolbox className="h-2 w-2" />
+                                                {s.spkNumber}
+                                            </Link>
+                                        ))}
+                                    </div>
+                                )}
                                 <p className="text-sm text-muted-foreground">
                                     {format(new Date(order.soDate), "dd MMM yyyy")}
                                     {isSupport && (

@@ -19,6 +19,7 @@ interface SpkFilterProps {
   className?: string;
   variant?: "default" | "glass" | "solid";
   size?: "sm" | "md" | "lg";
+  mode?: "all" | "progress" | "team";
 }
 
 export default function SpkFilter({
@@ -28,6 +29,7 @@ export default function SpkFilter({
   className = "",
   variant = "glass",
   size = "md",
+  mode = "all",
 }: SpkFilterProps) {
   const variantStyles = {
     default: "bg-white border-gray-300 text-gray-900 dark:bg-gray-800 dark:border-gray-700",
@@ -53,60 +55,68 @@ export default function SpkFilter({
           className
         )}
       >
-        <SelectValue placeholder="Filter SPK" />
+        <SelectValue placeholder={mode === "team" ? "Pilih Tim" : mode === "progress" ? "Progress" : "Filter SPK"} />
       </SelectTrigger>
 
       <SelectContent className="rounded-xl shadow-xl border border-gray-200 dark:border-gray-700">
-        {/* FILTER UMUM */}
-        <SelectItem value="all" className="text-blue-600 dark:text-blue-400">
-          Semua SPK
-        </SelectItem>
-        <SelectItem value="on-progress" className="text-amber-600 dark:text-amber-400">
-          On Progress
-        </SelectItem>
-        <SelectItem value="without-team" className="text-red-600 dark:text-red-400">
-          Tanpa Tim
-        </SelectItem>
-
-        <SelectSeparator />
-
-        {/* FILTER PROGRESS */}
-        <SelectGroup>
-          <SelectLabel className="font-bold text-green-700 dark:text-green-300">
-            Progress
-          </SelectLabel>
-
-          <SelectItem value="progress-0" className="text-green-600 dark:text-green-400">
-            Progress 0%
+        {/* SEMUA DATA */}
+        {(mode === "all" || mode === "team" || mode === "progress") && (
+          <SelectItem value="all" className="text-blue-600 dark:text-blue-400">
+            Semua {mode === "team" ? "Tim" : mode === "progress" ? "Status" : "Data"}
           </SelectItem>
+        )}
 
-          <SelectItem value="progress-1-49" className="text-green-600 dark:text-green-400">
-            Progress 1–49%
-          </SelectItem>
-
-          <SelectItem value="progress-50-99" className="text-green-700 dark:text-green-300">
-            Progress 50–99%
-          </SelectItem>
-
-          <SelectItem value="progress-100" className="text-emerald-600 dark:text-emerald-400">
-            Progress 100%
-          </SelectItem>
-        </SelectGroup>
+        {/* FILTER UMUM / PROGRESS */}
+        {(mode === "all" || mode === "progress") && (
+          <>
+            <SelectItem value="on-progress" className="text-amber-600 dark:text-amber-400">
+              On Progress
+            </SelectItem>
+            <SelectItem value="open" className="text-blue-600 dark:text-blue-400">
+              Open (Belum Closing)
+            </SelectItem>
+            <SelectItem value="closed" className="text-gray-600 dark:text-gray-400">
+              Closed (Sudah Closing)
+            </SelectItem>
+            
+            <SelectSeparator />
+            
+            <SelectGroup>
+              <SelectLabel className="font-bold text-green-700 dark:text-green-300">
+                Range Progress
+              </SelectLabel>
+              <SelectItem value="progress-0" className="text-green-600 dark:text-green-400">
+                Progress 0%
+              </SelectItem>
+              <SelectItem value="progress-1-49" className="text-green-600 dark:text-green-400">
+                Progress 1–49%
+              </SelectItem>
+              <SelectItem value="progress-50-99" className="text-green-700 dark:text-green-300">
+                Progress 50–99%
+              </SelectItem>
+              <SelectItem value="progress-100" className="text-emerald-600 dark:text-emerald-400">
+                Progress 100%
+              </SelectItem>
+            </SelectGroup>
+          </>
+        )}
 
         {/* FILTER TEAM */}
-        {availableTeams.length > 0 && (
+        {(mode === "all" || mode === "team") && (
           <>
-            <SelectSeparator />
-
+            {mode === "all" && <SelectSeparator />}
+            
             <SelectGroup>
               <SelectLabel className="font-bold text-purple-700 dark:text-purple-300">
-                Pilih Tim
+                Daftar Tim
               </SelectLabel>
-
-              {availableTeams.map((team) => (
+              <SelectItem value="without-team" className="text-red-600 dark:text-red-400">
+                Tanpa Tim
+              </SelectItem>
+              {availableTeams.length > 0 && availableTeams.map((team) => (
                 <SelectItem
                   key={team}
-                  value={`team-${team}`}
+                  value={mode === "all" ? `team-${team}` : team}
                   className="text-purple-600 dark:text-purple-400"
                 >
                   {team}

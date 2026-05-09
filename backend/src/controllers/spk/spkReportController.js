@@ -446,13 +446,13 @@ export const getReportsBySpkId = async (req, res) => {
       whereClause.type = type;
     }
 
-    const reports = await prisma.sPKFieldReport.findUnique({
+    const reports = await prisma.sPKFieldReport.findMany({
       where: whereClause,
       include: {
         karyawan: true,
-        photos: true, // ✅ ambil semua foto terkait
+        photos: true,
       },
-      // orderBy: { reportedAt: "desc" },
+      orderBy: { reportedAt: "desc" },
     });
     res.json({
       success: true,
@@ -673,7 +673,6 @@ export const getSPKFieldReports = async (req, res) => {
       where: {
         ...where,
         spk: {
-          spkStatusClose: false,
           ...(spkId ? { id: spkId } : {}),
           ...(req.query.spkNumber ? { spkNumber: req.query.spkNumber } : {}),
         },

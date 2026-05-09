@@ -181,6 +181,8 @@ export interface FetchSpkParams {
   searchTerm?: string;
   statusFilter?: string;
   filterBy: string;
+  team?: string;
+  status?: string;
 }
 
 export interface SpkResponse {

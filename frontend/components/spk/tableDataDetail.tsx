@@ -110,6 +110,7 @@ interface SPKDataApi {
     }[] | null;
 
     notes?: string | null;
+    spkStatusClose?: boolean;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -589,7 +590,7 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
                             variant="ghost"
                             size="sm"
                             onClick={handleRecalculateProgress}
-                            disabled={isRecalculating}
+                            disabled={isRecalculating || dataSpk?.spkStatusClose}
                             className="text-white hover:bg-white/20 h-8 px-3 rounded-full border border-white/30 backdrop-blur-sm"
                             title="Hitung ulang progress berdasarkan item yang selesai"
                         >
@@ -1251,6 +1252,7 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
                                                                                                             setSelectedReport(report);
                                                                                                             setModalType('approve');
                                                                                                         }}
+                                                                                                        disabled={dataSpk?.spkStatusClose}
                                                                                                     >
                                                                                                         <CheckCircle className="h-3.5 w-3.5" />
                                                                                                     </Button>
@@ -1264,6 +1266,7 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
                                                                                                             setSelectedReport(report);
                                                                                                             setModalType('reject');
                                                                                                         }}
+                                                                                                        disabled={dataSpk?.spkStatusClose}
                                                                                                     >
                                                                                                         <X className="h-3.5 w-3.5" />
                                                                                                     </Button>
@@ -1633,7 +1636,7 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
                                                         setIsApproving(false);
                                                     }
                                                 }}
-                                                disabled={selectedReport.status === 'APPROVED' || isApproving}
+                                                disabled={selectedReport.status === 'APPROVED' || isApproving || dataSpk?.spkStatusClose}
                                             >
                                                 {isApproving ? (
                                                     <>
@@ -1680,7 +1683,7 @@ const FormMonitoringProgressSpkByIDAdmin = ({ dataSpk, isLoading, role, userId }
                                                         setIsDeleting(false);
                                                     }
                                                 }}
-                                                disabled={isDeleting}
+                                                disabled={isDeleting || dataSpk?.spkStatusClose}
                                             >
                                                 {isDeleting ? (
                                                     <>

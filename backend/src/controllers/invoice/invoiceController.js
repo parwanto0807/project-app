@@ -314,6 +314,21 @@ class InvoiceController {
         await tx.invoiceTax.deleteMany({ where: { invoiceId: invoice.id } });
         await this.createTaxSummary(tx, invoice.id, items);
 
+        // Update status sales order → "INVOICED" (Hanya jika belum INVOICED/PAID)
+        if (salesOrderId) {
+          const currentSO = await tx.salesOrder.findUnique({
+            where: { id: salesOrderId },
+            select: { status: true }
+          });
+
+          if (!['INVOICED', 'PARTIALLY_PAID', 'PAID'].includes(currentSO?.status)) {
+            await tx.salesOrder.update({
+              where: { id: salesOrderId },
+              data: { status: "INVOICED" },
+            });
+          }
+        }
+
         return invoice;
       });
 
@@ -611,20 +626,19 @@ class InvoiceController {
         },
       });
 
-      //Update Status SPK to True
-      if (completeInvoice?.salesOrder?.spk.length) {
-        await prisma.sPK.update({
-          where: { id: completeInvoice.salesOrder.spk[0].id }, // ambil SPK pertama
-          data: { spkStatusClose: true },
-        });
-      }
-
-      // Update status sales order → "INVOICED"
+      // Update status sales order → "INVOICED" (Hanya jika belum INVOICED/PAID)
       if (completeInvoice?.salesOrder?.id) {
-        await prisma.salesOrder.update({
+        const currentSO = await prisma.salesOrder.findUnique({
           where: { id: completeInvoice.salesOrder.id },
-          data: { status: "INVOICED" },
+          select: { status: true }
         });
+
+        if (!['INVOICED', 'PARTIALLY_PAID', 'PAID'].includes(currentSO?.status)) {
+          await prisma.salesOrder.update({
+            where: { id: completeInvoice.salesOrder.id },
+            data: { status: "INVOICED" },
+          });
+        }
       }
 
       // ✅ TAMBAHKAN: BROADCAST NOTIFICATION HANYA KE ADMIN SAJA
@@ -748,6 +762,14 @@ class InvoiceController {
           approvedAt: new Date(),
         },
       });
+
+      // Sync Sales Order status to INVOICED
+      if (updatedInvoice.salesOrderId) {
+        await prisma.salesOrder.update({
+          where: { id: updatedInvoice.salesOrderId },
+          data: { status: "INVOICED" },
+        });
+      }
 
       // console.log("✅ Invoice approved:", updatedInvoice.invoiceNumber);
 
@@ -1343,6 +1365,7 @@ class InvoiceController {
         where: { id },
         data: updateData,
         include: {
+          salesOrder: { select: { id: true } },
           createdBy: {
             select: { name: true },
           },
@@ -1351,6 +1374,33 @@ class InvoiceController {
           },
         },
       });
+
+      // Sync Sales Order & SPK status based on Invoice status
+      if (invoice.salesOrder) {
+        if (status === "PAID") {
+          await prisma.salesOrder.update({
+            where: { id: invoice.salesOrder.id },
+            data: { status: "PAID" },
+          });
+          await prisma.sPK.updateMany({
+            where: { salesOrderId: invoice.salesOrder.id },
+            data: { 
+              spkStatus: true,
+              spkStatusClose: true 
+            },
+          });
+        } else if (status === "PARTIALLY_PAID") {
+          await prisma.salesOrder.update({
+            where: { id: invoice.salesOrder.id },
+            data: { status: "PARTIALLY_PAID" },
+          });
+        } else if (["APPROVED", "UNPAID"].includes(status)) {
+          await prisma.salesOrder.update({
+            where: { id: invoice.salesOrder.id },
+            data: { status: "INVOICED" },
+          });
+        }
+      }
 
       res.json({
         success: true,

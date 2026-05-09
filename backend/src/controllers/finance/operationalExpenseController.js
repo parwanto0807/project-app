@@ -96,6 +96,12 @@ export const operationalExpenseController = {
       const resolvedExpenseId = await resolveCoaId(expenseAccountId || req.body.expenseAccountKey);
       const resolvedPaidFromId = await resolveCoaId(paidFromAccountId || req.body.paidFromAccountKey);
 
+      // Validate amount
+      const numericAmount = parseFloat(amount);
+      if (isNaN(numericAmount) || numericAmount <= 0) {
+        return res.status(400).json({ error: "Nominal harus berupa angka valid dan lebih dari 0" });
+      }
+
       if (!resolvedExpenseId) {
         return res.status(400).json({ error: "Invalid expense account or system account key" });
       }

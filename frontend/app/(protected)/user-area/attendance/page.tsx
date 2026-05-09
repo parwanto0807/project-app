@@ -175,26 +175,43 @@ export default function AttendancePage() {
                     videoRef.current,
                     new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })
                 );
+                
                 if (detections.length > 0) {
                     consecutiveRef.current++;
-                    if (consecutiveRef.current >= 3 && !isCapturingRef.current) {
-                        setFaceDetected(true);
-                        isCapturingRef.current = true;
+                    setFaceDetected(true);
+                    
+                    // Show stabilizing message after 3 frames (~0.6s at 200ms interval)
+                    if (consecutiveRef.current === 3) {
                         toast.loading("Wajah Terdeteksi! Menstabilkan...", { id: "face-scan" });
-                        setTimeout(() => {
-                            capturePhoto();
-                            toast.dismiss("face-scan");
-                        }, 1500);
-                        return;
+                    }
+                    
+                    // Capture after 10 consecutive frames (~2s total)
+                    if (consecutiveRef.current >= 10) {
+                        isCapturingRef.current = true;
+                        toast.dismiss("face-scan");
+                        capturePhoto();
+                        return; // Stop detection loop after capture
                     }
                 } else {
+                    // Reset if face is lost
+                    if (consecutiveRef.current >= 3) {
+                        toast.error("Verifikasi Gagal: Wajah keluar dari frame", { 
+                            id: "face-scan",
+                            description: "Silakan posisikan wajah Anda kembali di tengah frame.",
+                            duration: 3000 
+                        });
+                    }
                     consecutiveRef.current = 0;
                     setFaceDetected(false);
                 }
             } catch (e) {
                 // ignore transient detection errors
             }
-            detectionTimerRef.current = setTimeout(detect, 400);
+            
+            // Continue detection if not captured
+            if (!isCapturingRef.current) {
+                detectionTimerRef.current = setTimeout(detect, 200);
+            }
         };
         detect();
     }, [capturePhoto]);

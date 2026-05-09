@@ -127,36 +127,54 @@ const EditOpexDialog: React.FC<Props> = ({ open, onOpenChange, onSuccess, data }
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
+        // Basic validation
         if (!formData.description || !formData.amount || !formData.expenseAccountId) {
             toast.error("Mohon isi semua field wajib (*)");
             return;
         }
 
+        // Amount validation
+        const numericAmount = parseFloat(formData.amount);
+        if (isNaN(numericAmount) || numericAmount <= 0) {
+            toast.error("Nominal harus berupa angka valid dan lebih besar dari 0");
+            return;
+        }
+
         setSubmitting(true);
 
-        // Prepare FormData
-        const submitData = new FormData();
-        submitData.append('date', formData.date);
-        submitData.append('description', formData.description);
-        submitData.append('amount', formData.amount);
-        submitData.append('expenseAccountId', formData.expenseAccountId);
-        if (formData.paidFromAccountId) {
-            submitData.append('paidFromAccountId', formData.paidFromAccountId);
-        }
-        if (selectedFile) {
-            submitData.append('receipt', selectedFile);
-        }
+        try {
+            // Prepare FormData
+            const submitData = new FormData();
+            submitData.append('date', formData.date);
+            submitData.append('description', formData.description);
+            submitData.append('amount', formData.amount);
+            submitData.append('expenseAccountId', formData.expenseAccountId);
+            
+            if (formData.paidFromAccountId) {
+                submitData.append('paidFromAccountId', formData.paidFromAccountId);
+            }
+            
+            if (selectedFile) {
+                submitData.append('receipt', selectedFile);
+            }
 
-        const result = await updateOperationalExpense(data.id, submitData);
+            // Call server action
+            const result = await updateOperationalExpense(data.id, submitData);
 
-        if (result.success) {
-            toast.success("Biaya operasional berhasil diperbarui");
-            onSuccess();
-            onOpenChange(false);
-        } else {
-            toast.error(result.error);
+            if (result.success) {
+                toast.success("Biaya operasional berhasil diperbarui");
+                onSuccess();
+                onOpenChange(false);
+            } else {
+                toast.error(result.error || "Gagal memperbarui data");
+            }
+        } catch (error: any) {
+            console.error("Submit error:", error);
+            toast.error("Terjadi kesalahan koneksi atau sistem saat menyimpan perubahan");
+        } finally {
+            // Ensure submitting is reset regardless of outcome
+            setSubmitting(false);
         }
-        setSubmitting(false);
     };
 
     return (
