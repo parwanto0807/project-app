@@ -1,5 +1,6 @@
 import { prisma } from "../../config/db.js";
 import { getJakartaStartOfDay, getJakartaEndOfDay } from "../../utils/dateUtils.js";
+import { normalizeToJakartaStartOfDay } from "../../utils/dateUtils.js";
 
 class LedgerController {
   // Get main ledger entries with filters
@@ -408,6 +409,174 @@ class LedgerController {
 
     } catch (error) {
       console.error("Get General Ledger Postings Error:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Internal Server Error",
+        error: error.message,
+      });
+    }
+  }
+
+  // Void / Batalkan Ledger Entry
+  async voidLedger(req, res) {
+    try {
+      const { id } = req.params;
+      const { voidReason } = req.body;
+      const userId = req.user?.id || "SYSTEM";
+
+      if (!voidReason || voidReason.trim() === "") {
+        return res.status(400).json({
+          success: false,
+          message: "Alasan pembatalan (voidReason) wajib diisi",
+        });
+      }
+
+      // 1. Find the ledger with all lines
+      const ledger = await prisma.ledger.findUnique({
+        where: { id },
+        include: {
+          ledgerLines: { include: { coa: true } },
+          period: true,
+        },
+      });
+
+      // Also support lookup by ledgerNumber
+      const ledgerByNumber = !ledger
+        ? await prisma.ledger.findUnique({
+            where: { ledgerNumber: id },
+            include: {
+              ledgerLines: { include: { coa: true } },
+              period: true,
+            },
+          })
+        : null;
+
+      const target = ledger || ledgerByNumber;
+
+      if (!target) {
+        return res.status(404).json({
+          success: false,
+          message: `Ledger '${id}' tidak ditemukan`,
+        });
+      }
+
+      if (target.status === "VOID") {
+        return res.status(400).json({
+          success: false,
+          message: "Ledger ini sudah dibatalkan (VOID) sebelumnya",
+        });
+      }
+
+      if (target.status === "LOCKED" || target.status === "RECONCILED") {
+        return res.status(400).json({
+          success: false,
+          message: `Ledger dengan status ${target.status} tidak dapat dibatalkan`,
+        });
+      }
+
+      // 2. Execute void in a transaction
+      const result = await prisma.$transaction(async (tx) => {
+        // 2a. Reverse GeneralLedgerSummary for each line
+        for (const line of target.ledgerLines) {
+          const normalizedDate = normalizeToJakartaStartOfDay(target.transactionDate);
+
+          const summary = await tx.generalLedgerSummary.findUnique({
+            where: {
+              coaId_periodId_date: {
+                coaId: line.coaId,
+                periodId: target.periodId,
+                date: normalizedDate,
+              },
+            },
+          });
+
+          if (summary) {
+            const newDebit = Math.max(0, Number(summary.debitTotal) - line.debitAmount);
+            const newCredit = Math.max(0, Number(summary.creditTotal) - line.creditAmount);
+            const newClosing = Number(summary.openingBalance) + newDebit - newCredit;
+
+            await tx.generalLedgerSummary.update({
+              where: {
+                coaId_periodId_date: {
+                  coaId: line.coaId,
+                  periodId: target.periodId,
+                  date: normalizedDate,
+                },
+              },
+              data: {
+                debitTotal: newDebit,
+                creditTotal: newCredit,
+                closingBalance: newClosing,
+                transactionCount: { decrement: 1 },
+              },
+            });
+          }
+
+          // 2b. Reverse TrialBalance
+          const tb = await tx.trialBalance.findUnique({
+            where: { periodId_coaId: { periodId: target.periodId, coaId: line.coaId } },
+          });
+
+          if (tb) {
+            const newPeriodDebit = Math.max(0, Number(tb.periodDebit) - line.debitAmount);
+            const newPeriodCredit = Math.max(0, Number(tb.periodCredit) - line.creditAmount);
+            const newEndingDebit = Number(tb.openingDebit) + newPeriodDebit;
+            const newEndingCredit = Number(tb.openingCredit) + newPeriodCredit;
+
+            await tx.trialBalance.update({
+              where: { periodId_coaId: { periodId: target.periodId, coaId: line.coaId } },
+              data: {
+                periodDebit: newPeriodDebit,
+                periodCredit: newPeriodCredit,
+                endingDebit: newEndingDebit,
+                endingCredit: newEndingCredit,
+                ytdDebit: newEndingDebit,
+                ytdCredit: newEndingCredit,
+                calculatedAt: new Date(),
+              },
+            });
+          }
+        }
+
+        // 2c. Mark Ledger as VOID
+        const voidedLedger = await tx.ledger.update({
+          where: { id: target.id },
+          data: {
+            status: "VOID",
+            voidBy: userId,
+            voidAt: new Date(),
+            voidReason: voidReason.trim(),
+          },
+        });
+
+        // 2d. If this is a Loan posting, revert Pinjaman status back to DRAFT
+        if (target.referenceType === "JOURNAL" && target.referenceNumber?.startsWith("LOAN-")) {
+          const loanShortId = target.referenceNumber.replace("LOAN-", "").toLowerCase();
+          // Find the pinjaman whose id starts with loanShortId
+          const pinjaman = await tx.pinjaman.findFirst({
+            where: { id: { startsWith: loanShortId } },
+          });
+          if (pinjaman && pinjaman.status === "ACTIVE") {
+            await tx.pinjaman.update({
+              where: { id: pinjaman.id },
+              data: { status: "DRAFT" },
+            });
+            console.log(`✅ Pinjaman ${pinjaman.id} dikembalikan ke status DRAFT`);
+          }
+        }
+
+        return voidedLedger;
+      });
+
+      console.log(`🚫 Ledger VOIDED: ${target.ledgerNumber} by ${userId} | Reason: ${voidReason}`);
+
+      return res.status(200).json({
+        success: true,
+        message: `Ledger ${target.ledgerNumber} berhasil dibatalkan`,
+        data: result,
+      });
+    } catch (error) {
+      console.error("Void Ledger Error:", error);
       return res.status(500).json({
         success: false,
         message: "Internal Server Error",

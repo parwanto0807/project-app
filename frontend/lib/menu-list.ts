@@ -58,6 +58,8 @@ import {
   ShieldCheck,
   History,
   Layers,
+  CalendarCheck,
+  HandCoins,
 } from "lucide-react";
 
 interface Permission {
@@ -593,6 +595,14 @@ export function getMenuList(pathname: string, role: string, permissions: Permiss
               tooltip: "Monitoring Kehadiran Karyawan",
               icon: LayoutDashboard,
               active: isActive(`${basePath}/hr/attendance`, pathname),
+              requiredPermission: "hr.view",
+            },
+            {
+              href: `${basePath}/hr/loans`,
+              label: "Pinjaman Karyawan",
+              tooltip: "Kelola Pinjaman & Kasbon Karyawan",
+              icon: HandCoins,
+              active: isActive(`${basePath}/hr/loans`, pathname),
               requiredPermission: "hr.view",
             },
             {

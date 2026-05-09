@@ -325,6 +325,8 @@ model Pinjaman {
   angsuranBulanan Decimal          @db.Decimal(19, 2)
   sisaPinjaman    Decimal          @db.Decimal(19, 2)
   status          LoanStatus       @default(ACTIVE)
+  keterangan      String?
+  bankAccountId   String?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   karyawan        Karyawan         @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
@@ -2828,8 +2830,10 @@ enum CashAdvanceStatus {
 }
 
 enum LoanStatus {
+  DRAFT
   ACTIVE
   PAID
+  COMPLETED
   CANCELLED
 }
 

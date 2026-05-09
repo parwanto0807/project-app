@@ -16,4 +16,7 @@ router.get("/general/lines", authenticateToken, ledgerController.getGeneralLedge
 // Get Individual Postings (Line-level view)
 router.get("/general/postings", authenticateToken, ledgerController.getGeneralLedgerPostings);
 
+// Void / Batalkan Ledger Entry (by ID or ledgerNumber)
+router.patch("/:id/void", authenticateToken, ledgerController.voidLedger);
+
 export default router;
