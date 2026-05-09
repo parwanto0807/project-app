@@ -574,6 +574,7 @@ export function getMenuList(pathname: string, role: string, permissions: Permiss
         },
       ],
     },
+
     {
       groupLabel: "HR MANAGEMENT",
       allowedRoles: ["super", "admin", "pic"],
@@ -583,9 +584,17 @@ export function getMenuList(pathname: string, role: string, permissions: Permiss
           tooltip: "Manajemen Sumber Daya Manusia",
           href: "#",
           icon: Users,
-          active: isActive(`${basePath}/master/karyawan`, pathname) || isActive(`${basePath}/master/team`, pathname) || isActive(`${basePath}/master/documents`, pathname),
+          active: isActive(`${basePath}/master/karyawan`, pathname) || isActive(`${basePath}/master/team`, pathname) || isActive(`${basePath}/master/documents`, pathname) || isActive(`${basePath}/hr/attendance`, pathname),
           requiredPermission: "hr.view",
           submenus: [
+            {
+              href: `${basePath}/hr/attendance`,
+              label: "Monitoring Absensi",
+              tooltip: "Monitoring Kehadiran Karyawan",
+              icon: LayoutDashboard,
+              active: isActive(`${basePath}/hr/attendance`, pathname),
+              requiredPermission: "hr.view",
+            },
             {
               href: role === "super" ? "/super-admin-area/master/karyawan" : `${basePath}/master/karyawan`,
               label: "Data Employee",
@@ -612,7 +621,8 @@ export function getMenuList(pathname: string, role: string, permissions: Permiss
               active: role === "super" ? isActive("/super-admin-area/master/documents", pathname) : isActive(`${basePath}/master/documents`, pathname),
               disabled: role === "user",
               requiredPermission: "hr.view",
-            }
+            },
+
           ],
         },
       ],
@@ -651,6 +661,7 @@ export function getMenuList(pathname: string, role: string, permissions: Permiss
               active: isActive("/super-admin-area/master/supplier", pathname),
               disabled: true,
             },
+
           ],
         },
         {
@@ -799,6 +810,7 @@ export function getMenuList(pathname: string, role: string, permissions: Permiss
               disabled: role === "user",
               requiredPermission: "inventory.view",
             },
+
 
           ],
         },
