@@ -4,17 +4,31 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Eye, MapPin, Smartphone, AlertTriangle } from "lucide-react";
-import { format } from "date-fns";
-import { id } from "date-fns/locale";
+import { Eye, MapPin, Smartphone, AlertTriangle, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { useState } from "react";
+import ValidateAttendanceDialog from "./ValidateAttendanceDialog";
 
 interface TableProps {
   data: any[];
   isLoading: boolean;
   onViewDetail: (record: any) => void;
+  onRefresh?: () => void;
 }
 
-export function AttendanceTable({ data, isLoading, onViewDetail }: TableProps) {
+const JAM_STANDAR_KELUAR = "17:00";
+
+function isSuspicious(jamMasuk: string | null, jamKeluar: string | null): boolean {
+  if (!jamMasuk || !jamKeluar) return false;
+  const keluarDate = new Date(jamKeluar);
+  const standar = new Date(keluarDate);
+  const [h, m] = JAM_STANDAR_KELUAR.split(":").map(Number);
+  standar.setHours(h, m, 0, 0);
+  return keluarDate.getTime() - standar.getTime() > 30 * 60 * 1000;
+}
+
+export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh }: TableProps) {
+  const [validateRecord, setValidateRecord] = useState<any | null>(null);
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "HADIR":
@@ -31,38 +45,48 @@ export function AttendanceTable({ data, isLoading, onViewDetail }: TableProps) {
     }
   };
 
-  const calculateDuration = (inTime: string | null, outTime: string | null) => {
-    if (!inTime || !outTime) return "--";
-    const start = new Date(inTime);
-    const end = new Date(outTime);
-    const diffMs = end.getTime() - start.getTime();
-    if (diffMs < 0) return "--";
-    
-    const hours = Math.floor(diffMs / (1000 * 60 * 60));
-    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    
-    return `${hours}j ${minutes}m`;
-  };
-
-  const formatJakarta = (dateInput: string | Date | null) => {
+  const formatJakarta = (dateInput: string | Date | null, showDate = false) => {
     if (!dateInput) return "--:--";
     try {
-      const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
-      const formatted = new Intl.DateTimeFormat('id-ID', {
-        timeZone: 'Asia/Jakarta',
-        day: '2-digit',
-        month: 'short',
-        year: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
+      const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+      if (showDate) {
+        return new Intl.DateTimeFormat("id-ID", {
+          timeZone: "Asia/Jakarta",
+          day: "2-digit",
+          month: "short",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        }).format(date);
+      }
+      return new Intl.DateTimeFormat("id-ID", {
+        timeZone: "Asia/Jakarta",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
       }).format(date);
-      
-      // Intl id-ID output often uses dots for time separators, convert to colon
-      return formatted.replace(/\./g, ':');
-    } catch (e) {
-      return "--:--";
-    }
+    } catch { return "--:--"; }
+  };
+
+  const formatDate = (dateInput: string | null) => {
+    if (!dateInput) return "—";
+    try {
+      return new Intl.DateTimeFormat("id-ID", {
+        timeZone: "Asia/Jakarta",
+        day: "2-digit",
+        month: "short",
+        year: "2-digit",
+      }).format(new Date(dateInput));
+    } catch { return "—"; }
+  };
+
+  const calculateDuration = (inTime: string | null, outTime: string | null) => {
+    if (!inTime || !outTime) return "--";
+    const diffMs = new Date(outTime).getTime() - new Date(inTime).getTime();
+    if (diffMs <= 0) return "--";
+    const h = Math.floor(diffMs / 3600000);
+    const m = Math.floor((diffMs % 3600000) / 60000);
+    return `${h}j ${m}m`;
   };
 
   if (isLoading) {
@@ -74,88 +98,192 @@ export function AttendanceTable({ data, isLoading, onViewDetail }: TableProps) {
   }
 
   return (
-    <div className="bg-white/40 backdrop-blur-md rounded-2xl border border-white/20 shadow-sm overflow-hidden">
-      <Table>
-        <TableHeader className="bg-gray-50/50">
-          <TableRow>
-            <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Employee</TableHead>
-            <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Date</TableHead>
-            <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Clock In</TableHead>
-            <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Clock Out</TableHead>
-            <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Duration</TableHead>
-            <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Status</TableHead>
-            <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Validation</TableHead>
-            <TableHead className="text-right font-bold uppercase text-[10px] tracking-[0.1em]">Action</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {data.length === 0 ? (
+    <>
+      <div className="bg-white/40 backdrop-blur-md rounded-2xl border border-white/20 shadow-sm overflow-hidden">
+        <Table>
+          <TableHeader className="bg-gray-50/50">
             <TableRow>
-              <TableCell colSpan={7} className="h-32 text-center text-muted-foreground font-medium">
-                No attendance records found.
-              </TableCell>
+              <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Karyawan</TableHead>
+              <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Tanggal</TableHead>
+              <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Masuk</TableHead>
+              <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Keluar</TableHead>
+              <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Durasi</TableHead>
+              <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Lembur</TableHead>
+              <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Status</TableHead>
+              <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Validasi</TableHead>
+              <TableHead className="text-right font-bold uppercase text-[10px] tracking-[0.1em]">Aksi</TableHead>
             </TableRow>
-          ) : (
-            data.map((row) => (
-              <TableRow key={row.id} className="hover:bg-white/60 transition-colors group">
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8 border-2 border-white shadow-sm">
-                      <AvatarImage src={row.karyawan?.foto ? `${process.env.NEXT_PUBLIC_API_URL}${row.karyawan.foto}` : undefined} />
-                      <AvatarFallback className="bg-cyan-100 text-cyan-700 font-black text-xs">
-                        {row.karyawan?.namaLengkap?.substring(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <div className="font-black text-sm text-gray-800">{row.karyawan?.namaLengkap}</div>
-                      <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{row.karyawan?.nik}</div>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell className="font-bold text-gray-600 text-xs">
-                  {formatJakarta(row.tanggal).split(' ')[0] + ' ' + formatJakarta(row.tanggal).split(' ')[1] + ' ' + formatJakarta(row.tanggal).split(' ')[2]}
-                </TableCell>
-                <TableCell className="font-black text-cyan-600 text-[11px]">
-                  {row.jamMasuk ? formatJakarta(row.jamMasuk) : "--:--"}
-                </TableCell>
-                <TableCell className="font-black text-blue-600 text-[11px]">
-                  {row.jamKeluar ? formatJakarta(row.jamKeluar) : "--:--"}
-                </TableCell>
-                <TableCell className="font-bold text-gray-700 text-xs">
-                  {calculateDuration(row.jamMasuk, row.jamKeluar)}
-                </TableCell>
-                <TableCell>
-                  {getStatusBadge(row.status)}
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    {row.latMasuk && (
-                      <MapPin className="h-4 w-4 text-emerald-500" title="GPS Valid" />
-                    )}
-                    {row.deviceMasuk && (
-                      <Smartphone className="h-4 w-4 text-blue-500" title={row.deviceMasuk} />
-                    )}
-                    {(row.isMockedMasuk || row.isMockedKeluar) && (
-                      <AlertTriangle className="h-4 w-4 text-rose-500 animate-pulse" title="Mock Location Detected!" />
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="hover:bg-cyan-500 hover:text-white rounded-lg transition-all"
-                    onClick={() => onViewDetail(row)}
-                  >
-                    <Eye className="h-4 w-4 mr-1.5" />
-                    <span className="text-xs font-bold uppercase">Detail</span>
-                  </Button>
+          </TableHeader>
+          <TableBody>
+            {data.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={9} className="h-32 text-center text-muted-foreground font-medium">
+                  Tidak ada data absensi.
                 </TableCell>
               </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
-    </div>
+            ) : (
+              data.map((row) => {
+                const suspicious = isSuspicious(row.jamMasuk, row.jamKeluar);
+                const validated = row.isValidated;
+                const needsValidation = row.jamKeluar && !validated;
+
+                return (
+                  <TableRow
+                    key={row.id}
+                    className={`hover:bg-white/60 transition-colors group ${suspicious && !validated ? "bg-red-50/30" : ""}`}
+                  >
+                    {/* Karyawan */}
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8 border-2 border-white shadow-sm">
+                          <AvatarImage src={row.karyawan?.foto ? `${process.env.NEXT_PUBLIC_API_URL}${row.karyawan.foto}` : undefined} />
+                          <AvatarFallback className="bg-cyan-100 text-cyan-700 font-black text-xs">
+                            {row.karyawan?.namaLengkap?.substring(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="font-black text-sm text-gray-800">{row.karyawan?.namaLengkap}</div>
+                          <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{row.karyawan?.nik}</div>
+                        </div>
+                      </div>
+                    </TableCell>
+
+                    {/* Tanggal */}
+                    <TableCell className="font-bold text-gray-600 text-xs">
+                      {formatDate(row.tanggal)}
+                    </TableCell>
+
+                    {/* Jam Masuk */}
+                    <TableCell>
+                      <div className="space-y-0.5">
+                        <div className="font-black text-cyan-600 text-[11px]">
+                          {row.jamMasuk ? formatJakarta(row.jamMasuk, true) : "--:--"}
+                        </div>
+                      </div>
+                    </TableCell>
+
+                    {/* Jam Keluar — tampilkan jam disetujui jika ada */}
+                    <TableCell>
+                      <div className="space-y-0.5">
+                        <div className={`font-black text-[11px] ${suspicious && !validated ? "text-red-600" : "text-blue-600"}`}>
+                          {row.jamKeluar ? formatJakarta(row.jamKeluar, true) : "--:--"}
+                          {suspicious && !validated && (
+                            <AlertTriangle className="inline h-3 w-3 ml-1 text-red-500" />
+                          )}
+                        </div>
+                        {validated && row.jamKeluarDisetujui && (
+                          <div className="text-[10px] text-emerald-600 font-semibold flex items-center gap-0.5">
+                            <CheckCircle2 className="h-2.5 w-2.5" />
+                            {formatJakarta(row.jamKeluarDisetujui, true)}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+
+                    {/* Durasi — pakai jam disetujui jika ada */}
+                    <TableCell className="font-bold text-gray-700 text-xs">
+                      <div className="space-y-0.5">
+                        <div>{calculateDuration(row.jamMasuk, row.jamKeluar)}</div>
+                        {validated && row.jamKeluarDisetujui && row.jamKeluarDisetujui !== row.jamKeluar && (
+                          <div className="text-[10px] text-emerald-600 font-semibold">
+                            ✓ {calculateDuration(row.jamMasuk, row.jamKeluarDisetujui)}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+
+                    {/* Lembur */}
+                    <TableCell>
+                      {row.jamLembur > 0 ? (
+                        <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-200 border-none px-2 py-0.5 rounded-full font-bold text-[10px] whitespace-nowrap">
+                          {row.jamLembur} JAM
+                        </Badge>
+                      ) : (
+                        <span className="text-gray-300 text-xs">—</span>
+                      )}
+                    </TableCell>
+
+                    {/* Status */}
+                    <TableCell>{getStatusBadge(row.status)}</TableCell>
+
+                    {/* Validasi column */}
+                    <TableCell>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {/* GPS & device */}
+                        {row.latMasuk && <MapPin className="h-3.5 w-3.5 text-emerald-500" title="GPS Valid" />}
+                        {row.deviceMasuk && <Smartphone className="h-3.5 w-3.5 text-blue-500" title={row.deviceMasuk} />}
+                        {(row.isMockedMasuk || row.isMockedKeluar) && (
+                          <AlertTriangle className="h-3.5 w-3.5 text-rose-500 animate-pulse" title="Mock GPS!" />
+                        )}
+                        {/* Validation badge */}
+                        {validated ? (
+                          <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 border text-[9px] px-1.5 py-0">
+                            <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />Valid
+                          </Badge>
+                        ) : suspicious ? (
+                          <Badge className="bg-red-50 text-red-600 border-red-200 border text-[9px] px-1.5 py-0 animate-pulse">
+                            <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />Perlu Cek
+                          </Badge>
+                        ) : needsValidation ? (
+                          <Badge className="bg-amber-50 text-amber-600 border-amber-200 border text-[9px] px-1.5 py-0">
+                            Belum Valid
+                          </Badge>
+                        ) : null}
+                      </div>
+                    </TableCell>
+
+                    {/* Actions */}
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        {/* Validate button — tampil jika ada jam keluar */}
+                        {row.jamKeluar && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className={`rounded-lg transition-all text-xs ${
+                              suspicious && !validated
+                                ? "text-red-600 hover:bg-red-50 hover:text-red-700"
+                                : validated
+                                ? "text-emerald-600 hover:bg-emerald-50"
+                                : "text-blue-600 hover:bg-blue-50"
+                            }`}
+                            onClick={() => setValidateRecord(row)}
+                          >
+                            <ShieldCheck className="h-3.5 w-3.5 mr-1" />
+                            {validated ? "Re-Validasi" : "Validasi"}
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="hover:bg-cyan-500 hover:text-white rounded-lg transition-all"
+                          onClick={() => onViewDetail(row)}
+                        >
+                          <Eye className="h-3.5 w-3.5 mr-1" />
+                          <span className="text-xs font-bold uppercase">Detail</span>
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Validate Dialog */}
+      {validateRecord && (
+        <ValidateAttendanceDialog
+          record={validateRecord}
+          open={!!validateRecord}
+          onClose={() => setValidateRecord(null)}
+          onSuccess={() => {
+            setValidateRecord(null);
+            onRefresh?.();
+          }}
+        />
+      )}
+    </>
   );
 }

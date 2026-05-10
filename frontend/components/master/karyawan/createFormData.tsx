@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { User, Briefcase, ShieldCheck, Loader2, Camera, Upload, X, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
+import { User, Briefcase, ShieldCheck, Loader2, Camera, Upload, X, ArrowLeft, CheckCircle2, AlertCircle, CreditCard } from 'lucide-react';
 import { employeeFormSchema, type EmployeeFormValues } from '@/schemas';
 import Image from 'next/image';
 import { useRouter } from "next/navigation";
@@ -41,6 +41,7 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
             departemen: "",
             statusKerja: "",
             tipeKontrak: "",
+            tipePenggajian: "BULANAN",
             userId: undefined,
             gajiPokok: 0,
             tunjangan: 0,
@@ -52,6 +53,9 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
             foto: undefined,
             teamIds: [],
             attendanceLocationId: "",
+            namaBank: "",
+            nomorRekening: "",
+            namaRekening: "",
         },
     });
 
@@ -450,6 +454,17 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
                                         </Select>
                                         <FormMessage /></FormItem>
                                 )} />
+                                <FormField name="tipePenggajian" control={form.control} render={({ field }) => (
+                                    <FormItem><FormLabel className="text-blue-600 font-bold">Tipe Penggajian</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value || "BULANAN"}>
+                                            <FormControl><SelectTrigger><SelectValue placeholder="Pilih tipe penggajian" /></SelectTrigger></FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="BULANAN">1. Bulanan</SelectItem>
+                                                <SelectItem value="HARIAN_BULANAN">2. Harian di Bayar Bulanan</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage /></FormItem>
+                                )} />
                                 <FormField name="gajiPokok" control={form.control} render={({ field }) => (
                                     <FormItem><FormLabel>Gaji Pokok</FormLabel><FormControl><Input type="number" placeholder="Contoh: 5000000" {...field} value={field.value ?? ""} onChange={e => field.onChange(Number(e.target.value))} /></FormControl><FormMessage /></FormItem>
                                 )} />
@@ -491,7 +506,24 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
                             </div>
                         </div>
 
-                        {/* --- Group: Foto Karyawan --- */}
+                        {/* --- Group: Informasi Bank --- */}
+                        <div className="space-y-4 p-4 border rounded-lg">
+                            <h3 className="text-lg font-semibold flex items-center text-blue-700">
+                                <CreditCard className="mr-2 h-5 w-5" />
+                                Informasi Bank (Untuk Penggajian)
+                            </h3>
+                            <div className="grid md:grid-cols-3 gap-4">
+                                <FormField name="namaBank" control={form.control} render={({ field }) => (
+                                    <FormItem><FormLabel>Nama Bank</FormLabel><FormControl><Input placeholder="Contoh: BCA / Mandiri / BRI" {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
+                                )} />
+                                <FormField name="nomorRekening" control={form.control} render={({ field }) => (
+                                    <FormItem><FormLabel>Nomor Rekening</FormLabel><FormControl><Input placeholder="Contoh: 1234567890" {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
+                                )} />
+                                <FormField name="namaRekening" control={form.control} render={({ field }) => (
+                                    <FormItem><FormLabel>Nama Di Rekening</FormLabel><FormControl><Input placeholder="Contoh: Budi Santoso" {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
+                                )} />
+                            </div>
+                        </div>
                         <div className="space-y-4 p-4 border rounded-lg">
                             <h3 className="text-lg font-semibold flex items-center text-orange-600">
                                 <Camera className="mr-2 h-5 w-5" />

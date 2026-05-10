@@ -69,7 +69,7 @@ export default function PRCreatePageAdminApprove() {
 
             console.log("✅ Success response:", result);
             // toast.success("Uang Muka berhasil dibuat!");
-            router.push("/admin-area/accounting/prVerify");
+            router.push("/admin-area/logistic/prVerify");
         } catch (unknownError) {
             console.warn("⚠️ Gagal membuat Uang Muka:", unknownError);
 

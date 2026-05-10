@@ -29,6 +29,12 @@ const permissions = [
     description: 'Full access untuk mengelola Purchase Request'
   },
   {
+    code: 'pr.verify',
+    name: 'Verify Purchase Request',
+    module: 'purchasing',
+    description: 'Dapat melakukan verifikasi Purchase Request'
+  },
+  {
     code: 'po.view',
     name: 'View Purchase Order',
     module: 'purchasing',
@@ -203,6 +209,7 @@ const defaultRolePermissions = {
     { code: 'pr.view', canRead: true, canCreate: true, canUpdate: true, canDelete: true },
     { code: 'pr.create', canRead: true, canCreate: true, canUpdate: true, canDelete: true },
     { code: 'pr.approve', canRead: true, canCreate: true, canUpdate: true, canDelete: true },
+    { code: 'pr.verify', canRead: true, canCreate: true, canUpdate: true, canDelete: true },
     { code: 'pr.manage', canRead: true, canCreate: true, canUpdate: true, canDelete: true },
     { code: 'po.view', canRead: true, canCreate: true, canUpdate: true, canDelete: true },
     { code: 'po.create', canRead: true, canCreate: true, canUpdate: true, canDelete: true },

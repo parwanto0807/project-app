@@ -43,6 +43,10 @@ export const createKaryawan = async (req, res) => {
       teamIds,
       isActive,
       attendanceLocationId,
+      tipePenggajian,
+      namaBank,
+      nomorRekening,
+      namaRekening,
     } = req.body;
 
     // ✅ Validasi userId jika diberikan
@@ -89,6 +93,7 @@ export const createKaryawan = async (req, res) => {
         tanggalKeluar: tanggalKeluar ? new Date(tanggalKeluar) : null,
         statusKerja,
         tipeKontrak,
+        tipePenggajian: tipePenggajian || "BULANAN",
         gajiPokok: gajiPokok ? Number(gajiPokok) : 0,
         tunjangan: tunjangan ? Number(tunjangan) : 0,
         potongan: potongan ? Number(potongan) : 0,
@@ -96,6 +101,9 @@ export const createKaryawan = async (req, res) => {
         foto: fotoPath,
         isActive: true,
         attendanceLocationId: (attendanceLocationId === "none" || !attendanceLocationId) ? null : attendanceLocationId,
+        namaBank,
+        nomorRekening,
+        namaRekening,
         teamKaryawan: {
           create: teamIdsArray?.map((teamId) => ({ teamId })) || [],
         },
@@ -130,7 +138,12 @@ export const createKaryawan = async (req, res) => {
 // GET all karyawan
 export const getAllKaryawan = async (req, res) => {
   try {
+    const { includeInactive } = req.query;
     const karyawan = await prisma.karyawan.findMany({
+      where: {
+        // Default hanya karyawan aktif, kecuali ada query ?includeInactive=true
+        ...(includeInactive !== "true" && { isActive: true }),
+      },
       include: {
         teamKaryawan: { include: { team: true } },
         gaji: true,
@@ -199,6 +212,10 @@ export const updateKaryawan = async (req, res) => {
       teamIds,
       isActive,
       attendanceLocationId,
+      tipePenggajian,
+      namaBank,
+      nomorRekening,
+      namaRekening,
     } = req.body;
 
     // ✅ Validasi userId jika diberikan
@@ -236,7 +253,11 @@ export const updateKaryawan = async (req, res) => {
       departemen,
       statusKerja,
       tipeKontrak,
+      tipePenggajian,
       isActive: isActive ?? true,
+      namaBank,
+      nomorRekening,
+      namaRekening,
     };
 
     // 🖼️ handle file foto

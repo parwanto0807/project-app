@@ -7,6 +7,8 @@ import {
   createAbsensi,
   updateAbsensi,
   deleteAbsensi,
+  validateAbsensi,
+  approveAbsensi,
 } from "../../controllers/absensi/absensiController.js";
 import {
   submitClockIn,
@@ -37,6 +39,8 @@ router.get("/", getAllAbsensi);
 router.post("/", createAbsensi);
 router.put("/:id", updateAbsensi);
 router.delete("/:id", deleteAbsensi);
+router.patch("/:id/validate", validateAbsensi);   // Koreksi jam keluar
+router.patch("/:id/approve", approveAbsensi);     // Setujui jam keluar apa adanya
 
 /* ----------------------------- USER SUBMISSION ROUTES ----------------------------- */
 router.post("/submit-clock-in", upload.single("foto"), submitClockIn);

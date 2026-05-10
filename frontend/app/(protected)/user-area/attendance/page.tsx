@@ -173,44 +173,40 @@ export default function AttendancePage() {
             try {
                 const detections = await faceapi.detectAllFaces(
                     videoRef.current,
-                    new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })
+                    // Turunkan scoreThreshold agar lebih mudah detect, naikkan inputSize agar lebih akurat
+                    new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.3 })
                 );
                 
                 if (detections.length > 0) {
-                    consecutiveRef.current++;
+                    // Increment — max 6, butuh ~3 frame (~0.75s) untuk capture
+                    consecutiveRef.current = Math.min(consecutiveRef.current + 2, 6);
                     setFaceDetected(true);
                     
-                    // Show stabilizing message after 3 frames (~0.6s at 200ms interval)
-                    if (consecutiveRef.current === 3) {
+                    if (consecutiveRef.current >= 2) {
                         toast.loading("Wajah Terdeteksi! Menstabilkan...", { id: "face-scan" });
                     }
                     
-                    // Capture after 10 consecutive frames (~2s total)
-                    if (consecutiveRef.current >= 10) {
+                    // Capture setelah 6 poin terkumpul
+                    if (consecutiveRef.current >= 6) {
                         isCapturingRef.current = true;
                         toast.dismiss("face-scan");
                         capturePhoto();
-                        return; // Stop detection loop after capture
+                        return;
                     }
                 } else {
-                    // Reset if face is lost
-                    if (consecutiveRef.current >= 3) {
-                        toast.error("Verifikasi Gagal: Wajah keluar dari frame", { 
-                            id: "face-scan",
-                            description: "Silakan posisikan wajah Anda kembali di tengah frame.",
-                            duration: 3000 
-                        });
+                    consecutiveRef.current = Math.max(consecutiveRef.current - 1, 0);
+                    if (consecutiveRef.current === 0) {
+                        setFaceDetected(false);
+                        toast.dismiss("face-scan");
                     }
-                    consecutiveRef.current = 0;
-                    setFaceDetected(false);
                 }
             } catch (e) {
                 // ignore transient detection errors
             }
             
-            // Continue detection if not captured
             if (!isCapturingRef.current) {
-                detectionTimerRef.current = setTimeout(detect, 200);
+                // Interval 250ms — cukup responsif tanpa overload
+                detectionTimerRef.current = setTimeout(detect, 250);
             }
         };
         detect();
@@ -417,11 +413,16 @@ export default function AttendancePage() {
                                                 <div className="flex flex-col items-center gap-2 animate-in zoom-in-95 duration-300">
                                                     <div className="px-5 py-2.5 bg-emerald-500/90 backdrop-blur-md text-white text-[11px] font-black tracking-widest rounded-2xl shadow-xl flex items-center gap-2 border border-emerald-400/50">
                                                         <UserCheck size={16} />
-                                                        FACE RECOGNIZED
+                                                        WAJAH TERDETEKSI — TAHAN...
                                                     </div>
-                                                    <div className="w-32 h-1 bg-white/20 rounded-full overflow-hidden mt-1">
-                                                        <div className="h-full bg-emerald-400 animate-[progress_1.5s_linear]"></div>
+                                                    {/* Progress bar */}
+                                                    <div className="w-40 h-2 bg-white/20 rounded-full overflow-hidden mt-1">
+                                                        <div
+                                                            className="h-full bg-emerald-400 rounded-full transition-all duration-300"
+                                                            style={{ width: `${Math.min((consecutiveRef.current / 6) * 100, 100)}%` }}
+                                                        />
                                                     </div>
+                                                    <p className="text-white/70 text-[10px] font-bold">Jangan gerakkan wajah</p>
                                                 </div>
                                             ) : (
                                                 <div className="px-5 py-2.5 bg-white/10 backdrop-blur-md text-white/90 text-[11px] font-bold tracking-widest rounded-2xl border border-white/20 flex items-center gap-3">
@@ -429,7 +430,7 @@ export default function AttendancePage() {
                                                         <RefreshCcw size={14} className="animate-spin text-blue-400" />
                                                         <div className="absolute inset-0 bg-blue-400/20 blur-sm rounded-full animate-pulse"></div>
                                                     </div>
-                                                    SCANNING FACE...
+                                                    ARAHKAN WAJAH KE KAMERA
                                                 </div>
                                             )}
                                         </div>

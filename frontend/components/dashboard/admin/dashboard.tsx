@@ -49,6 +49,7 @@ const ENDPOINTS = {
     invoiceStats: `${API_BASE}/api/invoice/getInvoiceStats`,
     monthlyInvoice: (customerId?: string) =>
         `${API_BASE}/api/invoice/getMonthlyInvoice?months=12${customerId ? `&customerId=${customerId}` : ''}`,
+    recentSPK: `${API_BASE}/api/spk/getRecentSPK?take=5`,
 };
 
 // =============================
@@ -70,6 +71,27 @@ interface SalesOrderMini {
     grandTotal: string | number;
     customer?: CustomerMini | null;
     project?: ProjectMini | null;
+}
+
+interface SPKMini {
+    id: string;
+    spkNumber: string;
+    spkDate: string;
+    progress: number;
+    progressComment: string | null;
+    updatedAt: string;
+    lastCommentAt: string | null;
+    spkStatusClose: boolean;
+    salesOrder: {
+        soNumber: string;
+        customer: {
+            name: string;
+            branch: string | null;
+        } | null;
+    } | null;
+    team: {
+        namaTeam: string;
+    } | null;
 }
 
 interface SalesStats {
@@ -252,6 +274,7 @@ export default function DashboardAwalSalesOrder() {
     const [productCount, setProductCount] = useState<number | null>(null);
     const [salesOrderCount, setSalesOrderCount] = useState<number | null>(null);
     const [recentOrders, setRecentOrders] = useState<SalesOrderMini[]>([]);
+    const [recentSpk, setRecentSpk] = useState<SPKMini[]>([]);
     const [salesStats, setSalesStats] = useState<SalesStats | null>(null);
     const [invoiceStats, setInvoiceStats] = useState<InvoiceStats | null>(null);
 
@@ -299,26 +322,28 @@ export default function DashboardAwalSalesOrder() {
                 const monthlySalesUrl = ENDPOINTS.monthlySales();
                 const monthlyInvoiceUrl = ENDPOINTS.monthlyInvoice();
 
-                const [cst, prd, so, list, monthly, monthlyInv] = await Promise.all([
+                const [cst, prd, so, list, monthly, monthlyInv, spkRecent] = await Promise.all([
                     fetch(ENDPOINTS.customerCount, { credentials: "include" }),
                     fetch(ENDPOINTS.productCount, { credentials: "include" }),
                     fetch(ENDPOINTS.salesOrderCount, { credentials: "include" }),
                     fetch(ENDPOINTS.recentSalesOrders, { credentials: "include" }),
                     fetch(monthlySalesUrl, { credentials: "include" }),
                     fetch(monthlyInvoiceUrl, { credentials: "include" }),
+                    fetch(ENDPOINTS.recentSPK, { credentials: "include" }),
                 ]);
 
-                if (!cst.ok || !prd.ok || !so.ok || !list.ok || !monthly.ok || !monthlyInv.ok) {
+                if (!cst.ok || !prd.ok || !so.ok || !list.ok || !monthly.ok || !monthlyInv.ok || !spkRecent.ok) {
                     throw new Error("Gagal memuat data dashboard. Periksa endpoint backend.");
                 }
 
-                const [cstJson, prdJson, soJson, listJsonRaw, monthlyJson, monthlyInvJson] = await Promise.all([
+                const [cstJson, prdJson, soJson, listJsonRaw, monthlyJson, monthlyInvJson, spkRecentJson] = await Promise.all([
                     cst.json() as Promise<CountResponse>,
                     prd.json() as Promise<CountResponse>,
                     so.json() as Promise<CountResponse>,
                     list.json() as Promise<{ data: SalesOrderMini[] } | SalesOrderMini[]>,
                     monthly.json() as Promise<MonthlySalesData[] | { data: MonthlySalesData[] }>,
                     monthlyInv.json() as Promise<MonthlyInvoiceData[] | { data: MonthlyInvoiceData[] }>,
+                    spkRecent.json() as Promise<{ data: SPKMini[] }>,
                 ]);
 
                 const [statsJson, invoiceStatsJson] = await Promise.all([
@@ -332,6 +357,7 @@ export default function DashboardAwalSalesOrder() {
                 setProductCount(prdJson.count);
                 setSalesOrderCount(soJson.count);
                 setRecentOrders(Array.isArray(listJsonRaw) ? listJsonRaw : listJsonRaw.data);
+                setRecentSpk(spkRecentJson.data);
                 setSalesStats(statsJson);
                 setInvoiceStats(invoiceStatsJson);
 
@@ -550,20 +576,27 @@ export default function DashboardAwalSalesOrder() {
 
             {/* Main Content with Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-                <TabsList className="grid w-full grid-cols-2 lg:w-[400px] bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+                <TabsList className="grid w-full grid-cols-3 lg:w-[600px] bg-slate-100 dark:bg-slate-800 p-1 rounded-lg h-auto">
                     <TabsTrigger
                         value="sales-order"
-                        className="flex items-center gap-2 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-600"
+                        className="flex items-center justify-center gap-1.5 md:gap-2 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-600 px-2 py-2.5"
                     >
-                        <FileText className="h-4 w-4" />
-                        Sales Order
+                        <FileText className="h-4 w-4 shrink-0" />
+                        <span className="text-[10px] sm:text-xs md:text-sm font-medium truncate">Sales Order</span>
+                    </TabsTrigger>
+                    <TabsTrigger
+                        value="logistic"
+                        className="flex items-center justify-center gap-1.5 md:gap-2 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-orange-600 px-2 py-2.5"
+                    >
+                        <Package className="h-4 w-4 shrink-0" />
+                        <span className="text-[10px] sm:text-xs md:text-sm font-medium truncate">Logistic</span>
                     </TabsTrigger>
                     <TabsTrigger
                         value="invoicing"
-                        className="flex items-center gap-2 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-600"
+                        className="flex items-center justify-center gap-1.5 md:gap-2 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-purple-600 px-2 py-2.5"
                     >
-                        <Receipt className="h-4 w-4" />
-                        Invoicing
+                        <Receipt className="h-4 w-4 shrink-0" />
+                        <span className="text-[10px] sm:text-xs md:text-sm font-medium truncate">Invoicing</span>
                     </TabsTrigger>
                 </TabsList>
 
@@ -786,6 +819,225 @@ export default function DashboardAwalSalesOrder() {
                                         <span className="text-xs text-muted-foreground">12 Jam Lalu</span>
                                     </div>
                                 </CardContent>
+                            </Card>
+                        </div>
+                    </div>
+                </TabsContent>
+
+                {/* Logistic & SPK Tab */}
+                <TabsContent value="logistic" className="space-y-6">
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                        <Card className="lg:col-span-2 shadow-sm border overflow-hidden">
+                            <CardHeader className="pb-3 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-900/10 dark:to-amber-900/10">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <CardTitle className="text-base md:text-lg flex items-center gap-2 text-orange-700 dark:text-orange-400">
+                                            <Package className="h-5 w-5" />
+                                            5 SPK Terakhir Diupdate
+                                        </CardTitle>
+                                        <CardDescription className="text-xs md:text-sm">
+                                            Aktivitas monitoring dan progres logistik terbaru
+                                        </CardDescription>
+                                    </div>
+                                    <Button variant="ghost" size="sm" asChild className="h-8 text-xs md:text-sm text-orange-600 hover:text-orange-700 hover:bg-orange-100 dark:hover:bg-orange-900/20">
+                                        <Link href="/admin-area/logistic/spk">
+                                            Lihat Semua SPK
+                                        </Link>
+                                    </Button>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="p-0">
+                                {loading ? (
+                                    <RecentTableSkeleton />
+                                ) : recentSpk.length === 0 ? (
+                                    <div className="p-12 text-sm text-muted-foreground text-center">
+                                        Belum ada aktivitas SPK terbaru.
+                                    </div>
+                                ) : (
+                                    <>
+                                        {/* Desktop View Table */}
+                                        <div className="hidden md:block overflow-x-auto">
+                                            <Table>
+                                                <TableHeader className="bg-slate-50 dark:bg-slate-900/50">
+                                                    <TableRow>
+                                                        <TableHead className="w-[150px] text-xs font-bold">Nomor SPK</TableHead>
+                                                        <TableHead className="text-xs font-bold">Customer / SO</TableHead>
+                                                        <TableHead className="w-[180px] text-xs font-bold">Progress</TableHead>
+                                                        <TableHead className="w-[100px] text-xs font-bold">Status</TableHead>
+                                                        <TableHead className="w-[140px] text-xs font-bold text-right">Update Terakhir</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {recentSpk.map((s) => (
+                                                        <TableRow key={s.id} className="hover:bg-orange-50/30 dark:hover:bg-orange-900/5 transition-colors group">
+                                                            <TableCell className="font-bold text-xs md:text-sm text-orange-600 dark:text-orange-400">
+                                                                {s.spkNumber}
+                                                                <div className="text-[10px] text-muted-foreground font-normal mt-0.5">
+                                                                    Team: {s.team?.namaTeam || "-"}
+                                                                </div>
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <div className="text-xs md:text-sm font-medium">
+                                                                    {s.salesOrder?.customer?.name || "-"}
+                                                                </div>
+                                                                <div className="text-[10px] text-muted-foreground">
+                                                                    SO: {s.salesOrder?.soNumber || "-"}
+                                                                </div>
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <div className="space-y-1.5">
+                                                                    <div className="flex justify-between items-center text-[10px]">
+                                                                        <span className="font-medium">{s.progress}%</span>
+                                                                        <span className="text-muted-foreground truncate max-w-[100px]">
+                                                                            {s.progressComment || "No comment"}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                                                        <div 
+                                                                            className={`h-full rounded-full transition-all duration-500 ${
+                                                                                s.progress >= 100 ? 'bg-emerald-500' : 
+                                                                                s.progress >= 50 ? 'bg-sky-500' : 
+                                                                                s.progress > 0 ? 'bg-amber-500' : 'bg-slate-300'
+                                                                            }`}
+                                                                            style={{ width: `${s.progress}%` }}
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <Badge className={`text-[10px] px-2 py-0.5 rounded-full ${
+                                                                    s.spkStatusClose 
+                                                                    ? 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400' 
+                                                                    : 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400'
+                                                                }`}>
+                                                                    {s.spkStatusClose ? 'CLOSED' : 'OPEN'}
+                                                                </Badge>
+                                                            </TableCell>
+                                                            <TableCell className="text-right">
+                                                                <div className="text-[10px] md:text-xs text-muted-foreground font-medium">
+                                                                    {new Date(s.updatedAt).toLocaleDateString('id-ID', {
+                                                                        day: '2-digit',
+                                                                        month: 'short',
+                                                                        hour: '2-digit',
+                                                                        minute: '2-digit'
+                                                                    })}
+                                                                </div>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+
+                                        {/* Mobile View Card List */}
+                                        <div className="md:hidden divide-y">
+                                            {recentSpk.map((s) => (
+                                                <div key={s.id} className="p-4 space-y-3 hover:bg-orange-50/30 transition-colors">
+                                                    <div className="flex justify-between items-start">
+                                                        <div>
+                                                            <div className="text-xs font-bold text-orange-600 dark:text-orange-400 uppercase tracking-tight">
+                                                                {s.spkNumber}
+                                                            </div>
+                                                            <div className="text-sm font-semibold mt-0.5 leading-tight">
+                                                                {s.salesOrder?.customer?.name || "-"}
+                                                            </div>
+                                                            <div className="text-[10px] text-muted-foreground">
+                                                                SO: {s.salesOrder?.soNumber || "-"} | Team: {s.team?.namaTeam || "-"}
+                                                            </div>
+                                                        </div>
+                                                        <Badge className={`text-[9px] px-1.5 py-0 rounded-full ${
+                                                            s.spkStatusClose 
+                                                            ? 'bg-emerald-100 text-emerald-700' 
+                                                            : 'bg-orange-100 text-orange-700'
+                                                        }`}>
+                                                            {s.spkStatusClose ? 'CLOSED' : 'OPEN'}
+                                                        </Badge>
+                                                    </div>
+
+                                                    <div className="space-y-1.5">
+                                                        <div className="flex justify-between items-center text-[10px]">
+                                                            <span className="font-bold">{s.progress}% Progress</span>
+                                                            <span className="text-muted-foreground italic truncate max-w-[150px]">
+                                                                "{s.progressComment || "No comment"}"
+                                                            </span>
+                                                        </div>
+                                                        <div className="h-2 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                                            <div 
+                                                                className={`h-full rounded-full ${
+                                                                    s.progress >= 100 ? 'bg-emerald-500' : 
+                                                                    s.progress >= 50 ? 'bg-sky-500' : 
+                                                                    s.progress > 0 ? 'bg-amber-500' : 'bg-slate-300'
+                                                                }`}
+                                                                style={{ width: `${s.progress}%` }}
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex justify-between items-center pt-1">
+                                                        <div className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                                            <Calendar className="h-3 w-3" />
+                                                            {new Date(s.updatedAt).toLocaleDateString('id-ID', {
+                                                                day: '2-digit',
+                                                                month: 'short',
+                                                                hour: '2-digit',
+                                                                minute: '2-digit'
+                                                            })}
+                                                        </div>
+                                                        <Button variant="link" size="sm" className="h-auto p-0 text-[10px] text-orange-600" asChild>
+                                                            <Link href={`/admin-area/logistic/spk?search=${s.spkNumber}`}>
+                                                                Detail <ArrowUpRight className="h-2 w-2 ml-0.5" />
+                                                            </Link>
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        {/* Sidebar Logistic */}
+                        <div className="space-y-6">
+                            <Card className="shadow-sm border border-orange-100 dark:border-orange-900/20">
+                                <CardHeader className="pb-3">
+                                    <CardTitle className="text-base md:text-lg flex items-center gap-2 text-orange-700 dark:text-orange-400">
+                                        <TrendingUp className="h-5 w-5" />
+                                        Metrik Logistik
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="p-4 rounded-xl bg-gradient-to-br from-orange-50 to-amber-50 dark:from-orange-900/10 dark:to-amber-900/10 border border-orange-100 dark:border-orange-900/20">
+                                        <div className="text-xs text-muted-foreground mb-1">Rata-rata Progres</div>
+                                        <div className="text-2xl font-bold text-orange-700 dark:text-orange-400">
+                                            {recentSpk.length > 0 
+                                                ? Math.round(recentSpk.reduce((acc, curr) => acc + (curr.progress || 0), 0) / recentSpk.length)
+                                                : 0}%
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/20">
+                                            <div className="text-[10px] text-emerald-600 dark:text-emerald-400 uppercase font-bold tracking-wider">Selesai</div>
+                                            <div className="text-lg font-bold text-emerald-700 dark:text-emerald-300">
+                                                {recentSpk.filter(s => s.spkStatusClose).length}
+                                            </div>
+                                        </div>
+                                        <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/20">
+                                            <div className="text-[10px] text-orange-600 dark:text-orange-400 uppercase font-bold tracking-wider">Berjalan</div>
+                                            <div className="text-lg font-bold text-orange-700 dark:text-orange-300">
+                                                {recentSpk.filter(s => !s.spkStatusClose).length}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                                <CardFooter>
+                                    <Button className="w-full bg-orange-600 hover:bg-orange-700 text-white gap-2" asChild>
+                                        <Link href="/admin-area/logistic/spk">
+                                            Buka Monitoring SPK
+                                            <ArrowUpRight className="h-4 w-4" />
+                                        </Link>
+                                    </Button>
+                                </CardFooter>
                             </Card>
                         </div>
                     </div>

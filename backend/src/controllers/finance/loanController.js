@@ -247,7 +247,7 @@ export const postPinjaman = async (req, res) => {
       });
 
       return updatedLoan;
-    });
+    }, { timeout: 30000 });
 
     res.json(result);
   } catch (error) {
@@ -339,6 +339,7 @@ export const recordManualRepayment = async (req, res) => {
 };
 
 // --- KASBON SEMENTARA ---
+
 export const getAllKasbon = async (req, res) => {
   try {
     const { karyawanId, status } = req.query;
@@ -348,7 +349,9 @@ export const getAllKasbon = async (req, res) => {
         ...(status && { status }),
       },
       include: {
-        karyawan: { select: { namaLengkap: true, nik: true } },
+        karyawan: {
+          select: { id: true, namaLengkap: true, nik: true, jabatan: true, gajiPokok: true },
+        },
       },
       orderBy: { tanggal: "desc" },
     });
@@ -360,21 +363,321 @@ export const getAllKasbon = async (req, res) => {
 
 export const createKasbon = async (req, res) => {
   try {
-    const { karyawanId, jumlah, keperluan } = req.body;
+    const { karyawanId, jumlah, keperluan, bulanPotong, catatan } = req.body;
+
+    if (!karyawanId || !jumlah) {
+      return res.status(400).json({ message: "karyawanId dan jumlah wajib diisi" });
+    }
+
+    const amount = parseFloat(jumlah);
+
+    // Validasi 50% gaji — soft warning, tidak block
+    const karyawan = await prisma.karyawan.findUnique({
+      where: { id: karyawanId },
+      select: { gajiPokok: true },
+    });
+
+    let warningMessage = null;
+    if (karyawan?.gajiPokok && amount > karyawan.gajiPokok * 0.5) {
+      warningMessage = `Jumlah kasbon melebihi 50% gaji pokok (${karyawan.gajiPokok * 0.5})`;
+    }
+
     const kasbon = await prisma.kasbonSementara.create({
       data: {
         karyawanId,
-        jumlah: parseFloat(jumlah),
+        jumlah: amount,
         keperluan,
+        bulanPotong: bulanPotong ? new Date(bulanPotong) : null,
+        catatan,
         status: "PENDING",
       },
+      include: {
+        karyawan: { select: { namaLengkap: true, nik: true } },
+      },
     });
-    res.status(201).json(kasbon);
+
+    res.status(201).json({ ...kasbon, warning: warningMessage });
   } catch (error) {
+    console.error("Error creating kasbon:", error);
     res.status(500).json({ message: error.message });
   }
 };
 
+export const approveKasbon = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { approvedBy, catatan } = req.body;
+
+    const kasbon = await prisma.kasbonSementara.findUnique({ where: { id } });
+    if (!kasbon) return res.status(404).json({ message: "Kasbon tidak ditemukan" });
+    if (kasbon.status !== "PENDING") {
+      return res.status(400).json({ message: "Hanya kasbon berstatus PENDING yang dapat disetujui" });
+    }
+
+    const updated = await prisma.kasbonSementara.update({
+      where: { id },
+      data: {
+        status: "APPROVED",
+        approvedBy: approvedBy || "Admin",
+        approvedAt: new Date(),
+        catatan: catatan || kasbon.catatan,
+      },
+      include: {
+        karyawan: { select: { namaLengkap: true, nik: true } },
+      },
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error("Error approving kasbon:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * POST /kasbon/:id/post
+ * Posting kasbon ke General Ledger setelah APPROVED
+ * Jurnal: Dr. Piutang Karyawan Lainnya (1-10303) / Cr. Kas Peti Cash (1-10001)
+ */
+export const postKasbon = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { cashAccountKey = "PETTY_CASH" } = req.body; // default Kas Peti Cash
+
+    const kasbon = await prisma.kasbonSementara.findUnique({
+      where: { id },
+      include: { karyawan: { select: { namaLengkap: true, nik: true } } },
+    });
+
+    if (!kasbon) return res.status(404).json({ message: "Kasbon tidak ditemukan" });
+    if (kasbon.status !== "APPROVED") {
+      return res.status(400).json({ message: "Hanya kasbon berstatus APPROVED yang dapat di-posting" });
+    }
+    if (kasbon.isPosted) {
+      return res.status(400).json({ message: "Kasbon ini sudah pernah di-posting ke jurnal" });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Mark as posted
+      const updated = await tx.kasbonSementara.update({
+        where: { id },
+        data: { isPosted: true },
+        include: { karyawan: { select: { namaLengkap: true, nik: true } } },
+      });
+
+      // 2. Create GL Entry
+      // Dr. Piutang Karyawan Lainnya (EMPLOYEE_CASH_ADVANCE) — aset bertambah
+      // Cr. Kas/Bank (cashAccountKey) — kas berkurang
+      await createLedgerEntry({
+        referenceType: "JOURNAL",
+        referenceId: kasbon.id,
+        referenceNumber: `KASBON-${kasbon.id.substring(0, 8).toUpperCase()}`,
+        tanggal: kasbon.tanggal,
+        keterangan: `Pencairan Kasbon Karyawan: ${kasbon.karyawan.namaLengkap} - ${kasbon.keperluan || ""}`,
+        entries: [
+          {
+            systemAccountKey: "EMPLOYEE_CASH_ADVANCE",
+            debit: Number(kasbon.jumlah),
+            karyawanId: kasbon.karyawanId,
+          },
+          {
+            systemAccountKey: cashAccountKey,
+            credit: Number(kasbon.jumlah),
+          },
+        ],
+        createdById: req.user?.id || "SYSTEM",
+        tx,
+      });
+
+      return updated;
+    }, { timeout: 30000 });
+
+    res.json(result);
+  } catch (error) {
+    console.error("Error posting kasbon:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const rejectKasbon = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rejectedReason } = req.body;
+
+    const kasbon = await prisma.kasbonSementara.findUnique({
+      where: { id },
+      include: { karyawan: { select: { namaLengkap: true, nik: true } } },
+    });
+    if (!kasbon) return res.status(404).json({ message: "Kasbon tidak ditemukan" });
+
+    // PENDING → REJECTED: langsung
+    if (kasbon.status === "PENDING") {
+      const updated = await prisma.kasbonSementara.update({
+        where: { id },
+        data: {
+          status: "REJECTED",
+          rejectedReason: rejectedReason || "Tidak ada alasan",
+        },
+        include: { karyawan: { select: { namaLengkap: true, nik: true } } },
+      });
+      return res.json(updated);
+    }
+
+    // APPROVED + belum di-posting → batalkan approval (kembali ke PENDING)
+    if (kasbon.status === "APPROVED" && !kasbon.isPosted) {
+      const updated = await prisma.kasbonSementara.update({
+        where: { id },
+        data: {
+          status: "REJECTED",
+          rejectedReason: rejectedReason || "Dibatalkan setelah approval",
+          approvedBy: null,
+          approvedAt: null,
+        },
+        include: { karyawan: { select: { namaLengkap: true, nik: true } } },
+      });
+      return res.json(updated);
+    }
+
+    // APPROVED + sudah di-posting → tidak bisa ditolak biasa, harus void
+    if (kasbon.status === "APPROVED" && kasbon.isPosted) {
+      return res.status(400).json({
+        message:
+          "Kasbon ini sudah di-posting ke Jurnal. Tidak dapat ditolak langsung — lakukan Void/Reverse Journal terlebih dahulu.",
+        code: "ALREADY_POSTED",
+      });
+    }
+
+    return res.status(400).json({ message: `Kasbon berstatus ${kasbon.status} tidak dapat ditolak` });
+  } catch (error) {
+    console.error("Error rejecting kasbon:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * PUT /kasbon/:id — Edit kasbon (PENDING only)
+ */
+export const updateKasbon = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { jumlah, keperluan, bulanPotong, catatan } = req.body;
+
+    const kasbon = await prisma.kasbonSementara.findUnique({
+      where: { id },
+      include: { karyawan: { select: { gajiPokok: true } } },
+    });
+    if (!kasbon) return res.status(404).json({ message: "Kasbon tidak ditemukan" });
+    if (kasbon.status !== "PENDING") {
+      return res.status(400).json({ message: "Hanya kasbon berstatus PENDING yang dapat diedit" });
+    }
+
+    const amount = jumlah ? parseFloat(jumlah) : Number(kasbon.jumlah);
+
+    let warningMessage = null;
+    if (kasbon.karyawan?.gajiPokok && amount > kasbon.karyawan.gajiPokok * 0.5) {
+      warningMessage = `Jumlah kasbon melebihi 50% gaji pokok (${kasbon.karyawan.gajiPokok * 0.5})`;
+    }
+
+    const updated = await prisma.kasbonSementara.update({
+      where: { id },
+      data: {
+        jumlah: amount,
+        keperluan: keperluan !== undefined ? keperluan : kasbon.keperluan,
+        bulanPotong: bulanPotong ? new Date(bulanPotong) : kasbon.bulanPotong,
+        catatan: catatan !== undefined ? catatan : kasbon.catatan,
+      },
+      include: { karyawan: { select: { namaLengkap: true, nik: true } } },
+    });
+
+    res.json({ ...updated, warning: warningMessage });
+  } catch (error) {
+    console.error("Error updating kasbon:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const settleKasbon = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const kasbon = await prisma.kasbonSementara.findUnique({
+      where: { id },
+      include: { karyawan: { select: { namaLengkap: true, nik: true } } },
+    });
+    if (!kasbon) return res.status(404).json({ message: "Kasbon tidak ditemukan" });
+    if (kasbon.status !== "APPROVED") {
+      return res.status(400).json({ message: "Hanya kasbon berstatus APPROVED yang dapat diselesaikan" });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Update status
+      const updated = await tx.kasbonSementara.update({
+        where: { id },
+        data: {
+          status: "SETTLED",
+          tanggalPenyelesaian: new Date(),
+        },
+        include: {
+          karyawan: { select: { namaLengkap: true, nik: true } },
+        },
+      });
+
+      // 2. GL Entry hanya jika kasbon sudah pernah di-posting
+      // Dr. Beban Gaji Karyawan (EXPENSE_SALARY) — beban bertambah
+      // Cr. Piutang Karyawan Lainnya (EMPLOYEE_CASH_ADVANCE) — piutang berkurang
+      if (kasbon.isPosted) {
+        await createLedgerEntry({
+          referenceType: "JOURNAL",
+          referenceId: kasbon.id,
+          referenceNumber: `SETTLE-KASBON-${kasbon.id.substring(0, 8).toUpperCase()}`,
+          tanggal: new Date(),
+          keterangan: `Pelunasan Kasbon via Potong Gaji: ${kasbon.karyawan.namaLengkap}`,
+          entries: [
+            {
+              systemAccountKey: "EXPENSE_SALARY",
+              debit: Number(kasbon.jumlah),
+              karyawanId: kasbon.karyawanId,
+            },
+            {
+              systemAccountKey: "EMPLOYEE_CASH_ADVANCE",
+              credit: Number(kasbon.jumlah),
+              karyawanId: kasbon.karyawanId,
+            },
+          ],
+          createdById: req.user?.id || "SYSTEM",
+          tx,
+        });
+      }
+
+      return updated;
+    });
+
+    res.json(result);
+  } catch (error) {
+    console.error("Error settling kasbon:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const deleteKasbon = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const kasbon = await prisma.kasbonSementara.findUnique({ where: { id } });
+    if (!kasbon) return res.status(404).json({ message: "Kasbon tidak ditemukan" });
+    if (kasbon.status !== "PENDING") {
+      return res.status(400).json({ message: "Hanya kasbon berstatus PENDING yang dapat dihapus" });
+    }
+
+    await prisma.kasbonSementara.delete({ where: { id } });
+    res.json({ message: "Kasbon berhasil dihapus" });
+  } catch (error) {
+    console.error("Error deleting kasbon:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Legacy — kept for backward compatibility
 export const updateKasbonStatus = async (req, res) => {
   try {
     const { id } = req.params;

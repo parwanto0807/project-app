@@ -103,6 +103,12 @@ export function MobileShortcut({ basePath = "/admin-area", customGroups }: Mobil
           description: "Permintaan pembelian"
         },
         {
+          href: `${basePath}/logistic/prVerify`,
+          label: "Verifikasi PR",
+          icon: Settings,
+          description: "Verifikasi purchase request"
+        },
+        {
           href: `${basePath}/logistic/purchasing`,
           label: "Purchase Order (PO)",
           icon: ShoppingCart,
@@ -186,12 +192,6 @@ export function MobileShortcut({ basePath = "/admin-area", customGroups }: Mobil
       icon: Wallet,
       color: "from-amber-500 to-amber-600",
       menus: [
-        {
-          href: `${basePath}/accounting/prVerify`,
-          label: "Verifikasi PR",
-          icon: Settings,
-          description: "Verifikasi purchase request"
-        },
         {
           href: `${basePath}/accounting/staff-balance`,
           label: "Staff Balance",

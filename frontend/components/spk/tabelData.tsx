@@ -47,6 +47,7 @@ import { mapFormValuesToPdfProps, SpkPdfValues } from "@/lib/validations/spk-map
 import { SpkFormValuesPdfProps } from "@/types/spk";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
+import { SpkProgressUpdateDialog } from "./SpkProgressUpdateDialog";
 
 type SPK = {
     id: string;
@@ -128,6 +129,8 @@ type SPK = {
     }[] | null;
     spkFieldReport?: SPKFieldReport[] | null; // Ini harus array
     notes?: string | null;
+    progressComment?: string | null;
+    lastCommentAt?: Date | string | null;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -147,6 +150,8 @@ type TabelDataSpkProps = {
     isLoading: boolean;
     className?: string;
     onDeleteSpk?: (spkId: string) => void;
+    onRefresh?: () => void;
+    userId?: string;
     isDeleting: boolean;
 };
 
@@ -304,14 +309,42 @@ const DetailCard = ({ icon: Icon, title, children, className }: {
 );
 
 export default function TabelDataSpk({
-    dataSpk = [], // Default ke array kosong
+    dataSpk = [],
     role,
     isLoading,
     onDeleteSpk,
+    onRefresh,
+    userId,
     isDeleting = false,
 }: TabelDataSpkProps) {
     const rowRefs = React.useRef<{ [key: string]: HTMLTableRowElement | null }>({});
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+    const [isProgressDialogOpen, setIsProgressDialogOpen] = useState(false);
+    const [selectedSpkForProgress, setSelectedSpkForProgress] = useState<{
+        id: string;
+        spkNumber: string;
+        projectName: string;
+        teamName: string;
+        customerName: string;
+        spkDate: string | Date;
+        progress: number;
+        comment: string;
+    } | null>(null);
+
+    const handleOpenProgressDialog = (spk: SPK) => {
+        setSelectedSpkForProgress({
+            id: spk.id,
+            spkNumber: spk.spkNumber,
+            projectName: spk.salesOrder?.project?.name || "No Project",
+            teamName: spk.team?.namaTeam || "No Team",
+            customerName: spk.salesOrder?.customer?.name || "No Customer",
+            spkDate: spk.spkDate,
+            progress: spk.progress || 0,
+            comment: spk.progressComment || "",
+        });
+        setIsProgressDialogOpen(true);
+    };
 
     const searchParams = useSearchParams();
     const page = Number(searchParams.get("page")) || 1;
@@ -726,6 +759,46 @@ export default function TabelDataSpk({
                                             </div>
                                         </div>
 
+                                        {/* Monitoring Comment */}
+                                        <div>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div className="flex items-center">
+                                                    <BarChart2 className="h-4 w-4 mr-2 text-blue-600" />
+                                                    <h5 className="font-semibold text-sm text-gray-900 dark:text-white">Monitoring Progress</h5>
+                                                </div>
+                                                {role === "admin" && (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="h-7 text-[10px] text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                        onClick={() => handleOpenProgressDialog(spk)}
+                                                    >
+                                                        <Edit className="h-3 w-3 mr-1" />
+                                                        Update
+                                                    </Button>
+                                                )}
+                                            </div>
+                                            <div className={cn(
+                                                "p-3 rounded-lg border",
+                                                spk.progressComment
+                                                    ? "bg-blue-50/50 border-blue-100 dark:bg-blue-950/20 dark:border-blue-900"
+                                                    : "bg-gray-50 border-gray-100 dark:bg-gray-800/50 dark:border-gray-700 border-dashed"
+                                            )}>
+                                                <p className={cn(
+                                                    "text-xs leading-relaxed italic",
+                                                    spk.progressComment ? "text-blue-800 dark:text-blue-200" : "text-gray-400"
+                                                )}>
+                                                    {spk.progressComment || "Belum ada komentar monitoring dari admin."}
+                                                </p>
+                                                {spk.lastCommentAt && (
+                                                    <p className="text-[10px] text-blue-400 mt-2 flex items-center gap-1">
+                                                        <Calendar className="h-3 w-3" />
+                                                        Update terakhir: {getTimeAgo(spk.lastCommentAt)}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+
                                         {/* Detail Karyawan/Tim */}
                                         {spk.details && spk.details.length > 0 && (
                                             <div>
@@ -831,6 +904,7 @@ export default function TabelDataSpk({
                     </Card>
                 );
             })}
+
         </div>
     );
 
@@ -850,6 +924,7 @@ export default function TabelDataSpk({
                             <TableHead className="font-semibold text-gray-700 dark:text-gray-300">Project Name</TableHead>
                             <TableHead className="w-40 font-semibold text-gray-700 dark:text-gray-300">Progress</TableHead>
                             <TableHead className="w-10 font-semibold text-gray-700 dark:text-gray-300">Status</TableHead>
+                            <TableHead className="w-48 font-semibold text-gray-700 dark:text-gray-300">Monitoring Admin</TableHead>
                             <TableHead className="w-32 font-semibold text-gray-700 dark:text-gray-300">Catatan</TableHead>
                             <TableHead className="text-center w-48 font-semibold text-gray-700 dark:text-gray-300">Aksi</TableHead>
                         </TableRow>
@@ -989,9 +1064,9 @@ export default function TabelDataSpk({
                                                     <ProgressIndicator progress={spk.progress || 0} />
 
                                                     {/* Timestamp */}
-                                                    {(spk.updatedAt || spk.createdAt) && (
+                                                    {(spk.lastCommentAt || spk.updatedAt || spk.createdAt) && (
                                                         <span className="text-[10px] md:text-xs text-muted-foreground">
-                                                            {spk.updatedAt ? 'Diupdate' : 'Dibuat'} {getTimeAgo(spk.updatedAt || spk.createdAt!)}
+                                                            {spk.lastCommentAt ? 'Comment' : spk.updatedAt ? 'Diupdate' : 'Dibuat'} {getTimeAgo(spk.lastCommentAt || spk.updatedAt || spk.createdAt!)}
                                                         </span>
                                                     )}
                                                 </div>
@@ -1012,6 +1087,167 @@ export default function TabelDataSpk({
                                                         {spk.spkStatusClose ? "CLOSING" : "OPEN"}
                                                     </span>
                                                 </div>
+                                            </TableCell>
+
+                                            <TableCell className="max-w-[220px]">
+                                                {role === "admin" ? (
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <div
+                                                                    className="group relative cursor-pointer"
+                                                                    onClick={() => handleOpenProgressDialog(spk)}
+                                                                >
+                                                                    <div className={cn(
+                                                                        "p-2 rounded-lg border transition-all duration-200 hover:shadow-md",
+                                                                        spk.progressComment
+                                                                            ? "bg-blue-50/50 border-blue-100 text-blue-700 dark:bg-blue-900/10 dark:border-blue-800 dark:text-blue-300 hover:bg-blue-100/70 dark:hover:bg-blue-900/20"
+                                                                            : "bg-gray-50 border-gray-100 text-gray-400 border-dashed hover:border-blue-300 hover:bg-blue-50"
+                                                                    )}>
+                                                                        <div className="flex items-start gap-2">
+                                                                            <MessageSquare className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                                                                            <p className="text-xs italic break-words whitespace-normal leading-relaxed">
+                                                                                {spk.progressComment || "Tambah monitoring..."}
+                                                                            </p>
+                                                                        </div>
+                                                                        {spk.lastCommentAt && (
+                                                                            <p className="text-[10px] text-blue-400 dark:text-blue-500 mt-1.5 flex items-center gap-1">
+                                                                                <Calendar className="h-2.5 w-2.5" />
+                                                                                {getTimeAgo(spk.lastCommentAt)}
+                                                                            </p>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                                                        <div className="bg-blue-600 text-white p-1 rounded-full shadow-lg">
+                                                                            <Plus className="h-3 w-3" />
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent
+                                                                side="left"
+                                                                align="center"
+                                                                sideOffset={8}
+                                                                className="p-0 border-0 shadow-2xl shadow-blue-500/20 max-w-[300px] rounded-xl overflow-hidden z-50"
+                                                            >
+                                                                <div className="bg-gradient-to-br from-slate-800 via-blue-900 to-indigo-900 dark:from-slate-900 dark:via-blue-950 dark:to-indigo-950 text-white rounded-xl">
+                                                                    {/* Header tooltip */}
+                                                                    <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10">
+                                                                        <div className="w-7 h-7 rounded-lg bg-blue-500/30 flex items-center justify-center flex-shrink-0">
+                                                                            <MessageSquare className="h-3.5 w-3.5 text-blue-300" />
+                                                                        </div>
+                                                                        <div>
+                                                                            <p className="text-xs font-semibold text-white leading-none">Monitoring Admin</p>
+                                                                            <p className="text-[10px] text-blue-300/80 mt-0.5">Catatan progres pekerjaan</p>
+                                                                        </div>
+                                                                        {/* Progress badge di header */}
+                                                                        <div className={cn(
+                                                                            "ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0",
+                                                                            spk.progress >= 80 ? "bg-emerald-500/30 text-emerald-300" :
+                                                                            spk.progress >= 50 ? "bg-sky-500/30 text-sky-300" :
+                                                                            spk.progress >= 20 ? "bg-amber-500/30 text-amber-300" :
+                                                                            "bg-rose-500/30 text-rose-300"
+                                                                        )}>
+                                                                            {spk.progress}%
+                                                                        </div>
+                                                                    </div>
+
+                                                                    {/* Body tooltip */}
+                                                                    <div className="px-4 py-3 space-y-2.5">
+                                                                        {/* Progress bar mini */}
+                                                                        <div>
+                                                                            <div className="flex justify-between items-center mb-1">
+                                                                                <span className="text-[10px] text-blue-300/70 font-medium">Progress Keseluruhan</span>
+                                                                                <span className="text-[10px] font-bold text-white">{spk.progress}%</span>
+                                                                            </div>
+                                                                            <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                                                                                <div
+                                                                                    className={cn(
+                                                                                        "h-full rounded-full transition-all duration-500",
+                                                                                        spk.progress >= 80 ? "bg-emerald-400" :
+                                                                                        spk.progress >= 50 ? "bg-sky-400" :
+                                                                                        spk.progress >= 20 ? "bg-amber-400" :
+                                                                                        "bg-rose-400"
+                                                                                    )}
+                                                                                    style={{ width: `${spk.progress}%` }}
+                                                                                />
+                                                                            </div>
+                                                                        </div>
+
+                                                                        {/* Komentar lengkap */}
+                                                                        <div className="bg-white/5 border border-white/10 rounded-lg p-3">
+                                                                            <p className="text-[11px] font-medium text-blue-200/70 mb-1.5 flex items-center gap-1.5">
+                                                                                <ClipboardList className="h-3 w-3" />
+                                                                                Komentar Monitoring
+                                                                            </p>
+                                                                            <p className="text-xs text-white/90 leading-relaxed italic whitespace-pre-wrap break-words">
+                                                                                {spk.progressComment || "Belum ada komentar monitoring dari admin."}
+                                                                            </p>
+                                                                        </div>
+
+                                                                        {/* Timestamp */}
+                                                                        {spk.lastCommentAt && (
+                                                                            <div className="flex items-center gap-1.5 text-[10px] text-blue-300/70">
+                                                                                <Calendar className="h-3 w-3 flex-shrink-0" />
+                                                                                <span>Diperbarui: <span className="text-blue-200 font-medium">{getTimeAgo(spk.lastCommentAt)}</span></span>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+
+                                                                    {/* Footer hint */}
+                                                                    <div className="flex items-center gap-2 px-4 py-2.5 bg-white/5 border-t border-white/10">
+                                                                        <Edit className="h-3 w-3 text-blue-300/70 flex-shrink-0" />
+                                                                        <p className="text-[10px] text-blue-300/70 italic">Klik untuk update monitoring</p>
+                                                                    </div>
+                                                                </div>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                ) : (
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <div className="flex items-start gap-2 text-gray-600 dark:text-gray-400 cursor-default">
+                                                                    <MessageSquare className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+                                                                    <p className="text-xs italic break-words whitespace-normal leading-relaxed">
+                                                                        {spk.progressComment || "-"}
+                                                                    </p>
+                                                                </div>
+                                                            </TooltipTrigger>
+                                                            {spk.progressComment && (
+                                                                <TooltipContent
+                                                                    side="left"
+                                                                    align="center"
+                                                                    sideOffset={8}
+                                                                    className="p-0 border-0 shadow-2xl shadow-slate-500/20 max-w-[280px] rounded-xl overflow-hidden z-50"
+                                                                >
+                                                                    <div className="bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900 text-white rounded-xl">
+                                                                        <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10">
+                                                                            <div className="w-7 h-7 rounded-lg bg-slate-500/30 flex items-center justify-center flex-shrink-0">
+                                                                                <MessageSquare className="h-3.5 w-3.5 text-slate-300" />
+                                                                            </div>
+                                                                            <div>
+                                                                                <p className="text-xs font-semibold text-white leading-none">Monitoring Admin</p>
+                                                                                <p className="text-[10px] text-slate-300/80 mt-0.5">Catatan progres pekerjaan</p>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="px-4 py-3">
+                                                                            <p className="text-xs text-white/90 leading-relaxed italic whitespace-pre-wrap break-words">
+                                                                                {spk.progressComment}
+                                                                            </p>
+                                                                            {spk.lastCommentAt && (
+                                                                                <div className="flex items-center gap-1.5 text-[10px] text-slate-300/70 mt-2.5">
+                                                                                    <Calendar className="h-3 w-3 flex-shrink-0" />
+                                                                                    <span>Diperbarui: <span className="text-slate-200 font-medium">{getTimeAgo(spk.lastCommentAt)}</span></span>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                </TooltipContent>
+                                                            )}
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                )}
                                             </TableCell>
 
                                             <TableCell className="text-center">
@@ -1469,6 +1705,22 @@ export default function TabelDataSpk({
                     open={pdfActions.pdfDialogOpen}
                     onOpenChange={pdfActions.setPdfDialogOpen}
                     data={pdfActions.selectedSpk}
+                />
+            )}
+
+            {selectedSpkForProgress && (
+                <SpkProgressUpdateDialog
+                    isOpen={isProgressDialogOpen}
+                    onOpenChange={setIsProgressDialogOpen}
+                    spkId={selectedSpkForProgress.id}
+                    spkNumber={selectedSpkForProgress.spkNumber}
+                    projectName={selectedSpkForProgress.projectName}
+                    teamName={selectedSpkForProgress.teamName}
+                    customerName={selectedSpkForProgress.customerName}
+                    spkDate={selectedSpkForProgress.spkDate}
+                    currentProgress={selectedSpkForProgress.progress}
+                    userId={userId}
+                    onSuccess={() => onRefresh?.()}
                 />
             )}
         </Card>

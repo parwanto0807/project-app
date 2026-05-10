@@ -275,6 +275,54 @@ export const createSPK = async (req, res) => {
   }
 };
 
+export const getRecentSPK = async (req, res) => {
+  try {
+    const take = parseInt(req.query.take) || 5;
+
+    const recentSPK = await prisma.sPK.findMany({
+      take: take,
+      orderBy: {
+        updatedAt: "desc",
+      },
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            namaLengkap: true,
+          },
+        },
+        salesOrder: {
+          include: {
+            customer: {
+              select: {
+                name: true,
+                branch: true,
+              },
+            },
+          },
+        },
+        team: {
+          select: {
+            namaTeam: true,
+          },
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      data: recentSPK,
+    });
+  } catch (error) {
+    console.error("Error getRecentSPK:", error);
+    res.status(500).json({
+      success: false,
+      message: "Gagal mengambil data SPK terbaru",
+      error: error.message,
+    });
+  }
+};
+
 export const getAllSPKAdmin = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -916,6 +964,100 @@ export const updateSPKProgress = async (req, res) => {
     res.status(500).json({ 
       error: "Failed to update SPK progress",
       details: error.message 
+    });
+  }
+};
+
+// ✅ NEW: Update SPK Monitoring Comment & Progress (with History Logs)
+export const updateSPKProgressComment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { progress, progressComment, userId } = req.body;
+
+    // Use transaction to update SPK and create Log
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Update SPK record (keeps the latest info for quick display)
+      const spk = await tx.sPK.update({
+        where: { id },
+        data: {
+          progress: progress !== undefined ? parseInt(progress) : undefined,
+          progressComment: progressComment,
+          lastCommentAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+
+      // 2. Create History Log (like social media comment)
+      const targetUserId = userId || req.user?.id;
+      
+      if (!targetUserId) {
+        throw new Error("User ID tidak ditemukan. Pastikan Anda sudah login.");
+      }
+
+      const log = await tx.sPKProgressLog.create({
+        data: {
+          spk: { connect: { id: id } },
+          user: { connect: { id: targetUserId } },
+          progress: progress !== undefined ? parseInt(progress) : (spk.progress || 0),
+          comment: progressComment,
+        },
+        include: {
+          user: {
+            select: {
+              name: true,
+              email: true,
+              avatar: true,
+            },
+          },
+        },
+      });
+
+      return { spk, log };
+    });
+
+    res.json({
+      success: true,
+      message: "Monitoring progress updated successfully",
+      data: result.spk,
+      newLog: result.log,
+    });
+  } catch (error) {
+    console.error("Error updateSPKProgressComment:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update monitoring progress",
+      error: error.message,
+    });
+  }
+};
+
+// ✅ NEW: Get SPK Progress History
+export const getSPKProgressLogs = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const logs = await prisma.sPKProgressLog.findMany({
+      where: { spkId: id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    res.json(logs);
+  } catch (error) {
+    console.error("Error getSPKProgressLogs:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch progress logs",
+      error: error.message,
     });
   }
 };

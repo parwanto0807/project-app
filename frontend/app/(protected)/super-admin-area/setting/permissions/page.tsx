@@ -71,6 +71,17 @@ const moduleIcons: { [key: string]: string } = {
     project: '🏗️',
     sales: '💼',
     hr: '👥',
+    absensi: '⏱️',
+    payroll: '💵',
+    loan: '💳',
+    pinjaman: '💳',
+    master: '📁',
+    clinic: '🏥',
+    doctor: '🩺',
+    laboratorium: '🧪',
+    pharmacy: '💊',
+    radiology: '☢️',
+    nurse: '👩‍⚕️',
     settings: '⚙️',
 };
 
@@ -377,7 +388,7 @@ export default function PermissionsPage() {
 
                 {/* Edit Dialog */}
                 <Dialog open={isDialogOpen} onOpenChange={handleCloseDialog}>
-                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
                             <DialogTitle className="flex items-center gap-2">
                                 <Shield className="h-5 w-5 text-primary" />
@@ -402,86 +413,113 @@ export default function PermissionsPage() {
                                             {permissions.filter(p => p.granted).length} / {permissions.length}
                                         </Badge>
                                     </div>
-
                                     {Object.entries(groupedPermissions).map(([module, modulePerms]) => (
-                                        <div key={module} className="space-y-3">
-                                            <div className="flex items-center gap-2 pb-2 border-b">
-                                                <span className="text-xl">{moduleIcons[module] || '📋'}</span>
-                                                <h3 className="text-lg font-semibold capitalize">{module}</h3>
-                                                <Badge variant="secondary" className="ml-auto">
-                                                    {modulePerms.filter(p => p.granted).length} / {modulePerms.length}
+                                        <div key={module} className="space-y-4 p-4 border rounded-xl bg-card shadow-sm hover:shadow-md transition-shadow">
+                                            <div className="flex items-center gap-3 pb-2 border-b">
+                                                <div className="text-2xl p-2 bg-muted rounded-lg">
+                                                    {moduleIcons[module] || '📋'}
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-lg font-bold capitalize">{module}</h3>
+                                                    <p className="text-xs text-muted-foreground">Kelola hak akses modul {module}</p>
+                                                </div>
+                                                <Badge variant="outline" className="ml-auto bg-primary/5">
+                                                    {modulePerms.filter(p => p.granted).length} / {modulePerms.length} Active
                                                 </Badge>
                                             </div>
-
-                                            <div className="rounded-md border">
-                                                <Table>
-                                                    <TableHeader>
-                                                        <TableRow>
-                                                            <TableHead className="w-[300px]">Permission</TableHead>
-                                                            <TableHead className="text-center w-[100px]">
-                                                                <div className="flex flex-col items-center justify-center gap-1 text-xs">
-                                                                    <span>Read</span>
-                                                                    <Checkbox
-                                                                        checked={isAllChecked(module, 'canRead')}
-                                                                        onCheckedChange={(checked) => handleSelectAll(module, 'canRead', checked as boolean)}
-                                                                        aria-label="Select all Read"
-                                                                    />
-                                                                </div>
-                                                            </TableHead>
-                                                            <TableHead className="text-center w-[100px]">
-                                                                <div className="flex flex-col items-center justify-center gap-1 text-xs">
-                                                                    <span>Create</span>
-                                                                    <Checkbox
-                                                                        checked={isAllChecked(module, 'canCreate')}
-                                                                        onCheckedChange={(checked) => handleSelectAll(module, 'canCreate', checked as boolean)}
-                                                                    />
-                                                                </div>
-                                                            </TableHead>
-                                                            <TableHead className="text-center w-[100px]">
-                                                                <div className="flex flex-col items-center justify-center gap-1 text-xs">
-                                                                    <span>Update</span>
-                                                                    <Checkbox
-                                                                        checked={isAllChecked(module, 'canUpdate')}
-                                                                        onCheckedChange={(checked) => handleSelectAll(module, 'canUpdate', checked as boolean)}
-                                                                    />
-                                                                </div>
-                                                            </TableHead>
-                                                            <TableHead className="text-center w-[100px]">
-                                                                <div className="flex flex-col items-center justify-center gap-1 text-xs">
-                                                                    <span>Delete</span>
-                                                                    <Checkbox
-                                                                        checked={isAllChecked(module, 'canDelete')}
-                                                                        onCheckedChange={(checked) => handleSelectAll(module, 'canDelete', checked as boolean)}
-                                                                    />
-                                                                </div>
-                                                            </TableHead>
-                                                        </TableRow>
-                                                    </TableHeader>
-                                                    <TableBody>
-                                                        {modulePerms.map((perm) => (
-                                                            <TableRow key={perm.id}>
-                                                                <TableCell>
-                                                                    <div>
-                                                                        <div className="font-medium">{perm.name}</div>
-                                                                        <div className="text-xs text-muted-foreground">{perm.code}</div>
+ 
+                                            <div className="grid grid-cols-1 gap-4">
+                                                <div className="rounded-lg border overflow-hidden">
+                                                    <Table>
+                                                        <TableHeader className="bg-muted/30">
+                                                            <TableRow>
+                                                                <TableHead className="w-[35%] font-bold">Permission Name & Code</TableHead>
+                                                                <TableHead className="text-center w-[15%]">
+                                                                    <div className="flex flex-col items-center gap-1.5">
+                                                                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Read</span>
+                                                                        <Checkbox
+                                                                            checked={isAllChecked(module, 'canRead')}
+                                                                            onCheckedChange={(checked) => handleSelectAll(module, 'canRead', checked as boolean)}
+                                                                            className="h-5 w-5"
+                                                                        />
                                                                     </div>
-                                                                </TableCell>
-                                                                <TableCell className="text-center">
-                                                                    <Checkbox checked={perm.canRead} onCheckedChange={() => handleToggle(perm.id, 'canRead', perm.canRead)} />
-                                                                </TableCell>
-                                                                <TableCell className="text-center">
-                                                                    <Checkbox checked={perm.canCreate} onCheckedChange={() => handleToggle(perm.id, 'canCreate', perm.canCreate)} />
-                                                                </TableCell>
-                                                                <TableCell className="text-center">
-                                                                    <Checkbox checked={perm.canUpdate} onCheckedChange={() => handleToggle(perm.id, 'canUpdate', perm.canUpdate)} />
-                                                                </TableCell>
-                                                                <TableCell className="text-center">
-                                                                    <Checkbox checked={perm.canDelete} onCheckedChange={() => handleToggle(perm.id, 'canDelete', perm.canDelete)} />
-                                                                </TableCell>
+                                                                </TableHead>
+                                                                <TableHead className="text-center w-[15%]">
+                                                                    <div className="flex flex-col items-center gap-1.5">
+                                                                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Create</span>
+                                                                        <Checkbox
+                                                                            checked={isAllChecked(module, 'canCreate')}
+                                                                            onCheckedChange={(checked) => handleSelectAll(module, 'canCreate', checked as boolean)}
+                                                                            className="h-5 w-5"
+                                                                        />
+                                                                    </div>
+                                                                </TableHead>
+                                                                <TableHead className="text-center w-[15%]">
+                                                                    <div className="flex flex-col items-center gap-1.5">
+                                                                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Update</span>
+                                                                        <Checkbox
+                                                                            checked={isAllChecked(module, 'canUpdate')}
+                                                                            onCheckedChange={(checked) => handleSelectAll(module, 'canUpdate', checked as boolean)}
+                                                                            className="h-5 w-5"
+                                                                        />
+                                                                    </div>
+                                                                </TableHead>
+                                                                <TableHead className="text-center w-[15%]">
+                                                                    <div className="flex flex-col items-center gap-1.5">
+                                                                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Delete</span>
+                                                                        <Checkbox
+                                                                            checked={isAllChecked(module, 'canDelete')}
+                                                                            onCheckedChange={(checked) => handleSelectAll(module, 'canDelete', checked as boolean)}
+                                                                            className="h-5 w-5"
+                                                                        />
+                                                                    </div>
+                                                                </TableHead>
                                                             </TableRow>
-                                                        ))}
-                                                    </TableBody>
-                                                </Table>
+                                                        </TableHeader>
+                                                        <TableBody>
+                                                            {modulePerms.map((perm) => (
+                                                                <TableRow key={perm.id} className="hover:bg-muted/20 transition-colors">
+                                                                    <TableCell>
+                                                                        <div className="flex flex-col">
+                                                                            <span className="font-semibold text-sm">{perm.name}</span>
+                                                                            <code className="text-[10px] text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded w-fit mt-1">
+                                                                                {perm.code}
+                                                                            </code>
+                                                                        </div>
+                                                                    </TableCell>
+                                                                    <TableCell className="text-center">
+                                                                        <Checkbox 
+                                                                            checked={perm.canRead} 
+                                                                            onCheckedChange={() => handleToggle(perm.id, 'canRead', perm.canRead)}
+                                                                            className="h-5 w-5" 
+                                                                        />
+                                                                    </TableCell>
+                                                                    <TableCell className="text-center">
+                                                                        <Checkbox 
+                                                                            checked={perm.canCreate} 
+                                                                            onCheckedChange={() => handleToggle(perm.id, 'canCreate', perm.canCreate)}
+                                                                            className="h-5 w-5" 
+                                                                        />
+                                                                    </TableCell>
+                                                                    <TableCell className="text-center">
+                                                                        <Checkbox 
+                                                                            checked={perm.canUpdate} 
+                                                                            onCheckedChange={() => handleToggle(perm.id, 'canUpdate', perm.canUpdate)}
+                                                                            className="h-5 w-5" 
+                                                                        />
+                                                                    </TableCell>
+                                                                    <TableCell className="text-center">
+                                                                        <Checkbox 
+                                                                            checked={perm.canDelete} 
+                                                                            onCheckedChange={() => handleToggle(perm.id, 'canDelete', perm.canDelete)}
+                                                                            className="h-5 w-5" 
+                                                                        />
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                            ))}
+                                                        </TableBody>
+                                                    </Table>
+                                                </div>
                                             </div>
                                         </div>
                                     ))}

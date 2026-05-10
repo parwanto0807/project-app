@@ -277,3 +277,46 @@ export async function deleteSpk(
     };
   }
 }
+
+export async function updateSpkProgressComment(
+  id: string,
+  data: { progress?: number; progressComment?: string; userId?: string }
+) {
+  try {
+    const res = await fetch(`${API_URL}/api/spk/updateSPKProgressComment/${id}`, {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.message || "Gagal update monitoring progress");
+    }
+
+    return await res.json();
+  } catch (error) {
+    console.error("updateSpkProgressComment error:", error);
+    throw error;
+  }
+}
+
+export async function getSpkProgressLogs(id: string) {
+  try {
+    const res = await fetch(`${API_URL}/api/spk/getSPKProgressLogs/${id}`, {
+      method: "GET",
+      credentials: "include",
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      throw new Error("Gagal fetch riwayat progress");
+    }
+
+    return await res.json();
+  } catch (error) {
+    console.error("getSpkProgressLogs error:", error);
+    throw error;
+  }
+}

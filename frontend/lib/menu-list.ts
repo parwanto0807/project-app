@@ -240,6 +240,15 @@ export function getMenuList(pathname: string, role: string, permissions: Permiss
               requiredPermission: "pr.view",
             },
             {
+              href: `${basePath}/logistic/prVerify`,
+              label: "PR Verifikasi",
+              tooltip: "Verifikasi Permintaan Pembelian (PR)",
+              icon: CheckSquare,
+              active: isActive(`${basePath}/logistic/prVerify`, pathname),
+              disabled: role === "user" || role === "pic",
+              requiredPermission: "pr.verify",
+            },
+            {
               href: `${basePath}/logistic/purchasing`,
               label: "Purchase Order (PO)",
               tooltip: "Pesanan Pembelian (PO)",
@@ -366,15 +375,6 @@ export function getMenuList(pathname: string, role: string, permissions: Permiss
           active: isActive("/accounting", pathname),
           requiredPermission: "accounting.manage",
           submenus: [
-            {
-              href: `${basePath}/accounting/prVerify`,
-              label: "PR Verifikasi",
-              tooltip: "Verifikasi Permintaan Pembelian (PR)",
-              icon: CheckSquare,
-              active: isActive(`${basePath}/accounting/prVerify`, pathname),
-              disabled: role === "user" || role === "pic",
-              requiredPermission: "finance.manage",
-            },
             {
               href: `${basePath}/accounting/staff-balance`,
               label: "Staff Balance",
@@ -586,7 +586,7 @@ export function getMenuList(pathname: string, role: string, permissions: Permiss
           tooltip: "Manajemen Sumber Daya Manusia",
           href: "#",
           icon: Users,
-          active: isActive(`${basePath}/master/karyawan`, pathname) || isActive(`${basePath}/master/team`, pathname) || isActive(`${basePath}/master/documents`, pathname) || isActive(`${basePath}/hr/attendance`, pathname),
+          active: isActive(`${basePath}/master/karyawan`, pathname) || isActive(`${basePath}/master/team`, pathname) || isActive(`${basePath}/master/documents`, pathname) || isActive(`${basePath}/hr/attendance`, pathname) || isActive(`${basePath}/hr/loans`, pathname) || isActive(`${basePath}/hr/payroll`, pathname),
           requiredPermission: "hr.view",
           submenus: [
             {
@@ -603,6 +603,14 @@ export function getMenuList(pathname: string, role: string, permissions: Permiss
               tooltip: "Kelola Pinjaman & Kasbon Karyawan",
               icon: HandCoins,
               active: isActive(`${basePath}/hr/loans`, pathname),
+              requiredPermission: "hr.view",
+            },
+            {
+              href: `${basePath}/hr/payroll`,
+              label: "Penggajian & Payroll",
+              tooltip: "Proses Gaji, Slip, & Integrasi Jurnal",
+              icon: CalendarCheck,
+              active: isActive(`${basePath}/hr/payroll`, pathname),
               requiredPermission: "hr.view",
             },
             {
@@ -838,25 +846,18 @@ export function getMenuList(pathname: string, role: string, permissions: Permiss
           active: isActive("#", pathname),
           submenus: [
             {
-              href: "#",
-              label: "FAQ",
-              tooltip: "Pertanyaan yang Sering Diajukan",
-              icon: HelpCircleIcon,
-              active: isActive("#", pathname),
-            },
-            {
-              href: "#",
+              href: `${basePath}/help/guide`,
               label: "Panduan Penggunaan",
               tooltip: "Petunjuk Penggunaan Aplikasi",
               icon: BookOpen,
-              active: isActive("#", pathname),
+              active: isActive(`${basePath}/help/guide`, pathname),
             },
             {
-              href: "#",
+              href: `${basePath}/help/contact`,
               label: "Kontak Admin",
               tooltip: "Hubungi Admin Sistem",
               icon: Phone,
-              active: isActive("#", pathname),
+              active: isActive(`${basePath}/help/contact`, pathname),
             },
           ],
         },

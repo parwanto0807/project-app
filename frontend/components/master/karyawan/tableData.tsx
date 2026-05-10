@@ -47,6 +47,7 @@ import {
   Info,
   Eye,
   ExternalLink,
+  CreditCard,
 } from "lucide-react";
 import {
   Tooltip,
@@ -116,6 +117,9 @@ interface Karyawan {
   tanggalLahir?: string;
   jenisKelamin?: string;
   attendanceLocation?: { id: string; name: string };
+  namaBank?: string;
+  nomorRekening?: string;
+  namaRekening?: string;
 }
 
 interface EmployeeTableProps {
@@ -557,6 +561,28 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                       <span className="flex-1">{employee.alamat}</span>
                     </div>
                   )}
+                </div>
+
+                <h4 className="font-semibold text-sm flex items-center gap-2 text-blue-700 dark:text-blue-300 mt-4">
+                  <CreditCard size={16} className="text-blue-500" />
+                  Informasi Bank
+                </h4>
+                <div className="text-sm space-y-2">
+                  <div className="flex items-center gap-2 p-2 bg-white dark:bg-gray-800 rounded-md">
+                    <Building size={14} className="text-blue-500" />
+                    <span className="font-medium">Bank:</span>
+                    <span>{employee.namaBank || "-"}</span>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 bg-white dark:bg-gray-800 rounded-md">
+                    <Hash size={14} className="text-blue-500" />
+                    <span className="font-medium">No. Rekening:</span>
+                    <span>{employee.nomorRekening || "-"}</span>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 bg-white dark:bg-gray-800 rounded-md">
+                    <User size={14} className="text-blue-500" />
+                    <span className="font-medium">Atas Nama:</span>
+                    <span>{employee.namaRekening || "-"}</span>
+                  </div>
                 </div>
               </div>
 

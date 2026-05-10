@@ -56,7 +56,26 @@ export const submitClockIn = async (req, res) => {
       });
     }
 
-    // 3. Cek apakah sudah absen hari ini
+    // 3. Cek apakah ada sesi absen yang masih aktif (masuk tapi belum keluar)
+    // Batasi 36 jam ke belakang untuk menghindari ambil record lama
+    const cutoff = new Date(Date.now() - 36 * 60 * 60 * 1000);
+    const activeSession = await prisma.absensi.findFirst({
+      where: {
+        karyawanId: karyawan.id,
+        jamMasuk: { not: null, gte: cutoff },
+        jamKeluar: null,
+      },
+      orderBy: { jamMasuk: "desc" },
+    });
+
+    if (activeSession) {
+      return res.status(400).json({
+        message: "Anda masih memiliki sesi absen aktif yang belum clock-out. Lakukan absen keluar terlebih dahulu.",
+        activeAbsensi: activeSession,
+      });
+    }
+
+    // 4. Cek apakah sudah absen masuk hari ini (tanggal sama)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -127,10 +146,13 @@ export const submitClockOut = async (req, res) => {
 
     if (!karyawan) return res.status(404).json({ message: "Data karyawan tidak ditemukan" });
 
+    if (!karyawan.attendanceLocation) {
+      return res.status(400).json({ message: "Lokasi absensi belum diatur. Hubungi Admin." });
+    }
+
     // Verifikasi Geofencing
     const distance = calculateDistance(
-      lat,
-      lon,
+      lat, lon,
       karyawan.attendanceLocation.latitude,
       karyawan.attendanceLocation.longitude
     );
@@ -141,38 +163,49 @@ export const submitClockOut = async (req, res) => {
       });
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // ── Cari record absensi yang sudah clock-in tapi belum clock-out ──
+    // Tidak dibatasi tanggal hari ini — karyawan bisa masuk tgl 1 dan keluar tgl 2
+    // Batasi maksimal 36 jam ke belakang untuk menghindari ambil record lama
+    const cutoff = new Date(Date.now() - 36 * 60 * 60 * 1000);
 
     const absensi = await prisma.absensi.findFirst({
       where: {
         karyawanId: karyawan.id,
-        tanggal: {
-          gte: today,
-          lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
-        },
+        jamMasuk: { not: null, gte: cutoff },
+        jamKeluar: null,
       },
+      orderBy: { jamMasuk: "desc" }, // ambil yang paling baru
     });
 
-    if (!absensi || !absensi.jamMasuk) {
-      return res.status(400).json({ message: "Anda belum melakukan absen masuk hari ini." });
-    }
-
-    if (absensi.jamKeluar) {
-      return res.status(400).json({ message: "Anda sudah melakukan absen keluar hari ini." });
+    if (!absensi) {
+      return res.status(400).json({
+        message: "Tidak ditemukan absen masuk yang aktif. Pastikan Anda sudah melakukan absen masuk.",
+      });
     }
 
     const fotoPath = req.file ? `/images/attendance/${req.file.filename}` : null;
 
+    // Hitung jam lembur jika clock-out melewati jam standar (17:00)
+    const jamMasuk = new Date(absensi.jamMasuk);
+    const jamKeluar = new Date();
+    const standarKeluar = new Date(jamMasuk);
+    standarKeluar.setHours(17, 0, 0, 0);
+    // Jika clock-out setelah jam standar, hitung lembur
+    let jamLembur = 0;
+    if (jamKeluar > standarKeluar) {
+      jamLembur = Math.round(((jamKeluar - standarKeluar) / (1000 * 60 * 60)) * 100) / 100;
+    }
+
     const updatedAbsensi = await prisma.absensi.update({
       where: { id: absensi.id },
       data: {
-        jamKeluar: new Date(),
+        jamKeluar,
         fotoKeluar: fotoPath,
         latKeluar: lat,
         longKeluar: lon,
-        isMockedKeluar: isMocked === 'true' || isMocked === true,
+        isMockedKeluar: isMocked === "true" || isMocked === true,
         deviceKeluar: deviceDetails,
+        jamLembur,
       },
     });
 
@@ -184,35 +217,55 @@ export const submitClockOut = async (req, res) => {
 };
 
 export const getTodayStatus = async (req, res) => {
-    try {
-        const { userId } = req.params;
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+  try {
+    const { userId } = req.params;
 
-        const karyawan = await prisma.karyawan.findUnique({
-            where: { userId },
-            include: { attendanceLocation: true }
-        });
+    const karyawan = await prisma.karyawan.findUnique({
+      where: { userId },
+      include: { attendanceLocation: true },
+    });
 
-        if (!karyawan) return res.status(404).json({ message: "Employee not found" });
+    if (!karyawan) return res.status(404).json({ message: "Employee not found" });
 
-        const absensi = await prisma.absensi.findFirst({
-            where: {
-                karyawanId: karyawan.id,
-                tanggal: {
-                    gte: today,
-                    lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
-                },
-            },
-        });
+    // Cari record aktif: sudah clock-in, belum clock-out, dalam 36 jam terakhir
+    const cutoff = new Date(Date.now() - 36 * 60 * 60 * 1000);
 
-        res.json({
-            hasClockedIn: !!absensi?.jamMasuk,
-            hasClockedOut: !!absensi?.jamKeluar,
-            absensi,
-            location: karyawan.attendanceLocation
-        });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
+    const activeAbsensi = await prisma.absensi.findFirst({
+      where: {
+        karyawanId: karyawan.id,
+        jamMasuk: { not: null, gte: cutoff },
+        jamKeluar: null,
+      },
+      orderBy: { jamMasuk: "desc" },
+    });
+
+    // Juga cek apakah sudah clock-out hari ini (untuk tampilan UI)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayAbsensi = await prisma.absensi.findFirst({
+      where: {
+        karyawanId: karyawan.id,
+        tanggal: {
+          gte: today,
+          lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
+        },
+      },
+    });
+
+    // hasClockedIn = ada record aktif yang belum clock-out
+    // hasClockedOut = record hari ini sudah punya jamKeluar
+    const hasClockedIn = !!activeAbsensi;
+    const hasClockedOut = !!todayAbsensi?.jamKeluar;
+
+    res.json({
+      hasClockedIn,
+      hasClockedOut,
+      absensi: activeAbsensi || todayAbsensi,
+      activeAbsensi,   // record yang sedang aktif (belum clock-out)
+      todayAbsensi,    // record hari ini (jika ada)
+      location: karyawan.attendanceLocation,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };

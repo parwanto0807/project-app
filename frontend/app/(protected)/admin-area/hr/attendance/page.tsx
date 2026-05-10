@@ -108,7 +108,8 @@ export default function AttendanceMonitoringPage() {
             <AttendanceTable 
               data={absensiData} 
               isLoading={isLoading} 
-              onViewDetail={handleViewDetail} 
+              onViewDetail={handleViewDetail}
+              onRefresh={() => loadData()}
             />
           </div>
         </div>

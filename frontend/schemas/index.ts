@@ -434,8 +434,13 @@ export const employeeFormSchema = z.object({
   jabatan: z.string().min(1, "Jabatan wajib diisi").optional().nullable(),
   departemen: z.string().min(1, "Departemen wajib diisi").optional().nullable(),
 
+  namaBank: z.string().optional().nullable(),
+  nomorRekening: z.string().optional().nullable(),
+  namaRekening: z.string().optional().nullable(),
+
   statusKerja: z.string().min(1, "Status kerja wajib diisi"),
   tipeKontrak: z.string().min(1, "Tipe kontrak wajib diisi"),
+  tipePenggajian: z.string().min(1, "Tipe penggajian wajib diisi"),
 
   gajiPokok: z.coerce.number().nonnegative().nullable().optional(),
   tunjangan: z.coerce.number().nonnegative().nullable().optional(),

@@ -4,29 +4,64 @@ export async function fetchAllAbsensi(filters: {
   startDate?: string;
   endDate?: string;
   karyawanId?: string;
+  needsValidation?: boolean;
 } = {}) {
   try {
     const queryParams = new URLSearchParams();
     if (filters.startDate) queryParams.append("startDate", filters.startDate);
     if (filters.endDate) queryParams.append("endDate", filters.endDate);
     if (filters.karyawanId) queryParams.append("karyawanId", filters.karyawanId);
+    if (filters.needsValidation) queryParams.append("needsValidation", "true");
 
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/absensi?${queryParams.toString()}`,
-      {
-        method: "GET",
-        credentials: "include",
-        cache: "no-store",
-      }
+      { method: "GET", credentials: "include", cache: "no-store" }
     );
-
     if (!res.ok) throw new Error(`Gagal fetch: ${res.status}`);
-
     const data = await res.json();
     return { absensi: data || [], isLoading: false };
   } catch (error) {
     console.error("[fetchAllAbsensi]", error);
     return { absensi: [], isLoading: false, error: (error as Error).message };
+  }
+}
+
+export async function validateAbsensi(
+  id: string,
+  data: { jamKeluarDisetujui: string; catatanValidasi?: string; jamLembur?: number }
+) {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/absensi/${id}/validate`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.message || "Gagal validasi absensi");
+    }
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+export async function approveAbsensi(id: string, catatanValidasi?: string) {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/absensi/${id}/approve`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ catatanValidasi }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.message || "Gagal approve absensi");
+    }
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
   }
 }
 

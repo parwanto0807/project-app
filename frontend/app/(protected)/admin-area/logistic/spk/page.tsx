@@ -61,6 +61,8 @@ type SPK = {
   teamId: string;
   createdById: string;
   progress: number;
+  progressComment?: string | null;
+  lastCommentAt?: Date | string | null;
   spkStatusClose: boolean;
   spkStatus: boolean;
   createdBy: {
@@ -766,6 +768,7 @@ export default function SpkPageAdmin() {
                   isLoading={false}
                   role={user?.role}
                   onDeleteSpk={handleDeleteSpk}
+                  onRefresh={handleRefresh}
                   isDeleting={isDeleting}
                 />
               </div>
