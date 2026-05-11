@@ -773,3 +773,47 @@ export const fetchKaryawanByEmail = async (req, res) => {
     res.status(500).json({ error: "Terjadi kesalahan server." });
   }
 };
+
+/**
+ * ✅ NEW: Get Employee Data for Logged-in User
+ */
+export const getKaryawanMe = async (req, res) => {
+  try {
+    // req.user.id populated by authenticateToken middleware
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: "Authentication required",
+      });
+    }
+
+    const karyawan = await prisma.karyawan.findUnique({
+      where: { userId },
+      include: {
+        attendanceLocation: true,
+        teamKaryawan: { include: { team: true } },
+      },
+    });
+
+    if (!karyawan) {
+      return res.status(404).json({
+        success: false,
+        error: "Data karyawan tidak ditemukan untuk user ini",
+      });
+    }
+
+    res.json({
+      success: true,
+      karyawan,
+    });
+  } catch (error) {
+    console.error("[GET KARYAWAN ME ERROR]", error);
+    res.status(500).json({
+      success: false,
+      error: "Internal server error",
+      detail: error.message,
+    });
+  }
+};

@@ -16,6 +16,7 @@ import {
   activateMfaSetup,
   completeMfaSetup,
   authMe,
+  googleFlutterLogin,
 } from "../../controllers/auth/authController.js";
 
 import {
@@ -65,6 +66,9 @@ router.post("/refresh", refreshHandler);
 
 // ✅ FIXED: Gunakan authenticateToken secara konsisten
 router.get("/user-login/profile", authenticateToken, getProfile);
+
+// ✅ NEW: Google Login for Flutter
+router.post("/google/flutter", googleFlutterLogin);
 
 router.post("/admin/login", adminLogin);
 router.post("/admin/loginAdmin", adminLoginRegister);

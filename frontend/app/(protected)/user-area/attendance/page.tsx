@@ -78,7 +78,8 @@ export default function AttendancePage() {
         if (!user?.id) return;
         try {
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/absensi/today-status/${user.id}`, {
-                cache: 'no-store'
+                cache: 'no-store',
+                credentials: 'include'
             });
             const data = await res.json();
             setStatus(data);
@@ -281,7 +282,8 @@ export default function AttendancePage() {
             const endpoint = type === 'in' ? 'submit-clock-in' : 'submit-clock-out';
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/absensi/${endpoint}`, {
                 method: 'POST',
-                body: formData
+                body: formData,
+                credentials: 'include'
             });
 
             const result = await res.json();

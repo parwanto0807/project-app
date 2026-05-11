@@ -15,6 +15,7 @@ import {
   submitClockOut,
   getTodayStatus,
 } from "../../controllers/absensi/attendanceSubmissionController.js";
+import { authenticateToken } from "../../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -35,16 +36,16 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 /* ----------------------------- ADMIN ROUTES ----------------------------- */
-router.get("/", getAllAbsensi);
-router.post("/", createAbsensi);
-router.put("/:id", updateAbsensi);
-router.delete("/:id", deleteAbsensi);
-router.patch("/:id/validate", validateAbsensi);   // Koreksi jam keluar
-router.patch("/:id/approve", approveAbsensi);     // Setujui jam keluar apa adanya
+router.get("/", authenticateToken, getAllAbsensi);
+router.post("/", authenticateToken, createAbsensi);
+router.put("/:id", authenticateToken, updateAbsensi);
+router.delete("/:id", authenticateToken, deleteAbsensi);
+router.patch("/:id/validate", authenticateToken, validateAbsensi);   // Koreksi jam keluar
+router.patch("/:id/approve", authenticateToken, approveAbsensi);     // Setujui jam keluar apa adanya
 
 /* ----------------------------- USER SUBMISSION ROUTES ----------------------------- */
-router.post("/submit-clock-in", upload.single("foto"), submitClockIn);
-router.post("/submit-clock-out", upload.single("foto"), submitClockOut);
-router.get("/today-status/:userId", getTodayStatus);
+router.post("/submit-clock-in", authenticateToken, upload.single("foto"), submitClockIn);
+router.post("/submit-clock-out", authenticateToken, upload.single("foto"), submitClockOut);
+router.get("/today-status/:userId", authenticateToken, getTodayStatus);
 
 export default router;

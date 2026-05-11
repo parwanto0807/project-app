@@ -23,7 +23,9 @@ import {
   fetchUserByEmail,
   createAccountEmail,
   fetchKaryawanByEmail,
+  getKaryawanMe,
 } from "../../../controllers/master/karyawan/karyawanController.js";
+import { authenticateToken } from "../../../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -44,6 +46,9 @@ router.get("/getKaryawanCount", getKaryawanCount);
 router.get("/getAllKaryawan", getAllKaryawan);
 router.post("/fetchKaryawanByEmail", fetchKaryawanByEmail);
 router.get("/getKaryawanById/:id", getKaryawanById);
+
+// ✅ NEW: Get current logged-in employee profile
+router.get("/me", authenticateToken, getKaryawanMe);
 
 // ⬇️ contoh: upload single image dengan field name = "foto"
 router.post("/createKaryawan", upload.single("foto"), createKaryawan);

@@ -25,6 +25,7 @@ export const JWT_REFRESH_SECRET = required("JWT_REFRESH_SECRET");
 
 export const DATABASE_URL = clean(process.env.DATABASE_URL);
 export const GOOGLE_CLIENT_ID = clean(process.env.GOOGLE_CLIENT_ID);
+export const GOOGLE_FLUTTER_CLIENT_ID = clean(process.env.GOOGLE_FLUTTER_CLIENT_ID);
 export const GOOGLE_CLIENT_SECRET = clean(process.env.GOOGLE_CLIENT_SECRET);
 export const GOOGLE_CALLBACK_URL =
   clean(process.env.GOOGLE_CALLBACK_URL) ||

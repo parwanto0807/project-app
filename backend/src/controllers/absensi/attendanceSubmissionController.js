@@ -22,7 +22,13 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
 
 export const submitClockIn = async (req, res) => {
   try {
-    const { userId, latitude, longitude, deviceDetails, isMocked } = req.body;
+    const { latitude, longitude, deviceDetails, isMocked } = req.body;
+    const userId = req.user?.id; // Use ID from token
+
+    if (!userId) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
     const lat = parseFloat(latitude);
     const lon = parseFloat(longitude);
 
@@ -135,7 +141,13 @@ export const submitClockIn = async (req, res) => {
 
 export const submitClockOut = async (req, res) => {
   try {
-    const { userId, latitude, longitude, deviceDetails, isMocked } = req.body;
+    const { latitude, longitude, deviceDetails, isMocked } = req.body;
+    const userId = req.user?.id; // Use ID from token
+
+    if (!userId) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    
     const lat = parseFloat(latitude);
     const lon = parseFloat(longitude);
 
@@ -218,7 +230,12 @@ export const submitClockOut = async (req, res) => {
 
 export const getTodayStatus = async (req, res) => {
   try {
-    const { userId } = req.params;
+    // Prefer user ID from token, fallback to param for backward compatibility
+    const userId = req.user?.id || req.params.userId;
+
+    if (!userId) {
+      return res.status(400).json({ message: "User ID is required" });
+    }
 
     const karyawan = await prisma.karyawan.findUnique({
       where: { userId },

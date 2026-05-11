@@ -16,10 +16,13 @@ import {
   JWT_SECRET,
   JWT_REFRESH_SECRET,
   GOOGLE_CLIENT_ID,
+  GOOGLE_FLUTTER_CLIENT_ID,
   GOOGLE_CLIENT_SECRET,
   GOOGLE_CALLBACK_URL,
   MFA_TEMP_SECRET,
 } from "../../config/env.js";
+import { OAuth2Client } from "google-auth-library";
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 // import { io } from "../../server.js";
 
 // Constants untuk konsistensi
@@ -600,6 +603,97 @@ export const googleLogin = async (req, res) => {
         });
       }
     }
+  }
+};
+
+/**
+ * ✅ NEW: Google Login for Flutter
+ * Verifies ID Token from Flutter and creates a session
+ */
+export const googleFlutterLogin = async (req, res) => {
+  const { idToken } = req.body;
+
+  if (!idToken) {
+    return res.status(400).json({
+      success: false,
+      error: "ID Token is required",
+    });
+  }
+
+  try {
+    // 1. Verify ID Token from Google
+    const ticket = await googleClient.verifyIdToken({
+      idToken,
+      audience: [GOOGLE_CLIENT_ID, GOOGLE_FLUTTER_CLIENT_ID],
+    });
+    
+    const payload = ticket.getPayload();
+    const { sub: googleId, email, name, picture: avatar } = payload;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: "Failed to retrieve email from Google token",
+      });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // 2. Check if email is allowed (optional, based on your system)
+    const allowedEmail = await prisma.accountEmail.findUnique({
+      where: { email: normalizedEmail },
+    });
+
+    // 3. Upsert User
+    const user = await prisma.user.upsert({
+      where: { email: normalizedEmail },
+      update: {
+        name: name || undefined,
+        avatar: avatar || undefined,
+        googleId,
+        provider: "google",
+        lastLoginAt: new Date(),
+        role: allowedEmail?.role,
+      },
+      create: {
+        email: normalizedEmail,
+        name: name || normalizedEmail.split("@")[0],
+        avatar,
+        googleId,
+        provider: "google",
+        role: allowedEmail?.role || "user",
+        lastLoginAt: new Date(),
+        tokenVersion: 0,
+      },
+    });
+
+    // 4. Create Session
+    const tokens = await createUserSession(user, req);
+
+    // 5. Set Cookies (for web compatibility) and return JSON
+    setTokenCookies(res, tokens.accessToken, tokens.refreshToken);
+
+    return res.status(200).json({
+      success: true,
+      message: "Login successful",
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        avatar: user.avatar,
+      },
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    });
+
+  } catch (error) {
+    console.error("[GOOGLE FLUTTER LOGIN ERROR]", error);
+    return res.status(401).json({
+      success: false,
+      error: "Invalid Google ID Token",
+      detail: error.message,
+    });
   }
 };
 
