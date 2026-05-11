@@ -286,3 +286,43 @@ export const getTodayStatus = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+export const getMyHistory = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const { startDate, endDate, limit = 30 } = req.query;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
+    const karyawan = await prisma.karyawan.findUnique({
+      where: { userId },
+    });
+
+    if (!karyawan) {
+      return res.status(404).json({ message: "Data karyawan tidak ditemukan" });
+    }
+
+    const absensi = await prisma.absensi.findMany({
+      where: {
+        karyawanId: karyawan.id,
+        ...(startDate && endDate && {
+          tanggal: {
+            gte: new Date(new Date(startDate).setHours(0, 0, 0, 0)),
+            lte: new Date(new Date(endDate).setHours(23, 59, 59, 999)),
+          },
+        }),
+      },
+      orderBy: { tanggal: "desc" },
+      take: parseInt(limit),
+    });
+
+    res.json({
+      success: true,
+      data: absensi,
+    });
+  } catch (error) {
+    console.error("Get My History Error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};

@@ -165,6 +165,7 @@ app.use("/api/master/product/kategory", kategoryRoutes);
 app.use("/api/master/banks", bankRoutes);
 app.use("/api/salesOrder", salesOrderRoutes);
 app.use("/api/karyawan", karyawanRoutes);
+app.use("/api/master/karyawan", karyawanRoutes); // Alias agar konsisten dengan master lainnya
 app.use("/api/team", karyawanRoutes);
 app.use("/api/spk", spkRouter);
 app.use("/api/spk/report", spkReportRouter);

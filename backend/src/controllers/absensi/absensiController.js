@@ -6,25 +6,51 @@ const JAM_STANDAR_KELUAR = "17:00"; // 8 jam kerja
 
 export const getAllAbsensi = async (req, res) => {
   try {
-    const { startDate, endDate, karyawanId, needsValidation } = req.query;
-    const absensi = await prisma.absensi.findMany({
-      where: {
-        ...(karyawanId && { karyawanId }),
-        ...(startDate && endDate && {
-          tanggal: { gte: new Date(startDate), lte: new Date(endDate) },
-        }),
-        // Filter hanya yang perlu validasi
-        ...(needsValidation === "true" && { isValidated: false, jamKeluar: { not: null } }),
-      },
-      include: {
+    const { startDate, endDate, karyawanId, employeeName, needsValidation } = req.query;
+    console.log("[DEBUG] Fetching Absensi with params:", { startDate, endDate, karyawanId, employeeName, needsValidation });
+
+    const where = {
+      ...(karyawanId && { karyawanId }),
+      ...(employeeName && {
         karyawan: {
-          select: { namaLengkap: true, nik: true, jabatan: true, departemen: true },
+          namaLengkap: { contains: employeeName, mode: "insensitive" },
         },
+      }),
+    };
+
+    // Filter tanggal yang lebih fleksibel
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      
+      // Jika tanggal sama (filter hari ini), pastikan mencakup 00:00 sampai 23:59
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      
+      where.tanggal = {
+        gte: start,
+        lte: end,
+      };
+      console.log("[DEBUG] Date Filter applied:", { gte: start, lte: end });
+    }
+
+    if (needsValidation === "true") {
+      where.isValidated = false;
+      where.jamKeluar = { not: null };
+    }
+
+    const absensi = await prisma.absensi.findMany({
+      where,
+      include: {
+        karyawan: true,
       },
       orderBy: { tanggal: "desc" },
     });
+
+    console.log(`[DEBUG] Found ${absensi.length} records`);
     res.json(absensi);
   } catch (error) {
+    console.error("[getAllAbsensi ERROR]", error);
     res.status(500).json({ message: error.message });
   }
 };

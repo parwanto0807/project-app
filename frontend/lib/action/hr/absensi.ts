@@ -1,21 +1,32 @@
 "use server";
 
+import { cookies } from "next/headers";
+
 export async function fetchAllAbsensi(filters: {
   startDate?: string;
   endDate?: string;
   karyawanId?: string;
+  employeeName?: string;
   needsValidation?: boolean;
 } = {}) {
   try {
+    const cookieStore = await cookies();
     const queryParams = new URLSearchParams();
     if (filters.startDate) queryParams.append("startDate", filters.startDate);
     if (filters.endDate) queryParams.append("endDate", filters.endDate);
     if (filters.karyawanId) queryParams.append("karyawanId", filters.karyawanId);
+    if (filters.employeeName) queryParams.append("employeeName", filters.employeeName);
     if (filters.needsValidation) queryParams.append("needsValidation", "true");
 
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/absensi?${queryParams.toString()}`,
-      { method: "GET", credentials: "include", cache: "no-store" }
+      { 
+        method: "GET", 
+        headers: {
+          Cookie: cookieStore.toString(),
+        },
+        cache: "no-store" 
+      }
     );
     if (!res.ok) throw new Error(`Gagal fetch: ${res.status}`);
     const data = await res.json();
@@ -31,10 +42,13 @@ export async function validateAbsensi(
   data: { jamKeluarDisetujui: string; catatanValidasi?: string; jamLembur?: number }
 ) {
   try {
+    const cookieStore = await cookies();
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/absensi/${id}/validate`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
+      headers: { 
+        "Content-Type": "application/json",
+        Cookie: cookieStore.toString(),
+      },
       body: JSON.stringify(data),
     });
     if (!res.ok) {
@@ -49,10 +63,13 @@ export async function validateAbsensi(
 
 export async function approveAbsensi(id: string, catatanValidasi?: string) {
   try {
+    const cookieStore = await cookies();
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/absensi/${id}/approve`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
+      headers: { 
+        "Content-Type": "application/json",
+        Cookie: cookieStore.toString(),
+      },
       body: JSON.stringify({ catatanValidasi }),
     });
     if (!res.ok) {

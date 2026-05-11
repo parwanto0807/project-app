@@ -14,6 +14,7 @@ import {
   submitClockIn,
   submitClockOut,
   getTodayStatus,
+  getMyHistory,
 } from "../../controllers/absensi/attendanceSubmissionController.js";
 import { authenticateToken } from "../../middleware/authMiddleware.js";
 
@@ -46,6 +47,7 @@ router.patch("/:id/approve", authenticateToken, approveAbsensi);     // Setujui 
 /* ----------------------------- USER SUBMISSION ROUTES ----------------------------- */
 router.post("/submit-clock-in", authenticateToken, upload.single("foto"), submitClockIn);
 router.post("/submit-clock-out", authenticateToken, upload.single("foto"), submitClockOut);
+router.get("/my-history", authenticateToken, getMyHistory);
 router.get("/today-status/:userId", authenticateToken, getTodayStatus);
 
 export default router;
