@@ -326,3 +326,40 @@ export const getMyHistory = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+export const getTodayAttendance = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, message: "Unauthorized" });
+
+    const karyawan = await prisma.karyawan.findUnique({
+      where: { userId }
+    });
+
+    if (!karyawan) return res.status(404).json({ success: false, message: "Employee not found" });
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const absensi = await prisma.absensi.findFirst({
+      where: {
+        karyawanId: karyawan.id,
+        tanggal: {
+          gte: today,
+          lt: new Date(today.getTime() + 24 * 60 * 60 * 1000)
+        }
+      }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        hasClockedIn: !!absensi?.jamMasuk,
+        hasClockedOut: !!absensi?.jamKeluar,
+        jamMasuk: absensi?.jamMasuk || null,
+        jamKeluar: absensi?.jamKeluar || null
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
