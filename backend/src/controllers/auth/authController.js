@@ -27,7 +27,7 @@ const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 // Constants untuk konsistensi
 const TOKEN_CONFIG = {
-  access: { expiresIn: "8h" },
+  access: { expiresIn: "1h" }, // Diperpendek menjadi 1 jam untuk keamanan
   refresh: { expiresIn: "7d" },
   mfa: { expiresIn: "5m" },
 };
@@ -1215,6 +1215,7 @@ export const adminLogin = async (req, res) => {
       success: true,
       mfaRequired: false,
       accessToken,
+      refreshToken, // Ditambahkan untuk Flutter
       user: {
         id: user.id,
         email: user.email,
@@ -1553,6 +1554,7 @@ export const adminLoginRegister = async (req, res) => {
       role: user.role,
     },
     accessToken,
+    refreshToken, // Ditambahkan untuk Flutter
   });
 };
 
@@ -1707,8 +1709,9 @@ export const getProfile = async (req, res) => {
 
 export const refreshHandler = async (req, res) => {
   console.log("🔄 [REFRESH HANDLER] Dimulai");
-
-  const token = req.cookies.refreshToken;
+  
+  // Dukungan untuk Cookie (Web) dan Request Body (Flutter)
+  const token = req.cookies.refreshToken || req.body.refreshToken;
 
   if (!token) {
     console.log("❌ Refresh token tidak ditemukan");
@@ -1782,6 +1785,7 @@ export const refreshHandler = async (req, res) => {
     return res.status(200).json({
       success: true,
       accessToken: newAccessToken,
+      refreshToken: newRefreshToken, // Berikan refresh token baru (Token Rotation)
       message: "Token refreshed successfully",
     });
   } catch (err) {
