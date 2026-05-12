@@ -5,8 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Eye, MapPin, Smartphone, AlertTriangle, ShieldCheck, CheckCircle2 } from "lucide-react";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import ValidateAttendanceDialog from "./ValidateAttendanceDialog";
+import { format } from "date-fns";
+import { id } from "date-fns/locale";
 
 interface TableProps {
   data: any[];
@@ -68,17 +70,6 @@ export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh }: Ta
     } catch { return "--:--"; }
   };
 
-  const formatDate = (dateInput: string | null) => {
-    if (!dateInput) return "—";
-    try {
-      return new Intl.DateTimeFormat("id-ID", {
-        timeZone: "Asia/Jakarta",
-        day: "2-digit",
-        month: "short",
-        year: "2-digit",
-      }).format(new Date(dateInput));
-    } catch { return "—"; }
-  };
 
   const calculateDuration = (inTime: string | null, outTime: string | null) => {
     if (!inTime || !outTime) return "--";
@@ -122,36 +113,64 @@ export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh }: Ta
                 </TableCell>
               </TableRow>
             ) : (
-              data.map((row) => {
-                const suspicious = isSuspicious(row.jamMasuk, row.jamKeluar);
-                const validated = row.isValidated;
-                const needsValidation = row.jamKeluar && !validated;
+              (() => {
+                const groupedData: Record<string, any[]> = {};
+                data.forEach((row) => {
+                  const dateKey = row.tanggal.split('T')[0];
+                  if (!groupedData[dateKey]) groupedData[dateKey] = [];
+                  groupedData[dateKey].push(row);
+                });
 
-                return (
-                  <TableRow
-                    key={row.id}
-                    className={`hover:bg-white/60 transition-colors group ${suspicious && !validated ? "bg-red-50/30" : ""}`}
-                  >
-                    {/* Karyawan */}
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8 border-2 border-white shadow-sm">
-                          <AvatarImage src={row.karyawan?.foto ? `${process.env.NEXT_PUBLIC_API_URL}${row.karyawan.foto}` : undefined} />
-                          <AvatarFallback className="bg-cyan-100 text-cyan-700 font-black text-xs">
-                            {row.karyawan?.namaLengkap?.substring(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="font-black text-sm text-gray-800">{row.karyawan?.namaLengkap}</div>
-                          <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{row.karyawan?.nik}</div>
+                const sortedDates = Object.keys(groupedData).sort((a, b) => b.localeCompare(a));
+
+                return sortedDates.map((date) => (
+                  <Fragment key={date}>
+                    <TableRow className="bg-gray-50/80">
+                      <TableCell colSpan={9} className="py-2.5 px-6">
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full bg-cyan-500" />
+                          <span className="font-black text-[11px] uppercase tracking-widest text-gray-500">
+                            {format(new Date(date), "EEEE, dd MMMM yyyy", { locale: id })}
+                          </span>
+                          <Badge variant="outline" className="ml-auto text-[9px] font-bold border-gray-200 text-gray-400">
+                            {groupedData[date].length} ABSENSI
+                          </Badge>
                         </div>
-                      </div>
-                    </TableCell>
+                      </TableCell>
+                    </TableRow>
+                    {groupedData[date].map((row) => {
+                      const suspicious = isSuspicious(row.jamMasuk, row.jamKeluar);
+                      const validated = row.isValidated;
+                      const needsValidation = row.jamKeluar && !validated;
 
-                    {/* Tanggal */}
-                    <TableCell className="font-bold text-gray-600 text-xs">
-                      {formatDate(row.tanggal)}
-                    </TableCell>
+                      return (
+                        <TableRow
+                          key={row.id}
+                          className={`hover:bg-white/60 transition-colors group ${suspicious && !validated ? "bg-red-50/30" : ""}`}
+                        >
+                          {/* Karyawan */}
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-8 w-8 border-2 border-white shadow-sm">
+                                <AvatarImage src={row.karyawan?.foto ? `${process.env.NEXT_PUBLIC_API_URL}${row.karyawan.foto}` : undefined} />
+                                <AvatarFallback className="bg-cyan-100 text-cyan-700 font-black text-xs">
+                                  {row.karyawan?.namaLengkap?.substring(0, 2).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <div className="font-black text-sm text-gray-800">{row.karyawan?.namaLengkap}</div>
+                                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{row.karyawan?.nik}</div>
+                              </div>
+                            </div>
+                          </TableCell>
+
+                          {/* Tanggal */}
+                          <TableCell className="font-bold text-gray-600 text-xs text-center">
+                            <div className="flex flex-col items-center">
+                              <span className="text-[10px] text-gray-400 uppercase tracking-tighter">{format(new Date(row.tanggal), "EEE", { locale: id })}</span>
+                              <span className="leading-none">{format(new Date(row.tanggal), "dd", { locale: id })}</span>
+                            </div>
+                          </TableCell>
 
                     {/* Jam Masuk */}
                     <TableCell>
@@ -265,8 +284,11 @@ export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh }: Ta
                       </div>
                     </TableCell>
                   </TableRow>
-                );
-              })
+                      );
+                    })}
+                  </Fragment>
+                ));
+              })()
             )}
           </TableBody>
         </Table>

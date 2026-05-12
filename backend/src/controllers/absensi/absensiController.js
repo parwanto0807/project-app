@@ -44,7 +44,10 @@ export const getAllAbsensi = async (req, res) => {
       include: {
         karyawan: true,
       },
-      orderBy: { tanggal: "desc" },
+      orderBy: [
+        { tanggal: "desc" },
+        { jamMasuk: "desc" }
+      ],
     });
 
     console.log(`[DEBUG] Found ${absensi.length} records`);
