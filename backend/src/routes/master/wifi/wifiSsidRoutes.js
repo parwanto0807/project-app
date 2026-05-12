@@ -9,12 +9,13 @@ import { authenticateToken, authorizeSuperAdmin } from "../../../middleware/auth
 
 const router = express.Router();
 
-// Semua user terautentikasi (termasuk mobile) bisa melihat SSID aktif
-router.get("/", authenticateToken, getAllWifiSsids);
+// Semua user bisa melihat SSID aktif (biasanya diproteksi di level aplikasi/middleware frontend)
+router.get("/", getAllWifiSsids);
 
-// Hanya Super Admin yang bisa mengelola (CRUD)
-router.post("/", authenticateToken, authorizeSuperAdmin, createWifiSsid);
-router.put("/:id", authenticateToken, authorizeSuperAdmin, updateWifiSsid);
-router.delete("/:id", authenticateToken, authorizeSuperAdmin, deleteWifiSsid);
+// Endpoint management
+router.post("/", createWifiSsid);
+router.put("/:id", updateWifiSsid);
+router.delete("/:id", deleteWifiSsid);
+
 
 export default router;

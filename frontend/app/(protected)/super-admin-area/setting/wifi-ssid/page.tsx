@@ -17,7 +17,8 @@ import {
 } from "@/components/ui/dialog";
 import { Network, Plus, Save, RefreshCw, Edit, Trash2, Wifi } from 'lucide-react';
 import { fetchWifiSsids, createWifiSsid, updateWifiSsid, deleteWifiSsid } from '@/lib/action/master/wifi-ssid';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
+
 import { Skeleton } from '@/components/ui/skeleton';
 import { SuperLayout } from "@/components/admin-panel/super-layout";
 import { LayoutProps } from "@/types/layout";
