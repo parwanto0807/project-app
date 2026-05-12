@@ -9,13 +9,13 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { User, Briefcase, ShieldCheck, Loader2, Camera, Upload, X, ArrowLeft, CreditCard } from 'lucide-react';
+import { User, Briefcase, ShieldCheck, Loader2, Camera, Upload, X, ArrowLeft, CreditCard, Search } from 'lucide-react';
 import { employeeFormSchema, type EmployeeFormValues } from '@/schemas';
 import { makeImageSrc } from '@/utils/makeImageSrc';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from 'sonner';
-import { fetchKaryawanById } from '@/lib/action/master/karyawan';
+import { fetchKaryawanById, fetchUserByEmail } from '@/lib/action/master/karyawan';
 import { fetchLocations } from '@/lib/action/master/location';
 
 function getBasePath(role?: string) {
@@ -26,11 +26,13 @@ function getBasePath(role?: string) {
 
 export default function UpdateEmployeeForm({ employee, role, id }: { employee: string; role: string; id: string }) {
     const [filePreview, setFilePreview] = useState<string | null>(null);
+    const [imageError, setImageError] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [isDataLoading, setIsDataLoading] = useState(true);
     const router = useRouter();
     const searchParams = useSearchParams();
     const fromPage = searchParams.get('from') || 'list';
+    const [checkingUser, setCheckingUser] = useState(false);
 
     const form = useForm({
         resolver: zodResolver(employeeFormSchema),
@@ -64,6 +66,30 @@ export default function UpdateEmployeeForm({ employee, role, id }: { employee: s
 
     const [locations, setLocations] = useState<{ id: string, name: string }[]>([]);
 
+    const handleCheckUserId = async (targetEmail?: string) => {
+        const email = targetEmail || form.getValues("email");
+        if (!email) {
+            if (!targetEmail) toast.error("Email harus diisi terlebih dahulu");
+            return;
+        }
+
+        try {
+            setCheckingUser(true);
+            const user = await fetchUserByEmail(email);
+            if (user) {
+                form.setValue("userId", user.id);
+                if (!targetEmail) toast.success(`User ditemukan: ${user.name || user.email}`);
+            } else {
+                if (!targetEmail) toast.error("User dengan email tersebut tidak ditemukan");
+            }
+        } catch (error) {
+            console.error("Error checking user:", error);
+            if (!targetEmail) toast.error("Gagal memeriksa User ID");
+        } finally {
+            setCheckingUser(false);
+        }
+    };
+
     useEffect(() => {
         const getLocations = async () => {
             const res = await fetchLocations();
@@ -93,6 +119,11 @@ export default function UpdateEmployeeForm({ employee, role, id }: { employee: s
                     setFilePreview(makeImageSrc(employeeData.foto));
                 }
 
+                // Jika userId belum ada, coba cari berdasarkan email
+                if (!employeeData.userId && employeeData.email) {
+                    handleCheckUserId(employeeData.email);
+                }
+
             } catch (error) {
                 console.error("Error fetching employee data:", error);
                 toast.error(error instanceof Error ? error.message : "Failed to fetch employee.");
@@ -116,7 +147,10 @@ export default function UpdateEmployeeForm({ employee, role, id }: { employee: s
 
         // Buat preview
         const reader = new FileReader();
-        reader.onload = () => setFilePreview(reader.result as string);
+        reader.onload = () => {
+            setFilePreview(reader.result as string);
+            setImageError(false);
+        };
         reader.readAsDataURL(file);
     };
 
@@ -492,7 +526,29 @@ export default function UpdateEmployeeForm({ employee, role, id }: { employee: s
                                 />
 
                                 <FormField name="userId" control={form.control} render={({ field }) => (
-                                    <FormItem><FormLabel>User ID (untuk login)</FormLabel><FormControl><Input placeholder="ID unik pengguna" {...field} value={field.value ?? ""} disabled /></FormControl><FormMessage /></FormItem>
+                                    <FormItem>
+                                        <FormLabel>User ID (untuk login)</FormLabel>
+                                        <div className="flex gap-2">
+                                            <FormControl>
+                                                <Input placeholder="ID unik pengguna" {...field} value={field.value ?? ""} disabled />
+                                            </FormControl>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="icon"
+                                                onClick={() => handleCheckUserId()}
+                                                disabled={checkingUser || !form.getValues("email")}
+                                                title="Cek User ID berdasarkan Email"
+                                            >
+                                                {checkingUser ? (
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                ) : (
+                                                    <Search className="h-4 w-4" />
+                                                )}
+                                            </Button>
+                                        </div>
+                                        <FormMessage />
+                                    </FormItem>
                                 )} />
                                 <FormField name="isActive" control={form.control} render={({ field }) => (
                                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 mt-4 md:mt-0">
@@ -559,7 +615,7 @@ export default function UpdateEmployeeForm({ employee, role, id }: { employee: s
                                                 {/* Preview Area */}
                                                 <div className="flex flex-col items-center gap-2">
                                                     <div className="relative w-32 h-32 border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center overflow-hidden bg-gray-100">
-                                                        {filePreview ? (
+                                                        {filePreview && !imageError ? (
                                                             <Image
                                                                 src={filePreview} // langsung pakai base64 / URL.createObjectURL(file)
                                                                 alt="Preview foto karyawan"
@@ -567,7 +623,7 @@ export default function UpdateEmployeeForm({ employee, role, id }: { employee: s
                                                                 className="object-cover"
                                                                 unoptimized
                                                                 onError={() => {
-                                                                    console.error("Gagal load:", filePreview);
+                                                                    setImageError(true);
                                                                 }}
                                                             />
                                                         ) : (
