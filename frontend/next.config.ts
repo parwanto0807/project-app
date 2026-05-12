@@ -23,6 +23,9 @@ const nextConfig: NextConfig = {
   experimental: {
     esmExternals: isDev ? undefined : "loose",
   },
+  serverActions: {
+    bodySizeLimit: "5mb",
+  },
   webpack: (config) => {
     config.resolve.alias.canvas = false;
     return config;
