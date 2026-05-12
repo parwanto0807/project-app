@@ -56,6 +56,8 @@ import absensiRoutes from './routes/absensi/absensiRoutes.js';
 import payrollRoutes from './routes/payroll/payrollRoutes.js';
 import loanRoutes from './routes/finance/loanRoutes.js';
 import locationRoutes from './routes/master/location/locationRoutes.js';
+import wifiSsidRoutes from './routes/master/wifi/wifiSsidRoutes.js';
+
 
 
 
@@ -210,6 +212,8 @@ app.use('/api/absensi', absensiRoutes);
 app.use('/api/payroll', payrollRoutes);
 app.use('/api/loans', loanRoutes);
 app.use('/api/master/location', locationRoutes);
+app.use('/api/master/wifi-ssid', wifiSsidRoutes);
+
 
 
 

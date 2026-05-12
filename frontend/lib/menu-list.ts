@@ -767,8 +767,17 @@ export function getMenuList(pathname: string, role: string, permissions: Permiss
               active: isActive("/super-admin-area/setting/location", pathname),
               requiredPermission: "settings.system",
             },
+            {
+              href: "/super-admin-area/setting/wifi-ssid",
+              label: "Master Wifi SSID",
+              tooltip: "Pengaturan Nama Wifi untuk Absensi",
+              icon: Network,
+              active: isActive("/super-admin-area/setting/wifi-ssid", pathname),
+              requiredPermission: "settings.system",
+            },
           ],
         },
+
         {
           label: "Audit Log",
           tooltip: "Log Riwayat Aktivitas",

@@ -395,6 +395,17 @@ model AttendanceLocation {
   karyawan  Karyawan[]
 }
 
+model WifiSsid {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("wifi_ssids")
+}
+
+
 model Customer {
   id            String       @id @default(uuid())
   code          String       @unique
