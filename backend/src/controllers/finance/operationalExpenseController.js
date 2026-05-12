@@ -1,6 +1,9 @@
 import { prisma } from "../../config/db.js";
 import { generateOpExNumber } from "../../utils/opexGenerateNumber.js";
 import { createLedgerEntry, getSystemAccount } from "../../utils/journalHelper.js";
+import { processUpload } from "../../utils/imageProcessor.js";
+import path from "path";
+import fs from "fs";
 
 // Helper to resolve ID from ID or Key
 async function resolveCoaId(idOrKey, tx) {
@@ -109,10 +112,12 @@ export const operationalExpenseController = {
       const expenseNumber = await generateOpExNumber();
       const createdById = req.user.id;
       
-      // Get receipt path from multer if file was uploaded
+      // Process file upload if present
       let finalReceiptUrl = receiptUrl;
       if (req.file) {
-        finalReceiptUrl = `/images/operational/${req.file.filename}`;
+        const uploadDir = path.join(process.cwd(), 'public', 'images', 'operational');
+        const filename = await processUpload(req.file, uploadDir, 'opex');
+        finalReceiptUrl = `/images/operational/${filename}`;
       }
 
       const expense = await prisma.operationalExpense.create({
@@ -176,7 +181,18 @@ export const operationalExpenseController = {
       // Update receipt path if new file uploaded
       let finalReceiptUrl = receiptUrl;
       if (req.file) {
-        finalReceiptUrl = `/images/operational/${req.file.filename}`;
+        const uploadDir = path.join(process.cwd(), 'public', 'images', 'operational');
+        
+        // Optional: delete old file if it exists
+        if (existing.receiptUrl && !existing.receiptUrl.startsWith('http')) {
+          const oldPath = path.join(process.cwd(), 'public', existing.receiptUrl);
+          if (fs.existsSync(oldPath)) {
+            try { fs.unlinkSync(oldPath); } catch (e) { console.error("Failed to delete old receipt:", e); }
+          }
+        }
+
+        const filename = await processUpload(req.file, uploadDir, 'opex');
+        finalReceiptUrl = `/images/operational/${filename}`;
       }
 
       const expense = await prisma.operationalExpense.update({

@@ -8,20 +8,9 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Configure storage
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    // Format: opex-{timestamp}-{random}.{ext}
-    const timestamp = Date.now();
-    const random = Math.random().toString(36).substring(2, 8);
-    const ext = path.extname(file.originalname).toLowerCase();
-    const filename = `opex-${timestamp}-${random}${ext}`;
-    cb(null, filename);
-  }
-});
+// Configure storage to memory to allow processing
+const storage = multer.memoryStorage();
+
 
 // File filter
 const fileFilter = (req, file, cb) => {

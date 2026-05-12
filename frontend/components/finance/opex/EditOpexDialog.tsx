@@ -6,6 +6,8 @@ import { Banknote, RefreshCw, Info, Upload, X, FileText, AlertCircle } from "luc
 import { CoaType } from "@/types/coa";
 import { toast } from "sonner";
 import { updateOperationalExpense } from "@/lib/action/operationalExpense";
+import { opexApi } from "@/lib/api/opexApi";
+import { useRouter } from "next/navigation";
 import { coaApi } from "@/lib/action/coa/coa";
 import {
     Dialog,
@@ -40,6 +42,7 @@ const EditOpexDialog: React.FC<Props> = ({ open, onOpenChange, onSuccess, data }
     const [submitting, setSubmitting] = useState(false);
     const [categories, setCategories] = useState<{ id: string, name: string, code: string, postingType?: string }[]>([]);
     const [fundSources, setFundSources] = useState<{ id: string, name: string, code: string, balance?: number, postingType?: string }[]>([]);
+    const router = useRouter();
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -158,12 +161,13 @@ const EditOpexDialog: React.FC<Props> = ({ open, onOpenChange, onSuccess, data }
                 submitData.append('receipt', selectedFile);
             }
 
-            // Call server action
-            const result = await updateOperationalExpense(data.id, submitData);
+            // Call client API directly to bypass Next.js server action limits
+            const result = await opexApi.update(data.id, submitData);
 
             if (result.success) {
                 toast.success("Biaya operasional berhasil diperbarui");
                 onSuccess();
+                router.refresh(); // Ensure server-side data is refreshed
                 onOpenChange(false);
             } else {
                 toast.error(result.error || "Gagal memperbarui data");

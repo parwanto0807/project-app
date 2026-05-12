@@ -5,6 +5,8 @@ import { Banknote, Plus, Search, RefreshCw, Filter, TrendingUp, Wallet, CheckCir
 import { CoaType } from "@/types/coa";
 import { toast } from "sonner";
 import { createOperationalExpense } from "@/lib/action/operationalExpense";
+import { opexApi } from "@/lib/api/opexApi";
+import { useRouter } from "next/navigation";
 import { getSystemAccounts } from "@/lib/action/systemAccount";
 import { coaApi } from "@/lib/action/coa/coa";
 import {
@@ -44,6 +46,7 @@ const CreateOpexDialog: React.FC<Props> = ({ open, onOpenChange, onSuccess }) =>
     const [submitting, setSubmitting] = useState(false);
     const [categories, setCategories] = useState<{ id: string, name: string, code: string }[]>([]);
     const [fundSources, setFundSources] = useState<{ id: string, name: string, code: string, balance?: number }[]>([]);
+    const router = useRouter();
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -140,12 +143,13 @@ const CreateOpexDialog: React.FC<Props> = ({ open, onOpenChange, onSuccess }) =>
                 submitData.append('receipt', selectedFile);
             }
 
-            // Call server action
-            const result = await createOperationalExpense(submitData);
+            // Call client API directly to bypass Next.js server action limits
+            const result = await opexApi.create(submitData);
 
             if (result.success) {
                 toast.success("Biaya operasional berhasil dicatat sebagai DRAFT");
                 onSuccess();
+                router.refresh(); // Ensure server-side data is refreshed
                 onOpenChange(false);
                 resetForm();
             } else {
