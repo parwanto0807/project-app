@@ -229,10 +229,20 @@ export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh }: Ta
                     <TableCell>
                       <div className="flex items-center gap-1.5 flex-wrap">
                         {/* GPS & device */}
-                        {row.latMasuk && <MapPin className="h-3.5 w-3.5 text-emerald-500" title="GPS Valid" />}
-                        {row.deviceMasuk && <Smartphone className="h-3.5 w-3.5 text-blue-500" title={row.deviceMasuk} />}
+                        {row.latMasuk && (
+                          <span title="GPS Valid">
+                            <MapPin className="h-3.5 w-3.5 text-emerald-500" />
+                          </span>
+                        )}
+                        {row.deviceMasuk && (
+                          <span title={row.deviceMasuk}>
+                            <Smartphone className="h-3.5 w-3.5 text-blue-500" />
+                          </span>
+                        )}
                         {(row.isMockedMasuk || row.isMockedKeluar) && (
-                          <AlertTriangle className="h-3.5 w-3.5 text-rose-500 animate-pulse" title="Mock GPS!" />
+                          <span title="Mock GPS!">
+                            <AlertTriangle className="h-3.5 w-3.5 text-rose-500 animate-pulse" />
+                          </span>
                         )}
                         {/* Validation badge */}
                         {validated ? (
