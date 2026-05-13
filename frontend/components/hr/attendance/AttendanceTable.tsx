@@ -254,8 +254,8 @@ export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh }: Ta
                     {/* Actions */}
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
-                        {/* Validate button — tampil jika ada jam keluar */}
-                        {row.jamKeluar && (
+                        {/* Validate button — tampil jika: belum divalidasi (manual out), ada jam keluar, atau sudah divalidasi (re-validasi) */}
+                        {(row.jamKeluar || row.jamKeluarDisetujui || !row.isValidated) && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -269,7 +269,7 @@ export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh }: Ta
                             onClick={() => setValidateRecord(row)}
                           >
                             <ShieldCheck className="h-3.5 w-3.5 mr-1" />
-                            {validated ? "Re-Validasi" : "Validasi"}
+                            {validated ? "Re-Validasi" : (row.jamKeluar ? "Validasi" : "Manual Out")}
                           </Button>
                         )}
                         <Button

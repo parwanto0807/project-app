@@ -91,9 +91,18 @@ const ValidateAttendanceDialog: React.FC<ValidateAttendanceDialogProps> = ({
       const tglStr = record.tanggal ? format(new Date(record.tanggal), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
       setTanggalKeluarKoreksi(tglStr);
       
-      if (record.jamKeluar) {
+      if (record.isValidated && record.jamKeluarDisetujui) {
+        // Jika sudah divalidasi, gunakan jam yang sudah disetujui sebagai default koreksi
+        const jam = format(new Date(record.jamKeluarDisetujui), "HH:mm");
+        setJamKeluarKoreksi(jam);
+        setMode("correct");
+      } else if (record.jamKeluar) {
         const jam = format(new Date(record.jamKeluar), "HH:mm");
         setJamKeluarKoreksi(jam);
+        setMode("approve");
+      } else {
+        setJamKeluarKoreksi(JAM_STANDAR_KELUAR);
+        setMode("correct");
       }
     }
   }, [record, open]);
@@ -239,6 +248,7 @@ const ValidateAttendanceDialog: React.FC<ValidateAttendanceDialogProps> = ({
             <Button
               variant={mode === "approve" ? "default" : "outline"}
               size="sm"
+              disabled={!record.jamKeluar}
               className={`rounded-xl flex-1 ${mode === "approve" ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""}`}
               onClick={() => setMode("approve")}
             >
