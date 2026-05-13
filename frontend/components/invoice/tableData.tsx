@@ -41,6 +41,7 @@ import {
     BookCheck,
     AlertTriangle,
     FileSpreadsheet,
+    RotateCcw,
 } from "lucide-react";
 import {
     Tooltip,
@@ -65,7 +66,7 @@ import { PDFDownloadLink, PDFViewer } from "@react-pdf/renderer";
 import InvoicePdfDocument from "./invoicePdfPreview";
 import { PaymentProcessDialog } from "./paymentProcessDialog";
 import { BankAccount } from "@/schemas/bank";
-import { deleteInvoice, postInvoiceToJournal } from "@/lib/action/invoice/invoice";
+import { deleteInvoice, postInvoiceToJournal, reopenInvoice } from "@/lib/action/invoice/invoice";
 import { toast } from "sonner";
 import InvoicePdfDocumentOld from "./invoicePdfPreviewOld";
 import { FaToolbox } from "react-icons/fa";
@@ -125,6 +126,22 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser, o
                 console.error("Delete invoice error:", error);
                 toast.error("Failed to delete invoice");
             }
+        }
+    };
+
+    const handleReopenInvoice = async (invoice: Invoice) => {
+        if (confirm(`Apakah Anda yakin ingin membuka kembali invoice ${invoice.invoiceNumber}? Status akan kembali ke DRAFT.`)) {
+            toast.promise(
+                reopenInvoice(invoice.id),
+                {
+                    loading: 'Membuka kembali invoice...',
+                    success: () => {
+                        onRefresh?.();
+                        return 'Invoice berhasil dikembalikan ke DRAFT!';
+                    },
+                    error: (err) => `Gagal membuka kembali invoice: ${err.message}`,
+                }
+            );
         }
     };
 
@@ -553,7 +570,7 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser, o
                                                             </DropdownMenuTrigger>
                                                             <DropdownMenuContent align="end">
                                                                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                                                <DropdownMenuItem
+                                                                 <DropdownMenuItem
                                                                     className={invoice.approvalStatus === "PENDING" ? "cursor-pointer" : "text-gray-400 cursor-not-allowed"}
                                                                     onClick={invoice.approvalStatus === "PENDING" ? () => window.location.href = `/admin-area/finance/invoice/update/${invoice.id}` : undefined}
                                                                     disabled={invoice.approvalStatus !== "PENDING"}
@@ -561,6 +578,16 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser, o
                                                                     <Edit className="h-4 w-4 mr-2" />
                                                                     Edit Invoice
                                                                 </DropdownMenuItem>
+                                                                {(invoice.approvalStatus === "APPROVED" || invoice.approvalStatus === "REJECTED") &&
+                                                                    invoice.status !== "PAID" && invoice.approvalStatus !== "POSTED" && (
+                                                                        <DropdownMenuItem
+                                                                            className="cursor-pointer text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                                                            onClick={() => handleReopenInvoice(invoice)}
+                                                                        >
+                                                                            <RotateCcw className="h-4 w-4 mr-2" />
+                                                                            Buka Kembali
+                                                                        </DropdownMenuItem>
+                                                                    )}
                                                                 <DropdownMenuSeparator />
                                                                 <DropdownMenuItem
                                                                     className={invoice.approvalStatus === "PENDING" ? "text-red-600" : "text-gray-400"}
@@ -664,6 +691,16 @@ export function InvoiceDataTable({ invoiceData, isLoading, banks, currentUser, o
                                                 <Edit className="h-4 w-4 mr-2" />
                                                 Edit
                                             </DropdownMenuItem>
+                                            {(invoice.approvalStatus === "APPROVED" || invoice.approvalStatus === "REJECTED") &&
+                                                invoice.status !== "PAID" && invoice.approvalStatus !== "POSTED" && (
+                                                    <DropdownMenuItem
+                                                        className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                                        onClick={() => handleReopenInvoice(invoice)}
+                                                    >
+                                                        <RotateCcw className="h-4 w-4 mr-2" />
+                                                        Buka Kembali
+                                                    </DropdownMenuItem>
+                                                )}
                                             <DropdownMenuSeparator />
                                             <DropdownMenuItem
                                                 className="text-red-600"

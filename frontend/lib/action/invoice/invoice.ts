@@ -448,3 +448,24 @@ export async function postInvoiceToJournal(id: string): Promise<any> {
   revalidatePath(`/invoices/${id}`);
   return data;
 }
+
+export async function reopenInvoice(id: string): Promise<any> {
+  const response = await fetch(`${API_BASE_URL}/api/invoice/${id}/reopen`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+  });
+
+  const data = await response.json();
+
+  if (!response.ok || !data.success) {
+    throw new Error(data.message || `HTTP error! status: ${response.status}`);
+  }
+
+  revalidatePath("/invoices");
+  revalidatePath(`/invoices/${id}`);
+  revalidatePath("/admin-area/finance/invoice");
+  return data;
+}

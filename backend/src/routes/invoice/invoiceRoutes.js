@@ -184,4 +184,10 @@ router.post(
   InvoiceController.postToJournal
 );
 
+router.post(
+  "/:id/reopen",
+  [param("id").isUUID().withMessage("Invalid invoice ID")],
+  InvoiceController.reopenInvoice
+);
+
 export default router;

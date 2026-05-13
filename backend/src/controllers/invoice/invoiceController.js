@@ -64,7 +64,7 @@ class InvoiceController {
   constructor() {
     this.createInvoice = this.createInvoice.bind(this);
     this.updateInvoice = this.updateInvoice.bind(this);
-    this.updateInvoice = this.updateInvoice.bind(this);
+    this.reopenInvoice = this.reopenInvoice.bind(this);
     this.getNextInvoiceCode = this.getNextInvoiceCode.bind(this);
     this.postToJournal = this.postToJournal.bind(this);
   }
@@ -1412,6 +1412,79 @@ class InvoiceController {
       res.status(500).json({
         success: false,
         message: "Failed to update invoice status",
+        error: error.message,
+      });
+    }
+  }
+
+  async reopenInvoice(req, res) {
+    try {
+      const { id } = req.params;
+
+      const invoice = await prisma.invoice.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          status: true,
+          approvalStatus: true,
+          invoiceNumber: true,
+        },
+      });
+
+      if (!invoice) {
+        return res.status(404).json({
+          success: false,
+          message: "Invoice not found",
+        });
+      }
+
+      // Restriction: Cannot reopen if Paid or Posted
+      if (invoice.status === "PAID") {
+        return res.status(400).json({
+          success: false,
+          message: "Cannot reopen invoice with status PAID",
+        });
+      }
+
+      if (invoice.approvalStatus === "POSTED") {
+        return res.status(400).json({
+          success: false,
+          message: "Cannot reopen invoice with approval status POSTED",
+        });
+      }
+
+      // Check for payments
+      const paymentsCount = await prisma.payment.count({
+        where: { invoiceId: id },
+      });
+
+      if (paymentsCount > 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Cannot reopen invoice that has payment records",
+        });
+      }
+
+      const updatedInvoice = await prisma.invoice.update({
+        where: { id },
+        data: {
+          status: "DRAFT",
+          approvalStatus: "PENDING",
+          approvedAt: null,
+          approvedById: null,
+        },
+      });
+
+      res.json({
+        success: true,
+        message: "Invoice reopened to draft successfully",
+        data: updatedInvoice,
+      });
+    } catch (error) {
+      console.error("Reopen invoice error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to reopen invoice",
         error: error.message,
       });
     }
