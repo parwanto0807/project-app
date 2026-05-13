@@ -265,12 +265,14 @@ export const getPayrollSummary = async (req, res) => {
 
     const drafts = gaji.filter(g => g.status === "DRAFT");
     const posted = gaji.filter(g => g.status === "POSTED");
+    const published = gaji.filter(g => g.status === "PUBLISHED");
 
     res.json({
       periode,
       totalKaryawan:  gaji.length,
       totalDrafts:    drafts.length,
       totalPosted:    posted.length,
+      totalPublished: published.length,
       totalGajiPokok: gaji.reduce((s, g) => s + g.gajiPokok, 0),
       totalTunjangan: gaji.reduce((s, g) => s + (g.tunjangan || 0), 0),
       totalPotongan:  gaji.reduce((s, g) => s + (g.potongan || 0) + g.pajak + g.potonganPinjaman + g.potonganKasbon + g.potonganDpGaji, 0),
@@ -994,3 +996,118 @@ export const updatePayrollConfig = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+/**
+ * PATCH /payroll/gaji/:id/publish
+ * Publikasikan slip gaji agar bisa dilihat karyawan di mobile
+ */
+export const publishGaji = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const gaji = await prisma.gaji.findUnique({ where: { id } });
+
+    if (!gaji) return res.status(404).json({ message: "Data gaji tidak ditemukan" });
+    if (gaji.status === "PUBLISHED") return res.status(400).json({ message: "Gaji ini sudah dipublikasikan" });
+    // DRAFT allowed for trial as requested
+    
+    const updated = await prisma.gaji.update({
+      where: { id },
+      data: { status: "PUBLISHED" },
+    });
+
+    res.json({ success: true, message: "Gaji berhasil dipublikasikan", data: updated });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * POST /payroll/bulk-publish
+ * Publikasikan massal semua gaji yang sudah di-POSTED untuk periode tertentu
+ */
+export const publishBulkPayroll = async (req, res) => {
+  try {
+    const { periode } = req.body;
+    if (!periode) return res.status(400).json({ message: "periode wajib diisi" });
+
+    const periodDate   = new Date(periode);
+    const startOfMonth = new Date(periodDate.getFullYear(), periodDate.getMonth(), 1);
+    const endOfMonth   = new Date(periodDate.getFullYear(), periodDate.getMonth() + 1, 0, 23, 59, 59);
+
+    const result = await prisma.gaji.updateMany({
+      where: {
+        status: { in: ["POSTED", "DRAFT"] }, // Allow both for trial
+        periode: { gte: startOfMonth, lte: endOfMonth },
+      },
+      data: { status: "PUBLISHED" },
+    });
+
+    res.json({ 
+      success: true, 
+      message: `Berhasil mempublikasikan ${result.count} slip gaji`,
+      count: result.count 
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * GET /payroll/my-salary
+ * Mobile: Mengambil daftar slip gaji milik karyawan yang login
+ */
+export const getMyGaji = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+    const karyawan = await prisma.karyawan.findUnique({ where: { userId } });
+    if (!karyawan) return res.status(404).json({ message: "Data karyawan tidak ditemukan" });
+
+    const gaji = await prisma.gaji.findMany({
+      where: {
+        karyawanId: karyawan.id,
+        status: "PUBLISHED", // Hanya yang sudah dipublish oleh Admin
+      },
+      orderBy: { periode: "desc" },
+    });
+
+    res.json({ success: true, data: gaji });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * GET /payroll/my-salary/:id
+ * Mobile: Mengambil detail slip gaji
+ */
+export const getMyGajiDetail = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+
+    const gaji = await prisma.gaji.findUnique({
+      where: { id },
+      include: { 
+        karyawan: {
+          select: { namaLengkap: true, nik: true, jabatan: true, departemen: true }
+        } 
+      },
+    });
+
+    if (!gaji) return res.status(404).json({ message: "Slip gaji tidak ditemukan" });
+    
+    // Pastikan user hanya bisa melihat gajinya sendiri
+    const karyawan = await prisma.karyawan.findUnique({ where: { userId } });
+    if (gaji.karyawanId !== karyawan?.id) {
+      return res.status(403).json({ message: "Anda tidak memiliki akses ke data ini" });
+    }
+
+    res.json({ success: true, data: gaji });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+

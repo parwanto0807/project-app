@@ -2898,4 +2898,5 @@ enum LoanPaymentStatus {
 enum PayrollStatus {
   DRAFT
   POSTED
+  PUBLISHED
 }

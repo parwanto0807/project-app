@@ -13,7 +13,7 @@ import {
 import { Eye, Trash2, Loader2, AlertTriangle, Calendar, Send, RotateCcw, Printer, Edit } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
-import { deleteGaji, postGaji, voidGaji } from "@/lib/action/hr/payroll";
+import { deleteGaji, postGaji, voidGaji, publishGaji } from "@/lib/action/hr/payroll";
 import { toast } from "sonner";
 import PayrollSlipDialog from "./PayrollSlipDialog";
 import { pdf } from "@react-pdf/renderer";
@@ -39,6 +39,7 @@ const PayrollTable: React.FC<PayrollTableProps> = ({ gaji, onRefresh, periode })
   const [isPrinting, setIsPrinting] = useState<string | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedGaji, setSelectedGaji] = useState<any>(null);
+  const [isPublishing, setIsPublishing] = useState<string | null>(null);
   const [voidingId, setVoidingId] = useState<string | null>(null);
   const [voidingName, setVoidingName] = useState("");
 
@@ -89,6 +90,23 @@ const PayrollTable: React.FC<PayrollTableProps> = ({ gaji, onRefresh, periode })
       toast.error("Gagal membuat PDF Slip Gaji");
     } finally {
       setIsPrinting(null);
+    }
+  };
+
+  const handlePublish = async (id: string) => {
+    setIsPublishing(id);
+    try {
+      const res = await publishGaji(id);
+      if (res.success) {
+        toast.success("Gaji berhasil dipublikasikan ke mobile");
+        onRefresh?.();
+      } else {
+        toast.error(res.error || "Gagal publikasi gaji");
+      }
+    } catch {
+      toast.error("Terjadi kesalahan sistem");
+    } finally {
+      setIsPublishing(null);
     }
   };
 
@@ -182,7 +200,11 @@ const PayrollTable: React.FC<PayrollTableProps> = ({ gaji, onRefresh, periode })
                     {fmt(g.total)}
                   </TableCell>
                   <TableCell>
-                    {g.status === "POSTED" ? (
+                    {g.status === "PUBLISHED" ? (
+                      <Badge className="bg-blue-100 text-blue-700 border-none rounded-md px-2 py-0.5 font-bold">
+                        PUBLISHED
+                      </Badge>
+                    ) : g.status === "POSTED" ? (
                       <Badge className="bg-emerald-100 text-emerald-700 border-none rounded-md px-2 py-0.5 font-bold">
                         POSTED
                       </Badge>
@@ -212,6 +234,21 @@ const PayrollTable: React.FC<PayrollTableProps> = ({ gaji, onRefresh, periode })
                             <Loader2 className="h-3 w-3 animate-spin" />
                           ) : (
                             <><Send className="h-3 w-3 mr-1" />Posting</>
+                          )}
+                        </Button>
+                      )}
+                      {(g.status === "POSTED" || g.status === "DRAFT") && (
+                        <Button
+                          variant="ghost" size="sm"
+                          className="text-blue-600 hover:bg-blue-50 rounded-lg text-xs"
+                          onClick={() => handlePublish(g.id)}
+                          disabled={isPublishing === g.id}
+                          title="Publikasikan ke Mobile"
+                        >
+                          {isPublishing === g.id ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <><Send className="h-3 w-3 mr-1" />Publish</>
                           )}
                         </Button>
                       )}

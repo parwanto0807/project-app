@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import {
   Download, Loader2, PlusCircle, Settings, FileText, BarChart3, Zap, Send, AlertTriangle, Eye,
 } from "lucide-react";
-import { fetchAllGaji, fetchPayrollSummary, fetchPayrollConfigs, postBulkPayroll } from "@/lib/action/hr/payroll";
+import { fetchAllGaji, fetchPayrollSummary, fetchPayrollConfigs, postBulkPayroll, publishBulkPayroll } from "@/lib/action/hr/payroll";
 import PayrollStats from "@/components/hr/payroll/PayrollStats";
 import PayrollTable from "@/components/hr/payroll/PayrollTable";
 import PayrollPeriodSelector from "@/components/hr/payroll/PayrollPeriodSelector";
@@ -40,6 +40,8 @@ export default function PayrollPage() {
   const [bulkOpen, setBulkOpen] = useState(false);
   const [postBulkOpen, setPostBulkOpen] = useState(false);
   const [isPostingBulk, setIsPostingBulk] = useState(false);
+  const [publishBulkOpen, setPublishBulkOpen] = useState(false);
+  const [isPublishingBulk, setIsPublishingBulk] = useState(false);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
 
   const loadData = useCallback(async () => {
@@ -78,6 +80,24 @@ export default function PayrollPage() {
     } finally {
       setIsPostingBulk(false);
       setPostBulkOpen(false);
+    }
+  };
+
+  const handlePublishBulk = async () => {
+    setIsPublishingBulk(true);
+    try {
+      const res = await publishBulkPayroll(periode + "-01");
+      if (res.success) {
+        toast.success(res.message || "Slip gaji berhasil dipublikasikan");
+        loadData();
+      } else {
+        toast.error(res.error || "Gagal publikasi massal");
+      }
+    } catch {
+      toast.error("Terjadi kesalahan sistem");
+    } finally {
+      setIsPublishingBulk(false);
+      setPublishBulkOpen(false);
     }
   };
 
@@ -177,6 +197,17 @@ export default function PayrollPage() {
                   >
                     <Send className="h-4 w-4 mr-2" />
                     Posting Massal ({summary.totalDrafts})
+                  </Button>
+                )}
+                {summary && (summary.totalPosted > 0 || summary.totalDrafts > 0) && (
+                  <Button
+                    variant="outline"
+                    className="rounded-xl border-blue-200 text-blue-700 hover:bg-blue-50"
+                    onClick={() => setPublishBulkOpen(true)}
+                    disabled={summary.totalPosted === 0 && summary.totalDrafts === 0}
+                  >
+                    <Send className="h-4 w-4 mr-2" />
+                    Publish Massal ({summary.totalPosted + summary.totalDrafts})
                   </Button>
                 )}
                 <Button
@@ -320,6 +351,33 @@ export default function PayrollPage() {
                 className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
               >
                 {isPostingBulk ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Memproses...</> : "Ya, Posting Sekarang"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Publish Bulk Confirmation */}
+        <AlertDialog open={publishBulkOpen} onOpenChange={setPublishBulkOpen}>
+          <AlertDialogContent className="rounded-3xl border-none shadow-2xl">
+            <AlertDialogHeader>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center">
+                  <Send className="h-6 w-6 text-blue-600" />
+                </div>
+                <AlertDialogTitle className="text-xl font-black text-gray-900">Publikasikan Massal Gaji?</AlertDialogTitle>
+              </div>
+              <AlertDialogDescription className="text-gray-600">
+                Anda akan mempublikasikan sebanyak <strong>{(summary?.totalPosted || 0) + (summary?.totalDrafts || 0)}</strong> slip gaji (Draft & Posted) agar bisa dilihat oleh karyawan di aplikasi mobile.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="rounded-xl border-gray-200">Batal</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handlePublishBulk}
+                disabled={isPublishingBulk}
+                className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {isPublishingBulk ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Memproses...</> : "Ya, Publikasikan Sekarang"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

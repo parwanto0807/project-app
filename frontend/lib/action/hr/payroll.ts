@@ -201,6 +201,40 @@ export async function updateGaji(id: string, data: any) {
   }
 }
 
+export async function publishGaji(id: string) {
+  try {
+    const res = await fetch(`${API_URL}/api/payroll/gaji/${id}/publish`, {
+      method: "PATCH",
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.message || "Gagal publikasi gaji");
+    }
+    revalidatePath("/admin-area/hr/payroll");
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+export async function publishBulkPayroll(periode: string) {
+  try {
+    const res = await fetch(`${API_URL}/api/payroll/bulk-publish`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ periode }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.message || "Gagal publikasi gaji massal");
+    }
+    revalidatePath("/admin-area/hr/payroll");
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
 // ─── PAYROLL CONFIG ───────────────────────────────────────────────────────────
 
 export async function fetchPayrollConfigs() {

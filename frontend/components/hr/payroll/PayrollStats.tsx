@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Users, Wallet, TrendingDown, Banknote, Clock } from "lucide-react";
+import { Users, Wallet, TrendingDown, Banknote, Clock, Send } from "lucide-react";
 
 interface PayrollStatsProps {
   summary: {
@@ -12,6 +12,7 @@ interface PayrollStatsProps {
     totalPotongan: number;
     totalBersih: number;
     totalLembur: number;
+    totalPublished: number;
   } | null;
 }
 
@@ -68,6 +69,14 @@ const PayrollStats: React.FC<PayrollStatsProps> = ({ summary }) => {
       icon: Clock,
       color: "text-cyan-600",
       bg: "bg-cyan-50",
+    },
+    {
+      title: "Sudah Publish (Mobile)",
+      value: summary?.totalPublished ?? 0,
+      isCount: true,
+      icon: Send,
+      color: "text-blue-700",
+      bg: "bg-blue-100",
     },
   ];
 
