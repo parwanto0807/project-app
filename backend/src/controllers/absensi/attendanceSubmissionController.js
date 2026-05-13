@@ -81,6 +81,7 @@ export const submitClockIn = async (req, res) => {
         karyawanId: karyawan.id,
         jamMasuk: { not: null, gte: cutoff },
         jamKeluar: null,
+        jamKeluarDisetujui: null,
       },
       orderBy: { jamMasuk: "desc" },
     });
@@ -207,6 +208,7 @@ export const submitClockOut = async (req, res) => {
         karyawanId: karyawan.id,
         jamMasuk: { not: null, gte: cutoff },
         jamKeluar: null,
+        jamKeluarDisetujui: null,
       },
       orderBy: { jamMasuk: "desc" }, // ambil yang paling baru
     });
@@ -274,6 +276,7 @@ export const getTodayStatus = async (req, res) => {
         karyawanId: karyawan.id,
         jamMasuk: { not: null, gte: cutoff },
         jamKeluar: null,
+        jamKeluarDisetujui: null,
       },
       orderBy: { jamMasuk: "desc" },
     });
@@ -380,6 +383,7 @@ export const getTodayAttendance = async (req, res) => {
         karyawanId: karyawan.id,
         jamMasuk: { not: null, gte: cutoff },
         jamKeluar: null,
+        jamKeluarDisetujui: null,
       },
       orderBy: { jamMasuk: "desc" }
     });
