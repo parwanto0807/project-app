@@ -31,6 +31,17 @@ export const submitClockIn = async (req, res) => {
 
     const lat = parseFloat(latitude);
     const lon = parseFloat(longitude);
+    const isMockedValue = isMocked === 'true' || isMocked === true;
+
+    // 0. Proteksi Fake GPS (Tolak Absen)
+    if (isMockedValue) {
+      console.warn(`[SECURITY] Fake GPS detected for user ${userId}`);
+      return res.status(403).json({ 
+        success: false,
+        message: "Kecurangan terdeteksi! Penggunaan Fake GPS tidak diperbolehkan.",
+        code: "FAKE_GPS_DETECTED"
+      });
+    }
 
     // 1. Cari data karyawan & lokasi absensinya
     const karyawan = await prisma.karyawan.findUnique({
@@ -110,7 +121,7 @@ export const submitClockIn = async (req, res) => {
           fotoMasuk: fotoPath,
           latMasuk: lat,
           longMasuk: lon,
-          isMockedMasuk: isMocked === 'true' || isMocked === true,
+          isMockedMasuk: isMockedValue,
           deviceMasuk: deviceDetails,
           status: "HADIR",
         },
@@ -125,7 +136,7 @@ export const submitClockIn = async (req, res) => {
           fotoMasuk: fotoPath,
           latMasuk: lat,
           longMasuk: lon,
-          isMockedMasuk: isMocked === 'true' || isMocked === true,
+          isMockedMasuk: isMockedValue,
           deviceMasuk: deviceDetails,
           status: "HADIR",
         },
@@ -150,6 +161,17 @@ export const submitClockOut = async (req, res) => {
     
     const lat = parseFloat(latitude);
     const lon = parseFloat(longitude);
+    const isMockedValue = isMocked === 'true' || isMocked === true;
+
+    // 0. Proteksi Fake GPS (Tolak Absen)
+    if (isMockedValue) {
+      console.warn(`[SECURITY] Fake GPS detected for user ${userId}`);
+      return res.status(403).json({ 
+        success: false,
+        message: "Kecurangan terdeteksi! Penggunaan Fake GPS tidak diperbolehkan.",
+        code: "FAKE_GPS_DETECTED"
+      });
+    }
 
     const karyawan = await prisma.karyawan.findUnique({
       where: { userId },
@@ -215,7 +237,7 @@ export const submitClockOut = async (req, res) => {
         fotoKeluar: fotoPath,
         latKeluar: lat,
         longKeluar: lon,
-        isMockedKeluar: isMocked === "true" || isMocked === true,
+        isMockedKeluar: isMockedValue,
         deviceKeluar: deviceDetails,
         jamLembur,
       },
@@ -350,13 +372,26 @@ export const getTodayAttendance = async (req, res) => {
       }
     });
 
+    // Cari apakah ada sesi yang belum selesai (masuk tapi belum keluar) 
+    // dalam 48 jam terakhir
+    const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);
+    const unfinishedSession = await prisma.absensi.findFirst({
+      where: {
+        karyawanId: karyawan.id,
+        jamMasuk: { not: null, gte: cutoff },
+        jamKeluar: null,
+      },
+      orderBy: { jamMasuk: "desc" }
+    });
+
     res.json({
       success: true,
       data: {
         hasClockedIn: !!absensi?.jamMasuk,
         hasClockedOut: !!absensi?.jamKeluar,
         jamMasuk: absensi?.jamMasuk || null,
-        jamKeluar: absensi?.jamKeluar || null
+        jamKeluar: absensi?.jamKeluar || null,
+        unfinishedSession: unfinishedSession || null, // Untuk banner "Lupa Absen Keluar"
       }
     });
   } catch (error) {

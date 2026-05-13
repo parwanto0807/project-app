@@ -114,33 +114,38 @@ async function createUserSession(user, req) {
 
       // console.log(`🗑️ Deleted ${deletedSessions.count} old/expired sessions`);
 
-      // ✅ 2. ENFORCE 1 SESSION: Revoke ALL other active sessions FIRST
-      const revokedSessions = await tx.userSession.updateMany({
+      // ✅ 2. ENFORCE MAX 2 SESSIONS: Revoke OLDEST if already have 2 active
+      const activeSessions = await tx.userSession.findMany({
         where: {
           userId: user.id,
           isRevoked: false,
-          expiresAt: { gt: now }, // Hanya yang belum expired
+          expiresAt: { gt: now },
         },
-        data: {
-          isRevoked: true,
-          revokedAt: now,
-          fcmToken: null, // Clear FCM token dari session yang direvoke
-        },
+        orderBy: { createdAt: "asc" },
       });
 
-      console.log(
-        `🔒 Revoked ${revokedSessions.count} active sessions (1-device policy)`
-      );
+      if (activeSessions.length >= 2) {
+        // Revoke the oldest sessions so only 1 remains (new one will be the 2nd)
+        const sessionsToRevoke = activeSessions.slice(0, activeSessions.length - 1);
+        await tx.userSession.updateMany({
+          where: {
+            id: { in: sessionsToRevoke.map((s) => s.id) },
+          },
+          data: {
+            isRevoked: true,
+            revokedAt: now,
+            fcmToken: null,
+          },
+        });
+        console.log(`🔒 Revoked ${sessionsToRevoke.length} oldest sessions (Max 2-device policy)`);
+      }
 
-      // ✅ 3. INCREMENT TOKEN VERSION (Optional - jika mau force logout semua)
-      // Hapus ini jika tidak perlu force logout global
+      // ✅ 3. UPDATE USER LAST LOGIN (Tanpa menaikkan tokenVersion)
       const updatedUser = await tx.user.update({
         where: { id: user.id },
         data: {
-          tokenVersion: { increment: 1 },
           lastLoginAt: now,
-          // lastLoginIp: ipAddress,
-          // lastLoginDevice: userAgent?.substring(0, 100),
+          // tokenVersion: { increment: 1 }, // DISABLE: Agar device lain tidak ter-logout otomatis
         },
       });
 
@@ -215,46 +220,13 @@ async function createUserSession(user, req) {
         },
       });
 
-      // ✅ 8. VALIDASI: Pastikan HANYA 1 session aktif
-      const activeSessions = allSessions.filter(
+      // ✅ 8. VALIDASI: Pastikan sesi aktif tidak melebihi batas (Max 2)
+      const currentActiveSessions = allSessions.filter(
         (s) => !s.isRevoked && s.expiresAt > now
       );
-      if (activeSessions.length > 1) {
-        console.error(
-          `❌ CRITICAL: Still ${activeSessions.length} active sessions after cleanup!`
-        );
-
-        // Auto-fix DALAM TRANSACTION YANG SAMA
-        const sessionsToRevoke = activeSessions.slice(1); // Keep first one
-        await tx.userSession.updateMany({
-          where: {
-            id: { in: sessionsToRevoke.map((s) => s.id) },
-          },
-          data: {
-            isRevoked: true,
-            revokedAt: now,
-            fcmToken: null,
-            revokeReason: "auto_fix_multiple_active",
-          },
-        });
-
-        console.log(
-          `🛠️ Auto-fixed: Revoked ${sessionsToRevoke.length} extra sessions`
-        );
-
-        // Update allSessions array
-        sessionsToRevoke.forEach((session) => {
-          session.isRevoked = true;
-          session.revokedAt = now;
-          session.fcmToken = null;
-        });
-      }
-
-      // ✅ 9. VALIDASI FINAL
-      const finalActiveCount = allSessions.filter(
-        (s) => !s.isRevoked && s.expiresAt > now
-      ).length;
-      if (finalActiveCount !== 1) {
+      
+      const finalActiveCount = currentActiveSessions.length;
+      if (finalActiveCount > 2) {
         throw new Error(
           `Session policy violation: ${finalActiveCount} active sessions for user ${user.id}`
         );
@@ -1711,7 +1683,7 @@ export const refreshHandler = async (req, res) => {
   console.log("🔄 [REFRESH HANDLER] Dimulai");
   
   // Dukungan untuk Cookie (Web) dan Request Body (Flutter)
-  const token = req.cookies.refreshToken || req.body.refreshToken;
+  const token = req.cookies?.refreshToken || req.body?.refreshToken;
 
   if (!token) {
     console.log("❌ Refresh token tidak ditemukan");
