@@ -161,6 +161,43 @@ export function AttendanceDetailDialog({ record, isOpen, onClose }: DetailProps)
                   </a>
                 )}
               </div>
+                {record.first_seen_at && (
+                  <div className="mt-4 p-4 rounded-2xl bg-amber-50 border border-amber-100 space-y-2">
+                    <div className="flex items-center gap-2 text-amber-800 font-bold text-xs uppercase tracking-wider">
+                      <AlertCircle className="h-4 w-4 text-amber-600" />
+                      Deteksi Kehadiran Kantor ("Mata-mata")
+                    </div>
+                    <div className="space-y-1.5 text-xs text-amber-900 font-medium">
+                      <div className="flex justify-between">
+                        <span className="text-amber-700">Jam Keluar (Klik Manual):</span>
+                        <span className="font-bold">{record.jamKeluar ? format(new Date(record.jamKeluar), "HH:mm:ss") : "--:--:--"}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-amber-700">Terdeteksi Sampai Kantor:</span>
+                        <span className="font-bold">{format(new Date(record.first_seen_at), "HH:mm:ss")}</span>
+                      </div>
+                      {(() => {
+                        const outTime = new Date(record.jamKeluar).getTime();
+                        const seenTime = new Date(record.first_seen_at).getTime();
+                        const diffMs = outTime - seenTime;
+                        if (diffMs > 15 * 60 * 1000) {
+                          const h = Math.floor(diffMs / 3600000);
+                          const m = Math.floor((diffMs % 3600000) / 60000);
+                          const durationStr = h > 0 ? `${h} Jam ${m} Menit` : `${m} Menit`;
+                          return (
+                            <div className="flex justify-between text-rose-600 font-bold pt-1.5 border-t border-amber-200/50 mt-1.5 items-center">
+                              <span>Selisih Mengulur Waktu:</span>
+                              <span className="bg-rose-50 px-2 py-0.5 rounded border border-rose-100 text-[10px] animate-pulse">
+                                {durationStr} (Indikasi Mengulur Waktu)
+                              </span>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
+                  </div>
+                )}
             </div>
           </div>
         </div>

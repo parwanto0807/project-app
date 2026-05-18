@@ -28,6 +28,18 @@ function isSuspicious(jamMasuk: string | null, jamKeluar: string | null): boolea
   return keluarDate.getTime() - standar.getTime() > 30 * 60 * 1000;
 }
 
+function getDiscrepancyInfo(jamKeluar: string | null, firstSeen: string | null) {
+  if (!jamKeluar || !firstSeen) return null;
+  const outTime = new Date(jamKeluar).getTime();
+  const seenTime = new Date(firstSeen).getTime();
+  const diffMs = outTime - seenTime;
+  if (diffMs <= 15 * 60 * 1000) return null; // Only flag if > 15 minutes
+  const h = Math.floor(diffMs / 3600000);
+  const m = Math.floor((diffMs % 3600000) / 60000);
+  const durationStr = h > 0 ? `${h} jam ${m}m` : `${m}m`;
+  return `${durationStr} (Indikasi Mengulur Waktu)`;
+}
+
 export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh }: TableProps) {
   const [validateRecord, setValidateRecord] = useState<any | null>(null);
 
@@ -98,6 +110,7 @@ export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh }: Ta
               <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Tanggal</TableHead>
               <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Masuk</TableHead>
               <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Keluar</TableHead>
+              <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Deteksi Kantor</TableHead>
               <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Durasi</TableHead>
               <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Lembur</TableHead>
               <TableHead className="font-bold uppercase text-[10px] tracking-[0.1em]">Status</TableHead>
@@ -108,7 +121,7 @@ export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh }: Ta
           <TableBody>
             {data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="h-32 text-center text-muted-foreground font-medium">
+                <TableCell colSpan={10} className="h-32 text-center text-muted-foreground font-medium">
                   Tidak ada data absensi.
                 </TableCell>
               </TableRow>
@@ -126,7 +139,7 @@ export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh }: Ta
                 return sortedDates.map((date) => (
                   <Fragment key={date}>
                     <TableRow className="bg-gray-50/80">
-                      <TableCell colSpan={9} className="py-2.5 px-6">
+                      <TableCell colSpan={10} className="py-2.5 px-6">
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-2 rounded-full bg-cyan-500" />
                           <span className="font-black text-[11px] uppercase tracking-widest text-gray-500">
@@ -183,8 +196,9 @@ export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh }: Ta
 
                     {/* Jam Keluar — tampilkan jam disetujui jika ada */}
                     <TableCell>
-                      <div className="space-y-0.5">
+                      <div className="space-y-1">
                         <div className={`font-black text-[11px] ${suspicious && !validated ? "text-red-600" : "text-blue-600"}`}>
+                          <span className="text-[9px] text-gray-400 font-bold block uppercase tracking-tighter">Manual:</span>
                           {row.jamKeluar ? formatJakarta(row.jamKeluar, true) : "--:--"}
                           {suspicious && !validated && (
                             <AlertTriangle className="inline h-3 w-3 ml-1 text-red-500" />
@@ -197,6 +211,31 @@ export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh }: Ta
                           </div>
                         )}
                       </div>
+                    </TableCell>
+
+                    {/* Deteksi Kantor (first_seen_at) */}
+                    <TableCell>
+                      {row.first_seen_at ? (
+                        <div className="space-y-1">
+                          <div className="text-[9px] text-amber-800 bg-amber-50 border border-amber-100 p-1.5 rounded-lg space-y-0.5 max-w-[170px] leading-tight font-medium shadow-sm">
+                            <span className="text-[8px] text-amber-600 font-black block uppercase tracking-tighter">Terdeteksi:</span>
+                            <span className="font-bold text-[10px] text-amber-900">{formatJakarta(row.first_seen_at, true)}</span>
+                            {(() => {
+                              const discStr = getDiscrepancyInfo(row.jamKeluar, row.first_seen_at);
+                              if (discStr) {
+                                return (
+                                  <span className="text-[8px] text-red-600 font-black block leading-tight mt-0.5 uppercase tracking-tighter">
+                                    Selisih: {discStr}
+                                  </span>
+                                );
+                              }
+                              return null;
+                            })()}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-gray-300 text-xs">—</span>
+                      )}
                     </TableCell>
 
                     {/* Durasi — pakai jam disetujui jika ada */}

@@ -153,7 +153,7 @@ export const submitClockIn = async (req, res) => {
 
 export const submitClockOut = async (req, res) => {
   try {
-    const { latitude, longitude, deviceDetails, isMocked } = req.body;
+    const { latitude, longitude, deviceDetails, isMocked, first_seen_at_office } = req.body;
     const userId = req.user?.id; // Use ID from token
 
     if (!userId) {
@@ -242,6 +242,7 @@ export const submitClockOut = async (req, res) => {
         isMockedKeluar: isMockedValue,
         deviceKeluar: deviceDetails,
         jamLembur,
+        first_seen_at: first_seen_at_office ? new Date(first_seen_at_office) : null,
       },
     });
 

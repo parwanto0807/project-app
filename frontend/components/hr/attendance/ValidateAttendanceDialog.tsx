@@ -241,6 +241,43 @@ const ValidateAttendanceDialog: React.FC<ValidateAttendanceDialogProps> = ({
             </div>
           )}
 
+          {/* First seen at / detected office discrepancy warning */}
+          {record.first_seen_at && (
+            <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl p-3">
+              <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+              <div className="w-full">
+                <p className="text-xs font-bold text-amber-700">Kecurangan Deteksi Kehadiran Kantor ("Mata-mata")</p>
+                <div className="text-xs text-amber-600 mt-1 space-y-1 w-full">
+                  <div className="flex justify-between gap-4">
+                    <span>Jam Keluar (Klik Manual):</span>
+                    <span className="font-bold">{record.jamKeluar ? formatTime(record.jamKeluar) : "--:--"}</span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span>Terdeteksi Sampai Kantor:</span>
+                    <span className="font-bold">{formatTime(record.first_seen_at)}</span>
+                  </div>
+                  {(() => {
+                    const outTime = new Date(record.jamKeluar).getTime();
+                    const seenTime = new Date(record.first_seen_at).getTime();
+                    const diffMs = outTime - seenTime;
+                    if (diffMs > 15 * 60 * 1000) {
+                      const h = Math.floor(diffMs / 3600000);
+                      const m = Math.floor((diffMs % 3600000) / 60000);
+                      const durationStr = h > 0 ? `${h} jam ${m} menit` : `${m} menit`;
+                      return (
+                        <div className="text-rose-600 font-bold mt-1.5 pt-1.5 border-t border-amber-200/50 flex justify-between">
+                          <span>Selisih Mengulur Waktu:</span>
+                          <span className="bg-rose-50 px-2 py-0.5 rounded border border-rose-100 animate-pulse text-[10px]">{durationStr}</span>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
+              </div>
+            </div>
+          )}
+
           <Separator />
 
           {/* Mode selector */}

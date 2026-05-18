@@ -286,6 +286,7 @@ model Absensi {
   tanggal         DateTime
   jamMasuk        DateTime?
   jamKeluar       DateTime?
+  first_seen_at   DateTime?
   jamKeluarDisetujui DateTime?     // Jam keluar yang divalidasi admin
   jamKerjaDisetujui  Float?        // Jam kerja efektif setelah validasi (jam)
   isValidated     Boolean          @default(false) // Sudah divalidasi admin
