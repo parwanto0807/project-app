@@ -186,7 +186,10 @@ export const approveLeave = async (req, res) => {
       return res.status(403).json({ message: "Forbidden. Hanya admin yang diperbolehkan menyetujui pengajuan." });
     }
 
-    const leave = await prisma.leaveRequest.findUnique({ where: { id } });
+    const leave = await prisma.leaveRequest.findUnique({ 
+      where: { id },
+      include: { karyawan: true }
+    });
 
     if (!leave) {
       return res.status(404).json({ message: "Pengajuan ijin/cuti tidak ditemukan" });
@@ -212,6 +215,24 @@ export const approveLeave = async (req, res) => {
         },
       },
     });
+
+    // Send push notification to the Employee
+    try {
+      if (leave.karyawan?.userId) {
+        await NotificationService.sendToUser(leave.karyawan.userId, {
+          title: "📅 Pengajuan Cuti Disetujui!",
+          body: `Halo ${leave.karyawan.namaLengkap}, pengajuan ${leave.jenis} Anda selama ${leave.jumlahHari} hari telah DISETUJUI oleh Admin.`,
+          type: "leave_approved",
+          data: {
+            id: leave.id,
+            status: "APPROVED",
+            click_action: "FLUTTER_NOTIFICATION_CLICK"
+          }
+        });
+      }
+    } catch (notifError) {
+      console.error("[Notification] Failed to send leave approval notification:", notifError.message);
+    }
 
     res.json({
       message: "Pengajuan ijin/cuti berhasil disetujui",
@@ -241,7 +262,10 @@ export const rejectLeave = async (req, res) => {
       return res.status(400).json({ message: "Alasan penolakan (rejectedReason) wajib diisi" });
     }
 
-    const leave = await prisma.leaveRequest.findUnique({ where: { id } });
+    const leave = await prisma.leaveRequest.findUnique({ 
+      where: { id },
+      include: { karyawan: true }
+    });
 
     if (!leave) {
       return res.status(404).json({ message: "Pengajuan ijin/cuti tidak ditemukan" });
@@ -268,6 +292,24 @@ export const rejectLeave = async (req, res) => {
         },
       },
     });
+
+    // Send push notification to the Employee
+    try {
+      if (leave.karyawan?.userId) {
+        await NotificationService.sendToUser(leave.karyawan.userId, {
+          title: "❌ Pengajuan Cuti Ditolak",
+          body: `Halo ${leave.karyawan.namaLengkap}, pengajuan ${leave.jenis} Anda ditolak oleh Admin. Alasan: ${rejectedReason}`,
+          type: "leave_rejected",
+          data: {
+            id: leave.id,
+            status: "REJECTED",
+            click_action: "FLUTTER_NOTIFICATION_CLICK"
+          }
+        });
+      }
+    } catch (notifError) {
+      console.error("[Notification] Failed to send leave rejection notification:", notifError.message);
+    }
 
     res.json({
       message: "Pengajuan ijin/cuti berhasil ditolak",

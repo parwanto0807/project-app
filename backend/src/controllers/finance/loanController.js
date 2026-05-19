@@ -250,6 +250,24 @@ export const postPinjaman = async (req, res) => {
       return updatedLoan;
     }, { timeout: 30000 });
 
+    // Send push notification to the Employee
+    try {
+      if (loan.karyawan?.userId) {
+        await NotificationService.sendToUser(loan.karyawan.userId, {
+          title: "💵 Pinjaman Disetujui & Dicairkan!",
+          body: `Halo ${loan.karyawan.namaLengkap}, pengajuan Pinjaman Anda sebesar Rp${loan.jumlahPinjaman.toLocaleString('id-ID')} telah disetujui dan dicairkan.`,
+          type: "loan_approved",
+          data: {
+            id: loan.id,
+            status: "ACTIVE",
+            click_action: "FLUTTER_NOTIFICATION_CLICK"
+          }
+        });
+      }
+    } catch (notifError) {
+      console.error("[Notification] Failed to send loan approval notification:", notifError.message);
+    }
+
     res.json(result);
   } catch (error) {
     console.error("Error posting loan:", error);
@@ -409,7 +427,10 @@ export const approveKasbon = async (req, res) => {
     const { id } = req.params;
     const { approvedBy, catatan } = req.body;
 
-    const kasbon = await prisma.kasbonSementara.findUnique({ where: { id } });
+    const kasbon = await prisma.kasbonSementara.findUnique({ 
+      where: { id },
+      include: { karyawan: true }
+    });
     if (!kasbon) return res.status(404).json({ message: "Kasbon tidak ditemukan" });
     if (kasbon.status !== "PENDING") {
       return res.status(400).json({ message: "Hanya kasbon berstatus PENDING yang dapat disetujui" });
@@ -427,6 +448,24 @@ export const approveKasbon = async (req, res) => {
         karyawan: { select: { namaLengkap: true, nik: true } },
       },
     });
+
+    // Send push notification to the Employee
+    try {
+      if (kasbon.karyawan?.userId) {
+        await NotificationService.sendToUser(kasbon.karyawan.userId, {
+          title: "🪙 Kasbon Disetujui!",
+          body: `Halo ${kasbon.karyawan.namaLengkap}, pengajuan Kasbon Anda sebesar Rp${kasbon.jumlah.toLocaleString('id-ID')} telah DISETUJUI oleh Admin.`,
+          type: "cash_advance_approved",
+          data: {
+            id: kasbon.id,
+            status: "APPROVED",
+            click_action: "FLUTTER_NOTIFICATION_CLICK"
+          }
+        });
+      }
+    } catch (notifError) {
+      console.error("[Notification] Failed to send kasbon approval notification:", notifError.message);
+    }
 
     res.json(updated);
   } catch (error) {
@@ -447,7 +486,7 @@ export const postKasbon = async (req, res) => {
 
     const kasbon = await prisma.kasbonSementara.findUnique({
       where: { id },
-      include: { karyawan: { select: { namaLengkap: true, nik: true } } },
+      include: { karyawan: { select: { namaLengkap: true, nik: true, userId: true } } },
     });
 
     if (!kasbon) return res.status(404).json({ message: "Kasbon tidak ditemukan" });
@@ -493,6 +532,24 @@ export const postKasbon = async (req, res) => {
       return updated;
     }, { timeout: 30000 });
 
+    // Send push notification to the Employee
+    try {
+      if (kasbon.karyawan?.userId) {
+        await NotificationService.sendToUser(kasbon.karyawan.userId, {
+          title: "🪙 Kasbon Dicairkan!",
+          body: `Halo ${kasbon.karyawan.namaLengkap}, Kasbon Anda sebesar Rp${kasbon.jumlah.toLocaleString('id-ID')} telah dicairkan oleh Keuangan.`,
+          type: "cash_advance_disbursed",
+          data: {
+            id: kasbon.id,
+            status: "DISBURSED",
+            click_action: "FLUTTER_NOTIFICATION_CLICK"
+          }
+        });
+      }
+    } catch (notifError) {
+      console.error("[Notification] Failed to send kasbon disbursement notification:", notifError.message);
+    }
+
     res.json(result);
   } catch (error) {
     console.error("Error posting kasbon:", error);
@@ -507,7 +564,7 @@ export const rejectKasbon = async (req, res) => {
 
     const kasbon = await prisma.kasbonSementara.findUnique({
       where: { id },
-      include: { karyawan: { select: { namaLengkap: true, nik: true } } },
+      include: { karyawan: { select: { namaLengkap: true, nik: true, userId: true } } },
     });
     if (!kasbon) return res.status(404).json({ message: "Kasbon tidak ditemukan" });
 
@@ -521,6 +578,24 @@ export const rejectKasbon = async (req, res) => {
         },
         include: { karyawan: { select: { namaLengkap: true, nik: true } } },
       });
+      // Send push notification to the Employee
+      try {
+        if (updated.karyawan?.userId) {
+          await NotificationService.sendToUser(updated.karyawan.userId, {
+            title: "❌ Kasbon Ditolak",
+            body: `Halo ${updated.karyawan.namaLengkap}, pengajuan Kasbon Anda ditolak oleh Admin. Alasan: ${rejectedReason || "Tidak ada alasan"}.`,
+            type: "cash_advance_rejected",
+            data: {
+              id: updated.id,
+              status: "REJECTED",
+              click_action: "FLUTTER_NOTIFICATION_CLICK"
+            }
+          });
+        }
+      } catch (notifError) {
+        console.error("[Notification] Failed to send kasbon rejection notification:", notifError.message);
+      }
+
       return res.json(updated);
     }
 
@@ -536,6 +611,24 @@ export const rejectKasbon = async (req, res) => {
         },
         include: { karyawan: { select: { namaLengkap: true, nik: true } } },
       });
+      // Send push notification to the Employee
+      try {
+        if (updated.karyawan?.userId) {
+          await NotificationService.sendToUser(updated.karyawan.userId, {
+            title: "❌ Kasbon Ditolak",
+            body: `Halo ${updated.karyawan.namaLengkap}, pengajuan Kasbon Anda ditolak oleh Admin. Alasan: ${rejectedReason || "Dibatalkan setelah approval"}.`,
+            type: "cash_advance_rejected",
+            data: {
+              id: updated.id,
+              status: "REJECTED",
+              click_action: "FLUTTER_NOTIFICATION_CLICK"
+            }
+          });
+        }
+      } catch (notifError) {
+        console.error("[Notification] Failed to send kasbon rejection notification:", notifError.message);
+      }
+
       return res.json(updated);
     }
 

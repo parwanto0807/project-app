@@ -1,6 +1,7 @@
 
 import { prisma } from "../../config/db.js";
 import { createLedgerEntry } from "../../utils/journalHelper.js";
+import { NotificationService } from "../../utils/firebase/notificationService.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPER: Kalkulasi gaji berdasarkan tipe kontrak
@@ -1004,7 +1005,10 @@ export const updatePayrollConfig = async (req, res) => {
 export const publishGaji = async (req, res) => {
   try {
     const { id } = req.params;
-    const gaji = await prisma.gaji.findUnique({ where: { id } });
+    const gaji = await prisma.gaji.findUnique({ 
+      where: { id },
+      include: { karyawan: true }
+    });
 
     if (!gaji) return res.status(404).json({ message: "Data gaji tidak ditemukan" });
     if (gaji.status === "PUBLISHED") return res.status(400).json({ message: "Gaji ini sudah dipublikasikan" });
@@ -1014,6 +1018,25 @@ export const publishGaji = async (req, res) => {
       where: { id },
       data: { status: "PUBLISHED" },
     });
+
+    // Send push notification to the Employee
+    try {
+      if (gaji.karyawan?.userId) {
+        const periodStr = new Date(gaji.periode).toLocaleDateString("id-ID", { month: "long", year: "numeric" });
+        await NotificationService.sendToUser(gaji.karyawan.userId, {
+          title: "💸 Slip Gaji Dirilis!",
+          body: `Halo ${gaji.karyawan.namaLengkap}, slip gaji Anda untuk periode ${periodStr} telah dirilis oleh Admin. Silakan periksa di aplikasi.`,
+          type: "payroll_published",
+          data: {
+            id: gaji.id,
+            periode: gaji.periode.toISOString(),
+            click_action: "FLUTTER_NOTIFICATION_CLICK"
+          }
+        });
+      }
+    } catch (notifError) {
+      console.error("[Notification] Failed to send payroll publication notification:", notifError.message);
+    }
 
     res.json({ success: true, message: "Gaji berhasil dipublikasikan", data: updated });
   } catch (error) {
@@ -1034,6 +1057,15 @@ export const publishBulkPayroll = async (req, res) => {
     const startOfMonth = new Date(periodDate.getFullYear(), periodDate.getMonth(), 1);
     const endOfMonth   = new Date(periodDate.getFullYear(), periodDate.getMonth() + 1, 0, 23, 59, 59);
 
+    // Fetch affected payrolls to notify employees
+    const publishedGaji = await prisma.gaji.findMany({
+      where: {
+        status: { in: ["POSTED", "DRAFT"] },
+        periode: { gte: startOfMonth, lte: endOfMonth },
+      },
+      include: { karyawan: true },
+    });
+
     const result = await prisma.gaji.updateMany({
       where: {
         status: { in: ["POSTED", "DRAFT"] }, // Allow both for trial
@@ -1041,6 +1073,27 @@ export const publishBulkPayroll = async (req, res) => {
       },
       data: { status: "PUBLISHED" },
     });
+
+    // Notify each employee in parallel
+    const periodStr = periodDate.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
+    for (const gaji of publishedGaji) {
+      try {
+        if (gaji.karyawan?.userId) {
+          await NotificationService.sendToUser(gaji.karyawan.userId, {
+            title: "💸 Slip Gaji Dirilis!",
+            body: `Halo ${gaji.karyawan.namaLengkap}, slip gaji Anda untuk periode ${periodStr} telah dirilis oleh Admin. Silakan periksa di aplikasi.`,
+            type: "payroll_published",
+            data: {
+              id: gaji.id,
+              periode: gaji.periode.toISOString(),
+              click_action: "FLUTTER_NOTIFICATION_CLICK"
+            }
+          });
+        }
+      } catch (notifError) {
+        console.error(`[Notification] Failed to send bulk payroll notification to user ${gaji.karyawanId}:`, notifError.message);
+      }
+    }
 
     res.json({ 
       success: true, 

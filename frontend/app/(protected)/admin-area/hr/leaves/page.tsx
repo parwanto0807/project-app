@@ -57,6 +57,12 @@ import {
   Eye
 } from "lucide-react";
 import { fetchAllLeaves, approveLeave, rejectLeave } from "@/lib/action/hr/leaves";
+import { 
+  Tooltip, 
+  TooltipTrigger, 
+  TooltipContent, 
+  TooltipProvider 
+} from "@/components/ui/tooltip";
 
 export default function LeavesManagementPage() {
   const [leavesData, setLeavesData] = useState<any[]>([]);
@@ -421,40 +427,70 @@ export default function LeavesManagementPage() {
                           {item.status}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-center pr-6">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <Button
-                            onClick={() => {
-                              setSelectedLeave(item);
-                              setIsDetailOpen(true);
-                            }}
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-cyan-600 hover:bg-cyan-50 rounded-full"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
+                       <TableCell className="text-center pr-6">
+                        <div className="flex items-center justify-center gap-2">
+                          <TooltipProvider>
+                            {/* Button Detail */}
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  onClick={() => {
+                                    setSelectedLeave(item);
+                                    setIsDetailOpen(true);
+                                  }}
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 border-cyan-200 text-cyan-700 hover:bg-cyan-50 hover:text-cyan-800 gap-1.5 px-3 rounded-md font-semibold transition-all duration-200"
+                                >
+                                  <Eye className="h-3.5 w-3.5" />
+                                  <span>Detail</span>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent className="bg-slate-800 text-white font-medium">
+                                Lihat detail pengajuan lengkap
+                              </TooltipContent>
+                            </Tooltip>
 
-                          {item.status === "PENDING" && (
-                            <>
-                              <Button
-                                onClick={() => handleApprove(item)}
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-emerald-600 hover:bg-emerald-50 rounded-full"
-                              >
-                                <Check className="h-4.5 w-4.5" />
-                              </Button>
-                              <Button
-                                onClick={() => handleReject(item)}
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-rose-600 hover:bg-rose-50 rounded-full"
-                              >
-                                <X className="h-4.5 w-4.5" />
-                              </Button>
-                            </>
-                          )}
+                            {item.status === "PENDING" && (
+                              <>
+                                {/* Button Approve */}
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      onClick={() => handleApprove(item)}
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-8 border-emerald-200 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 gap-1.5 px-3 rounded-md font-semibold transition-all duration-200"
+                                    >
+                                      <Check className="h-3.5 w-3.5" />
+                                      <span>Setujui</span>
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="bg-emerald-800 text-white font-medium">
+                                    Setujui permohonan ijin/cuti ini
+                                  </TooltipContent>
+                                </Tooltip>
+
+                                {/* Button Reject */}
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      onClick={() => handleReject(item)}
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-8 border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800 gap-1.5 px-3 rounded-md font-semibold transition-all duration-200"
+                                    >
+                                      <X className="h-3.5 w-3.5" />
+                                      <span>Tolak</span>
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="bg-rose-800 text-white font-medium">
+                                    Tolak permohonan dengan alasan
+                                  </TooltipContent>
+                                </Tooltip>
+                              </>
+                            )}
+                          </TooltipProvider>
                         </div>
                       </TableCell>
                     </TableRow>
