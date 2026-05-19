@@ -254,6 +254,7 @@ model Karyawan {
   absensi           Absensi[]
   kasbonSementara   KasbonSementara[]
   pinjaman          Pinjaman[]
+  leaveRequests     LeaveRequest[]
   attendanceLocationId String?
   attendanceLocation   AttendanceLocation? @relation(fields: [attendanceLocationId], references: [id])
 }
@@ -2901,3 +2902,40 @@ enum PayrollStatus {
   POSTED
   PUBLISHED
 }
+
+enum LeaveType {
+  CUTI
+  IZIN
+  SAKIT
+  PENTING
+  LAINNYA
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model LeaveRequest {
+  id             String      @id @default(cuid())
+  karyawanId     String
+  jenis          LeaveType
+  tanggalMulai   DateTime
+  tanggalSelesai DateTime
+  jumlahHari     Int
+  keterangan     String
+  status         LeaveStatus @default(PENDING)
+  bukti          String?     // URL/path to attachment
+  approvedBy     String?     // Name/ID of approver
+  approvedAt     DateTime?
+  rejectedReason String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  karyawan       Karyawan    @relation(fields: [karyawanId], references: [id], onDelete: Cascade)
+
+  @@index([karyawanId])
+  @@index([status])
+  @@map("leave_requests")
+}
+

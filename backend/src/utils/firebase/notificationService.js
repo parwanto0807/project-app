@@ -171,7 +171,7 @@ export class NotificationService {
       const adminUsers = await prisma.user.findMany({
         where: {
           role: { in: ["admin", "pic"] },
-          isActive: true,
+          active: true,
         },
         select: {
           id: true,
@@ -244,7 +244,7 @@ export class NotificationService {
       const userUsers = await prisma.user.findMany({
         where: {
           role: "user",
-          isActive: true,
+          active: true,
         },
         select: {
           id: true,
@@ -437,7 +437,7 @@ export class NotificationService {
       const picUsers = await prisma.user.findMany({
         where: {
           role: "pic",
-          isActive: true,
+          active: true,
         },
         select: {
           id: true,
@@ -495,7 +495,7 @@ export class NotificationService {
       const adminUsers = await prisma.user.findMany({
         where: {
           role: "admin",
-          isActive: true,
+          active: true,
         },
         select: {
           id: true,

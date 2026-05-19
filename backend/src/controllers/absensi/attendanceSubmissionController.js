@@ -1,6 +1,7 @@
 import { prisma } from "../../config/db.js";
 import fs from "fs";
 import path from "path";
+import { NotificationService } from "../../utils/firebase/notificationService.js";
 
 /**
  * Menghitung jarak antara dua koordinat (Haversine Formula) dalam meter
@@ -144,6 +145,24 @@ export const submitClockIn = async (req, res) => {
       });
     }
 
+    // Send Real-time Notification to Admins
+    try {
+      await NotificationService.broadcastToAdmins({
+        title: "📌 Absen Masuk (Clock In)",
+        body: `${karyawan.namaLengkap} telah melakukan Absen Masuk pada pukul ${new Date(absensi.jamMasuk).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}.`,
+        type: "attendance_clock_in",
+        data: {
+          id: absensi.id,
+          karyawanId: karyawan.id,
+          karyawanName: karyawan.namaLengkap,
+          time: new Date(absensi.jamMasuk).toISOString(),
+          click_action: "FLUTTER_NOTIFICATION_CLICK",
+        },
+      });
+    } catch (notifError) {
+      console.error("[Notification] Failed to send admin notification for Clock In:", notifError.message);
+    }
+
     res.status(200).json({ message: "Absen masuk berhasil", data: absensi });
   } catch (error) {
     console.error("Clock In Error:", error);
@@ -245,6 +264,24 @@ export const submitClockOut = async (req, res) => {
         first_seen_at: first_seen_at_office ? new Date(first_seen_at_office) : null,
       },
     });
+
+    // Send Real-time Notification to Admins
+    try {
+      await NotificationService.broadcastToAdmins({
+        title: "📌 Absen Keluar (Clock Out)",
+        body: `${karyawan.namaLengkap} telah melakukan Absen Keluar pada pukul ${new Date(updatedAbsensi.jamKeluar).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}.`,
+        type: "attendance_clock_out",
+        data: {
+          id: updatedAbsensi.id,
+          karyawanId: karyawan.id,
+          karyawanName: karyawan.namaLengkap,
+          time: new Date(updatedAbsensi.jamKeluar).toISOString(),
+          click_action: "FLUTTER_NOTIFICATION_CLICK",
+        },
+      });
+    } catch (notifError) {
+      console.error("[Notification] Failed to send admin notification for Clock Out:", notifError.message);
+    }
 
     res.status(200).json({ message: "Absen keluar berhasil", data: updatedAbsensi });
   } catch (error) {

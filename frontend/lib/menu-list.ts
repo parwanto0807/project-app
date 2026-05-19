@@ -586,7 +586,7 @@ export function getMenuList(pathname: string, role: string, permissions: Permiss
           tooltip: "Manajemen Sumber Daya Manusia",
           href: "#",
           icon: Users,
-          active: isActive(`${basePath}/master/karyawan`, pathname) || isActive(`${basePath}/master/team`, pathname) || isActive(`${basePath}/master/documents`, pathname) || isActive(`${basePath}/hr/attendance`, pathname) || isActive(`${basePath}/hr/loans`, pathname) || isActive(`${basePath}/hr/payroll`, pathname),
+          active: isActive(`${basePath}/master/karyawan`, pathname) || isActive(`${basePath}/master/team`, pathname) || isActive(`${basePath}/master/documents`, pathname) || isActive(`${basePath}/hr/attendance`, pathname) || isActive(`${basePath}/hr/leaves`, pathname) || isActive(`${basePath}/hr/loans`, pathname) || isActive(`${basePath}/hr/payroll`, pathname),
           requiredPermission: "hr.view",
           submenus: [
             {
@@ -595,6 +595,14 @@ export function getMenuList(pathname: string, role: string, permissions: Permiss
               tooltip: "Monitoring Kehadiran Karyawan",
               icon: LayoutDashboard,
               active: isActive(`${basePath}/hr/attendance`, pathname),
+              requiredPermission: "hr.view",
+            },
+            {
+              href: `${basePath}/hr/leaves`,
+              label: "Ijin & Cuti Karyawan",
+              tooltip: "Kelola Pengajuan Ijin, Sakit, & Cuti Karyawan",
+              icon: Calendar,
+              active: isActive(`${basePath}/hr/leaves`, pathname),
               requiredPermission: "hr.view",
             },
             {

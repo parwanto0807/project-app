@@ -1,5 +1,6 @@
 import { prisma } from "../../config/db.js";
 import { createLedgerEntry } from "../../utils/journalHelper.js";
+import { NotificationService } from "../../utils/firebase/notificationService.js";
 
 // --- PINJAMAN ---
 
@@ -799,6 +800,28 @@ export const applyMyKasbon = async (req, res) => {
       },
     });
 
+    // Send Real-time Notification to Admins
+    try {
+      const employeeDetails = await prisma.karyawan.findUnique({
+        where: { id: karyawan.id },
+        select: { namaLengkap: true }
+      });
+      await NotificationService.broadcastToAdmins({
+        title: "🪙 Pengajuan Kasbon Baru",
+        body: `${employeeDetails?.namaLengkap || 'Karyawan'} mengajukan Kasbon sebesar Rp${amount.toLocaleString('id-ID')}.`,
+        type: "cash_advance_request",
+        data: {
+          id: kasbon.id,
+          karyawanId: karyawan.id,
+          karyawanName: employeeDetails?.namaLengkap || '',
+          jumlah: String(amount),
+          click_action: "FLUTTER_NOTIFICATION_CLICK",
+        },
+      });
+    } catch (notifError) {
+      console.error("[Notification] Failed to send admin notification for kasbon request:", notifError.message);
+    }
+
     res.status(201).json({ ...kasbon, warning: warningMessage });
   } catch (error) {
     console.error("Error applying my kasbon:", error);
@@ -873,6 +896,29 @@ export const applyLoan = async (req, res) => {
 
       return loan;
     });
+
+    // Send Real-time Notification to Admins
+    try {
+      const employeeDetails = await prisma.karyawan.findUnique({
+        where: { id: karyawan.id },
+        select: { namaLengkap: true }
+      });
+      await NotificationService.broadcastToAdmins({
+        title: "💵 Pengajuan Pinjaman Baru",
+        body: `${employeeDetails?.namaLengkap || 'Karyawan'} mengajukan Pinjaman sebesar Rp${amount.toLocaleString('id-ID')} dengan tenor ${months} bulan.`,
+        type: "loan_request",
+        data: {
+          id: result.id,
+          karyawanId: karyawan.id,
+          karyawanName: employeeDetails?.namaLengkap || '',
+          jumlah: String(amount),
+          tenor: String(months),
+          click_action: "FLUTTER_NOTIFICATION_CLICK",
+        },
+      });
+    } catch (notifError) {
+      console.error("[Notification] Failed to send admin notification for loan request:", notifError.message);
+    }
 
     res.status(201).json(result);
   } catch (error) {

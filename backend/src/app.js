@@ -55,6 +55,7 @@ import documentRoutes from './routes/master/documentRoutes.js';
 import absensiRoutes from './routes/absensi/absensiRoutes.js';
 import payrollRoutes from './routes/payroll/payrollRoutes.js';
 import loanRoutes from './routes/finance/loanRoutes.js';
+import leaveRoutes from './routes/hr/leaveRoutes.js';
 import locationRoutes from './routes/master/location/locationRoutes.js';
 import wifiSsidRoutes from './routes/master/wifi/wifiSsidRoutes.js';
 
@@ -211,6 +212,7 @@ app.use('/api/master/documents', documentRoutes);
 app.use('/api/absensi', absensiRoutes);
 app.use('/api/payroll', payrollRoutes);
 app.use('/api/loans', loanRoutes);
+app.use('/api/hr/leaves', leaveRoutes);
 app.use('/api/master/location', locationRoutes);
 app.use('/api/master/wifi-ssid', wifiSsidRoutes);
 
