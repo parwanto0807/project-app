@@ -15,10 +15,20 @@ import {
   settleKasbon,
   deleteKasbon,
   updateKasbonStatus,
+  getMyLoans,
+  getMyKasbon,
+  applyMyKasbon,
 } from "../../controllers/finance/loanController.js";
+import { authenticateToken } from "../../middleware/authMiddleware.js";
 
 const router = express.Router();
 
+// --- EMPLOYEE MOBILE / FLUTTER API ---
+router.get("/my-loans", authenticateToken, getMyLoans);
+router.get("/my-kasbon", authenticateToken, getMyKasbon);
+router.post("/my-kasbon", authenticateToken, applyMyKasbon);
+
+// --- ADMIN PORTAL API ---
 // Pinjaman
 router.get("/pinjaman", getAllPinjaman);
 router.post("/pinjaman", createPinjaman);

@@ -694,3 +694,115 @@ export const updateKasbonStatus = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// --- MOBILE/FLUTTER CUSTOM EMPLOYEE ENDPOINTS ---
+
+/**
+ * Fetch loans for the currently logged-in employee
+ * GET /api/loans/my-loans
+ */
+export const getMyLoans = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ message: "Authentication required" });
+
+    const karyawan = await prisma.karyawan.findUnique({
+      where: { userId },
+    });
+    if (!karyawan) {
+      return res.status(404).json({ message: "Data karyawan tidak ditemukan" });
+    }
+
+    const loans = await prisma.pinjaman.findMany({
+      where: { karyawanId: karyawan.id },
+      include: {
+        details: {
+          orderBy: { bulanKe: "asc" },
+        },
+      },
+      orderBy: { tanggalPinjam: "desc" },
+    });
+
+    res.json(loans);
+  } catch (error) {
+    console.error("Error fetching my loans:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * Fetch kasbon history for the currently logged-in employee
+ * GET /api/loans/my-kasbon
+ */
+export const getMyKasbon = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ message: "Authentication required" });
+
+    const karyawan = await prisma.karyawan.findUnique({
+      where: { userId },
+    });
+    if (!karyawan) {
+      return res.status(404).json({ message: "Data karyawan tidak ditemukan" });
+    }
+
+    const kasbon = await prisma.kasbonSementara.findMany({
+      where: { karyawanId: karyawan.id },
+      orderBy: { tanggal: "desc" },
+    });
+
+    res.json(kasbon);
+  } catch (error) {
+    console.error("Error fetching my kasbon:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * Apply for a new kasbon as the logged-in employee
+ * POST /api/loans/my-kasbon
+ */
+export const applyMyKasbon = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ message: "Authentication required" });
+
+    const karyawan = await prisma.karyawan.findUnique({
+      where: { userId },
+      select: { id: true, gajiPokok: true },
+    });
+    if (!karyawan) {
+      return res.status(404).json({ message: "Data karyawan tidak ditemukan" });
+    }
+
+    const { jumlah, keperluan, bulanPotong, catatan } = req.body;
+    if (!jumlah) {
+      return res.status(400).json({ message: "Jumlah kasbon wajib diisi" });
+    }
+
+    const amount = parseFloat(jumlah);
+
+    // Soft warning if exceeds 50% basic salary
+    let warningMessage = null;
+    if (karyawan.gajiPokok && amount > karyawan.gajiPokok * 0.5) {
+      warningMessage = `Jumlah kasbon melebihi 50% gaji pokok (${karyawan.gajiPokok * 0.5})`;
+    }
+
+    const kasbon = await prisma.kasbonSementara.create({
+      data: {
+        karyawanId: karyawan.id,
+        jumlah: amount,
+        keperluan,
+        bulanPotong: bulanPotong ? new Date(bulanPotong) : null,
+        catatan,
+        status: "PENDING",
+      },
+    });
+
+    res.status(201).json({ ...kasbon, warning: warningMessage });
+  } catch (error) {
+    console.error("Error applying my kasbon:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
