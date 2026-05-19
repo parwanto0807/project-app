@@ -806,3 +806,79 @@ export const applyMyKasbon = async (req, res) => {
   }
 };
 
+/**
+ * Apply for a new loan as the logged-in employee
+ * POST /api/loans/apply-loan
+ */
+export const applyLoan = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ message: "Authentication required" });
+
+    const karyawan = await prisma.karyawan.findUnique({
+      where: { userId },
+      select: { id: true, gajiPokok: true },
+    });
+    if (!karyawan) {
+      return res.status(404).json({ message: "Data karyawan tidak ditemukan" });
+    }
+
+    const { jumlahPinjaman, tenor, keterangan, bunga = 0 } = req.body;
+    if (!jumlahPinjaman || !tenor) {
+      return res.status(400).json({ message: "Jumlah pinjaman dan tenor wajib diisi" });
+    }
+
+    const amount = parseFloat(jumlahPinjaman);
+    const months = parseInt(tenor);
+    const interest = parseFloat(bunga || 0);
+
+    if (amount <= 0 || months <= 0) {
+      return res.status(400).json({ message: "Jumlah pinjaman dan tenor harus lebih besar dari 0" });
+    }
+
+    const totalWithInterest = amount + (amount * (interest / 100));
+    const angsuranBulanan = Math.ceil(totalWithInterest / months);
+
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Create Pinjaman as DRAFT
+      const loan = await tx.pinjaman.create({
+        data: {
+          karyawanId: karyawan.id,
+          tanggalPinjam: new Date(),
+          jumlahPinjaman: amount,
+          tenor: months,
+          bunga: interest,
+          angsuranBulanan: angsuranBulanan,
+          sisaPinjaman: totalWithInterest,
+          status: "DRAFT",
+          keterangan,
+        },
+      });
+
+      // 2. Create PinjamanDetails (Schedule)
+      const startDate = new Date();
+      const detailsData = [];
+      for (let i = 1; i <= months; i++) {
+        const dueDate = new Date(startDate);
+        dueDate.setMonth(dueDate.getMonth() + i);
+        detailsData.push({
+          pinjamanId: loan.id,
+          bulanKe: i,
+          tanggalJatuhTempo: dueDate,
+          jumlahBayar: angsuranBulanan,
+          status: "PENDING",
+        });
+      }
+      await tx.pinjamanDetail.createMany({ data: detailsData });
+
+      return loan;
+    });
+
+    res.status(201).json(result);
+  } catch (error) {
+    console.error("Error applying loan:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+

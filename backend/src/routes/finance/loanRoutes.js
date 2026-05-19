@@ -18,6 +18,7 @@ import {
   getMyLoans,
   getMyKasbon,
   applyMyKasbon,
+  applyLoan,
 } from "../../controllers/finance/loanController.js";
 import { authenticateToken } from "../../middleware/authMiddleware.js";
 
@@ -27,6 +28,7 @@ const router = express.Router();
 router.get("/my-loans", authenticateToken, getMyLoans);
 router.get("/my-kasbon", authenticateToken, getMyKasbon);
 router.post("/my-kasbon", authenticateToken, applyMyKasbon);
+router.post("/apply-loan", authenticateToken, applyLoan);
 
 // --- ADMIN PORTAL API ---
 // Pinjaman
