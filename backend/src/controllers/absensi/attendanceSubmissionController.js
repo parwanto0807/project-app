@@ -149,7 +149,7 @@ export const submitClockIn = async (req, res) => {
     try {
       await NotificationService.broadcastToAdmins({
         title: "📌 Absen Masuk (Clock In)",
-        body: `${karyawan.namaLengkap} telah melakukan Absen Masuk pada pukul ${new Date(absensi.jamMasuk).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}.`,
+        body: `${karyawan.namaLengkap} telah melakukan Absen Masuk pada pukul ${new Date(absensi.jamMasuk).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })}.`,
         type: "attendance_clock_in",
         data: {
           id: absensi.id,
