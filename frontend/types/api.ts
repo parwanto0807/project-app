@@ -18,5 +18,5 @@ export interface PaginationMeta {
 export interface ListResponse<T> {
   data: T[];
   pagination: PaginationMeta;
-  summary?: any;
+  summary?: Record<string, unknown>;
 }

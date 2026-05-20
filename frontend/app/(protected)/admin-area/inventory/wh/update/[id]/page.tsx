@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AdminLayout } from "@/components/admin-panel/admin-layout";
 import { useSession } from "@/components/clientSessionProvider";
-import { useMediaQuery } from "@/hooks/use-media-query";
+// removed unused useMediaQuery
 import { toast } from "sonner";
 
 import {
@@ -25,7 +25,7 @@ export default function EditWarehousePage() {
     const { id } = useParams<{ id: string }>();
     const router = useRouter();
     const { user, isLoading } = useSession();
-    const isMobile = useMediaQuery("(max-width: 768px)");
+    // isMobile removed because it was unused
 
     const [warehouse, setWarehouse] = useState<Warehouse | null>(null);
     const [isFetching, setIsFetching] = useState(true);

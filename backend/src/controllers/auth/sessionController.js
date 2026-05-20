@@ -516,180 +516,139 @@ export const updateFcmToken = async (req, res) => {
       });
     }
 
-    console.log(`[FCM-1DEVICE] User: ${userId.substring(0, 8)}`);
+    console.log(`[FCM] User: ${userId.substring(0, 8)}`);
 
-    // 2. CARI SESSION UNTUK USER INI
-    const userSessions = await prisma.userSession.findMany({
-      where: {
-        userId: userId,
-        isRevoked: false,
-        expiresAt: { gt: new Date() },
-      },
-      orderBy: { lastActiveAt: "desc" },
-      select: {
-        id: true,
-        fcmToken: true,
-        lastActiveAt: true,
-        userAgent: true,
-        ipAddress: true,
-      },
-    });
+    const now = new Date();
 
-    // 3. ENFORCE: HANYA 1 SESSION AKTIF
-    if (userSessions.length > 1) {
-      console.log(
-        `[FCM-1DEVICE] ⚠️ ${userSessions.length} active sessions found`
-      );
-
-      // REVOKE SEMUA KECUALI YANG TERBARU
-      const keepSession = userSessions[0]; // Paling baru
-      const revokeSessions = userSessions.slice(1);
-
-      await prisma.userSession.updateMany({
+    // Lakukan semua operasi yang berhubungan dengan revoke/create/update session secara atomik
+    const txResult = await prisma.$transaction(async (tx) => {
+      // Ambil session aktif
+      let sessions = await tx.userSession.findMany({
         where: {
-          id: { in: revokeSessions.map((s) => s.id) },
-        },
-        data: {
-          isRevoked: true,
-          revokedAt: new Date(),
-          fcmToken: null, // Clear token dari session yang direvoke
-        },
-      });
-
-      console.log(
-        `[FCM-1DEVICE] 🔒 Revoked ${revokeSessions.length} old sessions`
-      );
-    }
-
-    // 4. TENTUKAN TARGET SESSION
-    let targetSession = userSessions[0]; // Gunakan yang terbaru
-
-    // Jika tidak ada session aktif, buat baru
-    if (!targetSession || userSessions.length === 0) {
-      console.log(`[FCM-1DEVICE] 📝 Creating new session for 1-device user`);
-
-      targetSession = await prisma.userSession.create({
-        data: {
           userId: userId,
-          fcmToken: fcmToken,
-          ipAddress: req.ip || "unknown",
-          userAgent: req.headers["user-agent"] || "unknown",
           isRevoked: false,
-          lastActiveAt: new Date(),
-          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 hari
-        },
-        select: {
-          id: true,
-          fcmToken: true,
-          lastActiveAt: true,
-          userAgent: true,
-          ipAddress: true,
-        },
-      });
-    }
-
-    // 5. CEK DUPLIKAT FCM TOKEN DI USER LAIN
-    const duplicateTokenInOtherUsers = await prisma.userSession.findFirst({
-      where: {
-        fcmToken: fcmToken,
-        userId: { not: userId }, // User lain
-        isRevoked: false,
-        expiresAt: { gt: new Date() },
-      },
-      select: { id: true, userId: true },
-    });
-
-    if (duplicateTokenInOtherUsers) {
-      console.log(
-        `[FCM-1DEVICE] ⚠️ Token used by another user: ${duplicateTokenInOtherUsers.userId.substring(
-          0,
-          8
-        )}`
-      );
-
-      // Clear token dari user lain (jika policy mengizinkan)
-      // await prisma.userSession.updateMany({
-      //   where: {
-      //     fcmToken: fcmToken,
-      //     userId: { not: userId },
-      //   },
-      //   data: { fcmToken: null },
-      // });
-    }
-
-    // 6. UPDATE FCM TOKEN (hanya jika berbeda)
-    if (targetSession.fcmToken !== fcmToken) {
-      console.log(`[FCM-1DEVICE] 🔄 Updating FCM token`);
-
-      const updatedSession = await prisma.userSession.update({
-        where: { id: targetSession.id },
-        data: {
-          fcmToken: fcmToken,
-          lastActiveAt: new Date(),
-        },
-        include: {
-          user: {
-            select: { id: true, name: true, email: true },
-          },
-        },
-      });
-
-      // 7. GET ALL SESSIONS (setelah update)
-      const allSessions = await prisma.userSession.findMany({
-        where: { userId: userId },
-        include: {
-          user: { select: { id: true, name: true, email: true } },
+          expiresAt: { gt: now },
         },
         orderBy: { lastActiveAt: "desc" },
+        select: { id: true, fcmToken: true, lastActiveAt: true, userAgent: true, ipAddress: true },
       });
 
-      // 8. EMIT UPDATE KE CLIENT
-      if (req.io) {
-        const formattedSessions = allSessions.map((s) =>
-          formatSessionResponse(s)
-        );
-        req.io.to(`user:${userId}`).emit("session:updated", {
-          type: "fcm_updated_1device",
-          sessions: formattedSessions,
-          activeSessionId: targetSession.id,
-          timestamp: new Date().toISOString(),
+      let revokedCount = 0;
+      // Jika ada lebih dari 2, revoke yang paling lama sehingga tersisa 2
+      if (sessions.length > 2) {
+        const revokeSessions = sessions.slice(2);
+        const updateRes = await tx.userSession.updateMany({
+          where: { id: { in: revokeSessions.map((s) => s.id) } },
+          data: { isRevoked: true, revokedAt: now, fcmToken: null },
+        });
+        revokedCount = updateRes.count || 0;
+        // refresh sessions
+        sessions = await tx.userSession.findMany({
+          where: { userId: userId, isRevoked: false, expiresAt: { gt: now } },
+          orderBy: { lastActiveAt: "desc" },
+          select: { id: true, fcmToken: true, lastActiveAt: true, userAgent: true, ipAddress: true },
         });
       }
 
-      // 9. RESPONSE
-      return res.json({
-        success: true,
-        message: "FCM token updated (1 device policy)",
-        data: {
-          sessionId: targetSession.id,
-          device: targetSession.userAgent,
-          ip: targetSession.ipAddress,
-          updatedAt: new Date().toISOString(),
-          previousSessionsRevoked:
-            userSessions.length > 1 ? userSessions.length - 1 : 0,
-        },
-        policy: "one_device_per_account",
-      });
-    } else {
-      // Token sama, hanya update lastActiveAt
-      await prisma.userSession.update({
-        where: { id: targetSession.id },
-        data: { lastActiveAt: new Date() },
+      // Tentukan target session (prioritas: currentSessionId, lalu yang terbaru)
+      const currentSessionId = req.session?.id || req.headers["x-session-id"] || null;
+      let target = null;
+      if (currentSessionId) target = sessions.find((s) => s.id === currentSessionId) || null;
+      if (!target && sessions.length > 0) target = sessions[0];
+
+      // Jika tidak ada session aktif, buat baru
+      if (!target) {
+        target = await tx.userSession.create({
+          data: {
+            userId: userId,
+            fcmToken: fcmToken,
+            ipAddress: req.ip || "unknown",
+            userAgent: req.headers["user-agent"] || "unknown",
+            isRevoked: false,
+            lastActiveAt: now,
+            expiresAt: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+          },
+          select: { id: true, fcmToken: true, lastActiveAt: true, userAgent: true, ipAddress: true },
+        });
+        // refresh sessions
+        sessions = await tx.userSession.findMany({
+          where: { userId: userId, isRevoked: false, expiresAt: { gt: now } },
+          orderBy: { lastActiveAt: "desc" },
+          select: { id: true, fcmToken: true, lastActiveAt: true, userAgent: true, ipAddress: true },
+        });
+      }
+
+      // Cek duplikat token pada user lain (masih dalam transaction untuk konsistensi baca)
+      const duplicate = await tx.userSession.findFirst({
+        where: { fcmToken: fcmToken, userId: { not: userId }, isRevoked: false, expiresAt: { gt: now } },
+        select: { id: true, userId: true },
       });
 
-      return res.json({
-        success: true,
-        message: "FCM token unchanged",
-        unchanged: true,
+      // Update target session jika token berbeda, atau hanya perbarui lastActiveAt
+      let didUpdate = false;
+      let updatedSession = target;
+      if (target.fcmToken !== fcmToken) {
+        updatedSession = await tx.userSession.update({
+          where: { id: target.id },
+          data: { fcmToken: fcmToken, lastActiveAt: now },
+          include: { user: { select: { id: true, name: true, email: true } } },
+        });
+        didUpdate = true;
+      } else {
+        await tx.userSession.update({ where: { id: target.id }, data: { lastActiveAt: now } });
+      }
+
+      // Ambil semua session untuk response/emit
+      const allSessions = await tx.userSession.findMany({
+        where: { userId: userId },
+        include: { user: { select: { id: true, name: true, email: true } } },
+        orderBy: { lastActiveAt: "desc" },
+      });
+
+      return { updatedSession, allSessions, revokedCount, didUpdate, duplicate };
+    });
+
+    // Gunakan hasil transaction untuk emit & response
+    const { updatedSession, allSessions, revokedCount, didUpdate, duplicate } = txResult;
+
+    if (duplicate) {
+      console.log(`[FCM] ⚠️ Token used by another user: ${duplicate.userId.substring(0,8)}`);
+    }
+
+    // Emit update ke client (diluar transaction)
+    if (req.io) {
+      const formattedSessions = allSessions.map((s) => formatSessionResponse(s));
+      req.io.to(`user:${userId}`).emit("session:updated", {
+        type: "fcm_updated",
+        sessions: formattedSessions,
+        activeSessionId: updatedSession.id,
+        timestamp: new Date().toISOString(),
       });
     }
+
+    if (didUpdate) {
+      return res.json({
+        success: true,
+        message: "FCM token updated (two-device policy)",
+        data: {
+          sessionId: updatedSession.id,
+          device: updatedSession.userAgent,
+          ip: updatedSession.ipAddress,
+          updatedAt: new Date().toISOString(),
+          previousSessionsRevoked: revokedCount,
+        },
+        policy: "two_device_per_account",
+      });
+    }
+
+    return res.json({ success: true, message: "FCM token unchanged", unchanged: true });
   } catch (error) {
-    console.error("[FCM-1DEVICE] ❌ Error:", error);
+    console.error("[FCM] ❌ Error:", error);
 
     res.status(500).json({
       success: false,
       error: "Failed to update FCM token",
-      policy: "one_device_per_account",
+      policy: "two_device_per_account",
     });
   }
 };

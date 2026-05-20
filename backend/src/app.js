@@ -161,7 +161,7 @@ app.use((req, res, next) => {
 
 // Routes
 app.use("/api/auth", authRoutes);
-app.use("/sessions", sessionRoute);
+app.use("/api/sessions", sessionRoute);
 app.use("/api/master/customer", customerRoutes);
 app.use("/api/master/product", productRoutes);
 app.use("/api/master/product/kategory", kategoryRoutes);
