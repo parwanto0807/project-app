@@ -58,6 +58,7 @@ interface KasbonTableProps {
 
 const KasbonTable: React.FC<KasbonTableProps> = ({ kasbon, onRefresh }) => {
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [expandedEmployee, setExpandedEmployee] = useState<string | null>(null);
 
   // Reject
   const [rejectTarget, setRejectTarget] = useState<any | null>(null);
@@ -243,18 +244,104 @@ const KasbonTable: React.FC<KasbonTableProps> = ({ kasbon, onRefresh }) => {
     finally { setLoadingId(null); }
   };
 
+  // ── Grouping Logic ────────────────────────────────────────────────────────
+  const groupedKasbon = kasbon.reduce((acc, item) => {
+    const empId = item.karyawan?.id;
+    if (!empId) return acc;
+    if (!acc[empId]) {
+      acc[empId] = {
+        employee: item.karyawan,
+        total: 0,
+        pending: 0,
+        approved: 0,
+        settled: 0,
+        items: [],
+      };
+    }
+    acc[empId].items.push(item);
+    acc[empId].total += Number(item.jumlah);
+    if (item.status === "PENDING") acc[empId].pending += 1;
+    if (item.status === "APPROVED") acc[empId].approved += 1;
+    if (item.status === "SETTLED") acc[empId].settled += 1;
+    return acc;
+  }, {} as Record<string, any>);
+
+  const employeeList = Object.values(groupedKasbon).sort((a, b) =>
+    a.employee.namaLengkap.localeCompare(b.employee.namaLengkap)
+  );
+
+  const toggleEmployeeDetail = (empId: string) => {
+    setExpandedEmployee(expandedEmployee === empId ? null : empId);
+  };
+
+  // ── Employee Detail Dialog ────────────────────────────────────────────────
+  const [selectedEmployeeDetail, setSelectedEmployeeDetail] = useState<any>(null);
+
+  const openEmployeeDetail = (empData: any) => {
+    setSelectedEmployeeDetail(empData);
+  };
+
+  const closeEmployeeDetail = () => {
+    setSelectedEmployeeDetail(null);
+  };
+
+  // ── Progress Bar Component ────────────────────────────────────────────────
+  const StatusProgressBar = ({ pending, approved, settled, total }: { pending: number, approved: number, settled: number, total: number }) => {
+    if (total === 0) return null;
+    
+    const pendingPct = Math.round((pending / total) * 100);
+    const approvedPct = Math.round((approved / total) * 100);
+    const settledPct = Math.round((settled / total) * 100);
+    
+    return (
+      <div className="w-full">
+        <div className="flex justify-between text-[10px] text-gray-500 mb-1">
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+            Menunggu {pending}
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+            Disetujui {approved}
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+            Lunas {settled}
+          </span>
+        </div>
+        <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden flex">
+          {pending > 0 && (
+            <div 
+              className="bg-amber-500 transition-all duration-500" 
+              style={{ width: `${pendingPct}%` }}
+            />
+          )}
+          {approved > 0 && (
+            <div 
+              className="bg-blue-500 transition-all duration-500" 
+              style={{ width: `${approvedPct}%` }}
+            />
+          )}
+          {settled > 0 && (
+            <div 
+              className="bg-emerald-500 transition-all duration-500" 
+              style={{ width: `${settledPct}%` }}
+            />
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
       <Table>
-        <TableHeader className="bg-gray-50/50">
+        <TableHeader className="bg-gradient-to-r from-gray-50 to-gray-100/50">
           <TableRow>
-            <TableHead className="font-bold text-gray-700">Karyawan</TableHead>
-            <TableHead className="font-bold text-gray-700">Tgl Pengajuan</TableHead>
-            <TableHead className="font-bold text-gray-700">Jumlah</TableHead>
-            <TableHead className="font-bold text-gray-700">Bulan Potong</TableHead>
-            <TableHead className="font-bold text-gray-700">Keperluan</TableHead>
-            <TableHead className="font-bold text-gray-700">Status</TableHead>
-            <TableHead className="text-right font-bold text-gray-700">Aksi</TableHead>
+            <TableHead className="font-bold text-gray-700 w-1/3">Karyawan</TableHead>
+            <TableHead className="font-bold text-gray-700 text-center w-1/4">Progress</TableHead>
+            <TableHead className="font-bold text-gray-700 w-1/6">Total Kasbon</TableHead>
+            <TableHead className="text-right font-bold text-gray-700 w-1/6">Aksi</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -265,127 +352,136 @@ const KasbonTable: React.FC<KasbonTableProps> = ({ kasbon, onRefresh }) => {
               </TableCell>
             </TableRow>
           ) : (
-            kasbon.map((k) => (
-              <TableRow key={k.id} className="hover:bg-gray-50/50 transition-colors">
-                <TableCell>
-                  <p className="font-bold text-gray-800">{k.karyawan?.namaLengkap}</p>
-                  <p className="text-xs text-gray-500">{k.karyawan?.nik}</p>
-                </TableCell>
-                <TableCell className="text-xs text-gray-600">
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3 text-gray-400" />
-                    {format(new Date(k.tanggal), "dd MMM yyyy", { locale: id })}
-                  </div>
-                </TableCell>
-                <TableCell className="font-semibold text-gray-800">
-                  {formatCurrency(Number(k.jumlah))}
-                </TableCell>
-                <TableCell className="text-sm text-gray-600">
-                  {k.bulanPotong
-                    ? format(new Date(k.bulanPotong), "MMMM yyyy", { locale: id })
-                    : <span className="text-gray-400 italic text-xs">—</span>}
-                </TableCell>
-                <TableCell className="text-sm text-gray-600 max-w-[160px] truncate">
-                  {k.keperluan || <span className="text-gray-400 italic text-xs">—</span>}
-                </TableCell>
-                <TableCell>
-                  <div className="space-y-0.5">
-                    {getStatusBadge(k.status, k.isPosted)}
-                    {k.status === "REJECTED" && k.rejectedReason && (
-                      <p className="text-[10px] text-red-500 max-w-[130px] truncate" title={k.rejectedReason}>
-                        {k.rejectedReason}
-                      </p>
-                    )}
-                    {k.status === "APPROVED" && k.approvedBy && (
-                      <p className="text-[10px] text-blue-500">oleh {k.approvedBy}</p>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-1 flex-wrap">
-
-                    {/* ── PENDING: Setujui | Edit | Tolak | Hapus ── */}
-                    {k.status === "PENDING" && (
-                      <>
-                        <Button variant="ghost" size="sm"
-                          className="text-emerald-600 hover:bg-emerald-50 rounded-lg text-xs"
-                          disabled={loadingId === k.id}
-                          onClick={() => handleApprove(k.id)}>
-                          {loadingId === k.id
-                            ? <Loader2 className="h-3 w-3 animate-spin" />
-                            : <><CheckCircle2 className="h-3 w-3 mr-1" />Setujui</>}
-                        </Button>
-                        <Button variant="ghost" size="sm"
-                          className="text-blue-600 hover:bg-blue-50 rounded-lg text-xs"
-                          disabled={loadingId === k.id}
-                          onClick={() => setEditingKasbon(k)}>
-                          <Pencil className="h-3 w-3 mr-1" />Edit
-                        </Button>
-                        <Button variant="ghost" size="sm"
-                          className="text-red-500 hover:bg-red-50 rounded-lg text-xs"
-                          disabled={loadingId === k.id}
-                          onClick={() => { setRejectTarget(k); setRejectReason(""); }}>
-                          <XCircle className="h-3 w-3 mr-1" />Tolak
-                        </Button>
-                        <Button variant="ghost" size="sm"
-                          className="text-gray-400 hover:bg-gray-100 rounded-lg text-xs"
-                          disabled={loadingId === k.id}
-                          onClick={() => { setDeletingId(k.id); setDeletingName(k.karyawan?.namaLengkap || ""); }}>
-                          <Trash2 className="h-3 w-3 mr-1" />Hapus
-                        </Button>
-                      </>
-                    )}
-
-                    {/* ── APPROVED: Posting GL (jika belum) | Batalkan (jika belum posting) | Settled ── */}
-                    {k.status === "APPROVED" && (
-                      <>
-                        {!k.isPosted && (
-                          <>
-                            <Button variant="ghost" size="sm"
-                              className="text-emerald-600 hover:bg-emerald-50 rounded-lg text-xs font-semibold"
-                              disabled={loadingId === k.id}
-                              onClick={() => { setPostingKasbon(k); setSelectedCashKey("PETTY_CASH"); }}>
-                              {loadingId === k.id
-                                ? <Loader2 className="h-3 w-3 animate-spin" />
-                                : <><SendHorizontal className="h-3 w-3 mr-1" />Posting GL</>}
-                            </Button>
-                            <Button variant="ghost" size="sm"
-                              className="text-orange-500 hover:bg-orange-50 rounded-lg text-xs"
-                              disabled={loadingId === k.id}
-                              onClick={() => { setRejectTarget(k); setRejectReason(""); }}>
-                              <XCircle className="h-3 w-3 mr-1" />Batalkan
-                            </Button>
-                          </>
-                        )}
-                        {k.isPosted && (
-                          <span className="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100 mr-1">
-                            ✓ GL Tercatat
-                          </span>
-                        )}
-                        <Button variant="ghost" size="sm"
-                          className="text-blue-600 hover:bg-blue-50 rounded-lg text-xs"
-                          disabled={loadingId === k.id}
-                          onClick={() => setSettlingId(k.id)}>
-                          {loadingId === k.id
-                            ? <Loader2 className="h-3 w-3 animate-spin" />
-                            : <><CheckCheck className="h-3 w-3 mr-1" />Settled</>}
-                        </Button>
-                      </>
-                    )}
-
-                    {/* ── REJECTED / SETTLED: read-only ── */}
-                    {(k.status === "REJECTED" || k.status === "SETTLED") && (
-                      <span className="text-xs text-gray-400 italic pr-2">
-                        {k.status === "SETTLED"
-                          ? k.tanggalPenyelesaian
-                            ? format(new Date(k.tanggalPenyelesaian), "dd/MM/yy")
-                            : "Selesai"
-                          : "Ditolak"}
+            employeeList.map((empGroup) => (
+              <React.Fragment key={empGroup.employee.id}>
+                {/* Group Header Row */}
+                <TableRow 
+                  className="hover:bg-gradient-to-r hover:from-amber-50/50 hover:to-amber-50/30 transition-colors cursor-pointer group"
+                  onClick={() => toggleEmployeeDetail(empGroup.employee.id)}
+                >
+                  <TableCell className="font-bold text-gray-800">
+                    <div className="flex items-center gap-2">
+                      <span className={`transition-transform duration-200 ${expandedEmployee === empGroup.employee.id ? 'rotate-90' : ''}`}>
+                        <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
                       </span>
-                    )}
-                  </div>
-                </TableCell>
-              </TableRow>
+                      <div className="flex flex-col">
+                        <span>{empGroup.employee.namaLengkap}</span>
+                        <span className="text-xs text-gray-500 font-normal">{empGroup.employee.nik}</span>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <StatusProgressBar 
+                      pending={empGroup.pending} 
+                      approved={empGroup.approved} 
+                      settled={empGroup.settled} 
+                      total={empGroup.items.length} 
+                    />
+                  </TableCell>
+                  <TableCell className="font-bold text-amber-700">
+                    <div className="flex flex-col items-start">
+                      <span className="text-lg">{formatCurrency(empGroup.total)}</span>
+                      <span className="text-xs text-gray-500 font-medium">
+                        {empGroup.items.length} transaksi
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-blue-600 hover:bg-blue-50 hover:text-blue-700 rounded-lg text-xs font-medium transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openEmployeeDetail(empGroup);
+                      }}
+                    >
+                      <Info className="h-3 w-3 mr-1" />
+                      Detail
+                    </Button>
+                  </TableCell>
+                </TableRow>
+                
+                {/* Expanded Detail Row */}
+                {expandedEmployee === empGroup.employee.id && (
+                  <TableRow className="bg-gradient-to-r from-gray-50/50 to-gray-100/30">
+                    <TableCell colSpan={7} className="py-4">
+                      <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center justify-between mb-4">
+                          <div>
+                            <h4 className="font-bold text-gray-800 text-lg">Riwayat Kasbon {empGroup.employee.namaLengkap}</h4>
+                            <p className="text-sm text-gray-500 mt-1">
+                              {empGroup.items.length} transaksi • Total: {formatCurrency(empGroup.total)}
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 rounded-lg border border-amber-100">
+                              <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                              <span className="text-xs font-bold text-amber-700">{empGroup.pending} Menunggu</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 rounded-lg border border-blue-100">
+                              <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                              <span className="text-xs font-bold text-blue-700">{empGroup.approved} Disetujui</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 rounded-lg border border-emerald-100">
+                              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                              <span className="text-xs font-bold text-emerald-700">{empGroup.settled} Lunas</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-3 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
+                          {empGroup.items.map((k: any) => (
+                            <div key={k.id} className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100/50 rounded-xl border border-gray-200 hover:border-amber-200 transition-colors">
+                              <div className="flex items-center gap-4">
+                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                                  k.status === 'PENDING' ? 'bg-amber-100 text-amber-600' :
+                                  k.status === 'APPROVED' ? 'bg-blue-100 text-blue-600' :
+                                  k.status === 'SETTLED' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'
+                                }`}>
+                                  {k.status === 'PENDING' ? '⏳' : k.status === 'APPROVED' ? '✓' : k.status === 'SETTLED' ? '💰' : '✕'}
+                                </div>
+                                <div>
+                                  <p className="text-lg font-bold text-gray-800">{formatCurrency(Number(k.jumlah))}</p>
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    <span className="font-medium">{format(new Date(k.tanggal), "dd MMM yyyy", { locale: id })}</span>
+                                    {k.bulanPotong && (
+                                      <span className="mx-2">•</span>
+                                    )}
+                                    {k.bulanPotong && (
+                                      <span className="text-gray-600">Pelunasan: {format(new Date(k.bulanPotong), "MMM yyyy", { locale: id })}</span>
+                                    )}
+                                  </p>
+                                  {k.keperluan && (
+                                    <p className="text-xs text-gray-600 mt-1 bg-white/60 px-2 py-1 rounded inline-block">
+                                      {k.keperluan}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {getStatusBadge(k.status, k.isPosted)}
+                                {k.status === "APPROVED" && !k.isPosted && (
+                                  <span className="text-[10px] text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-100">
+                                    ⚠ Belum Posting
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between bg-gradient-to-r from-amber-50 to-amber-100/30 rounded-xl p-3">
+                          <span className="text-sm font-semibold text-gray-700">Total Kasbon:</span>
+                          <span className="text-2xl font-bold text-amber-700">{formatCurrency(empGroup.total)}</span>
+                        </div>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </React.Fragment>
             ))
           )}
         </TableBody>
@@ -616,6 +712,142 @@ const KasbonTable: React.FC<KasbonTableProps> = ({ kasbon, onRefresh }) => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ══ Employee Detail Dialog ══ */}
+      <Dialog open={!!selectedEmployeeDetail} onOpenChange={closeEmployeeDetail}>
+        <DialogContent className="sm:max-w-[600px] rounded-3xl max-h-[85vh] flex flex-col">
+          <DialogHeader className="pb-4 border-b border-gray-100">
+            <div className="flex items-start justify-between">
+              <div>
+                <DialogTitle className="flex items-center text-2xl font-bold text-gray-800">
+                  <Info className="mr-2 h-6 w-6 text-blue-600" />
+                  Detail Kasbon Karyawan
+                </DialogTitle>
+                <div className="mt-2">
+                  <p className="text-xl font-bold text-gray-900">{selectedEmployeeDetail?.employee?.namaLengkap}</p>
+                  <p className="text-sm text-gray-500">{selectedEmployeeDetail?.employee?.nik}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-3xl font-bold text-amber-600">
+                  {formatCurrency(selectedEmployeeDetail?.total || 0)}
+                </div>
+                <p className="text-xs text-gray-500">Total Kasbon</p>
+              </div>
+            </div>
+          </DialogHeader>
+          
+          <div className="grid grid-cols-3 gap-3 py-3">
+            <div className="bg-gradient-to-br from-amber-50 to-amber-100/50 rounded-xl p-4 text-center border border-amber-200 shadow-sm">
+              <div className="flex items-center justify-center gap-2 mb-1">
+                <span className="w-3 h-3 rounded-full bg-amber-500"></span>
+                <span className="text-xs font-bold text-amber-700">Menunggu</span>
+              </div>
+              <p className="text-3xl font-bold text-amber-700">{selectedEmployeeDetail?.pending || 0}</p>
+              <p className="text-xs text-amber-600 mt-1">{selectedEmployeeDetail?.pending || 0} transaksi</p>
+            </div>
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-4 text-center border border-blue-200 shadow-sm">
+              <div className="flex items-center justify-center gap-2 mb-1">
+                <span className="w-3 h-3 rounded-full bg-blue-500"></span>
+                <span className="text-xs font-bold text-blue-700">Disetujui</span>
+              </div>
+              <p className="text-3xl font-bold text-blue-700">{selectedEmployeeDetail?.approved || 0}</p>
+              <p className="text-xs text-blue-600 mt-1">{selectedEmployeeDetail?.approved || 0} transaksi</p>
+            </div>
+            <div className="bg-gradient-to-br from-emerald-50 to-emerald-100/50 rounded-xl p-4 text-center border border-emerald-200 shadow-sm">
+              <div className="flex items-center justify-center gap-2 mb-1">
+                <span className="w-3 h-3 rounded-full bg-emerald-500"></span>
+                <span className="text-xs font-bold text-emerald-700">Lunas</span>
+              </div>
+              <p className="text-3xl font-bold text-emerald-700">{selectedEmployeeDetail?.settled || 0}</p>
+              <p className="text-xs text-emerald-600 mt-1">{selectedEmployeeDetail?.settled || 0} transaksi</p>
+            </div>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-bold text-gray-700">Riwayat Transaksi</h4>
+              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                {selectedEmployeeDetail?.items?.length || 0} transaksi
+              </span>
+            </div>
+            
+            {selectedEmployeeDetail?.items?.map((k: any) => (
+              <div key={k.id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:shadow-md hover:border-amber-200 transition-all">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                      k.status === 'PENDING' ? 'bg-amber-100 text-amber-600' :
+                      k.status === 'APPROVED' ? 'bg-blue-100 text-blue-600' :
+                      k.status === 'SETTLED' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'
+                    }`}>
+                      {k.status === 'PENDING' ? '⏳' : k.status === 'APPROVED' ? '✓' : k.status === 'SETTLED' ? '💰' : '✕'}
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold text-gray-800">{formatCurrency(Number(k.jumlah))}</p>
+                      <p className="text-xs text-gray-500">
+                        {format(new Date(k.tanggal), "dd MMM yyyy", { locale: id })}
+                      </p>
+                    </div>
+                  </div>
+                  {getStatusBadge(k.status, k.isPosted)}
+                </div>
+                
+                {k.keperluan && (
+                  <div className="mb-3">
+                    <p className="text-xs text-gray-500 mb-1.5 flex items-center gap-1">
+                      <span>📝</span> Keperluan
+                    </p>
+                    <p className="text-sm text-gray-700 bg-gray-50 rounded-lg p-2.5 border border-gray-100">
+                      {k.keperluan}
+                    </p>
+                  </div>
+                )}
+                
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  {k.bulanPotong && (
+                    <div className="bg-blue-50/50 rounded-lg p-2.5 border border-blue-100">
+                      <p className="text-gray-500 mb-1">Bulan Pelunasan</p>
+                      <p className="text-gray-700 font-semibold">
+                        {format(new Date(k.bulanPotong), "MMMM yyyy", { locale: id })}
+                      </p>
+                    </div>
+                  )}
+                  {k.approvedBy && (
+                    <div className="bg-emerald-50/50 rounded-lg p-2.5 border border-emerald-100">
+                      <p className="text-gray-500 mb-1">Disetujui oleh</p>
+                      <p className="text-gray-700 font-semibold">{k.approvedBy}</p>
+                    </div>
+                  )}
+                </div>
+                
+                {k.status === "APPROVED" && !k.isPosted && (
+                  <div className="mt-3 pt-3 border-t border-amber-100 bg-amber-50/50 rounded-lg">
+                    <p className="text-xs text-amber-700 flex items-center gap-2 font-medium">
+                      <AlertTriangle className="h-3 w-3" />
+                      ⚠ Belum di-posting ke jurnal
+                    </p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          
+          <DialogFooter className="pt-4 border-t border-gray-100 bg-gray-50/50 rounded-b-3xl">
+            <div className="flex items-center justify-between w-full">
+              <span className="text-sm font-semibold text-gray-700">Total Kasbon:</span>
+              <span className="text-2xl font-bold text-amber-700">{formatCurrency(selectedEmployeeDetail?.total || 0)}</span>
+            </div>
+            <Button 
+              variant="outline" 
+              className="rounded-xl flex-1 mt-3"
+              onClick={closeEmployeeDetail}
+            >
+              Tutup
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

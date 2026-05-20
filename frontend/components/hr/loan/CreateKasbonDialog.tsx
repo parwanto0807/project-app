@@ -171,6 +171,15 @@ const CreateKasbonDialog: React.FC<CreateKasbonDialogProps> = ({
               value={formData.jumlah}
               onChange={(e) => setFormData({ ...formData, jumlah: e.target.value })}
             />
+            {formData.jumlah && (
+              <p className="text-sm font-medium text-gray-700">
+                {new Intl.NumberFormat("id-ID", {
+                  style: "currency",
+                  currency: "IDR",
+                  maximumFractionDigits: 0,
+                }).format(parseFloat(formData.jumlah))}
+              </p>
+            )}
             {isOverLimit && (
               <div className="flex items-center gap-1 text-xs text-red-600">
                 <AlertTriangle className="h-3 w-3" />
