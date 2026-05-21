@@ -15,5 +15,5 @@ prisma/dev.db-journal
 service-account-key.json
 
 # Uploads & Images
-public/images/
-public/uploads/
+public/images/spk/
+public/uploads/receipts/
