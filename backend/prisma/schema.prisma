@@ -232,6 +232,7 @@ model Karyawan {
   nomorRekening     String?             @db.VarChar(50)
   namaRekening      String?             @db.VarChar(255)
   isActive          Boolean             @default(true)
+  wajibAbsen        Boolean             @default(true)
   approvedBAP       BAP[]               @relation("BAPApprovedBy")
   gaji              Gaji[]
   approvedInvoices  Invoice[]           @relation("InvoiceApprovedBy")

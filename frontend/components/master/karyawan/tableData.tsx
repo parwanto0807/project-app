@@ -117,6 +117,7 @@ interface Karyawan {
   tanggalLahir?: string;
   jenisKelamin?: string;
   attendanceLocation?: { id: string; name: string };
+  wajibAbsen?: boolean;
   namaBank?: string;
   nomorRekening?: string;
   namaRekening?: string;
@@ -1013,13 +1014,24 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                             </div>
                           </TableCell>
                           <TableCell>
-                            {item.attendanceLocation ? (
-                              <Badge variant="outline" className="bg-teal-50 text-teal-700 border-teal-200">
-                                {item.attendanceLocation.name}
-                              </Badge>
-                            ) : (
-                              <span className="text-gray-400 text-xs italic">Global</span>
-                            )}
+                            <div className="flex flex-col gap-1.5 items-start">
+                              {item.attendanceLocation ? (
+                                <Badge variant="outline" className="bg-teal-50 text-teal-700 border-teal-200">
+                                  {item.attendanceLocation.name}
+                                </Badge>
+                              ) : (
+                                <span className="text-gray-400 text-xs italic">Global</span>
+                              )}
+                              {item.wajibAbsen !== false ? (
+                                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-[10px] py-0 h-4 px-1.5">
+                                  <CheckCircle size={10} className="mr-1" /> Wajib Absen
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 text-[10px] py-0 h-4 px-1.5">
+                                  <XCircle size={10} className="mr-1" /> Tidak Wajib
+                                </Badge>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-1.5 flex-wrap">

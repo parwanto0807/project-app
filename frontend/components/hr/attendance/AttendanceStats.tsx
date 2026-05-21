@@ -67,7 +67,7 @@ export function AttendanceStats({ stats }: StatsProps) {
           <CardContent>
             <div className="text-2xl font-black">{item.value}</div>
             <p className="text-[10px] text-muted-foreground mt-1">
-              Today's records
+              Based on filter
             </p>
           </CardContent>
         </Card>

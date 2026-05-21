@@ -447,6 +447,7 @@ export const employeeFormSchema = z.object({
   potongan: z.coerce.number().nonnegative().nullable().optional(),
 
   isActive: z.boolean().default(true),
+  wajibAbsen: z.boolean().default(true),
   userId: z.string().optional().nullable(),
 
   tanggalLahir: z.coerce.date().optional(),

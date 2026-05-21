@@ -101,3 +101,31 @@ export async function fetchAbsensiStats() {
     return null;
   }
 }
+
+export async function createManualAbsensi(data: {
+  karyawanId: string;
+  tanggal: string;
+  jamMasuk: string | null;
+  jamKeluar: string | null;
+  status: string;
+  keterangan: string;
+}) {
+  try {
+    const cookieStore = await cookies();
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/absensi`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: cookieStore.toString(),
+      },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.message || "Gagal membuat absensi manual");
+    }
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+}

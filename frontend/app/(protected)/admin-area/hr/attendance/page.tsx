@@ -30,16 +30,18 @@ export default function AttendanceMonitoringPage() {
   const loadData = async (filters: any = {}) => {
     try {
       setIsLoading(true);
-      const [absensiResult, statsResult] = await Promise.all([
-        fetchAllAbsensi(filters),
-        fetchAbsensiStats()
-      ]);
+      const absensiResult = await fetchAllAbsensi(filters);
 
       if (absensiResult.absensi) {
         setAbsensiData(absensiResult.absensi);
-      }
-      if (statsResult) {
-        setStats(statsResult);
+        const data = absensiResult.absensi;
+        setStats({
+          total: data.length,
+          hadir: data.filter((a: any) => a.status === "HADIR").length,
+          terlambat: data.filter((a: any) => a.status === "TERLAMBAT").length,
+          izin: data.filter((a: any) => a.status === "IZIN" || a.status === "SAKIT").length,
+          alfa: data.filter((a: any) => a.status === "MANGKIR" || a.status === "ALFA").length,
+        });
       }
     } catch (err) {
       console.error("Error loading attendance data:", err);
@@ -49,8 +51,19 @@ export default function AttendanceMonitoringPage() {
     }
   };
 
+  const getTodayStr = () => {
+    const d = new Date();
+    return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+  };
+
+  const getStartDateStr = () => {
+    const d = new Date();
+    d.setDate(d.getDate() - 2);
+    return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+  };
+
   useEffect(() => {
-    loadData();
+    loadData({ startDate: getStartDateStr(), endDate: getTodayStr() });
   }, []);
 
   const handleFilter = (filters: any) => {
@@ -58,7 +71,7 @@ export default function AttendanceMonitoringPage() {
   };
 
   const handleReset = () => {
-    loadData();
+    loadData({ startDate: getStartDateStr(), endDate: getTodayStr() });
   };
 
   const handleViewDetail = (record: any) => {

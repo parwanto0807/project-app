@@ -11,11 +11,13 @@ export const getAllAbsensi = async (req, res) => {
 
     const where = {
       ...(karyawanId && { karyawanId }),
-      ...(employeeName && {
-        karyawan: {
+      karyawan: {
+        isActive: true,
+        statusKerja: { not: "non-aktif" },
+        ...(employeeName && {
           namaLengkap: { contains: employeeName, mode: "insensitive" },
-        },
-      }),
+        }),
+      },
     };
 
     // Filter tanggal yang lebih fleksibel
@@ -39,16 +41,104 @@ export const getAllAbsensi = async (req, res) => {
       where.jamKeluar = { not: null };
     }
 
-    const absensi = await prisma.absensi.findMany({
+    let absensi = await prisma.absensi.findMany({
       where,
       include: {
-        karyawan: true,
+        karyawan: {
+          include: {
+            teamKaryawan: {
+              include: {
+                team: true
+              }
+            },
+            attendanceLocation: true
+          }
+        },
       },
       orderBy: [
         { tanggal: "desc" },
         { jamMasuk: "desc" }
       ],
     });
+
+    if (startDate && endDate && needsValidation !== "true") {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      yesterday.setHours(23, 59, 59, 999);
+
+      // Jangan tampilkan mangkir untuk hari ini atau di masa depan
+      const loopEnd = end > yesterday ? yesterday : end;
+
+      const wajibKaryawanWhere = {
+        isActive: true,
+        statusKerja: { not: "non-aktif" },
+        wajibAbsen: true,
+      };
+      if (karyawanId) wajibKaryawanWhere.id = karyawanId;
+      if (employeeName) wajibKaryawanWhere.namaLengkap = { contains: employeeName, mode: "insensitive" };
+
+      const wajibKaryawan = await prisma.karyawan.findMany({
+        where: wajibKaryawanWhere,
+        include: {
+          attendanceLocation: true
+        }
+      });
+
+      const virtualRecords = [];
+      const getLocalDateStr = (dateObj) => {
+        const d = new Date(dateObj);
+        return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+      };
+
+      const absensiMap = new Set(absensi.map(a => `${a.karyawanId}_${getLocalDateStr(a.tanggal)}`));
+
+      // Iterasi tiap tanggal dalam rentang
+      const d = new Date(start);
+      d.setHours(0, 0, 0, 0);
+
+      while (d <= loopEnd) {
+        const dateStr = getLocalDateStr(d);
+        
+        for (const k of wajibKaryawan) {
+          const key = `${k.id}_${dateStr}`;
+          if (!absensiMap.has(key)) {
+            // Abaikan jika karyawan bergabung setelah tanggal ini
+            if (k.tanggalMasuk && getLocalDateStr(k.tanggalMasuk) > dateStr) continue;
+            // Abaikan jika karyawan keluar sebelum tanggal ini
+            if (k.tanggalKeluar && getLocalDateStr(k.tanggalKeluar) < dateStr) continue;
+
+            const virtualDate = new Date(d);
+            virtualDate.setHours(8, 0, 0, 0); // set to 8 AM local so UTC date matches local date
+
+            virtualRecords.push({
+              id: `virtual-${k.id}-${dateStr}`,
+              karyawanId: k.id,
+              tanggal: virtualDate,
+              jamMasuk: null,
+              jamKeluar: null,
+              status: "MANGKIR",
+              keterangan: "Tidak ada catatan absensi",
+              isMissing: true,
+              karyawan: k
+            });
+          }
+        }
+        d.setDate(d.getDate() + 1);
+      }
+
+      absensi = [...absensi, ...virtualRecords].sort((a, b) => {
+        const dateA = new Date(a.tanggal).getTime();
+        const dateB = new Date(b.tanggal).getTime();
+        if (dateA !== dateB) return dateB - dateA;
+        if (a.jamMasuk && b.jamMasuk) return new Date(b.jamMasuk).getTime() - new Date(a.jamMasuk).getTime();
+        return 0;
+      });
+    }
 
     console.log(`[DEBUG] Found ${absensi.length} records`);
     res.json(absensi);

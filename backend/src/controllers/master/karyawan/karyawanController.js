@@ -47,6 +47,7 @@ export const createKaryawan = async (req, res) => {
       namaBank,
       nomorRekening,
       namaRekening,
+      wajibAbsen,
     } = req.body;
 
     // ✅ Validasi userId jika diberikan
@@ -100,6 +101,7 @@ export const createKaryawan = async (req, res) => {
         userId: userId || null, // ✅ Set null jika tidak ada
         foto: fotoPath,
         isActive: true,
+        wajibAbsen: wajibAbsen === undefined ? true : (wajibAbsen === true || wajibAbsen === "true"),
         attendanceLocationId: (attendanceLocationId === "none" || !attendanceLocationId) ? null : attendanceLocationId,
         namaBank,
         nomorRekening,
@@ -216,6 +218,7 @@ export const updateKaryawan = async (req, res) => {
       namaBank,
       nomorRekening,
       namaRekening,
+      wajibAbsen,
     } = req.body;
 
     // ✅ Validasi userId jika diberikan
@@ -279,6 +282,9 @@ export const updateKaryawan = async (req, res) => {
 
     if (isActive !== undefined) {
       data.isActive = isActive === true || isActive === "true";
+    }
+    if (wajibAbsen !== undefined) {
+      data.wajibAbsen = wajibAbsen === true || wajibAbsen === "true";
     }
 
     // normalisasi angka

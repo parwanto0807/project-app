@@ -12,10 +12,21 @@ interface FilterProps {
 }
 
 export function AttendanceFilters({ onFilter, onReset }: FilterProps) {
+  const getTodayStr = () => {
+    const d = new Date();
+    return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+  };
+
+  const getStartDateStr = () => {
+    const d = new Date();
+    d.setDate(d.getDate() - 2);
+    return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+  };
+
   const [employeeName, setEmployeeName] = useState("");
   const [status, setStatus] = useState("ALL");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState(getStartDateStr());
+  const [endDate, setEndDate] = useState(getTodayStr());
 
   const handleApply = () => {
     onFilter({ employeeName, status, startDate, endDate });
@@ -24,8 +35,8 @@ export function AttendanceFilters({ onFilter, onReset }: FilterProps) {
   const handleReset = () => {
     setEmployeeName("");
     setStatus("ALL");
-    setStartDate("");
-    setEndDate("");
+    setStartDate(getStartDateStr());
+    setEndDate(getTodayStr());
     onReset();
   };
 

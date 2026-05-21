@@ -31,6 +31,7 @@ import { Separator } from "@/components/ui/separator";
 import { SalesChart } from "./salesChart";
 import { InvoiceChart } from "./invoiceChart";
 import { MobileShortcut } from "@/components/mobile-shortcut";
+import { ActiveEmployeesCard } from "./active-employees-card";
 
 // =============================
 // KONFIGURASI API BACKEND
@@ -322,31 +323,22 @@ export default function DashboardAwalSalesOrder() {
                 const monthlySalesUrl = ENDPOINTS.monthlySales();
                 const monthlyInvoiceUrl = ENDPOINTS.monthlyInvoice();
 
-                const [cst, prd, so, list, monthly, monthlyInv, spkRecent] = await Promise.all([
-                    fetch(ENDPOINTS.customerCount, { credentials: "include" }),
-                    fetch(ENDPOINTS.productCount, { credentials: "include" }),
-                    fetch(ENDPOINTS.salesOrderCount, { credentials: "include" }),
-                    fetch(ENDPOINTS.recentSalesOrders, { credentials: "include" }),
-                    fetch(monthlySalesUrl, { credentials: "include" }),
-                    fetch(monthlyInvoiceUrl, { credentials: "include" }),
-                    fetch(ENDPOINTS.recentSPK, { credentials: "include" }),
-                ]);
+                const fetchJson = async (url: string) => {
+                    const res = await fetch(url, { credentials: "include" });
+                    if (!res.ok) throw new Error(`Gagal fetch ${url}`);
+                    return res.json();
+                };
 
-                if (!cst.ok || !prd.ok || !so.ok || !list.ok || !monthly.ok || !monthlyInv.ok || !spkRecent.ok) {
-                    throw new Error("Gagal memuat data dashboard. Periksa endpoint backend.");
-                }
-
-                const [cstJson, prdJson, soJson, listJsonRaw, monthlyJson, monthlyInvJson, spkRecentJson] = await Promise.all([
-                    cst.json() as Promise<CountResponse>,
-                    prd.json() as Promise<CountResponse>,
-                    so.json() as Promise<CountResponse>,
-                    list.json() as Promise<{ data: SalesOrderMini[] } | SalesOrderMini[]>,
-                    monthly.json() as Promise<MonthlySalesData[] | { data: MonthlySalesData[] }>,
-                    monthlyInv.json() as Promise<MonthlyInvoiceData[] | { data: MonthlyInvoiceData[] }>,
-                    spkRecent.json() as Promise<{ data: SPKMini[] }>,
-                ]);
-
-                const [statsJson, invoiceStatsJson] = await Promise.all([
+                const [
+                    cstJson, prdJson, soJson, listJsonRaw, monthlyJson, monthlyInvJson, spkRecentJson, statsJson, invoiceStatsJson
+                ] = await Promise.all([
+                    fetchJson(ENDPOINTS.customerCount),
+                    fetchJson(ENDPOINTS.productCount),
+                    fetchJson(ENDPOINTS.salesOrderCount),
+                    fetchJson(ENDPOINTS.recentSalesOrders),
+                    fetchJson(monthlySalesUrl),
+                    fetchJson(monthlyInvoiceUrl),
+                    fetchJson(ENDPOINTS.recentSPK),
                     loadSalesStats(),
                     loadInvoiceStats()
                 ]);
@@ -698,6 +690,9 @@ export default function DashboardAwalSalesOrder() {
 
                         {/* Sidebar - Quick Actions & Stats */}
                         <div className="space-y-6">
+                            {/* Active Employees Today */}
+                            <ActiveEmployeesCard />
+
                             {/* Quick Actions */}
                             <Card className="shadow-sm border">
                                 <CardHeader className="pb-3">

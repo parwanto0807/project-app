@@ -47,6 +47,7 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
             tunjangan: 0,
             potongan: 0,
             isActive: true,       // ✅ boolean harus fix, bukan undefined
+            wajibAbsen: true,
             tanggalLahir: undefined,
             tanggalMasuk: undefined,
             tanggalKeluar: undefined,
@@ -480,6 +481,12 @@ export default function CreateEmployeeForm({ role }: { role: string }) {
                                 <FormField name="isActive" control={form.control} render={({ field }) => (
                                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 mt-4 md:mt-0">
                                         <div className="space-y-0.5"><FormLabel>Akun Aktif</FormLabel><FormDescription>Non-aktifkan jika karyawan belum bisa login.</FormDescription></div>
+                                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                    </FormItem>
+                                )} />
+                                <FormField name="wajibAbsen" control={form.control} render={({ field }) => (
+                                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 mt-4 md:mt-0">
+                                        <div className="space-y-0.5"><FormLabel>Wajib Absen</FormLabel><FormDescription>Acuan apakah karyawan ini wajib absen.</FormDescription></div>
                                         <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                                     </FormItem>
                                 )} />
