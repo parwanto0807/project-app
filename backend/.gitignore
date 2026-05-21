@@ -13,3 +13,7 @@ prisma/dev.db-journal
 
 # 🔒 Secrets
 service-account-key.json
+
+# Uploads & Images
+public/images/
+public/uploads/
