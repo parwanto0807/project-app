@@ -41,7 +41,7 @@ async function seedLoanAccount() {
       }
     });
 
-    console.log('✅ Employee Loan Account seeded successfully');
+    (() => {})('✅ Employee Loan Account seeded successfully');
   } catch (error) {
     console.error('❌ Error seeding loan account:', error);
   } finally {

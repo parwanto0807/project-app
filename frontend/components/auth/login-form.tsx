@@ -52,7 +52,7 @@ const LoginForm = () => {
     const reasonParam = urlParams.get('reason');
 
     if (errorParam || reasonParam) {
-      console.log("🔴 [URL CLEANUP] Removing error params:", { errorParam, reasonParam });
+      (() => {})("🔴 [URL CLEANUP] Removing error params:", { errorParam, reasonParam });
       const newUrl = window.location.pathname;
       window.history.replaceState({}, '', newUrl);
     }
@@ -99,14 +99,14 @@ const LoginForm = () => {
         await new Promise(resolve => setTimeout(resolve, 300));
 
         // ✅ CHECK COOKIES & LOCALSTORAGE SETELAH PENYIMPANAN
-        console.log("🍪 [LOGIN] Cookies after login:", document.cookie);
-        console.log("📦 [LOGIN] localStorage check:", {
+        (() => {})("🍪 [LOGIN] Cookies after login:", document.cookie);
+        (() => {})("📦 [LOGIN] localStorage check:", {
           accessToken: localStorage.getItem("accessToken") ? "EXISTS" : "MISSING",
           userData: localStorage.getItem("userData") ? "EXISTS" : "MISSING"
         });
 
         // ✅ PASTIKAN: Gunakan window.location.href UNTUK HARD REDIRECT
-        console.log("🔄 [LOGIN] Performing hard redirect to dashboard...");
+        (() => {})("🔄 [LOGIN] Performing hard redirect to dashboard...");
         toast.success("Login berhasil!");
 
         // ⚠️ JANGAN GUNAKAN router.push() - GUNAKAN window.location.href
@@ -129,7 +129,7 @@ const LoginForm = () => {
       }
 
       const googleAuthUrl = `${apiUrl}/api/auth/google`;
-      console.log("🔐 [GOOGLE] Redirecting to:", googleAuthUrl);
+      (() => {})("🔐 [GOOGLE] Redirecting to:", googleAuthUrl);
 
       window.location.href = googleAuthUrl;
     } catch (err) {

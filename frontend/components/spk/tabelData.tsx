@@ -359,7 +359,7 @@ export default function TabelDataSpk({
     const pdfActions = usePdfActions();
 
     // DEBUG: Log data yang diterima
-    console.log("🔍 TabelDataSpk - Data received:", {
+    (() => {})("🔍 TabelDataSpk - Data received:", {
         dataCount: dataSpk?.length || 0,
         data: dataSpk?.map(item => ({
             id: item.id,
@@ -442,7 +442,7 @@ export default function TabelDataSpk({
     // Gunakan dataSpk langsung tanpa filtering
     const displayData = dataSpk || [];
 
-    console.log("🔍 TabelDataSpk - Display data count:", displayData.length);
+    (() => {})("🔍 TabelDataSpk - Display data count:", displayData.length);
 
     const toggleRow = (id: string) => {
         const newExpanded = new Set(expandedRows);

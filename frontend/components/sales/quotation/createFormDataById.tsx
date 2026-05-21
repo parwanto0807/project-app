@@ -191,7 +191,7 @@ export const CreateQuotationFormById: React.FC<CreateQuotationFormProps> = ({
 
     useEffect(() => {
         lines.forEach((line, index) => {
-            console.log(`Line ${index}:`, {
+            (() => {})(`Line ${index}:`, {
                 productId: line.productId,
                 description: line.description,
                 qty: line.qty,

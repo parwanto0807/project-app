@@ -20,7 +20,7 @@ export async function apiFetch(url: string, options: RequestInit = {}) {
       if (saved) {
         const validation = validateToken(saved);
         if (validation.isValid) {
-          console.log("🔄 Restoring token for API request");
+          (() => {})("🔄 Restoring token for API request");
           setAccessToken(saved, {
             broadcast: false,
             schedule: true,
@@ -47,7 +47,7 @@ export async function apiFetch(url: string, options: RequestInit = {}) {
 
   // ✅ jika token expired → 401
   if (res.status === 401) {
-    console.log("🔄 Token expired, attempting refresh...");
+    (() => {})("🔄 Token expired, attempting refresh...");
     const newToken = await refreshToken();
 
     if (!newToken) {

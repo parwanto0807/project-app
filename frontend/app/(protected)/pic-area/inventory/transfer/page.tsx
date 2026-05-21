@@ -20,14 +20,14 @@ export default function TransferPage() {
     const pagination = (transfersData as any)?.pagination;
 
     useEffect(() => {
-        console.log('📊 Transfer Page - Data:', transfersData);
-        console.log('📊 Transfer Page - Data (JSON):', JSON.stringify(transfersData, null, 2));
-        console.log('📋 Transfers array:', transfers);
-        console.log('🔢 Transfers count:', transfers.length);
+        (() => {})('📊 Transfer Page - Data:', transfersData);
+        (() => {})('📊 Transfer Page - Data (JSON):', JSON.stringify(transfersData, null, 2));
+        (() => {})('📋 Transfers array:', transfers);
+        (() => {})('🔢 Transfers count:', transfers.length);
         if (transfersData) {
-            console.log('🔍 transfersData.data:', transfersData.data);
-            console.log('🔍 transfersData.data type:', typeof transfersData.data);
-            console.log('🔍 Is transfersData.data an array?', Array.isArray(transfersData.data));
+            (() => {})('🔍 transfersData.data:', transfersData.data);
+            (() => {})('🔍 transfersData.data type:', typeof transfersData.data);
+            (() => {})('🔍 Is transfersData.data an array?', Array.isArray(transfersData.data));
         }
     }, [transfersData, transfers]);
 

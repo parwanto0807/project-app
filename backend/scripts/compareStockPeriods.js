@@ -3,9 +3,9 @@ const prisma = new PrismaClient();
 
 async function compareStockPeriods() {
     try {
-        console.log('='.repeat(60));
-        console.log('COMPARING STOCK BALANCE: JANUARY vs FEBRUARY');
-        console.log('='.repeat(60));
+        (() => {})('='.repeat(60));
+        (() => {})('COMPARING STOCK BALANCE: JANUARY vs FEBRUARY');
+        (() => {})('='.repeat(60));
 
         const janStart = new Date('2026-01-01T00:00:00.000Z');
         const febStart = new Date('2026-02-01T00:00:00.000Z');
@@ -19,10 +19,10 @@ async function compareStockPeriods() {
             where: { period: febStart }
         });
 
-        console.log(`\n📊 RECORD COUNTS:`);
-        console.log(`   January:  ${janCount} records`);
-        console.log(`   February: ${febCount} records`);
-        console.log(`   Difference: ${febCount - janCount} records`);
+        (() => {})(`\n📊 RECORD COUNTS:`);
+        (() => {})(`   January:  ${janCount} records`);
+        (() => {})(`   February: ${febCount} records`);
+        (() => {})(`   Difference: ${febCount - janCount} records`);
 
         // Get product-warehouse combinations in Jan
         const janRecords = await prisma.stockBalance.findMany({
@@ -45,11 +45,11 @@ async function compareStockPeriods() {
             !janCombos.has(`${r.productId}-${r.warehouseId}`)
         );
 
-        console.log(`\n🔍 RECORDS ONLY IN FEBRUARY (not in January):`);
-        console.log(`   Count: ${onlyInFeb.length} records`);
+        (() => {})(`\n🔍 RECORDS ONLY IN FEBRUARY (not in January):`);
+        (() => {})(`   Count: ${onlyInFeb.length} records`);
 
         if (onlyInFeb.length > 0) {
-            console.log(`\n   Sample (first 10):`);
+            (() => {})(`\n   Sample (first 10):`);
             const samples = await prisma.stockBalance.findMany({
                 where: {
                     period: febStart,
@@ -65,9 +65,9 @@ async function compareStockPeriods() {
             });
 
             samples.forEach((s, i) => {
-                console.log(`   ${i + 1}. ${s.product.code} - ${s.product.name}`);
-                console.log(`      Warehouse: ${s.warehouse.name}`);
-                console.log(`      Stock: Awal=${s.stockAwal}, Akhir=${s.stockAkhir}`);
+                (() => {})(`   ${i + 1}. ${s.product.code} - ${s.product.name}`);
+                (() => {})(`      Warehouse: ${s.warehouse.name}`);
+                (() => {})(`      Stock: Awal=${s.stockAwal}, Akhir=${s.stockAkhir}`);
             });
         }
 
@@ -76,10 +76,10 @@ async function compareStockPeriods() {
             !febCombos.has(`${r.productId}-${r.warehouseId}`)
         );
 
-        console.log(`\n🔍 RECORDS ONLY IN JANUARY (not in February):`);
-        console.log(`   Count: ${onlyInJan.length} records`);
+        (() => {})(`\n🔍 RECORDS ONLY IN JANUARY (not in February):`);
+        (() => {})(`   Count: ${onlyInJan.length} records`);
 
-        console.log('\n' + '='.repeat(60));
+        (() => {})('\n' + '='.repeat(60));
 
     } catch (error) {
         console.error('❌ Error:', error.message);

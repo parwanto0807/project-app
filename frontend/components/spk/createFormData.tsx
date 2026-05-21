@@ -116,7 +116,7 @@ export default function CreateFormSPK({
     const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
     const router = useRouter();
 
-    console.log("Role", role);
+    (() => {})("Role", role);
 
     const allKaryawanRaw: Karyawan[] = teamData?.flatMap((team) =>
         team.karyawan?.map((anggota) => anggota.karyawan) || []
@@ -221,7 +221,7 @@ export default function CreateFormSPK({
                 })),
             };
 
-            console.log("Payload dikirim:", payload); // Untuk debug
+            (() => {})("Payload dikirim:", payload); // Untuk debug
 
             const res = await createSpk(payload);
 

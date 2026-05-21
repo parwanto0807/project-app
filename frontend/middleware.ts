@@ -46,7 +46,7 @@ function redirectToRefreshing(
     refreshingUrl.searchParams.set("reason", reason);
   }
 
-  console.log(
+  (() => {})(
     `🔄 Middleware: Redirect to refreshing - ${reason || "token issue"}`
   );
   return NextResponse.redirect(refreshingUrl);
@@ -72,7 +72,7 @@ function redirectToLogin(req: NextRequest, reason?: string): NextResponse {
   response.cookies.delete("accessToken");
   response.cookies.delete("accessTokenReadable"); // ✅ BERSIHKAN JUGA READABLE
 
-  console.log(
+  (() => {})(
     `🔐 Middleware: Redirect to login - ${reason || "invalid token"}`
   );
   return response;
@@ -83,7 +83,7 @@ function redirectToLogin(req: NextRequest, reason?: string): NextResponse {
  */
 function redirectToRoleHome(req: NextRequest, role: string): NextResponse {
   const homePath = roleHomeMap[role] || "/";
-  console.log(`🏠 Middleware: Redirecting ${role} to their home: ${homePath}`);
+  (() => {})(`🏠 Middleware: Redirecting ${role} to their home: ${homePath}`);
   return NextResponse.redirect(new URL(homePath, req.url));
 }
 
@@ -100,7 +100,7 @@ function getAccessTokenFromRequest(req: NextRequest): string | undefined {
   if (!accessToken) {
     accessToken = req.cookies.get("accessTokenReadable")?.value;
     if (accessToken) {
-      console.log("🔧 Middleware: Using accessTokenReadable cookie");
+      (() => {})("🔧 Middleware: Using accessTokenReadable cookie");
     }
   }
 
@@ -109,13 +109,13 @@ function getAccessTokenFromRequest(req: NextRequest): string | undefined {
     const authHeader = req.headers.get("authorization");
     if (authHeader?.startsWith("Bearer ")) {
       accessToken = authHeader.substring(7);
-      console.log("🔧 Middleware: Using Authorization header token");
+      (() => {})("🔧 Middleware: Using Authorization header token");
     }
   }
 
   // ✅ DEBUG: Log semua cookies yang tersedia
   const allCookies = req.cookies.getAll();
-  console.log(
+  (() => {})(
     "🍪 Middleware: All available cookies:",
     allCookies.map((c) => ({ name: c.name, exists: !!c.value }))
   );
@@ -126,7 +126,7 @@ function getAccessTokenFromRequest(req: NextRequest): string | undefined {
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  console.log(`🛡️ Middleware: Checking ${pathname}`);
+  (() => {})(`🛡️ Middleware: Checking ${pathname}`);
 
   // ================================================================
   // 1. CEK KHUSUS ROOT PATH ('/') - Tetap di paling atas
@@ -138,13 +138,13 @@ export async function middleware(req: NextRequest) {
         const { payload } = await jwtVerify(accessToken, secret);
         const role = String(payload.role || "");
         if (role && roleHomeMap[role]) {
-          console.log(
+          (() => {})(
             `🚀 Middleware: Root access with valid token. Auto-redirecting ${role}...`
           );
           return redirectToRoleHome(req, role);
         }
       } catch {
-        console.log("⚠️ Middleware: Token found on root but invalid.");
+        (() => {})("⚠️ Middleware: Token found on root but invalid.");
       }
     }
     // Jika tidak ada token, lanjut ke bawah
@@ -167,7 +167,7 @@ export async function middleware(req: NextRequest) {
         const role = String(payload.role || "");
 
         if (role && roleHomeMap[role]) {
-          console.log(
+          (() => {})(
             `🔄 Middleware: Already logged in as ${role}, redirecting from auth page`
           );
           return redirectToRoleHome(req, role);
@@ -190,7 +190,7 @@ export async function middleware(req: NextRequest) {
   // Jika kode sampai sini, berarti BUKAN halaman /auth
   // Jika tidak butuh role (misal: /about, /contact), izinkan lewat
   if (!requiredRoles) {
-    console.log(`🔓 Middleware: Public route - ${pathname}`);
+    (() => {})(`🔓 Middleware: Public route - ${pathname}`);
     return NextResponse.next();
   }
 
@@ -217,10 +217,10 @@ export async function middleware(req: NextRequest) {
   // ================================================================
   const accessToken = getAccessTokenFromRequest(req);
 
-  console.log(`🔍 Middleware: Token check result - exists: ${!!accessToken}`);
+  (() => {})(`🔍 Middleware: Token check result - exists: ${!!accessToken}`);
 
   if (!accessToken) {
-    console.log("❌ Middleware: No access token found");
+    (() => {})("❌ Middleware: No access token found");
     return redirectToRefreshing(req, pathname, "no_token");
   }
 
@@ -229,14 +229,14 @@ export async function middleware(req: NextRequest) {
     const role = String(payload.role || "");
     const userId = payload.userId || payload.sub;
 
-    console.log(`🔐 Middleware: Token verified - role: "${role}"`);
+    (() => {})(`🔐 Middleware: Token verified - role: "${role}"`);
 
     if (!requiredRoles.includes(role)) {
-      console.log(`🚫 Middleware: Forbidden access`);
+      (() => {})(`🚫 Middleware: Forbidden access`);
       return redirectToRoleHome(req, role);
     }
 
-    console.log(`✅ Middleware: Access granted`);
+    (() => {})(`✅ Middleware: Access granted`);
     const response = NextResponse.next();
     response.headers.set("x-user-role", role);
     if (userId) response.headers.set("x-user-id", String(userId));
@@ -244,28 +244,28 @@ export async function middleware(req: NextRequest) {
 
     return response;
   } catch (err) {
-    console.log(
+    (() => {})(
       "❌ Middleware: Token verification failed:",
       err instanceof Error ? err.message : "Unknown error"
     );
 
     // ✅ GUNAKAN fungsi redirect secara konsisten berdasarkan error type
     if (err instanceof joseErrors.JWTExpired) {
-      console.log("⏰ Middleware: Token expired");
+      (() => {})("⏰ Middleware: Token expired");
       return redirectToRefreshing(req, pathname, "token_expired");
     } else if (err instanceof joseErrors.JWTInvalid) {
-      console.log("❌ Middleware: Token invalid");
+      (() => {})("❌ Middleware: Token invalid");
       return redirectToLogin(req, "token_invalid");
     } else if (err instanceof joseErrors.JWTClaimValidationFailed) {
-      console.log("❌ Middleware: Token claim validation failed");
+      (() => {})("❌ Middleware: Token claim validation failed");
       return redirectToLogin(req, "token_claim_invalid");
     } else if (err instanceof joseErrors.JOSEError) {
-      console.log("❌ Middleware: JOSE error");
+      (() => {})("❌ Middleware: JOSE error");
       return redirectToLogin(req, "token_error");
     }
 
     // Unknown errors - redirect ke login
-    console.log("❌ Middleware: Unknown verification error");
+    (() => {})("❌ Middleware: Unknown verification error");
     return redirectToLogin(req, "verification_error");
   }
 }

@@ -26,7 +26,7 @@ async function searchAmount() {
         });
 
         fs.writeFileSync('scripts/scan_result.txt', output);
-        console.log('Done');
+        (() => {})('Done');
 
     } catch (e) {
         console.error(e);

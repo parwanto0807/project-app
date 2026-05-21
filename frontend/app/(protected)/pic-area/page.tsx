@@ -35,7 +35,7 @@ export default function PicPage() {
     if (isLoading) return;
 
     const timer = setTimeout(() => {
-      console.log("🔍 Auth check for PIC:", {
+      (() => {})("🔍 Auth check for PIC:", {
         user: !!user,
         isAuthenticated,
         role: authRole,

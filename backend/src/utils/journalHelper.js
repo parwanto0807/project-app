@@ -85,7 +85,7 @@ async function getOrCreateAccountingPeriod(date, tx) {
         isClosed: false
       }
     });
-    console.log(`✅ Created accounting period: ${periodCode} (${periodName})`);
+    (() => {})(`✅ Created accounting period: ${periodCode} (${periodName})`);
   }
 
   return period;
@@ -397,8 +397,8 @@ export async function createLedgerEntry({
       );
     }
 
-    console.log(`✅ Ledger Entry Created: ${ledgerNumber} | Total Amount: ${totalDebit}`);
-    console.log(`✅ Updated GeneralLedgerSummary and TrialBalance for ${preparedLines.length} accounts`);
+    (() => {})(`✅ Ledger Entry Created: ${ledgerNumber} | Total Amount: ${totalDebit}`);
+    (() => {})(`✅ Updated GeneralLedgerSummary and TrialBalance for ${preparedLines.length} accounts`);
     
     return ledger;
   } catch (error) {

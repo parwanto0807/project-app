@@ -4,13 +4,13 @@ async function forceFullRollover() {
   const janPeriodId = "e14167d7-6e0e-4d6b-9964-79b2128370dc";
   const febPeriodId = "9e831ead-3a7f-43e3-855a-a7ad11707b7f";
 
-  console.log('--- STARTING FULL ROLLOVER (Jan -> Feb) ---');
+  (() => {})('--- STARTING FULL ROLLOVER (Jan -> Feb) ---');
 
   const coas = await prisma.chartOfAccounts.findMany({
     where: { postingType: 'POSTING' }
   });
 
-  console.log(`Processing ${coas.length} accounts...`);
+  (() => {})(`Processing ${coas.length} accounts...`);
 
   let updatedCount = 0;
 
@@ -92,7 +92,7 @@ async function forceFullRollover() {
     }
   }
 
-  console.log(`--- ROLLOVER COMPLETE. Updated/Created ${updatedCount} records. ---`);
+  (() => {})(`--- ROLLOVER COMPLETE. Updated/Created ${updatedCount} records. ---`);
 }
 
 forceFullRollover()

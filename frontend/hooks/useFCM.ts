@@ -37,9 +37,9 @@ export const useFCM = () => {
       setIsSupported(isFcmSupported);
       
       if (!isFcmSupported) {
-        console.log('❌ FCM not supported in this environment');
+        (() => {})('❌ FCM not supported in this environment');
       } else {
-        console.log('✅ FCM supported');
+        (() => {})('✅ FCM supported');
       }
     };
 
@@ -50,39 +50,39 @@ export const useFCM = () => {
   const requestPermission = async (): Promise<string | null> => {
     try {
       if (!messaging) {
-        console.log('❌ Messaging not available');
+        (() => {})('❌ Messaging not available');
         return null;
       }
 
-      console.log('🔔 Requesting notification permission...');
+      (() => {})('🔔 Requesting notification permission...');
       
       const permission = await Notification.requestPermission();
       
       if (permission === 'granted') {
-        console.log('✅ Notification permission granted');
+        (() => {})('✅ Notification permission granted');
         
         const token = await getToken(messaging, {
           vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
         });
         
         if (token) {
-          console.log('✅ FCM Token received:', token);
+          (() => {})('✅ FCM Token received:', token);
           setFcmToken(token);
           
           // Simpan ke backend
           const saved = await saveFcmToken(token);
           if (saved) {
-            console.log('✅ FCM Token saved to backend');
+            (() => {})('✅ FCM Token saved to backend');
           } else {
-            console.log('❌ Failed to save FCM token to backend');
+            (() => {})('❌ Failed to save FCM token to backend');
           }
           
           return token;
         } else {
-          console.log('❌ No FCM token received');
+          (() => {})('❌ No FCM token received');
         }
       } else {
-        console.log(`❌ Notification permission ${permission}`);
+        (() => {})(`❌ Notification permission ${permission}`);
       }
     } catch (error) {
       console.error('❌ Error getting FCM token:', error);
@@ -95,10 +95,10 @@ export const useFCM = () => {
   useEffect(() => {
     if (!messaging) return;
 
-    console.log('🎯 Setting up FCM message listener...');
+    (() => {})('🎯 Setting up FCM message listener...');
     
     const unsubscribe = onMessage(messaging, (payload: MessagePayload) => {
-      console.log('📨 Received foreground message:', payload);
+      (() => {})('📨 Received foreground message:', payload);
       
       // Convert Firebase payload ke custom type
       const incomingMessage = convertToIncomingMessage(payload);
@@ -107,13 +107,13 @@ export const useFCM = () => {
       // Show notification
       if (incomingMessage.notification && incomingMessage.notification.title && incomingMessage.notification.body) {
         const { title, body } = incomingMessage.notification;
-        console.log(`📢 Showing notification: ${title} - ${body}`);
+        (() => {})(`📢 Showing notification: ${title} - ${body}`);
         showBrowserNotification(title, body);
       }
     });
 
     return () => {
-      console.log('🧹 Cleaning up FCM message listener');
+      (() => {})('🧹 Cleaning up FCM message listener');
       unsubscribe();
     };
   }, []);
@@ -131,7 +131,7 @@ export const useFCM = () => {
 
         // Handle notification click
         notification.onclick = () => {
-          console.log('🖱️ Notification clicked');
+          (() => {})('🖱️ Notification clicked');
           window.focus();
           notification.close();
         };
@@ -151,13 +151,13 @@ export const useFCM = () => {
   const deleteFcmToken = async (): Promise<void> => {
     try {
       if (!messaging) {
-        console.log('❌ Messaging not available');
+        (() => {})('❌ Messaging not available');
         return;
       }
 
       await deleteToken(messaging);
       setFcmToken(null);
-      console.log('✅ FCM Token deleted');
+      (() => {})('✅ FCM Token deleted');
     } catch (error) {
       console.error('❌ Error deleting FCM token:', error);
     }

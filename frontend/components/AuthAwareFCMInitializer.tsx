@@ -12,10 +12,10 @@ export default function AuthAwareFCMInitializer() {
     if (status === 'loading') return;
     
     if (session?.user) {
-      console.log(`✅ FCM: User authenticated: ${session.user.email}`);
+      (() => {})(`✅ FCM: User authenticated: ${session.user.email}`);
       // Di sini bisa tambahkan logic FCM initialization untuk user yang authenticated
     } else {
-      console.log('🔐 FCM: User not authenticated');
+      (() => {})('🔐 FCM: User not authenticated');
     }
   }, [session, status]);
 

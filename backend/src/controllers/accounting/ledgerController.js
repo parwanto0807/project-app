@@ -561,14 +561,14 @@ class LedgerController {
               where: { id: pinjaman.id },
               data: { status: "DRAFT" },
             });
-            console.log(`✅ Pinjaman ${pinjaman.id} dikembalikan ke status DRAFT`);
+            (() => {})(`✅ Pinjaman ${pinjaman.id} dikembalikan ke status DRAFT`);
           }
         }
 
         return voidedLedger;
       });
 
-      console.log(`🚫 Ledger VOIDED: ${target.ledgerNumber} by ${userId} | Reason: ${voidReason}`);
+      (() => {})(`🚫 Ledger VOIDED: ${target.ledgerNumber} by ${userId} | Reason: ${voidReason}`);
 
       return res.status(200).json({
         success: true,

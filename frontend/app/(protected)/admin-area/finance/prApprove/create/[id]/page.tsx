@@ -59,7 +59,7 @@ export default function PRCreatePageAdminApprove() {
     // Di page.tsx - perbaiki handleCreateUangMuka
     const handleCreateUangMuka = async (submitData: SubmitDataWithFile): Promise<void> => {
         try {
-            console.log("📤 SubmitData dari form:", {
+            (() => {})("📤 SubmitData dari form:", {
                 data: submitData.data,
                 file: submitData.file?.name || "Tidak ada file",
                 idFromUrl,
@@ -67,7 +67,7 @@ export default function PRCreatePageAdminApprove() {
 
             const result = await createUangMuka(submitData);
 
-            console.log("✅ Success response:", result);
+            (() => {})("✅ Success response:", result);
             // toast.success("Uang Muka berhasil dibuat!");
             router.push("/admin-area/logistic/prVerify");
         } catch (unknownError) {

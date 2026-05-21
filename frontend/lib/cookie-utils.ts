@@ -7,18 +7,18 @@ export async function getCookieHeader(): Promise<string> {
     const allCookies = store.getAll();
 
     // 🔍 DEBUG: Log semua cookies yang tersedia
-    console.log("🍪 [COOKIE DEBUG] All cookies:", allCookies);
+    (() => {})("🍪 [COOKIE DEBUG] All cookies:", allCookies);
 
     // Cari accessToken secara spesifik
     const accessToken = store.get("accessToken");
-    console.log(
+    (() => {})(
       "🍪 [COOKIE DEBUG] Access token found:",
       accessToken ? "YES" : "NO"
     );
 
     if (!accessToken) {
       console.warn("🍪 [COOKIE DEBUG] Access token tidak ditemukan!");
-      console.log(
+      (() => {})(
         "🍪 [COOKIE DEBUG] Available cookie names:",
         allCookies.map((c) => c.name)
       );
@@ -28,7 +28,7 @@ export async function getCookieHeader(): Promise<string> {
     const cookieHeader = allCookies
       .map((c) => `${c.name}=${c.value}`)
       .join("; ");
-    console.log("🍪 [COOKIE DEBUG] Final cookie header:", cookieHeader);
+    (() => {})("🍪 [COOKIE DEBUG] Final cookie header:", cookieHeader);
 
     return cookieHeader;
   } catch (error) {

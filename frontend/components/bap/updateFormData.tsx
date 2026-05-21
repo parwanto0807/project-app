@@ -689,7 +689,7 @@ export function UpdateBAPForm({
     // Fungsi addPhotosFromSPK - tambahkan debugging
     const addPhotosFromSPK = (selectedSpkPhotos: SpkPhoto[]) => {
         setIsDialogOpen(true);
-        console.log('Adding photos from SPK:', selectedSpkPhotos.map(p => ({
+        (() => {})('Adding photos from SPK:', selectedSpkPhotos.map(p => ({
             id: p.id,
             originalPath: p.imageUrl,
             resolvedUrl: getImageUrlBap(p.imageUrl)

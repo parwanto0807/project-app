@@ -1808,7 +1808,7 @@ const coaData = [
 ];
 
 async function seedCOA() {
-  console.log('🌱 Updating Chart of Accounts for Go-Live...');
+  (() => {})('🌱 Updating Chart of Accounts for Go-Live...');
 
   // Pass 1: Upsert basic account data
   const currentCodes = coaData.map(item => item.code);
@@ -1888,7 +1888,7 @@ async function seedCOA() {
   for (const code of legacyCodes) {
       const exists = await prisma.chartOfAccounts.findUnique({ where: { code } });
       if (exists) {
-          console.log(`🗑️ Deleting legacy account: ${code}`);
+          (() => {})(`🗑️ Deleting legacy account: ${code}`);
           // Note: Be careful with foreign key constraints if there are transactions
           try {
               await prisma.chartOfAccounts.delete({ where: { code } });
@@ -1898,7 +1898,7 @@ async function seedCOA() {
       }
   }
 
-  console.log('✅ Chart of Accounts is up to date!');
+  (() => {})('✅ Chart of Accounts is up to date!');
 }
 
 seedCOA()

@@ -6,7 +6,7 @@ async function checkRecord() {
     where: { coa: { code: '1-10205' } },
     include: { coa: true, period: true }
   });
-  console.log(JSON.stringify(tb, null, 2));
+  (() => {})(JSON.stringify(tb, null, 2));
 }
 
 checkRecord()

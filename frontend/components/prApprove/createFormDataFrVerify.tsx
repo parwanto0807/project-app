@@ -187,7 +187,7 @@ export function PrCreateFormFrVerify({
                     form.setValue("keterangan", text);
                 }
 
-                console.log("✅ Form values set:", {
+                (() => {})("✅ Form values set:", {
                     prId: idFromUrl,
                     spkId: selectedPR.spk?.id || "null",
                     totalAmount,
@@ -371,7 +371,7 @@ export function PrCreateFormFrVerify({
 
     // useEffect(() => {
     //     if (Object.keys(form.formState.errors).length > 0) {
-    //         console.log("Validation Errors:", form.formState.errors);
+    //         (() => {})("Validation Errors:", form.formState.errors);
     //     }
     // }, [form.formState.errors]);
 

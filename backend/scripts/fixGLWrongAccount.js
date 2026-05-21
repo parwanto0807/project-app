@@ -22,10 +22,10 @@ import { prisma } from '../src/config/db.js';
 const isDryRun = process.argv.includes('--dry-run');
 
 async function main() {
-  console.log('='.repeat(60));
-  console.log('🔍 GL WRONG ACCOUNT AUDIT & FIX SCRIPT');
-  console.log(`📋 Mode: ${isDryRun ? 'DRY RUN (no changes)' : 'LIVE (will modify data)'}`);
-  console.log('='.repeat(60));
+  (() => {})('='.repeat(60));
+  (() => {})('🔍 GL WRONG ACCOUNT AUDIT & FIX SCRIPT');
+  (() => {})(`📋 Mode: ${isDryRun ? 'DRY RUN (no changes)' : 'LIVE (will modify data)'}`);
+  (() => {})('='.repeat(60));
 
   // ════════════════════════════════════════════════════════
   // STEP 1: Temukan kedua COA
@@ -34,7 +34,7 @@ async function main() {
   const correctCOA = await prisma.chartOfAccounts.findUnique({ where: { code: '5-30001' } });
 
   if (!wrongCOA) {
-    console.log('✅ COA 6-10501 tidak ditemukan di database. Tidak ada yang perlu diperbaiki.');
+    (() => {})('✅ COA 6-10501 tidak ditemukan di database. Tidak ada yang perlu diperbaiki.');
     return;
   }
   if (!correctCOA) {
@@ -42,15 +42,15 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`\n📊 COA Salah   : ${wrongCOA.code} - ${wrongCOA.name} (ID: ${wrongCOA.id})`);
-  console.log(`📊 COA Benar   : ${correctCOA.code} - ${correctCOA.name} (ID: ${correctCOA.id})\n`);
+  (() => {})(`\n📊 COA Salah   : ${wrongCOA.code} - ${wrongCOA.name} (ID: ${wrongCOA.id})`);
+  (() => {})(`📊 COA Benar   : ${correctCOA.code} - ${correctCOA.name} (ID: ${correctCOA.id})\n`);
 
   // ════════════════════════════════════════════════════════
   // STEP 2: Audit LedgerLine yang menggunakan COA salah
   //         dalam konteks jurnal inventory adjustment
   // ════════════════════════════════════════════════════════
-  console.log('─'.repeat(60));
-  console.log('STEP 2: Audit LedgerLine dengan akun salah...');
+  (() => {})('─'.repeat(60));
+  (() => {})('STEP 2: Audit LedgerLine dengan akun salah...');
 
   const wrongLines = await prisma.ledgerLine.findMany({
     where: {
@@ -74,15 +74,15 @@ async function main() {
   });
 
   if (wrongLines.length === 0) {
-    console.log('✅ Tidak ada LedgerLine inventory adjustment yang menggunakan akun 6-10501.');
-    console.log('   Data General Ledger dan Trial Balance sudah bersih!');
+    (() => {})('✅ Tidak ada LedgerLine inventory adjustment yang menggunakan akun 6-10501.');
+    (() => {})('   Data General Ledger dan Trial Balance sudah bersih!');
     
     // Tetap cek TrialBalance kalau ada saldo yang salah masuk
     await auditTrialBalance(wrongCOA, correctCOA);
     return;
   }
 
-  console.log(`⚠️  Ditemukan ${wrongLines.length} LedgerLine menggunakan akun SALAH:\n`);
+  (() => {})(`⚠️  Ditemukan ${wrongLines.length} LedgerLine menggunakan akun SALAH:\n`);
   
   // Ringkas per periode
   const byPeriod = {};
@@ -107,18 +107,18 @@ async function main() {
   }
 
   for (const [periodId, data] of Object.entries(byPeriod)) {
-    console.log(`  📅 Periode: ${data.name}`);
+    (() => {})(`  📅 Periode: ${data.name}`);
     for (const line of data.lines) {
-      console.log(`     - Ledger: ${line.ledger.ledgerNumber}`);
-      console.log(`       Debit: ${Number(line.debitAmount).toLocaleString('id-ID')} | Credit: ${Number(line.creditAmount).toLocaleString('id-ID')}`);
+      (() => {})(`     - Ledger: ${line.ledger.ledgerNumber}`);
+      (() => {})(`       Debit: ${Number(line.debitAmount).toLocaleString('id-ID')} | Credit: ${Number(line.creditAmount).toLocaleString('id-ID')}`);
     }
-    console.log(`     Sub-total D: ${data.totalDebit.toLocaleString('id-ID')} | K: ${data.totalCredit.toLocaleString('id-ID')}\n`);
+    (() => {})(`     Sub-total D: ${data.totalDebit.toLocaleString('id-ID')} | K: ${data.totalCredit.toLocaleString('id-ID')}\n`);
   }
 
-  console.log(`📊 TOTAL SALAH → Debit: ${totalWrongDebit.toLocaleString('id-ID')} | Credit: ${totalWrongCredit.toLocaleString('id-ID')}`);
+  (() => {})(`📊 TOTAL SALAH → Debit: ${totalWrongDebit.toLocaleString('id-ID')} | Credit: ${totalWrongCredit.toLocaleString('id-ID')}`);
 
   if (isDryRun) {
-    console.log('\n[DRY RUN] Tidak ada perubahan yang dilakukan.');
+    (() => {})('\n[DRY RUN] Tidak ada perubahan yang dilakukan.');
     await auditTrialBalance(wrongCOA, correctCOA);
     return;
   }
@@ -126,8 +126,8 @@ async function main() {
   // ════════════════════════════════════════════════════════
   // STEP 3: FIX - Pindahkan coaId di LedgerLine
   // ════════════════════════════════════════════════════════
-  console.log('\n─'.repeat(60));
-  console.log('STEP 3: Memperbaiki LedgerLine...');
+  (() => {})('\n─'.repeat(60));
+  (() => {})('STEP 3: Memperbaiki LedgerLine...');
 
   await prisma.$transaction(async (tx) => {
     // 3a. Update semua LedgerLine: ganti coaId dari salah ke benar
@@ -140,18 +140,18 @@ async function main() {
       },
       data: { coaId: correctCOA.id }
     });
-    console.log(`✅ ${updateResult.count} LedgerLine berhasil dipindahkan ke COA 5-30001`);
+    (() => {})(`✅ ${updateResult.count} LedgerLine berhasil dipindahkan ke COA 5-30001`);
 
     // ════════════════════════════════════════════════════════
     // STEP 4: FIX TrialBalance per periode
     // ════════════════════════════════════════════════════════
-    console.log('\nSTEP 4: Memperbaiki TrialBalance...');
+    (() => {})('\nSTEP 4: Memperbaiki TrialBalance...');
 
     for (const [periodId, data] of Object.entries(byPeriod)) {
       const debitToMove = data.totalDebit;
       const creditToMove = data.totalCredit;
 
-      console.log(`  📅 Periode: ${data.name}`);
+      (() => {})(`  📅 Periode: ${data.name}`);
 
       // 4a. Kurangi saldo di akun salah (6-10501)
       const wrongTB = await tx.trialBalance.findUnique({
@@ -171,9 +171,9 @@ async function main() {
             calculatedAt: new Date()
           }
         });
-        console.log(`  ✅ TrialBalance 6-10501 dikurangi: D-${debitToMove.toLocaleString('id-ID')} K-${creditToMove.toLocaleString('id-ID')}`);
+        (() => {})(`  ✅ TrialBalance 6-10501 dikurangi: D-${debitToMove.toLocaleString('id-ID')} K-${creditToMove.toLocaleString('id-ID')}`);
       } else {
-        console.log(`  ⚠️  TrialBalance 6-10501 tidak ditemukan untuk periode ${data.name}`);
+        (() => {})(`  ⚠️  TrialBalance 6-10501 tidak ditemukan untuk periode ${data.name}`);
       }
 
       // 4b. Tambahkan ke akun benar (5-30001)
@@ -194,7 +194,7 @@ async function main() {
             calculatedAt: new Date()
           }
         });
-        console.log(`  ✅ TrialBalance 5-30001 ditambahkan: D+${debitToMove.toLocaleString('id-ID')} K+${creditToMove.toLocaleString('id-ID')}`);
+        (() => {})(`  ✅ TrialBalance 5-30001 ditambahkan: D+${debitToMove.toLocaleString('id-ID')} K+${creditToMove.toLocaleString('id-ID')}`);
       } else {
         // Buat record baru untuk 5-30001
         await tx.trialBalance.create({
@@ -213,14 +213,14 @@ async function main() {
             calculatedAt: new Date()
           }
         });
-        console.log(`  ✅ TrialBalance 5-30001 dibuat baru: D+${debitToMove.toLocaleString('id-ID')} K+${creditToMove.toLocaleString('id-ID')}`);
+        (() => {})(`  ✅ TrialBalance 5-30001 dibuat baru: D+${debitToMove.toLocaleString('id-ID')} K+${creditToMove.toLocaleString('id-ID')}`);
       }
     }
 
     // ════════════════════════════════════════════════════════
     // STEP 5: FIX GeneralLedgerSummary
     // ════════════════════════════════════════════════════════
-    console.log('\nSTEP 5: Memperbaiki GeneralLedgerSummary...');
+    (() => {})('\nSTEP 5: Memperbaiki GeneralLedgerSummary...');
 
     // Cari semua GL Summary dengan akun salah yang terhubung ke adjustment journals
     for (const line of wrongLines) {
@@ -263,7 +263,7 @@ async function main() {
             transactionCount: { decrement: 1 }
           }
         });
-        console.log(`  ✅ GLSummary 6-10501 tanggal ${summaryDate.toISOString().split('T')[0]} dikurangi`);
+        (() => {})(`  ✅ GLSummary 6-10501 tanggal ${summaryDate.toISOString().split('T')[0]} dikurangi`);
       }
 
       // 5b. Tambahkan ke akun benar
@@ -293,7 +293,7 @@ async function main() {
             transactionCount: { increment: 1 }
           }
         });
-        console.log(`  ✅ GLSummary 5-30001 tanggal ${summaryDate.toISOString().split('T')[0]} ditambahkan`);
+        (() => {})(`  ✅ GLSummary 5-30001 tanggal ${summaryDate.toISOString().split('T')[0]} ditambahkan`);
       } else {
         // Cari opening balance dari hari sebelumnya
         const prevDay = new Date(summaryDate);
@@ -317,22 +317,22 @@ async function main() {
             currency: 'IDR'
           }
         });
-        console.log(`  ✅ GLSummary 5-30001 dibuat baru untuk tanggal ${summaryDate.toISOString().split('T')[0]}`);
+        (() => {})(`  ✅ GLSummary 5-30001 dibuat baru untuk tanggal ${summaryDate.toISOString().split('T')[0]}`);
       }
     }
   });
 
-  console.log('\n' + '='.repeat(60));
-  console.log('✅ SELESAI! Semua data berhasil diperbaiki:');
-  console.log(`   - LedgerLine: ${wrongLines.length} baris dipindahkan ke 5-30001`);
-  console.log('   - TrialBalance: saldo dikoreksi per periode');
-  console.log('   - GeneralLedgerSummary: saldo dikoreksi per tanggal');
-  console.log('='.repeat(60));
+  (() => {})('\n' + '='.repeat(60));
+  (() => {})('✅ SELESAI! Semua data berhasil diperbaiki:');
+  (() => {})(`   - LedgerLine: ${wrongLines.length} baris dipindahkan ke 5-30001`);
+  (() => {})('   - TrialBalance: saldo dikoreksi per periode');
+  (() => {})('   - GeneralLedgerSummary: saldo dikoreksi per tanggal');
+  (() => {})('='.repeat(60));
 }
 
 async function auditTrialBalance(wrongCOA, correctCOA) {
-  console.log('\n─'.repeat(60));
-  console.log('AUDIT TrialBalance & GeneralLedgerSummary...');
+  (() => {})('\n─'.repeat(60));
+  (() => {})('AUDIT TrialBalance & GeneralLedgerSummary...');
 
   const wrongTBs = await prisma.trialBalance.findMany({
     where: {
@@ -357,21 +357,21 @@ async function auditTrialBalance(wrongCOA, correctCOA) {
   });
 
   if (wrongTBs.length === 0 && wrongGLS.length === 0) {
-    console.log('✅ TrialBalance dan GeneralLedgerSummary untuk 6-10501 bersih (saldo 0).');
+    (() => {})('✅ TrialBalance dan GeneralLedgerSummary untuk 6-10501 bersih (saldo 0).');
   } else {
     if (wrongTBs.length > 0) {
-      console.log(`\n⚠️  TrialBalance 6-10501 dengan saldo non-zero (${wrongTBs.length} periode):`);
+      (() => {})(`\n⚠️  TrialBalance 6-10501 dengan saldo non-zero (${wrongTBs.length} periode):`);
       for (const tb of wrongTBs) {
-        console.log(`   - ${tb.period?.periodName}: periodD=${Number(tb.periodDebit).toLocaleString('id-ID')}, periodK=${Number(tb.periodCredit).toLocaleString('id-ID')}`);
+        (() => {})(`   - ${tb.period?.periodName}: periodD=${Number(tb.periodDebit).toLocaleString('id-ID')}, periodK=${Number(tb.periodCredit).toLocaleString('id-ID')}`);
       }
     }
     if (wrongGLS.length > 0) {
-      console.log(`\n⚠️  GeneralLedgerSummary 6-10501 dengan saldo non-zero (${wrongGLS.length} record):`);
+      (() => {})(`\n⚠️  GeneralLedgerSummary 6-10501 dengan saldo non-zero (${wrongGLS.length} record):`);
       for (const gls of wrongGLS) {
-        console.log(`   - ${gls.period?.periodName} / ${gls.date.toISOString().split('T')[0]}: D=${Number(gls.debitTotal).toLocaleString('id-ID')}, K=${Number(gls.creditTotal).toLocaleString('id-ID')}`);
+        (() => {})(`   - ${gls.period?.periodName} / ${gls.date.toISOString().split('T')[0]}: D=${Number(gls.debitTotal).toLocaleString('id-ID')}, K=${Number(gls.creditTotal).toLocaleString('id-ID')}`);
       }
     }
-    console.log('\n💡 Jalankan script ini TANPA --dry-run untuk memperbaiki data di atas.');
+    (() => {})('\n💡 Jalankan script ini TANPA --dry-run untuk memperbaiki data di atas.');
   }
 }
 

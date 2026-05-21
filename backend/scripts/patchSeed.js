@@ -88,12 +88,12 @@ const newLogic = `  // Pass 2: Setup Parent-Child Relations automatically based 
 
 // Use a more relaxed match just in case of whitespace
 const startIndex = content.indexOf('// Pass 2: Setup Parent-Child Relations');
-const endIndex = content.indexOf('console.log(\'✅ Chart of Accounts is up to date!\');');
+const endIndex = content.indexOf('(() => {})(\'✅ Chart of Accounts is up to date!\');');
 
 if (startIndex !== -1 && endIndex !== -1) {
     const finalContent = content.substring(0, startIndex) + newLogic + '\n\n  ' + content.substring(endIndex);
     fs.writeFileSync(filePath, finalContent);
-    console.log('Successfully updated seedChartOfAccounts.js');
+    (() => {})('Successfully updated seedChartOfAccounts.js');
 } else {
     console.error('Could not find markers', { startIndex, endIndex });
     process.exit(1);

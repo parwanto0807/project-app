@@ -301,7 +301,7 @@ async function main() {
     }
   ]
 
-  console.log('Starting Accounting & Master SOP seeding...')
+  (() => {})('Starting Accounting & Master SOP seeding...')
 
   for (const sopData of accountingSOPs) {
     const existing = await prisma.document.findFirst({
@@ -309,7 +309,7 @@ async function main() {
     })
 
     if (existing) {
-      console.log(`SOP "${sopData.title}" already exists, skipping...`)
+      (() => {})(`SOP "${sopData.title}" already exists, skipping...`)
       continue
     }
 
@@ -340,10 +340,10 @@ async function main() {
         }
       }
     })
-    console.log(`Created SOP: ${doc.title}`)
+    (() => {})(`Created SOP: ${doc.title}`)
   }
 
-  console.log('Accounting & Master SOP seeding completed.')
+  (() => {})('Accounting & Master SOP seeding completed.')
 }
 
 main()

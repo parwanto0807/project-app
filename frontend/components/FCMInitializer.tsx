@@ -39,7 +39,7 @@ export default function FCMInitializer() {
       if (success) {
         lastSavedToken.current = token;
         localStorage.setItem("fcm-token", token);
-        // console.log("🔐 [FCM] Token saved:", token);
+        // (() => {})("🔐 [FCM] Token saved:", token);
       }
     },
     [isAuthenticated] // Hapus dependency accessToken
@@ -164,7 +164,7 @@ export default function FCMInitializer() {
         if (!messaging) return;
         await deleteToken(messaging);
         localStorage.removeItem("fcm-token");
-        // console.log("🧹 [FCM] Token removed on logout");
+        // (() => {})("🧹 [FCM] Token removed on logout");
       } catch (err) {
         console.error("❌ [FCM] Logout cleanup error:", err);
       }

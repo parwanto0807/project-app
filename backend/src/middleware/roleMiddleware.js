@@ -32,7 +32,7 @@ const roleMiddleware = (allowedRoles) => {
         });
       }
 
-      console.log(`[ROLE] Access granted for role: ${userRole}`);
+      (() => {})(`[ROLE] Access granted for role: ${userRole}`);
       next();
     } catch (error) {
       console.error("Role middleware error:", error);

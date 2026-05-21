@@ -76,7 +76,7 @@ export const processBapImagesForPdf = async (bap: BAPData): Promise<BAPData> => 
         if (process.env.NODE_ENV !== "production" && originalUrl.includes("api.rylif-app.com/images")) {
             // Ubah https://api.rylif-app.com/images/... menjadi /api-proxy/images/...
             originalUrl = originalUrl.replace("https://api.rylif-app.com/images", "/api-proxy/images");
-            console.log("Using proxy URL:", originalUrl);
+            (() => {})("Using proxy URL:", originalUrl);
         }
         // Cek ekstensi file, jika .webp atau tidak diketahui, lakukan konversi
         // Sebenarnya aman untuk convert semua agar konsisten, tapi kita bisa filter

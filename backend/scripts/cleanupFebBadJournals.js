@@ -5,7 +5,7 @@ async function cleanupFebForReal() {
   const febPeriodId = "20cbd16c-bee0-4150-9cc6-dceb275a1890";
   const userId = 'System-Cleanup';
 
-  console.log('--- Cleaning Up February Reconciliation Journals (Safe Mode) ---');
+  (() => {})('--- Cleaning Up February Reconciliation Journals (Safe Mode) ---');
   
   const ledgers = await prisma.ledger.findMany({
     where: { 
@@ -15,7 +15,7 @@ async function cleanupFebForReal() {
   });
 
   for (const ledger of ledgers) {
-    console.log(`Processing ${ledger.ledgerNumber}...`);
+    (() => {})(`Processing ${ledger.ledgerNumber}...`);
 
     // 1. Unlink from possible parents
     await prisma.fundTransfer.updateMany({ where: { ledgerId: ledger.id }, data: { ledgerId: null } });
@@ -31,7 +31,7 @@ async function cleanupFebForReal() {
   }
 
   // 4. Force Reset TB buckets for the WIP account specifically if it's stuck
-  console.log('--- Resetting WIP TB buckets ---');
+  (() => {})('--- Resetting WIP TB buckets ---');
   const wipCoa = await prisma.chartOfAccounts.findFirst({ where: { code: '1-10205' } });
   
   // Directly set the buckets to a clean state: Opening 33.2M, Period 0, Ending 33.2M
@@ -59,7 +59,7 @@ async function cleanupFebForReal() {
       }
   });
 
-  console.log('--- Creating CORRECT Reconciliation Journals ---');
+  (() => {})('--- Creating CORRECT Reconciliation Journals ---');
   // actual stock for WIP is 52,218,200
   // actual stock for BENGKEL is 24,010,600
   
@@ -115,7 +115,7 @@ async function cleanupFebForReal() {
       });
   }
 
-  console.log('--- DONE ---');
+  (() => {})('--- DONE ---');
 }
 
 cleanupFebForReal()

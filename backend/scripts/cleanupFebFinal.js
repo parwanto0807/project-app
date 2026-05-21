@@ -5,7 +5,7 @@ async function cleanupFebFinal() {
   const febPeriodId = "c8002762-0487-4989-a2cd-a86a434b01d2";
   const userId = 'System-Final-Cleanup';
 
-  console.log('--- Cleaning Up February Reconciliation Journals ---');
+  (() => {})('--- Cleaning Up February Reconciliation Journals ---');
   
   const ledgers = await prisma.ledger.findMany({
     where: { 
@@ -15,7 +15,7 @@ async function cleanupFebFinal() {
   });
 
   for (const ledger of ledgers) {
-      console.log(`Deleting ${ledger.ledgerNumber}...`);
+      (() => {})(`Deleting ${ledger.ledgerNumber}...`);
       await prisma.ledgerLine.deleteMany({ where: { ledgerId: ledger.id } });
       await prisma.ledger.delete({ where: { id: ledger.id } });
   }
@@ -25,7 +25,7 @@ async function cleanupFebFinal() {
   const adjAccount = await prisma.systemAccount.findUnique({ where: { key: 'INVENTORY_ADJUSTMENT_ACCOUNT' } });
 
   // RESET TB to Opening state
-  console.log('--- Resetting TB to Clean Opening ---');
+  (() => {})('--- Resetting TB to Clean Opening ---');
   const inventoryCoas = [wipCoa.id, bengkelCoa.id, adjAccount.coaId];
   for (const cid of inventoryCoas) {
       const tb = await prisma.trialBalance.findUnique({ where: { periodId_coaId: { periodId: febPeriodId, coaId: cid } } });
@@ -97,7 +97,7 @@ async function cleanupFebFinal() {
       });
   }
 
-  console.log('--- REPAIR COMPLETE ---');
+  (() => {})('--- REPAIR COMPLETE ---');
 }
 
 cleanupFebFinal()

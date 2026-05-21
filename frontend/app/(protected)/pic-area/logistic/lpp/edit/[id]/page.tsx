@@ -114,7 +114,7 @@ async function uploadFotoAfterCreate(
             // GUNAKAN INDEX untuk access fotoBuktiMap
             const files = fotoBuktiMap[index];
             if (!files?.length) {
-                console.log(`⏭️ No files for detail index ${index}, id: ${detail.id}`);
+                (() => {})(`⏭️ No files for detail index ${index}, id: ${detail.id}`);
                 return [];
             }
 

@@ -219,7 +219,7 @@ export const createBAP = async (
       });
 
       for (const [key, value] of formData.entries()) {
-        console.log(key, value instanceof File ? `File: ${value.name}` : value);
+        (() => {})(key, value instanceof File ? `File: ${value.name}` : value);
       }
 
       res = await fetch(`${API_BASE_URL}/api/bap/createBAP`, {

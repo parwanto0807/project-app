@@ -9,7 +9,7 @@ async function findGhostTransaction() {
         });
 
         if (!coa) {
-            console.log('COA 4-10101 not found');
+            (() => {})('COA 4-10101 not found');
             return;
         }
 
@@ -19,9 +19,9 @@ async function findGhostTransaction() {
         const dbStart = getJakartaStartOfDay(startDate);
         const dbEnd = getJakartaEndOfDay(endDate);
 
-        console.log(`Searching with range matching Financial Report:`);
-        console.log(`Start (UTC): ${dbStart.toISOString()}`);
-        console.log(`End (UTC):   ${dbEnd.toISOString()}`);
+        (() => {})(`Searching with range matching Financial Report:`);
+        (() => {})(`Start (UTC): ${dbStart.toISOString()}`);
+        (() => {})(`End (UTC):   ${dbEnd.toISOString()}`);
 
         const transactions = await prisma.ledgerLine.findMany({
             where: {
@@ -39,14 +39,14 @@ async function findGhostTransaction() {
             }
         });
 
-        console.log(`Found ${transactions.length} transactions.`);
+        (() => {})(`Found ${transactions.length} transactions.`);
         
         transactions.forEach(t => {
-            console.log(`- Date (UTC): ${t.ledger.transactionDate.toISOString()}`);
-            console.log(`  Amount: Cr ${t.creditAmount} / Dr ${t.debitAmount}`);
-            console.log(`  Desc: ${t.description || t.ledger.description}`);
-            console.log(`  Ledger Num: ${t.ledger.ledgerNumber}`);
-            console.log(`  Reference: ${t.ledger.referenceNumber}`);
+            (() => {})(`- Date (UTC): ${t.ledger.transactionDate.toISOString()}`);
+            (() => {})(`  Amount: Cr ${t.creditAmount} / Dr ${t.debitAmount}`);
+            (() => {})(`  Desc: ${t.description || t.ledger.description}`);
+            (() => {})(`  Ledger Num: ${t.ledger.ledgerNumber}`);
+            (() => {})(`  Reference: ${t.ledger.referenceNumber}`);
         });
 
     } catch (e) {

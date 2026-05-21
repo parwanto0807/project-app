@@ -138,8 +138,8 @@ class InvoiceController {
         approvedById,
       } = req.body;
 
-      console.log("SalesOrderId from request:", salesOrderId);
-      console.log("Items to update:", items);
+      (() => {})("SalesOrderId from request:", salesOrderId);
+      (() => {})("Items to update:", items);
 
       // Hitung ulang total
       const calculatedTotals = this.calculateInvoiceTotals(items);
@@ -195,7 +195,7 @@ class InvoiceController {
         let updatedSalesOrderItemsCount = 0;
 
         for (const item of items) {
-          console.log("Processing item:", {
+          (() => {})("Processing item:", {
             soItemId: item.soItemId,
             productId: item.itemCode, // itemCode adalah productId
             salesOrderId: salesOrderId,
@@ -223,7 +223,7 @@ class InvoiceController {
                 },
               });
 
-              console.log(
+              (() => {})(
                 `Update result for item ${item.soItemId}:`,
                 updateResult
               );
@@ -231,7 +231,7 @@ class InvoiceController {
 
               // Jika tidak ada yang terupdate, coba alternatif
               if (updateResult.count === 0) {
-                console.log(
+                (() => {})(
                   `No records updated with productId, trying with soItemId only...`
                 );
 
@@ -248,7 +248,7 @@ class InvoiceController {
                     lineTotal: item.lineTotal,
                   },
                 });
-                console.log(`Fallback update successful:`, fallbackResult);
+                (() => {})(`Fallback update successful:`, fallbackResult);
                 updatedSalesOrderItemsCount++;
               }
             } catch (error) {
@@ -271,7 +271,7 @@ class InvoiceController {
                     lineTotal: item.lineTotal,
                   },
                 });
-                console.log(`Last resort update successful:`, lastResortResult);
+                (() => {})(`Last resort update successful:`, lastResortResult);
                 updatedSalesOrderItemsCount++;
               } catch (lastError) {
                 console.error(
@@ -281,7 +281,7 @@ class InvoiceController {
               }
             }
           } else {
-            console.log("Skipping item - missing required fields:", {
+            (() => {})("Skipping item - missing required fields:", {
               soItemId: item.soItemId,
               productId: item.itemCode,
               salesOrderId: salesOrderId,
@@ -289,7 +289,7 @@ class InvoiceController {
           }
         }
 
-        console.log(
+        (() => {})(
           `Total SalesOrderItems updated: ${updatedSalesOrderItemsCount}`
         );
 
@@ -482,7 +482,7 @@ class InvoiceController {
         let updatedSalesOrderItemsCount = 0;
 
         for (const item of items) {
-          console.log("Processing item:", {
+          (() => {})("Processing item:", {
             soItemId: item.soItemId,
             productId: item.itemCode, // itemCode adalah productId
             salesOrderId: salesOrderId,
@@ -510,7 +510,7 @@ class InvoiceController {
                 },
               });
 
-              // console.log(
+              // (() => {})(
               //   `Update result for item ${item.soItemId}:`,
               //   updateResult
               // );
@@ -518,7 +518,7 @@ class InvoiceController {
 
               // Jika tidak ada yang terupdate, coba alternatif
               if (updateResult.count === 0) {
-                console.log(
+                (() => {})(
                   `No records updated with productId, trying with soItemId only...`
                 );
 
@@ -535,7 +535,7 @@ class InvoiceController {
                     lineTotal: item.lineTotal,
                   },
                 });
-                // console.log(`Fallback update successful:`, fallbackResult);
+                // (() => {})(`Fallback update successful:`, fallbackResult);
                 updatedSalesOrderItemsCount++;
               }
             } catch (error) {
@@ -558,7 +558,7 @@ class InvoiceController {
                     lineTotal: item.lineTotal,
                   },
                 });
-                // console.log(`Last resort update successful:`, lastResortResult);
+                // (() => {})(`Last resort update successful:`, lastResortResult);
                 updatedSalesOrderItemsCount++;
               } catch (lastError) {
                 console.error(
@@ -568,7 +568,7 @@ class InvoiceController {
               }
             }
           } else {
-            console.log("Skipping item - missing required fields:", {
+            (() => {})("Skipping item - missing required fields:", {
               soItemId: item.soItemId,
               productId: item.itemCode,
               salesOrderId: salesOrderId,
@@ -576,7 +576,7 @@ class InvoiceController {
           }
         }
 
-        // console.log(
+        // (() => {})(
         //   `Total SalesOrderItems updated: ${updatedSalesOrderItemsCount}`
         // );
 
@@ -657,7 +657,7 @@ class InvoiceController {
           },
         });
 
-        // console.log(
+        // (() => {})(
         //   `📢 Sending Invoice notification to ${adminUsers.length} admin users`
         // );
 
@@ -703,7 +703,7 @@ class InvoiceController {
             },
           });
 
-          // console.log(`✅ Invoice notification sent to admin: ${admin.email}`);
+          // (() => {})(`✅ Invoice notification sent to admin: ${admin.email}`);
         }
       } catch (notificationError) {
         // Jangan gagalkan create invoice jika notifikasi gagal
@@ -732,7 +732,7 @@ class InvoiceController {
     try {
       const { id } = req.params;
 
-      // console.log("🔄 Approving invoice ID:", id);
+      // (() => {})("🔄 Approving invoice ID:", id);
 
       if (!id) {
         return res.status(400).json({
@@ -771,7 +771,7 @@ class InvoiceController {
         });
       }
 
-      // console.log("✅ Invoice approved:", updatedInvoice.invoiceNumber);
+      // (() => {})("✅ Invoice approved:", updatedInvoice.invoiceNumber);
 
       return res.json({
         success: true,
@@ -1509,7 +1509,7 @@ class InvoiceController {
         skipLedger = false
       } = req.body;
 
-      // console.log('📝 Payment Request Data:', {
+      // (() => {})('📝 Payment Request Data:', {
       //   invoiceId: id,
       //   amount,
       //   adminFee,
@@ -1742,7 +1742,7 @@ class InvoiceController {
       const collectionRate = totalAllInvoices > 0 ? paidInvoices / totalAllInvoices : 0;
 
       // // Debug log untuk memastikan data benar
-      // console.log("DEBUG Invoice Stats:", {
+      // (() => {})("DEBUG Invoice Stats:", {
       //   today,
       //   mtd,
       //   ytd,
@@ -1995,7 +1995,7 @@ class InvoiceController {
 
         // B. Debit AR (Total Tagihan)
         // AR harus mencatat total piutang (grandTotal)
-        console.log(`[POSTING] Creating AR Debit Entry: ${invoice.grandTotal}`);
+        (() => {})(`[POSTING] Creating AR Debit Entry: ${invoice.grandTotal}`);
         const arLine = await tx.ledgerLine.create({
           data: {
             ledgerId: ledger.id,
@@ -2012,13 +2012,13 @@ class InvoiceController {
             salesOrderId: invoice.salesOrderId
           }
         });
-        console.log(`[POSTING] AR Line Created: ID=${arLine.id}, Debit=${arLine.debitAmount}`);
+        (() => {})(`[POSTING] AR Line Created: ID=${arLine.id}, Debit=${arLine.debitAmount}`);
 
         // C. Credit Sales Revenue (Per Lines)
         // Setiap item invoice dicatat sebagai revenue
         let lineSeq = 2;
         let totalRevenue = 0;
-        console.log(`[POSTING] Creating ${invoice.items.length} Revenue Lines`);
+        (() => {})(`[POSTING] Creating ${invoice.items.length} Revenue Lines`);
         
         for (const item of invoice.items) {
            // Find Product Specific COA if needed. For now use Default.
@@ -2057,15 +2057,15 @@ class InvoiceController {
              // Step 5: lineTotal = amount after discount (revenue portion, excluding tax)
              itemAmount = amountAfterDiscount;
              
-             console.log(`[POSTING] ⚠️  LineTotal was 0, calculated:`);
-             console.log(`           Qty: ${qty} × UnitPrice: ${unitPrice} = Subtotal: ${subtotal}`);
-             console.log(`           Discount: ${discountAmount} (${discountPercent > 0 ? discountPercent + '%' : 'Fixed ' + discountFixed})`);
-             console.log(`           After Discount: ${amountAfterDiscount}`);
-             console.log(`           Tax (${taxRate}%): ${taxAmount}`);
-             console.log(`           → Revenue (lineTotal): ${itemAmount}`);
+             (() => {})(`[POSTING] ⚠️  LineTotal was 0, calculated:`);
+             (() => {})(`           Qty: ${qty} × UnitPrice: ${unitPrice} = Subtotal: ${subtotal}`);
+             (() => {})(`           Discount: ${discountAmount} (${discountPercent > 0 ? discountPercent + '%' : 'Fixed ' + discountFixed})`);
+             (() => {})(`           After Discount: ${amountAfterDiscount}`);
+             (() => {})(`           Tax (${taxRate}%): ${taxAmount}`);
+             (() => {})(`           → Revenue (lineTotal): ${itemAmount}`);
            }
            
-           console.log(`[POSTING] Item ${lineSeq - 1}: ${item.name}, Amount: ${itemAmount}`);
+           (() => {})(`[POSTING] Item ${lineSeq - 1}: ${item.name}, Amount: ${itemAmount}`);
            
            const revenueLine = await tx.ledgerLine.create({
              data: {
@@ -2083,7 +2083,7 @@ class InvoiceController {
              }
            });
            
-           console.log(`[POSTING] Revenue Line Created: ID=${revenueLine.id}, Line=${lineSeq}, Credit=${revenueLine.creditAmount}`);
+           (() => {})(`[POSTING] Revenue Line Created: ID=${revenueLine.id}, Line=${lineSeq}, Credit=${revenueLine.creditAmount}`);
            totalRevenue += itemAmount;
            lineSeq++;
         }
@@ -2095,7 +2095,7 @@ class InvoiceController {
         if (taxAmount > 0) {
            if (!vatOutAccount) throw new Error("VAT Account (PPN Keluaran) not found");
            
-           console.log(`[POSTING] Creating Tax Entry: ${taxAmount}`);
+           (() => {})(`[POSTING] Creating Tax Entry: ${taxAmount}`);
            taxLine = await tx.ledgerLine.create({
              data: {
                 ledgerId: ledger.id,
@@ -2111,7 +2111,7 @@ class InvoiceController {
                 salesOrderId: invoice.salesOrderId
              }
            });
-           console.log(`[POSTING] Tax Line Created: ID=${taxLine.id}, Credit=${taxLine.creditAmount}`);
+           (() => {})(`[POSTING] Tax Line Created: ID=${taxLine.id}, Credit=${taxLine.creditAmount}`);
            lineSeq++;
         }
 
@@ -2119,11 +2119,11 @@ class InvoiceController {
         const totalCredit = totalRevenue + taxAmount;
         const debitAmount = parseFloat(invoice.grandTotal);
         
-        console.log(`[POSTING] Validation:`);
-        console.log(`  - Total Debit (AR): ${debitAmount}`);
-        console.log(`  - Total Credit (Revenue + Tax): ${totalCredit}`);
-        console.log(`  - Revenue: ${totalRevenue}, Tax: ${taxAmount}`);
-        console.log(`  - Balance: ${debitAmount - totalCredit}`);
+        (() => {})(`[POSTING] Validation:`);
+        (() => {})(`  - Total Debit (AR): ${debitAmount}`);
+        (() => {})(`  - Total Credit (Revenue + Tax): ${totalCredit}`);
+        (() => {})(`  - Revenue: ${totalRevenue}, Tax: ${taxAmount}`);
+        (() => {})(`  - Balance: ${debitAmount - totalCredit}`);
         
         // Check if all items have zero amount
         if (totalRevenue === 0 && invoice.items.length > 0) {
@@ -2134,10 +2134,10 @@ class InvoiceController {
           throw new Error(`Journal entry not balanced! Debit: ${debitAmount}, Credit: ${totalCredit} (Revenue: ${totalRevenue} + Tax: ${taxAmount})`);
         }
 
-        console.log(`[POSTING] Journal Entry Complete. Total Lines: ${lineSeq - 1}`);
+        (() => {})(`[POSTING] Journal Entry Complete. Total Lines: ${lineSeq - 1}`);
         
         // F. Update Related Models
-        console.log(`[POSTING] Updating related accounting models...`);
+        (() => {})(`[POSTING] Updating related accounting models...`);
         
         // F1. Update Invoice ApprovalStatus to POSTED
         await tx.invoice.update({
@@ -2147,7 +2147,7 @@ class InvoiceController {
             notes: invoice.notes ? `${invoice.notes}\n[Posted to Journal: ${ledger.ledgerNumber}]` : `Posted to Journal: ${ledger.ledgerNumber}`
           }
         });
-        console.log(`[POSTING] ✓ Invoice approvalStatus updated to POSTED`);
+        (() => {})(`[POSTING] ✓ Invoice approvalStatus updated to POSTED`);
         
         // F2. Update Trial Balance for all affected COAs
         const affectedCOAs = new Map(); // coaId -> {debit, credit}
@@ -2211,7 +2211,7 @@ class InvoiceController {
             });
           }
         }
-        console.log(`[POSTING] ✓ Trial Balance updated for ${affectedCOAs.size} COAs`);
+        (() => {})(`[POSTING] ✓ Trial Balance updated for ${affectedCOAs.size} COAs`);
         
         // F3. Update General Ledger Summary (Daily)
         const transactionDate = new Date(invoice.invoiceDate);
@@ -2294,7 +2294,7 @@ class InvoiceController {
             }
           }
         }
-        console.log(`[POSTING] ✓ General Ledger Summary updated for ${transactionDate.toISOString().split('T')[0]}`);
+        (() => {})(`[POSTING] ✓ General Ledger Summary updated for ${transactionDate.toISOString().split('T')[0]}`);
         
         // G. Update Invoice Status to POSTED
         await tx.invoice.update({
@@ -2304,7 +2304,7 @@ class InvoiceController {
             approvalStatus: 'POSTED'    // Posting status: sudah di-posting ke GL
           }
         });
-        console.log(`[POSTING] ✓ Invoice status updated to UNPAID (Posted to GL, awaiting payment)`);
+        (() => {})(`[POSTING] ✓ Invoice status updated to UNPAID (Posted to GL, awaiting payment)`);
         
         return ledger;
       });

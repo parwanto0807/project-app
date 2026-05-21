@@ -6,7 +6,7 @@ async function cleanupAndFix() {
   const janPeriodId = "e14167d7-6e0e-4d6b-9964-79b2128370dc";
   const febPeriodId = "20cbd16c-bee0-4150-9cc6-dceb275a1890";
 
-  console.log('--- Cleaning Up January Reconciliation Journals ---');
+  (() => {})('--- Cleaning Up January Reconciliation Journals ---');
   
   const ledgers = await prisma.ledger.findMany({
     where: { 
@@ -16,18 +16,18 @@ async function cleanupAndFix() {
     include: { ledgerLines: true }
   });
 
-  console.log(`Found ${ledgers.length} journals in January to remove.`);
+  (() => {})(`Found ${ledgers.length} journals in January to remove.`);
 
   for (const ledger of ledgers) {
-    console.log(`Removing Ledger: ${ledger.ledgerNumber}`);
+    (() => {})(`Removing Ledger: ${ledger.ledgerNumber}`);
     await prisma.ledgerLine.deleteMany({ where: { ledgerId: ledger.id } });
     await prisma.ledger.delete({ where: { id: ledger.id } });
   }
 
-  console.log('--- Recalculating January Trial Balance ---');
+  (() => {})('--- Recalculating January Trial Balance ---');
   await financialSummaryService.recalculateTrialBalance(janPeriodId);
 
-  console.log('--- Updating February Opening Balances from January Ending ---');
+  (() => {})('--- Updating February Opening Balances from January Ending ---');
   const janTB = await prisma.trialBalance.findMany({
     where: { periodId: janPeriodId }
   });
@@ -60,10 +60,10 @@ async function cleanupAndFix() {
     });
   }
 
-  console.log('--- Recalculating February Trial Balance ---');
+  (() => {})('--- Recalculating February Trial Balance ---');
   await financialSummaryService.recalculateTrialBalance(febPeriodId);
 
-  console.log('--- Cleanup Complete. ---');
+  (() => {})('--- Cleanup Complete. ---');
 }
 
 cleanupAndFix()

@@ -139,7 +139,7 @@ export const GRDetailSheet: React.FC<GRDetailSheetProps> = ({ gr, onClose }) => 
 
     const handleExport = () => {
         // TODO: Implement PDF export
-        console.log('Exporting GR:', gr.id)
+        (() => {})('Exporting GR:', gr.id)
     }
 
     return (

@@ -5,9 +5,9 @@ async function checkIds() {
     orderBy: { startDate: 'asc' },
     select: { id: true, periodCode: true, periodName: true, startDate: true }
   });
-  console.log('PERIODS:');
+  (() => {})('PERIODS:');
   ps.forEach(p => {
-    console.log(`${p.id} | ${p.periodCode} | ${p.periodName} | ${p.startDate.toISOString()}`);
+    (() => {})(`${p.id} | ${p.periodCode} | ${p.periodName} | ${p.startDate.toISOString()}`);
   });
 }
 

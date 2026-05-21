@@ -76,7 +76,7 @@ export default function InvoicePageAdmin() {
             setIsDataFetching(true);
 
             // DEBUG: Pastikan urlDateFilter ada nilainya
-            console.log('🔄 fetchData URL parameters:', {
+            (() => {})('🔄 fetchData URL parameters:', {
                 urlPage,
                 urlPageSize,
                 urlSearch,

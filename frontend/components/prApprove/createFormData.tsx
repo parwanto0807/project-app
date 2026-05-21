@@ -255,7 +255,7 @@ export function PrCreateForm({
 
     // useEffect(() => {
     //     if (Object.keys(form.formState.errors).length > 0) {
-    //         console.log("Validation Errors:", form.formState.errors);
+    //         (() => {})("Validation Errors:", form.formState.errors);
     //     }
     // }, [form.formState.errors]);
 

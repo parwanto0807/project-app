@@ -219,7 +219,7 @@ export function UpdateSupplierForm({
                 })),
             };
 
-            console.log("Updating supplier:", { id: supplier.id, data: updateData });
+            (() => {})("Updating supplier:", { id: supplier.id, data: updateData });
 
             // Panggil API
             const result = await updateSupplier(supplier.id, updateData);

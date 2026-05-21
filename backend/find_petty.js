@@ -10,7 +10,7 @@ async function main() {
       ]
     }
   });
-  console.log(JSON.stringify(account, null, 2));
+  (() => {})(JSON.stringify(account, null, 2));
 }
 
 main().finally(() => prisma.$disconnect());

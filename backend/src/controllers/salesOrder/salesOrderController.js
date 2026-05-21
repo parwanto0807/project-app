@@ -297,7 +297,7 @@ function calcLineExclusive(qty, unitPrice, discount, taxRate) {
 
 export const create = async (req, res) => {
   try {
-    // console.log("USER ID", req.user);
+    // (() => {})("USER ID", req.user);
 
     // ✅ Check semua kemungkinan property names
     const possibleUserId =
@@ -569,7 +569,7 @@ export const create = async (req, res) => {
         },
       });
 
-      console.log(
+      (() => {})(
         `📢 Sending notification to ${adminUsers.length} admin/pic users`
       );
 
@@ -601,7 +601,7 @@ export const create = async (req, res) => {
           },
         });
 
-        // console.log(`✅ Notification sent to ${admin.role}: ${admin.email}`);
+        // (() => {})(`✅ Notification sent to ${admin.role}: ${admin.email}`);
       }
 
       // Juga kirim notifikasi ke user yang membuat SO (jika bukan admin/pic)
@@ -619,7 +619,7 @@ export const create = async (req, res) => {
           },
         });
 
-        // console.log(`✅ Notification sent to creator: ${creatorUser.email}`);
+        // (() => {})(`✅ Notification sent to creator: ${creatorUser.email}`);
       }
     } catch (notificationError) {
       // Jangan gagalkan create SO jika notifikasi gagal

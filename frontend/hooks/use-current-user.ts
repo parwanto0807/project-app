@@ -71,7 +71,7 @@ export function useCurrentUser() {
         }
       }
 
-      console.log("🔄 useCurrentUser - Fetching profile..."); // ← DEBUG
+      (() => {})("🔄 useCurrentUser - Fetching profile..."); // ← DEBUG
 
       const fetchPromise = api.get<ProfileResponse>(
         "/api/auth/user-login/profile",
@@ -84,7 +84,7 @@ export function useCurrentUser() {
       if (!retry) {
         globalFetchPromise = fetchPromise
           .then((response) => {
-            console.log("✅ useCurrentUser - Response:", response.data); // ← DEBUG
+            (() => {})("✅ useCurrentUser - Response:", response.data); // ← DEBUG
             if (response.data?.user) {
               globalUser = response.data.user;
               if (isMountedRef.current) {
@@ -92,7 +92,7 @@ export function useCurrentUser() {
                 setError(null);
               }
             } else {
-              console.log("❌ useCurrentUser - No user in response");
+              (() => {})("❌ useCurrentUser - No user in response");
               throw new Error("No user data in response");
             }
             return;
@@ -113,7 +113,7 @@ export function useCurrentUser() {
       } else {
         // Untuk retry, tidak set global promise
         const response = await fetchPromise;
-        console.log("✅ useCurrentUser - Retry response:", response.data); // ← DEBUG
+        (() => {})("✅ useCurrentUser - Retry response:", response.data); // ← DEBUG
         if (response.data?.user) {
           globalUser = response.data.user;
           if (isMountedRef.current) {
@@ -137,7 +137,7 @@ export function useCurrentUser() {
         retryCountRef.current < maxRetries
       ) {
         retryCountRef.current++;
-        console.log(
+        (() => {})(
           `🔄 useCurrentUser - Retrying (${retryCountRef.current}/${maxRetries})`
         );
         await new Promise((resolve) =>
@@ -177,31 +177,31 @@ export function useCurrentUser() {
   useEffect(() => {
     isMountedRef.current = true;
 
-    // console.log("🎯 useCurrentUser - Component mounted, checking auth...");
+    // (() => {})("🎯 useCurrentUser - Component mounted, checking auth...");
 
     // Only fetch if we don't already have user data and not already loading
     if (!globalUser && !globalFetchPromise) {
-      // console.log("🎯 useCurrentUser - No user data, fetching...");
+      // (() => {})("🎯 useCurrentUser - No user data, fetching...");
       fetchUser();
     } else if (globalUser) {
       // If we already have data, use it immediately
-      // console.log("🎯 useCurrentUser - Using cached user data");
+      // (() => {})("🎯 useCurrentUser - Using cached user data");
       setUser(globalUser);
       setLoading(false);
     } else if (globalFetchPromise) {
-      // console.log("🎯 useCurrentUser - Fetch already in progress");
+      // (() => {})("🎯 useCurrentUser - Fetch already in progress");
       setLoading(true);
     }
 
     return () => {
-      // console.log("🎯 useCurrentUser - Component unmounted");
+      // (() => {})("🎯 useCurrentUser - Component unmounted");
       isMountedRef.current = false;
     };
   }, [fetchUser]);
 
   const refresh = useCallback(async (): Promise<void> => {
     // Force refresh - clear cache and fetch fresh
-    console.log("🔄 useCurrentUser - Manual refresh triggered");
+    (() => {})("🔄 useCurrentUser - Manual refresh triggered");
     globalUser = null;
     retryCountRef.current = 0;
 
@@ -226,7 +226,7 @@ export function useCurrentUser() {
       error,
       isAuthenticated: !!user,
       setUser: (newUser: User | null) => {
-        console.log("✏️ useCurrentUser - Manual user update:", newUser);
+        (() => {})("✏️ useCurrentUser - Manual user update:", newUser);
         globalUser = newUser;
         if (isMountedRef.current) {
           setUser(newUser);

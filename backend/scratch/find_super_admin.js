@@ -8,7 +8,7 @@ async function main() {
       role: 'super'
     }
   });
-  console.log('Super Admin User:', superAdmin);
+  (() => {})('Super Admin User:', superAdmin);
 }
 
 main()

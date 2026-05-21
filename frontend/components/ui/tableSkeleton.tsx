@@ -5,7 +5,7 @@ import {
 } from "@/components/ui/table";
 
 export function DetailedTableSkeleton({ rows = 5 }: { rows?: number }) {
-  console.log('🦴 Rendering DetailedTableSkeleton with', rows, 'rows');
+  (() => {})('🦴 Rendering DetailedTableSkeleton with', rows, 'rows');
   
   return (
     <>

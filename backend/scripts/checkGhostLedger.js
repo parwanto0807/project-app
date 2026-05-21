@@ -9,13 +9,13 @@ async function checkLedger() {
         });
 
         if (ledger) {
-            console.log(`Ledger ID: ${ledger.id}`);
-            console.log(`Date: ${ledger.transactionDate.toISOString()}`);
-            console.log(`Description: ${ledger.description}`);
-            console.log(`Created At: ${ledger.createdAt.toISOString()}`);
+            (() => {})(`Ledger ID: ${ledger.id}`);
+            (() => {})(`Date: ${ledger.transactionDate.toISOString()}`);
+            (() => {})(`Description: ${ledger.description}`);
+            (() => {})(`Created At: ${ledger.createdAt.toISOString()}`);
             
             ledger.ledgerLines.forEach(l => {
-                console.log(`  - COA ID: ${l.coaId}, Dr: ${l.debitAmount}, Cr: ${l.creditAmount}`);
+                (() => {})(`  - COA ID: ${l.coaId}, Dr: ${l.debitAmount}, Cr: ${l.creditAmount}`);
             });
         }
 

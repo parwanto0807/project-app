@@ -360,7 +360,7 @@ export const uangMukaController = {
         const hasOperationalItems = existingPR.details?.some(d => d.sourceProduct === "OPERATIONAL");
         
         if (hasOperationalItems) {
-          console.log(`🔧 [UM-AUTO] Detecting OPERATIONAL items for SPK, auto-selecting PETTY_CASH`);
+          (() => {})(`🔧 [UM-AUTO] Detecting OPERATIONAL items for SPK, auto-selecting PETTY_CASH`);
           
           // Ambil PETTY_CASH dari SystemAccount
           const pettyCashAccount = await prisma.systemAccount.findUnique({
@@ -370,7 +370,7 @@ export const uangMukaController = {
 
           if (pettyCashAccount) {
             accountPencairanId = pettyCashAccount.coaId;
-            console.log(`✅ [UM-AUTO] Auto-selected account: ${pettyCashAccount.coa.name} (${pettyCashAccount.coa.code})`);
+            (() => {})(`✅ [UM-AUTO] Auto-selected account: ${pettyCashAccount.coa.name} (${pettyCashAccount.coa.code})`);
           } else {
             console.warn(`⚠️ [UM-AUTO] PETTY_CASH SystemAccount not found, will require manual selection`);
           }
@@ -414,7 +414,7 @@ export const uangMukaController = {
       let finalTanggalPencairan = tanggalPencairan;
       if (spkId && !tanggalPencairan) {
         finalTanggalPencairan = new Date();
-        console.log(`🔧 [UM-FIX] Auto-setting tanggalPencairan for SPK-related UM: ${nomor}`);
+        (() => {})(`🔧 [UM-FIX] Auto-setting tanggalPencairan for SPK-related UM: ${nomor}`);
       }
 
       // Set status to DISBURSED if spkId exists OR tanggalPencairan is provided
@@ -422,7 +422,7 @@ export const uangMukaController = {
         ? UangMukaStatus.DISBURSED
         : UangMukaStatus.PENDING;
 
-      console.log(`📋 [UM-STATUS] UM Status determined:`, {
+      (() => {})(`📋 [UM-STATUS] UM Status determined:`, {
         nomor,
         status,
         spkId: !!spkId,
@@ -477,7 +477,7 @@ export const uangMukaController = {
         // -----------------------------------------------------------------
         // 🚀 LOGIKA AKUNTANSI KONSOLIDASI (DISBURSED)
         // -----------------------------------------------------------------
-        console.log(`🔍 [UM-DEBUG] Checking Accounting Logic Conditions:`, {
+        (() => {})(`🔍 [UM-DEBUG] Checking Accounting Logic Conditions:`, {
           status,
           accountPencairanId,
           hasAccountPencairanId: !!accountPencairanId,
@@ -491,14 +491,14 @@ export const uangMukaController = {
         });
 
         if (status === UangMukaStatus.DISBURSED && accountPencairanId) {
-          console.log(`💰 [UM-ACCOUNTING] Processing Disbursement for UM: ${nomor}`);
+          (() => {})(`💰 [UM-ACCOUNTING] Processing Disbursement for UM: ${nomor}`);
 
           // A. DETEKSI MOBILISASI / OPERASIONAL PROYEK
           // ✅ Hanya cek sourceProduct = "OPERATIONAL" dari PR details
           const hasOperationalItems = existingPR?.details?.some(d => d.sourceProduct === "OPERATIONAL");
           const isMobilization = hasOperationalItems;
 
-          console.log(`📊 [UM-ACCOUNTING] Mobilization Detection:`, {
+          (() => {})(`📊 [UM-ACCOUNTING] Mobilization Detection:`, {
             hasOperationalItems,
             isMobilization,
             spkId: !!spkId,
@@ -508,7 +508,7 @@ export const uangMukaController = {
           // ✅ SKIP untuk mobilisasi karena uang muka sudah dicairkan sebelumnya
           // ✅ HANYA buat untuk non-mobilisasi (material, dll)
           if (!isMobilization) {
-            console.log(`📝 [UM-PAYMENT] Creating payment entry (non-mobilization):`, {
+            (() => {})(`📝 [UM-PAYMENT] Creating payment entry (non-mobilization):`, {
               nomor,
               accountPencairanId,
               jumlah,
@@ -538,21 +538,21 @@ export const uangMukaController = {
               tx: prismaTx,
             });
           } else {
-            console.log(`⏭️ [UM-SKIP] Skipping payment entry for mobilization (advance already disbursed)`);
+            (() => {})(`⏭️ [UM-SKIP] Skipping payment entry for mobilization (advance already disbursed)`);
           }
 
           // C. SETTLEMENT KE PROYEK (Jika ada spkId)
           if (spkId) {
-            console.log(`🚀 [UM-ACCOUNTING] Project Expense Detection for UM: ${nomor}`);
-            console.log(`📊 [UM-ACCOUNTING] PR Details:`, existingPR?.details?.map(d => ({ sourceProduct: d.sourceProduct })));
-            console.log(`� [UM-ACCOUNTING] Has Operational Items: ${hasOperationalItems}`);
+            (() => {})(`🚀 [UM-ACCOUNTING] Project Expense Detection for UM: ${nomor}`);
+            (() => {})(`📊 [UM-ACCOUNTING] PR Details:`, existingPR?.details?.map(d => ({ sourceProduct: d.sourceProduct })));
+            (() => {})(`� [UM-ACCOUNTING] Has Operational Items: ${hasOperationalItems}`);
             
             // Tentukan apakah masuk Beban Mobilisasi (5-10102) atau Biaya Material (5-10101)
             // ✅ HANYA berdasarkan sourceProduct = "OPERATIONAL"
             const isMobilization = hasOperationalItems;
             const expenseSystemKey = isMobilization ? "PROJECT_MOBILIZATION" : "PURCHASE_EXPENSE";
             
-            console.log(`📌 [UM-ACCOUNTING] Using Account Key: ${expenseSystemKey} for Project Settlement`);
+            (() => {})(`📌 [UM-ACCOUNTING] Using Account Key: ${expenseSystemKey} for Project Settlement`);
 
             // JURNAL 2: AUTO-SETTLEMENT (D: Project Expense, C: Staff Advance)
             await createLedgerEntry({
@@ -823,7 +823,7 @@ export const uangMukaController = {
   },
 
   async updateUangMukaStatus(req, res, next) {
-    console.log("Data Received", req.body);
+    (() => {})("Data Received", req.body);
 
     try {
       // 1. Validasi params

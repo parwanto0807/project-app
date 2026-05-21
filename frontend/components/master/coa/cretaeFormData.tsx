@@ -52,7 +52,7 @@ export function CreateCoaForm({ onSubmit, onCancel, isLoading, role, initialData
         }
     }, [formData.type, parentAccounts]);
 
-    console.log("Role", role);
+    (() => {})("Role", role);
 
     const getDefaultNormalBalance = (type: CoaType): CoaNormalBalance => {
         switch (type) {
@@ -124,7 +124,7 @@ export function CreateCoaForm({ onSubmit, onCancel, isLoading, role, initialData
             parentId: formData.parentId || null,
         };
 
-        console.log("Submitting COA Data:", submitData);
+        (() => {})("Submitting COA Data:", submitData);
         onSubmit(submitData);
     };
 

@@ -16,12 +16,12 @@ async function testHierarchy() {
         orderBy: { code: 'asc' }
     });
 
-    console.log(`Found ${rootAccounts.length} root accounts.`);
+    (() => {})(`Found ${rootAccounts.length} root accounts.`);
     
     rootAccounts.slice(0, 5).forEach(root => {
-        console.log(`\n- ${root.code} ${root.name} (${root.children.length} children)`);
+        (() => {})(`\n- ${root.code} ${root.name} (${root.children.length} children)`);
         root.children.forEach(child => {
-            console.log(`  └─ ${child.code} ${child.name} (${child.children.length} children)`);
+            (() => {})(`  └─ ${child.code} ${child.name} (${child.children.length} children)`);
         });
     });
 

@@ -10,7 +10,7 @@ async function findAmount() {
         const dbStart = getJakartaStartOfDay(startDate);
         const dbEnd = getJakartaEndOfDay(endDate);
 
-        console.log(`Searching for any transaction with amount 1,250,000 in Feb:`);
+        (() => {})(`Searching for any transaction with amount 1,250,000 in Feb:`);
 
         const transactions = await prisma.ledgerLine.findMany({
             where: {
@@ -32,14 +32,14 @@ async function findAmount() {
             }
         });
 
-        console.log(`Found ${transactions.length} matches.`);
+        (() => {})(`Found ${transactions.length} matches.`);
         
         transactions.forEach(t => {
-            console.log(`- COA: ${t.coa.code} (${t.coa.name})`);
-            console.log(`  Date (UTC): ${t.ledger.transactionDate.toISOString()}`);
-            console.log(`  Amount: Cr ${t.creditAmount} / Dr ${t.debitAmount}`);
-            console.log(`  Desc: ${t.description || t.ledger.description}`);
-            console.log(`  Ledger Num: ${t.ledger.ledgerNumber}`);
+            (() => {})(`- COA: ${t.coa.code} (${t.coa.name})`);
+            (() => {})(`  Date (UTC): ${t.ledger.transactionDate.toISOString()}`);
+            (() => {})(`  Amount: Cr ${t.creditAmount} / Dr ${t.debitAmount}`);
+            (() => {})(`  Desc: ${t.description || t.ledger.description}`);
+            (() => {})(`  Ledger Num: ${t.ledger.ledgerNumber}`);
         });
 
     } catch (e) {

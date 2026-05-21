@@ -89,7 +89,7 @@ function redirectToUnauthorized(
     | "token_expired"
     | "device_limit" = "session_terminated"
 ): void {
-  console.log(`🔀 Redirecting to unauthorized page: ${reason}`);
+  (() => {})(`🔀 Redirecting to unauthorized page: ${reason}`);
 
   clearTokensOnLogout();
 
@@ -144,20 +144,20 @@ const getErrorMessage = (error: unknown): string => {
 // 🔥 EXPORT FUNCTIONS UNTUK CONTROL
 export const setLogoutInProgress = (value: boolean) => {
   GLOBAL_LOGOUT_FLAG = value;
-  console.log(`🔧 Global logout flag set to: ${value}`);
+  (() => {})(`🔧 Global logout flag set to: ${value}`);
 
   if (value) {
     // Auto reset setelah 30 detik
     setTimeout(() => {
       GLOBAL_LOGOUT_FLAG = false;
-      console.log("🔧 Global logout flag auto-reset");
+      (() => {})("🔧 Global logout flag auto-reset");
     }, 30000);
   }
 };
 
 export const setOnLoginPage = (value: boolean) => {
   IS_ON_LOGIN_PAGE = value;
-  console.log(`🔧 Login page flag set to: ${value}`);
+  (() => {})(`🔧 Login page flag set to: ${value}`);
 };
 
 // 🔥 FUNGSI UNTUK CEK APAKAH BOLEH REFRESH
@@ -168,7 +168,7 @@ const shouldSkipRefresh = (): boolean => {
     window.location.pathname.includes("/auth/login");
 
   if (skip) {
-    console.log("🛑 Skipping refresh due to:", {
+    (() => {})("🛑 Skipping refresh due to:", {
       logoutFlag: GLOBAL_LOGOUT_FLAG,
       loginPageFlag: IS_ON_LOGIN_PAGE,
       pathname: window.location.pathname,
@@ -180,11 +180,11 @@ const shouldSkipRefresh = (): boolean => {
 
 // ====== SETUP REFRESH EXECUTOR UNTUK AUTOREFRESH ======
 setRefreshExecutor(async (): Promise<string | null> => {
-  console.log("🔄 Refresh executor called from autoRefresh system");
+  (() => {})("🔄 Refresh executor called from autoRefresh system");
 
   // 🔥 CEK APAKAH BOLEH REFRESH
   if (shouldSkipRefresh()) {
-    console.log("⏸️ Refresh executor skipped - logout/login page flag active");
+    (() => {})("⏸️ Refresh executor skipped - logout/login page flag active");
     return null;
   }
 
@@ -192,7 +192,7 @@ setRefreshExecutor(async (): Promise<string | null> => {
   if (window.location.pathname.includes("/auth/login")) {
     const params = new URLSearchParams(window.location.search);
     if (params.has("logout") || params.has("reason")) {
-      console.log(
+      (() => {})(
         "⏸️ Refresh executor skipped - on login page with logout param"
       );
       return null;
@@ -204,7 +204,7 @@ setRefreshExecutor(async (): Promise<string | null> => {
 
     if (response.data?.accessToken) {
       const newToken = response.data.accessToken;
-      console.log("✅ Refresh executor successful");
+      (() => {})("✅ Refresh executor successful");
       return newToken;
     }
 
@@ -216,17 +216,17 @@ setRefreshExecutor(async (): Promise<string | null> => {
     // 🔥 MODIFIKASI: HANYA LOG, JANGAN CLEAR TOKENS OTOMATIS
     if (isAxiosErrorWithResponse(error)) {
       const status = error.response?.status;
-      console.log(`⚠️ Refresh failed with status: ${status}`);
+      (() => {})(`⚠️ Refresh failed with status: ${status}`);
 
       // 🔥 PERUBAHAN PENTING: JANGAN CLEAR TOKENS OTOMATIS
       // if (status === 401 || status === 403) {
-      //   console.log("🔒 Auth error during refresh, clearing tokens");
+      //   (() => {})("🔒 Auth error during refresh, clearing tokens");
       //   clearTokensOnLogout(); // ❌ COMMENT INI
       // }
 
       // Sebagai gantinya, hanya log saja
       if (status === 401 || status === 403) {
-        console.log("🔒 Auth error detected - user should logout manually");
+        (() => {})("🔒 Auth error detected - user should logout manually");
         // JANGAN panggil clearTokensOnLogout() di sini
       }
     }
@@ -284,22 +284,22 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 // ====== SINGLE-FLIGHT REFRESH ======
 const callRefresh = async (): Promise<string> => {
   if (refreshInFlight) {
-    console.log("🔄 Waiting for existing refresh request");
+    (() => {})("🔄 Waiting for existing refresh request");
     return refreshInFlight;
   }
 
-  console.log("🔄 Starting new refresh request");
+  (() => {})("🔄 Starting new refresh request");
   refreshInFlight = raw
     .post<ApiSuccessResponse>(REFRESH_PATH)
     .then((response) => {
-      console.log("📨 Refresh response received:", {
+      (() => {})("📨 Refresh response received:", {
         status: response.status,
         hasToken: !!response.data?.accessToken,
       });
 
       if (response.data?.accessToken) {
         const newToken = response.data.accessToken;
-        console.log("✅ New token received from backend");
+        (() => {})("✅ New token received from backend");
 
         // Gunakan autoRefresh system untuk menyimpan token
         setAccessToken(newToken);
@@ -308,7 +308,7 @@ const callRefresh = async (): Promise<string> => {
         api.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
         raw.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
 
-        console.log("✅ Refresh request successful");
+        (() => {})("✅ Refresh request successful");
         return newToken;
       }
 
@@ -325,7 +325,7 @@ const callRefresh = async (): Promise<string> => {
 
       // Handle single session violation
       if (isSingleSessionViolation(error)) {
-        console.log("🚫 Refresh failed due to single session policy");
+        (() => {})("🚫 Refresh failed due to single session policy");
         throw new Error("SINGLE_SESSION_VIOLATION");
       }
 
@@ -365,7 +365,7 @@ api.interceptors.response.use(
 
     // Check for single session violation
     if (isSingleSessionViolation(error)) {
-      console.log("🚫 Single session violation detected, redirecting...");
+      (() => {})("🚫 Single session violation detected, redirecting...");
       clearTokensOnLogout();
       redirectToUnauthorized("session_terminated");
       return Promise.reject(error);
@@ -375,7 +375,7 @@ api.interceptors.response.use(
     if (is401 && !isRefreshCall && !originalRequest._retry) {
       originalRequest._retry = true;
 
-      console.log("🔐 401 detected, attempting token refresh...");
+      (() => {})("🔐 401 detected, attempting token refresh...");
 
       try {
         const newAccessToken = await callRefresh();
@@ -392,19 +392,19 @@ api.interceptors.response.use(
           ] = `Bearer ${newAccessToken}`;
         }
 
-        console.log("✅ Retrying original request with new token");
+        (() => {})("✅ Retrying original request with new token");
         return api(originalRequest);
       } catch (refreshError: unknown) {
         console.error("❌ Refresh failed, clearing tokens");
 
         // Check if refresh failed due to single session
         if (isSingleSessionViolation(refreshError)) {
-          console.log("🚫 Refresh failed due to single session violation");
+          (() => {})("🚫 Refresh failed due to single session violation");
           clearTokensOnLogout();
           redirectToUnauthorized("session_terminated");
         } else {
           clearTokensOnLogout();
-          console.log("🛑 Refresh failed, user should be redirected to login");
+          (() => {})("🛑 Refresh failed, user should be redirected to login");
         }
 
         return Promise.reject(refreshError);
@@ -413,7 +413,7 @@ api.interceptors.response.use(
 
     // Jika sudah di-retry dan masih 401, reject saja
     if (is401 && originalRequest._retry) {
-      console.log("🛑 Already retried, rejecting request");
+      (() => {})("🛑 Already retried, rejecting request");
       return Promise.reject(error);
     }
 
@@ -448,11 +448,11 @@ export const initializeTokensOnLogin = async (
   // Update axios default header
   api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
 
-  console.log("✅ Tokens initialized on login");
+  (() => {})("✅ Tokens initialized on login");
 };
 
 export function clearTokensOnLogout(): void {
-  console.log("🧹 Clearing tokens on logout");
+  (() => {})("🧹 Clearing tokens on logout");
 
   // Clear in-memory token
   setAccessToken(null);
@@ -491,7 +491,7 @@ export async function ensureFreshToken(): Promise<boolean> {
     const token = getAccessToken();
 
     if (!token || !isTokenValid()) {
-      console.log("🔄 Token invalid or missing, attempting refresh");
+      (() => {})("🔄 Token invalid or missing, attempting refresh");
       const newToken = await forceRefresh();
       return !!newToken;
     }
@@ -504,7 +504,7 @@ export async function ensureFreshToken(): Promise<boolean> {
       const isExpiringSoon = tokenExp - now < 300; // 5 minutes
 
       if (isExpiringSoon) {
-        console.log("🔄 Token expiring soon, proactive refresh");
+        (() => {})("🔄 Token expiring soon, proactive refresh");
         const newToken = await forceRefresh();
         return !!newToken;
       }

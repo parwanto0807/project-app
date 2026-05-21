@@ -7,13 +7,13 @@ async function compareDates() {
         const invoice = await prisma.invoice.findFirst({ where: { invoiceNumber: ref } });
         const ledger = await prisma.ledger.findFirst({ where: { referenceNumber: ref } });
 
-        console.log(`Reference: ${ref}`);
+        (() => {})(`Reference: ${ref}`);
         if (invoice) {
-            console.log(`Invoice Date (UTC): ${invoice.invoiceDate.toISOString()}`);
+            (() => {})(`Invoice Date (UTC): ${invoice.invoiceDate.toISOString()}`);
         }
         if (ledger) {
-            console.log(`Ledger Date (UTC):  ${ledger.transactionDate.toISOString()}`);
-            console.log(`Ledger Created At: ${ledger.createdAt.toISOString()}`);
+            (() => {})(`Ledger Date (UTC):  ${ledger.transactionDate.toISOString()}`);
+            (() => {})(`Ledger Created At: ${ledger.createdAt.toISOString()}`);
         }
 
     } catch (e) {

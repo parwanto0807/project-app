@@ -300,7 +300,7 @@ export const createBAP = async (req, res) => {
         },
       });
 
-      // console.log(
+      // (() => {})(
       //   `📢 Sending BAP notification to ${adminUsers.length} admin users`
       // );
 
@@ -336,7 +336,7 @@ export const createBAP = async (req, res) => {
           },
         });
 
-        // console.log(`✅ BAP notification sent to admin: ${admin.email}`);
+        // (() => {})(`✅ BAP notification sent to admin: ${admin.email}`);
       }
     } catch (notificationError) {
       // Jangan gagalkan create BAP jika notifikasi gagal

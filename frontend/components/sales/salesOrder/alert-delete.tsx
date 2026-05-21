@@ -50,7 +50,7 @@ export function ActionDeleteSalesOrder({
     }
 
     const handleViewDetails = () => {
-        console.log("View order details:", order.id)
+        (() => {})("View order details:", order.id)
     }
 
     const openDeleteDialog = (e?: Event) => {

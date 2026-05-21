@@ -7,7 +7,7 @@ async function listAll() {
             where: { code: '4-10101' }
         });
 
-        console.log(`Listing all transactions for ${coa.code}:`);
+        (() => {})(`Listing all transactions for ${coa.code}:`);
         
         const lines = await prisma.ledgerLine.findMany({
             where: { coaId: coa.id },
@@ -16,7 +16,7 @@ async function listAll() {
         });
 
         lines.forEach(l => {
-            console.log(`[${l.ledger.transactionDate.toISOString()}] ${l.creditAmount || -l.debitAmount} | Ref: ${l.ledger.referenceNumber}`);
+            (() => {})(`[${l.ledger.transactionDate.toISOString()}] ${l.creditAmount || -l.debitAmount} | Ref: ${l.ledger.referenceNumber}`);
         });
 
     } catch (e) {

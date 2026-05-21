@@ -150,7 +150,7 @@ export default function ProductPageAdmin() {
     setRefreshTrigger(prev => prev + 1);
     
     // Optional: Show success message or other actions
-    console.log("Product created successfully, refreshing data...");
+    (() => {})("Product created successfully, refreshing data...");
   }, []);
 
   // Key untuk memaksa re-render ProductList

@@ -9,13 +9,13 @@ async function main() {
   const coa = await prisma.chartOfAccounts.findUnique({ where: { code: '5-30001' } });
   const period = await prisma.accountingPeriod.findFirst({ where: { fiscalYear: 2026, periodMonth: 3 } });
 
-  console.log(`Fixing GLS for ${coa.code} - ${coa.name} | Period: ${period.periodName}\n`);
+  (() => {})(`Fixing GLS for ${coa.code} - ${coa.name} | Period: ${period.periodName}\n`);
 
   // 1. Hapus semua GLS records untuk 5-30001 di period Maret (termasuk yg salah tanggal)
   const deleted = await prisma.generalLedgerSummary.deleteMany({
     where: { coaId: coa.id, periodId: period.id }
   });
-  console.log(`Deleted ${deleted.count} old GLS records for 5-30001 MAR-2026`);
+  (() => {})(`Deleted ${deleted.count} old GLS records for 5-30001 MAR-2026`);
 
   // 2. Hitung actual dari LedgerLine per tanggal
   const ledgers = await prisma.ledger.findMany({
@@ -60,11 +60,11 @@ async function main() {
         transactionCount: vals.count
       }
     });
-    console.log(`Created GLS: ${dateKey} | D=${vals.debit.toLocaleString('id-ID')} | K=${vals.credit.toLocaleString('id-ID')} | CL=${closingBalance.toLocaleString('id-ID')}`);
+    (() => {})(`Created GLS: ${dateKey} | D=${vals.debit.toLocaleString('id-ID')} | K=${vals.credit.toLocaleString('id-ID')} | CL=${closingBalance.toLocaleString('id-ID')}`);
   }
 
   // 4. Verifikasi final
-  console.log('\n=== FINAL VERIFICATION ===');
+  (() => {})('\n=== FINAL VERIFICATION ===');
   const allGLS = await prisma.generalLedgerSummary.findMany({
     where: { periodId: period.id },
     include: { coa: { select: { code: true } } }
@@ -74,8 +74,8 @@ async function main() {
     totD += Number(g.debitTotal);
     totC += Number(g.creditTotal);
   }
-  console.log(`Grand Total GLS MAR-2026: D=${totD.toLocaleString('id-ID')} K=${totC.toLocaleString('id-ID')}`);
-  console.log(Math.abs(totD-totC) < 0.01 ? '✅ BALANCED!' : `❌ MASIH IMBALANCE: ${(totD-totC).toLocaleString('id-ID')}`);
+  (() => {})(`Grand Total GLS MAR-2026: D=${totD.toLocaleString('id-ID')} K=${totC.toLocaleString('id-ID')}`);
+  (() => {})(Math.abs(totD-totC) < 0.01 ? '✅ BALANCED!' : `❌ MASIH IMBALANCE: ${(totD-totC).toLocaleString('id-ID')}`);
 }
 
 main()

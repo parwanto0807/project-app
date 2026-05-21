@@ -178,7 +178,7 @@ export const createSPK = async (req, res) => {
       );
 
       // ✅ BROADCAST NOTIFICATION KE ADMIN & PIC
-      console.log(
+      (() => {})(
         `📢 Sending SPK notification to ${adminUsers.length} admin/pic users`
       );
 
@@ -199,7 +199,7 @@ export const createSPK = async (req, res) => {
           },
         });
 
-        // console.log(
+        // (() => {})(
         //   `✅ SPK notification sent to ${admin.role}: ${admin.email}`
         // );
       }
@@ -249,7 +249,7 @@ export const createSPK = async (req, res) => {
           },
         });
 
-        console.log(
+        (() => {})(
           `✅ SPK notification sent to creator: ${creatorUser.email}`
         );
       }
@@ -344,7 +344,7 @@ export const getAllSPKAdmin = async (req, res) => {
 
     const skip = (page - 1) * pageSize;
 
-    // console.log("📥 Received parameters:", {
+    // (() => {})("📥 Received parameters:", {
     //   page,
     //   pageSize,
     //   search,
@@ -489,7 +489,7 @@ export const getAllSPKAdmin = async (req, res) => {
       }
     }
 
-    // console.log("🔍 Final where clause:", JSON.stringify(whereClause, null, 2));
+    // (() => {})("🔍 Final where clause:", JSON.stringify(whereClause, null, 2));
 
     // ============================
     // COUNT TOTAL DATA DENGAN SEARCH DAN FILTER
@@ -589,7 +589,7 @@ export const getAllSPKAdmin = async (req, res) => {
       orderBy: { createdAt: "asc" },
     });
 
-    // console.log("✅ Query results:", {
+    // (() => {})("✅ Query results:", {
     //   dataCount: spkList.length,
     //   totalCount,
     //   filterApplied: filterBy,

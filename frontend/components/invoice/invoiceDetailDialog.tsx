@@ -79,7 +79,7 @@ const ApprovedWatermark = () => (
 export const InvoiceDetailDrawer = ({ open, onOpenChange, invoice, onRefresh }: InvoiceDetailDrawerProps) => {
     const [isApproving, setIsApproving] = useState(false);
     const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-    console.log("Data Invoice", invoice);
+    (() => {})("Data Invoice", invoice);
 
     if (!invoice) return null;
     const statusVariantMap: Record<string, "default" | "destructive" | "outline" | "secondary" | "success"> = {
@@ -140,7 +140,7 @@ export const InvoiceDetailDrawer = ({ open, onOpenChange, invoice, onRefresh }: 
                 duration: 3000,
                 action: {
                     label: 'View',
-                    onClick: () => console.log('View invoice clicked'),
+                    onClick: () => (() => {})('View invoice clicked'),
                 },
             });
 

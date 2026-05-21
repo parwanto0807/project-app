@@ -7,7 +7,7 @@ const JAM_STANDAR_KELUAR = "17:00"; // 8 jam kerja
 export const getAllAbsensi = async (req, res) => {
   try {
     const { startDate, endDate, karyawanId, employeeName, needsValidation } = req.query;
-    console.log("[DEBUG] Fetching Absensi with params:", { startDate, endDate, karyawanId, employeeName, needsValidation });
+    (() => {})("[DEBUG] Fetching Absensi with params:", { startDate, endDate, karyawanId, employeeName, needsValidation });
 
     const where = {
       ...(karyawanId && { karyawanId }),
@@ -33,7 +33,7 @@ export const getAllAbsensi = async (req, res) => {
         gte: start,
         lte: end,
       };
-      console.log("[DEBUG] Date Filter applied:", { gte: start, lte: end });
+      (() => {})("[DEBUG] Date Filter applied:", { gte: start, lte: end });
     }
 
     if (needsValidation === "true") {
@@ -140,7 +140,7 @@ export const getAllAbsensi = async (req, res) => {
       });
     }
 
-    console.log(`[DEBUG] Found ${absensi.length} records`);
+    (() => {})(`[DEBUG] Found ${absensi.length} records`);
     res.json(absensi);
   } catch (error) {
     console.error("[getAllAbsensi ERROR]", error);

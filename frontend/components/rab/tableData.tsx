@@ -650,7 +650,7 @@ export function RABTable({
     const [dialogOpen, setDialogOpen] = useState(false);
     const [selectedRAB, setSelectedRAB] = useState<RAB | null>(null);
 
-    console.log("Role", role)
+    (() => {})("Role", role)
 
     const handleCreateRAB = () => {
         router.push("/admin-area/logistic/rab/create");
@@ -680,7 +680,7 @@ export function RABTable({
         if (confirm("Are you sure you want to delete this RAB?")) {
             onDelete(id, {
                 onSuccess: () => {
-                    console.log("RAB deleted successfully");
+                    (() => {})("RAB deleted successfully");
                 }
             });
         }

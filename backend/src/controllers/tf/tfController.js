@@ -79,7 +79,7 @@ export const createTransfer = async (req, res) => {
       periodDate.setSeconds(0);
       periodDate.setMilliseconds(0);
 
-      console.log('🔄 Updating Stock Balance for period:', periodDate);
+      (() => {})('🔄 Updating Stock Balance for period:', periodDate);
 
       for (const item of items) {
         // Update sender warehouse stock balance
@@ -96,7 +96,7 @@ export const createTransfer = async (req, res) => {
           }
         });
 
-        console.log(`📦 Updated Stock for Product ${item.productId}:`, updateResult);
+        (() => {})(`📦 Updated Stock for Product ${item.productId}:`, updateResult);
 
         if (updateResult.count === 0) {
           console.warn(`⚠️ No StockBalance found for Product ${item.productId} in Warehouse ${fromWarehouseId} for period ${periodDate}`);
@@ -236,7 +236,7 @@ export const createTransfer = async (req, res) => {
             }
           });
           
-          console.log(`✅ Auto-created GR: ${newGR.grNumber}`);
+          (() => {})(`✅ Auto-created GR: ${newGR.grNumber}`);
       }
 
       return transfer;

@@ -149,8 +149,8 @@ export const getRabById = async (req, res) => {
 // Di backend controller (rabController.js)
 export const createRab = async (req, res) => {
   try {
-    console.log("Raw request body:", req.body);
-    console.log("Received createdById:", req.body.createdById);
+    (() => {})("Raw request body:", req.body);
+    (() => {})("Received createdById:", req.body.createdById);
 
     const validation = parseRabData(req.body);
 
@@ -169,13 +169,13 @@ export const createRab = async (req, res) => {
       validation.data;
 
     // DEBUG: Log parsed data
-    console.log("Parsed createdById from validation:", createdById);
+    (() => {})("Parsed createdById from validation:", createdById);
 
     // ⚠️ HAPUS SEMUA HARDCODED 'temp-user-id' DI SINI!
     // Gunakan createdById yang diterima dari frontend
     const finalCreatedById = createdById; // Jangan diubah!
 
-    console.log("Final createdById to use:", finalCreatedById);
+    (() => {})("Final createdById to use:", finalCreatedById);
 
     // Check if user exists
     let user = await prisma.user.findUnique({
@@ -183,7 +183,7 @@ export const createRab = async (req, res) => {
     });
 
     if (!user) {
-      console.log(`User with ID ${finalCreatedById} not found`);
+      (() => {})(`User with ID ${finalCreatedById} not found`);
       return res.status(404).json({
         success: false,
         message: "User not found in database",
@@ -191,7 +191,7 @@ export const createRab = async (req, res) => {
       });
     }
 
-    console.log("User found:", user.id, user.name);
+    (() => {})("User found:", user.id, user.name);
 
     // Check if project exists
     const project = await prisma.project.findUnique({
@@ -210,7 +210,7 @@ export const createRab = async (req, res) => {
       return sum + detail.qty * detail.price;
     }, 0);
 
-    console.log("Creating RAB with createdById:", finalCreatedById);
+    (() => {})("Creating RAB with createdById:", finalCreatedById);
 
     const rab = await prisma.rAB.create({
       data: {
@@ -253,7 +253,7 @@ export const createRab = async (req, res) => {
       },
     });
 
-    console.log("RAB created successfully:", rab.id);
+    (() => {})("RAB created successfully:", rab.id);
 
     res.status(201).json({
       success: true,

@@ -6,7 +6,7 @@ export class NotificationService {
   static async sendToUser(userId, notification) {
     // Cek jika Firebase Admin ter-initialize
     if (!admin.apps || !admin.apps.length) {
-      console.log("❌ Firebase Admin not initialized - skipping notification");
+      (() => {})("❌ Firebase Admin not initialized - skipping notification");
       return { success: false, error: "Firebase not configured" };
     }
 
@@ -46,13 +46,13 @@ export class NotificationService {
         .map((session) => session.fcmToken)
         .filter(Boolean);
 
-      console.log(
+      (() => {})(
         `[Notification] Found ${tokens.length} active tokens for user ${userId}`
       );
 
       // ✅ KEMBALIKAN SUCCESS MESKIPUN TIDAK ADA TOKEN (KARENA SUDAH DISIMPAN DI DB)
       if (tokens.length === 0) {
-        console.log(
+        (() => {})(
           `[Notification] No active FCM tokens - but notification saved to DB`
         );
         return {
@@ -92,12 +92,12 @@ export class NotificationService {
         },
       };
 
-      // console.log(`[Notification] Sending to ${tokens.length} devices...`);
+      // (() => {})(`[Notification] Sending to ${tokens.length} devices...`);
 
       // Send multicast message
       const response = await admin.messaging().sendEachForMulticast(message);
 
-      // console.log(
+      // (() => {})(
       //   `[Notification] ✅ FCM Success: ${response.successCount} ❌ Failed: ${response.failureCount}`
       // );
 
@@ -159,7 +159,7 @@ export class NotificationService {
       });
 
       if (result.count > 0) {
-        console.log(`[Notification] 🧹 Cleaned ${result.count} invalid tokens`);
+        (() => {})(`[Notification] 🧹 Cleaned ${result.count} invalid tokens`);
       }
     } catch (error) {
       console.error("[Notification] Cleanup error:", error.message);
@@ -181,7 +181,7 @@ export class NotificationService {
         },
       });
 
-      // console.log(`[Notification] Found ${adminUsers.length} admin/pic users`);
+      // (() => {})(`[Notification] Found ${adminUsers.length} admin/pic users`);
 
       // ✅ DETAILED ROLE BREAKDOWN
       const adminCount = adminUsers.filter(
@@ -189,10 +189,10 @@ export class NotificationService {
       ).length;
       const picCount = adminUsers.filter((user) => user.role === "pic").length;
 
-      // console.log(`[Notification] 👥 Role breakdown: ${adminCount} Admins, ${picCount} PICs`);
+      // (() => {})(`[Notification] 👥 Role breakdown: ${adminCount} Admins, ${picCount} PICs`);
 
       adminUsers.forEach((user) => {
-        console.log(`[Notification] ${user.role.toUpperCase()}: ${user.email}`);
+        (() => {})(`[Notification] ${user.role.toUpperCase()}: ${user.email}`);
       });
 
       const results = [];
@@ -200,7 +200,7 @@ export class NotificationService {
       let totalFCMSent = 0;
 
       for (const user of adminUsers) {
-        console.log(`[Notification] Sending to ${user.role}: ${user.email}`);
+        (() => {})(`[Notification] Sending to ${user.role}: ${user.email}`);
         const result = await this.sendToUser(user.id, {
           ...notification,
           type: notification.type || "broadcast",
@@ -222,7 +222,7 @@ export class NotificationService {
       const successCount = results.filter((r) => r.success).length;
       const failedCount = results.filter((r) => !r.success).length;
 
-      console.log(
+      (() => {})(
         `[Notification] 📢 BROADCAST COMPLETED:\n` +
           `  Total Users: ${adminUsers.length} (${adminCount} Admins, ${picCount} PICs)\n` +
           `  Success: ${successCount} users\n` +
@@ -259,7 +259,7 @@ export class NotificationService {
       }
 
       userUsers.forEach((user) => {
-        console.log(`[Notification] User: ${user.email}`);
+        (() => {})(`[Notification] User: ${user.email}`);
       });
 
       const results = [];
@@ -288,7 +288,7 @@ export class NotificationService {
       const successCount = results.filter((r) => r.success).length;
       const failedCount = results.filter((r) => !r.success).length;
 
-      console.log(
+      (() => {})(
         `[Notification] 📢 USER Broadcast completed:\n` +
           `  Users: ${userUsers.length}\n` +
           `  Success: ${successCount} users\n` +
@@ -307,7 +307,7 @@ export class NotificationService {
   // ✅ METHOD BARU: Broadcast ke Users berdasarkan array user IDs
   static async broadcastToSpecificUsers(userIds, notification) {
     try {
-      // console.log(
+      // (() => {})(
       //   `[Notification] Broadcasting to ${userIds.length} specific users...`
       // );
 
@@ -324,7 +324,7 @@ export class NotificationService {
         },
       });
 
-      // console.log(
+      // (() => {})(
       //   `[Notification] Found ${specificUsers.length} active users from provided IDs`
       // );
 
@@ -351,7 +351,7 @@ export class NotificationService {
         }
       }
 
-      // console.log(
+      // (() => {})(
       //   `[Notification] 📢 Specific Users Broadcast completed:\n` +
       //     `  Target Users: ${userIds.length}\n` +
       //     `  Active Users Found: ${specificUsers.length}\n` +
@@ -369,7 +369,7 @@ export class NotificationService {
   // ✅ METHOD BARU: Broadcast ke Team Members berdasarkan teamId
   static async broadcastToTeamMembers(teamId, notification) {
     try {
-      // console.log(`🚀 [Broadcast] TeamID: ${teamId}`);
+      // (() => {})(`🚀 [Broadcast] TeamID: ${teamId}`);
 
       // 1️⃣ Validasi Team
       const teamExists = await prisma.team.findUnique({
@@ -413,7 +413,7 @@ export class NotificationService {
       }
 
       const userIds = finalUsers.map((u) => u.id);
-      // console.log(`📩 Broadcasting to users:`, userIds);
+      // (() => {})(`📩 Broadcasting to users:`, userIds);
 
       // 3️⃣ Broadcast
       const broadcastResult = await this.broadcastToSpecificUsers(userIds, {
@@ -421,7 +421,7 @@ export class NotificationService {
         type: notification.type || "team_assignment",
       });
 
-      // console.log(`✅ Broadcast selesai`);
+      // (() => {})(`✅ Broadcast selesai`);
       return broadcastResult;
     } catch (error) {
       console.error(`🔥 Error broadcastToTeamMembers:`, error);
@@ -432,7 +432,7 @@ export class NotificationService {
   // ✅ METHOD BARU: Broadcast hanya ke PIC
   static async broadcastToPICs(notification) {
     try {
-      // console.log("[Notification] Broadcasting to PICs only...");
+      // (() => {})("[Notification] Broadcasting to PICs only...");
 
       const picUsers = await prisma.user.findMany({
         where: {
@@ -452,7 +452,7 @@ export class NotificationService {
       }
 
       picUsers.forEach((user) => {
-        console.log(`[Notification] PIC: ${user.email}`);
+        (() => {})(`[Notification] PIC: ${user.email}`);
       });
 
       const results = [];
@@ -473,7 +473,7 @@ export class NotificationService {
         .filter((r) => r.success)
         .reduce((sum, r) => sum + (r.sentCount || 0), 0);
 
-      // console.log(
+      // (() => {})(
       //   `[Notification] 📢 PIC Broadcast completed:\n` +
       //     `  PIC Users: ${picUsers.length}\n` +
       //     `  Notifications Saved to DB: ${
@@ -506,7 +506,7 @@ export class NotificationService {
       });
 
       adminUsers.forEach((user) => {
-        console.log(`[Notification] Admin: ${user.email}`);
+        (() => {})(`[Notification] Admin: ${user.email}`);
       });
 
       const results = [];
@@ -527,7 +527,7 @@ export class NotificationService {
         .filter((r) => r.success)
         .reduce((sum, r) => sum + (r.sentCount || 0), 0);
 
-      console.log(
+      (() => {})(
         `[Notification] 📢 Admin Broadcast completed:\n` +
           `  Admin Users: ${adminUsers.length}\n` +
           `  Notifications Saved to DB: ${
@@ -560,7 +560,7 @@ export class NotificationService {
         take: limit,
       });
 
-      console.log(
+      (() => {})(
         `[Notification] Loaded ${notifications.length} notifications for user ${userId}`
       );
       return notifications;
@@ -584,7 +584,7 @@ export class NotificationService {
         },
       });
 
-      console.log(
+      (() => {})(
         `[Notification] Marked ${result.count} notifications as read for user ${userId}`
       );
       return result;
@@ -614,7 +614,7 @@ export class NotificationService {
         },
       });
 
-      console.log(`[Debug] User ${userId} sessions:`, sessions);
+      (() => {})(`[Debug] User ${userId} sessions:`, sessions);
       return sessions;
     } catch (error) {
       console.error("[Debug] Error checking sessions:", error);

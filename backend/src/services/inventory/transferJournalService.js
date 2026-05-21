@@ -78,7 +78,7 @@ class TransferJournalService {
       for (const item of gr.items) {
         const qty = Number(item.qtyPassed || 0);
         if (qty <= 0) {
-          console.log(`[TransferJournalService] Skipping item ${item.productId}: qtyPassed is 0`);
+          (() => {})(`[TransferJournalService] Skipping item ${item.productId}: qtyPassed is 0`);
           continue;
         }
 
@@ -98,7 +98,7 @@ class TransferJournalService {
         let unitCost = 0;
         if (mr && mr.items.length > 0) {
           unitCost = Number(mr.items[0].priceUnit || 0);
-          console.log(`[TransferJournalService] Found cost from MR for product ${item.productId}: ${unitCost}`);
+          (() => {})(`[TransferJournalService] Found cost from MR for product ${item.productId}: ${unitCost}`);
         } else {
           // Fallback to StockTransferItem cost
           const tfItem = await prismaClient.stockTransferItem.findFirst({
@@ -110,7 +110,7 @@ class TransferJournalService {
           });
           if (tfItem && Number(tfItem.quantity) > 0) {
             unitCost = Number(tfItem.cogs || 0) / Number(tfItem.quantity);
-            console.log(`[TransferJournalService] Found cost from TF Item for product ${item.productId}: ${unitCost}`);
+            (() => {})(`[TransferJournalService] Found cost from TF Item for product ${item.productId}: ${unitCost}`);
           } else {
             console.warn(`[TransferJournalService] No cost found for product ${item.productId} in MR or TF`);
           }
@@ -125,7 +125,7 @@ class TransferJournalService {
       }
 
       // 5. Create Ledger Entry
-      console.log(`[TransferJournalService] Creating ledger entry for GR ${gr.grNumber}. Total Value: ${totalValue}`);
+      (() => {})(`[TransferJournalService] Creating ledger entry for GR ${gr.grNumber}. Total Value: ${totalValue}`);
       
       const ledger = await createLedgerEntry({
         referenceType: 'GOODS_RECEIPT', // Must be a valid LedgerEntryType

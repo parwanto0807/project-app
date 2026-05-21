@@ -7,9 +7,9 @@ async function check() {
         include: { parent: true }
     });
     
-    console.log('--- Account Parental Check ---');
+    (() => {})('--- Account Parental Check ---');
     coas.forEach(c => {
-        console.log(`${c.code} (${c.postingType}): Parent -> ${c.parent ? c.parent.code : 'NULL'} (parentId: ${c.parentId})`);
+        (() => {})(`${c.code} (${c.postingType}): Parent -> ${c.parent ? c.parent.code : 'NULL'} (parentId: ${c.parentId})`);
     });
     
     await prisma.$disconnect();

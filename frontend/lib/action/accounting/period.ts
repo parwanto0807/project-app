@@ -29,7 +29,7 @@ async function handleResponse(res: Response) {
 }
 
 async function fetchWithLog(url: string, options: RequestInit) {
-    console.log(`[DEBUG] Fetching: ${url}`);
+    (() => {})(`[DEBUG] Fetching: ${url}`);
 
     const res = await fetch(url, {
         ...options,

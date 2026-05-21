@@ -72,7 +72,7 @@ async function main() {
     }
   ]
 
-  console.log('Starting User Area SOP seeding...')
+  (() => {})('Starting User Area SOP seeding...')
 
   for (const sopData of userAreaSOPs) {
     const existing = await prisma.document.findFirst({
@@ -80,7 +80,7 @@ async function main() {
     })
 
     if (existing) {
-      console.log(`SOP "${sopData.title}" already exists, skipping...`)
+      (() => {})(`SOP "${sopData.title}" already exists, skipping...`)
       continue
     }
 
@@ -111,10 +111,10 @@ async function main() {
         }
       }
     })
-    console.log(`Created SOP: ${doc.title}`)
+    (() => {})(`Created SOP: ${doc.title}`)
   }
 
-  console.log('User Area SOP seeding completed.')
+  (() => {})('User Area SOP seeding completed.')
 }
 
 main()

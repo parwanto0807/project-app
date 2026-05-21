@@ -2,13 +2,13 @@ import { prisma } from "../src/config/db.js";
 import fs from 'fs';
 
 async function checkEverything() {
-  console.log('--- Checking ALL TB Records for 1-10205 ---');
+  (() => {})('--- Checking ALL TB Records for 1-10205 ---');
   
   // Find COA ID first to be sure
   const coa = await prisma.chartOfAccounts.findFirst({ where: { code: '1-10205' } });
   
   if (!coa) {
-      console.log('COA 1-10205 NOT FOUND');
+      (() => {})('COA 1-10205 NOT FOUND');
       return;
   }
 
@@ -18,20 +18,20 @@ async function checkEverything() {
   });
 
   if (matches.length === 0) {
-      console.log('No TB records found for this COA.');
+      (() => {})('No TB records found for this COA.');
   } else {
       matches.forEach(m => {
-          console.log(`TB ID: ${m.id}`);
-          console.log(`  Period: ${m.period.periodName} (${m.period.periodCode}) - ID: ${m.period.id}`);
-          console.log(`  Open: ${m.openingDebit}`);
-          console.log(`  Period: ${m.periodDebit}`);
-          console.log(`  End: ${m.endingDebit}`);
-          console.log(`  Updated: ${m.calculatedAt || 'N/A'}`);
-          console.log('---');
+          (() => {})(`TB ID: ${m.id}`);
+          (() => {})(`  Period: ${m.period.periodName} (${m.period.periodCode}) - ID: ${m.period.id}`);
+          (() => {})(`  Open: ${m.openingDebit}`);
+          (() => {})(`  Period: ${m.periodDebit}`);
+          (() => {})(`  End: ${m.endingDebit}`);
+          (() => {})(`  Updated: ${m.calculatedAt || 'N/A'}`);
+          (() => {})('---');
       });
   }
 
-  console.log('--- Checking 1-10205 StockBalance Aggregate for Feb ---');
+  (() => {})('--- Checking 1-10205 StockBalance Aggregate for Feb ---');
     const febDate = new Date("2026-02-01T00:00:00.000Z");
   const wh = await prisma.warehouse.findFirst({ where: { name: 'GUDANG WIP PROJECT ' } });
   if (wh) {
@@ -39,7 +39,7 @@ async function checkEverything() {
           where: { warehouseId: wh.id, period: febDate },
           _sum: { inventoryValue: true }
       });
-      console.log(`Total Feb Val: ${agg._sum.inventoryValue}`);
+      (() => {})(`Total Feb Val: ${agg._sum.inventoryValue}`);
   }
 }
 

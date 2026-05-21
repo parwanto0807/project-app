@@ -3,7 +3,7 @@ import fs from 'fs';
 
 async function checkSpecificId() {
   const idToCheck = '2242b43b'; 
-  console.log(`Checking ID ${idToCheck}...`);
+  (() => {})(`Checking ID ${idToCheck}...`);
 
   const tb = await prisma.trialBalance.findFirst({
     where: { id: { startsWith: idToCheck } },
@@ -11,13 +11,13 @@ async function checkSpecificId() {
   });
 
   if (tb) {
-      console.log('Record Found:');
-      console.log('Period:', tb.period.periodName, tb.period.periodCode, tb.period.id);
-      console.log('Opening:', tb.openingDebit);
-      console.log('Period:', tb.periodDebit);
-      console.log('Ending:', tb.endingDebit);
+      (() => {})('Record Found:');
+      (() => {})('Period:', tb.period.periodName, tb.period.periodCode, tb.period.id);
+      (() => {})('Opening:', tb.openingDebit);
+      (() => {})('Period:', tb.periodDebit);
+      (() => {})('Ending:', tb.endingDebit);
   } else {
-      console.log('Record NOT Found.');
+      (() => {})('Record NOT Found.');
   }
 }
 

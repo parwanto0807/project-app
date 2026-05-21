@@ -1,7 +1,7 @@
 import { prisma } from '../src/config/db.js';
 
 async function main() {
-  console.log('Seeding Inventory Adjustment COA...');
+  (() => {})('Seeding Inventory Adjustment COA...');
 
   // 1. Create or ensure COA exists
   // Code: 5-30001, Name: Selisih Penyesuaian Stok, Type: HPP
@@ -31,7 +31,7 @@ async function main() {
     }
   });
 
-  console.log(`✓ COA Created/Updated: ${coa.code} - ${coa.name}`);
+  (() => {})(`✓ COA Created/Updated: ${coa.code} - ${coa.name}`);
 
   // 2. Update SystemAccount
   await prisma.systemAccount.upsert({
@@ -47,7 +47,7 @@ async function main() {
     }
   });
 
-  console.log(`✓ SystemAccount 'INVENTORY_ADJUSTMENT_ACCOUNT' linked to ${coa.code}`);
+  (() => {})(`✓ SystemAccount 'INVENTORY_ADJUSTMENT_ACCOUNT' linked to ${coa.code}`);
 }
 
 main()

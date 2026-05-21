@@ -154,7 +154,7 @@ export default function SpkPageAdmin() {
     try {
       setIsDataFetching(true);
 
-      console.log("🔄 Fetching data dengan params:", {
+      (() => {})("🔄 Fetching data dengan params:", {
         page: urlPage,
         pageSize: urlPageSize,
         searchTerm: urlSearch,
@@ -168,7 +168,7 @@ export default function SpkPageAdmin() {
         filterBy: urlFilter, // Tambahkan filter ke API call
       });
 
-      console.log("✅ Data berhasil di-fetch:", {
+      (() => {})("✅ Data berhasil di-fetch:", {
         dataCount: result.data.length,
         pagination: result.pagination,
         filterApplied: urlFilter

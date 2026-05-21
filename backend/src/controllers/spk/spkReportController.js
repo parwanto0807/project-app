@@ -117,7 +117,7 @@ export const createSpkFieldReport = async (req, res) => {
       count = 0;
       totalProgress = 0;
       
-      console.log(`[SPK Progress] No SPKDetails - using manual progress: ${averageProgress}%`);
+      (() => {})(`[SPK Progress] No SPKDetails - using manual progress: ${averageProgress}%`);
       
       await prisma.sPK.update({
         where: { id: spkId },
@@ -191,17 +191,17 @@ export const createSpkFieldReport = async (req, res) => {
       // Progress SPK = (Total progress dari item yang dilaporkan) / (Jumlah items di SalesOrder)
       averageProgress = count > 0 ? Math.round(totalProgress / count) : 0;
 
-      console.log(`[SPK Progress Debug]`);
-      console.log(`  SPK ID: ${spkId}`);
-      console.log(`  Total SPKDetails (records): ${totalSPKItems}`);
-      console.log(`  Total SalesOrder Items: ${totalSalesOrderItems}`);
-      console.log(`  Items with soDetailId: ${progressByItem.size}`);
-      console.log(`  Reports without soDetailId: ${reportsWithoutSoDetail.length}`);
-      console.log(`  Max Progress (no soDetailId): ${maxProgressWithoutSoDetail}%`);
-      console.log(`  Total Progress Sum: ${totalProgress}`);
-      console.log(`  Count (divisor): ${count}`);
-      console.log(`  Average Progress: ${averageProgress}%`);
-      console.log(`  Progress by Item:`, Object.fromEntries(progressByItem));
+      (() => {})(`[SPK Progress Debug]`);
+      (() => {})(`  SPK ID: ${spkId}`);
+      (() => {})(`  Total SPKDetails (records): ${totalSPKItems}`);
+      (() => {})(`  Total SalesOrder Items: ${totalSalesOrderItems}`);
+      (() => {})(`  Items with soDetailId: ${progressByItem.size}`);
+      (() => {})(`  Reports without soDetailId: ${reportsWithoutSoDetail.length}`);
+      (() => {})(`  Max Progress (no soDetailId): ${maxProgressWithoutSoDetail}%`);
+      (() => {})(`  Total Progress Sum: ${totalProgress}`);
+      (() => {})(`  Count (divisor): ${count}`);
+      (() => {})(`  Average Progress: ${averageProgress}%`);
+      (() => {})(`  Progress by Item:`, Object.fromEntries(progressByItem));
 
       await prisma.sPK.update({
         where: { id: spkId },
@@ -319,7 +319,7 @@ export const createSpkFieldReport = async (req, res) => {
       const customerName =
         spkInfo?.salesOrder?.customer?.branch || "Unknown Customer";
 
-      console.log(
+      (() => {})(
         `📢 Sending SPK Field Report notification to ${adminUsers.length} admin/pic users`
       );
 
@@ -350,7 +350,7 @@ export const createSpkFieldReport = async (req, res) => {
           },
         });
 
-        // console.log(
+        // (() => {})(
         //   `✅ SPK Field Report notification sent to ${admin.role}: ${admin.email}`
         // );
       }
@@ -742,7 +742,7 @@ export const getReportsBySpkIdBap = async (req, res) => {
   try {
     const { spkId } = req.params;
 
-    // console.log(`🔍 [API] Fetching reports for SPK ID: ${spkId}`);
+    // (() => {})(`🔍 [API] Fetching reports for SPK ID: ${spkId}`);
 
     if (!spkId) {
       return res.status(400).json({
@@ -757,7 +757,7 @@ export const getReportsBySpkIdBap = async (req, res) => {
       select: { id: true, spkNumber: true },
     });
 
-    // console.log(`📋 SPK Check:`, spkExists ? `Found - ${spkExists.spkNumber}` : 'Not found');
+    // (() => {})(`📋 SPK Check:`, spkExists ? `Found - ${spkExists.spkNumber}` : 'Not found');
 
     if (!spkExists) {
       return res.status(404).json({
@@ -803,11 +803,11 @@ export const getReportsBySpkIdBap = async (req, res) => {
       orderBy: { reportedAt: "desc" },
     });
 
-    // console.log(`📊 Found ${reports.length} reports for SPK ${spkId}`);
+    // (() => {})(`📊 Found ${reports.length} reports for SPK ${spkId}`);
 
     // Debug setiap report
     // reports.forEach((report, idx) => {
-    //   console.log(`  Report ${idx + 1}:`, {
+    //   (() => {})(`  Report ${idx + 1}:`, {
     //     id: report.id,
     //     type: report.type,
     //     photosCount: report.photos?.length || 0,

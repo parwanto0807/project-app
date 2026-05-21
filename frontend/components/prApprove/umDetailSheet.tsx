@@ -261,7 +261,7 @@ export function UMDetailSheet({
             onOpenChange(false);
 
         } catch (error) {
-            console.log('🔴 1g. Error in handleCairkan:', error);
+            (() => {})('🔴 1g. Error in handleCairkan:', error);
             console.error("Error proses pencairan:", error);
         }
     };

@@ -181,7 +181,7 @@ export const createPOFromApprovedPR = async (prId, tx) => {
     });
 
     createdPOs.push(po);
-    console.log(`✅ Created PO ${poNumber} for PEMBELIAN_BARANG items (${pembelianBarangItems.length} items)`);
+    (() => {})(`✅ Created PO ${poNumber} for PEMBELIAN_BARANG items (${pembelianBarangItems.length} items)`);
   }
 
   // Create PO for JASA_PEMBELIAN items
@@ -231,7 +231,7 @@ export const createPOFromApprovedPR = async (prId, tx) => {
     });
 
     createdPOs.push(po);
-    console.log(`✅ Created PO ${poNumber} for JASA_PEMBELIAN items (${jasaPembelianItems.length} items)`);
+    (() => {})(`✅ Created PO ${poNumber} for JASA_PEMBELIAN items (${jasaPembelianItems.length} items)`);
   }
 
   // 6. Update PR Sisa Budget
@@ -702,7 +702,7 @@ export const updatePO = async (req, res) => {
           "../../utils/firebase/notificationService.js"
         );
 
-        console.log(`📢 Sending PO notification to Team ${req.body.teamId}`);
+        (() => {})(`📢 Sending PO notification to Team ${req.body.teamId}`);
 
         // 1. Notify Team Members
         await NotificationService.broadcastToTeamMembers(req.body.teamId, {
@@ -726,7 +726,7 @@ export const updatePO = async (req, res) => {
           select: { id: true, email: true },
         });
 
-        console.log(`📢 Sending PO Share notification to ${adminUsers.length} admin/pic users`);
+        (() => {})(`📢 Sending PO Share notification to ${adminUsers.length} admin/pic users`);
 
         for (const admin of adminUsers) {
           await NotificationService.sendToUser(admin.id, {
@@ -993,7 +993,7 @@ export const updatePOStatus = async (req, res) => {
         // ✅ HANDLE REVISION: If this is a revised PO (requestRevisi > 0)
         // We need to reverse the previous StockBalance updates before applying new ones
         if (updatedPO.requestRevisi && updatedPO.requestRevisi > 0) {
-          console.log(`🔄 Handling PO Revision (requestRevisi=${updatedPO.requestRevisi})`);
+          (() => {})(`🔄 Handling PO Revision (requestRevisi=${updatedPO.requestRevisi})`);
           
           const previousLines = await tx.purchaseOrderLine.findMany({
             where: { 
@@ -1005,7 +1005,7 @@ export const updatePOStatus = async (req, res) => {
             }
           });
 
-          console.log(`📦 Reversing StockBalance for ${previousLines.length} previous PO lines`);
+          (() => {})(`📦 Reversing StockBalance for ${previousLines.length} previous PO lines`);
 
           // Reverse previous StockBalance updates
           for (const prevLine of previousLines) {
@@ -1035,7 +1035,7 @@ export const updatePOStatus = async (req, res) => {
                   onPR: newOnPR
                 }
               });
-              console.log(`  ↩️  Reversed onPR for ${prevLine.productId}: -${qtyToReverse} (${prevLine.quantity} x ${conversion})`);
+              (() => {})(`  ↩️  Reversed onPR for ${prevLine.productId}: -${qtyToReverse} (${prevLine.quantity} x ${conversion})`);
             }
           }
         }
@@ -1092,7 +1092,7 @@ export const updatePOStatus = async (req, res) => {
                 }
               }
             });
-            console.log(`  ✅ Applied onPR for ${line.productId}: +${qtyToAdd} (${line.quantity} x ${conversion})`);
+            (() => {})(`  ✅ Applied onPR for ${line.productId}: +${qtyToAdd} (${line.quantity} x ${conversion})`);
           } else {
             // Create StockBalance if not exists for current period
             await tx.stockBalance.create({
@@ -1109,7 +1109,7 @@ export const updatePOStatus = async (req, res) => {
                 availableStock: 0
               }
             });
-            console.log(`  ✅ Created StockBalance for ${line.productId}: onPR=${qtyToAdd}`);
+            (() => {})(`  ✅ Created StockBalance for ${line.productId}: onPR=${qtyToAdd}`);
           }
         }
       }
@@ -1223,7 +1223,7 @@ export const getPOForExecution = async (req, res) => {
 
     // DEBUG: Check if PurchaseRequest data is present
     if (pos.length > 0) {
-        console.log('DEBUG First PO PR Data:', JSON.stringify(pos[0].PurchaseRequest, null, 2));
+        (() => {})('DEBUG First PO PR Data:', JSON.stringify(pos[0].PurchaseRequest, null, 2));
     }
 
     return res.status(200).json({ success: true, data: pos });
@@ -2257,15 +2257,15 @@ export const updatePOLineActualData = async (req, res) => {
             }
           });
           
-          console.log('Existing Balance:', existingBalance);
+          (() => {})('Existing Balance:', existingBalance);
 
           // IMPORTANT: Get saldoAwal BEFORE updating StaffBalance to prevent race condition
           const saldoSebelumUpdate = Number(existingBalance?.amount || 0);
-          console.log('💰 Saldo sebelum update:', saldoSebelumUpdate);
+          (() => {})('💰 Saldo sebelum update:', saldoSebelumUpdate);
 
           if (existingBalance) {
             // Update existing balance with amountChange
-            console.log('📝 Updating existing StaffBalance with amountChange:', amountChange);
+            (() => {})('📝 Updating existing StaffBalance with amountChange:', amountChange);
             await tx.staffBalance.update({
               where: {
                 karyawanId_category: {
@@ -2282,10 +2282,10 @@ export const updatePOLineActualData = async (req, res) => {
                 }
               }
             });
-            console.log('✅ StaffBalance updated successfully');
+            (() => {})('✅ StaffBalance updated successfully');
           } else {
             // Create new balance if doesn't exist
-            console.log('➕ Creating new StaffBalance with grandTotal:', grandTotalAfter);
+            (() => {})('➕ Creating new StaffBalance with grandTotal:', grandTotalAfter);
             await tx.staffBalance.create({
               data: {
                 karyawanId: executorId,
@@ -2294,13 +2294,13 @@ export const updatePOLineActualData = async (req, res) => {
                 amount: -grandTotalAfter
               }
             });
-            console.log('✅ StaffBalance created successfully');
+            (() => {})('✅ StaffBalance created successfully');
           }
 
           // 3. Create StaffLedger entry (Accounting: Kredit = expense/keluar)
           // Use saldoSebelumUpdate (captured before StaffBalance update) to avoid race condition
           if (amountChange > 0) {
-            console.log('📊 Creating StaffLedger entry (KREDIT) for amountChange:', amountChange);
+            (() => {})('📊 Creating StaffLedger entry (KREDIT) for amountChange:', amountChange);
             const saldoSesudah = saldoSebelumUpdate - amountChange; // KREDIT mengurangi saldo
             
             await tx.staffLedger.create({
@@ -2318,10 +2318,10 @@ export const updatePOLineActualData = async (req, res) => {
                 createdBy: executorId
               }
             });
-            console.log('✅ StaffLedger (KREDIT) created successfully');
+            (() => {})('✅ StaffLedger (KREDIT) created successfully');
           } else if (amountChange < 0) {
             // If amountChange is negative (correction/reduction)
-            console.log('📊 Creating StaffLedger entry (DEBIT) for correction:', Math.abs(amountChange));
+            (() => {})('📊 Creating StaffLedger entry (DEBIT) for correction:', Math.abs(amountChange));
             const saldoSesudah = saldoSebelumUpdate + Math.abs(amountChange); // DEBIT menambah saldo
             
             await tx.staffLedger.create({
@@ -2339,11 +2339,11 @@ export const updatePOLineActualData = async (req, res) => {
                 createdBy: executorId
               }
             });
-            console.log('✅ StaffLedger (DEBIT) created successfully');
+            (() => {})('✅ StaffLedger (DEBIT) created successfully');
           }
         } else {
-          console.log('⚠️ Skipping StaffBalance/Ledger update - Condition not met');
-          console.log('   Reason: delta === 0 OR grandTotalAfter <= 0');
+          (() => {})('⚠️ Skipping StaffBalance/Ledger update - Condition not met');
+          (() => {})('   Reason: delta === 0 OR grandTotalAfter <= 0');
         }
         */
       }

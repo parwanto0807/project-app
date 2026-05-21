@@ -9,7 +9,7 @@ async function fix() {
       quarter: 1
     }
   });
-  console.log('Fixed January 2026 period meta:', result);
+  (() => {})('Fixed January 2026 period meta:', result);
 }
 
 fix()

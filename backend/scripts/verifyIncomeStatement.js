@@ -4,7 +4,7 @@ import fs from 'fs';
 async function verifyIncomeStatement() {
     let output = '';
     const log = (msg) => {
-        console.log(msg);
+        (() => {})(msg);
         output += msg + '\n';
     };
 

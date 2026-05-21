@@ -56,7 +56,7 @@ class ClosingService {
     }
 
     async rolloverTrialBalances(tx, currentPeriodId, nextPeriodId) {
-        console.log(`[CLOSING] Rolling over Trial Balances from ${currentPeriodId} to ${nextPeriodId}...`);
+        (() => {})(`[CLOSING] Rolling over Trial Balances from ${currentPeriodId} to ${nextPeriodId}...`);
 
         const currentPeriod = await tx.accountingPeriod.findUnique({ where: { id: currentPeriodId } });
         const nextPeriod = await tx.accountingPeriod.findUnique({ where: { id: nextPeriodId } });
@@ -131,7 +131,7 @@ class ClosingService {
     }
 
     async rolloverTrialBalances(tx, currentPeriodId, nextPeriodId) {
-        console.log(`[CLOSING] Rolling over Trial Balances from ${currentPeriodId} to ${nextPeriodId}...`);
+        (() => {})(`[CLOSING] Rolling over Trial Balances from ${currentPeriodId} to ${nextPeriodId}...`);
 
         const currentPeriod = await tx.accountingPeriod.findUnique({ where: { id: currentPeriodId } });
         const nextPeriod = await tx.accountingPeriod.findUnique({ where: { id: nextPeriodId } });
@@ -414,7 +414,7 @@ class ClosingService {
             const startComp = this.getJakartaComponents(period.startDate);
             const periodStart = new Date(Date.UTC(startComp.year, startComp.month - 1, startComp.day, 0, 0, 0, 0));
 
-            console.log('[CLOSING] Period Start (UTC-anchored):', periodStart.toISOString());
+            (() => {})('[CLOSING] Period Start (UTC-anchored):', periodStart.toISOString());
 
             // Find or create next period
             let nextPeriod = await tx.accountingPeriod.findFirst({
@@ -570,8 +570,8 @@ class ClosingService {
                 nextPeriodStart = new Date(Date.UTC(nextComp.year, nextComp.month - 1, nextComp.day, 0, 0, 0, 0));
             }
 
-            console.log('[CLOSING] Next Period:', nextPeriod ? nextPeriod.periodName : 'NONE');
-            console.log('[CLOSING] Next Period Start:', nextPeriodStart);
+            (() => {})('[CLOSING] Next Period:', nextPeriod ? nextPeriod.periodName : 'NONE');
+            (() => {})('[CLOSING] Next Period Start:', nextPeriodStart);
 
             if (nextPeriodStart) {
                 // A. Hapus "data stock sampah" di periode berikutnya
@@ -591,7 +591,7 @@ class ClosingService {
                     where: { period: periodStart }
                 });
 
-                console.log(`[CLOSING] Found ${currentStockBalances.length} stock records to rollover from ${period.periodName}`);
+                (() => {})(`[CLOSING] Found ${currentStockBalances.length} stock records to rollover from ${period.periodName}`);
 
                 for (const sb of currentStockBalances) {
                     const nextSB = await tx.stockBalance.findUnique({
@@ -643,7 +643,7 @@ class ClosingService {
                         });
                     } else {
                         // Create new record untuk periode depan
-                        console.log(`[CLOSING] Creating new stock record for Product ${sb.productId}, Warehouse ${sb.warehouseId}`);
+                        (() => {})(`[CLOSING] Creating new stock record for Product ${sb.productId}, Warehouse ${sb.warehouseId}`);
                         await tx.stockBalance.create({
                             data: {
                                 productId: sb.productId,

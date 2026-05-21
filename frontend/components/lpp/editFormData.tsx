@@ -149,7 +149,7 @@ const EditLppForm: React.FC<EditLppFormProps> = ({
     const router = useRouter();
     const PAYMENT_METHODS = ["CASH", "TRANSFER", "DEBIT", "CREDIT_CARD", "QRIS"] as const;
 
-    console.log("DATA RECEIVED FROM PAGE.TSX", initialData)
+    (() => {})("DATA RECEIVED FROM PAGE.TSX", initialData)
 
     // Prepare initial values dari existing data
     const getInitialValues = (): UpdateLppForm => {
@@ -224,8 +224,8 @@ const EditLppForm: React.FC<EditLppFormProps> = ({
         }
     }, [serverErrors, form]);
 
-    // console.log("📋 [EDIT FORM] Data Received:", purchaseRequest);
-    // console.log("📋 [EDIT FORM] Initial Data:", initialData);
+    // (() => {})("📋 [EDIT FORM] Data Received:", purchaseRequest);
+    // (() => {})("📋 [EDIT FORM] Initial Data:", initialData);
 
     const { fields, append, remove } = useFieldArray({
         control: form.control,
@@ -372,7 +372,7 @@ const EditLppForm: React.FC<EditLppFormProps> = ({
     ];
 
     const onSubmitForm = async (data: FormValues) => {
-        // console.log("📋 DATA SEND", data);
+        // (() => {})("📋 DATA SEND", data);
         if (!uangMuka?.id) {
             alert("Purchase Request tidak memiliki Uang Muka yang valid");
             return;
@@ -390,7 +390,7 @@ const EditLppForm: React.FC<EditLppFormProps> = ({
                 uangMuka.id,
             );
 
-            // console.log("📤 [EDIT FORM] Final LPP Data:", lppData);
+            // (() => {})("📤 [EDIT FORM] Final LPP Data:", lppData);
 
             // Kirim data form DAN fotoBuktiMap ke parent component
             await onSubmit(lppData, fotoBuktiMap);

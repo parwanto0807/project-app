@@ -292,7 +292,7 @@ export const createProduct = async (req, res) => {
       data: productData,
     });
 
-    // console.log(`✅ Product created: ${created.code} - ${created.name}`);
+    // (() => {})(`✅ Product created: ${created.code} - ${created.name}`);
 
     // ✅ KIRIM NOTIFIKASI SETELAH PRODUCT BERHASIL DIBUAT
     try {
@@ -309,7 +309,7 @@ export const createProduct = async (req, res) => {
         },
       });
 
-      // console.log(
+      // (() => {})(
       //   `📢 Sending notification to ${adminUsers.length} admin users`
       // );
 
@@ -329,7 +329,7 @@ export const createProduct = async (req, res) => {
           },
         });
 
-        console.log(`✅ Notification sent to admin: ${admin.email}`);
+        (() => {})(`✅ Notification sent to admin: ${admin.email}`);
       }
 
       // Juga kirim notifikasi ke user yang membuat product (jika bukan admin)
@@ -346,7 +346,7 @@ export const createProduct = async (req, res) => {
           },
         });
 
-        console.log(`✅ Notification sent to creator: ${req.user.email}`);
+        (() => {})(`✅ Notification sent to creator: ${req.user.email}`);
       }
     } catch (notificationError) {
       // Jangan gagalkan create product jika notifikasi gagal

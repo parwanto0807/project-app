@@ -4,7 +4,7 @@ async function fixHierarchy() {
     const allCoas = await prisma.chartOfAccounts.findMany();
     const coaMap = new Map(allCoas.map(coa => [coa.code, coa]));
     
-    console.log(`Analyzing ${allCoas.length} accounts...`);
+    (() => {})(`Analyzing ${allCoas.length} accounts...`);
     let updatedCount = 0;
 
     for (const coa of allCoas) {
@@ -36,12 +36,12 @@ async function fixHierarchy() {
                     data: { parentId: parent.id }
                 });
                 updatedCount++;
-                console.log(`Linked ${coa.code} -> ${parent.code}`);
+                (() => {})(`Linked ${coa.code} -> ${parent.code}`);
             }
         }
     }
 
-    console.log(`\n✅ Done! Updated ${updatedCount} accounts.`);
+    (() => {})(`\n✅ Done! Updated ${updatedCount} accounts.`);
     await prisma.$disconnect();
 }
 

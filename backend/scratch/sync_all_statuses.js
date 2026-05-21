@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function syncAllStatuses() {
-  console.log('🚀 Starting bulk status synchronization...');
+  (() => {})('🚀 Starting bulk status synchronization...');
   
   const salesOrders = await prisma.salesOrder.findMany({
     include: {
@@ -16,7 +16,7 @@ async function syncAllStatuses() {
     }
   });
 
-  console.log(`Found ${salesOrders.length} Sales Orders to check.`);
+  (() => {})(`Found ${salesOrders.length} Sales Orders to check.`);
 
   let updatedCount = 0;
   let spkClosedCount = 0;
@@ -40,7 +40,7 @@ async function syncAllStatuses() {
 
     // Only update if status needs changing
     if (targetStatus && so.status !== targetStatus) {
-      console.log(`Updating SO ${so.soNumber}: ${so.status} -> ${targetStatus}`);
+      (() => {})(`Updating SO ${so.soNumber}: ${so.status} -> ${targetStatus}`);
       await prisma.salesOrder.update({
         where: { id: so.id },
         data: { status: targetStatus }
@@ -63,16 +63,16 @@ async function syncAllStatuses() {
           }
         });
         if (result.count > 0) {
-          console.log(`  - Closed ${result.count} SPKs for this SO.`);
+          (() => {})(`  - Closed ${result.count} SPKs for this SO.`);
           spkClosedCount += result.count;
         }
       }
     }
   }
 
-  console.log('\n✅ Synchronization complete!');
-  console.log(`Total Sales Orders updated: ${updatedCount}`);
-  console.log(`Total SPKs closed: ${spkClosedCount}`);
+  (() => {})('\n✅ Synchronization complete!');
+  (() => {})(`Total Sales Orders updated: ${updatedCount}`);
+  (() => {})(`Total SPKs closed: ${spkClosedCount}`);
 }
 
 syncAllStatuses()

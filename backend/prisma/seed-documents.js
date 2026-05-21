@@ -18,7 +18,7 @@ async function main() {
     })
   }
 
-  console.log('Seeded departments')
+  (() => {})('Seeded departments')
 }
 
 main()

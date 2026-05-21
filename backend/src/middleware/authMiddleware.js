@@ -83,7 +83,7 @@ async function verifySessionToken(req, res, next) {
 }
 
 async function checkMFAStatus(req, res, next) {
-  //  console.log("[MFA STATUS MIDDLEWARE 1]", req.user);
+  //  (() => {})("[MFA STATUS MIDDLEWARE 1]", req.user);
 
   // Handle both JWT token (userId) and session token (id)
   const userId = req.user?.userId || req.user?.id;
@@ -95,8 +95,8 @@ async function checkMFAStatus(req, res, next) {
   const deviceId = req.headers["x-device-id"] || req.ip;
   const isNewDevice = await checkIfNewDevice(userId, deviceId);
 
-  //  console.log("[DeviceId]", deviceId);
-  //  console.log("[IsNewDevice]", isNewDevice);
+  //  (() => {})("[DeviceId]", deviceId);
+  //  (() => {})("[IsNewDevice]", isNewDevice);
 
   // Ambil mfaEnabled dari DB!
   const userDb = await prisma.user.findUnique({
@@ -108,7 +108,7 @@ async function checkMFAStatus(req, res, next) {
     required: isNewDevice && userDb?.mfaEnabled,
     enabled: userDb?.mfaEnabled,
   };
-  //  console.log("[MFA STATUS MIDDLEWARE 2]", req.mfaStatus);
+  //  (() => {})("[MFA STATUS MIDDLEWARE 2]", req.mfaStatus);
   next();
 }
 
@@ -293,14 +293,14 @@ function authorizeAdmin(req, res, next) {
 
 function authorizeSuperAdmin(req, res, next) {
   if (req.user?.role !== "super") {
-    console.log("User at authorizeSuperAdmin:", req.user);
+    (() => {})("User at authorizeSuperAdmin:", req.user);
     return res.status(403).json({ message: "Forbidden - Super Admin only" });
   }
   next();
 }
 
 function authorizeAdminOrSuper(req, res, next) {
-  // console.log("User at authorize:", req.user);
+  // (() => {})("User at authorize:", req.user);
   if (req.user?.role === "admin" || req.user?.role === "super") {
     return next();
   }
@@ -330,7 +330,7 @@ export const updateSessionActivity = async (req, res, next) => {
     });
 
     if (!activeSession) {
-      console.log(
+      (() => {})(
         `[ACTIVITY] ⚠️ No active session for user: ${userId.substring(0, 8)}...`
       );
       return next();
@@ -343,12 +343,12 @@ export const updateSessionActivity = async (req, res, next) => {
         data: { lastActiveAt: new Date() },
       })
       .then(() => {
-        console.log(
+        (() => {})(
           `[ACTIVITY] ✅ Updated: ${activeSession.id.substring(0, 8)}...`
         );
       })
       .catch((error) => {
-        console.log(`[ACTIVITY] ⚠️ Update failed: ${error.message}`);
+        (() => {})(`[ACTIVITY] ⚠️ Update failed: ${error.message}`);
       });
   } catch (error) {
     console.error("[ACTIVITY] Error:", error.message);

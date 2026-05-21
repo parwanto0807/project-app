@@ -1095,16 +1095,16 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                 title="Scan QR Code untuk Approve"
                 description="Scan QR Code pada Material Requisition untuk memverifikasi dan menyetujui permintaan"
                 onScanSuccess={async (scannedToken) => {
-                    console.log("🔍 QR Scanned successfully:", scannedToken)
+                    (() => {})("🔍 QR Scanned successfully:", scannedToken)
 
                     // Close QR scanner first
-                    console.log("🔍 Closing QR Scanner...")
+                    (() => {})("🔍 Closing QR Scanner...")
                     setShowQRScanner(false)
 
                     // Small delay before showing next dialog to prevent UI freeze
                     setTimeout(() => {
                         if (selectedMR) {
-                            console.log("🔍 Setting pending issue data and opening confirmation dialog...")
+                            (() => {})("🔍 Setting pending issue data and opening confirmation dialog...")
                             setPendingIssueData({
                                 scannedToken,
                                 mr: selectedMR
@@ -1175,7 +1175,7 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                             issuedById: "temp-user-id" // TODO: Get from auth session
                         });
 
-                        console.log("API Response:", result);
+                        (() => {})("API Response:", result);
 
                         if (result.success) {
                             // Close dialog first
@@ -1183,7 +1183,7 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
 
                             // Auto-post journal for WIP warehouse
                             if (pendingIssueData.mr.Warehouse?.isWip) {
-                                console.log("📝 Auto-posting journal for WIP warehouse...");
+                                (() => {})("📝 Auto-posting journal for WIP warehouse...");
                                 try {
                                     const postResult = await postMRJournal(pendingIssueData.mr.id);
                                     if (!postResult.success) {

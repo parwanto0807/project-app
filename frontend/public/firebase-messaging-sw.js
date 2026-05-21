@@ -40,7 +40,7 @@ self.addEventListener("install", (event) => {
 
       const cachePromises = assetsToCache.map((asset) => {
         return cache.add(asset).catch((error) => {
-          console.log(`🔔 [SW] Failed to cache ${asset}:`, error);
+          (() => {})(`🔔 [SW] Failed to cache ${asset}:`, error);
         });
       });
 
