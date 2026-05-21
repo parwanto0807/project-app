@@ -41,3 +41,5 @@ coverage/
 
 # Misc
 *.pem
+backend/public/images/
+backend/public/uploads/
