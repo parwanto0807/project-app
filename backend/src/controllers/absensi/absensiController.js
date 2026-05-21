@@ -20,14 +20,12 @@ export const getAllAbsensi = async (req, res) => {
       },
     };
 
-    // Filter tanggal yang lebih fleksibel
+    // Filter tanggal yang lebih fleksibel (Gunakan UTC+7/WIB untuk Production)
     if (startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      
-      // Jika tanggal sama (filter hari ini), pastikan mencakup 00:00 sampai 23:59
-      start.setHours(0, 0, 0, 0);
-      end.setHours(23, 59, 59, 999);
+      // Set start: 00:00:00 WIB -> UTC
+      const start = new Date(`${startDate}T00:00:00+07:00`);
+      // Set end: 23:59:59 WIB -> UTC
+      const end = new Date(`${endDate}T23:59:59.999+07:00`);
       
       where.tanggal = {
         gte: start,
@@ -62,14 +60,14 @@ export const getAllAbsensi = async (req, res) => {
     });
 
     if (startDate && endDate && needsValidation !== "true") {
-      const start = new Date(startDate);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
+      const start = new Date(`${startDate}T00:00:00+07:00`);
+      const end = new Date(`${endDate}T23:59:59.999+07:00`);
       
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      yesterday.setHours(23, 59, 59, 999);
+      // Hitung yesterday dalam WIB
+      const nowWIB = new Date(new Date().getTime() + 7 * 60 * 60 * 1000);
+      const yesterdayWIB = new Date(nowWIB.getTime() - 24 * 60 * 60 * 1000);
+      const yesterdayStr = yesterdayWIB.toISOString().split('T')[0];
+      const yesterday = new Date(`${yesterdayStr}T23:59:59.999+07:00`);
 
       // Jangan tampilkan mangkir untuk hari ini atau di masa depan
       const loopEnd = end > yesterday ? yesterday : end;
@@ -91,17 +89,18 @@ export const getAllAbsensi = async (req, res) => {
 
       const virtualRecords = [];
       const getLocalDateStr = (dateObj) => {
-        const d = new Date(dateObj);
-        return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        // Asumsikan dateObj adalah waktu UTC, konversi ke WIB (+7)
+        const d = new Date(dateObj.getTime() + 7 * 60 * 60 * 1000);
+        return d.toISOString().split('T')[0];
       };
 
       const absensiMap = new Set(absensi.map(a => `${a.karyawanId}_${getLocalDateStr(a.tanggal)}`));
 
-      // Iterasi tiap tanggal dalam rentang
-      const d = new Date(start);
-      d.setHours(0, 0, 0, 0);
+      // Iterasi tiap tanggal dalam rentang (menggunakan local WIB logic)
+      // d kita set jam 12 siang WIB agar aman dari pergeseran hari
+      const d = new Date(`${startDate}T12:00:00+07:00`);
 
-      while (d <= loopEnd) {
+      while (d <= loopEnd || getLocalDateStr(d) === getLocalDateStr(loopEnd)) {
         const dateStr = getLocalDateStr(d);
         
         for (const k of wajibKaryawan) {
@@ -112,8 +111,7 @@ export const getAllAbsensi = async (req, res) => {
             // Abaikan jika karyawan keluar sebelum tanggal ini
             if (k.tanggalKeluar && getLocalDateStr(k.tanggalKeluar) < dateStr) continue;
 
-            const virtualDate = new Date(d);
-            virtualDate.setHours(8, 0, 0, 0); // set to 8 AM local so UTC date matches local date
+            const virtualDate = new Date(`${dateStr}T08:00:00+07:00`);
 
             virtualRecords.push({
               id: `virtual-${k.id}-${dateStr}`,
@@ -129,6 +127,8 @@ export const getAllAbsensi = async (req, res) => {
           }
         }
         d.setDate(d.getDate() + 1);
+        // Pastikan tidak kebablasan dari loopEnd
+        if (getLocalDateStr(d) > getLocalDateStr(loopEnd)) break;
       }
 
       absensi = [...absensi, ...virtualRecords].sort((a, b) => {
