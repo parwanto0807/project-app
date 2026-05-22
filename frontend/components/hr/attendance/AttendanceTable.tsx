@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Eye, MapPin, Smartphone, AlertTriangle, ShieldCheck, CheckCircle2, PlusCircle, Trash2, Loader2 } from "lucide-react";
+import { Eye, MapPin, Smartphone, AlertTriangle, ShieldCheck, CheckCircle2, PlusCircle, Trash2, Loader2, Fingerprint } from "lucide-react";
 import { Fragment, useState, useEffect } from "react";
 import ValidateAttendanceDialog from "./ValidateAttendanceDialog";
 import { ManualAttendanceDialog } from "./ManualAttendanceDialog";
@@ -316,8 +316,21 @@ export function AttendanceTable({ data, isLoading, onViewDetail, onRefresh }: Ta
                                 </span>
                               )}
                               {row.deviceMasuk && (
-                                <span title={row.deviceMasuk}>
-                                  <Smartphone className="h-3 w-3 text-blue-500" />
+                                <span title={`Masuk: ${row.deviceMasuk}`}>
+                                  {row.deviceMasuk.includes("Fingerprint") ? (
+                                    <Fingerprint className="h-3 w-3 text-indigo-500" />
+                                  ) : (
+                                    <Smartphone className="h-3 w-3 text-blue-500" />
+                                  )}
+                                </span>
+                              )}
+                              {row.deviceKeluar && row.deviceKeluar !== row.deviceMasuk && (
+                                <span title={`Keluar: ${row.deviceKeluar}`}>
+                                  {row.deviceKeluar.includes("Fingerprint") ? (
+                                    <Fingerprint className="h-3 w-3 text-indigo-500" />
+                                  ) : (
+                                    <Smartphone className="h-3 w-3 text-blue-500" />
+                                  )}
                                 </span>
                               )}
                               {(row.isMockedMasuk || row.isMockedKeluar) && (

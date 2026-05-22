@@ -89,14 +89,15 @@ export const cdataPost = async (req, res) => {
           });
 
           if (!absensiHariIni) {
-            await prisma.absensi.create({
-              data: {
-                karyawanId: karyawan.id,
-                tanggal: startOfDay,
-                jamMasuk: checkTime,
-                catatanValidasi: "Auto-generated via Mesin Fingerprint (ADMS)"
-              }
-            });
+              await prisma.absensi.create({
+                data: {
+                  karyawanId: karyawan.id,
+                  tanggal: startOfDay,
+                  jamMasuk: checkTime,
+                  deviceMasuk: `Fingerprint (${SN || "Unknown Device"})`,
+                  catatanValidasi: "Auto-generated via Mesin Fingerprint (ADMS)"
+                }
+              });
             successCount++;
 
             // Send notification for Clock In
@@ -120,7 +121,8 @@ export const cdataPost = async (req, res) => {
                await prisma.absensi.update({
                  where: { id: absensiHariIni.id },
                  data: {
-                   jamKeluar: checkTime
+                   jamKeluar: checkTime,
+                   deviceKeluar: `Fingerprint (${SN || "Unknown Device"})`
                  }
                });
                successCount++;
