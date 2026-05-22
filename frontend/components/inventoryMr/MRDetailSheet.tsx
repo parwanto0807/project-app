@@ -1,4 +1,5 @@
 import * as React from "react"
+import { QRCodeSVG } from "qrcode.react"
 import {
     SheetContent,
     SheetDescription,
@@ -84,7 +85,6 @@ interface MaterialRequisitionItem {
 
 interface MRDetailSheetProps {
     mr: MaterialRequisition | null
-    qrCodeUrl: string
     onScanQRCode?: () => void
     onRefresh?: () => void
     currentUserId?: string
@@ -134,7 +134,6 @@ const getStatusConfig = (status: string) => {
 
 export const MRDetailSheet: React.FC<MRDetailSheetProps> = ({
     mr,
-    qrCodeUrl,
     onScanQRCode,
     onRefresh,
     currentUserId = "temp-user-id" // TODO: Get from auth session
@@ -498,7 +497,6 @@ export const MRDetailSheet: React.FC<MRDetailSheetProps> = ({
                             size="lg"
                             onClick={() => {
                                 // Implement approve logic
-                                ;(() => {})("Approve dari sheet:", mr.id)
                             }}
                         >
                             <CheckCheck className="h-5 w-5 mr-2" />

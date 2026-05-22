@@ -295,11 +295,7 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
         setShowQRScanner(true);
     }
 
-    const handleViewDetails = (mr: MaterialRequisition) => {
-        setSelectedMR(mr)
-        generateQRCode(mr.qrToken)
-        setShowDetailSheet(true)
-    }
+
 
     const handleScanQRCode = () => {
         if (!selectedMR) return;
@@ -1080,16 +1076,12 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                 title="Scan QR Code untuk Approve"
                 description="Scan QR Code pada Material Requisition untuk memverifikasi dan menyetujui permintaan"
                 onScanSuccess={async (scannedToken) => {
-                    ;(() => {})("🔍 QR Scanned successfully:", scannedToken)
-
                     // Close QR scanner first
-                    ;(() => {})("🔍 Closing QR Scanner...")
                     setShowQRScanner(false)
 
                     // Small delay before showing next dialog to prevent UI freeze
                     setTimeout(() => {
                         if (selectedMR) {
-                            ;(() => {})("🔍 Setting pending issue data and opening confirmation dialog...")
                             setPendingIssueData({
                                 scannedToken,
                                 mr: selectedMR
@@ -1160,15 +1152,12 @@ const TableMR: React.FC<TableMRProps> = ({ data, isLoading, onRefresh }) => {
                             issuedById: "temp-user-id" // TODO: Get from auth session
                         });
 
-                        ;(() => {})("API Response:", result);
-
                         if (result.success) {
                             // Close dialog first
                             setShowConfirmDialog(false);
 
                             // Auto-post journal for WIP warehouse
                             if (pendingIssueData.mr.Warehouse?.isWip) {
-                                ;(() => {})("📝 Auto-posting journal for WIP warehouse...");
                                 try {
                                     const postResult = await postMRJournal(pendingIssueData.mr.id);
                                     if (!postResult.success) {
